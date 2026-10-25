@@ -1,6 +1,7 @@
 mod task_queue;
 mod manager_bot;
 mod agent_kb;
+mod worktree;
 
 use task_queue::TaskQueue;
 use manager_bot::ManagerBot;

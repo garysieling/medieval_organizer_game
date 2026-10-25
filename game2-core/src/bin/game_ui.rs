@@ -201,6 +201,17 @@ fn main() {
             }
         }
 
+        // death check: health <= 0 -> grave + log
+        for (i, v) in villagers.iter().enumerate() {
+            if let Some(h) = world.get_component::<Health>(*v) {
+                if h.condition <= 0.0 {
+                    toasts.push((format!("{} has died.", names[i]), tick + 60));
+                    log.push(format!("t{}: {} died.", tick, names[i]));
+                    world.remove_component::<Health>(*v);
+                }
+            }
+        }
+
         // detect events -> toasts
         let gc = world.query::<Guild>().len();
         if gc > last_guild_count {
@@ -223,15 +234,18 @@ fn main() {
             Season::Autumn => (1.15, 0.9, 0.7),
             Season::Winter => (0.85, 0.9, 1.15),
         };
+        let wave_phase = (tick % 20) < 10;
         for y in 0..H { for x in 0..MAP_W {
             let idx = (y * MAP_W + x) * 4;
             if idx + 3 < board.pixels.len() {
                 let (r, g, b) = (board.pixels[idx], board.pixels[idx+1], board.pixels[idx+2]);
                 if !(r == 0 && g == 0 && b == 0) {
+                    // water shimmer: blue pixels brighten slightly on alternate frames
+                    let shimmer = if b > r && b > g && wave_phase { 18.0 } else { 0.0 };
                     buf.set(x as i32, y as i32,
-                        (r as f32 * tint_r) as u8,
-                        (g as f32 * tint_g) as u8,
-                        (b as f32 * tint_b) as u8);
+                        (r as f32 * tint_r).min(255.0) as u8,
+                        (g as f32 * tint_g).min(255.0) as u8,
+                        ((b as f32 * tint_b) + shimmer).min(255.0) as u8);
                 }
             }
         }}
@@ -262,6 +276,12 @@ fn main() {
             // selection highlight
             if i == selected_target {
                 draw_rect(&mut buf, sx - 14, sy - 66, 28, 2, 255, 255, 0);
+            }
+            // grave if dead (no Health component)
+            if world.get_component::<Health>(villagers[i]).is_none() {
+                buf.rect(sx - 4, sy - 10, 8, 10, 120, 120, 130); // gravestone
+                draw_text(&mut buf, sx - 6, sy - 20, "RIP", 200, 200, 210);
+                continue;
             }
             // name label
             draw_text(&mut buf, sx - 14, sy - 76, names[i], 255, 255, 255);

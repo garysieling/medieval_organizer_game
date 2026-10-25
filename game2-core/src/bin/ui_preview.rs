@@ -57,11 +57,17 @@ fn main() {
     let mill_s = Sprite::load(&assets.path(&assets.building_sprite("mill", "wood"))).ok();
     let blacksmith_s = Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok();
     let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
+    let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
+    let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
+    let stone_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok();
 
     let buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
         (5.0, 5.0, &house_s), (12.0, 4.0, &house_s), (7.0, 12.0, &house_s),
         (10.0, 9.0, &mill_s), (15.0, 8.0, &blacksmith_s),
         (3.0, 14.0, &tree_s), (18.0, 5.0, &tree_s), (9.0, 16.0, &tree_s), (20.0, 12.0, &tree_s),
+        (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
+        (16.0, 15.0, &corn_s), (16.0, 16.0, &corn_s), (17.0, 15.0, &corn_s),
+        (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
     ];
 
     let mut villagers = vec![];

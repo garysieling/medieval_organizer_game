@@ -41,7 +41,8 @@ Each agent should have:
 ---
 
 ### Pedantic Senior Engineer
-**Status:** Backlog
+**Status:** Spec Defined
+**Spec Location:** `wiki/agents/pedantic-senior-engineer.md`
 **Priority:** CRITICAL
 
 **Job Description:**
@@ -226,7 +227,8 @@ Each agent should have:
 ## Research & Analysis Agents
 
 ### Retrospective Agent
-**Status:** Backlog
+**Status:** Spec Defined
+**Spec Location:** `wiki/agents/retrospective-agent.md`
 **Priority:** CRITICAL
 
 **Job Description:**
@@ -455,7 +457,8 @@ Each agent should have:
 ---
 
 ### PR Agent
-**Status:** Backlog
+**Status:** Spec Defined
+**Spec Location:** `wiki/agents/pr-agent.md`
 **Priority:** CRITICAL
 
 **Job Description:**
@@ -480,7 +483,8 @@ Each agent should have:
 ---
 
 ### Conflict Resolution Agent
-**Status:** Backlog
+**Status:** Spec Defined
+**Spec Location:** `wiki/agents/conflict-resolution-agent.md`
 **Priority:** CRITICAL
 
 **Job Description:**

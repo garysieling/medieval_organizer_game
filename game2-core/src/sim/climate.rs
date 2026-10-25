@@ -9,6 +9,7 @@ use crate::engine::ecs::{Entity, World};
 pub struct Climate {
     pub season: Season,
     pub year: u32,
+    pub day: u32,               // day of the year (tick counter)
     pub temperature_drift: f32, // long-term warming/cooling
     pub rainfall_drift: f32,    // long-term wet/dry trend
     pub severity: f32,          // 0-1, how harsh the climate is
@@ -44,12 +45,16 @@ impl crate::engine::ecs::System for SeasonSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Climate>() {
             if let Some(c) = world.get_component_mut::<Climate>(e) {
-                c.season = match c.season {
-                    Season::Spring => Season::Summer,
-                    Season::Summer => Season::Autumn,
-                    Season::Autumn => Season::Winter,
-                    Season::Winter => { c.year += 1; Season::Spring }
-                };
+                c.day += 1;
+                // season changes every 90 days (ticks)
+                if c.day % 90 == 0 {
+                    c.season = match c.season {
+                        Season::Spring => Season::Summer,
+                        Season::Summer => Season::Autumn,
+                        Season::Autumn => Season::Winter,
+                        Season::Winter => { c.year += 1; Season::Spring }
+                    };
+                }
                 // Climate drifts over time (the threat)
                 c.temperature_drift += 0.001;
                 c.severity = (c.temperature_drift * 0.1).min(1.0);
@@ -74,6 +79,7 @@ pub fn spawn_climate(world: &mut World) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Climate {
         season: Season::Spring,
+        day: 0,
         year: 1,
         temperature_drift: 0.0,
         rainfall_drift: 0.0,
@@ -100,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_climate_scarcity() {
-        let c = Climate { season: Season::Winter, year: 1, temperature_drift: 0.5, rainfall_drift: 0.0, severity: 0.8 };
+        let c = Climate { season: Season::Winter, year: 1, day: 0, temperature_drift: 0.5, rainfall_drift: 0.0, severity: 0.8 };
         assert!(climate_multiplier(&c, "food") < 0.5); // winter + severe = scarce
     }
 }

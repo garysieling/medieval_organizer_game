@@ -69,6 +69,11 @@ impl Sprite {
         self.blit(buf, cx - self.width as i32 / 2, cy - self.height as i32);
     }
 
+    /// Blit with bottom-center anchor (isometric buildings sit on tile base)
+    pub fn blit_bottom(&self, buf: &mut Buffer, cx: i32, bottom_y: i32) {
+        self.blit(buf, cx - self.width as i32 / 2, bottom_y - self.height as i32);
+    }
+
     /// Blit scaled (nearest-neighbor)
     pub fn blit_scaled(&self, buf: &mut Buffer, x: i32, y: i32, scale: usize) {
         for sy in 0..self.height {

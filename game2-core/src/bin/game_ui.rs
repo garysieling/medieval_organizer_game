@@ -148,7 +148,7 @@ fn main() {
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
     for (i, _n) in names.iter().enumerate() {
-        let v = villager::spawn_villager(&mut world, (i*4 + 3) as f32, (i%3 + 6) as f32);
+        let v = villager::spawn_villager(&mut world, [4.0,10.0,16.0,8.0,14.0][i] as f32, [5.0,13.0,7.0,16.0,11.0][i] as f32);
         world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
         world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
@@ -231,9 +231,33 @@ fn main() {
             continue;
         }
 
-        if !paused {
-            for _ in 0..speed { tick += 1; sched.tick(&mut world); }
+        // sim advance: one tick = one day, throttled by frame count
+        frame_n += 1;
+        let ticks_per_frame = if speed == 1 { 30 } else { 8 }; // frames between ticks
+        if !paused && frame_n % ticks_per_frame == 0 {
+            tick += 1;
+            sched.tick(&mut world);
         }
+        // villagers separate if too close (no clustering)
+        for i in 0..villagers.len() {
+            for j in (i+1)..villagers.len() {
+                let (ax, ay, bx, by) = {
+                    let pa = world.get_component::<Pos>(villagers[i]);
+                    let pb = world.get_component::<Pos>(villagers[j]);
+                    match (pa, pb) { (Some(a), Some(b)) => (a.x, a.y, b.x, b.y), _ => continue }
+                };
+                let dx = bx - ax; let dy = by - ay;
+                let d2 = dx*dx + dy*dy;
+                if d2 < 4.0 && d2 > 0.001 {
+                    let d = d2.sqrt();
+                    let push = (2.0 - d) * 0.05;
+                    let nx = dx / d * push; let ny = dy / d * push;
+                    if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
+                    if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
+                }
+            }
+        }
+
         // idle villagers wander (village feels alive)
         if !paused {
             for v in villagers.iter() {
@@ -305,8 +329,7 @@ fn main() {
         let mut buf = Buffer::new(W, H);
         buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
 
-        // isometric terrain (season-tinted)
-        let board = render_terrain(&terrain, MAP_W, H);
+        // terrain rendered in the SAME projection as entities (unified map)
         let season = world.get_component::<climate::Climate>(climate).unwrap().season;
         let (tint_r, tint_g, tint_b) = match season {
             Season::Spring => (1.0, 1.1, 0.9),
@@ -314,21 +337,26 @@ fn main() {
             Season::Autumn => (1.15, 0.9, 0.7),
             Season::Winter => (0.85, 0.9, 1.15),
         };
-        let wave_phase = (tick % 20) < 10;
-        for y in 0..H { for x in 0..MAP_W {
-            let idx = (y * MAP_W + x) * 4;
-            if idx + 3 < board.pixels.len() {
-                let (r, g, b) = (board.pixels[idx], board.pixels[idx+1], board.pixels[idx+2]);
-                if !(r == 0 && g == 0 && b == 0) {
-                    // water shimmer: blue pixels brighten slightly on alternate frames
-                    let shimmer = if b > r && b > g && wave_phase { 18.0 } else { 0.0 };
-                    buf.set(x as i32, y as i32,
-                        (r as f32 * tint_r).min(255.0) as u8,
-                        (g as f32 * tint_g).min(255.0) as u8,
-                        ((b as f32 * tint_b) + shimmer).min(255.0) as u8);
-                }
+        let wave_phase = (tick % 40) < 20;
+        let tw = (TILE_W as f32 * zoom) as i32;
+        let th = (TILE_H as f32 * zoom) as i32;
+        for ty in 0..terrain.height {
+            for tx in 0..terrain.width {
+                let h = terrain.get(tx, ty);
+                let (mut r, mut g, mut b) = if h < 0.15 { (30, 60, 180) }
+                    else if h < 0.35 { (60, 140, 60) }
+                    else if h < 0.55 { (140, 110, 50) }
+                    else if h < 0.75 { (110, 90, 60) }
+                    else { (220, 220, 220) };
+                r = (r as f32 * tint_r).min(255.0) as u8;
+                g = (g as f32 * tint_g).min(255.0) as u8;
+                b = (b as f32 * tint_b).min(255.0) as u8;
+                if b > r && b > g && wave_phase { b = b.saturating_add(15); } // water shimmer
+                let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
+                buf.diamond(sx, sy, tw, th, r, g, b);
+                buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
             }
-        }}
+        }
 
         // buildings on map (sorted back-to-front by tile y)
         let mut b_sorted: Vec<_> = buildings.iter().collect();
@@ -336,7 +364,7 @@ fn main() {
         for (bx, by, sprite) in b_sorted {
             if let Some(s) = sprite {
                 let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
-                s.blit_center(&mut buf, sx, sy);
+                s.blit_bottom(&mut buf, sx, sy + (TILE_H as f32 * zoom) as i32);
             }
         }
 
@@ -477,10 +505,15 @@ fn main() {
         let (mx, my) = (mxf as i32, myf as i32);
         for (i, b) in buttons.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            let disabled = i == 1 && world.get_component::<PlayerCharacter>(player).unwrap().influence < 0.3;
+            // proximity: Talk/Recruit need selected villager within 8 tiles of player
+            let dist_ok = world.get_component::<Pos>(villagers[selected_target])
+                .map(|vp| { let dx = vp.x - 10.0; let dy = vp.y - 10.0; (dx*dx + dy*dy).sqrt() < 8.0 })
+                .unwrap_or(false);
+            let disabled = (i == 0 || i == 1 || i == 3) && !dist_ok
+                || i == 1 && world.get_component::<PlayerCharacter>(player).unwrap().influence < 0.3;
             draw_button(&mut buf, b, hover, disabled);
-            if hover && !disabled {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, tooltips[i], 220, 220, 160);
+            if hover {
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, if disabled { "too far away" } else { tooltips[i] }, 220, 220, 160);
             }
         }
 
@@ -519,7 +552,7 @@ fn main() {
         draw_rect(&mut buf, UI_X as i32 + 10, 450, 270, 170, 25, 25, 40);
         draw_text(&mut buf, UI_X as i32 + 14, 454, "LOG", 150, 150, 180);
         for (i, entry) in log.iter().rev().take(9).enumerate() {
-            let trunc: String = entry.chars().take(44).collect();
+            let trunc: String = entry.chars().take(42).collect();
             // color by event type: deaths red, guilds gold, joins green, weather cyan, talk white
             let (r, g, b) = if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
                 else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
@@ -529,33 +562,12 @@ fn main() {
             draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, r, g, b);
         }
 
-        // season change flash (every 150 ticks = season cycle)
-        if tick % 150 < 6 && tick > 10 {
-            let flash = (6 - (tick % 150)) as f32 / 6.0 * 60.0;
-            for y in 0..H { for x in 0..MAP_W {
-                let idx = (y * MAP_W + x) * 4;
-                if idx + 2 < buf.pixels.len() {
-                    buf.pixels[idx] = (buf.pixels[idx] as f32 + flash).min(255.0) as u8;
-                    buf.pixels[idx+1] = (buf.pixels[idx+1] as f32 + flash).min(255.0) as u8;
-                    buf.pixels[idx+2] = (buf.pixels[idx+2] as f32 + flash).min(255.0) as u8;
-                }
-            }}
+        // season change: subtle banner notification instead of flash
+        if tick > 10 && tick % 90 < 3 {
+            let sname = match season { Season::Spring => "Spring", Season::Summer => "Summer", Season::Autumn => "Autumn", Season::Winter => "Winter" };
+            draw_text(&mut buf, MAP_W as i32 / 2 - 30, 60, &format!("{} arrives", sname), 255, 220, 130);
         }
 
-        // day/night tint: cycle every 60 ticks
-        let day_phase = (tick % 60) as f32 / 60.0;
-        let brightness = 0.7 + 0.3 * (day_phase * std::f32::consts::PI * 2.0).sin().abs();
-        if brightness < 0.9 {
-            for y in 0..H { for x in 0..MAP_W {
-                let idx = (y * MAP_W + x) * 4;
-                if idx + 2 < buf.pixels.len() {
-                    buf.pixels[idx]   = (buf.pixels[idx]   as f32 * brightness) as u8;
-                    buf.pixels[idx+1] = (buf.pixels[idx+1] as f32 * brightness) as u8;
-                    buf.pixels[idx+2] = (buf.pixels[idx+2] as f32 * (brightness * 1.05).min(1.0)) as u8;
-                }
-            }}
-            if day_phase > 0.5 { draw_text(&mut buf, 10, 24, "NIGHT", 160, 160, 220); }
-        }
 
         // weather tint overlay on map region
         if let Some(cl) = world.get_component::<climate::Climate>(climate) {
@@ -627,13 +639,16 @@ fn main() {
         }
         toasts.retain(|(_, until)| tick < *until);
 
-        // ambient particles: snow (winter) / dust motes (else)
+        // ambient particles only during weather (snow in winter, rain when wet)
         let is_winter = matches!(season, Season::Winter);
-        let (pr, pg, pb, drift_speed) = if is_winter { (230, 235, 255, 2) } else { (180, 170, 140, 1) };
-        for i in 0..30 {
-            let px = ((tick * drift_speed + i * 37) % MAP_W as u64) as i32;
-            let py = ((tick + i * 23) % H as u64) as i32;
-            buf.set(px, py, pr, pg, pb);
+        let raining = world.get_component::<climate::Climate>(climate).map(|c| c.rainfall_drift > 0.5).unwrap_or(false);
+        if is_winter || raining {
+            let (pr, pg, pb) = if is_winter { (230, 235, 255) } else { (120, 160, 220) };
+            for i in 0..20 {
+                let px = ((tick + i * 37) % MAP_W as u64) as i32;
+                let py = ((tick * 2 + i * 23) % H as u64) as i32;
+                if px < MAP_W as i32 { buf.set(px, py, pr, pg, pb); }
+            }
         }
 
         // season banner

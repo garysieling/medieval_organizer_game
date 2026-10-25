@@ -97,25 +97,23 @@ impl Terrain {
             }
         }
 
-        // Continent bias: edges are water, center is land (produces landmasses not uniform water)
+        // Continent bias: strong land dome in center, water only at rim
         let center = (size / 2) as f32;
         for y in 0..size {
             for x in 0..size {
                 let dx = (x as f32 - center) / center;
                 let dy = (y as f32 - center) / center;
-                let dist = (dx * dx + dy * dy).sqrt(); // 0 center -> 1 edge
-                // Push edges toward water, center toward land
-                let bias = 1.0 - dist * 0.8;
-                heights[y][x] = (heights[y][x] * 0.6 + bias * 0.4).clamp(0.0, 1.0);
+                let dist = (dx * dx + dy * dy).sqrt(); // 0 center -> ~1.4 corner
+                // Islands: land fills center 70% of grid, rim is always water
+                let dome = (1.0 - dist * dist).max(0.0); // parabolic falloff
+                heights[y][x] = (heights[y][x] * 0.35 + dome * 0.9).clamp(0.0, 1.0);
             }
         }
 
-        // Histogram spread: stretch heights so we get a good distribution
-        // Apply a mild curve that pushes mid-range toward extremes
+        // Histogram spread: mild stretch for variety without eating the land
         for row in &mut heights {
             for h in row {
-                // S-curve: emphasize mid-high range (land) over low (water)
-                *h = (*h * 1.3 - 0.15).clamp(0.0, 1.0);
+                *h = (*h * 1.15 - 0.05).clamp(0.0, 1.0);
             }
         }
 

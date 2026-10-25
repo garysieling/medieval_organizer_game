@@ -127,6 +127,14 @@ impl System for SeekFoodSystem {
             } else {
                 activity = Activity::Idle;
                 target = None;
+                // wander when idle: drift a little so they don't pile up
+                let seed = (v as u64).wrapping_add((pos.x * 7.0 + pos.y * 13.0) as u64);
+                let dx = ((seed % 7) as f32 - 3.0) * 0.06;
+                let dy = (((seed / 7) % 7) as f32 - 3.0) * 0.06;
+                if let Some(p) = world.get_component_mut::<Pos>(v) {
+                    p.x = (p.x + dx).clamp(0.0, 31.0);
+                    p.y = (p.y + dy).clamp(0.0, 31.0);
+                }
             }
 
             if let Some(vill) = world.get_component_mut::<Villager>(v) {

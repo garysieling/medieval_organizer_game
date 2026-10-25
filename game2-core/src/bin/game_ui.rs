@@ -85,7 +85,7 @@ fn main() {
 
     let terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
-    villager::spawn_food_source(&mut world, 8.0, 8.0, 500);
+    villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
     let assets = Assets::new("assets");
 
@@ -157,7 +157,7 @@ fn main() {
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
     for (i, _n) in names.iter().enumerate() {
-        let v = villager::spawn_villager(&mut world, [4.0,10.0,16.0,8.0,14.0][i] as f32, [5.0,13.0,7.0,16.0,11.0][i] as f32);
+        let v = villager::spawn_villager(&mut world, [10.0,16.0,20.0,14.0,22.0][i] as f32, [16.0,20.0,14.0,10.0,18.0][i] as f32);
         world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
         world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
@@ -253,9 +253,9 @@ fn main() {
                 };
                 let dx = bx - ax; let dy = by - ay;
                 let d2 = dx*dx + dy*dy;
-                if d2 < 4.0 && d2 > 0.001 {
+                if d2 < 9.0 && d2 > 0.001 {
                     let d = d2.sqrt();
-                    let push = (2.0 - d) * 0.05;
+                    let push = (3.0 - d) * 0.08;
                     let nx = dx / d * push; let ny = dy / d * push;
                     if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
                     if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
@@ -375,7 +375,7 @@ fn main() {
         let food_stock = world.query::<villager::FoodSource>().first()
             .and_then(|f| world.get_component::<villager::FoodSource>(*f))
             .map(|f| f.servings).unwrap_or(0);
-        let (fsx, fsy) = iso_to_screen_cam(8.0, 7.0, cam_x, cam_y, zoom);
+        let (fsx, fsy) = iso_to_screen_cam(16.0, 15.0, cam_x, cam_y, zoom);
         // stock bar under the market
         buf.rect(fsx - 20, fsy + 10, 40, 4, 60, 40, 40);
         let fw = ((food_stock as f32 / 500.0) * 40.0) as i32;
@@ -808,7 +808,7 @@ fn run_headless(target_tick: u64) {
 
     let terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
-    villager::spawn_food_source(&mut world, 8.0, 8.0, 500);
+    villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
     let assets = Assets::new("assets");
 
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];

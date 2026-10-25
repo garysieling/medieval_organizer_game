@@ -91,7 +91,9 @@ fn main() {
 
     // Load building sprites
     let house_s = Sprite::load(&assets.path(&assets.building_sprite("house", "blue"))).ok();
-    let mill_s = Sprite::load(&assets.path(&assets.building_sprite("mill", "wood"))).ok();
+    let mill_frames: Vec<Sprite> = (1..=4).map(|i|
+        Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
+    ).collect();
     let blacksmith_s = Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok();
     let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
     let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
@@ -101,7 +103,7 @@ fn main() {
     // buildings placed on map
     let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
         (5.0, 5.0, &house_s), (12.0, 4.0, &house_s), (7.0, 12.0, &house_s),
-        (10.0, 9.0, &mill_s), (15.0, 8.0, &blacksmith_s),
+        (15.0, 8.0, &blacksmith_s),
         (3.0, 14.0, &tree_s), (18.0, 5.0, &tree_s), (9.0, 16.0, &tree_s), (20.0, 12.0, &tree_s),
         // farms: wheat + corn fields near the village
         (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
@@ -243,6 +245,11 @@ fn main() {
                 s.blit_center(&mut buf, sx, sy);
             }
         }
+
+        // windmill: animated blades (frame cycles every 10 ticks)
+        let mill_frame = &mill_frames[((tick / 10) % 4) as usize];
+        let (msx, msy) = iso_to_screen_cam(10.0, 9.0, cam_x, cam_y, zoom);
+        mill_frame.blit_center(&mut buf, msx, msy);
 
         // villagers as sprites (sorted by y for depth)
         let mut v_sorted: Vec<(usize, f32, f32)> = villagers.iter().enumerate()

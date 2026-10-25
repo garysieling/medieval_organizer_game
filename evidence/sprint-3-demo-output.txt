@@ -1,4 +1,3 @@
-   Compiling game2-core v0.1.0 (F:\projects\game2\game2-core)
 warning: unused variable: `s`
   --> game2-core\src\sim\illness.rs:56:25
    |
@@ -19,7 +18,14 @@ warning: unused variable: `target`
 94 | pub fn exert_influence(world: &mut World, org: Entity, target: &str) -> f32 {
    |                                                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
 
-warning: `game2-core` (lib) generated 3 warnings (run `cargo fix --lib -p game2-core` to apply 3 suggestions)
+warning: unused variable: `resource`
+  --> game2-core\src\sim\climate.rs:62:40
+   |
+62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
+   |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
+
+warning: `game2-core` (lib) generated 4 warnings (run `cargo fix --lib -p game2-core` to apply 4 suggestions)
+   Compiling game2-core v0.1.0 (F:\projects\game2\game2-core)
 warning: unused import: `Activity`
  --> game2-core\src\bin\demo.rs:7:40
   |
@@ -35,7 +41,7 @@ warning: unused import: `AttachmentStyle`
   |                                                                   ^^^^^^^^^^^^^^^
 
 warning: `game2-core` (bin "demo") generated 2 warnings (run `cargo fix --bin "demo" -p game2-core` to apply 2 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.70s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.32s
      Running `target\debug\demo.exe`
 === EVIDENCE DEMO ===
 
@@ -94,5 +100,12 @@ anx=1 warm=9 -> Secure
 anx=8 warm=2 -> Disorganized
 anx=2 warm=3 -> Avoidant
 anx=5 warm=1 -> Disorganized
+
+--- B6: Climate (seasons + drift) ---
+year=1 season=Spring severity=0.00 food_mult=1.10
+year=1 season=Summer severity=0.00 food_mult=1.00
+year=1 season=Autumn severity=0.00 food_mult=0.90
+year=1 season=Winter severity=0.00 food_mult=0.70
+year=2 season=Spring severity=0.00 food_mult=1.10
 
 === DEMO COMPLETE ===

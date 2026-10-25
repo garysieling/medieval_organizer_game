@@ -47,5 +47,18 @@ fn main() {
         println!("anx={} warm={} -> {:?}", anx, warm, infer_style(&h));
     }
 
+    println!("\n--- B6: Climate (seasons + drift) ---");
+    let mut cw = World::new();
+    let c = game2_core::sim::climate::spawn_climate(&mut cw);
+    let mut csched = Scheduler::new();
+    csched.add_system(game2_core::sim::climate::SeasonSystem);
+    for _ in 0..5 {
+        let cl = cw.get_component::<game2_core::sim::climate::Climate>(c).unwrap();
+        println!("year={} season={:?} severity={:.2} food_mult={:.2}",
+            cl.year, cl.season, cl.severity,
+            game2_core::sim::climate::climate_multiplier(cl, "food"));
+        csched.tick(&mut cw);
+    }
+
     println!("\n=== DEMO COMPLETE ===");
 }

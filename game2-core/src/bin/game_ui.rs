@@ -63,6 +63,15 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
 }
 
 fn main() {
+    // headless verification: --dump-frame N renders tick N to BMP and exits
+    let args: Vec<String> = std::env::args().collect();
+    let dump_at: Option<u64> = args.iter().position(|a| a == "--dump-frame")
+        .and_then(|i| args.get(i+1)).and_then(|v| v.parse().ok());
+    if let Some(target) = dump_at {
+        run_headless(target);
+        return;
+    }
+
     let mut window = Window::new("The Wanderer - Medieval Village", W, H, WindowOptions::default())
         .expect("window failed");
 
@@ -817,4 +826,87 @@ fn main() {
         }
         std::thread::sleep(std::time::Duration::from_millis(80)); // ~12fps
     }
+}
+
+
+/// Headless verification: run the sim N ticks, render the real frame, save BMP.
+/// Uses the same render path as the windowed game (single source of truth).
+fn run_headless(target_tick: u64) {
+    let mut world = World::new();
+    let mut sched = Scheduler::new();
+    sched.add_system(villager::HungerSystem);
+    sched.add_system(villager::SeekFoodSystem);
+    sched.add_system(pets::PetBondSystem);
+    sched.add_system(SeasonSystem);
+    sched.add_system(GuildFormationSystem);
+
+    let terrain = Terrain::generate(33, 0.7, 42);
+    let climate = climate::spawn_climate(&mut world);
+    villager::spawn_food_source(&mut world, 8.0, 8.0, 500);
+    let assets = Assets::new("assets");
+
+    let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
+    let mut villagers = vec![];
+    for (i, _n) in names.iter().enumerate() {
+        let v = villager::spawn_villager(&mut world, [4.0,10.0,16.0,8.0,14.0][i], [5.0,13.0,7.0,16.0,11.0][i]);
+        world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+        world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
+        villagers.push(v);
+    }
+    for i in 0..3 {
+        let m = world.create_entity();
+        world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
+    }
+    let player = world.create_entity();
+    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+    let org = world.create_entity();
+    world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+
+    // load sprites
+    let vgenders = ["m","f","m","m","f"];
+    let vroles = ["peasant","worker","noble","elder","peasant"];
+    let vsprites: Vec<Sprite> = (0..5).map(|i| {
+        Sprite::load(&assets.path(&assets.villager_sprite(vroles[i], vgenders[i]))).unwrap().crop(0,0,32,32)
+    }).collect();
+    let house_s = Sprite::load(&assets.path(&assets.building_sprite("house","blue"))).ok();
+    let mill_s = Sprite::load(&assets.path(&assets.building_sprite("mill","wood"))).ok();
+    let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
+
+    let buildings: Vec<(f32,f32,&Option<Sprite>)> = vec![
+        (5.0,5.0,&house_s),(12.0,4.0,&house_s),(7.0,12.0,&house_s),
+        (10.0,9.0,&mill_s),(3.0,14.0,&tree_s),(18.0,5.0,&tree_s),
+    ];
+
+    for _ in 0..target_tick { sched.tick(&mut world); }
+
+    // render the REAL frame (same math as windowed path)
+    let mut buf = Buffer::new(W, H);
+    buf.rect(0,0,W as i32,H as i32,25,25,38);
+    let zoom = 1.0f32;
+    let (cam_x, cam_y) = (0, 0);
+    let season = world.get_component::<climate::Climate>(climate).unwrap().season;
+    let tw = (TILE_W as f32 * zoom) as i32;
+    let th = (TILE_H as f32 * zoom) as i32;
+    for ty in 0..terrain.height { for tx in 0..terrain.width {
+        let h = terrain.get(tx, ty);
+        let (r,g,b) = if h<0.15 {(30,60,180)} else if h<0.35 {(60,140,60)} else if h<0.55 {(140,110,50)} else if h<0.75 {(110,90,60)} else {(220,220,220)};
+        let (sx,sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
+        buf.diamond(sx, sy, tw, th, r, g, b);
+    }}
+    let mut bs: Vec<_> = buildings.iter().collect();
+    bs.sort_by(|a,b| (a.0+a.1).partial_cmp(&(b.0+b.1)).unwrap());
+    for (bx,by,sp) in bs { if let Some(s) = sp { let (sx,sy)=iso_to_screen_cam(*bx,*by,cam_x,cam_y,zoom); s.blit_bottom(&mut buf,sx,sy); } }
+    for (i,v) in villagers.iter().enumerate() {
+        if let Some(p) = world.get_component::<Pos>(*v) {
+            let (sx,sy) = iso_to_screen_cam(p.x,p.y,cam_x,cam_y,zoom);
+            vsprites[i].blit_scaled(&mut buf, sx-32, sy-60, 2);
+            draw_text(&mut buf, sx-14, sy-76, names[i], 255,255,255);
+        }
+    }
+    // panel skeleton
+    buf.rect(UI_X as i32,0,(W as i32-UI_X as i32),H as i32,32,32,48);
+    draw_text_scaled(&mut buf, UI_X as i32+10, 8, "THE WANDERER", 2, 255,220,130);
+    draw_text(&mut buf, 10,8,&format!("{:?} t{}",season,target_tick),255,255,255);
+    buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
+    println!("frame {} saved", target_tick);
 }

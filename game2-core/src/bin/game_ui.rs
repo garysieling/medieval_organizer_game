@@ -99,6 +99,8 @@ fn main() {
     let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
     let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
     let stone_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok();
+    let player_s = Sprite::load(&assets.path("MinifolksHumans/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok();
+    let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
 
     // buildings placed on map
     let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
@@ -109,6 +111,8 @@ fn main() {
         (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
         (16.0, 15.0, &corn_s), (16.0, 16.0, &corn_s), (17.0, 15.0, &corn_s),
         (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
+        // castle towers at the far edge (the ruler overlooks the village)
+        (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
     ];
     let mut built_count = 0usize;
     let mut zoom = 1.0f32; // 0.5 - 2.0
@@ -311,10 +315,16 @@ fn main() {
             }
         }
 
-        // player marker on map
+        // player as sprite (highlighted)
         let (px, py) = iso_to_screen_cam(10.0, 10.0, cam_x, cam_y, zoom);
-        draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
-        draw_text(&mut buf, px - 10, py - 20, "YOU", 255, 255, 0);
+        if let Some(ps) = &player_s {
+            ps.blit_scaled(&mut buf, px - 32, py - 60, 2);
+            // gold ring under player
+            buf.rect(px - 12, py - 4, 24, 3, 255, 215, 0);
+        } else {
+            draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
+        }
+        draw_text(&mut buf, px - 12, py - 76, "YOU", 255, 255, 0);
 
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, (W as i32 - UI_X as i32), H as i32, 32, 32, 48);

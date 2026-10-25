@@ -1,0 +1,130 @@
+warning: unused import: `crate::engine::ecs::World`
+ --> game2-core\src\sim\emergence.rs:5:5
+  |
+5 | use crate::engine::ecs::World;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `val`
+  --> game2-core\src\agents\fun_inspector.rs:62:17
+   |
+62 |         for (_, val, changed) in sim_log {
+   |                 ^^^ help: if this is intentional, prefix it with an underscore: `_val`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `name`
+  --> game2-core\src\game\world.rs:32:39
+   |
+32 | pub fn spawn_world(world: &mut World, name: &str) -> Entity {
+   |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\relationships.rs:59:27
+   |
+59 | pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) {
+   |                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `penalty`
+  --> game2-core\src\game\contracts.rs:57:13
+   |
+57 |         let penalty = ct.breach_penalty;
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_penalty`
+
+warning: unused variable: `parties`
+  --> game2-core\src\game\contracts.rs:58:13
+   |
+58 |         let parties = ct.parties.clone();
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parties`
+
+warning: unused variable: `name`
+  --> game2-core\src\game\lifecycle.rs:72:40
+   |
+72 | pub fn spawn_person(world: &mut World, name: &str) -> Entity {
+   |                                        ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\military.rs:41:23
+   |
+41 | pub fn resolve_battle(world: &mut World, a: &Army, b: &Army) -> BattleResult {
+   |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `winner`
+  --> game2-core\src\game\military.rs:44:9
+   |
+44 |     let winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_winner`
+
+warning: unused variable: `skill`
+  --> game2-core\src\ui\character_sheet.rs:33:14
+   |
+33 |     for (i, (skill, level)) in c.skills.iter().enumerate() {
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_skill`
+
+warning: unused variable: `s`
+  --> game2-core\src\sim\illness.rs:56:25
+   |
+56 |             if let Some(s) = new_stage {
+   |                         ^ help: if this is intentional, prefix it with an underscore: `_s`
+
+warning: unused variable: `patient`
+  --> game2-core\src\sim\illness.rs:77:43
+   |
+77 | pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
+   |                                           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_patient`
+
+warning: unused variable: `target`
+  --> game2-core\src\sim\community.rs:94:56
+   |
+94 | pub fn exert_influence(world: &mut World, org: Entity, target: &str) -> f32 {
+   |                                                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+
+warning: unused variable: `resource`
+  --> game2-core\src\sim\climate.rs:62:40
+   |
+62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
+   |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
+
+warning: `game2-core` (lib) generated 14 warnings (run `cargo fix --lib -p game2-core` to apply 14 suggestions)
+warning: unused import: `Pos`
+ --> game2-core\src\bin\village_sim.rs:6:68
+  |
+6 | use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
+  |                                                                    ^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `climate_multiplier`
+ --> game2-core\src\bin\village_sim.rs:9:52
+  |
+9 | use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
+  |                                                    ^^^^^^^^^^^^^^^^^^
+
+warning: `game2-core` (bin "village_sim") generated 2 warnings (run `cargo fix --bin "village_sim" -p game2-core` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running `target\debug\village_sim.exe`
+=== INTEGRATED VILLAGE SIM ===
+
+Villagers have hunger + health + attachment; market + climate interact
+
+tick,hunger_avg,health_avg,seeking,idle,sick,season,food_price
+
+0,99.0,0.90,0,4,0,Summer,10.00
+20,79.0,0.90,0,4,0,Summer,10.00
+40,59.0,0.90,0,4,0,Summer,10.00
+60,39.0,0.85,0,4,1,Summer,10.00
+80,77.5,0.85,1,3,1,Summer,10.00
+100,78.0,0.85,0,4,1,Summer,10.00
+120,58.0,0.85,0,4,1,Summer,10.00
+140,38.0,0.85,0,4,1,Summer,10.00
+160,89.0,0.85,0,4,1,Summer,10.00
+180,69.0,0.85,0,4,1,Summer,10.00
+
+=== ATTACHMENT STYLES (emerged from histories) ===
+villager0: anx=0 warm=3 -> Secure
+villager1: anx=1 warm=2 -> Secure
+villager2: anx=2 warm=1 -> Anxious
+villager3: anx=3 warm=0 -> Disorganized
+
+=== SIM COMPLETE ===

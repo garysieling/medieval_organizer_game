@@ -1,0 +1,122 @@
+//! THE GAME: playable medieval village sim.
+//! You are The Wanderer - an outsider building influence through organizing.
+//! Actions each turn: talk, recruit, invest, organize, build, wait.
+
+use std::io::{self, Write};
+use game2_core::engine::ecs::{Scheduler, World};
+use game2_core::game::terrain::Terrain;
+use game2_core::game::villager::{self, Hunger, Villager, Activity};
+use game2_core::game::pets::{self, Species, PetRole};
+use game2_core::game::player::PlayerCharacter;
+use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
+use game2_core::game::action_menu::{MenuActionType, show_menu, execute_choice};
+use game2_core::game::tech_tree::extended_printmaking_tree;
+use game2_core::sim::climate::{self, SeasonSystem};
+use game2_core::sim::illness::Health;
+use game2_core::sim::psychology::AttachmentHistory;
+use game2_core::sim::community::{Citizen, Organization};
+
+fn main() {
+    println!("=== THE WANDERER ===\n");
+    println!("You arrive in a village with nothing. Build influence,");
+    println!("organize the villagers, gain real power.\n");
+
+    let mut world = World::new();
+    let mut sched = Scheduler::new();
+    sched.add_system(villager::HungerSystem);
+    sched.add_system(villager::SeekFoodSystem);
+    sched.add_system(pets::PetBondSystem);
+    sched.add_system(SeasonSystem);
+    sched.add_system(GuildFormationSystem);
+
+    let terrain = Terrain::generate(33, 0.7, 42);
+    let climate = climate::spawn_climate(&mut world);
+    villager::spawn_food_source(&mut world, 8.0, 8.0, 500);
+
+    // Villagers
+    let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
+    let mut villagers = vec![];
+    for (i, n) in names.iter().enumerate() {
+        let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
+        world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+        world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
+        world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        villagers.push(v);
+    }
+
+    // Merchants (guild may form)
+    for i in 0..3 {
+        let m = world.create_entity();
+        world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
+    }
+
+    // Player + org
+    let player = world.create_entity();
+    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+    let org = world.create_entity();
+    world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+    let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
+    pets::adopt(&mut world, dog, villagers[0]);
+
+    let _techs = extended_printmaking_tree();
+    let mut tick = 0u64;
+
+    // Game loop
+    loop {
+        tick += 1;
+        sched.tick(&mut world);
+
+        // Show state
+        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        let members = world.get_component::<Organization>(org).unwrap().members.len();
+        let guilds = world.query::<Guild>().len();
+        let cl = world.get_component::<climate::Climate>(climate).unwrap();
+        println!("--- Tick {} | {:?} | {} org members | {} guilds | hunger affects village ---",
+            tick, cl.season, members, guilds);
+
+        // Villager status
+        for (i, v) in villagers.iter().enumerate() {
+            if let (Some(h), Some(vil)) = (world.get_component::<Hunger>(*v), world.get_component::<Villager>(*v)) {
+                let status = match vil.activity { Activity::SeekingFood => "seeking food", _ => "idle" };
+                print!("{}:{}({:.0}) ", names[i], status, h.value);
+            }
+        }
+        println!();
+
+        // Show menu
+        let p_ref = world.get_component::<PlayerCharacter>(player).unwrap().clone();
+        print!("{}", show_menu(&p_ref, members, tick as u32));
+        print!("choose: ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        let choice = input.trim().chars().next().unwrap_or('w');
+
+        // Execute choice
+        let target = villagers[(tick as usize) % 5];
+        let result = match choice {
+            't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target)),
+            'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target)),
+            'i' => execute_choice(&mut world, player, org, MenuActionType::Invest, None),
+            'o' => execute_choice(&mut world, player, org, MenuActionType::Organize, Some(target)),
+            'c' => execute_choice(&mut world, player, org, MenuActionType::Contract, Some(target)),
+            'b' => execute_choice(&mut world, player, org, MenuActionType::Build, None),
+            'w' | _ => "You wait and observe.".into(),
+        };
+        println!("{}\n", result);
+
+        // Random world events
+        if tick % 50 == 0 { println!("EVENT: {} occurs!", ["harvest","market day","pilgrimage","storm warning"][tick as usize / 50 % 4]); }
+
+        // Win/lose check
+        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        if p.influence > 2.0 {
+            println!("\n*** You are now the recognized leader of the village! ***");
+            println!("The Wanderer became someone who matters.");
+            break;
+        }
+        if tick > 500 { println!("\n500 turns passed. The game continues..."); break; }
+    }
+    println!("\n=== GAME OVER ===");
+}

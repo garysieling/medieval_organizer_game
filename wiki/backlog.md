@@ -14,38 +14,48 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Initial Q&A complete. Key themes identified: medieval theming, management/turtling, strategic flexibility, emergent storytelling, complex simulations (psych/sociology models), indirect control, tech progression, exploration, faction asymmetry.
 
 ### [ ] Medieval Thematic Research
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** artistic-references
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/artistic-references/medieval-thematic-research.md
 - **Notes:** Research medieval aesthetics, architecture, clothing, daily life, and cultural elements for game theming. Collect visual references and historical context for authenticity vs stylization decisions. Focus on Caesar 2/LotR era stylized aesthetic.
 
 ### [ ] Medieval Fantasy Allegory: Power Dynamics
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** artistic-references
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/artistic-references/medieval-allegory-power-dynamics.md
 - **Notes:** Research medieval power structures (nobles vs commoners, guilds vs crown, church vs state). Design allegorical system representing community organizers vs fascists/billionaires in medieval fantasy setting.
 
 ### [ ] Regional Ruler Personality Variation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/regional-ruler-personality.md
 - **Notes:** Design system where rulers/castles have different personality traits and governance styles (authoritarian vs permissive, narcissist vs ADHD, etc.). Affects how they delegate, interact, and run their territories.
 
 ### [ ] Dante's Divine Comedy as Worldbuilding
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** artistic-references
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/artistic-references/dantes-divine-comedy.md
 - **Notes:** Research Dante's Inferno, Purgatorio, Paradiso. Design how to incorporate Hell/Purgatory/Heaven as backstory, cosmology, or potential gameplay layers. Study theological and narrative aspects.
 
 ### [ ] Isometric Pixel Art with Layers
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** artistic-references
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/artistic-references/isometric-pixel-art-layers.md
 - **Notes:** Research isometric pixel art techniques, layer systems (not true 3D), and engines/frameworks that support this. Study Caesar 2, LotR era games for reference. Design art pipeline.
 
 ### [ ] WASM Game Compilation Research

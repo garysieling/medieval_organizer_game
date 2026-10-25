@@ -15,6 +15,7 @@ pub mod player;
 pub mod ai_player;
 pub mod action_menu;
 pub mod succession;
+pub mod jobs;
 pub mod migration;
 pub mod trade_routes;
 pub mod warfare;

@@ -1,18 +1,48 @@
+warning: unused import: `super::contracts::Reputation`
+ --> game2-core\src\game\guilds.rs:6:5
+  |
+6 | use super::contracts::Reputation;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `FactionType` and `Faction`
+ --> game2-core\src\game\guilds.rs:7:23
+  |
+7 | use super::factions::{Faction, FactionType};
+  |                       ^^^^^^^  ^^^^^^^^^^^
+
 warning: unused import: `crate::engine::ecs::World`
  --> game2-core\src\sim\emergence.rs:5:5
   |
 5 | use crate::engine::ecs::World;
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Entity` and `World`
+ --> game2-core\src\sim\fundamentalism.rs:6:26
   |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+6 | use crate::engine::ecs::{Entity, World};
+  |                          ^^^^^^  ^^^^^
+
+warning: unused import: `Faith`
+ --> game2-core\src\sim\fundamentalism.rs:7:23
+  |
+7 | use super::religion::{Faith, Congregation};
+  |                       ^^^^^
+
+warning: unused variable: `val`
+  --> game2-core\src\agents\fun_inspector.rs:62:17
+   |
+62 |         for (_, val, changed) in sim_log {
+   |                 ^^^ help: if this is intentional, prefix it with an underscore: `_val`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused variable: `name`
   --> game2-core\src\game\world.rs:32:39
    |
 32 | pub fn spawn_world(world: &mut World, name: &str) -> Entity {
    |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused variable: `world`
   --> game2-core\src\game\relationships.rs:59:27
@@ -80,7 +110,7 @@ warning: unused variable: `resource`
 62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
    |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
 
-warning: `game2-core` (lib) generated 13 warnings (run `cargo fix --lib -p game2-core` to apply 13 suggestions)
+warning: `game2-core` (lib) generated 18 warnings (run `cargo fix --lib -p game2-core` to apply 18 suggestions)
    Compiling game2-core v0.1.0 (F:\projects\game2\game2-core)
 warning: unused import: `Activity`
  --> game2-core\src\bin\demo.rs:7:40
@@ -97,7 +127,7 @@ warning: unused import: `AttachmentStyle`
   |                                                                   ^^^^^^^^^^^^^^^
 
 warning: `game2-core` (bin "demo") generated 2 warnings (run `cargo fix --bin "demo" -p game2-core` to apply 2 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.35s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
      Running `target\debug\demo.exe`
 === EVIDENCE DEMO ===
 
@@ -238,5 +268,6 @@ tick 10 (fire spread):
 ....................
 ....................
 
+saved evidence/character-sheet.bmp
 
 === DEMO COMPLETE ===

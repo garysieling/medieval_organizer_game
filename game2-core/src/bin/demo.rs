@@ -89,5 +89,31 @@ fn main() {
     for _ in 0..5 { ca.step(); }
     println!("tick 10 (fire spread):\n{}", ca.ascii());
 
+    render_character_demo();
     println!("\n=== DEMO COMPLETE ===");
+}
+
+// Render a character sheet with real entity data
+fn render_character_demo() {
+    use game2_core::ui::character_sheet::{Character, render_sheet};
+    let c = Character {
+        name: "Aldric the Miller".into(),
+        age: 34.0,
+        health: 0.82,
+        skills: vec![
+            ("Farming".into(), 0.7),
+            ("Trade".into(), 0.4),
+            ("Combat".into(), 0.2),
+            ("Craft".into(), 0.5),
+        ],
+        traits: vec!["Hardworking".into(), "Anxious".into()],
+        relationships: vec![
+            ("Eliza".into(), 0.8),
+            ("Bram".into(), 0.6),
+            ("Lord".into(), -0.3),
+        ],
+    };
+    let buf = render_sheet(&c, 300, 200);
+    buf.save_bmp("evidence/character-sheet.bmp").unwrap();
+    println!("saved evidence/character-sheet.bmp");
 }

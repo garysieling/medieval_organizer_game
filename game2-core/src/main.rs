@@ -4,6 +4,7 @@ mod agent_kb;
 mod worktree;
 mod ecs;
 mod ollama;
+mod villager;
 
 use task_queue::TaskQueue;
 use manager_bot::ManagerBot;

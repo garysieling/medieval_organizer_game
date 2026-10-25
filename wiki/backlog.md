@@ -678,6 +678,22 @@ This file tracks research items that need to be completed for the game project.
 - **Added:** 2026-10-25
 - **Notes:** Design system for handling agent failures and bad outputs. Rollback mechanisms, human escalation, fallback strategies, agent quarantine.
 
+### [ ] Machinations-Style Resource Flow Modeling
+- **Status:** Backlog
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-10-25
+- **Source:** Dormans, "Simulating Mechanics to Study Emergence in Games" (2011)
+- **Notes:** Research Joris Dormans' Machinations framework for modeling game economies as resource flow diagrams. Design similar system for our medieval economy - lets us simulate and balance before building.
+
+### [ ] Cellular Automata for World Simulation
+- **Status:** Backlog
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-10-25
+- **Source:** Sweetser, "An Emergent Approach to Game Design" (2006 thesis)
+- **Notes:** Research cellular automata for emergent world simulation (Sweetser's EmerGEnT system). Candidate for world simulation layer - simple local rules creating emergent world behavior.
+
 ### [ ] ECS Architecture Confirmed
 - **Status:** Completed
 - **Priority:** High

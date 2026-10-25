@@ -9,5 +9,6 @@ pub mod contracts;
 pub mod recipes;
 pub mod lifecycle;
 pub mod military;
+pub mod guilds;
 pub mod music;
 pub mod terrain;

@@ -548,6 +548,22 @@ fn main() {
             }
             window.update_with_buffer(&fb, W, H).unwrap();
             std::thread::sleep(std::time::Duration::from_secs(3));
+            // game over summary screen
+            let mut obuf = Buffer::new(W, H);
+            obuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+            draw_text_scaled(&mut obuf, 300, 150, "VILLAGE WON", 4, 255, 215, 0);
+            draw_text(&mut obuf, 300, 240, &format!("org members: {}", members), 200, 200, 200);
+            draw_text(&mut obuf, 300, 260, &format!("influence: {:.2}", p.influence), 200, 200, 200);
+            draw_text(&mut obuf, 300, 280, &format!("buildings built: {}", built_count), 200, 200, 200);
+            draw_text(&mut obuf, 300, 300, &format!("ticks: {}", tick), 200, 200, 200);
+            draw_text(&mut obuf, 300, 340, "the wanderer became a leader", 160, 160, 180);
+            let mut fb = vec![0u32; W * H];
+            for i in 0..W * H {
+                let idx = i * 4;
+                fb[i] = rgb(obuf.pixels[idx], obuf.pixels[idx+1], obuf.pixels[idx+2]);
+            }
+            window.update_with_buffer(&fb, W, H).unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(5));
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(80)); // ~12fps

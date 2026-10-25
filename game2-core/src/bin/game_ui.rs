@@ -104,6 +104,7 @@ fn main() {
     let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
     let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
     let guildhall_s = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
+    let smoke_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/smoke.png")).ok();
 
     // buildings placed on map
     let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
@@ -269,6 +270,15 @@ fn main() {
             if let Some(s) = sprite {
                 let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
                 s.blit_center(&mut buf, sx, sy);
+            }
+        }
+
+        // chimney smoke rises from houses
+        if let Some(sm) = &smoke_s {
+            for (i, (bx, by, _)) in buildings.iter().enumerate().take(3) {
+                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
+                let drift = ((tick + i as u64 * 7) % 30) as i32;
+                sm.blit(&mut buf, sx - 6, sy - 40 - drift);
             }
         }
 

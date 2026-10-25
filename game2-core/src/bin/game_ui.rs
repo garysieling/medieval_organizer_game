@@ -160,6 +160,7 @@ fn main() {
     let mut speed = 1u32;   // 1=normal 2=fast 4=turbo
     let mut selected_target = 0usize;
     let mut log: Vec<String> = vec!["Welcome to the village.".into()];
+    let mut rapport = [0.0f32; 5]; // relationship score per villager
     let mut inspector_open = true;
     let mut frame_n = 0u32;
 
@@ -386,6 +387,19 @@ fn main() {
             draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, r, g, b);
         }
 
+        // season change flash (every 150 ticks = season cycle)
+        if tick % 150 < 6 && tick > 10 {
+            let flash = (6 - (tick % 150)) as f32 / 6.0 * 60.0;
+            for y in 0..H { for x in 0..MAP_W {
+                let idx = (y * MAP_W + x) * 4;
+                if idx + 2 < buf.pixels.len() {
+                    buf.pixels[idx] = (buf.pixels[idx] as f32 + flash).min(255.0) as u8;
+                    buf.pixels[idx+1] = (buf.pixels[idx+1] as f32 + flash).min(255.0) as u8;
+                    buf.pixels[idx+2] = (buf.pixels[idx+2] as f32 + flash).min(255.0) as u8;
+                }
+            }}
+        }
+
         // day/night tint: cycle every 60 ticks
         let day_phase = (tick % 60) as f32 / 60.0;
         let brightness = 0.7 + 0.3 * (day_phase * std::f32::consts::PI * 2.0).sin().abs();
@@ -476,7 +490,7 @@ fn main() {
             for (i, b) in buttons.iter().enumerate() {
                 if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h {
                     let msg = match i {
-                        0 => { let r = act_talk(&mut world, player, villagers[selected_target]); r.description }
+                        0 => { let r = act_talk(&mut world, player, villagers[selected_target]); rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0); r.description }
                         1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() } }
                         2 => { let r = act_invest(&mut world, player, 10.0); r.description }
                         3 => "You call a house meeting.".into(),
@@ -509,8 +523,8 @@ fn main() {
         if window.is_key_down(Key::Key3) { selected_target = 2; }
         if window.is_key_down(Key::Key4) { selected_target = 3; }
         if window.is_key_down(Key::Key5) { selected_target = 4; }
-        if window.is_key_down(Key::T) { let r = act_talk(&mut world, player, villagers[selected_target]); log.push(r.description); }
-        if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
+        if window.is_key_down(Key::T) { let r = act_talk(&mut world, player, villagers[selected_target]); rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0); log.push(r.description); }
+        if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { rapport[selected_target] = 1.0; } log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
         if window.is_key_down(Key::I) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { zoom = (zoom + 0.02).min(2.0); }

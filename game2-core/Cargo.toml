@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 minifb = "0.29.0"
+png = "0.18.1"
 # No external dependencies for simplicity
 # Using std library only
 

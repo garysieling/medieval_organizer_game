@@ -195,6 +195,17 @@ fn main() {
         draw_text(&mut buf, UI_X + 14, 470 + i as i32 * 18, entry, 210, 210, 210);
     }
 
+    // rival village across the river (foreign, red)
+    for (i, (rx, ry)) in [(28.0f32, 13.0f32), (30.0, 15.0)].iter().enumerate() {
+        let rh = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
+        if let Some(h) = rh { let (sx, sy) = iso_to_screen(*rx, *ry); h.blit_center(&mut buf, sx, sy); }
+    }
+    for (i, (rx, ry)) in [(28.5f32, 14.0f32), (29.5, 13.5), (30.5, 15.5)].iter().enumerate() {
+        let (sx, sy) = iso_to_screen(*rx, *ry);
+        buf.rect(sx - 3, sy - 6, 6, 6, 200, 120, 120);
+        draw_text(&mut buf, sx - 14, sy - 18, ["Wulfric","Sable","Miren"][i], 255, 140, 140);
+    }
+
     // minimap
     let mm_x = MAP_W as i32 - 90;
     let mm_y = 10;

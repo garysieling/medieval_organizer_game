@@ -66,3 +66,49 @@ All 19 defined: 3 engineering, 5 testing, 4 research/analysis, 2 consult, 4 orch
 - Video of long sim run
 - More emergent mechanics from lit reviews
 - Fix filesystem tests (temp dirs)
+
+## Sprint 4 Additions
+
+### New Code
+- `bin/game_loop.rs` - unified 500-tick loop
+- `bin/full_session.rs` - all systems in one run
+- `bin/full_game.rs` - all domains on shared entities
+- `bin/mega_sim.rs` - 6 systems interacting
+- `bin/production_chain.rs` - wheat->flour->bread
+- `bin/guild_demo.rs` - emergent guild formation
+- `bin/outbreak.rs` - illness spread + treatment
+- `bin/contracts_demo.rs` - breach consequences
+- `bin/religion_demo.rs` - homophily congregation
+- `bin/player_demo.rs` - outsider->leader
+- `bin/video_seq.rs` - frame sequence (video)
+- `bin/playtest.rs` - goal-oriented tests
+- `bin/fun_score.rs` - rubric scoring
+- `bin/code_review.rs` - refactor proposals
+- `bin/retrospective.rs` - action items
+- `bin/gary_review.rs` - vision nudges
+- `bin/manager_sprint.rs` - mini-sprint orchestration
+- `bin/final_showcase.rs` - 4 renders
+- `agents/gary_agent.rs` - vision alignment
+- `agents/retrospective_agent.rs` - sprint analysis
+- `agents/pedantic_senior_engineer.rs` - complexity review
+- `agents/creativity_generator/` - mythic-corpus RAG
+- `game/organizing.rs` - 1-1 meetings, house meetings
+- `game/player.rs` - PlayerCharacter, actions
+- `game/ai_player.rs` - AI rulers, governance
+- `game/action_menu.rs` - text-based UI
+- `game/guilds.rs` - emergent guild formation
+- `sim/weather.rs` - storms/drought/frost
+- `sim/gossip.rs` - rumor propagation
+- `sim/reputation_qsp.rs` - QSP reputation model
+- `sim/fundamentalism.rs` - extremism emergence
+- `ui/graph.rs` - relationship bonds
+- `ui/tech_view.rs` - tech constellation
+
+### New Evidence
+- 12+ BMP renders (world, relationships, tech, char, minimap, isometric)
+- 10 frame sequence (video)
+- 15+ text streams (all sims, reviews, scores)
+- 4 lit reviews (printmaking, textiles, tea+herbology)
+
+### Sprint 4 Status
+All workstreams A-G substantially complete. Agent fleet live, unified world running, player layer working, real emergence at scale.

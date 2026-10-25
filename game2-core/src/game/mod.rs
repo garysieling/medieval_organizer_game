@@ -10,6 +10,7 @@ pub mod recipes;
 pub mod lifecycle;
 pub mod military;
 pub mod guilds;
+pub mod organizing;
 pub mod music;
 pub mod terrain;
 pub mod pets;

@@ -266,10 +266,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design mode to run 1000s of turns autonomously for bug testing. Fast-forward simulation, stress testing, finding edge cases. Integration with CI/CD and local AI model.
 
 ### [ ] "Fun" Rubric & Automated Playability Testing
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/fun-rubric.md + wiki/agents/fun-inspector.md
 - **Notes:** Define rubric for what constitutes "fun" at human speed. Design automated tests that AI can run to evaluate playability. Metrics for engagement, challenge, pacing, emergence.
 
 ### [ ] QBasic-Style Simple Dev Experience

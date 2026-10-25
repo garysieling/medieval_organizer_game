@@ -1,1 +1,7 @@
-task_1|Demonstration task|unassigned|Pending|1792950379
+task_1|Demonstration task|Implementation Engineer|InProgress|1792950379
+task_2|Build ECS component system|Implementation Engineer|InProgress|1792950416
+task_3|Implement entity manager|Implementation Engineer|InProgress|1792950416
+task_4|Write integration tests|Implementation Engineer|InProgress|1792950416
+task_5|Build ECS component system|Implementation Engineer|InProgress|1792950811
+task_6|Implement entity manager|Implementation Engineer|InProgress|1792950811
+task_7|Write integration tests|Implementation Engineer|InProgress|1792950811

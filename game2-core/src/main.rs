@@ -88,5 +88,56 @@ fn main() {
         Err(e) => eprintln!("Error: {}", e),
     }
 
-    println!("\n=== Demo Complete ===");
+    // Demonstrate End-to-End Workflow
+    println!("\n=== End-to-End Workflow Demo ===");
+
+    // Step 1: Create a new task
+    println!("\nStep 1: Creating new task...");
+    let task = queue.add_task("Add a comment to main.rs").unwrap();
+    println!("Created task: {} - {}", task.id, task.description);
+
+    // Step 2: Manager Bot assigns the task
+    println!("\nStep 2: Manager Bot assigning task...");
+    manager.assign_task(&task.id, "Implementation Engineer").unwrap();
+    println!("Assigned to: Implementation Engineer");
+
+    // Step 3: Implementation Engineer "executes" the task
+    println!("\nStep 3: Implementation Engineer executing task...");
+    // Simulate task execution by just waiting a bit and logging
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    println!("Task executed (simulated).");
+
+    // Step 4: Implementation Engineer updates KB
+    println!("\nStep 4: Updating Implementation Engineer KB...");
+    impl_engineer_kb.add_kb_entry(
+        "task-history.md",
+        &format!("Completed task {}: Add a comment to main.rs", task.id)
+    ).unwrap();
+    impl_engineer_kb.add_kb_entry(
+        "patterns-learned.md",
+        "Learned: End-to-end workflow from task creation to KB update"
+    ).unwrap();
+    println!("KB updated.");
+
+    // Step 5: Manager Bot marks task complete and updates KB
+    println!("\nStep 5: Manager Bot marking task complete...");
+    manager.mark_task_complete(&task.id).unwrap();
+    println!("Task marked complete.");
+
+    println!("\nStep 6: Updating Manager Bot KB...");
+    manager_kb.add_kb_entry(
+        "delegation-history.md",
+        &format!("Assigned task {} to Implementation Engineer, marked complete", task.id)
+    ).unwrap();
+    manager_kb.add_kb_entry(
+        "sprint-history.md",
+        "Sprint 0: End-to-end workflow demonstrated successfully"
+    ).unwrap();
+    println!("KB updated.");
+
+    // Print final summary
+    println!();
+    manager.print_summary().unwrap();
+
+    println!("\n=== Workflow Demo Complete ===");
 }

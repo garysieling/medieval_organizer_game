@@ -6,3 +6,4 @@ pub mod religion;
 pub mod community;
 pub mod climate;
 pub mod magic;
+pub mod emergence;

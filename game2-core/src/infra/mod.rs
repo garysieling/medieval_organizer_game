@@ -5,3 +5,4 @@ pub mod worktree;
 pub mod ollama;
 pub mod telemetry;
 pub mod save_load;
+pub mod hot_reload;

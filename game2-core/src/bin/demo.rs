@@ -78,5 +78,16 @@ fn main() {
         csched.tick(&mut cw);
     }
 
+    println!("\n--- F7: Emergent Effects (CA grass/forest spread) ---");
+    let mut ca = game2_core::sim::emergence::Automata::new(20, 20);
+    ca.seed();
+    println!("tick 0:\n{}", ca.ascii());
+    for _ in 0..5 { ca.step(); }
+    println!("tick 5 (trees grew from grass):\n{}", ca.ascii());
+    // Start a fire
+    ca.cells[10][10] = game2_core::sim::emergence::Cell::Burning;
+    for _ in 0..5 { ca.step(); }
+    println!("tick 10 (fire spread):\n{}", ca.ascii());
+
     println!("\n=== DEMO COMPLETE ===");
 }

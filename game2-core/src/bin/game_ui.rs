@@ -504,6 +504,15 @@ fn main() {
         }
         toasts.retain(|(_, until)| tick < *until);
 
+        // ambient particles: snow (winter) / dust motes (else)
+        let is_winter = matches!(season, Season::Winter);
+        let (pr, pg, pb, drift_speed) = if is_winter { (230, 235, 255, 2) } else { (180, 170, 140, 1) };
+        for i in 0..30 {
+            let px = ((tick * drift_speed + i * 37) % MAP_W as u64) as i32;
+            let py = ((tick + i * 23) % H as u64) as i32;
+            buf.set(px, py, pr, pg, pb);
+        }
+
         // season banner
         draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
             if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" }), 255, 255, 255);

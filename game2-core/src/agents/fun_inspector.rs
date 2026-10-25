@@ -59,7 +59,7 @@ impl FunInspector {
         let mut flags = vec![];
         // Check for >10 ticks with no change
         let mut streak = 0;
-        for (_, val, changed) in sim_log {
+        for (_, _val, changed) in sim_log {
             if !changed { streak += 1; if streak > 10 { flags.push(format!("No change for {}+ ticks", streak)); break; } }
             else { streak = 0; }
         }

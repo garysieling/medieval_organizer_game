@@ -2,7 +2,7 @@
 //! Player chooses actions each turn: talk, recruit, invest, organize, contract, build.
 
 use crate::engine::ecs::{Entity, World};
-use super::player::{PlayerCharacter, PlayerAction, act_talk, act_recruit, act_invest};
+use super::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
 
 /// Available player actions for the menu
 #[derive(Debug)]

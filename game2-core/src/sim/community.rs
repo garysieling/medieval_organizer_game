@@ -91,7 +91,7 @@ pub fn recruit(world: &mut World, org: Entity, citizen: Entity, rel_quality: f32
 }
 
 /// Player exercises influence via an organization
-pub fn exert_influence(world: &mut World, org: Entity, target: &str) -> f32 {
+pub fn exert_influence(world: &mut World, org: Entity, _target: &str) -> f32 {
     if let Some(o) = world.get_component::<Organization>(org) {
         return o.influence_pool; // sway toward target
     }

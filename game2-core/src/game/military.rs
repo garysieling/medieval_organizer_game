@@ -38,10 +38,10 @@ pub struct BattleResult {
 }
 
 /// Resolve a battle simply: strength + morale vs strength + morale
-pub fn resolve_battle(world: &mut World, a: &Army, b: &Army) -> BattleResult {
+pub fn resolve_battle(_world: &mut World, a: &Army, b: &Army) -> BattleResult {
     let sa = a.total_strength;
     let sb = b.total_strength;
-    let winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
+    let _winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
     BattleResult {
         winner: None,
         casualties_a: sb * 0.1,

@@ -30,7 +30,7 @@ pub fn render_sheet(c: &Character, w: usize, h: usize) -> Buffer {
     buf.rect(100, 20, hb, 12, 60, 200, 60);
 
     // Skills bars (right side)
-    for (i, (skill, level)) in c.skills.iter().enumerate() {
+    for (i, (_skill, level)) in c.skills.iter().enumerate() {
         let y = 50 + (i as i32 * 20);
         let lvl = (level * 150.0) as i32;
         buf.rect(100, y, 150, 10, 40, 40, 60);      // bar bg

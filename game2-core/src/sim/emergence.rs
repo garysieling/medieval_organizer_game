@@ -2,7 +2,6 @@
 //! From lit review (Sweetser EmerGEnT): CA creates emergent world behavior.
 //! Simple rules -> complex patterns (fire spread, forest growth).
 
-use crate::engine::ecs::World;
 
 /// Cell states for the CA world
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -1,8 +1,8 @@
 //! AI players: heuristic agents that play villages via the same action interface.
 //! Other villages/castles are AI-controlled; they differ by ruler personality.
 
-use crate::engine::ecs::{Entity, World};
-use super::player::{PlayerCharacter, PlayerAction};
+use crate::engine::ecs::Entity;
+use super::player::PlayerAction;
 
 /// Ruler personality affects how they play
 #[derive(Debug, Clone, Copy, PartialEq)]

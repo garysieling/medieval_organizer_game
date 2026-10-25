@@ -54,8 +54,8 @@ impl crate::engine::ecs::System for ContractSystem {
 /// Breach a contract - reputation damage
 pub fn breach(world: &mut World, contract: Entity) {
     if let Some(ct) = world.get_component::<Contract>(contract) {
-        let penalty = ct.breach_penalty;
-        let parties = ct.parties.clone();
+        let _penalty = ct.breach_penalty;
+        let _parties = ct.parties.clone();
     }
     if let Some(ct) = world.get_component_mut::<Contract>(contract) {
         ct.status = ContractStatus::Breached;

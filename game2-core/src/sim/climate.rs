@@ -59,7 +59,7 @@ impl crate::engine::ecs::System for SeasonSystem {
 }
 
 /// Climate affects resource availability (emergent scarcity)
-pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
+pub fn climate_multiplier(c: &Climate, _resource: &str) -> f32 {
     let base = match c.season {
         Season::Spring => 1.1,
         Season::Summer => 1.0,

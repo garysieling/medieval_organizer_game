@@ -1,7 +1,7 @@
 //! Story recognition: detect emergent narratives from simulation events.
 //! From emergent narrative lit review: the system must recognize stories, not just produce events.
 
-use crate::engine::ecs::{Entity, World};
+use crate::engine::ecs::Entity;
 
 /// A detected emergent story
 #[derive(Debug)]

@@ -2,7 +2,6 @@
 //! Emergent: who inherits affects governance style + stability.
 
 use crate::engine::ecs::{Entity, World};
-use super::ai_player::RulerPersonality;
 
 /// A ruling lineage
 #[derive(Debug)]
@@ -26,7 +25,7 @@ pub enum Governance {
 pub fn succeed(world: &mut World, lineage: Entity) -> Option<Entity> {
     if let Some(l) = world.get_component::<Lineage>(lineage) {
         let heirs = l.heirs.clone();
-        let governance = &l.governance;
+        let _governance = &l.governance;
         if heirs.is_empty() {
             return None; // no heir - succession crisis
         }

@@ -3,8 +3,7 @@
 //! attachment + high income + low secular substitution + intolerance.
 //! Not scripted - emerges when conditions align.
 
-use crate::engine::ecs::{Entity, World};
-use super::religion::{Faith, Congregation};
+use super::religion::Congregation;
 
 /// Conditions that enable fundamentalism
 #[derive(Debug)]

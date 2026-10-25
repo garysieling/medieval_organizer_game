@@ -2,7 +2,6 @@
 //! Actions: talk, recruit, invest, organize, contract, build.
 
 use crate::engine::ecs::{Entity, World};
-use crate::sim::community::Citizen;
 
 /// The player's character
 #[derive(Debug)]
@@ -34,7 +33,7 @@ pub struct ActionResult {
 }
 
 /// Player takes a talk action (1-1 meeting)
-pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
+pub fn act_talk(world: &mut World, player: Entity, _target: Entity) -> ActionResult {
     // Talking builds standing with that person
     let gained = 0.05;
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {

@@ -2,7 +2,6 @@
 //! Emergent effects - weather + climate produce real consequences.
 
 use crate::engine::ecs::{Entity, World};
-use super::climate::Climate;
 
 /// A weather event (shorter-term than climate)
 #[derive(Debug, Clone, Copy, PartialEq)]

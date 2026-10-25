@@ -53,7 +53,7 @@ impl crate::engine::ecs::System for IllnessSystem {
                     new_stage = Some(advance_stage(dis));
                 }
             }
-            if let Some(s) = new_stage {
+            if let Some(_s) = new_stage {
                 if let Some(h) = world.get_component_mut::<Health>(e) {
                     h.condition = condition.max(0.0);
                 }
@@ -74,7 +74,7 @@ fn advance_stage(d: &Disease) -> Stage {
 }
 
 /// Apply treatment - modifies disease severity based on efficacy
-pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
+pub fn apply_treatment(world: &mut World, _patient: Entity, treatment: &Treatment) {
     for d in world.query::<Disease>() {
         if let Some(dis) = world.get_component_mut::<Disease>(d) {
             dis.severity *= 1.0 - treatment.efficacy * treatment.dose;
@@ -102,7 +102,7 @@ mod tests {
         w.add_component(p, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
         w.add_component(d, Disease { name: "flu".into(), stage: Stage::Mild, severity: 0.5, contagious: false });
-        let t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
+        let _t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
         apply_treatment(&mut w, p, &t);
         assert!(w.get_component::<Disease>(d).unwrap().severity < 0.2);
     }

@@ -2,7 +2,7 @@
 //! From lit review: relational interview reveals concerns/networks/leadership -> recruit.
 
 use crate::engine::ecs::{Entity, World};
-use crate::sim::community::{Citizen, Organization};
+use crate::sim::community::Citizen;
 
 /// What a 1-1 reveals about a citizen
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub struct OneOnOneResult {
 }
 
 /// Conduct a 1-1 relational meeting (from NEA organizing guide)
-pub fn one_on_one(world: &World, organizer: Entity, citizen: Entity) -> OneOnOneResult {
+pub fn one_on_one(world: &World, _organizer: Entity, citizen: Entity) -> OneOnOneResult {
     let c = world.get_component::<Citizen>(citizen);
     OneOnOneResult {
         concerns: vec![format!("worried about {}", c.map(|x| x.ideology.as_str()).unwrap_or("work"))],

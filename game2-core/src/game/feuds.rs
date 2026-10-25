@@ -55,7 +55,7 @@ pub fn vengeance_escalation(kind: &VengeanceKind) -> VengeanceKind {
 }
 
 /// Peacemaking: arbitration resolves (or fails) the feud
-pub fn peacemaking(world: &mut World, feud: Entity, arbitrator: Entity) -> bool {
+pub fn peacemaking(world: &mut World, feud: Entity, _arbitrator: Entity) -> bool {
     if let Some(f) = world.get_component_mut::<Feud>(feud) {
         // Success depends on intensity - lower = easier to resolve
         f.status = if f.intensity < 0.5 { FeudStatus::Resolved } else { FeudStatus::Burning };

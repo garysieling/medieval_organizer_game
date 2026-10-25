@@ -56,7 +56,7 @@ impl crate::engine::ecs::System for RelationshipSystem {
 }
 
 /// Record an interaction - relationships evolve emergently
-pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) {
+pub fn record_interaction(_world: &mut World, from: Entity, interaction: Interaction) {
     let delta = match interaction.kind {
         InteractionKind::Conversation => 0.05,
         InteractionKind::SharedMeal => 0.08,

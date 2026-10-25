@@ -29,7 +29,7 @@ pub struct GameWorld {
 }
 
 /// Spawn a world with regions and settlements
-pub fn spawn_world(world: &mut World, name: &str) -> Entity {
+pub fn spawn_world(world: &mut World, _name: &str) -> Entity {
     let e = world.create_entity();
     world.add_component(e, GameWorld {
         terrain: Some(Terrain::generate(33, 0.7, 42)),

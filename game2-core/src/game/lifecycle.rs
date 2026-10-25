@@ -69,7 +69,7 @@ impl crate::engine::ecs::System for AgingSystem {
 }
 
 /// Spawn a newborn
-pub fn spawn_person(world: &mut World, name: &str) -> Entity {
+pub fn spawn_person(world: &mut World, _name: &str) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Age { years: 0.0, stage: LifeStage::Infant });
     world.add_component(e, Vitality { health: 1.0, max_age: 70.0, cause_of_death: None });

@@ -3,8 +3,6 @@
 //! Guilds provide social capital + credible commitment → enable trade.
 
 use crate::engine::ecs::{Entity, World};
-use super::contracts::Reputation;
-use super::factions::{Faction, FactionType};
 
 /// A merchant seeking security for trade
 #[derive(Debug)]

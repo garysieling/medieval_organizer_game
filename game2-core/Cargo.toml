@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Add dependencies as needed
+# No external dependencies for simplicity
+# Using std library only
 
 [dev-dependencies]
 # Add test dependencies as needed

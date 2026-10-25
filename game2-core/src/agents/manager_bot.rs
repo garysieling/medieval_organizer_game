@@ -6,7 +6,7 @@
 //! - Track task completion
 //! - Log assignments and completions
 
-use crate::task_queue::{Task, TaskQueue, TaskStatus};
+use crate::infra::task_queue::{Task, TaskQueue, TaskStatus};
 use std::fs::OpenOptions;
 use std::io::Write;
 

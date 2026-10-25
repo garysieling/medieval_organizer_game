@@ -4,7 +4,7 @@
 //! a FoodSource, move toward it, and eat when they arrive.
 //! Demonstrates emergent behavior from simple rules on the ECS.
 
-use crate::ecs::{Entity, System, World};
+use crate::engine::ecs::{Entity, System, World};
 
 /// Position on the 2.5D map
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -160,7 +160,7 @@ pub fn spawn_food_source(world: &mut World, x: f32, y: f32, servings: u32) -> En
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ecs::Scheduler;
+    use crate::engine::ecs::Scheduler;
 
     #[test]
     fn test_villager_eats_when_hungry() {

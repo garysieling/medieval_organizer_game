@@ -1,0 +1,19 @@
+//! Agent workers (manager, implementations).
+pub mod manager_bot;
+pub mod pedantic_senior_engineer;
+pub mod retrospective_agent;
+pub mod pr_agent;
+pub mod conflict_resolution_agent;
+pub mod fun_inspector;
+pub mod performance_engineer;
+pub mod economist_tester;
+pub mod credibility_analyst;
+pub mod creative_filter;
+pub mod emergent_effects_researcher;
+pub mod aesthetic_consultant;
+pub mod gameplay_consultant;
+pub mod literature_survey_agent;
+pub mod exploratory_tester_data_scientist;
+pub mod exploratory_tester_ui_clicker;
+pub mod simple_playtester;
+pub mod full_game_playtester;

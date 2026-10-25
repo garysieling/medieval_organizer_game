@@ -17,6 +17,7 @@ use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
 use game2_core::game::traits::{self, Personality, personality_from_seed};
+use game2_core::game::relationships::{self, Relationship};
 
 const W: usize = 960;
 const H: usize = 640;
@@ -154,6 +155,12 @@ fn main() {
         let m = world.create_entity();
         world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
     }
+    // relationships: some villagers are friends, others feud
+    use game2_core::game::relationships::RelKind;
+    world.add_component(villagers[0], Relationship { other: villagers[1], kind: RelKind::Friend, strength: 0.7, interactions: 8 });
+    world.add_component(villagers[2], Relationship { other: villagers[3], kind: RelKind::Rival, strength: -0.5, interactions: 5 });
+    world.add_component(villagers[0], Relationship { other: villagers[3], kind: RelKind::Acquaintance, strength: 0.4, interactions: 3 });
+
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
     let org = world.create_entity();
@@ -327,6 +334,31 @@ fn main() {
         let fw = ((food_stock as f32 / 500.0) * 40.0) as i32;
         buf.rect(fsx - 20, fsy + 10, fw, 4, 80, 200, 80);
         draw_text(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
+
+        // relationship lines between bonded villagers
+        for (i, va) in villagers.iter().enumerate() {
+            for (j, vb) in villagers.iter().enumerate() {
+                if j > i {
+                    if let (Some(pa), Some(pb)) = (world.get_component::<Pos>(*va), world.get_component::<Pos>(*vb)) {
+                        if let Some(rel) = world.get_component::<Relationship>(*va) {
+                            if rel.other == *vb {
+                                let (ax, ay) = iso_to_screen_cam(pa.x, pa.y, cam_x, cam_y, zoom);
+                                let (bx, by) = iso_to_screen_cam(pb.x, pb.y, cam_x, cam_y, zoom);
+                                let b = rel.strength;
+                                let (lr, lg, lb) = if b > 0.3 { (80, 220, 80) } else if b < -0.3 { (255, 80, 80) } else { (150, 150, 150) };
+                                // thin line
+                                let steps = ((bx - ax).abs().max((by - ay).abs())).max(1);
+                                for step in 0..=steps {
+                                    let lx = ax + (bx - ax) * step / steps;
+                                    let ly = ay + (by - ay) * step / steps;
+                                    buf.set(lx, ly, lr, lg, lb);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // villagers as sprites (sorted by y for depth)
         let mut v_sorted: Vec<(usize, f32, f32)> = villagers.iter().enumerate()

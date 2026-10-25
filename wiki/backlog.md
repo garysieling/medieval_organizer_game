@@ -987,6 +987,82 @@ This file tracks research items that need to be completed for the game project.
 - **Output:** wiki/software-design/game-engine-architecture-research.md
 - **Notes:** Research game engine architectures and frameworks suitable for an experienced developer wanting to build a flexible exploration engine. Compare custom vs existing solutions (Godot, Unity, Bevy, etc.).
 
+## Brainstorm Ideas
+
+Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a design pass before implementation.
+
+### Food & Drink
+
+- [ ] **Cheese** — research all forms of cheese; cheesemaker as a discipline/vocation
+  - Implies dairy animals, aging/cellars, regional varieties, trade value
+- [ ] **Pasta** — major research on pasta types; pasta-maker as a vocation
+  - Grains, drying, regional shapes, associated sauces/trade
+- [ ] **Alcohol** — deep dive on alcohol types and manufacture; brewer/vintner/distiller as jobs
+  - Very valuable commodity → implies need for defense/guarding stock
+  - Feeds into perfume production (alcohol as solvent)
+- [ ] **Perfume** — make perfumes from garden flowers + alcohol + glass
+  - Chains: gardens → flowers, alcohol production, glassblowing
+  - Interacts with smell modelling (below)
+
+### Vocations & Labor
+
+- [ ] **Shepherds / goatherds** — implies farming; gives dogs more to do (herding)
+- [ ] **Toolmaker** — vocation; could also make paint brushes
+- [ ] **Luthier / string instruments** — deep dive on history of string instruments and luthiery; both playing and making are vocations
+- [ ] **Ancient jobs** — research fletcher, cooper, shoemaker, tentmaker, perfumer
+- [ ] **Pigment collector / paint maker** — vocations; large orgs with money can hire painters to paint buildings for clout
+- [ ] **Roving pots-and-pans seller** — travelling merchant role
+- [ ] **Apprenticeship** — consider as a progression model for vocations
+- [ ] **Vocation-driven relationships** — you naturally build relationships through your work with customers/vendors/clients
+- [ ] **Translator/traveler** — valuable role if number systems (and possibly languages) differ between groups
+
+### Farming, Gardens & Bees
+
+- [ ] **House gardens and community gardens** — food, flowers (for perfume), herbs
+- [ ] **Medicinal plants** — deep dive research on medicinal herbs; growable in gardens
+- [ ] **Beekeeping** — model the few kinds of beekeeping
+  - Bonus: replicate beehive social structure as a faction template (matriarchal, males don't work, die in winter)
+
+### Magic, Mushrooms & the World
+
+- [ ] **Magic mushrooms** — deep dive on types, including poisonous lookalikes
+- [ ] **Caves** — concept to explore; underground is monochromatic
+- [ ] **Sea creatures** — sea monsters especially, plus fishable things: lobsters, prawns, squid
+- [ ] **Astrology / sky events** — model solstices and times between; comets, eclipses
+- [ ] **Pandemics** — model disease spread
+
+### Society, Orgs & Power
+
+- [ ] **Galileo-style showdown** — disclosing a major discovery that confronts power makes the powerful mad; model as a scenario/event
+- [ ] **Travelling circus** — music, some animals; joining means you leave with them
+  - Org membership: benefits + relationship boosts while in; major cost if you leave
+- [ ] **Relationships over time** — model influence as pairwise relationships that build or decay, not a flat stat
+  - Build faster/stronger when sharing an organizational identity
+- [ ] **Injustices & labor organizing** — research historical injustices; create scenarios modeling labor action (withholding labor, blocking a bridge) as org-voted actions
+- [ ] **Non-violent deposition** — stocks, thrown tomatoes, thrown soup, exile, tar and feather
+- [ ] **Guillotine** — maybe; the violent end of the spectrum
+- [ ] **Taxes / feudalism** — use feudalism as the model for taxation
+- [ ] **Castles & dungeons** — castles have a dungeon; must be a way to maintain order
+- [ ] **Religion** — some religions have karma
+- [ ] **Carcassonne** — use as an idea source (tile-laying, region claiming, follower placement?)
+
+### Culture, Language & Identity
+
+- [ ] **Art deep dive** — Hieronymus Bosch, Dürer included
+- [ ] **Smells** — model smell; shepherds are smelly, perfume helps
+- [ ] **Hairstyles** — think about modelling them
+- [ ] **Inside jokes** — characters can build shared jokes
+- [ ] **Marriage / divorce** — TBD
+- [ ] **Language development** — "l'avion my uncle flew" style: slowly introduce words to teach a language
+- [ ] **Shakespearean language** — pull insults, jokes, compliments
+- [ ] **Number systems** — e.g., one group uses Roman numerals; conflict between groups using different systems
+- [ ] **Disabilities** — consider modelling some
+
+### Core Systems
+
+- [ ] **Death & continuation** — on death, a cutscene, then continue as another character
+- [ ] **Roads** — roads strengthen with use, fade without; stronger = faster, so pathfinding creates a use feedback loop
+
 ## Completed Items
 
 ### [x] Completed Research Item

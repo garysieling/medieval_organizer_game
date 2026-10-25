@@ -12,6 +12,7 @@ pub mod military;
 pub mod guilds;
 pub mod organizing;
 pub mod player;
+pub mod ai_player;
 pub mod music;
 pub mod terrain;
 pub mod pets;

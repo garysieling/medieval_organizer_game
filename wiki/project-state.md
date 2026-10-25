@@ -112,3 +112,16 @@ All 19 defined: 3 engineering, 5 testing, 4 research/analysis, 2 consult, 4 orch
 
 ### Sprint 4 Status
 All workstreams A-G substantially complete. Agent fleet live, unified world running, player layer working, real emergence at scale.
+
+## Sprint 5: "It Looks Like a Game" (Complete)
+
+- **Windowed game UI** (`cargo run --bin game_ui`): minifb window, isometric map + action panel
+- **Real sprites**: Minifolks villagers (peasant/worker/elder/noble variants), buildings (houses, mill, blacksmith, church, towers, guild hall), farms (wheat/corn), roads, river, stones, trees
+- **Action panel**: labeled buttons (Talk/Recruit/Invest/Organize/Build/Wait) with key hints, hover tooltips, disabled states
+- **Inspector**: villager sprite + stats (hunger/health/attachment/activity) + trust bar
+- **HUD**: title, influence bar, org/guild/gold, season banner, speed controls (pause, 4x)
+- **Event log**: color-coded entries, toasts for big events
+- **Camera**: pan (arrows), zoom (+/-), minimap + click-to-jump
+- **Atmosphere**: day/night tint, rain overlay, season transition flash, water shimmer, chimney smoke, animated windmill
+- **Screens**: title (Enter), pause menu, win banner, game over summary
+- **Map details**: dog follows owner, graves on death, org member portraits, food market

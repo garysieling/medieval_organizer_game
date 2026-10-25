@@ -31,9 +31,9 @@ fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8, g: u8, b: 
 }
 
 /// Convert world tile coords to screen isometric position
-fn iso_to_screen(tx: f32, ty: f32) -> (i32, i32) {
-    let sx = MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32;
-    let sy = 100 + ((tx + ty) * TILE_H as f32) as i32;
+fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32) -> (i32, i32) {
+    let sx = MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32 + cam_x;
+    let sy = 100 + ((tx + ty) * TILE_H as f32) as i32 + cam_y;
     (sx, sy)
 }
 
@@ -130,14 +130,38 @@ fn main() {
     ];
 
     let mut tick = 0u64;
+    let mut cam_x = 0i32;   // camera pan offset
+    let mut cam_y = 0i32;
+    let mut started = false; // title screen until Enter
+    let mut paused = false;
+    let mut speed = 1u32;   // 1=normal 2=fast 4=turbo
     let mut selected_target = 0usize;
     let mut log: Vec<String> = vec!["Welcome to the village.".into()];
     let mut inspector_open = true;
     let mut frame_n = 0u32;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        tick += 1;
-        sched.tick(&mut world);
+        // TITLE SCREEN until Enter
+        if !started {
+            let mut tbuf = Buffer::new(W, H);
+            tbuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+            draw_text_scaled(&mut tbuf, 300, 200, "THE WANDERER", 4, 255, 220, 130);
+            draw_text_scaled(&mut tbuf, 260, 280, "an outsider builds power", 2, 200, 200, 200);
+            draw_text(&mut tbuf, 350, 360, "press ENTER to begin", 255, 255, 255);
+            draw_text(&mut tbuf, 310, 400, "organize the village. gain influence.", 150, 150, 170);
+            let mut fb = vec![0u32; W * H];
+            for i in 0..W * H {
+                let idx = i * 4;
+                fb[i] = rgb(tbuf.pixels[idx], tbuf.pixels[idx+1], tbuf.pixels[idx+2]);
+            }
+            window.update_with_buffer(&fb, W, H).unwrap();
+            if window.is_key_down(Key::Enter) { started = true; }
+            continue;
+        }
+
+        if !paused {
+            for _ in 0..speed { tick += 1; sched.tick(&mut world); }
+        }
 
         // --- RENDER into Buffer ---
         let mut buf = Buffer::new(W, H);
@@ -170,7 +194,7 @@ fn main() {
         b_sorted.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
         for (bx, by, sprite) in b_sorted {
             if let Some(s) = sprite {
-                let (sx, sy) = iso_to_screen(*bx, *by);
+                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y);
                 s.blit_center(&mut buf, sx, sy);
             }
         }
@@ -181,7 +205,7 @@ fn main() {
             .collect();
         v_sorted.sort_by(|a, b| (a.1 + a.2).partial_cmp(&(b.1 + b.2)).unwrap());
         for (i, wx, wy) in v_sorted {
-            let (sx, sy) = iso_to_screen(wx, wy);
+            let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y);
             villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
             // selection highlight
             if i == selected_target {
@@ -198,7 +222,7 @@ fn main() {
         }
 
         // player marker on map
-        let (px, py) = iso_to_screen(10.0, 10.0);
+        let (px, py) = iso_to_screen_cam(10.0, 10.0, cam_x, cam_y);
         draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         draw_text(&mut buf, px - 10, py - 20, "YOU", 255, 255, 0);
 
@@ -254,8 +278,28 @@ fn main() {
             draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, 210, 210, 210);
         }
 
+        // weather tint overlay on map region
+        if let Some(cl) = world.get_component::<climate::Climate>(climate) {
+            if cl.rainfall_drift > 0.5 {
+                // rain: dark blue tint bands on map area
+                for y in (0..H).step_by(6) {
+                    for x in 0..MAP_W {
+                        let idx = (y * MAP_W + x) * 4;
+                        if idx + 2 < buf.pixels.len() {
+                            buf.set(x as i32, y as i32,
+                                buf.pixels[idx].saturating_sub(10),
+                                buf.pixels[idx+1].saturating_sub(10),
+                                buf.pixels[idx+2].saturating_add(30));
+                        }
+                    }
+                }
+                draw_text(&mut buf, 10, 24, "RAINING", 150, 180, 255);
+            }
+        }
+
         // season banner
-        draw_text(&mut buf, 10, 8, &format!("{:?}  t{}", season, tick), 255, 255, 255);
+        draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
+            if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
 
         // --- INPUT ---
         if window.get_mouse_down(minifb::MouseButton::Left) {
@@ -277,7 +321,7 @@ fn main() {
             let mut best_d = 9999.0f32;
             for (i, v) in villagers.iter().enumerate() {
                 if let Some(p) = world.get_component::<Pos>(*v) {
-                    let (sx, sy) = iso_to_screen(p.x, p.y);
+                    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
                     if d < 30.0 && d < best_d { best = i; best_d = d; }
                 }
@@ -292,6 +336,14 @@ fn main() {
         if window.is_key_down(Key::T) { let r = act_talk(&mut world, player, villagers[selected_target]); log.push(r.description); }
         if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
         if window.is_key_down(Key::I) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
+        if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }
+        if window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { speed = if speed == 1 { 4 } else { 1 }; }
+        // camera pan
+        if window.is_key_down(Key::Left)  { cam_x += 6; }
+        if window.is_key_down(Key::Right) { cam_x -= 6; }
+        if window.is_key_down(Key::Up)    { cam_y += 6; }
+        if window.is_key_down(Key::Down)  { cam_y -= 6; }
+
         if window.is_key_down(Key::F12) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", frame_n)).ok(); frame_n += 1; }
 
         // blit buffer to framebuffer
@@ -306,7 +358,18 @@ fn main() {
 
         let p = world.get_component::<PlayerCharacter>(player).unwrap();
         if p.influence > 2.0 {
-            println!("You are now the recognized leader!");
+            // win overlay in-window
+            buf.rect(200, 240, 400, 100, 20, 20, 35);
+            buf.rect(200, 240, 400, 2, 255, 215, 0);
+            draw_text_scaled(&mut buf, 260, 265, "RECOGNIZED LEADER", 2, 255, 215, 0);
+            draw_text(&mut buf, 290, 300, "the village is yours", 200, 200, 200);
+            let mut fb = vec![0u32; W * H];
+            for i in 0..W * H {
+                let idx = i * 4;
+                fb[i] = rgb(buf.pixels[idx], buf.pixels[idx+1], buf.pixels[idx+2]);
+            }
+            window.update_with_buffer(&fb, W, H).unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(3));
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(80)); // ~12fps

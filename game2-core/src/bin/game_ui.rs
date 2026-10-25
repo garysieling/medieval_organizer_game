@@ -99,7 +99,9 @@ fn main() {
         (10.0, 9.0, &mill_s), (15.0, 8.0, &blacksmith_s),
         (3.0, 14.0, &tree_s), (18.0, 5.0, &tree_s), (9.0, 16.0, &tree_s), (20.0, 12.0, &tree_s),
     ];
-    let mut built_count = 0usize; // houses the player has built
+    let mut built_count = 0usize;
+    let mut toasts: Vec<(String, u64)> = vec![];  // (msg, shown until tick)
+    let mut last_guild_count = 0usize;
 
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
@@ -171,6 +173,16 @@ fn main() {
         if !paused {
             for _ in 0..speed { tick += 1; sched.tick(&mut world); }
         }
+        // detect events -> toasts
+        let gc = world.query::<Guild>().len();
+        if gc > last_guild_count {
+            toasts.push(("A guild forms in the village!".into(), tick + 40));
+            log.push(format!("t{}: The Merchant Guild formed!", tick));
+        }
+        last_guild_count = gc;
+        let new_members = world.get_component::<Organization>(org).unwrap().members.len();
+        static mut LAST_MEMBERS: usize = 0;
+        // action results also push toasts on recruit success
 
         // --- RENDER into Buffer ---
         let mut buf = Buffer::new(W, H);
@@ -309,6 +321,19 @@ fn main() {
                 draw_text(&mut buf, 10, 24, "RAINING", 150, 180, 255);
             }
         }
+
+        // toasts (big moments)
+        let mut ty = 40;
+        for (msg, until) in toasts.iter() {
+            if tick < *until {
+                let tw = msg.len() as i32 * 6 + 16;
+                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 20, 20, 20, 35);
+                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 1, 255, 215, 0);
+                draw_text(&mut buf, MAP_W as i32 / 2 - tw / 2 + 8, ty + 6, msg, 255, 220, 130);
+                ty += 26;
+            }
+        }
+        toasts.retain(|(_, until)| tick < *until);
 
         // season banner
         draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,

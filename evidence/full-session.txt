@@ -1,0 +1,266 @@
+warning: unused import: `super::contracts::Reputation`
+ --> game2-core\src\game\guilds.rs:6:5
+  |
+6 | use super::contracts::Reputation;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `FactionType` and `Faction`
+ --> game2-core\src\game\guilds.rs:7:23
+  |
+7 | use super::factions::{Faction, FactionType};
+  |                       ^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `Organization`
+ --> game2-core\src\game\organizing.rs:5:38
+  |
+5 | use crate::sim::community::{Citizen, Organization};
+  |                                      ^^^^^^^^^^^^
+
+warning: unused import: `crate::sim::community::Citizen`
+ --> game2-core\src\game\player.rs:5:5
+  |
+5 | use crate::sim::community::Citizen;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `World`
+ --> game2-core\src\game\ai_player.rs:4:34
+  |
+4 | use crate::engine::ecs::{Entity, World};
+  |                                  ^^^^^
+
+warning: unused import: `PlayerCharacter`
+ --> game2-core\src\game\ai_player.rs:5:21
+  |
+5 | use super::player::{PlayerCharacter, PlayerAction};
+  |                     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::engine::ecs::World`
+ --> game2-core\src\sim\emergence.rs:5:5
+  |
+5 | use crate::engine::ecs::World;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::climate::Climate`
+ --> game2-core\src\sim\weather.rs:5:5
+  |
+5 | use super::climate::Climate;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Entity` and `World`
+ --> game2-core\src\sim\fundamentalism.rs:6:26
+  |
+6 | use crate::engine::ecs::{Entity, World};
+  |                          ^^^^^^  ^^^^^
+
+warning: unused import: `Faith`
+ --> game2-core\src\sim\fundamentalism.rs:7:23
+  |
+7 | use super::religion::{Faith, Congregation};
+  |                       ^^^^^
+
+warning: unused variable: `val`
+  --> game2-core\src\agents\fun_inspector.rs:62:17
+   |
+62 |         for (_, val, changed) in sim_log {
+   |                 ^^^ help: if this is intentional, prefix it with an underscore: `_val`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `name`
+  --> game2-core\src\game\world.rs:32:39
+   |
+32 | pub fn spawn_world(world: &mut World, name: &str) -> Entity {
+   |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\relationships.rs:59:27
+   |
+59 | pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) {
+   |                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `penalty`
+  --> game2-core\src\game\contracts.rs:57:13
+   |
+57 |         let penalty = ct.breach_penalty;
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_penalty`
+
+warning: unused variable: `parties`
+  --> game2-core\src\game\contracts.rs:58:13
+   |
+58 |         let parties = ct.parties.clone();
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parties`
+
+warning: unused variable: `name`
+  --> game2-core\src\game\lifecycle.rs:72:40
+   |
+72 | pub fn spawn_person(world: &mut World, name: &str) -> Entity {
+   |                                        ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\military.rs:41:23
+   |
+41 | pub fn resolve_battle(world: &mut World, a: &Army, b: &Army) -> BattleResult {
+   |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `winner`
+  --> game2-core\src\game\military.rs:44:9
+   |
+44 |     let winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_winner`
+
+warning: unused variable: `organizer`
+  --> game2-core\src\game\organizing.rs:17:34
+   |
+17 | pub fn one_on_one(world: &World, organizer: Entity, citizen: Entity) -> OneOnOneResult {
+   |                                  ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_organizer`
+
+warning: unused variable: `target`
+  --> game2-core\src\game\player.rs:37:52
+   |
+37 | pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
+   |                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+
+warning: unused variable: `skill`
+  --> game2-core\src\ui\character_sheet.rs:33:14
+   |
+33 |     for (i, (skill, level)) in c.skills.iter().enumerate() {
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_skill`
+
+warning: unused variable: `s`
+  --> game2-core\src\sim\illness.rs:56:25
+   |
+56 |             if let Some(s) = new_stage {
+   |                         ^ help: if this is intentional, prefix it with an underscore: `_s`
+
+warning: unused variable: `patient`
+  --> game2-core\src\sim\illness.rs:77:43
+   |
+77 | pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
+   |                                           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_patient`
+
+warning: unused variable: `target`
+  --> game2-core\src\sim\community.rs:94:56
+   |
+94 | pub fn exert_influence(world: &mut World, org: Entity, target: &str) -> f32 {
+   |                                                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+
+warning: unused variable: `resource`
+  --> game2-core\src\sim\climate.rs:62:40
+   |
+62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
+   |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
+
+warning: `game2-core` (lib) generated 25 warnings (run `cargo fix --lib -p game2-core` to apply 25 suggestions)
+warning: unused imports: `Activity` and `Villager`
+ --> game2-core\src\bin\full_session.rs:6:48
+  |
+6 | use game2_core::game::villager::{self, Hunger, Villager, Activity};
+  |                                                ^^^^^^^^  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `game2_core::game::organizing::one_on_one`
+  --> game2-core\src\bin\full_session.rs:10:5
+   |
+10 | use game2_core::game::organizing::one_on_one;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `climate_multiplier`
+  --> game2-core\src\bin\full_session.rs:12:52
+   |
+12 | use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
+   |                                                    ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CurrentWeather` and `food_effect`
+  --> game2-core\src\bin\full_session.rs:13:56
+   |
+13 | use game2_core::sim::weather::{Weather, WeatherSystem, CurrentWeather, spawn_weather, food_effect};
+   |                                                        ^^^^^^^^^^^^^^                 ^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+  --> game2-core\src\bin\full_session.rs:24:9
+   |
+24 |     let mut telem = Telemetry::new();
+   |         ----^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `telem`
+  --> game2-core\src\bin\full_session.rs:24:9
+   |
+24 |     let mut telem = Telemetry::new();
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_telem`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `terrain`
+  --> game2-core\src\bin\full_session.rs:34:9
+   |
+34 |     let terrain = Terrain::generate(33, 0.7, 42);
+   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_terrain`
+
+warning: unused variable: `n`
+  --> game2-core\src\bin\full_session.rs:41:13
+   |
+41 |     for (i, n) in names.iter().enumerate() {
+   |             ^ help: if this is intentional, prefix it with an underscore: `_n`
+
+warning: unused variable: `r`
+  --> game2-core\src\bin\full_session.rs:85:28
+   |
+85 |                 0 => { let r = act_talk(&mut world, player, target); }
+   |                            ^ help: if this is intentional, prefix it with an underscore: `_r`
+
+warning: unused variable: `r`
+  --> game2-core\src\bin\full_session.rs:87:29
+   |
+87 |                 20 => { let r = act_invest(&mut world, player, 10.0); }
+   |                             ^ help: if this is intentional, prefix it with an underscore: `_r`
+
+warning: `game2-core` (bin "full_session") generated 10 warnings (run `cargo fix --bin "full_session" -p game2-core` to apply 10 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running `target\debug\full_session.exe`
+=== FULL SESSION: the game in one run ===
+
+tick,season,hunger,org_members,guilds,dog_bond,player_infl
+
+0,Summer,99.0,0,1,0.00,0.10
+30,Winter,69.0,0,1,0.15,0.65
+  Dagny recruited to guild
+EVENT: storm
+60,Summer,39.0,1,1,0.30,1.20
+  Bram recruited to guild
+90,Winter,91.0,2,1,0.45,1.75
+  Aldric recruited to guild
+EVENT: drought
+120,Summer,61.0,3,1,0.60,2.30
+  Corvin recruited to guild
+150,Winter,45.2,4,1,0.75,2.85
+  Eliza recruited to guild
+180,Summer,72.0,5,1,0.90,3.40
+  Dagny recruited to guild
+EVENT: frost
+210,Winter,42.0,6,1,1.00,3.95
+  Bram recruited to guild
+240,Summer,83.0,7,1,1.00,4.50
+  Aldric recruited to guild
+270,Winter,53.0,8,1,1.00,5.05
+  Corvin recruited to guild
+
+=== Session Summary ===
+org members: 9
+guilds formed: 1
+player influence: 5.55
+dog bond: 1.00
+techs discovered: 2
+Aldric: attachment=Secure
+Eliza: attachment=Secure
+Bram: attachment=Avoidant
+Corvin: attachment=Disorganized
+Dagny: attachment=Disorganized
+
+=== FULL SESSION COMPLETE ===

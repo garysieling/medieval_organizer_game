@@ -1,0 +1,112 @@
+warning: unused import: `crate::engine::ecs::World`
+ --> game2-core\src\sim\emergence.rs:5:5
+  |
+5 | use crate::engine::ecs::World;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `name`
+  --> game2-core\src\game\world.rs:32:39
+   |
+32 | pub fn spawn_world(world: &mut World, name: &str) -> Entity {
+   |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `world`
+  --> game2-core\src\game\relationships.rs:59:27
+   |
+59 | pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) {
+   |                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `penalty`
+  --> game2-core\src\game\contracts.rs:57:13
+   |
+57 |         let penalty = ct.breach_penalty;
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_penalty`
+
+warning: unused variable: `parties`
+  --> game2-core\src\game\contracts.rs:58:13
+   |
+58 |         let parties = ct.parties.clone();
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parties`
+
+warning: unused variable: `name`
+  --> game2-core\src\game\lifecycle.rs:72:40
+   |
+72 | pub fn spawn_person(world: &mut World, name: &str) -> Entity {
+   |                                        ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\military.rs:41:23
+   |
+41 | pub fn resolve_battle(world: &mut World, a: &Army, b: &Army) -> BattleResult {
+   |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `winner`
+  --> game2-core\src\game\military.rs:44:9
+   |
+44 |     let winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_winner`
+
+warning: unused variable: `skill`
+  --> game2-core\src\ui\character_sheet.rs:33:14
+   |
+33 |     for (i, (skill, level)) in c.skills.iter().enumerate() {
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_skill`
+
+warning: unused variable: `s`
+  --> game2-core\src\sim\illness.rs:56:25
+   |
+56 |             if let Some(s) = new_stage {
+   |                         ^ help: if this is intentional, prefix it with an underscore: `_s`
+
+warning: unused variable: `patient`
+  --> game2-core\src\sim\illness.rs:77:43
+   |
+77 | pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
+   |                                           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_patient`
+
+warning: unused variable: `target`
+  --> game2-core\src\sim\community.rs:94:56
+   |
+94 | pub fn exert_influence(world: &mut World, org: Entity, target: &str) -> f32 {
+   |                                                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+
+warning: unused variable: `resource`
+  --> game2-core\src\sim\climate.rs:62:40
+   |
+62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
+   |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
+
+warning: `game2-core` (lib) generated 13 warnings (run `cargo fix --lib -p game2-core` to apply 13 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running `target\debug\sim500.exe`
+=== 500-TURN SIMULATION ===
+
+tick,avg_hunger,seeking,eating,idle,season,food_mult
+0,99.0,0,0,5,Summer,1.00
+50,49.0,0,0,5,Winter,0.70
+100,78.2,0,0,5,Summer,0.99
+150,99.2,0,0,5,Winter,0.69
+200,49.2,0,0,5,Summer,0.99
+250,70.2,0,0,5,Winter,0.69
+300,91.2,0,0,5,Summer,0.98
+350,41.2,0,0,5,Winter,0.69
+400,62.2,0,0,5,Summer,0.98
+450,83.2,0,0,5,Winter,0.68
+
+=== METRICS EXPORT ===
+avg_hunger=99 @0
+food_mult=0.9999499917030334 @1
+avg_hunger=49 @2
+food_mult=0.6982150077819824 @3
+avg_hunger=78.19999694824219 @4
+food_mult=0.994949996471405 @5
+avg_hunger=99.19999694824219 @6
+food_mult=0.6947149634361267 @7
+avg_hunger=49.20000076293945 @8
+food_mult=0.9899500012397766 @9
+
+=== 500-TURN SIM COMPLETE ===

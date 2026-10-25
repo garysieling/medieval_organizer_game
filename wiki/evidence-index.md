@@ -59,5 +59,12 @@
 - `sprint-4-organizing-leadership.md` - leadership development, power
 - `sprint-4-psychology-of-play.md` - flow, engagement, fun mechanics
 
+## Sprint 5 UI Evidence
+- `ui-preview.bmp` - full UI: buildings, farms, sprites, inspector, log, minimap, toast
+- `sprite-test.bmp` / `sprite-crop.bmp` - PNG loading + frame cropping
+- `screenshots/game-ui-live.png` - live window title screen
+- `screenshots/game-ui-final.png` - verified running
+- `game-frame-*.bmp` - live map each turn (text-mode game)
+
 ## Commits
-~80 commits total across Sprint 3 + Sprint 4, all with real evidence
+~100 commits total across Sprint 3-5, all with real evidence

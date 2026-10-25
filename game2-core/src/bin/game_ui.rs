@@ -110,6 +110,8 @@ fn main() {
     let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
     let guildhall_s = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
     let smoke_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/smoke.png")).ok();
+    let rival_house = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
+    let rival_woodhouse = Sprite::load(&assets.path(&assets.building_sprite("woodhouse", "red"))).ok();
 
     // buildings placed on map
     let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
@@ -131,6 +133,8 @@ fn main() {
         (24.0, 3.0, &river_s), (26.0, 5.0, &river_s), (28.0, 7.0, &river_s), (30.0, 9.0, &river_s),
         // castle towers at the far edge (the ruler overlooks the village)
         (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
+        // rival village across the river (red-roofed foreign houses)
+        (28.0, 13.0, &rival_house), (30.0, 15.0, &rival_woodhouse),
         // castle walls connecting the towers
         (25.0, 5.0, &wall_s), (27.0, 7.0, &wall_s), (29.0, 9.0, &wall_s),
         // church (religion center) + guild hall (merchant base)
@@ -160,6 +164,15 @@ fn main() {
     world.add_component(villagers[0], Relationship { other: villagers[1], kind: RelKind::Friend, strength: 0.7, interactions: 8 });
     world.add_component(villagers[2], Relationship { other: villagers[3], kind: RelKind::Rival, strength: -0.5, interactions: 5 });
     world.add_component(villagers[0], Relationship { other: villagers[3], kind: RelKind::Acquaintance, strength: 0.4, interactions: 3 });
+
+    // rival village: foreign settlement across the river
+    let mut rivals = vec![];
+    for i in 0..3 {
+        let r = villager::spawn_villager(&mut world, (28.0 + i as f32 * 2.0), (12.0 + (i % 2) as f32 * 3.0));
+        world.add_component(r, Health { condition: 0.9, immunity: 0.5 });
+        rivals.push(r);
+    }
+    let rival_names = ["Wulfric","Sable","Miren"];
 
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
@@ -419,6 +432,18 @@ fn main() {
                 if pet.bond_strength > 0.5 {
                     draw_text(&mut buf, dx - 3, dy - 16, "<3", 255, 120, 120);
                 }
+            }
+        }
+
+        // rival villagers (foreign settlement)
+        for (i, rv) in rivals.iter().enumerate() {
+            if let Some(p) = world.get_component::<Pos>(*rv) {
+                let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
+                // rival sprite tinted different
+                if let Some(rs) = &player_s {
+                    rs.blit_scaled(&mut buf, sx - 32, sy - 60, 2);
+                }
+                draw_text(&mut buf, sx - 14, sy - 76, rival_names[i], 255, 140, 140);
             }
         }
 

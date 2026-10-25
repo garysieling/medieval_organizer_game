@@ -809,3 +809,11 @@ When in **backlog burn-down mode**, I will:
 - Mark items as complete with links to created wiki entries
 
 Tell me which mode you want to enter, and I'll guide you through the process.
+
+### [ ] "Gary Agent" - Vision Alignment Agent
+- **Status:** Backlog
+- **Priority:** HIGH
+- **Category:** software-design
+- **Added:** 2026-10-25
+- **Requested by:** Gary
+- **Notes:** An agent that looks back on things Gary has said and provides feedback if the game is on track based on his high-level guidance/profile. When it runs it gives nudges. Should learn from Gary's feedback about what his expectations are (e.g., evidence = software output not desktop captures, wants modular systems, emergent design, specific aesthetic direction). Maintains a living model of Gary's intent - reads his messages/specs, compares current work to vision, nudges course corrections, and refines its model when corrected.

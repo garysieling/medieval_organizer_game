@@ -186,6 +186,7 @@ fn main() {
     let mut log: Vec<String> = vec!["Welcome to the village.".into()];
     let mut rapport = [0.0f32; 5]; // relationship score per villager
     let mut inspector_open = true;
+    let mut help_open = false;
     let mut frame_n = 0u32;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
@@ -522,6 +523,27 @@ fn main() {
         draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
             if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
 
+        // help overlay
+        if help_open {
+            buf.rect(200, 140, 420, 300, 20, 20, 35);
+            buf.rect(200, 140, 420, 2, 200, 200, 220);
+            draw_text_scaled(&mut buf, 290, 155, "CONTROLS", 2, 255, 220, 130);
+            let lines = [
+                "click button / key: take action",
+                "click villager: select + inspect",
+                "1-5: select villager",
+                "T talk  R recruit  I invest",
+                "O organize  B build  W wait",
+                "arrows: pan map   +/-: zoom",
+                "Space: pause   0: speed 4x",
+                "F12: screenshot   Esc: quit",
+            ];
+            for (i, l) in lines.iter().enumerate() {
+                draw_text(&mut buf, 240, 200 + i as i32 * 22, l, 210, 210, 210);
+            }
+            draw_text(&mut buf, 300, 420, "press H to close", 150, 150, 170);
+        }
+
         // pause menu overlay
         if paused {
             buf.rect(280, 200, 260, 140, 20, 20, 35);
@@ -575,6 +597,7 @@ fn main() {
         if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { rapport[selected_target] = 1.0; } log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
         if window.is_key_down(Key::I) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }
+        if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { help_open = !help_open; }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { zoom = (zoom + 0.02).min(2.0); }
         if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { zoom = (zoom - 0.02).max(0.5); }
         if window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { speed = if speed == 1 { 4 } else { 1 }; }

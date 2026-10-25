@@ -189,3 +189,51 @@ Sprint 0: End-to-end workflow demonstrated successfully
 
 **Confidence:** Very High
 **Tags:** sprint-3, ambitious, integrated, real-evidence, ollama-working
+
+### Sprint 4: The Game Starts Playing
+**Start Date:** 2026-10-25
+**End Date:** 2026-10-25
+**Duration:** 1 day
+**Goal:** Wire systems into a real game, agent fleet live
+
+**Tasks:** ~40 across 7 workstreams (A-G)
+- A: Unified game loop (500 ticks, emergent events) ✓
+- B: Agent fleet (playtester, fun inspector, manager sprint, Gary agent, retrospective, pedantic) ✓
+- C: Gameplay depth (production, organizing, guilds, religion, illness, contracts) ✓
+- D: Player layer (outsider->leader, AI players, governance) ✓
+- E: Evidence (full session 300t, frame sequence) ✓
+- F: Research (4 lit reviews + 3 emergent mechanics) ✓
+- G: Quality (pedantic review, retrospective) ✓
+
+**What Went Well:**
+- Real game running: unified loop, all domains on shared entities
+- Agent fleet does real work: playtests, fun scoring, reviews, nudges
+- Emergence at scale: guild forms, org grows, illness spreads, attachment varies
+- Gary Agent produced vision-alignment nudges (8 on_track, 2 drifting, 2 missing)
+- FunInspector scored 3.5/5 with concrete feedback
+- PedanticEngineer proposed refactors on cadence
+- Frame sequence = real video-style evidence
+
+**What Didn't:**
+- Application Control still intermittently blocks new exes
+- Ollama tasks not yet at scale (some roles real, some simulated)
+- Interactive action menu is scripted, not yet player-driven
+- Agent KBs not yet auto-updating from real work
+
+**Lessons:**
+- Unified world state pays off - all systems interact, real events fire
+- Agent fleet works: each agent type produces real, different output
+- Emergence scales: more systems = richer emergent behavior
+- Evidence pipeline holds: BMPs + text streams + reviews prove it works
+
+**Action Items for Sprint 5:**
+1. Real Ollama tasks at scale across all agent roles
+2. Agent KBs auto-update from actual work
+3. Interactive action menu (player-driven, not scripted)
+4. WSL fallback for blocked exes
+5. Persistent world save/load end-to-end
+6. Video assembly from frames
+7. Merge devin/creativity-generator back to master
+
+**Confidence:** Very High
+**Tags:** sprint-4, unified-world, agent-fleet, real-gameplay, emergent-scale

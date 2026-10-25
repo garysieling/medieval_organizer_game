@@ -10,18 +10,247 @@ use crate::task_queue::{Task, TaskQueue, TaskStatus};
 use std::fs::OpenOptions;
 use std::io::Write;
 
+/// Agent type enumeration
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AgentType {
+    ImplementationEngineer,
+    PedanticSeniorEngineer,
+    PerformanceEngineer,
+    ExploratoryTesterDataScientist,
+    ExploratoryTesterUIClicker,
+    SimplePlaytester,
+    FullGamePlaytester,
+    FunInspector,
+    RetrospectiveAgent,
+    EconomistTester,
+    CredibilityAnalyst,
+    CreativeFilter,
+    EmergentEffectsResearcher,
+    AestheticConsultant,
+    GameplayConsultant,
+    ManagerBot,
+    PRAgent,
+    ConflictResolutionAgent,
+    LiteratureSurveyAgent,
+}
+
+impl AgentType {
+    /// Get agent name as string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AgentType::ImplementationEngineer => "implementation-engineer",
+            AgentType::PedanticSeniorEngineer => "pedantic-senior-engineer",
+            AgentType::PerformanceEngineer => "performance-engineer",
+            AgentType::ExploratoryTesterDataScientist => "exploratory-tester-data-scientist",
+            AgentType::ExploratoryTesterUIClicker => "exploratory-tester-ui-clicker",
+            AgentType::SimplePlaytester => "simple-playtester",
+            AgentType::FullGamePlaytester => "full-game-playtester",
+            AgentType::FunInspector => "fun-inspector",
+            AgentType::RetrospectiveAgent => "retrospective-agent",
+            AgentType::EconomistTester => "economist-tester",
+            AgentType::CredibilityAnalyst => "credibility-analyst",
+            AgentType::CreativeFilter => "creative-filter",
+            AgentType::EmergentEffectsResearcher => "emergent-effects-researcher",
+            AgentType::AestheticConsultant => "aesthetic-consultant",
+            AgentType::GameplayConsultant => "gameplay-consultant",
+            AgentType::ManagerBot => "manager-bot",
+            AgentType::PRAgent => "pr-agent",
+            AgentType::ConflictResolutionAgent => "conflict-resolution-agent",
+            AgentType::LiteratureSurveyAgent => "literature-survey-agent",
+        }
+    }
+}
+
 /// Manager Bot for task coordination
 pub struct ManagerBot {
     task_queue: TaskQueue,
     log_file: String,
+    /// Agent capability tracking - which agents can do which task types
+    agent_capabilities: std::collections::HashMap<AgentType, Vec<String>>,
 }
 
 impl ManagerBot {
     /// Create a new Manager Bot
     pub fn new(task_queue_path: &str, log_file: &str) -> Self {
+        let mut agent_capabilities = std::collections::HashMap::new();
+
+        // Define agent capabilities based on their types
+        agent_capabilities.insert(
+            AgentType::ImplementationEngineer,
+            vec![
+                "code-implementation".to_string(),
+                "bug-fix".to_string(),
+                "feature-development".to_string(),
+                "testing".to_string(),
+                "refactoring".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::PedanticSeniorEngineer,
+            vec![
+                "code-review".to_string(),
+                "refactoring".to_string(),
+                "architectural-analysis".to_string(),
+                "complexity-analysis".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::PerformanceEngineer,
+            vec![
+                "performance-analysis".to_string(),
+                "optimization".to_string(),
+                "profiling".to_string(),
+                "resource-management".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::ExploratoryTesterDataScientist,
+            vec![
+                "data-analysis".to_string(),
+                "log-analysis".to_string(),
+                "telemetry-analysis".to_string(),
+                "pattern-detection".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::ExploratoryTesterUIClicker,
+            vec![
+                "ui-testing".to_string(),
+                "ux-testing".to_string(),
+                "edge-case-testing".to_string(),
+                "user-flow-testing".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::SimplePlaytester,
+            vec![
+                "goal-testing".to_string(),
+                "regression-testing".to_string(),
+                "functional-testing".to_string(),
+                "feature-testing".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::FullGamePlaytester,
+            vec![
+                "simulation-testing".to_string(),
+                "balance-testing".to_string(),
+                "long-term-testing".to_string(),
+                "end-to-end-testing".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::FunInspector,
+            vec![
+                "fun-analysis".to_string(),
+                "playability-assessment".to_string(),
+                "engagement-analysis".to_string(),
+                "pacing-analysis".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::RetrospectiveAgent,
+            vec![
+                "retrospective".to_string(),
+                "issue-analysis".to_string(),
+                "systemic-issue-detection".to_string(),
+                "improvement-proposal".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::EconomistTester,
+            vec![
+                "economic-testing".to_string(),
+                "balance-testing".to_string(),
+                "economic-simulation".to_string(),
+                "resource-analysis".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::CredibilityAnalyst,
+            vec![
+                "research-validation".to_string(),
+                "source-evaluation".to_string(),
+                "credibility-assessment".to_string(),
+                "academic-analysis".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::CreativeFilter,
+            vec![
+                "creative-application".to_string(),
+                "cross-domain-analysis".to_string(),
+                "mechanic-borrowing".to_string(),
+                "innovation-proposal".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::EmergentEffectsResearcher,
+            vec![
+                "emergent-system-research".to_string(),
+                "complexity-analysis".to_string(),
+                "emergent-mechanic-proposal".to_string(),
+                "system-architecture".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::AestheticConsultant,
+            vec![
+                "aesthetic-analysis".to_string(),
+                "visual-feedback".to_string(),
+                "design-consultation".to_string(),
+                "art-direction".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::GameplayConsultant,
+            vec![
+                "gameplay-analysis".to_string(),
+                "game-design-feedback".to_string(),
+                "player-experience".to_string(),
+                "mechanic-evaluation".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::ManagerBot,
+            vec![
+                "orchestration".to_string(),
+                "task-delegation".to_string(),
+                "sprint-planning".to_string(),
+                "agent-coordination".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::PRAgent,
+            vec![
+                "pr-management".to_string(),
+                "code-review".to_string(),
+                "merge-management".to_string(),
+                "workflow-coordination".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::ConflictResolutionAgent,
+            vec![
+                "conflict-resolution".to_string(),
+                "merge-conflict-handling".to_string(),
+                "integration-management".to_string(),
+            ],
+        );
+        agent_capabilities.insert(
+            AgentType::LiteratureSurveyAgent,
+            vec![
+                "literature-review".to_string(),
+                "research-analysis".to_string(),
+                "academic-sourcing".to_string(),
+                "domain-research".to_string(),
+            ],
+        );
+
         Self {
             task_queue: TaskQueue::new(task_queue_path),
             log_file: log_file.to_string(),
+            agent_capabilities,
         }
     }
 
@@ -54,19 +283,74 @@ impl ManagerBot {
         Ok(())
     }
 
-    /// Auto-assign all pending tasks to available agents
-    /// For this prototype, we'll use a simple round-robin approach
-    pub fn auto_assign_tasks(&self, agents: &[&str]) -> Result<Vec<String>, String> {
+    /// Determine which agent can handle a task type
+    fn find_agent_for_task(&self, task_type: &str) -> Option<AgentType> {
+        for (agent_type, capabilities) in &self.agent_capabilities {
+            if capabilities.contains(&task_type.to_string()) {
+                return Some(agent_type.clone());
+            }
+        }
+        None
+    }
+
+    /// Auto-assign all pending tasks to appropriate agents based on capabilities
+    /// Uses capability matching instead of round-robin
+    pub fn auto_assign_tasks(&self, _agents: &[&str]) -> Result<Vec<String>, String> {
         let pending = self.read_pending_tasks()?;
         let mut assignments = Vec::new();
 
-        for (i, task) in pending.iter().enumerate() {
-            let agent = agents[i % agents.len()];
-            self.assign_task(&task.id, agent)?;
-            assignments.push(format!("{} -> {}", task.id, agent));
+        for task in pending {
+            // Infer task type from description (simple heuristic)
+            let task_type = self.infer_task_type(&task.description);
+
+            // Find appropriate agent for this task type
+            match self.find_agent_for_task(&task_type) {
+                Some(agent_type) => {
+                    let agent_name = agent_type.as_str();
+                    self.assign_task(&task.id, agent_name)?;
+                    assignments.push(format!("{} -> {} ({})", task.id, agent_name, task_type));
+                }
+                None => {
+                    // Fallback to Implementation Engineer for unknown task types
+                    self.assign_task(&task.id, AgentType::ImplementationEngineer.as_str())?;
+                    assignments.push(format!("{} -> implementation-engineer (fallback)", task.id));
+                }
+            }
         }
 
         Ok(assignments)
+    }
+
+    /// Infer task type from description (simple heuristic)
+    fn infer_task_type(&self, description: &str) -> String {
+        let desc = description.to_lowercase();
+
+        // Simple keyword matching for task type inference
+        if desc.contains("test") || desc.contains("verify") {
+            "testing".to_string()
+        } else if desc.contains("implement") || desc.contains("build") || desc.contains("create") {
+            "code-implementation".to_string()
+        } else if desc.contains("refactor") || desc.contains("clean") || desc.contains("improve") {
+            "refactoring".to_string()
+        } else if desc.contains("research") || desc.contains("analyze") || desc.contains("review") {
+            "research-validation".to_string()
+        } else if desc.contains("design") || desc.contains("architect") {
+            "architectural-analysis".to_string()
+        } else if desc.contains("bug") || desc.contains("fix") {
+            "bug-fix".to_string()
+        } else if desc.contains("feature") {
+            "feature-development".to_string()
+        } else if desc.contains("performance") || desc.contains("optimize") {
+            "performance-analysis".to_string()
+        } else if desc.contains("data") || desc.contains("log") || desc.contains("telemetry") {
+            "data-analysis".to_string()
+        } else if desc.contains("ui") || desc.contains("ux") || desc.contains("interface") {
+            "ui-testing".to_string()
+        } else if desc.contains("play") || desc.contains("simulate") || desc.contains("balance") {
+            "simulation-testing".to_string()
+        } else {
+            "code-implementation".to_string() // Default fallback
+        }
     }
 
     /// Mark a task as complete

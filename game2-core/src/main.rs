@@ -40,9 +40,9 @@ fn main() {
         Err(e) => eprintln!("Error: {}", e),
     }
 
-    // Auto-assign tasks to agents
-    println!("\nAuto-assigning tasks...");
-    let agents = vec!["Implementation Engineer", "Implementation Engineer"];
+    // Auto-assign tasks using capability matching
+    println!("\nAuto-assigning tasks (capability-based)...");
+    let agents = vec![]; // Agents not needed for capability-based assignment
     match manager.auto_assign_tasks(&agents) {
         Ok(assignments) => {
             println!("Assignments:");

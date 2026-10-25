@@ -262,5 +262,133 @@ simple-playtester.md
 
 **Combined Total (Tasks 1 & 2):** 7 agent specs, ~2600 lines of documentation
 
+## Task 3: Update Manager Bot for All Agent Types
+
+### Screenshot 14: Manager Bot with Agent Type Enum
+**Description:** Manager Bot code showing AgentType enum with all 19 agent types
+**File:** `game2-core/src/manager_bot.rs`
+**Content Preview:**
+```rust
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AgentType {
+    ImplementationEngineer,
+    PedanticSeniorEngineer,
+    PerformanceEngineer,
+    ExploratoryTesterDataScientist,
+    ExploratoryTesterUIClicker,
+    SimplePlaytester,
+    FullGamePlaytester,
+    FunInspector,
+    RetrospectiveAgent,
+    EconomistTester,
+    CredibilityAnalyst,
+    CreativeFilter,
+    EmergentEffectsResearcher,
+    AestheticConsultant,
+    GameplayConsultant,
+    ManagerBot,
+    PRAgent,
+    ConflictResolutionAgent,
+    LiteratureSurveyAgent,
+}
+```
+
+### Screenshot 15: Capability Matching Implementation
+**Description:** Manager Bot constructor showing agent_capabilities HashMap
+**File:** `game2-core/src/manager_bot.rs`
+**Content Preview:**
+```rust
+agent_capabilities.insert(
+    AgentType::ImplementationEngineer,
+    vec![
+        "code-implementation".to_string(),
+        "bug-fix".to_string(),
+        "feature-development".to_string(),
+        "testing".to_string(),
+        "refactoring".to_string(),
+    ],
+);
+// ... (capabilities for all 19 agent types)
+```
+
+### Screenshot 16: Task Type Inference
+**Description:** infer_task_type method showing keyword matching
+**File:** `game2-core/src/manager_bot.rs`
+**Content Preview:**
+```rust
+fn infer_task_type(&self, description: &str) -> String {
+    let desc = description.to_lowercase();
+    if desc.contains("test") || desc.contains("verify") {
+        "testing".to_string()
+    } else if desc.contains("implement") || desc.contains("build") || desc.contains("create") {
+        "code-implementation".to_string()
+    }
+    // ... more keyword matching
+}
+```
+
+### Screenshot 17: Capability-Based Assignment Output
+**Description:** Terminal showing capability-based task assignment
+**Command:** `cargo run`
+**Output:**
+```
+=== Manager Bot Demo ===
+
+Reading pending tasks...
+Found 3 pending tasks
+
+Auto-assigning tasks (capability-based)...
+Assignments:
+  task_8 -> implementation-engineer (code-implementation)
+  task_9 -> implementation-engineer (code-implementation)
+  task_10 -> implementation-engineer (testing)
+```
+
+### Screenshot 18: Manager Bot Log File with Capability Matching
+**Description:** tasks/manager.log showing capability-based assignments
+**Content:**
+```
+Read 3 pending tasks
+Assigned task task_8 to agent implementation-engineer
+Assigned task task_9 to agent implementation-engineer
+Assigned task task_10 to agent implementation-engineer
+```
+
+### Screenshot 19: Updated Manager Bot Documentation
+**Description:** game2-core/agents/manager-bot.md with agent types and capability matching
+**File:** `game2-core/agents/manager-bot.md`
+**Content Preview:**
+```markdown
+## Agent Types
+
+Manager Bot recognizes all agent types:
+
+### Engineering Agents
+- **implementation-engineer** - Code implementation, bug fixes, features
+- **pedantic-senior-engineer** - Code review, refactoring, architectural analysis
+...
+
+## Capability Matching
+Manager Bot matches tasks to agents based on task type inference and agent capabilities...
+```
+
+## Status: Task 3 Complete ✓
+
+**Exit Criteria Met:**
+- ✓ Manager Bot updated with agent type recognition (AgentType enum with 19 types)
+- ✓ Delegation heuristics updated for all agent types (capability matching implemented)
+- ✓ Manager Bot KB updated with new agent capabilities (documentation updated)
+- ✓ Screenshots documented showing agent type routing
+- ✓ Screenshots documented showing updated delegation heuristics
+- ✓ Capability-based assignment working (replaces round-robin)
+
+**Key Changes:**
+- Added AgentType enum with 19 agent types
+- Added agent_capabilities HashMap mapping agent types to capabilities
+- Implemented infer_task_type() method for task type inference
+- Implemented find_agent_for_task() method for capability matching
+- Updated auto_assign_tasks() to use capability matching instead of round-robin
+- Updated Manager Bot documentation with agent types and capabilities
+
 ## Next Steps
-Proceeding to Task 3: Update Manager Bot for All Agent Types
+Proceeding to Task 4: Implement Task Dependencies

@@ -17,6 +17,7 @@ pub mod action_menu;
 pub mod succession;
 pub mod migration;
 pub mod trade_routes;
+pub mod warfare;
 pub mod music;
 pub mod terrain;
 pub mod pets;

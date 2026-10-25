@@ -94,11 +94,12 @@ fn main() {
     let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
 
     // buildings placed on map
-    let buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
+    let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
         (5.0, 5.0, &house_s), (12.0, 4.0, &house_s), (7.0, 12.0, &house_s),
         (10.0, 9.0, &mill_s), (15.0, 8.0, &blacksmith_s),
         (3.0, 14.0, &tree_s), (18.0, 5.0, &tree_s), (9.0, 16.0, &tree_s), (20.0, 12.0, &tree_s),
     ];
+    let mut built_count = 0usize; // houses the player has built
 
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
@@ -245,7 +246,8 @@ fn main() {
         let (mx, my) = (mxf as i32, myf as i32);
         for (i, b) in buttons.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            draw_button(&mut buf, b, hover, false);
+            let disabled = i == 1 && world.get_component::<PlayerCharacter>(player).unwrap().influence < 0.3;
+            draw_button(&mut buf, b, hover, disabled);
         }
 
         // inspector panel for selected villager
@@ -310,7 +312,13 @@ fn main() {
                         1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() } }
                         2 => { let r = act_invest(&mut world, player, 10.0); r.description }
                         3 => "You call a house meeting.".into(),
-                        4 => "You commission a building.".into(),
+                        4 => {
+                            let bx = 4.0 + (built_count % 4) as f32 * 5.0;
+                            let by = 15.0 + (built_count / 4) as f32 * 4.0;
+                            buildings.push((bx, by, &house_s));
+                            built_count += 1;
+                            format!("A house rises at ({:.0},{:.0})", bx, by)
+                        }
                         _ => "You wait and observe.".into(),
                     };
                     log.push(msg);

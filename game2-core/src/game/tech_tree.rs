@@ -57,3 +57,30 @@ mod tests {
         assert!(can_research(&tree, "Printing Press")); // now unlocked
     }
 }
+
+/// Extended printmaking tree based on APHA history.
+/// Web structure: substrate->methods->scale. Paper mill is the gate.
+pub fn extended_printmaking_tree() -> Vec<Tech> {
+    vec![
+        Tech { name: "Papyrus".into(), era: "ancient".into(), prereqs: vec![], cost: 5.0, unlocks: vec!["writing".into()], discovered: false },
+        Tech { name: "Parchment".into(), era: "ancient".into(), prereqs: vec!["Papyrus".into()], cost: 10.0, unlocks: vec!["codex".into()], discovered: false },
+        Tech { name: "Paper".into(), era: "medieval".into(), prereqs: vec!["Parchment".into()], cost: 15.0, unlocks: vec!["cheap_writing".into()], discovered: false },
+        Tech { name: "Paper Mill".into(), era: "medieval".into(), prereqs: vec!["Paper".into()], cost: 30.0, unlocks: vec!["printmaking".into()], discovered: false },
+        Tech { name: "Carving".into(), era: "ancient".into(), prereqs: vec![], cost: 8.0, unlocks: vec!["blocks".into()], discovered: false },
+        Tech { name: "Woodblock".into(), era: "medieval".into(), prereqs: vec!["Carving".into(), "Paper Mill".into()], cost: 20.0, unlocks: vec!["relief_prints".into()], discovered: false },
+        Tech { name: "Woodcut Prints".into(), era: "medieval".into(), prereqs: vec!["Woodblock".into()], cost: 25.0, unlocks: vec!["playing_cards".into(), "devotional_images".into()], discovered: false },
+        Tech { name: "Metalworking".into(), era: "ancient".into(), prereqs: vec![], cost: 12.0, unlocks: vec!["plates".into()], discovered: false },
+        Tech { name: "Engraving".into(), era: "medieval".into(), prereqs: vec!["Metalworking".into(), "Paper Mill".into()], cost: 30.0, unlocks: vec!["fine_prints".into()], discovered: false },
+        Tech { name: "Etching".into(), era: "renaissance".into(), prereqs: vec!["Engraving".into()], cost: 35.0, unlocks: vec!["detail_prints".into()], discovered: false },
+        Tech { name: "Clay Type".into(), era: "medieval".into(), prereqs: vec!["Paper Mill".into()], cost: 25.0, unlocks: vec!["reusable_type".into()], discovered: false },
+        Tech { name: "Metal Type".into(), era: "medieval".into(), prereqs: vec!["Clay Type".into(), "Metalworking".into()], cost: 35.0, unlocks: vec!["durable_type".into()], discovered: false },
+        Tech { name: "Type Foundry".into(), era: "renaissance".into(), prereqs: vec!["Metal Type".into()], cost: 45.0, unlocks: vec!["type_production".into()], discovered: false },
+        Tech { name: "Printing Press".into(), era: "renaissance".into(), prereqs: vec!["Type Foundry".into()], cost: 60.0, unlocks: vec!["mass_books".into()], discovered: false },
+        Tech { name: "Chemistry".into(), era: "modern".into(), prereqs: vec!["Engraving".into()], cost: 50.0, unlocks: vec!["lithography".into()], discovered: false },
+        Tech { name: "Lithography".into(), era: "modern".into(), prereqs: vec!["Chemistry".into()], cost: 70.0, unlocks: vec!["mass_images".into()], discovered: false },
+        Tech { name: "Playing Cards".into(), era: "medieval".into(), prereqs: vec!["Woodcut Prints".into()], cost: 15.0, unlocks: vec!["mass_market".into()], discovered: false },
+        Tech { name: "Devotional Images".into(), era: "medieval".into(), prereqs: vec!["Woodcut Prints".into()], cost: 15.0, unlocks: vec!["mass_market".into()], discovered: false },
+        Tech { name: "Printed Books".into(), era: "renaissance".into(), prereqs: vec!["Printing Press".into()], cost: 40.0, unlocks: vec!["knowledge_spread".into()], discovered: false },
+        Tech { name: "Scientific Illustration".into(), era: "renaissance".into(), prereqs: vec!["Etching".into(), "Printing Press".into()], cost: 50.0, unlocks: vec!["science_accelerates".into()], discovered: false },
+    ]
+}

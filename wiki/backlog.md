@@ -165,10 +165,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research economic models that incorporate lifespan. Design system where agent self-interest changes from babyhood to retirement. Model how this affects microeconomic behavior in simulation.
 
 ### [ ] Full Lifecycle Character Simulation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/lifecycle-simulation.md
 - **Notes:** Design character lifecycle system from birth to death. Model biological aging, life stages, developmental changes. Research no existing game has done illness - design illness systems.
 
 ### [ ] QSP (Quantitative Systems Pharmacology) in Games
@@ -232,10 +234,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design legal framework for establishing relationships between villages/organizations. Contract system: "I sign a contract for X, if I break it then Y may or may not happen." Reputation, enforcement, breach consequences.
 
 ### [ ] Simple Military/Battle System
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** Medium
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/simple-military-battle-system.md
 - **Notes:** Design simple battle mechanics. NOT complex military simulation. Simple strategic combat that supports the core game without overwhelming focus. Study how games like RimWorld handle combat.
 
 ### [ ] Rust Custom Engine - Architecture Planning
@@ -297,10 +301,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design isometric game board with minimap as core UI module. Once built, should stay out of the way (modular). Study Caesar 2/LotR era interfaces.
 
 ### [ ] Independent Component Testing Framework
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/component-testing-framework.md (duplicate of CRITICAL item)
 - **Notes:** Design framework to test simulated components independently, then together. Test both mechanics (does it work?) and playability (is it fun?). Unit tests, integration tests, playability tests.
 
 ### [ ] Local AI Model Integration for Bug Fixes
@@ -373,17 +379,21 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research unconventional magic systems in games and fiction. Design novel magical powers that integrate with the simulation systems (QSP, community organizing, etc.). Avoid standard fireball/heal tropes.
 
 ### [ ] Evolving Music System (Techno-Style Layering)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** Medium
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/evolving-music-system.md
 - **Notes:** Design music system that evolves as world changes (mood, events). Techno-style: slowly adding/dropping layers over time. INITIAL VERSION: simple mood recommendation for Spotify or silent. Deeper design later.
 
 ### [ ] Pets System
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** Medium
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/pets-system.md
 - **Notes:** Research RimWorld and Stardew Valley pet systems. Design pet mechanics for game. Bonding, utility, emotional impact.
 
 ### [ ] Skill Improvement with Degradation
@@ -403,10 +413,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research Skyrim's constellation tech tree UI/UX. Design coherent constellation-style tech trees for game. Visual organization, prerequisite paths, thematic grouping.
 
 ### [ ] Detailed Printmaking Tech Tree
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/printmaking-tech-tree.md
 - **Notes:** Design detailed printmaking tech tree from basic early writing (feathers on papyrus) through stone lithography. DETAILED/ACCURATE simulation important. Research historical printing techniques, materials, processes.
 
 ### [ ] Art Asset Library Strategy
@@ -442,10 +454,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research religion simulation. Inspired by Bioshock's satire of Christian fundamentalism. Model emergent effects of religious gatherings/organizations not seen in Civ or RimWorld. Social cohesion, radicalization, moral frameworks, etc.
 
 ### [ ] Fabric/Textiles Tech Tree
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/textiles-tech-tree.md
 - **Notes:** Design detailed fabric/textiles tech tree. Affects trade AND texture sensitivity (autism representation). Research historical textile production, materials, economic impact.
 
 ### [ ] Attachment Theory Simulation
@@ -458,17 +472,21 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research attachment theory (Bowlby, Ainsworth). Design game mechanics incorporating attachment styles (secure, anxious, avoidant, disorganized). How attachment affects character relationships, behaviors, resilience.
 
 ### [ ] Tea History Tech Tree
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/tea-tech-tree.md
 - **Notes:** Design tea history tech tree. Affects trade AND psychometric effects (cultural rituals, social bonding, etc.). Research tea cultivation, processing, trade routes, cultural significance.
 
 ### [ ] Herbology/Apothecary Medicine Tree
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/herbology-apothecary-tree.md
 - **Notes:** Design simple witchy apothecary-style medicine tree. Plants, natural remedies, pseudo-medical treatments. Research historical herbalism, materia medica, traditional medicine.
 
 ### [ ] Regional Architectural Variety

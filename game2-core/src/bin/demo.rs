@@ -94,6 +94,25 @@ fn main() {
     for _ in 0..5 { ca.step(); }
     println!("tick 10 (fire spread):\n{}", ca.ascii());
 
+
+    println!("
+--- UI: Relationship Graph ---");
+    let people = vec![
+        game2_core::ui::graph::Person { name: "Aldric".into(), x: 60.0, y: 80.0, style_color: (100, 200, 100) },   // Secure
+        game2_core::ui::graph::Person { name: "Eliza".into(), x: 180.0, y: 60.0, style_color: (100, 200, 100) },   // Secure
+        game2_core::ui::graph::Person { name: "Bram".into(), x: 120.0, y: 140.0, style_color: (220, 180, 60) },    // Anxious
+        game2_core::ui::graph::Person { name: "Corvin".into(), x: 240.0, y: 120.0, style_color: (200, 80, 80) },   // Disorganized
+    ];
+    let bonds = vec![
+        game2_core::ui::graph::Bond { from: 0, to: 1, strength: 0.8 },
+        game2_core::ui::graph::Bond { from: 0, to: 2, strength: 0.5 },
+        game2_core::ui::graph::Bond { from: 1, to: 3, strength: -0.4 },
+        game2_core::ui::graph::Bond { from: 2, to: 3, strength: 0.3 },
+    ];
+    let gbuf = game2_core::ui::graph::render_graph(&people, &bonds, 300, 200);
+    gbuf.save_bmp("evidence/relationship-graph.bmp").unwrap();
+    println!("saved evidence/relationship-graph.bmp");
+
     render_character_demo();
     println!("\n=== DEMO COMPLETE ===");
 }

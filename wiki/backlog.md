@@ -473,24 +473,30 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research SFX and ambient sound design for isometric games. Nice to have, not critical. Simple implementation initially.
 
 ### [ ] 100% Modular Architecture (Everything is a Mod)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/modular-architecture-everything-is-a-mod.md
 - **Notes:** Design architecture where EVERYTHING is treated as a mod/swappable component. Swap out different parts of simulation. Define "completeness/good enough" criteria for bringing in components. MAJOR: Need SO MUCH STRUCTURE so AI can run 100% independently overnight. Each piece independently tested/play tested, then progressively merged.
 
 ### [ ] Independent Component Testing/Play Testing Framework
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/component-testing-framework.md
 - **Notes:** Design framework where each game component can be independently tested and play tested. AI runs overnight testing individual components. Progressive merging strategy. Must ensure components work in isolation AND together.
 
 ### [ ] Datomic-Style Save/Load with History & Replay
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/datomic-save-load.md + game2-core/src/infra/save_load.rs
 - **Notes:** Design save/load system using Datomic model - history that checkpoints/replays from points. Needed for testing and architectural stability. Plan for eventual performance compromises if needed.
 
 ### [ ] Character Sheet UI Design
@@ -705,17 +711,21 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for Conflict Resolution Agent. Resolves conflicts in worktrees, handles integration issues.
 
 ### [ ] Agent Coordination System Infrastructure
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/agent-coordination-infrastructure.md
 - **Notes:** Design technical infrastructure for agent coordination. Worktrees, branching, messaging, locking primitives. System (not agent) that agents run on.
 
 ### [ ] Agent Failure Handling & Bad Output Recovery
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/agent-failure-handling.md
 - **Notes:** Design system for handling agent failures and bad outputs. Rollback mechanisms, human escalation, fallback strategies, agent quarantine.
 
 ### [ ] Machinations-Style Resource Flow Modeling
@@ -851,9 +861,11 @@ When in **backlog burn-down mode**, I will:
 Tell me which mode you want to enter, and I'll guide you through the process.
 
 ### [ ] "Gary Agent" - Vision Alignment Agent
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** HIGH
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/gary-agent.md
 - **Requested by:** Gary
 - **Notes:** An agent that looks back on things Gary has said and provides feedback if the game is on track based on his high-level guidance/profile. When it runs it gives nudges. Should learn from Gary's feedback about what his expectations are (e.g., evidence = software output not desktop captures, wants modular systems, emergent design, specific aesthetic direction). Maintains a living model of Gary's intent - reads his messages/specs, compares current work to vision, nudges course corrections, and refines its model when corrected.

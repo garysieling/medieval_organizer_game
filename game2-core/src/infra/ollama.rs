@@ -101,20 +101,27 @@ impl OllamaClient {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn();
-        let api_result = child.map_err(|e| e.to_string()).and_then(|mut child| {
+        let child = match child {
+            Ok(c) => c,
+            // no curl: use the CLI (no temperature/seed control)
+            Err(_) => return self.prompt(prompt),
+        };
+        let out = {
+            let mut child = child;
             if let Some(mut stdin) = child.stdin.take() {
                 stdin.write_all(body.as_bytes()).map_err(|e| e.to_string())?;
             }
-            let out = child.wait_with_output().map_err(|e| e.to_string())?;
-            let text = String::from_utf8_lossy(&out.stdout).to_string();
-            if let Some(err) = json::extract_string(&text, "error") {
-                return Err(err);
-            }
-            json::extract_string(&text, "response").ok_or_else(|| "no response field".to_string())
-        });
-        match api_result {
-            Ok(r) => Ok(r.trim().to_string()),
-            Err(_) => self.prompt(prompt),
+            child.wait_with_output().map_err(|e| e.to_string())?
+        };
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
+        if text.trim().is_empty() {
+            // server unreachable over HTTP: fall back to the CLI
+            return self.prompt(prompt);
+        }
+        match json::extract_string(&text, "response") {
+            Some(r) => Ok(r.trim().to_string()),
+            None => Err(json::extract_string(&text, "error")
+                .unwrap_or_else(|| format!("unexpected Ollama reply: {}", text.chars().take(200).collect::<String>()))),
         }
     }
 
@@ -200,7 +207,13 @@ pub mod json {
         let mut out = Vec::new();
         let mut pos = 0;
         while let Some(found) = doc[pos..].find(&needle) {
-            let mut i = pos + found + needle.len();
+            let at = pos + found;
+            let mut i = at + needle.len();
+            if at > 0 && doc.as_bytes()[at - 1] == b'\\' {
+                // escaped quote inside another string value, not a key
+                pos = i;
+                continue;
+            }
             while doc.as_bytes().get(i) == Some(&b' ') {
                 i += 1;
             }
@@ -237,6 +250,13 @@ mod tests {
         let original = "line \"one\"\n\ttab \\ ünï";
         let doc = format!("{{\"response\":{},\"done\":true}}", json::quote(original));
         assert_eq!(json::extract_string(&doc, "response").unwrap(), original);
+    }
+
+    #[test]
+    fn test_json_ignores_escaped_keys_inside_values() {
+        let doc = r#"{"response":"say \"error\": no","done":true}"#;
+        assert_eq!(json::extract_string(doc, "error"), None);
+        assert_eq!(json::extract_string(doc, "response").unwrap(), "say \"error\": no");
     }
 
     #[test]

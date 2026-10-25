@@ -120,7 +120,7 @@ fn main() {
         (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
         // market plaza (packed dirt tiles around stalls)
         (7.0, 6.0, &road_s), (8.0, 6.0, &road_s), (9.0, 6.0, &road_s),
-        // food market (food source = market stall with corn)
+        // food market stalls (dim when food runs low)
         (7.0, 7.0, &corn2_s), (9.0, 7.0, &corn2_s),
         // main road through the village center
         (8.0, 8.0, &road_s), (9.0, 9.0, &road_s), (10.0, 10.0, &road_s), (11.0, 11.0, &road_s),
@@ -299,6 +299,17 @@ fn main() {
         let mill_frame = &mill_frames[((tick / 10) % 4) as usize];
         let (msx, msy) = iso_to_screen_cam(10.0, 9.0, cam_x, cam_y, zoom);
         mill_frame.blit_center(&mut buf, msx, msy);
+
+        // food stock indicator at market
+        let food_stock = world.query::<villager::FoodSource>().first()
+            .and_then(|f| world.get_component::<villager::FoodSource>(*f))
+            .map(|f| f.servings).unwrap_or(0);
+        let (fsx, fsy) = iso_to_screen_cam(8.0, 7.0, cam_x, cam_y, zoom);
+        // stock bar under the market
+        buf.rect(fsx - 20, fsy + 10, 40, 4, 60, 40, 40);
+        let fw = ((food_stock as f32 / 500.0) * 40.0) as i32;
+        buf.rect(fsx - 20, fsy + 10, fw, 4, 80, 200, 80);
+        draw_text(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
 
         // villagers as sprites (sorted by y for depth)
         let mut v_sorted: Vec<(usize, f32, f32)> = villagers.iter().enumerate()

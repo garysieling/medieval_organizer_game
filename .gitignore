@@ -48,3 +48,6 @@ Thumbs.db
 # Added by cargo
 
 /target
+
+# Creativity Generator corpus (re-download with scripts/fetch_creativity_corpus.py)
+/data/creativity-corpus/

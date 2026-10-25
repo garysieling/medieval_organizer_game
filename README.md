@@ -12,6 +12,8 @@ cargo run --bin sim500               # 500-turn sim with telemetry
 cargo run --bin village_sim          # integrated multi-domain sim
 cargo run --bin mega_sim             # 6 systems interacting
 cargo run --bin agent_task           # real Ollama AI task (needs ollama+gemma3:4b)
+python scripts/fetch_creativity_corpus.py   # download the mythic corpus (~75 MB)
+cargo run --release --bin creativity -- "I need a character name"   # 100 ideas
 cargo test --lib                     # run tests
 ```
 
@@ -20,7 +22,7 @@ cargo test --lib                     # run tests
 ```
 game2-core/src/
 ├── engine/    ECS + headless renderer (BMP output)
-├── agents/    19 agent workers (manager, engineer, playtesters, researchers)
+├── agents/    20 agent workers (manager, engineer, playtesters, researchers, creativity generator)
 ├── game/      game systems (villager, terrain, economy, tech_tree, factions, pets, tea, textiles, herbology, music, guilds, military, contracts, lifecycle, relationships, recipes, world)
 ├── sim/       sim domains (economics, psychology, illness, religion, community, climate, magic, fundamentalism, emergence)
 ├── infra/     task_queue, agent_kb, worktree, ollama, telemetry, save_load, hot_reload, pr_flow
@@ -34,7 +36,7 @@ screenshots/   PNG evidence captures
 
 ## Key Achievements
 
-- **19 agent specs** with JD, skills, Claude rules, KB structure
+- **20 agent specs** with JD, skills, Claude rules, KB structure
 - **Full simulation**: villagers with hunger/health/attachment, market economics, illness, religion, community organizing, climate, magic
 - **Emergent behavior**: attachment styles, guild formation, fundamentalism, CA fire spread - all from simple rules
 - **Real AI execution**: OllamaClient + gemma3:4b executes tasks end-to-end
@@ -53,3 +55,4 @@ screenshots/   PNG evidence captures
 - `wiki/sprint-3-summary.md` - what landed this sprint
 - `wiki/backlog.md` - research/mechanics backlog
 - `wiki/ai-agent-workforce.md` - agent architecture
+- `wiki/agents/creativity-generator.md` - creativity RAG: corpus, randomness, obviousness cut

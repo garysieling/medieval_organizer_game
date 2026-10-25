@@ -10,6 +10,7 @@ pub mod performance_engineer;
 pub mod economist_tester;
 pub mod credibility_analyst;
 pub mod creative_filter;
+pub mod creativity_generator;
 pub mod emergent_effects_researcher;
 pub mod aesthetic_consultant;
 pub mod gameplay_consultant;

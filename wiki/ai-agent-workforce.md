@@ -329,6 +329,31 @@ Each agent should have:
 
 ---
 
+### Creativity Generator
+**Status:** Implemented
+**Priority:** HIGH
+**Spec Location:** `wiki/agents/creativity-generator.md`
+
+**Job Description:**
+- Creativity-biased RAG over sagas, scripture, epics and world mythology
+- Returns ~100 names / vocations / plot points / etc. per request, with sources
+- Injects randomness (seeded numbers, rare corpus words, trending topics, random wiki entries)
+- Has the LLM rank ideas by predictability and cuts the most obvious head
+
+**Skills/Career Ladder:**
+- Junior: Mines names and terms from the corpus
+- Mid: Blends retrieval with LLM invention and randomness
+- Senior: Ranks by predictability, cuts the obvious, blends traditions
+- Staff: Tunes cut ratios and source mixes from playtest feedback
+
+**Claude Skills/Rules:**
+- See spec document for full details
+
+**Learning Mechanism:**
+- See spec document for full details
+
+---
+
 ### Emergent Effects Researcher
 **Status:** Spec Defined
 **Priority:** CRITICAL

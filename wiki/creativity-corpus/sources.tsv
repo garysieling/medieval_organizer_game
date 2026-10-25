@@ -1,0 +1,122 @@
+# gutenberg_id	tradition	lang	title
+# Public-domain texts from Project Gutenberg. Fetch with: python scripts/fetch_creativity_corpus.py
+# Norse / Icelandic
+73533	norse	en	The Poetic Edda (Bellows)
+18947	norse	en	The Younger Edda / Prose Edda (Snorri Sturluson)
+17919	norse	en	The Story of Burnt Njal (Njals Saga)
+347	norse	en	The Saga of Grettir the Strong
+1152	norse	en	The Story of the Volsungs (Volsunga Saga)
+598	norse	en	Heimskringla (Snorri Sturluson)
+17803	norse	en	Laxdaela Saga
+57723	norse	en	The Orkneyinga Saga
+24420	norse	en	The Story of Frithiof the Bold
+33471	norse	en	Stories and Ballads of the Far Past (Icelandic and Faroese)
+28497	norse	en	Myths of the Norsemen (Guerber)
+5186	finnish	en	Kalevala, the Epic Poem of Finland
+# Germanic / Anglo-Saxon / Celtic / Arthurian
+981	anglo-saxon	en	Beowulf (Gummere)
+657	anglo-saxon	en	The Anglo-Saxon Chronicle
+1151	germanic	en	The Nibelungenlied (Shumway)
+5160	celtic	en	The Mabinogion (Lady Charlotte Guest)
+14391	celtic	en	The Cattle-Raid of Cualnge (Tain Bo Cualnge)
+14465	celtic	en	Gods and Fighting Men (Lady Gregory)
+54616	celtic	en	The Mythology of the British Islands (Squire)
+1251	arthurian	en	Le Morte d'Arthur, Volume 1 (Malory)
+1252	arthurian	en	Le Morte d'Arthur, Volume 2 (Malory)
+66084	arthurian	en	Sir Gawain and the Green Knight (Weston)
+13211	arthurian	en	The Pearl (Jewett)
+391	frankish	en	The Song of Roland
+# Spanish / Iberian (medieval to Golden Age)
+6088	spanish	en	The Lay of the Cid
+8491	spanish	en	Chronicle of the Cid (Southey)
+57648	spanish	es	Romancero selecto del Cid
+996	spanish	en	Don Quixote (Ormsby)
+51099	spanish	en	Amadis of Gaul, Vol. 2
+52941	spanish	en	Amadis of Gaul, Vol. 3
+55005	spanish	en	Amadis of Gaul, Vol. 4
+378	spanish	en	The White Knight: Tirant Lo Blanc
+1619	spanish	es	La Celestina
+437	spanish	en	The Life of Lazarillo of Tormes
+65738	spanish	es	El conde Lucanor
+16625	spanish	es	Libro de Buen Amor
+# Hindu / Indian
+24869	hindu	en	The Ramayan of Valmiki (Griffith)
+15474	hindu	en	The Mahabharata, Volume 1: Books 1-3 (Ganguli)
+15475	hindu	en	The Mahabharata, Volume 2: Books 4-7 (Ganguli)
+15476	hindu	en	The Mahabharata, Volume 3: Books 8-12 (Ganguli)
+2388	hindu	en	The Song Celestial / Bhagavad-Gita (Arnold)
+3283	hindu	en	The Upanishads (Paramananda)
+66208	hindu	en	Vishnupuranam (Dutt)
+47228	hindu	en	Indian Myth and Legend (Mackenzie)
+13268	hindu	en	Hindu Literature: Book of Good Counsels, Nala and Damayanti, etc.
+62514	hindu	en	Jataka Tales
+# African
+34655	african	en	Folk Stories from Southern Nigeria (Dayrell)
+70959	african	en	Ikom Folk Stories from Southern Nigeria (Dayrell)
+66923	african	en	West African Folk-Tales (Barker)
+48828	african	en	Cunnie Rabbit, Mr. Spider and the Other Beef: West African Folk Tales
+58900	african	en	Where Animals Talk: West African Folk Lore Tales (Nassau)
+65997	african	en	The Land of Fetish (Ellis)
+38339	african	en	South-African Folk-Tales (Honey)
+35557	african	en	Outa Karel's Stories: South African Folk-Lore Tales
+46501	african	en	Some Zulu Customs and Folk-lore (Samuelson)
+67426	african	en	Bantu Beliefs and Magic (Hobley)
+67597	african	en	Bantu Folk Lore (Hewat)
+7145	egyptian	en	The Book of the Dead (Budge)
+7386	egyptian	en	Egyptian Tales, First Series (Petrie)
+7413	egyptian	en	Egyptian Tales, Second Series (Petrie)
+74354	egyptian	en	Ancient Egyptian Legends (Murray)
+# Polynesian / Pacific
+32601	polynesian	en	Legends of Ma-ui, a Demi God of Polynesia (Westervelt)
+39195	polynesian	en	Legends of Gods and Ghosts: Hawaiian Mythology (Westervelt)
+66357	polynesian	en	Hawaiian Historical Legends (Westervelt)
+66516	polynesian	en	Hawaiian Legends of Volcanoes (Westervelt)
+56597	polynesian	en	The Legends and Myths of Hawaii (Kalakaua)
+18450	polynesian	en	Hawaiian Folk Tales (Thrum)
+13603	polynesian	en	The Hawaiian Romance of Laieikawai
+60279	polynesian	en	Pele and Hiiaka: A Myth from Hawaii (Emerson)
+20299	polynesian	en	Unwritten Literature of Hawaii (Emerson)
+54610	polynesian	en	Te Tohunga: Ancient Legends and Traditions of the Maoris
+14224	polynesian	en	Samoa, A Hundred Years Ago and Long Before (Turner)
+# Scripture / Christian / Near East
+10	scripture	en	The King James Version of the Bible
+124	scripture	en	Deuterocanonical Books of the Bible (Apocrypha)
+17	scripture	en	The Book of Mormon
+45304	scripture	en	The City of God, Volume I (Augustine)
+45305	scripture	en	The City of God, Volume II (Augustine)
+3296	scripture	en	The Confessions of St. Augustine
+2800	scripture	en	The Koran (Rodwell)
+11000	mesopotamian	en	An Old Babylonian Version of the Gilgamesh Epic
+18897	mesopotamian	en	The Epic of Gilgamish (Langdon)
+9914	mesopotamian	en	The Babylonian Legends of the Creation (Budge)
+# Classical
+6130	classical	en	The Iliad (Buckley)
+1727	classical	en	The Odyssey (Butler)
+228	classical	en	The Aeneid (Dryden)
+21765	classical	en	The Metamorphoses of Ovid, Books I-VII
+26073	classical	en	The Metamorphoses of Ovid, Books VIII-XV
+348	classical	en	Hesiod, the Homeric Hymns, and Homerica
+# Medieval / Renaissance Christian epic
+8800	medieval	en	The Divine Comedy (Cary)
+26	medieval	en	Paradise Lost (Milton)
+615	medieval	en	Orlando Furioso (Rose)
+6930	medieval	en	The Faerie Queene, Volume 1 (Spenser)
+58655	medieval	en	Tales from the Gesta Romanorum
+128	medieval	en	The Arabian Nights Entertainments (Lang)
+10315	persian	en	The Persian Literature: Shah Nameh, Rubaiyat, Divan
+# Other world myth
+216	east-asian	en	The Tao Teh King (Legge)
+29337	east-asian	en	Japanese Fairy World: Stories from the Wonder-Lore of Japan
+46863	east-asian	en	Old-World Japan: Legends of the Land of the Gods
+29939	east-asian	en	The Chinese Fairy Book (Wilhelm)
+56550	mesoamerican	en	The Popol Vuh (Spence)
+# Tolkien's direct inspirations (Morris, MacDonald, Dunsany)
+2885	tolkien-roots	en	The House of the Wolfings (Morris)
+6050	tolkien-roots	en	The Roots of the Mountains (Morris)
+3055	tolkien-roots	en	The Wood Beyond the World (Morris)
+18328	tolkien-roots	en	The Story of Sigurd the Volsung and the Fall of the Niblungs (Morris)
+325	tolkien-roots	en	Phantastes (MacDonald)
+708	tolkien-roots	en	The Princess and the Goblin (MacDonald)
+8395	tolkien-roots	en	The Gods of Pegana (Dunsany)
+8183	tolkien-roots	en	Time and the Gods (Dunsany)
+7477	tolkien-roots	en	The Book of Wonder (Dunsany)

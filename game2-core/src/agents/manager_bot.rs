@@ -32,6 +32,7 @@ pub enum AgentType {
     PRAgent,
     ConflictResolutionAgent,
     LiteratureSurveyAgent,
+    CreativityGenerator,
 }
 
 impl AgentType {
@@ -57,6 +58,7 @@ impl AgentType {
             AgentType::PRAgent => "pr-agent",
             AgentType::ConflictResolutionAgent => "conflict-resolution-agent",
             AgentType::LiteratureSurveyAgent => "literature-survey-agent",
+            AgentType::CreativityGenerator => "creativity-generator",
         }
     }
 }
@@ -246,6 +248,15 @@ impl ManagerBot {
                 "domain-research".to_string(),
             ],
         );
+        agent_capabilities.insert(
+            AgentType::CreativityGenerator,
+            vec![
+                "idea-generation".to_string(),
+                "name-generation".to_string(),
+                "plot-generation".to_string(),
+                "worldbuilding-ideas".to_string(),
+            ],
+        );
 
         Self {
             task_queue: TaskQueue::new(task_queue_path),
@@ -306,6 +317,7 @@ impl ManagerBot {
             AgentType::PedanticSeniorEngineer,
             AgentType::CredibilityAnalyst,
             AgentType::CreativeFilter,
+            AgentType::CreativityGenerator,
             AgentType::EmergentEffectsResearcher,
             AgentType::AestheticConsultant,
             AgentType::GameplayConsultant,
@@ -478,6 +490,17 @@ mod tests {
         let agents = vec!["Agent A", "Agent B"];
         let assignments = bot.auto_assign_tasks(&agents).unwrap();
         assert_eq!(assignments.len(), 3);
+        let _ = fs::remove_file(&tp);
+        let _ = fs::remove_file(&lp);
+    }
+
+    #[test]
+    fn test_creativity_generator_routing() {
+        let (t, l, tp, lp) = tmp_paths("creativity");
+        let bot = ManagerBot::new(&t, &l);
+        assert_eq!(bot.find_agent_for_task("name-generation"), Some(AgentType::CreativityGenerator));
+        assert_eq!(bot.find_agent_for_task("plot-generation"), Some(AgentType::CreativityGenerator));
+        assert_eq!(AgentType::CreativityGenerator.as_str(), "creativity-generator");
         let _ = fs::remove_file(&tp);
         let _ = fs::remove_file(&lp);
     }

@@ -176,6 +176,22 @@ fn main() {
         if !paused {
             for _ in 0..speed { tick += 1; sched.tick(&mut world); }
         }
+        // idle villagers wander (village feels alive)
+        if !paused {
+            for v in villagers.iter() {
+                let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
+                if idle {
+                    if let Some(p) = world.get_component_mut::<Pos>(*v) {
+                        let wob = ((tick + *v as u64) % 8) as f32;
+                        if wob < 1.0 { p.x += 0.2; } else if wob < 2.0 { p.y += 0.2; }
+                        else if wob < 3.0 { p.x -= 0.2; } else if wob < 4.0 { p.y -= 0.2; }
+                        p.x = p.x.clamp(2.0, 30.0);
+                        p.y = p.y.clamp(2.0, 30.0);
+                    }
+                }
+            }
+        }
+
         // detect events -> toasts
         let gc = world.query::<Guild>().len();
         if gc > last_guild_count {

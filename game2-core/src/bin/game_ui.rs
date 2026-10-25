@@ -241,6 +241,20 @@ fn main() {
             }
         }
 
+        // gossip: rumors spread villager-to-villager
+        if tick % 40 == 0 {
+            let rumors = [
+                "word spreads of a stranger organizing",
+                "the miller is skimming the flour",
+                "someone saw the lord's tax collector",
+                "the guild merchants grow bold",
+                "an old wound reopens between families",
+            ];
+            let a = (tick as usize / 40) % 5;
+            let b = (tick as usize / 40 + 2) % 5;
+            log.push(format!("t{}: {} tells {} - {}", tick, names[a], names[b], rumors[tick as usize / 40 % 5]));
+        }
+
         // detect events -> toasts
         let gc = world.query::<Guild>().len();
         if gc > last_guild_count {

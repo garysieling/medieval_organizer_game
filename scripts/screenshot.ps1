@@ -1,0 +1,13 @@
+# Screenshot helper - captures primary monitor to a file
+param([string]$Name)
+$dir = "F:\projects\game2\screenshots"
+$ts = Get-Date -Format "yyyyMMdd-HHmmss"
+$path = Join-Path $dir "$Name-$ts.png"
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$b = New-Object System.Drawing.Bitmap([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width, [System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height)
+$g = [System.Drawing.Graphics]::FromImage($b)
+$g.CopyFromScreen(0, 0, 0, 0, $b.Size)
+$b.Save($path)
+$g.Dispose(); $b.Dispose()
+Write-Output "SAVED:$path"

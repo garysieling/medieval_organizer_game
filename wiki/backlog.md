@@ -399,10 +399,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research flexible art asset libraries for isometric pixel art. Don't boil the ocean - pick library that gives flexibility for described game but room to grow. Plan for potential AI generation steps later to fill gaps.
 
 ### [ ] Literature Survey Agent for Game Mechanics
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/literature-survey-agent.md
 - **Notes:** Design AI agent that does literature surveys to flesh out concepts. Finds mathy/academic content, translates to simplified/scaled game mechanics that are fun but reasonably accurate and educational.
 
 ### [ ] Anti-Colonialist/Liberation Literature Survey
@@ -532,108 +534,138 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research Against the Storm recipe system. Design flexible recipes where you can make one thing many ways, forcing creativity. Multiple input combinations for same output, resource substitution, improvisation.
 
 ### [ ] AI Agent Workforce Architecture - Implementation Engineer
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/implementation-engineer.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for implementation engineer (normal coding mode).
 
 ### [ ] AI Agent Workforce Architecture - Pedantic Senior Engineer
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/pedantic-senior-engineer.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for pedantic senior engineer (refactoring, design patterns, complexity/maintainability). Runs every N turns.
 
 ### [ ] AI Agent Workforce Architecture - Retrospective Agent
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/retrospective-agent.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for retrospective agent (looks at issues, proposes fixes to all other agents).
 
 ### [ ] AI Agent Workforce Architecture - Exploratory Tester (Data Scientist)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/exploratory-tester-data-scientist.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for exploratory tester - data scientist mode (logs, data structures, design issues, errors).
 
 ### [ ] AI Agent Workforce Architecture - Exploratory Tester (UI Clicker)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/exploratory-tester-ui-clicker.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for exploratory tester - UI clicker mode (finds UI mistakes).
 
 ### [ ] AI Agent Workforce Architecture - Simple Playtester (Goal-Oriented)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/simple-playtester.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for simple playtester (executes goals like "build 5 units"). Both UI and non-UI versions.
 
 ### [ ] AI Agent Workforce Architecture - "Fun" Inspector
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/fun-inspector.md + wiki/fun-rubric.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for "fun" inspector (balance of grind vs emotional stimulation). Retrospects playtests.
 
 ### [ ] AI Agent Workforce Architecture - Full Game Playtesters (Backend API)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/full-game-playtester.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for full game playtesters (through backend API, no UI, runs tons of simulations).
 
 ### [ ] AI Agent Workforce Architecture - Performance Engineer
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/performance-engineer.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for performance engineer (anomalies, system issues).
 
 ### [ ] AI Agent Workforce Architecture - Economist Testers
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/economist-tester.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for economist-type testers (simulation balance, economic systems).
 
 ### [ ] AI Agent Workforce Architecture - Credibility Analyst
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/credibility-analyst.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for credibility analyst (psych/sociology research validation).
 
 ### [ ] AI Agent Workforce Architecture - Creative Filter
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/creative-filter.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for creative filter (finds simple mechanics to borrow creatively, e.g., QSP to non-health applications).
 
 ### [ ] AI Agent Workforce Architecture - Emergent Effects Researcher
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/emergent-effects-researcher.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for emergent effects researcher (papers on emergent effects, proposes ideas, writes agents/tests to prove out).
 
 ### [ ] AI Agent Workforce Architecture - Aesthetic Consultant
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/aesthetic-consultant.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for aesthetic consultant (screencap recommendations).
 
 ### [ ] AI Agent Workforce Architecture - Gameplay Consultant
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/gameplay-consultant.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for gameplay consultant (watches walkthroughs, provides feedback).
 
 ### [ ] Playthrough Video Generation System
@@ -644,24 +676,30 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design system to generate 5-10 minute playthrough videos. Only show interesting things with variation for user feedback. Filter for interesting characteristics.
 
 ### [ ] Manager Bot - Agent Workforce Orchestration
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/manager-bot.md + game2-core/src/agents/manager_bot.rs
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for Manager Bot. Oversees workforce, delegates tasks, handles promotions, builds sprint plans with exit criteria.
 
 ### [ ] PR Agent - Pull Request Management
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/pr-agent.md + game2-core/src/infra/pr_flow.rs
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for PR Agent. Creates/reviews/merges PRs, manages PR workflow.
 
 ### [ ] Conflict Resolution Agent - Merge Conflict Handling
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** CRITICAL
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/agents/conflict-resolution-agent.md
 - **Notes:** Define JD, skills/career ladder, Claude skills/rules, and learning mechanism for Conflict Resolution Agent. Resolves conflicts in worktrees, handles integration issues.
 
 ### [ ] Agent Coordination System Infrastructure

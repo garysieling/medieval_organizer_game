@@ -1,0 +1,25 @@
+//! C1: Production economy - farm->wheat->mill->flour->bakery->bread chain.
+//! End-to-end production working through real stockpile mechanics.
+
+use game2_core::game::economy::{Stockpile, Producer, produce};
+
+fn main() {
+    println!("=== PRODUCTION CHAIN ===\n");
+    let mut stock = Stockpile { goods: Default::default() };
+    stock.goods.insert("wheat".into(), 20);
+
+    let mill = Producer { name: "Mill".into(), inputs: vec![("wheat".into(), 2)], outputs: vec![("flour".into(), 1)], workers: vec![], efficiency: 1.0 };
+    let bakery = Producer { name: "Bakery".into(), inputs: vec![("flour".into(), 2)], outputs: vec![("bread".into(), 3)], workers: vec![], efficiency: 1.0 };
+
+    println!("stock: {:?}", stock.goods);
+    for cycle in 1..=5 {
+        if produce(&mut stock, &mill) {
+            println!("cycle {}: mill produced flour", cycle);
+        }
+        if produce(&mut stock, &bakery) {
+            println!("cycle {}: bakery produced bread", cycle);
+        }
+        println!("  stock: {:?}", stock.goods);
+    }
+    println!("\n=== CHAIN COMPLETE ===");
+}

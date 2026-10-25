@@ -36,8 +36,9 @@ impl Terrain {
     /// Generate terrain using midpoint displacement (diamond-square)
     pub fn generate(size: usize, roughness: f32, seed: u64) -> Self {
         let mut rng = Rng::new(seed);
-        // size must be power of 2 + 1
-        let size = if size & (size - 1) != 0 { 1 << (size as f32).log2().ceil() as u32 + 1 } else { size + 1 };
+        // size must be 2^n + 1 for diamond-square; round up to nearest valid
+        let n = ((size - 1) as f32).log2().ceil() as u32;
+        let size = (1usize << n) + 1;
 
         let mut heights = vec![vec![0.0f32; size]; size];
 
@@ -53,9 +54,9 @@ impl Terrain {
         while step > 1 {
             let half = step / 2;
 
-            // Diamond step: center of each square
-            for y in (half..size).step_by(step) {
-                for x in (half..size).step_by(step) {
+            // Diamond step: center of each square (interior points only)
+            for y in (half..size - 1).step_by(step) {
+                for x in (half..size - 1).step_by(step) {
                     let avg = (heights[y - half][x - half]
                         + heights[y - half][x + half]
                         + heights[y + half][x - half]

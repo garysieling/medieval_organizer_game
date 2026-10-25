@@ -234,8 +234,13 @@ fn main() {
             draw_text(&mut buf, sx - 14, sy - 76, names[i], 255, 255, 255);
             // hunger indicator
             if let Some(h) = world.get_component::<Hunger>(villagers[i]) {
-                if h.value < 40.0 {
-                    draw_text(&mut buf, sx - 3, sy - 66, "!", 255, 100, 100);
+                if h.value < 40.0 { draw_text(&mut buf, sx - 3, sy - 66, "!", 255, 100, 100); }
+            }
+            if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
+                match vil.activity {
+                    Activity::SeekingFood => { draw_text(&mut buf, sx + 8, sy - 60, "o", 255, 200, 100); }
+                    Activity::Idle => {},
+                    _ => { draw_text(&mut buf, sx + 8, sy - 60, "*", 180, 180, 255); }
                 }
             }
         }
@@ -298,7 +303,13 @@ fn main() {
         draw_text(&mut buf, UI_X as i32 + 14, 454, "LOG", 150, 150, 180);
         for (i, entry) in log.iter().rev().take(9).enumerate() {
             let trunc: String = entry.chars().take(44).collect();
-            draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, 210, 210, 210);
+            // color by event type: deaths red, guilds gold, joins green, weather cyan, talk white
+            let (r, g, b) = if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
+                else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
+                else if entry.contains("joined") { (120, 255, 120) }
+                else if entry.contains("storm") || entry.contains("rain") || entry.contains("flu") { (120, 200, 255) }
+                else { (210, 210, 210) };
+            draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, r, g, b);
         }
 
         // weather tint overlay on map region
@@ -359,6 +370,17 @@ fn main() {
         // season banner
         draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
             if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
+
+        // pause menu overlay
+        if paused {
+            buf.rect(280, 200, 260, 140, 20, 20, 35);
+            buf.rect(280, 200, 260, 2, 200, 200, 220);
+            draw_text_scaled(&mut buf, 340, 215, "PAUSED", 2, 255, 255, 255);
+            draw_text(&mut buf, 300, 255, "Space: resume", 200, 200, 200);
+            draw_text(&mut buf, 300, 275, "0: speed 1x/4x", 200, 200, 200);
+            draw_text(&mut buf, 300, 295, "Esc: quit", 200, 200, 200);
+            draw_text(&mut buf, 300, 315, "1-5: select villager", 200, 200, 200);
+        }
 
         // --- INPUT ---
         if window.get_mouse_down(minifb::MouseButton::Left) {

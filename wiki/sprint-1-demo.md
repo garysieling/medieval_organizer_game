@@ -161,5 +161,106 @@ d3487c6 Sprint 0 Task 6: Sprint Documentation and Demo
 
 **Total Documentation:** ~1400 lines of detailed agent specifications
 
+## Task 2: Define Critical Research Agents
+
+### Screenshot 9: Credibility Analyst Spec
+**Description:** Wiki agents directory showing credibility analyst spec file
+**File:** `wiki/agents/credibility-analyst.md`
+**Content Preview:**
+```markdown
+# Credibility Analyst
+
+## Job Description
+Validates psych/sociology research and other academic sources. Checks that game mechanics align with academic research. Ensures simulations are reasonably accurate and based on credible sources. Filters for high-quality sources. Focuses on academic credibility of game systems.
+
+## Skills / Career Ladder
+### Junior
+- Can evaluate basic sources for credibility
+- Can identify obvious low-quality sources (blog posts, unsourced claims)
+...
+```
+
+### Screenshot 10: Creative Filter Spec
+**Description:** Wiki agents directory showing creative filter spec file
+**File:** `wiki/agents/creative-filter.md`
+**Content Preview:**
+```markdown
+# Creative Filter
+
+## Job Description
+Filters research content for simple mechanics to borrow creatively. Looks for creative applications of concepts (e.g., QSP to non-health things). Identifies transferable concepts across domains. Proposes novel mechanic combinations. Focuses on creative borrowing and cross-pollination.
+
+## Skills / Career Ladder
+### Junior
+- Can identify obvious transferable mechanics
+- Can see simple connections between domains
+...
+```
+
+### Screenshot 11: Emergent Effects Researcher Spec
+**Description:** Wiki agents directory showing emergent effects researcher spec file
+**File:** `wiki/agents/emergent-effects-researcher.md`
+**Content Preview:**
+```markdown
+# Emergent Effects Researcher
+
+## Job Description
+Researches papers on emergent effects and proposes ideas based on emergent systems (e.g., fractals from simple rules). Structures ideas and writes them out as mods. Writes agents or tests to prove out ideas. Focuses on bottom-up complexity generation.
+
+## Skills / Career Ladder
+### Junior
+- Can research and summarize emergent systems
+- Can identify basic emergent patterns (e.g., fractals, cellular automata)
+...
+```
+
+### Screenshot 12: Updated AI Agent Workforce with Research Agents
+**Description:** Updated ai-agent-workforce.md showing research agents marked as "Spec Defined"
+**File:** `wiki/ai-agent-workforce.md`
+**Content Preview:**
+```markdown
+### Credibility Analyst
+**Status:** Spec Defined
+**Priority:** CRITICAL
+**Spec Location:** `wiki/agents/credibility-analyst.md`
+...
+```
+
+### Screenshot 13: Complete Agent Specs Directory
+**Description:** List of all agent specification files created (including research agents)
+**Command:** `ls wiki/agents/`
+**Output:**
+```
+credibility-analyst.md
+creative-filter.md
+emergent-effects-researcher.md
+exploratory-tester-data-scientist.md
+exploratory-tester-ui-clicker.md
+full-game-playtester.md
+fun-inspector.md
+implementation-engineer.md
+manager-bot.md
+simple-playtester.md
+```
+
+## Status: Task 2 Complete ✓
+
+**Exit Criteria Met:**
+- ✓ 3 agent spec documents created in wiki/agents/
+- ✓ Each spec follows established template
+- ✓ KB structures defined for each agent
+- ✓ Manager Bot updated to recognize these agent types (spec documents created)
+- ✓ Screenshots documented showing agent specs
+- ✓ Git commits showing work completed
+
+**Agent Specs Created:**
+1. Credibility Analyst - 369 lines, comprehensive spec
+2. Creative Filter - 379 lines, comprehensive spec
+3. Emergent Effects Researcher - 442 lines, comprehensive spec
+
+**Total Documentation:** ~1200 lines of detailed agent specifications
+
+**Combined Total (Tasks 1 & 2):** 7 agent specs, ~2600 lines of documentation
+
 ## Next Steps
-Proceeding to Task 2: Define Critical Research Agents
+Proceeding to Task 3: Update Manager Bot for All Agent Types

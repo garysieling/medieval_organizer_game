@@ -276,8 +276,9 @@ Each agent should have:
 ---
 
 ### Credibility Analyst
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/credibility-analyst.md`
 
 **Job Description:**
 - Validates psych/sociology research
@@ -293,16 +294,17 @@ Each agent should have:
 - Staff: Can architect academic validation systems
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
 ### Creative Filter
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/creative-filter.md`
 
 **Job Description:**
 - Filters research content for simple mechanics to borrow
@@ -318,16 +320,17 @@ Each agent should have:
 - Staff: Can architect creative innovation systems
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
 ### Emergent Effects Researcher
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/emergent-effects-researcher.md`
 
 **Job Description:**
 - Researches papers on emergent effects
@@ -343,10 +346,10 @@ Each agent should have:
 - Staff: Can architect emergent design frameworks
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 

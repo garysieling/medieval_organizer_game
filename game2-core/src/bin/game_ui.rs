@@ -23,8 +23,8 @@ const W: usize = 960;
 const H: usize = 640;
 const MAP_W: usize = 640;
 const UI_X: usize = 660;
-const TILE_W: i32 = 20;
-const TILE_H: i32 = 10;
+const TILE_W: i32 = 28;
+const TILE_H: i32 = 14;
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 { ((r as u32) << 16) | ((g as u32) << 8) | b as u32 }
 
@@ -168,11 +168,6 @@ fn main() {
         let m = world.create_entity();
         world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
     }
-    // relationships: some villagers are friends, others feud
-    use game2_core::game::relationships::RelKind;
-    world.add_component(villagers[0], Relationship { other: villagers[1], kind: RelKind::Friend, strength: 0.7, interactions: 8 });
-    world.add_component(villagers[2], Relationship { other: villagers[3], kind: RelKind::Rival, strength: -0.5, interactions: 5 });
-    world.add_component(villagers[0], Relationship { other: villagers[3], kind: RelKind::Acquaintance, strength: 0.4, interactions: 3 });
 
     // rival village: foreign settlement across the river
     let mut rivals = vec![];
@@ -185,6 +180,7 @@ fn main() {
 
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+    world.add_component(player, Pos { x: 10.0, y: 10.0 }); // player has a position
     let org = world.create_entity();
     world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
@@ -242,7 +238,7 @@ fn main() {
 
         // sim advance: one tick = one day, throttled by frame count
         frame_n += 1;
-        let ticks_per_frame = if speed == 1 { 30 } else { 8 }; // frames between ticks
+        let ticks_per_frame = if speed == 1 { 60 } else { 15 }; // ~5s/day normal, ~1.2s turbo
         if !paused && frame_n % ticks_per_frame == 0 {
             tick += 1;
             sched.tick(&mut world);
@@ -294,22 +290,6 @@ fn main() {
             }
         }
 
-        // villagers socialize: neighbors form/drift bonds
-        if tick % 25 == 0 && !paused {
-            let a = (tick as usize / 25) % 5;
-            let b = (tick as usize / 25 + 1) % 5;
-            // they talk -> bond strengthens
-            if let Some(rel) = world.get_component_mut::<Relationship>(villagers[a]) {
-                if rel.other == villagers[b] {
-                    rel.strength = (rel.strength + 0.08).min(1.0);
-                    rel.interactions += 1;
-                }
-            } else {
-                world.add_component(villagers[a], Relationship {
-                    other: villagers[b], kind: RelKind::Acquaintance, strength: 0.1, interactions: 1,
-                });
-            }
-        }
 
         // gossip: rumors spread villager-to-villager
         if tick % 40 == 0 {
@@ -402,30 +382,6 @@ fn main() {
         buf.rect(fsx - 20, fsy + 10, fw, 4, 80, 200, 80);
         draw_text(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
 
-        // relationship lines between bonded villagers
-        for (i, va) in villagers.iter().enumerate() {
-            for (j, vb) in villagers.iter().enumerate() {
-                if j > i {
-                    if let (Some(pa), Some(pb)) = (world.get_component::<Pos>(*va), world.get_component::<Pos>(*vb)) {
-                        if let Some(rel) = world.get_component::<Relationship>(*va) {
-                            if rel.other == *vb {
-                                let (ax, ay) = iso_to_screen_cam(pa.x, pa.y, cam_x, cam_y, zoom);
-                                let (bx, by) = iso_to_screen_cam(pb.x, pb.y, cam_x, cam_y, zoom);
-                                let b = rel.strength;
-                                let (lr, lg, lb) = if b > 0.3 { (80, 220, 80) } else if b < -0.3 { (255, 80, 80) } else { (150, 150, 150) };
-                                // thin line
-                                let steps = ((bx - ax).abs().max((by - ay).abs())).max(1);
-                                for step in 0..=steps {
-                                    let lx = ax + (bx - ax) * step / steps;
-                                    let ly = ay + (by - ay) * step / steps;
-                                    buf.set(lx, ly, lr, lg, lb);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         // villagers as sprites (sorted by y for depth)
         let mut v_sorted: Vec<(usize, f32, f32)> = villagers.iter().enumerate()
@@ -484,8 +440,9 @@ fn main() {
             }
         }
 
-        // player as sprite (highlighted)
-        let (px, py) = iso_to_screen_cam(10.0, 10.0, cam_x, cam_y, zoom);
+        // player sprite at their actual position
+        let player_pos = world.get_component::<Pos>(player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0));
+        let (px, py) = iso_to_screen_cam(player_pos.0, player_pos.1, cam_x, cam_y, zoom);
         if let Some(ps) = &player_s {
             ps.blit_scaled(&mut buf, px - 32, py - 60, 2);
             // gold ring under player
@@ -516,7 +473,7 @@ fn main() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             // proximity: Talk/Recruit need selected villager within 8 tiles of player
             let dist_ok = world.get_component::<Pos>(villagers[selected_target])
-                .map(|vp| { let dx = vp.x - 10.0; let dy = vp.y - 10.0; (dx*dx + dy*dy).sqrt() < 8.0 })
+                .map(|vp| { let dx = vp.x - player_pos.0; let dy = vp.y - player_pos.1; (dx*dx + dy*dy).sqrt() < 8.0 })
                 .unwrap_or(false);
             let disabled = (i == 0 || i == 1 || i == 3) && !dist_ok
                 || i == 1 && world.get_component::<PlayerCharacter>(player).unwrap().influence < 0.3;
@@ -774,7 +731,16 @@ fn main() {
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { zoom = (zoom + 0.02).min(2.0); }
         if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { zoom = (zoom - 0.02).max(0.5); }
         if window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { speed = if speed == 1 { 4 } else { 1 }; }
-        // camera pan
+        // WASD moves the player character (iso directions)
+        if let Some(pp) = world.get_component_mut::<Pos>(player) {
+            let spd = 0.15;
+            if window.is_key_down(Key::W) { pp.x -= spd; pp.y -= spd; }  // up
+            if window.is_key_down(Key::S) { pp.x += spd; pp.y += spd; }  // down
+            if window.is_key_down(Key::A) { pp.x -= spd; pp.y += spd; }  // left
+            if window.is_key_down(Key::D) { pp.x += spd; pp.y -= spd; }  // right
+            pp.x = pp.x.clamp(0.0, 31.0); pp.y = pp.y.clamp(0.0, 31.0);
+        }
+        // arrows pan the camera
         if window.is_key_down(Key::Left)  { cam_x += 6; }
         if window.is_key_down(Key::Right) { cam_x -= 6; }
         if window.is_key_down(Key::Up)    { cam_y += 6; }
@@ -859,6 +825,7 @@ fn run_headless(target_tick: u64) {
     }
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+    world.add_component(player, Pos { x: 10.0, y: 10.0 }); // player has a position
     let org = world.create_entity();
     world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
 

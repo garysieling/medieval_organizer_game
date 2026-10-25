@@ -10,6 +10,9 @@ Cargo.lock
 .agents/*/cache/
 .agents/*.tmp
 
+# Task queue runtime state (track todo.txt, ignore other runtime files)
+tasks/*.log
+
 # IDE
 .vscode/
 .idea/

@@ -294,10 +294,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design simple development experience like QBasic: pixel block, mouse block, sound block = great dev experience. Focus on simplicity despite complex underlying systems.
 
 ### [ ] Isometric Game Board + Minimap Module
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** game2-core/src/ui/isometric.rs + game2-core/src/ui/minimap.rs (implemented, BMP renders in evidence/)
 - **Notes:** Design isometric game board with minimap as core UI module. Once built, should stay out of the way (modular). Study Caesar 2/LotR era interfaces.
 
 ### [ ] Independent Component Testing Framework
@@ -310,10 +312,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design framework to test simulated components independently, then together. Test both mechanics (does it work?) and playability (is it fun?). Unit tests, integration tests, playability tests.
 
 ### [ ] Local AI Model Integration for Bug Fixes
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/ollama-integration.md + game2-core/src/infra/ollama.rs
 - **Notes:** Design system where local AI model (Ollama) can analyze telemetry, identify bugs, and implement fixes. Overnight number crunching, automated bug fixing.
 
 ### [ ] Deterministic Simulation for AI Safety
@@ -324,17 +328,21 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design deterministic simulation with lots of checks to keep AI from meandering off when fixing issues. Guardrails, validation, reproducibility.
 
 ### [ ] Hot Reloading System
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/hot-reload.md + game2-core/src/infra/hot_reload.rs
 - **Notes:** Design hot reloading system - critical for testing without restarting game. Reload individual components/modules without full game restart. Research Rust hot reloading approaches.
 
 ### [ ] Open Telemetry & KPI Recording
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/telemetry-kpi.md + game2-core/src/infra/telemetry.rs
 - **Notes:** Integrate Open Telemetry to record KPIs during playtesting. AI watches metrics while playtesting, auto-fixes issues behind scenes, hot reloads improvements. Real-time observability.
 
 ### [ ] Auto-Fix & Hot Reload Pipeline
@@ -864,10 +872,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research software factory methodologies, role definitions, and organizational structure for game development. Define testing roles, workflows, and quality gates.
 
 ### [ ] Ollama Integration for Test Automation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/ollama-integration.md + game2-core/src/infra/ollama.rs
 - **Notes:** Research using Ollama for test automation - slow overnight test runs vs fast feedback loops. Design architecture for AI-assisted testing, coverage analysis, and CI/CD integration.
 
 ### [ ] Game Engine/Architecture Research

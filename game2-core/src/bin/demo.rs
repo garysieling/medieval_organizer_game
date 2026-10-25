@@ -113,6 +113,25 @@ fn main() {
     gbuf.save_bmp("evidence/relationship-graph.bmp").unwrap();
     println!("saved evidence/relationship-graph.bmp");
 
+    println!("\n--- UI: Tech Tree Constellation (printmaking) ---");
+    let mut techs = game2_core::game::tech_tree::printmaking_tree();
+    game2_core::game::tech_tree::research(&mut techs, "Quill & Ink", 20.0);
+    game2_core::game::tech_tree::research(&mut techs, "Papyrus", 20.0);
+    game2_core::game::tech_tree::research(&mut techs, "Vellum", 30.0);
+    let positions = vec![
+        ("Quill & Ink".to_string(), 50.0, 150.0),
+        ("Papyrus".to_string(), 150.0, 150.0),
+        ("Vellum".to_string(), 250.0, 120.0),
+        ("Woodblock".to_string(), 100.0, 90.0),
+        ("Movable Type".to_string(), 200.0, 60.0),
+        ("Paper Mill".to_string(), 300.0, 80.0),
+        ("Printing Press".to_string(), 250.0, 40.0),
+        ("Stone Lithography".to_string(), 350.0, 20.0),
+    ];
+    let tbuf = game2_core::ui::tech_view::render_tech_tree(&techs, &positions, 400, 180);
+    tbuf.save_bmp("evidence/tech-tree.bmp").unwrap();
+    println!("saved evidence/tech-tree.bmp");
+
     render_character_demo();
     println!("\n=== DEMO COMPLETE ===");
 }

@@ -4,3 +4,4 @@ pub mod minimap;
 pub mod character_sheet;
 pub mod dialogs;
 pub mod graph;
+pub mod tech_view;

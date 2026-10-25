@@ -127,7 +127,7 @@ warning: unused import: `AttachmentStyle`
   |                                                                   ^^^^^^^^^^^^^^^
 
 warning: `game2-core` (bin "demo") generated 2 warnings (run `cargo fix --bin "demo" -p game2-core` to apply 2 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.40s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
      Running `target\debug\demo.exe`
 === EVIDENCE DEMO ===
 
@@ -271,6 +271,9 @@ tick 10 (fire spread):
 
 --- UI: Relationship Graph ---
 saved evidence/relationship-graph.bmp
+
+--- UI: Tech Tree Constellation (printmaking) ---
+saved evidence/tech-tree.bmp
 saved evidence/character-sheet.bmp
 
 === DEMO COMPLETE ===

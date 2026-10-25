@@ -40,6 +40,9 @@ cargo run --bin game           # text-mode version
 | **Arrows** | Pan the camera around the map |
 | **Space** | Pause/unpause |
 | **0** | Toggle 4x speed |
+| **H** | Help overlay (all controls) |
+| **Click minimap** | Jump camera to that region |
+| **+/-** | Zoom map |
 | **Enter** | Start (title screen) |
 | **F12** | Save BMP screenshot to evidence/ |
 | **Esc** | Quit |

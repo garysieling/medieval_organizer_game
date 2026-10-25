@@ -4,11 +4,49 @@
 
 ```bash
 cargo build                    # build everything
-cargo run --bin full_session   # the game in one run (300 ticks)
-cargo run --bin game_loop      # unified game loop (500 ticks)
-cargo run --bin showcase       # master showcase (5 evidence files)
-cargo run --bin demo           # all systems demo + BMP renders
+cargo run --bin game_ui        # THE GAME - windowed UI, real sprites
+cargo run --bin game           # text-mode version
 ```
+
+## The Window (game_ui)
+
+```
++----------------------------------+----------+
+|  isometric map: village,         |  THE     |
+|  buildings, trees, villagers     | WANDERER |
+|  walking around, name labels     |          |
+|                                  | [Talk]   |
+|  YOU = white marker              | [Recruit]|
+|  click a villager to inspect     | [Invest] |
+|                                  | [Organize]|
+|                                  | [Build]  |
+|                                  | [Wait]   |
+|                                  |          |
+|                                  | Inspector|
+|                                  | (stats)  |
+|                                  |          |
+|                                  | LOG      |
++----------------------------------+----------+
+```
+
+## Controls
+
+| Input | Action |
+|-------|--------|
+| **Click button** | Take action on selected villager |
+| **Click villager** | Select/inspect them |
+| **1-5** | Select villager by number |
+| **T/R/I/O/B/W** | Keyboard: Talk/Recruit/Invest/Organize/Build/Wait |
+| **Arrows** | Pan the camera around the map |
+| **Space** | Pause/unpause |
+| **0** | Toggle 4x speed |
+| **Enter** | Start (title screen) |
+| **F12** | Save BMP screenshot to evidence/ |
+| **Esc** | Quit |
+
+## The Game
+
+You are **The Wanderer** - an outsider who arrives with nothing. You can't command anyone. Build influence by talking, organizing, recruiting.
 
 ## The Game
 

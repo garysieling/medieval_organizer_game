@@ -121,6 +121,14 @@ fn main() {
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
     pets::adopt(&mut world, dog, villagers[0]);
 
+    let tooltips = [
+        "talk to selected villager",
+        "recruit villager to your org",
+        "spend gold for influence",
+        "call a house meeting",
+        "commission a new house",
+        "watch the village",
+    ];
     let buttons = vec![
         Button { label: "Talk",     key: 'T', x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
         Button { label: "Recruit",  key: 'R', x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
@@ -248,6 +256,9 @@ fn main() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             let disabled = i == 1 && world.get_component::<PlayerCharacter>(player).unwrap().influence < 0.3;
             draw_button(&mut buf, b, hover, disabled);
+            if hover && !disabled {
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, tooltips[i], 220, 220, 160);
+            }
         }
 
         // inspector panel for selected villager

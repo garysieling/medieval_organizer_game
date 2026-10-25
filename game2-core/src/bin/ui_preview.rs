@@ -57,6 +57,9 @@ fn main() {
     let mill_s = Sprite::load(&assets.path(&assets.building_sprite("mill", "wood"))).ok();
     let blacksmith_s = Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok();
     let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
+    let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
+    let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
+    let guildhall_s = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
     let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
     let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
     let stone_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok();
@@ -68,6 +71,8 @@ fn main() {
         (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
         (16.0, 15.0, &corn_s), (16.0, 16.0, &corn_s), (17.0, 15.0, &corn_s),
         (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
+        (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
+        (2.0, 8.0, &church_s), (17.0, 10.0, &guildhall_s),
     ];
 
     let mut villagers = vec![];
@@ -119,9 +124,11 @@ fn main() {
         }
     }
 
+    let player_s = Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).unwrap();
     let (px, py) = iso_to_screen(10.0, 10.0);
-    buf.rect(px - 4, py - 8, 8, 8, 255, 255, 255);
-    draw_text(&mut buf, px - 10, py - 20, "YOU", 255, 255, 0);
+    player_s.blit_scaled(&mut buf, px - 32, py - 60, 2);
+    buf.rect(px - 12, py - 4, 24, 3, 255, 215, 0);
+    draw_text(&mut buf, px - 12, py - 76, "YOU", 255, 255, 0);
 
     // UI PANEL
     buf.rect(UI_X, 0, W as i32 - UI_X, H as i32, 32, 32, 48);

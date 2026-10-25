@@ -15,8 +15,9 @@ Each agent should have:
 ## Engineering Agents
 
 ### Implementation Engineer
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/implementation-engineer.md`
 
 **Job Description:**
 - Primary coding agent for implementing features
@@ -32,10 +33,10 @@ Each agent should have:
 - Staff: Can design system-level changes and drive technical direction
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
@@ -93,8 +94,9 @@ Each agent should have:
 ## Testing Agents
 
 ### Exploratory Tester (Data Scientist)
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/exploratory-tester-data-scientist.md`
 
 **Job Description:**
 - Analyzes logs, data structures, and telemetry
@@ -110,16 +112,17 @@ Each agent should have:
 - Staff: Can architect observability and analytics systems
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
 ### Exploratory Tester (UI Clicker)
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/exploratory-tester-ui-clicker.md`
 
 **Job Description:**
 - Explores the UI by clicking around
@@ -135,16 +138,17 @@ Each agent should have:
 - Staff: Can architect UX testing frameworks
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
 ### Simple Playtester (Goal-Oriented)
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/simple-playtester.md`
 
 **Job Description:**
 - Executes specific goals in the game (e.g., "build 5 units")
@@ -160,16 +164,17 @@ Each agent should have:
 - Staff: Can architect automated playtesting frameworks
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
 ### Full Game Playtesters (Backend API)
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/full-game-playtester.md`
 
 **Job Description:**
 - Runs full games through backend API (no UI)
@@ -185,16 +190,17 @@ Each agent should have:
 - Staff: Can architect mass simulation infrastructure
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
 ### "Fun" Inspector
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/fun-inspector.md`
 
 **Job Description:**
 - Analyzes playtests for "fun" factor
@@ -210,10 +216,10 @@ Each agent should have:
 - Staff: Can architect playability assessment systems
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- TBD
+- See spec document for full details
 
 ---
 
@@ -419,8 +425,9 @@ Each agent should have:
 ---
 
 ### Manager Bot
-**Status:** Backlog
+**Status:** Spec Defined
 **Priority:** CRITICAL
+**Spec Location:** `wiki/agents/manager-bot.md`
 
 **Job Description:**
 - Oversees entire agent workforce
@@ -436,11 +443,10 @@ Each agent should have:
 - Evolves its understanding of agent capabilities over time
 
 **Claude Skills/Rules:**
-- TBD
+- See spec document for full details
 
 **Learning Mechanism:**
-- Learns from agent performance data
-- Adapts delegation strategies based on success rates
+- See spec document for full details
 - Refines sprint planning based on historical outcomes
 
 ---

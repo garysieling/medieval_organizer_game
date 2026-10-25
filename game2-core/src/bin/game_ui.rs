@@ -16,6 +16,7 @@ use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
+use game2_core::game::traits::{self, Personality, personality_from_seed};
 
 const W: usize = 960;
 const H: usize = 640;
@@ -146,6 +147,7 @@ fn main() {
         world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
         world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
         villagers.push(v);
     }
     for i in 0..3 {

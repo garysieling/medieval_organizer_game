@@ -187,6 +187,7 @@ fn main() {
     let mut rapport = [0.0f32; 5]; // relationship score per villager
     let mut inspector_open = true;
     let mut help_open = false;
+    let mut dialog: Option<(usize, String, u64)> = None; // (villager idx, text, until tick)
     let mut frame_n = 0u32;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
@@ -508,6 +509,21 @@ fn main() {
         }
         buf.rect(mm_x + 20, mm_y + 20, 2, 2, 255, 255, 255); // player
 
+        // dialog bubble over speaking villager
+        if let Some((vi, ref text, until)) = dialog {
+            if tick < until {
+                if let Some(p) = world.get_component::<Pos>(villagers[vi]) {
+                    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
+                    let bw = (text.len() as i32 * 6 + 12).max(60);
+                    let bx = (sx - bw / 2).max(4);
+                    let by = sy - 95;
+                    buf.rect(bx, by, bw, 18, 240, 240, 220);   // cream bubble
+                    buf.rect(bx, by + 16, 8, 6, 240, 240, 220); // tail
+                    draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
+                }
+            } else { dialog = None; }
+        }
+
         // toasts (big moments)
         let mut ty = 40;
         for (msg, until) in toasts.iter() {
@@ -571,7 +587,14 @@ fn main() {
             for (i, b) in buttons.iter().enumerate() {
                 if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h {
                     let msg = match i {
-                        0 => { let r = act_talk(&mut world, player, villagers[selected_target]); rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0); r.description }
+                        0 => {
+                            let r = act_talk(&mut world, player, villagers[selected_target]);
+                            rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0);
+                            let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
+                            let concern = concerns[(tick as usize + selected_target) % concerns.len()];
+                            dialog = Some((selected_target, concern.to_string(), tick + 60));
+                            r.description
+                        }
                         1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() } }
                         2 => { let r = act_invest(&mut world, player, 10.0); r.description }
                         3 => "You call a house meeting.".into(),
@@ -604,7 +627,13 @@ fn main() {
         if window.is_key_down(Key::Key3) { selected_target = 2; }
         if window.is_key_down(Key::Key4) { selected_target = 3; }
         if window.is_key_down(Key::Key5) { selected_target = 4; }
-        if window.is_key_down(Key::T) { let r = act_talk(&mut world, player, villagers[selected_target]); rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0); log.push(r.description); }
+        if window.is_key_down(Key::T) {
+            let r = act_talk(&mut world, player, villagers[selected_target]);
+            rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0);
+            let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
+            dialog = Some((selected_target, concerns[(tick as usize + selected_target) % concerns.len()].to_string(), tick + 60));
+            log.push(r.description);
+        }
         if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { rapport[selected_target] = 1.0; } log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
         if window.is_key_down(Key::I) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }

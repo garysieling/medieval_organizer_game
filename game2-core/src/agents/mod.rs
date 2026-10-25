@@ -1,6 +1,7 @@
 //! Agent workers (manager, implementations).
 pub mod manager_bot;
 pub mod retrospective_agent;
+pub mod gary_agent;
 pub mod pedantic_senior_engineer;
 pub mod pr_agent;
 pub mod conflict_resolution_agent;

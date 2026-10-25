@@ -180,9 +180,7 @@ fn main() {
             log.push(format!("t{}: The Merchant Guild formed!", tick));
         }
         last_guild_count = gc;
-        let new_members = world.get_component::<Organization>(org).unwrap().members.len();
-        static mut LAST_MEMBERS: usize = 0;
-        // action results also push toasts on recruit success
+
 
         // --- RENDER into Buffer ---
         let mut buf = Buffer::new(W, H);
@@ -321,6 +319,29 @@ fn main() {
                 draw_text(&mut buf, 10, 24, "RAINING", 150, 180, 255);
             }
         }
+
+        // minimap (top-right of map area) - dots for villagers/player/buildings
+        let mm_x = MAP_W as i32 - 90;
+        let mm_y = 10;
+        buf.rect(mm_x - 4, mm_y - 4, 84, 84, 20, 20, 30);
+        buf.rect(mm_x - 4, mm_y - 4, 84, 1, 120, 120, 140);
+        buf.rect(mm_x - 4, mm_y + 80, 84, 1, 120, 120, 140);
+        // terrain thumbnail
+        for my in 0..33 { for mx in 0..33 {
+            let h = terrain.heights[my][mx];
+            let px = mm_x + (mx * 2) as i32;
+            let py = mm_y + (my * 2) as i32;
+            let (r, g, b) = if h < 0.35 { (40, 60, 160) } else if h < 0.6 { (60, 140, 60) } else { (160, 160, 160) };
+            buf.set(px, py, r, g, b); buf.set(px+1, py, r, g, b);
+            buf.set(px, py+1, r, g, b); buf.set(px+1, py+1, r, g, b);
+        }}
+        // entity dots
+        for v in villagers.iter() {
+            if let Some(p) = world.get_component::<Pos>(*v) {
+                buf.rect(mm_x + (p.x * 2.0) as i32, mm_y + (p.y * 2.0) as i32, 2, 2, 255, 80, 80);
+            }
+        }
+        buf.rect(mm_x + 20, mm_y + 20, 2, 2, 255, 255, 255); // player
 
         // toasts (big moments)
         let mut ty = 40;

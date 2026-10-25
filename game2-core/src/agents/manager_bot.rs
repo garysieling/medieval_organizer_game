@@ -491,3 +491,53 @@ mod tests {
         let _ = fs::remove_file("test_manager.log");
     }
 }
+
+/// A sprint plan the Manager Bot builds and tracks
+#[derive(Debug)]
+pub struct SprintPlan {
+    pub name: String,
+    pub goal: String,
+    pub tasks: Vec<SprintTask>,
+    pub exit_criteria: Vec<String>,
+    pub approved: bool,
+}
+
+#[derive(Debug)]
+pub struct SprintTask {
+    pub id: String,
+    pub description: String,
+    pub workstream: String,
+    pub completed: bool,
+}
+
+impl SprintPlan {
+    /// Check if all exit criteria are met (simple heuristic: all tasks done)
+    pub fn exit_criteria_met(&self) -> bool {
+        self.tasks.iter().all(|t| t.completed) && self.approved
+    }
+
+    /// Progress as percentage
+    pub fn progress(&self) -> f32 {
+        if self.tasks.is_empty() { return 0.0; }
+        let done = self.tasks.iter().filter(|t| t.completed).count() as f32;
+        done / self.tasks.len() as f32 * 100.0
+    }
+
+    /// Mark a task complete by id
+    pub fn complete_task(&mut self, id: &str) {
+        if let Some(t) = self.tasks.iter_mut().find(|t| t.id == id) {
+            t.completed = true;
+        }
+    }
+}
+
+/// Build a sprint plan from workstreams and tasks
+pub fn build_sprint_plan(name: &str, goal: &str) -> SprintPlan {
+    SprintPlan {
+        name: name.into(),
+        goal: goal.into(),
+        tasks: vec![],
+        exit_criteria: vec![],
+        approved: false,
+    }
+}

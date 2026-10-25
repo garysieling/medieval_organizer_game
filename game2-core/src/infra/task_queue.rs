@@ -23,6 +23,12 @@ pub struct Task {
     pub created_at: u64,
     /// IDs of tasks this task depends on
     pub dependencies: Vec<String>,
+    /// Priority: 0=low, 1=normal, 2=high, 3=critical
+    pub priority: u8,
+    /// Optional deadline (tick)
+    pub deadline: Option<u64>,
+    /// Preferred agent (empty = any)
+    pub preferred_agent: String,
 }
 
 /// Task status
@@ -89,11 +95,10 @@ impl TaskQueue {
 
     /// Parse a single task line
     fn parse_line(line: &str) -> Result<Task, String> {
-        // Format: id|description|assigned_to|status|created_at|dependencies
-        // dependencies is comma-separated list of task ids (empty string = no deps)
-        // 5-field legacy format (no dependencies) is also accepted
+        // Format: id|description|assigned_to|status|created_at|deps|priority|deadline|preferred_agent
+        // Fields 7-9 optional for backwards compat (5/6-field legacy formats accepted)
         let parts: Vec<&str> = line.split('|').collect();
-        if parts.len() < 5 || parts.len() > 6 {
+        if parts.len() < 5 || parts.len() > 9 {
             return Err(format!("Invalid task format: {}", line));
         }
 
@@ -103,11 +108,14 @@ impl TaskQueue {
         let status = TaskStatus::from_str(parts[3])?;
         let created_at = parts[4].parse::<u64>()
             .map_err(|e| format!("Invalid timestamp: {}", e))?;
-        let dependencies: Vec<String> = if parts.len() == 6 && !parts[5].is_empty() {
+        let dependencies: Vec<String> = if parts.len() >= 6 && !parts[5].is_empty() {
             parts[5].split(',').map(|s| s.to_string()).collect()
         } else {
             Vec::new()
         };
+        let priority: u8 = parts.get(6).and_then(|p| p.parse().ok()).unwrap_or(1);
+        let deadline: Option<u64> = parts.get(7).and_then(|p| p.parse().ok());
+        let preferred_agent: String = parts.get(8).map(|s| s.to_string()).unwrap_or_default();
 
         Ok(Task {
             id,
@@ -116,19 +124,25 @@ impl TaskQueue {
             status,
             created_at,
             dependencies,
+            priority,
+            deadline,
+            preferred_agent,
         })
     }
 
     /// Format a task as a line
     fn format_line(task: &Task) -> String {
         format!(
-            "{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}",
             task.id,
             task.description,
             task.assigned_to,
             task.status.as_str(),
             task.created_at,
-            task.dependencies.join(",")
+            task.dependencies.join(","),
+            task.priority,
+            task.deadline.map(|d| d.to_string()).unwrap_or_default(),
+            task.preferred_agent
         )
     }
 
@@ -176,6 +190,9 @@ impl TaskQueue {
             status: TaskStatus::Pending,
             created_at: Self::now(),
             dependencies: dependencies.to_vec(),
+            priority: 1,
+            deadline: None,
+            preferred_agent: String::new(),
         };
         tasks.push(task.clone());
         self.save_tasks(&tasks)?;
@@ -199,10 +216,10 @@ impl TaskQueue {
         Ok(true)
     }
 
-    /// List pending tasks whose dependencies are all complete (ready to be worked on)
+    /// List pending tasks whose dependencies are all complete, sorted by priority (high first)
     pub fn list_ready(&self) -> Result<Vec<Task>, String> {
         let tasks = self.load_tasks()?;
-        let ready: Vec<Task> = tasks
+        let mut ready: Vec<Task> = tasks
             .iter()
             .filter(|t| t.status == TaskStatus::Pending)
             .filter(|t| {
@@ -216,6 +233,8 @@ impl TaskQueue {
             })
             .cloned()
             .collect();
+        // Sort by priority (high first), then creation time
+        ready.sort_by(|a, b| b.priority.cmp(&a.priority).then(a.created_at.cmp(&b.created_at)));
         Ok(ready)
     }
 

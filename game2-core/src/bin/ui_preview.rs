@@ -20,8 +20,8 @@ const W: usize = 960;
 const H: usize = 640;
 const MAP_W: usize = 640;
 const UI_X: i32 = 660;
-const TILE_W: i32 = 16;
-const TILE_H: i32 = 8;
+const TILE_W: i32 = 20;
+const TILE_H: i32 = 10;
 
 fn iso_to_screen(tx: f32, ty: f32) -> (i32, i32) {
     (MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32, 60 + ((tx + ty) * TILE_H as f32) as i32)
@@ -105,11 +105,11 @@ fn main() {
     v_sorted.sort_by(|a, b| (a.1 + a.2).partial_cmp(&(b.1 + b.2)).unwrap());
     for (i, wx, wy) in v_sorted {
         let (sx, sy) = iso_to_screen(wx, wy);
-        villager_sprites[i].blit_center(&mut buf, sx, sy);
-        if i == 0 { buf.rect(sx - 10, sy - 34, 20, 2, 255, 255, 0); }
-        draw_text(&mut buf, sx - 12, sy - 44, names[i], 255, 255, 255);
+        villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
+        if i == 0 { buf.rect(sx - 14, sy - 66, 28, 2, 255, 255, 0); }
+        draw_text(&mut buf, sx - 14, sy - 76, names[i], 255, 255, 255);
         if let Some(h) = world.get_component::<Hunger>(villagers[i]) {
-            if h.value < 40.0 { draw_text(&mut buf, sx - 3, sy - 34, "!", 255, 100, 100); }
+            if h.value < 40.0 { draw_text(&mut buf, sx - 3, sy - 66, "!", 255, 100, 100); }
         }
     }
 

@@ -11,4 +11,5 @@ pub mod weather;
 pub mod gossip;
 pub mod reputation_qsp;
 pub mod story;
+pub mod epidemic;
 pub mod fundamentalism;

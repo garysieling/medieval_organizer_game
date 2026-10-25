@@ -14,6 +14,7 @@ pub mod organizing;
 pub mod player;
 pub mod ai_player;
 pub mod action_menu;
+pub mod succession;
 pub mod music;
 pub mod terrain;
 pub mod pets;

@@ -358,7 +358,8 @@ Each agent should have:
 ## Consultation Agents
 
 ### Aesthetic Consultant
-**Status:** Backlog
+**Status:** Spec Defined
+**Spec Location:** `wiki/agents/aesthetic-consultant.md`
 **Priority:** CRITICAL
 
 **Job Description:**
@@ -382,7 +383,8 @@ Each agent should have:
 ---
 
 ### Gameplay Consultant
-**Status:** Backlog
+**Status:** Spec Defined
+**Spec Location:** `wiki/agents/gameplay-consultant.md`
 **Priority:** CRITICAL
 
 **Job Description:**

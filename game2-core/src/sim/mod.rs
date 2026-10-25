@@ -12,4 +12,5 @@ pub mod gossip;
 pub mod reputation_qsp;
 pub mod story;
 pub mod epidemic;
+pub mod world_events;
 pub mod fundamentalism;

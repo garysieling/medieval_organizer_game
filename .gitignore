@@ -1,0 +1,39 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Agent knowledge bases (these are runtime state, not code)
+.agents/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Test artifacts
+/test-output/
+/coverage/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Ollama models (if we download any locally)
+/models/

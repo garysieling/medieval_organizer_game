@@ -9,6 +9,8 @@ Usage: python scripts/fetch_creativity_corpus.py [--out DIR] [--only TRADITION,.
 """
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 import time
 import urllib.request
@@ -51,6 +53,12 @@ def download(gid):
                 return resp.read().decode("utf-8", errors="replace")
         except Exception as e:  # try next mirror path
             last = e
+            # Python's CA bundle can reject TLS-intercepting proxies; system curl uses the OS store
+            if "CERTIFICATE_VERIFY_FAILED" in str(e) and shutil.which("curl"):
+                r = subprocess.run(["curl", "-sfL", "-m", "120", "-A", UA, url], capture_output=True)
+                if r.returncode == 0 and r.stdout:
+                    return r.stdout.decode("utf-8", errors="replace")
+                last = RuntimeError(f"{e}; curl exit {r.returncode}")
     raise RuntimeError(f"all URLs failed for {gid}: {last}")
 
 

@@ -173,6 +173,32 @@ fn main() {
         draw_text(&mut buf, UI_X + 14, 470 + i as i32 * 18, entry, 210, 210, 210);
     }
 
+    // minimap
+    let mm_x = MAP_W as i32 - 90;
+    let mm_y = 10;
+    buf.rect(mm_x - 4, mm_y - 4, 84, 84, 20, 20, 30);
+    buf.rect(mm_x - 4, mm_y - 4, 84, 1, 120, 120, 140);
+    for my in 0..33 { for mx in 0..33 {
+        let h = terrain.heights[my][mx];
+        let (r, g, b) = if h < 0.35 { (40, 60, 160) } else if h < 0.6 { (60, 140, 60) } else { (160, 160, 160) };
+        buf.set(mm_x + (mx * 2) as i32, mm_y + (my * 2) as i32, r, g, b);
+        buf.set(mm_x + (mx * 2) as i32 + 1, mm_y + (my * 2) as i32, r, g, b);
+        buf.set(mm_x + (mx * 2) as i32, mm_y + (my * 2) as i32 + 1, r, g, b);
+        buf.set(mm_x + (mx * 2) as i32 + 1, mm_y + (my * 2) as i32 + 1, r, g, b);
+    }}
+    for v in villagers.iter() {
+        if let Some(p) = world.get_component::<Pos>(*v) {
+            buf.rect(mm_x + (p.x * 2.0) as i32, mm_y + (p.y * 2.0) as i32, 2, 2, 255, 80, 80);
+        }
+    }
+
+    // toast
+    let msg = "The Merchant Guild forms!";
+    let tw = msg.len() as i32 * 6 + 16;
+    buf.rect(MAP_W as i32 / 2 - tw / 2, 40, tw, 20, 20, 20, 35);
+    buf.rect(MAP_W as i32 / 2 - tw / 2, 40, tw, 1, 255, 215, 0);
+    draw_text(&mut buf, MAP_W as i32 / 2 - tw / 2 + 8, 46, msg, 255, 220, 130);
+
     draw_text(&mut buf, 10, 8, "Summer  t203", 255, 255, 255);
 
     buf.save_bmp("evidence/ui-preview.bmp").unwrap();

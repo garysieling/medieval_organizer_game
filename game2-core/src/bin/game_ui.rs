@@ -31,9 +31,11 @@ fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8, g: u8, b: 
 }
 
 /// Convert world tile coords to screen isometric position
-fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32) -> (i32, i32) {
-    let sx = MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32 + cam_x;
-    let sy = 100 + ((tx + ty) * TILE_H as f32) as i32 + cam_y;
+fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (i32, i32) {
+    let tw = TILE_W as f32 * zoom;
+    let th = TILE_H as f32 * zoom;
+    let sx = MAP_W as i32 / 2 + ((tx - ty) * tw) as i32 + cam_x;
+    let sy = 100 + ((tx + ty) * th) as i32 + cam_y;
     (sx, sy)
 }
 
@@ -100,6 +102,7 @@ fn main() {
         (3.0, 14.0, &tree_s), (18.0, 5.0, &tree_s), (9.0, 16.0, &tree_s), (20.0, 12.0, &tree_s),
     ];
     let mut built_count = 0usize;
+    let mut zoom = 1.0f32; // 0.5 - 2.0
     let mut toasts: Vec<(String, u64)> = vec![];  // (msg, shown until tick)
     let mut last_guild_count = 0usize;
 
@@ -213,7 +216,7 @@ fn main() {
         b_sorted.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
         for (bx, by, sprite) in b_sorted {
             if let Some(s) = sprite {
-                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y);
+                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
                 s.blit_center(&mut buf, sx, sy);
             }
         }
@@ -224,7 +227,7 @@ fn main() {
             .collect();
         v_sorted.sort_by(|a, b| (a.1 + a.2).partial_cmp(&(b.1 + b.2)).unwrap());
         for (i, wx, wy) in v_sorted {
-            let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y);
+            let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
             villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
             // selection highlight
             if i == selected_target {
@@ -246,7 +249,7 @@ fn main() {
         }
 
         // player marker on map
-        let (px, py) = iso_to_screen_cam(10.0, 10.0, cam_x, cam_y);
+        let (px, py) = iso_to_screen_cam(10.0, 10.0, cam_x, cam_y, zoom);
         draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         draw_text(&mut buf, px - 10, py - 20, "YOU", 255, 255, 0);
 
@@ -310,6 +313,21 @@ fn main() {
                 else if entry.contains("storm") || entry.contains("rain") || entry.contains("flu") { (120, 200, 255) }
                 else { (210, 210, 210) };
             draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, r, g, b);
+        }
+
+        // day/night tint: cycle every 60 ticks
+        let day_phase = (tick % 60) as f32 / 60.0;
+        let brightness = 0.7 + 0.3 * (day_phase * std::f32::consts::PI * 2.0).sin().abs();
+        if brightness < 0.9 {
+            for y in 0..H { for x in 0..MAP_W {
+                let idx = (y * MAP_W + x) * 4;
+                if idx + 2 < buf.pixels.len() {
+                    buf.pixels[idx]   = (buf.pixels[idx]   as f32 * brightness) as u8;
+                    buf.pixels[idx+1] = (buf.pixels[idx+1] as f32 * brightness) as u8;
+                    buf.pixels[idx+2] = (buf.pixels[idx+2] as f32 * (brightness * 1.05).min(1.0)) as u8;
+                }
+            }}
+            if day_phase > 0.5 { draw_text(&mut buf, 10, 24, "NIGHT", 160, 160, 220); }
         }
 
         // weather tint overlay on map region
@@ -408,7 +426,7 @@ fn main() {
             let mut best_d = 9999.0f32;
             for (i, v) in villagers.iter().enumerate() {
                 if let Some(p) = world.get_component::<Pos>(*v) {
-                    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y);
+                    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
                     if d < 30.0 && d < best_d { best = i; best_d = d; }
                 }
@@ -424,6 +442,8 @@ fn main() {
         if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
         if window.is_key_down(Key::I) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }
+        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { zoom = (zoom + 0.02).min(2.0); }
+        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { zoom = (zoom - 0.02).max(0.5); }
         if window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { speed = if speed == 1 { 4 } else { 1 }; }
         // camera pan
         if window.is_key_down(Key::Left)  { cam_x += 6; }

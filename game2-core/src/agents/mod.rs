@@ -16,4 +16,5 @@ pub mod literature_survey_agent;
 pub mod exploratory_tester_data_scientist;
 pub mod exploratory_tester_ui_clicker;
 pub mod simple_playtester;
+pub mod implementation_engineer;
 pub mod full_game_playtester;

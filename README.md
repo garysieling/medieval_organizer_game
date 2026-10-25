@@ -56,3 +56,20 @@ screenshots/   PNG evidence captures
 - `wiki/backlog.md` - research/mechanics backlog
 - `wiki/ai-agent-workforce.md` - agent architecture
 - `wiki/agents/creativity-generator.md` - creativity RAG: corpus, randomness, obviousness cut
+
+## Sprint 4 Complete
+
+The game now runs as a unified world, not just isolated systems.
+
+**What's new:**
+- `game_loop` (500 ticks), `full_session` (300 ticks), `full_game`, `mega_sim` - real unified runs
+- Agent fleet live: playtester, fun inspector (3.5/5), manager sprint, Gary Agent, retrospective, pedantic review
+- Player layer: outsider takes actions, builds influence, leads organization
+- AI players: 6 ruler personalities + governance models
+- Emergence at scale: guilds form, illness spreads, religion emerges, attachment varies
+- 4 lit reviews: printmaking, textiles, tea+herbology
+- New mechanics: weather, gossip, QSP reputation, 1-1 meetings, house meetings
+- Video-style frame sequence (10 BMPs)
+- 20+ binaries, 15+ evidence outputs, 30+ commits
+
+Run `cargo run --bin full_session` for the complete game in one run.

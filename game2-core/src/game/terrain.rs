@@ -104,9 +104,10 @@ impl Terrain {
                 let dx = (x as f32 - center) / center;
                 let dy = (y as f32 - center) / center;
                 let dist = (dx * dx + dy * dy).sqrt(); // 0 center -> ~1.4 corner
-                // Islands: land fills center 70% of grid, rim is always water
-                let dome = (1.0 - dist * dist).max(0.0); // parabolic falloff
-                heights[y][x] = (heights[y][x] * 0.35 + dome * 0.9).clamp(0.0, 1.0);
+                // Islands: land fills center, rim is water; cap height so center isn't all peaks
+                let dome = (1.0 - dist * dist).max(0.0);
+                let target = dome * 0.55 + 0.12; // center ~0.67 (grass/hills), rim ~0.12 (water)
+                heights[y][x] = (heights[y][x] * 0.35 + target).clamp(0.0, 1.0);
             }
         }
 

@@ -37,7 +37,7 @@ fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (i3
     let tw = TILE_W as f32 * zoom;
     let th = TILE_H as f32 * zoom;
     let sx = MAP_W as i32 / 2 + ((tx - ty) * tw) as i32 + cam_x;
-    let sy = 100 + ((tx + ty) * th) as i32 + cam_y;
+    let sy = -60 + ((tx + ty) * th) as i32 + cam_y;
     (sx, sy)
 }
 

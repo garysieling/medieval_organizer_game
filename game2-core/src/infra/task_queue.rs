@@ -278,64 +278,51 @@ mod tests {
     use super::*;
     use std::fs;
 
+    fn tmp_queue(name: &str) -> (TaskQueue, std::path::PathBuf) {
+        let path = std::env::temp_dir().join(format!("tq_{}.txt", name));
+        let _ = fs::remove_file(&path);
+        (TaskQueue::new(path.to_str().unwrap()), path)
+    }
+
     #[test]
     fn test_add_task() {
-        let queue = TaskQueue::new("test_tasks.txt");
-        let _ = fs::remove_file("test_tasks.txt"); // Clean up if exists
-
+        let (queue, path) = tmp_queue("add");
         let task = queue.add_task("Test task").unwrap();
         assert_eq!(task.description, "Test task");
         assert_eq!(task.status, TaskStatus::Pending);
         assert_eq!(task.assigned_to, "unassigned");
-
-        // Cleanup
-        let _ = fs::remove_file("test_tasks.txt");
+        let _ = fs::remove_file(&path);
     }
 
     #[test]
     fn test_list_pending() {
-        let queue = TaskQueue::new("test_tasks.txt");
-        let _ = fs::remove_file("test_tasks.txt");
-
+        let (queue, path) = tmp_queue("pending");
         queue.add_task("Task 1").unwrap();
         queue.add_task("Task 2").unwrap();
-
         let pending = queue.list_pending().unwrap();
         assert_eq!(pending.len(), 2);
-
-        // Cleanup
-        let _ = fs::remove_file("test_tasks.txt");
+        let _ = fs::remove_file(&path);
     }
 
     #[test]
     fn test_mark_complete() {
-        let queue = TaskQueue::new("test_tasks.txt");
-        let _ = fs::remove_file("test_tasks.txt");
-
+        let (queue, path) = tmp_queue("complete");
         let task = queue.add_task("Test task").unwrap();
         queue.mark_complete(&task.id).unwrap();
-
         let pending = queue.list_pending().unwrap();
         assert_eq!(pending.len(), 0);
-
-        // Cleanup
-        let _ = fs::remove_file("test_tasks.txt");
+        let _ = fs::remove_file(&path);
     }
 
     #[test]
     fn test_assign_task() {
-        let queue = TaskQueue::new("test_tasks.txt");
-        let _ = fs::remove_file("test_tasks.txt");
-
+        let (queue, path) = tmp_queue("assign");
         let task = queue.add_task("Test task").unwrap();
         queue.assign_task(&task.id, "Implementation Engineer").unwrap();
-
         let tasks = queue.list_all().unwrap();
         let updated_task = tasks.iter().find(|t| t.id == task.id).unwrap();
         assert_eq!(updated_task.assigned_to, "Implementation Engineer");
         assert_eq!(updated_task.status, TaskStatus::InProgress);
-
-        // Cleanup
-        let _ = fs::remove_file("test_tasks.txt");
+        let _ = fs::remove_file(&path);
     }
 }

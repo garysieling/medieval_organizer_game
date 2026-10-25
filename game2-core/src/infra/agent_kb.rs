@@ -24,6 +24,15 @@ impl AgentKB {
         }
     }
 
+    /// Create a new Agent KB with a custom root directory (for tests)
+    pub fn with_root(agent_name: &str, root: &str) -> Self {
+        let kb_dir = format!("{}/{}/kb", root, agent_name);
+        Self {
+            agent_name: agent_name.to_string(),
+            kb_dir,
+        }
+    }
+
     /// Initialize the KB directory structure if it doesn't exist
     pub fn init(&self) -> Result<(), String> {
         fs::create_dir_all(&self.kb_dir)
@@ -135,20 +144,24 @@ mod tests {
     use super::*;
     use std::fs;
 
+    fn tmp_kb(name: &str) -> (AgentKB, String) {
+        let root = std::env::temp_dir().join(format!("kb_{}", name));
+        let root = root.to_str().unwrap().to_string();
+        let _ = fs::remove_dir_all(&root);
+        (AgentKB::with_root("test-agent", &root), root)
+    }
+
     #[test]
     fn test_kb_initialization() {
-        let kb = AgentKB::new("test-agent");
-        let _ = fs::remove_dir_all(".agents/test-agent"); // Clean up if exists
+        let (kb, root) = tmp_kb("init");
         kb.init().unwrap();
-        assert!(Path::new(".agents/test-agent/kb").exists());
-        // Cleanup
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        assert!(Path::new(&format!("{}/test-agent/kb", root)).exists());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn test_write_and_read_kb_file() {
-        let kb = AgentKB::new("test-agent");
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        let (kb, root) = tmp_kb("rw");
         kb.init().unwrap();
 
         let content = "# Test KB\n\nThis is a test.";
@@ -156,14 +169,12 @@ mod tests {
         let read_content = kb.read_kb_file("test.md").unwrap();
         assert_eq!(read_content, format!("{}\n", content));
 
-        // Cleanup
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn test_add_kb_entry() {
-        let kb = AgentKB::new("test-agent");
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        let (kb, root) = tmp_kb("entries");
         kb.init().unwrap();
 
         kb.add_kb_entry("entries.md", "First entry").unwrap();
@@ -174,14 +185,12 @@ mod tests {
         assert!(content.contains("Second entry"));
         assert!(content.contains("test-agent"));
 
-        // Cleanup
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn test_list_kb_files() {
-        let kb = AgentKB::new("test-agent");
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        let (kb, root) = tmp_kb("list");
         kb.init().unwrap();
 
         kb.write_kb_file("file1.md", "Content 1").unwrap();
@@ -192,7 +201,6 @@ mod tests {
         assert!(files.contains(&"file1.md".to_string()));
         assert!(files.contains(&"file2.md".to_string()));
 
-        // Cleanup
-        let _ = fs::remove_dir_all(".agents/test-agent");
+        let _ = fs::remove_dir_all(&root);
     }
 }

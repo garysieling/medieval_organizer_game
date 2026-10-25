@@ -424,71 +424,62 @@ mod tests {
     use super::*;
     use std::fs;
 
+    fn tmp_paths(name: &str) -> (String, String, std::path::PathBuf, std::path::PathBuf) {
+        let t = std::env::temp_dir().join(format!("mb_{}_tasks.txt", name));
+        let l = std::env::temp_dir().join(format!("mb_{}.log", name));
+        let _ = fs::remove_file(&t);
+        let _ = fs::remove_file(&l);
+        (t.to_str().unwrap().to_string(), l.to_str().unwrap().to_string(), t, l)
+    }
+
     #[test]
     fn test_manager_bot_creation() {
-        let bot = ManagerBot::new("test_manager_tasks.txt", "test_manager.log");
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
-        assert!(true); // Just test creation works
+        let (t, l, tp, lp) = tmp_paths("create");
+        let _bot = ManagerBot::new(&t, &l);
+        let _ = fs::remove_file(&tp);
+        let _ = fs::remove_file(&lp);
     }
 
     #[test]
     fn test_read_pending_tasks() {
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
-
-        let queue = TaskQueue::new("test_manager_tasks.txt");
+        let (t, l, tp, lp) = tmp_paths("pending");
+        let queue = TaskQueue::new(&t);
         queue.add_task("Test task").unwrap();
-
-        let bot = ManagerBot::new("test_manager_tasks.txt", "test_manager.log");
+        let bot = ManagerBot::new(&t, &l);
         let pending = bot.read_pending_tasks().unwrap();
         assert_eq!(pending.len(), 1);
-
-        // Cleanup
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
+        let _ = fs::remove_file(&tp);
+        let _ = fs::remove_file(&lp);
     }
 
     #[test]
     fn test_assign_task() {
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
-
-        let queue = TaskQueue::new("test_manager_tasks.txt");
+        let (t, l, tp, lp) = tmp_paths("assign");
+        let queue = TaskQueue::new(&t);
         let task = queue.add_task("Test task").unwrap();
-
-        let bot = ManagerBot::new("test_manager_tasks.txt", "test_manager.log");
+        let bot = ManagerBot::new(&t, &l);
         bot.assign_task(&task.id, "Test Agent").unwrap();
-
         let tasks = bot.get_all_tasks().unwrap();
         let updated_task = tasks.iter().find(|t| t.id == task.id).unwrap();
         assert_eq!(updated_task.assigned_to, "Test Agent");
         assert_eq!(updated_task.status, TaskStatus::InProgress);
-
-        // Cleanup
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
+        let _ = fs::remove_file(&tp);
+        let _ = fs::remove_file(&lp);
     }
 
     #[test]
     fn test_auto_assign_tasks() {
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
-
-        let queue = TaskQueue::new("test_manager_tasks.txt");
+        let (t, l, tp, lp) = tmp_paths("auto");
+        let queue = TaskQueue::new(&t);
         queue.add_task("Task 1").unwrap();
         queue.add_task("Task 2").unwrap();
         queue.add_task("Task 3").unwrap();
-
-        let bot = ManagerBot::new("test_manager_tasks.txt", "test_manager.log");
+        let bot = ManagerBot::new(&t, &l);
         let agents = vec!["Agent A", "Agent B"];
         let assignments = bot.auto_assign_tasks(&agents).unwrap();
-
         assert_eq!(assignments.len(), 3);
-
-        // Cleanup
-        let _ = fs::remove_file("test_manager_tasks.txt");
-        let _ = fs::remove_file("test_manager.log");
+        let _ = fs::remove_file(&tp);
+        let _ = fs::remove_file(&lp);
     }
 }
 

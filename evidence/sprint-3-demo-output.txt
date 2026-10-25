@@ -127,7 +127,7 @@ warning: unused import: `AttachmentStyle`
   |                                                                   ^^^^^^^^^^^^^^^
 
 warning: `game2-core` (bin "demo") generated 2 warnings (run `cargo fix --bin "demo" -p game2-core` to apply 2 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
      Running `target\debug\demo.exe`
 === EVIDENCE DEMO ===
 
@@ -188,7 +188,7 @@ anx=2 warm=3 -> Avoidant
 anx=5 warm=1 -> Disorganized
 
 --- D1: Isometric Board Render (headless) ---
-saved evidence/sprint-3-isometric-board.bmp (400x300)
+saved evidence/sprint-3-isometric-board.bmp (400x300) - terrain + entities
 
 --- D2: Minimap with Fog-of-War Fade ---
 saved evidence/sprint-3-minimap.bmp (80x80)

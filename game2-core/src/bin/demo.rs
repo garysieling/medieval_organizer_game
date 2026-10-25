@@ -48,9 +48,14 @@ fn main() {
     }
 
     println!("\n--- D1: Isometric Board Render (headless) ---");
-    let board = game2_core::ui::isometric::render_terrain(&t, 400, 300);
+    let mut board = game2_core::ui::isometric::render_terrain(&t, 400, 300);
+    // Render villagers as entities on the board
+    game2_core::ui::isometric::render_entity(&mut board, 5.0, 5.0, 255, 100, 100); // villager 1 (red)
+    game2_core::ui::isometric::render_entity(&mut board, 8.0, 7.0, 100, 255, 100); // villager 2 (green)
+    game2_core::ui::isometric::render_entity(&mut board, 3.0, 10.0, 100, 100, 255); // villager 3 (blue)
+    game2_core::ui::isometric::render_entity(&mut board, 12.0, 6.0, 255, 200, 0);  // food source (gold)
     board.save_bmp("evidence/sprint-3-isometric-board.bmp").unwrap();
-    println!("saved evidence/sprint-3-isometric-board.bmp ({}x{})", board.width, board.height);
+    println!("saved evidence/sprint-3-isometric-board.bmp ({}x{}) - terrain + entities", board.width, board.height);
 
     println!("\n--- D2: Minimap with Fog-of-War Fade ---");
     let mut fog = game2_core::ui::minimap::FogOfWar::new(20, 20);

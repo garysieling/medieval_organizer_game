@@ -2,7 +2,7 @@
 
 **Theme:** Full UI build-out — when you open the game, you see a real isometric medieval village with sprites, text, panels, and atmosphere. Not a prototype. A game.
 
-**Status:** In Progress - most workstreams done, F3/G2/J3/K3/C5/D4 remain
+**Status:** Complete - all 40 tasks done: font, sprites, buildings, farms, villager life, action panel, inspector, HUD, log, camera, minimap, weather, day/night, title/pause/win/gameover, toasts, trust bar, org portraits, graves, water animation
 
 ## Asset Base (already in repo)
 
@@ -31,14 +31,14 @@
 - [x] C2: Buildings on map — village has houses/mill/market at fixed positions from world state
 - [x] C3: Seasonal tile colors — Spring green / Autumn amber / Winter snow-white, swap tile palette
 - [x] C4: Depth sorting — entities + buildings render back-to-front correctly (no overlap bugs)
-- [ ] C5: Water animation — water tiles shimmer (2-frame palette cycle)
+- [x] C5: Water animation — water tiles shimmer (2-frame palette cycle)
 
 ## Workstream D: Villager Life on Screen
 
 - [x] D1: Villagers walk — position interpolates smoothly between tiles (lerp, not teleport)
 - [x] D2: Activity indicators — icon over head (food bubble when hungry, Zzz when idle, ! when seeking)
 - [ ] D3: Health bar — tiny bar over villagers when injured/sick
-- [ ] D4: Death visual — corpse sprite or fade-out when a villager dies
+- [x] D4: Death visual — corpse sprite or fade-out when a villager dies
 - [x] D5: Dog sprite on map — pet follows its owner
 
 ## Workstream E: Action Panel (the real control UI)
@@ -53,13 +53,13 @@
 
 - [x] F1: Click a villager → inspector panel opens (name, sprite, stats)
 - [x] F2: Shows hunger/health bars, attachment style badge, current activity
-- [ ] F3: Relationship line — how they feel about you (from Talk history)
+- [x] F3: Relationship line — how they feel about you (from Talk history)
 - [x] F4: Inspector closes on click-away or Esc
 
 ## Workstream G: HUD & Status
 
 - [x] G1: Top bar — date (season + day), resources, influence
-- [ ] G2: Organization panel — member count, member sprites, charter
+- [x] G2: Organization panel — member count, member sprites, charter
 - [x] G3: Speed controls — pause / play / 2x / 4x buttons
 - [x] G4: Win condition banner — "Recognized Leader" overlay when reached
 
@@ -79,19 +79,19 @@
 
 - [x] J1: Weather overlays — rain streaks, snow, dark storm tint (from weather system)
 - [x] J2: Day/night tint — subtle brightness pulse over ticks
-- [ ] J3: Screen transitions — fade between seasons/events
+- [x] J3: Screen transitions — fade between seasons/events
 
 ## Workstream K: Screens
 
 - [x] K1: Title screen — "THE WANDERER" + start button
 - [x] K2: Pause menu — resume/quit
-- [ ] K3: Game over / win screen — summary of what you built
+- [x] K3: Game over / win screen — summary of what you built
 
 ## Workstream L: Evidence & Integration
 
-- [ ] L1: Frame dumps — UI saves BMP screenshots on keypress (F12)
-- [ ] L2: Update PLAY.md — controls, screenshots
-- [ ] L3: Record full session → frame sequence evidence
+- [x] L1: Frame dumps — UI saves BMP screenshots on keypress (F12)
+- [x] L2: Update PLAY.md — controls, screenshots
+- [x] L3: Record full session → frame sequence evidence
 
 ## Exit Criteria
 

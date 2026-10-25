@@ -4,13 +4,15 @@
 
 use std::io::{self, Write};
 use game2_core::engine::ecs::{Scheduler, World};
+use game2_core::engine::render::Buffer;
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger, Villager, Activity};
+use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::player::PlayerCharacter;
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::game::action_menu::{MenuActionType, show_menu, execute_choice};
 use game2_core::game::tech_tree::extended_printmaking_tree;
+use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::sim::climate::{self, SeasonSystem};
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::AttachmentHistory;
@@ -82,6 +84,22 @@ fn main() {
             }
         }
         println!();
+
+        // Render the map each turn (visible to player)
+        let mut board = render_terrain(&terrain, 400, 300);
+        let colors = [(255,80,80),(80,255,80),(80,80,255),(255,255,80),(255,80,255)];
+        for (i, v) in villagers.iter().enumerate() {
+            if let Some(p) = world.get_component::<Pos>(*v) {
+                let c = colors[i];
+                render_entity(&mut board, p.x, p.y, c.0, c.1, c.2);
+            }
+        }
+        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        // Player on map (white)
+        render_entity(&mut board, 10.0, 10.0, 255, 255, 255);
+        let frame_path = format!("evidence/game-frame-{:03}.bmp", tick);
+        board.save_bmp(&frame_path).unwrap();
+        println!("  map: {}", frame_path);
 
         // Show menu
         let p_ref = world.get_component::<PlayerCharacter>(player).unwrap().clone();

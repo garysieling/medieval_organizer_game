@@ -12,11 +12,12 @@ fn main() {
     // Demonstrate task queue
     let queue = TaskQueue::new("tasks/todo.txt");
 
-    // Add some tasks
+    // Add some tasks (with dependencies to demonstrate)
     println!("Adding tasks...");
-    queue.add_task("Build ECS component system").unwrap();
-    queue.add_task("Implement entity manager").unwrap();
-    queue.add_task("Write integration tests").unwrap();
+    let t1 = queue.add_task("Design ECS architecture").unwrap();
+    let t2 = queue.add_task_with_dependencies("Build ECS component system", &[t1.id.clone()]).unwrap();
+    let t3 = queue.add_task_with_dependencies("Implement entity manager", &[t2.id.clone()]).unwrap();
+    let _t4 = queue.add_task_with_dependencies("Write integration tests", &[t3.id.clone()]).unwrap();
 
     // List pending tasks
     println!("\nPending tasks:");

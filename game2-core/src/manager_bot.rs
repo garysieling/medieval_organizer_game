@@ -276,6 +276,13 @@ impl ManagerBot {
         Ok(tasks)
     }
 
+    /// Read ready tasks (pending tasks whose dependencies are all complete)
+    pub fn read_ready_tasks(&self) -> Result<Vec<Task>, String> {
+        let tasks = self.task_queue.list_ready()?;
+        self.log(&format!("Read {} ready tasks", tasks.len()))?;
+        Ok(tasks)
+    }
+
     /// Assign a task to an agent
     pub fn assign_task(&self, task_id: &str, agent: &str) -> Result<(), String> {
         self.task_queue.assign_task(task_id, agent)?;
@@ -293,10 +300,10 @@ impl ManagerBot {
         None
     }
 
-    /// Auto-assign all pending tasks to appropriate agents based on capabilities
-    /// Uses capability matching instead of round-robin
+    /// Auto-assign all ready tasks to appropriate agents based on capabilities
+    /// Uses capability matching and respects task dependencies
     pub fn auto_assign_tasks(&self, _agents: &[&str]) -> Result<Vec<String>, String> {
-        let pending = self.read_pending_tasks()?;
+        let pending = self.read_ready_tasks()?;
         let mut assignments = Vec::new();
 
         for task in pending {

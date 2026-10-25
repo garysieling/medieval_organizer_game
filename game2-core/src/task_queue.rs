@@ -21,6 +21,8 @@ pub struct Task {
     pub status: TaskStatus,
     /// Creation timestamp (Unix epoch)
     pub created_at: u64,
+    /// IDs of tasks this task depends on
+    pub dependencies: Vec<String>,
 }
 
 /// Task status
@@ -87,9 +89,11 @@ impl TaskQueue {
 
     /// Parse a single task line
     fn parse_line(line: &str) -> Result<Task, String> {
-        // Format: id|description|assigned_to|status|created_at
+        // Format: id|description|assigned_to|status|created_at|dependencies
+        // dependencies is comma-separated list of task ids (empty string = no deps)
+        // 5-field legacy format (no dependencies) is also accepted
         let parts: Vec<&str> = line.split('|').collect();
-        if parts.len() != 5 {
+        if parts.len() < 5 || parts.len() > 6 {
             return Err(format!("Invalid task format: {}", line));
         }
 
@@ -99,6 +103,11 @@ impl TaskQueue {
         let status = TaskStatus::from_str(parts[3])?;
         let created_at = parts[4].parse::<u64>()
             .map_err(|e| format!("Invalid timestamp: {}", e))?;
+        let dependencies: Vec<String> = if parts.len() == 6 && !parts[5].is_empty() {
+            parts[5].split(',').map(|s| s.to_string()).collect()
+        } else {
+            Vec::new()
+        };
 
         Ok(Task {
             id,
@@ -106,18 +115,20 @@ impl TaskQueue {
             assigned_to,
             status,
             created_at,
+            dependencies,
         })
     }
 
     /// Format a task as a line
     fn format_line(task: &Task) -> String {
         format!(
-            "{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}",
             task.id,
             task.description,
             task.assigned_to,
             task.status.as_str(),
-            task.created_at
+            task.created_at,
+            task.dependencies.join(",")
         )
     }
 
@@ -151,6 +162,11 @@ impl TaskQueue {
 
     /// Add a new task to the queue
     pub fn add_task(&self, description: &str) -> Result<Task, String> {
+        self.add_task_with_dependencies(description, &[])
+    }
+
+    /// Add a new task with dependencies to the queue
+    pub fn add_task_with_dependencies(&self, description: &str, dependencies: &[String]) -> Result<Task, String> {
         let mut tasks = self.load_tasks()?;
         let id = format!("task_{}", tasks.len() + 1);
         let task = Task {
@@ -159,10 +175,48 @@ impl TaskQueue {
             assigned_to: "unassigned".to_string(),
             status: TaskStatus::Pending,
             created_at: Self::now(),
+            dependencies: dependencies.to_vec(),
         };
         tasks.push(task.clone());
         self.save_tasks(&tasks)?;
         Ok(task)
+    }
+
+    /// Check if a task's dependencies are all complete
+    pub fn are_dependencies_met(&self, task_id: &str) -> Result<bool, String> {
+        let tasks = self.load_tasks()?;
+        let task = tasks.iter()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| format!("Task not found: {}", task_id))?;
+
+        for dep_id in &task.dependencies {
+            let dep = tasks.iter().find(|t| t.id == *dep_id);
+            match dep {
+                Some(d) if d.status == TaskStatus::Complete => {}
+                _ => return Ok(false),
+            }
+        }
+        Ok(true)
+    }
+
+    /// List pending tasks whose dependencies are all complete (ready to be worked on)
+    pub fn list_ready(&self) -> Result<Vec<Task>, String> {
+        let tasks = self.load_tasks()?;
+        let ready: Vec<Task> = tasks
+            .iter()
+            .filter(|t| t.status == TaskStatus::Pending)
+            .filter(|t| {
+                t.dependencies.iter().all(|dep_id| {
+                    tasks
+                        .iter()
+                        .find(|d| &d.id == dep_id)
+                        .map(|d| d.status == TaskStatus::Complete)
+                        .unwrap_or(false)
+                })
+            })
+            .cloned()
+            .collect();
+        Ok(ready)
     }
 
     /// List all pending tasks

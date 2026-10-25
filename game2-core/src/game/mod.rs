@@ -18,6 +18,7 @@ pub mod succession;
 pub mod migration;
 pub mod trade_routes;
 pub mod warfare;
+pub mod feuds;
 pub mod music;
 pub mod terrain;
 pub mod pets;

@@ -140,10 +140,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research climate modeling and how to translate it into game mechanics. Design "you vs climate change" as a novel threat system. Study existing climate games for what works/doesn't.
 
 ### [ ] Community Organizing Simulation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/literature-reviews/sprint-3-community-organizing.md + game2-core/src/sim/community.rs
 - **Notes:** Research community organizing principles, sayings, and methodologies. Design game mechanics for building power through 1-1s, house meetings, influence accumulation. Model influence as emergent system effect, not tracked stat.
 
 ### [ ] Trolley Problem Mechanics as Forcing Functions
@@ -168,17 +170,21 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design character lifecycle system from birth to death. Model biological aging, life stages, developmental changes. Research no existing game has done illness - design illness systems.
 
 ### [ ] QSP (Quantitative Systems Pharmacology) in Games
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/literature-reviews/sprint-3-qsp-game-systems.md + game2-core/src/sim/illness.rs
 - **Notes:** Research ADME/ADAM and more complex QSP models. Design how to integrate realistic pharmacological models into game simulation for illness, medicine, and body systems.
 
 ### [ ] Medieval Market Simulation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/literature-reviews/sprint-3-medieval-economics.md + game2-core/src/sim/economics.rs
 - **Notes:** Research historical medieval markets and trade. Design detailed economic simulation where characters can buy/sell goods. Study supply/demand, price formation, market dynamics.
 
 ### [ ] Project Gutenberg Integration for Dynamic Gameplay
@@ -410,17 +416,19 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design AI agent that does literature surveys to flesh out concepts. Finds mathy/academic content, translates to simplified/scaled game mechanics that are fun but reasonably accurate and educational.
 
 ### [ ] Anti-Colonialist/Liberation Literature Survey
-- **Status:** Backlog
+- **Status:** In Progress
 - **Priority:** High
 - **Category:** articles
 - **Added:** 2026-10-25
 - **Notes:** Literature survey of anti-colonialist and liberation readings. Simulate from perspective of oppressed people, not colonizers. Extract game mechanics and narrative themes.
 
 ### [ ] Religion Simulation (Bioshock-Style Satire + Emergent Effects)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/literature-reviews/sprint-3-religion-emergence.md + game2-core/src/sim/religion.rs + game2-core/src/sim/fundamentalism.rs
 - **Notes:** Research religion simulation. Inspired by Bioshock's satire of Christian fundamentalism. Model emergent effects of religious gatherings/organizations not seen in Civ or RimWorld. Social cohesion, radicalization, moral frameworks, etc.
 
 ### [ ] Fabric/Textiles Tech Tree
@@ -431,10 +439,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design detailed fabric/textiles tech tree. Affects trade AND texture sensitivity (autism representation). Research historical textile production, materials, economic impact.
 
 ### [ ] Attachment Theory Simulation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/literature-reviews/sprint-1-psychology-economics.md + game2-core/src/sim/psychology.rs
 - **Notes:** Research attachment theory (Bowlby, Ainsworth). Design game mechanics incorporating attachment styles (secure, anxious, avoidant, disorganized). How attachment affects character relationships, behaviors, resilience.
 
 ### [ ] Tea History Tech Tree
@@ -737,10 +747,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research Joris Dormans' Machinations framework for modeling game economies as resource flow diagrams. Design similar system for our medieval economy - lets us simulate and balance before building.
 
 ### [ ] Cellular Automata for World Simulation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/literature-reviews/sprint-1-game-design-simulation.md + game2-core/src/sim/emergence.rs
 - **Source:** Sweetser, "An Emergent Approach to Game Design" (2006 thesis)
 - **Notes:** Research cellular automata for emergent world simulation (Sweetser's EmerGEnT system). Candidate for world simulation layer - simple local rules creating emergent world behavior.
 

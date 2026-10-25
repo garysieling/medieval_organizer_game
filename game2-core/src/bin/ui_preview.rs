@@ -160,7 +160,16 @@ fn main() {
     if let Some(vil) = world.get_component::<Villager>(v) {
         draw_text(&mut buf, UI_X + 60, 388, &format!("Doing: {:?}", vil.activity), 200, 160, 160);
     }
-    draw_text(&mut buf, UI_X + 10, 404, "(click villager to inspect)", 120, 120, 140);
+    let rel = 0.75f32;
+    draw_text(&mut buf, UI_X + 60, 400, "Trust:", 200, 200, 200);
+    buf.rect(UI_X + 110, 400, 100, 8, 40, 40, 60);
+    buf.rect(UI_X + 110, 400, (rel * 100.0) as i32, 8, 80, 220, 80);
+    draw_text(&mut buf, UI_X + 10, 414, "(click villager to inspect)", 120, 120, 140);
+
+    // org panel portraits
+    draw_text(&mut buf, UI_X + 160, 404, "ORG:", 255, 215, 0);
+    villager_sprites[0].blit(&mut buf, UI_X + 200, 396);
+    villager_sprites[1].blit(&mut buf, UI_X + 214, 396);
 
     // log
     buf.rect(UI_X + 10, 450, 270, 170, 25, 25, 40);

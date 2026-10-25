@@ -290,11 +290,38 @@ impl ManagerBot {
         Ok(())
     }
 
-    /// Determine which agent can handle a task type
+    /// Determine which agent can handle a task type.
+    /// Specialist agents are checked first so a task like "Write tests"
+    /// goes to a tester, not implementation-engineer (which also lists "testing").
     fn find_agent_for_task(&self, task_type: &str) -> Option<AgentType> {
-        for (agent_type, capabilities) in &self.agent_capabilities {
-            if capabilities.contains(&task_type.to_string()) {
-                return Some(agent_type.clone());
+        // Priority order: specialists first, generalist impl-engineer last
+        let priority = [
+            AgentType::ExploratoryTesterDataScientist,
+            AgentType::ExploratoryTesterUIClicker,
+            AgentType::SimplePlaytester,
+            AgentType::FullGamePlaytester,
+            AgentType::FunInspector,
+            AgentType::EconomistTester,
+            AgentType::PerformanceEngineer,
+            AgentType::PedanticSeniorEngineer,
+            AgentType::CredibilityAnalyst,
+            AgentType::CreativeFilter,
+            AgentType::EmergentEffectsResearcher,
+            AgentType::AestheticConsultant,
+            AgentType::GameplayConsultant,
+            AgentType::RetrospectiveAgent,
+            AgentType::LiteratureSurveyAgent,
+            AgentType::PRAgent,
+            AgentType::ConflictResolutionAgent,
+            AgentType::ImplementationEngineer, // generalist fallback, checked last
+        ];
+
+        for agent_type in &priority {
+            if let Some(caps) = self.agent_capabilities.get(agent_type) {
+                // Fuzzy match: "testing" matches "goal-testing", "regression-testing", etc.
+                if caps.iter().any(|c| c.contains(task_type) || task_type.contains(c.as_str())) {
+                    return Some(agent_type.clone());
+                }
             }
         }
         None

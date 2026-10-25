@@ -102,6 +102,7 @@ fn main() {
     let player_s = Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok();
     let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
     let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
+    let wall_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok();
     let road_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Roads/Spring/road(1).png")).ok();
     let corn2_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(2).png")).ok();
     let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
@@ -117,6 +118,8 @@ fn main() {
         (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
         (16.0, 15.0, &corn_s), (16.0, 16.0, &corn_s), (17.0, 15.0, &corn_s),
         (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
+        // market plaza (packed dirt tiles around stalls)
+        (7.0, 6.0, &road_s), (8.0, 6.0, &road_s), (9.0, 6.0, &road_s),
         // food market (food source = market stall with corn)
         (7.0, 7.0, &corn2_s), (9.0, 7.0, &corn2_s),
         // main road through the village center
@@ -126,6 +129,8 @@ fn main() {
         (24.0, 3.0, &river_s), (26.0, 5.0, &river_s), (28.0, 7.0, &river_s), (30.0, 9.0, &river_s),
         // castle towers at the far edge (the ruler overlooks the village)
         (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
+        // castle walls connecting the towers
+        (25.0, 5.0, &wall_s), (27.0, 7.0, &wall_s), (29.0, 9.0, &wall_s),
         // church (religion center) + guild hall (merchant base)
         (2.0, 8.0, &church_s), (17.0, 10.0, &guildhall_s),
     ];

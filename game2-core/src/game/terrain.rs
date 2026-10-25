@@ -82,6 +82,21 @@ impl Terrain {
             scale *= 0.5;
         }
 
+        // Normalize to full 0-1 range so heights vary visibly
+        let (mut min, mut max) = (f32::MAX, f32::MIN);
+        for row in &heights {
+            for &h in row {
+                min = min.min(h);
+                max = max.max(h);
+            }
+        }
+        let range = (max - min).max(0.0001);
+        for row in &mut heights {
+            for h in row {
+                *h = (*h - min) / range;
+            }
+        }
+
         Self { width: size, height: size, heights, seed }
     }
 

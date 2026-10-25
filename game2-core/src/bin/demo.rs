@@ -47,6 +47,11 @@ fn main() {
         println!("anx={} warm={} -> {:?}", anx, warm, infer_style(&h));
     }
 
+    println!("\n--- D1: Isometric Board Render (headless) ---");
+    let board = game2_core::ui::isometric::render_terrain(&t, 400, 300);
+    board.save_bmp("evidence/sprint-3-isometric-board.bmp").unwrap();
+    println!("saved evidence/sprint-3-isometric-board.bmp ({}x{})", board.width, board.height);
+
     println!("\n--- B6: Climate (seasons + drift) ---");
     let mut cw = World::new();
     let c = game2_core::sim::climate::spawn_climate(&mut cw);

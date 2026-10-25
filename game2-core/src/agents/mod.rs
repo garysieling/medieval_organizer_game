@@ -2,7 +2,6 @@
 pub mod manager_bot;
 pub mod retrospective_agent;
 pub mod pedantic_senior_engineer;
-pub mod retrospective_agent;
 pub mod pr_agent;
 pub mod conflict_resolution_agent;
 pub mod fun_inspector;

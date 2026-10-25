@@ -1,0 +1,5 @@
+
+Some errors have detailed explanations: E0369, E0499.
+For more information about an error, try `rustc --explain E0369`.
+warning: `game2-core` (lib test) generated 6 warnings
+error: could not compile `game2-core` (lib test) due to 2 previous errors; 6 warnings emitted

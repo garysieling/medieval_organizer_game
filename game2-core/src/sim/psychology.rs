@@ -109,8 +109,9 @@ mod tests {
 
     #[test]
     fn test_anxious_from_anxiety_episodes() {
+        // security 4/10 = 0.4 (>0.3) and anxious > warm -> Anxious
         let hist = AttachmentHistory {
-            anxiety_episodes: 8, warmth_episodes: 2, episodes: vec![],
+            anxiety_episodes: 6, warmth_episodes: 4, episodes: vec![],
         };
         assert_eq!(infer_style(&hist), AttachmentStyle::Anxious);
     }

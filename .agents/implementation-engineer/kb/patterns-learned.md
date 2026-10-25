@@ -56,3 +56,23 @@ kb.add_kb_entry("task-history.md", "Completed task X").unwrap();
 **Agent:** implementation-engineer
 
 Learned: Use simple line-based format for file storage
+---
+**Date:** 1792951562
+**Agent:** implementation-engineer
+
+Learned: Use simple line-based format for file storage
+---
+**Date:** 1792951563
+**Agent:** implementation-engineer
+
+Learned: End-to-end workflow from task creation to KB update
+---
+**Date:** 1792951653
+**Agent:** implementation-engineer
+
+Learned: Use simple line-based format for file storage
+---
+**Date:** 1792951654
+**Agent:** implementation-engineer
+
+Learned: End-to-end workflow from task creation to KB update

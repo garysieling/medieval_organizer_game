@@ -106,8 +106,9 @@ mod tests {
     fn test_recruit_needs_trust() {
         let mut w = World::new();
         let o = w.create_entity();
+        let leader = w.create_entity();
         w.add_component(o, Organization {
-            name: "Guild".into(), members: vec![], leader: w.create_entity(),
+            name: "Guild".into(), members: vec![], leader,
             influence_pool: 0.0, resources: 100.0, charter: "Trade".into(),
         });
         let c = w.create_entity();

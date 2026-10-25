@@ -154,7 +154,7 @@ mod tests {
         let content = "# Test KB\n\nThis is a test.";
         kb.write_kb_file("test.md", content).unwrap();
         let read_content = kb.read_kb_file("test.md").unwrap();
-        assert_eq!(read_content, content + "\n");
+        assert_eq!(read_content, format!("{}\n", content));
 
         // Cleanup
         let _ = fs::remove_dir_all(".agents/test-agent");

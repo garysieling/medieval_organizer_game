@@ -82,7 +82,7 @@ impl Terrain {
             scale *= 0.5;
         }
 
-        // Normalize to full 0-1 range so heights vary visibly
+        // Normalize to full 0-1 range
         let (mut min, mut max) = (f32::MAX, f32::MIN);
         for row in &heights {
             for &h in row {
@@ -94,6 +94,28 @@ impl Terrain {
         for row in &mut heights {
             for h in row {
                 *h = (*h - min) / range;
+            }
+        }
+
+        // Continent bias: edges are water, center is land (produces landmasses not uniform water)
+        let center = (size / 2) as f32;
+        for y in 0..size {
+            for x in 0..size {
+                let dx = (x as f32 - center) / center;
+                let dy = (y as f32 - center) / center;
+                let dist = (dx * dx + dy * dy).sqrt(); // 0 center -> 1 edge
+                // Push edges toward water, center toward land
+                let bias = 1.0 - dist * 0.8;
+                heights[y][x] = (heights[y][x] * 0.6 + bias * 0.4).clamp(0.0, 1.0);
+            }
+        }
+
+        // Histogram spread: stretch heights so we get a good distribution
+        // Apply a mild curve that pushes mid-range toward extremes
+        for row in &mut heights {
+            for h in row {
+                // S-curve: emphasize mid-high range (land) over low (water)
+                *h = (*h * 1.3 - 0.15).clamp(0.0, 1.0);
             }
         }
 

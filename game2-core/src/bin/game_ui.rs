@@ -700,6 +700,17 @@ fn main() {
                     log.push(msg);
                 }
             }
+            // click on a rival villager -> they rebuff you (foreign village is wary)
+            for (i, rv) in rivals.iter().enumerate() {
+                if let Some(p) = world.get_component::<Pos>(*rv) {
+                    let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
+                    let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
+                    if d < 24.0 {
+                        dialog = Some((selected_target, format!("{}: we don't know you, outsider.", rival_names[i]), tick + 60));
+                        log.push(format!("t{}: {} rebuffed your approach.", tick, rival_names[i]));
+                    }
+                }
+            }
             // click on map selects nearest villager
             let mut best = selected_target;
             let mut best_d = 9999.0f32;

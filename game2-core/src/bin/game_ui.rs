@@ -101,6 +101,7 @@ fn main() {
     let stone_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok();
     let player_s = Sprite::load(&assets.path("MinifolksHumans/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok();
     let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
+    let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
 
     // buildings placed on map
     let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
@@ -111,6 +112,8 @@ fn main() {
         (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
         (16.0, 15.0, &corn_s), (16.0, 16.0, &corn_s), (17.0, 15.0, &corn_s),
         (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
+        // river along the east edge
+        (24.0, 3.0, &river_s), (26.0, 5.0, &river_s), (28.0, 7.0, &river_s), (30.0, 9.0, &river_s),
         // castle towers at the far edge (the ruler overlooks the village)
         (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
     ];

@@ -133,10 +133,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Analyze Victoria 3 to understand the line between simulation and player control. Identify where player agency is unclear and how to avoid this in our design. Research deterministic vs stochastic systems.
 
 ### [ ] Novel Threat Systems: Climate Change Simulation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/climate-change-simulation.md
 - **Notes:** Research climate modeling and how to translate it into game mechanics. Design "you vs climate change" as a novel threat system. Study existing climate games for what works/doesn't.
 
 ### [ ] Community Organizing Simulation
@@ -344,10 +346,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research using QSP models for "theory of mind" - how characters perceive and understand each other. Design systems for social cognition, empathy, deception, belief modeling.
 
 ### [ ] Deep Illness Simulation (e.g., Cancer)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/deep-illness-simulation.md
 - **Notes:** Design deep simulation of specific illnesses rather than many shallow ones. Example: cancer - model how it affects character throughout entire life arc. Study disease progression, symptoms, treatment options at different tech levels.
 
 ### [ ] Technology's Effect on Medical Options
@@ -517,17 +521,21 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design character sheet UI. What information to display, how to organize complex character data (traits, skills, relationships, health, etc.). Study RimWorld, Dwarf Fortress, etc.
 
 ### [ ] Realistic Relationship Modeling (Beyond RimWorld)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/relationship-modeling.md
 - **Notes:** Research realistic relationship modeling. RimWorld has good dialog between characters but relationship system needs improvement. Incorporate attachment theory, social dynamics, history, context.
 
 ### [ ] Fog of War with Memory Fade
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** Medium
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/fog-of-war-memory-fade.md + game2-core/src/ui/minimap.rs
 - **Notes:** Design creative fog of war system. If you haven't seen an area for a long time, it fades (not just static explored/unexplored). Memory decay, outdated information, rediscovery.
 
 ### [ ] Small Events with Big Impact

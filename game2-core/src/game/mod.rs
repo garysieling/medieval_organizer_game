@@ -12,3 +12,7 @@ pub mod military;
 pub mod guilds;
 pub mod music;
 pub mod terrain;
+pub mod pets;
+pub mod tea;
+pub mod textiles;
+pub mod herbology;

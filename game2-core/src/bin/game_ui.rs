@@ -80,7 +80,7 @@ fn main() {
 
     // Load villager sprites (crop single 32x32 frame from sheets)
     let vgenders = ["m", "f", "m", "m", "f"];
-    let vroles = ["peasant", "worker", "peasant", "elder", "peasant"];
+    let vroles = ["peasant", "worker", "noble", "elder", "peasant"]; // Corvin=noble, others vary
     let villager_sprites: Vec<Sprite> = (0..5).map(|i| {
         let path = assets.path(&assets.villager_sprite(vroles[i], vgenders[i]));
         match Sprite::load(&path) {
@@ -102,6 +102,8 @@ fn main() {
     let player_s = Sprite::load(&assets.path("MinifolksHumans/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok();
     let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
     let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
+    let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
+    let guildhall_s = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
 
     // buildings placed on map
     let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
@@ -116,6 +118,8 @@ fn main() {
         (24.0, 3.0, &river_s), (26.0, 5.0, &river_s), (28.0, 7.0, &river_s), (30.0, 9.0, &river_s),
         // castle towers at the far edge (the ruler overlooks the village)
         (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
+        // church (religion center) + guild hall (merchant base)
+        (2.0, 8.0, &church_s), (17.0, 10.0, &guildhall_s),
     ];
     let mut built_count = 0usize;
     let mut zoom = 1.0f32; // 0.5 - 2.0

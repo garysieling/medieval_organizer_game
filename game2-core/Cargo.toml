@@ -1,0 +1,10 @@
+[package]
+name = "game2-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Add dependencies as needed
+
+[dev-dependencies]
+# Add test dependencies as needed

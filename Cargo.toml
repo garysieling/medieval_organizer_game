@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "game2-core",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Add shared dependencies here as needed

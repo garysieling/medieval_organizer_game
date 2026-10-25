@@ -4,10 +4,11 @@
 *.pdb
 Cargo.lock
 
-# Agent knowledge bases (these are runtime state, but we track them in git)
+# Agent knowledge bases (tracked in git for version control)
 # Only exclude temporary agent runtime state
 .agents/*/tmp/
 .agents/*/cache/
+.agents/*.tmp
 
 # IDE
 .vscode/
@@ -39,3 +40,8 @@ Thumbs.db
 
 # Ollama models (if we download any locally)
 /models/
+
+
+# Added by cargo
+
+/target

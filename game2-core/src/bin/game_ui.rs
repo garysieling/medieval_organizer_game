@@ -248,6 +248,23 @@ fn main() {
             }
         }
 
+        // villagers socialize: neighbors form/drift bonds
+        if tick % 25 == 0 && !paused {
+            let a = (tick as usize / 25) % 5;
+            let b = (tick as usize / 25 + 1) % 5;
+            // they talk -> bond strengthens
+            if let Some(rel) = world.get_component_mut::<Relationship>(villagers[a]) {
+                if rel.other == villagers[b] {
+                    rel.strength = (rel.strength + 0.08).min(1.0);
+                    rel.interactions += 1;
+                }
+            } else {
+                world.add_component(villagers[a], Relationship {
+                    other: villagers[b], kind: RelKind::Acquaintance, strength: 0.1, interactions: 1,
+                });
+            }
+        }
+
         // gossip: rumors spread villager-to-villager
         if tick % 40 == 0 {
             let rumors = [

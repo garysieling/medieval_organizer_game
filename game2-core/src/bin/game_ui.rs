@@ -706,8 +706,16 @@ fn main() {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
                     if d < 24.0 {
-                        dialog = Some((selected_target, format!("{}: we don't know you, outsider.", rival_names[i]), tick + 60));
-                        log.push(format!("t{}: {} rebuffed your approach.", tick, rival_names[i]));
+                        let p_inf = world.get_component::<PlayerCharacter>(player).unwrap().influence;
+                        let (msg, tag) = if p_inf > 1.5 {
+                            (format!("{}: we've heard of you - the organizer.", rival_names[i]), "opened")
+                        } else if p_inf > 0.8 {
+                            (format!("{}: word travels. state your business.", rival_names[i]), "wary")
+                        } else {
+                            (format!("{}: we don't know you, outsider.", rival_names[i]), "rebuffed")
+                        };
+                        dialog = Some((selected_target, msg, tick + 60));
+                        log.push(format!("t{}: {} {} your approach.", tick, rival_names[i], tag));
                     }
                 }
             }

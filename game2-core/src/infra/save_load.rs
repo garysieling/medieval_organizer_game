@@ -25,11 +25,11 @@ impl History {
         Self { checkpoints: vec![], current_tick: 0 }
     }
 
-    /// Save a checkpoint
+    /// Save a checkpoint at the current tick
     pub fn checkpoint(&mut self, world: &World, label: &str) -> Checkpoint {
         let cp = Checkpoint {
             tick: self.current_tick,
-            id: format!("cp_{}_{}", self.current_tick, label),
+            id: format!("cp_{}", label),
             data: vec![format!("entities={}", world.entity_count())],
         };
         self.checkpoints.push(cp.clone());

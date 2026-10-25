@@ -1,11 +1,52 @@
-   Compiling game2-core v0.1.0 (F:\projects\game2\game2-core)
+warning: unused variable: `name`
+  --> game2-core\src\game\world.rs:32:39
+   |
+32 | pub fn spawn_world(world: &mut World, name: &str) -> Entity {
+   |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `world`
+  --> game2-core\src\game\relationships.rs:59:27
+   |
+59 | pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) {
+   |                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `penalty`
+  --> game2-core\src\game\contracts.rs:57:13
+   |
+57 |         let penalty = ct.breach_penalty;
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_penalty`
+
+warning: unused variable: `parties`
+  --> game2-core\src\game\contracts.rs:58:13
+   |
+58 |         let parties = ct.parties.clone();
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parties`
+
+warning: unused variable: `name`
+  --> game2-core\src\game\lifecycle.rs:72:40
+   |
+72 | pub fn spawn_person(world: &mut World, name: &str) -> Entity {
+   |                                        ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\military.rs:41:23
+   |
+41 | pub fn resolve_battle(world: &mut World, a: &Army, b: &Army) -> BattleResult {
+   |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `winner`
+  --> game2-core\src\game\military.rs:44:9
+   |
+44 |     let winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_winner`
+
 warning: unused variable: `s`
   --> game2-core\src\sim\illness.rs:56:25
    |
 56 |             if let Some(s) = new_stage {
    |                         ^ help: if this is intentional, prefix it with an underscore: `_s`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: unused variable: `patient`
   --> game2-core\src\sim\illness.rs:77:43
@@ -25,7 +66,8 @@ warning: unused variable: `resource`
 62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
    |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
 
-warning: `game2-core` (lib) generated 4 warnings (run `cargo fix --lib -p game2-core` to apply 4 suggestions)
+warning: `game2-core` (lib) generated 11 warnings (run `cargo fix --lib -p game2-core` to apply 11 suggestions)
+   Compiling game2-core v0.1.0 (F:\projects\game2\game2-core)
 warning: unused import: `Activity`
  --> game2-core\src\bin\demo.rs:7:40
   |
@@ -41,7 +83,7 @@ warning: unused import: `AttachmentStyle`
   |                                                                   ^^^^^^^^^^^^^^^
 
 warning: `game2-core` (bin "demo") generated 2 warnings (run `cargo fix --bin "demo" -p game2-core` to apply 2 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.64s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.36s
      Running `target\debug\demo.exe`
 === EVIDENCE DEMO ===
 
@@ -103,6 +145,10 @@ anx=5 warm=1 -> Disorganized
 
 --- D1: Isometric Board Render (headless) ---
 saved evidence/sprint-3-isometric-board.bmp (400x300)
+
+--- D2: Minimap with Fog-of-War Fade ---
+saved evidence/sprint-3-minimap.bmp (80x80)
+saved evidence/sprint-3-minimap-faded.bmp (after 10 ticks fade)
 
 --- B6: Climate (seasons + drift) ---
 year=1 season=Spring severity=0.00 food_mult=1.10

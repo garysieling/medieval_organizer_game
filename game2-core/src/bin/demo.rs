@@ -52,6 +52,19 @@ fn main() {
     board.save_bmp("evidence/sprint-3-isometric-board.bmp").unwrap();
     println!("saved evidence/sprint-3-isometric-board.bmp ({}x{})", board.width, board.height);
 
+    println!("\n--- D2: Minimap with Fog-of-War Fade ---");
+    let mut fog = game2_core::ui::minimap::FogOfWar::new(20, 20);
+    fog.see(10, 10, 5); // player at center sees radius 5
+    let heights: Vec<Vec<f32>> = (0..20).map(|_| (0..20).map(|x| x as f32 / 20.0).collect()).collect();
+    let mm = fog.render(&heights);
+    mm.save_bmp("evidence/sprint-3-minimap.bmp").unwrap();
+    println!("saved evidence/sprint-3-minimap.bmp ({}x{})", mm.width, mm.height);
+    // Simulate fade over time
+    for _ in 0..10 { fog.decay(0.08); }
+    let mm2 = fog.render(&heights);
+    mm2.save_bmp("evidence/sprint-3-minimap-faded.bmp").unwrap();
+    println!("saved evidence/sprint-3-minimap-faded.bmp (after 10 ticks fade)");
+
     println!("\n--- B6: Climate (seasons + drift) ---");
     let mut cw = World::new();
     let c = game2_core::sim::climate::spawn_climate(&mut cw);

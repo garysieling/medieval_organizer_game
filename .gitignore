@@ -4,8 +4,10 @@
 *.pdb
 Cargo.lock
 
-# Agent knowledge bases (these are runtime state, not code)
-.agents/
+# Agent knowledge bases (these are runtime state, but we track them in git)
+# Only exclude temporary agent runtime state
+.agents/*/tmp/
+.agents/*/cache/
 
 # IDE
 .vscode/

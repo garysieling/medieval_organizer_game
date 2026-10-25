@@ -1,0 +1,178 @@
+warning: unused import: `super::contracts::Reputation`
+ --> game2-core\src\game\guilds.rs:6:5
+  |
+6 | use super::contracts::Reputation;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `FactionType` and `Faction`
+ --> game2-core\src\game\guilds.rs:7:23
+  |
+7 | use super::factions::{Faction, FactionType};
+  |                       ^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `Organization`
+ --> game2-core\src\game\organizing.rs:5:38
+  |
+5 | use crate::sim::community::{Citizen, Organization};
+  |                                      ^^^^^^^^^^^^
+
+warning: unused import: `crate::sim::community::Citizen`
+ --> game2-core\src\game\player.rs:5:5
+  |
+5 | use crate::sim::community::Citizen;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::engine::ecs::World`
+ --> game2-core\src\sim\emergence.rs:5:5
+  |
+5 | use crate::engine::ecs::World;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Entity` and `World`
+ --> game2-core\src\sim\fundamentalism.rs:6:26
+  |
+6 | use crate::engine::ecs::{Entity, World};
+  |                          ^^^^^^  ^^^^^
+
+warning: unused import: `Faith`
+ --> game2-core\src\sim\fundamentalism.rs:7:23
+  |
+7 | use super::religion::{Faith, Congregation};
+  |                       ^^^^^
+
+warning: unused variable: `val`
+  --> game2-core\src\agents\fun_inspector.rs:62:17
+   |
+62 |         for (_, val, changed) in sim_log {
+   |                 ^^^ help: if this is intentional, prefix it with an underscore: `_val`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `name`
+  --> game2-core\src\game\world.rs:32:39
+   |
+32 | pub fn spawn_world(world: &mut World, name: &str) -> Entity {
+   |                                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\relationships.rs:59:27
+   |
+59 | pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) {
+   |                           ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `penalty`
+  --> game2-core\src\game\contracts.rs:57:13
+   |
+57 |         let penalty = ct.breach_penalty;
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_penalty`
+
+warning: unused variable: `parties`
+  --> game2-core\src\game\contracts.rs:58:13
+   |
+58 |         let parties = ct.parties.clone();
+   |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_parties`
+
+warning: unused variable: `name`
+  --> game2-core\src\game\lifecycle.rs:72:40
+   |
+72 | pub fn spawn_person(world: &mut World, name: &str) -> Entity {
+   |                                        ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `world`
+  --> game2-core\src\game\military.rs:41:23
+   |
+41 | pub fn resolve_battle(world: &mut World, a: &Army, b: &Army) -> BattleResult {
+   |                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_world`
+
+warning: unused variable: `winner`
+  --> game2-core\src\game\military.rs:44:9
+   |
+44 |     let winner = if sa > sb { Some(Entity::MAX) } else if sb > sa { Some(0) } else { None };
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_winner`
+
+warning: unused variable: `organizer`
+  --> game2-core\src\game\organizing.rs:17:34
+   |
+17 | pub fn one_on_one(world: &World, organizer: Entity, citizen: Entity) -> OneOnOneResult {
+   |                                  ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_organizer`
+
+warning: unused variable: `target`
+  --> game2-core\src\game\player.rs:37:52
+   |
+37 | pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
+   |                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+
+warning: unused variable: `skill`
+  --> game2-core\src\ui\character_sheet.rs:33:14
+   |
+33 |     for (i, (skill, level)) in c.skills.iter().enumerate() {
+   |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_skill`
+
+warning: unused variable: `s`
+  --> game2-core\src\sim\illness.rs:56:25
+   |
+56 |             if let Some(s) = new_stage {
+   |                         ^ help: if this is intentional, prefix it with an underscore: `_s`
+
+warning: unused variable: `patient`
+  --> game2-core\src\sim\illness.rs:77:43
+   |
+77 | pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
+   |                                           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_patient`
+
+warning: unused variable: `target`
+  --> game2-core\src\sim\community.rs:94:56
+   |
+94 | pub fn exert_influence(world: &mut World, org: Entity, target: &str) -> f32 {
+   |                                                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+
+warning: unused variable: `resource`
+  --> game2-core\src\sim\climate.rs:62:40
+   |
+62 | pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
+   |                                        ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resource`
+
+warning: `game2-core` (lib) generated 22 warnings (run `cargo fix --lib -p game2-core` to apply 22 suggestions)
+warning: variable does not need to be mutable
+  --> game2-core\src\bin\manager_sprint.rs:24:9
+   |
+24 |     let mut bot = ManagerBot::new("sprint_tasks.txt", "sprint_log.txt");
+   |         ----^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `bot`
+  --> game2-core\src\bin\manager_sprint.rs:24:9
+   |
+24 |     let mut bot = ManagerBot::new("sprint_tasks.txt", "sprint_log.txt");
+   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bot`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `game2-core` (bin "manager_sprint") generated 2 warnings (run `cargo fix --bin "manager_sprint" -p game2-core` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s
+     Running `target\debug\manager_sprint.exe`
+=== MANAGER BOT MINI-SPRINT ===
+
+Sprint 'Sprint 4.1' - 4 tasks, approved
+Progress: 0%
+
+Manager delegates 'Implement hunger tick system' -> Implementation Engineer
+Manager delegates 'Write playtest for hunger' -> Simple Playtester
+Manager delegates 'Review code for smells' -> Pedantic Engineer
+Manager delegates 'Document the feature' -> Docs Agent
+  T1 complete -> progress 25%
+  T2 complete -> progress 50%
+  T3 complete -> progress 75%
+  T4 complete -> progress 100%
+
+=== EXIT CRITERIA CHECK ===
+all tasks done: true
+approved: true
+exit_criteria_met: true
+
+=== MINI-SPRINT COMPLETE ===

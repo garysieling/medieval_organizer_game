@@ -339,10 +339,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design pipeline where AI identifies issues via telemetry, implements fixes, hot reloads components during gameplay. Continuous improvement loop.
 
 ### [ ] QSP for Theory of Mind
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/qsp-theory-of-mind.md
 - **Notes:** Research using QSP models for "theory of mind" - how characters perceive and understand each other. Design systems for social cognition, empathy, deception, belief modeling.
 
 ### [ ] Deep Illness Simulation (e.g., Cancer)
@@ -355,10 +357,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design deep simulation of specific illnesses rather than many shallow ones. Example: cancer - model how it affects character throughout entire life arc. Study disease progression, symptoms, treatment options at different tech levels.
 
 ### [ ] Technology's Effect on Medical Options
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/technology-medical-options.md
 - **Notes:** Design system where technological progress changes available medical treatments and illness management options. Low tech = palliative care, high tech = cures, etc. Integration with tech tree.
 
 ### [ ] Novel Magical Powers System Design
@@ -383,10 +387,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Research RimWorld and Stardew Valley pet systems. Design pet mechanics for game. Bonding, utility, emotional impact.
 
 ### [ ] Skill Improvement with Degradation
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** Medium
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/skill-improvement-degradation.md
 - **Notes:** Design skill system like Skyrim (using skills improves them) but add slow degradation for unused skills. Balance progression vs maintenance.
 
 ### [ ] Constellation-Style Tech Trees
@@ -553,10 +559,12 @@ This file tracks research items that need to be completed for the game project.
 - **Notes:** Design big events that help struggling players turn things around. Example: major techs in Red Alert/Rise of Nations that are massively game-changing. Rubber band mechanics, comeback opportunities.
 
 ### [ ] Flexible Recipe System (Against the Storm Style)
-- **Status:** Backlog
+- **Status:** Completed
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-25
+- **Completed:** 2026-10-25
+- **Output:** wiki/software-design/flexible-recipe-system.md
 - **Notes:** Research Against the Storm recipe system. Design flexible recipes where you can make one thing many ways, forcing creativity. Multiple input combinations for same output, resource substitution, improvisation.
 
 ### [ ] AI Agent Workforce Architecture - Implementation Engineer

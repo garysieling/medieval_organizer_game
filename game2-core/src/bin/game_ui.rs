@@ -336,6 +336,15 @@ fn main() {
             draw_text(&mut buf, UI_X as i32 + 10, 400, &format!("(keys 1-5 select villager)"), 120, 120, 140);
         }
 
+        // organization panel: member portraits + name
+        draw_text(&mut buf, UI_X as i32 + 160, 404, &format!("ORG:"), 255, 215, 0);
+        let org_members = world.get_component::<Organization>(org).unwrap().members.clone();
+        for (i, m) in org_members.iter().take(6).enumerate() {
+            // find which villager index this is
+            let vi = villagers.iter().position(|v| v == m).unwrap_or(0);
+            villager_sprites[vi].blit(&mut buf, UI_X as i32 + 200 + i as i32 * 14, 396);
+        }
+
         // event log
         draw_rect(&mut buf, UI_X as i32 + 10, 450, 270, 170, 25, 25, 40);
         draw_text(&mut buf, UI_X as i32 + 14, 454, "LOG", 150, 150, 180);

@@ -264,6 +264,18 @@ fn main() {
             }
         }
 
+        // dog follows its owner's position
+        if let Some(pet) = world.get_component::<Pet>(dog) {
+            if let Some(owner_p) = world.get_component::<Pos>(villagers[0]) {
+                let (dx, dy) = iso_to_screen_cam(owner_p.x + 0.8, owner_p.y + 0.5, cam_x, cam_y, zoom);
+                buf.rect(dx - 3, dy - 6, 6, 4, 139, 90, 43); // brown dog body
+                buf.rect(dx - 4, dy - 9, 3, 3, 139, 90, 43); // head
+                if pet.bond_strength > 0.5 {
+                    draw_text(&mut buf, dx - 3, dy - 16, "<3", 255, 120, 120);
+                }
+            }
+        }
+
         // player marker on map
         let (px, py) = iso_to_screen_cam(10.0, 10.0, cam_x, cam_y, zoom);
         draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);

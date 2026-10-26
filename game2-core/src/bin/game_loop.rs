@@ -7,7 +7,7 @@ use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::illness::{Health, Disease, Stage};
-use game2_core::sim::psychology::{AttachmentHistory, infer_style};
+use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
 use game2_core::sim::religion::{Faith, Congregation, Service};
 use game2_core::sim::economics::Market;
 use game2_core::sim::community::{Citizen, Organization};
@@ -44,6 +44,10 @@ fn main() {
         villagers.push(v);
     }
 
+    let start_styles: Vec<_> = villagers.iter()
+        .map(|v| infer_style(world.get_component::<AttachmentHistory>(*v).unwrap()))
+        .collect();
+
     println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult\n");
     for tick in 0..500 {
         sched.tick(&mut world);
@@ -60,6 +64,24 @@ fn main() {
                 if let Some(h) = world.get_component_mut::<Health>(*v) { h.condition -= 0.15; }
             }
             println!("EVENT: flu outbreak at tick 300");
+        }
+
+        // Attachment episodes: going hungry alone is distressing; during the
+        // flu Aldric nurses the sick every few days, a warm moment for both
+        if tick % 10 == 0 {
+            let carer = villagers[0];
+            for (i, v) in villagers.iter().enumerate() {
+                let hungry = world.get_component::<Hunger>(*v).map(|h| h.value < 30.0).unwrap_or(false);
+                let sick = world.get_component::<Health>(*v).map(|h| h.condition < 0.8).unwrap_or(false);
+                let other = villagers[(i + 1) % villagers.len()];
+                if hungry {
+                    psychology::record_episode(&mut world, *v, Episode { with: other, kind: EpisodeKind::Anxiety });
+                }
+                if sick && (300..400).contains(&tick) && tick % 25 == 0 && *v != carer {
+                    psychology::record_episode(&mut world, *v, Episode { with: carer, kind: EpisodeKind::Warmth });
+                    psychology::record_episode(&mut world, carer, Episode { with: *v, kind: EpisodeKind::Warmth });
+                }
+            }
         }
 
         if tick % 50 == 0 {
@@ -82,8 +104,8 @@ fn main() {
     println!("\n=== Final villager states ===");
     for (i, v) in villagers.iter().enumerate() {
         if let Some(h) = world.get_component::<AttachmentHistory>(*v) {
-            println!("{}: attachment={:?} health={:.2}",
-                names[i], infer_style(h),
+            println!("{}: attachment={:?} -> {:?} (anx={} warm={}) health={:.2}",
+                names[i], start_styles[i], infer_style(h), h.anxiety_episodes, h.warmth_episodes,
                 world.get_component::<Health>(*v).map(|h| h.condition).unwrap_or(0.0));
         }
     }

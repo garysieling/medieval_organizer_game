@@ -66,7 +66,8 @@ pub fn infer_style(hist: &AttachmentHistory) -> AttachmentStyle {
     } else { AttachmentStyle::Disorganized }
 }
 
-/// Record an episode and update bond security
+/// Record an episode: count it toward the emerging style and update the
+/// agent's bond with whoever the episode was with.
 pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
     let bond_update = match episode.kind {
         EpisodeKind::Warmth => 0.15,
@@ -74,12 +75,25 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         EpisodeKind::Rejection => -0.2,
         EpisodeKind::Loss => -0.3,
     };
+    let target = episode.with;
     if let Some(hist) = world.get_component_mut::<AttachmentHistory>(agent) {
+        match episode.kind {
+            EpisodeKind::Warmth => hist.warmth_episodes += 1,
+            _ => hist.anxiety_episodes += 1,
+        }
         hist.episodes.push(episode);
     }
-    // Update bond with episode target
-    // (simplified: would find Bond component pointing at target)
-    let _ = bond_update;
+    // One primary attachment figure per agent: shift it if this episode was
+    // with them, or form a first bond if the agent has none yet.
+    match world.get_component_mut::<Bond>(agent) {
+        Some(b) if b.target == target => {
+            b.security = (b.security + bond_update).clamp(0.0, 1.0);
+        }
+        Some(_) => {}
+        None => {
+            world.add_component(agent, Bond { target, security: (0.5 + bond_update).clamp(0.0, 1.0) });
+        }
+    }
 }
 
 /// System: attachment episodes accumulate; styles emerge
@@ -105,6 +119,39 @@ mod tests {
             anxiety_episodes: 1, warmth_episodes: 9, episodes: vec![],
         };
         assert_eq!(infer_style(&hist), AttachmentStyle::Secure);
+    }
+
+    #[test]
+    fn test_record_episode_shifts_style() {
+        let mut w = World::new();
+        let child = w.create_entity();
+        let carer = w.create_entity();
+        w.add_component(child, AttachmentHistory { anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+        for _ in 0..5 {
+            record_episode(&mut w, child, Episode { with: carer, kind: EpisodeKind::Rejection });
+        }
+        let h = w.get_component::<AttachmentHistory>(child).unwrap();
+        assert_eq!(h.anxiety_episodes, 5);
+        assert_eq!(infer_style(h), AttachmentStyle::Disorganized);
+        for _ in 0..20 {
+            record_episode(&mut w, child, Episode { with: carer, kind: EpisodeKind::Warmth });
+        }
+        let h = w.get_component::<AttachmentHistory>(child).unwrap();
+        assert_eq!(h.warmth_episodes, 20);
+        assert_eq!(infer_style(h), AttachmentStyle::Secure);
+    }
+
+    #[test]
+    fn test_record_episode_updates_bond() {
+        let mut w = World::new();
+        let child = w.create_entity();
+        let carer = w.create_entity();
+        record_episode(&mut w, child, Episode { with: carer, kind: EpisodeKind::Warmth });
+        let first = w.get_component::<Bond>(child).unwrap().security;
+        record_episode(&mut w, child, Episode { with: carer, kind: EpisodeKind::Warmth });
+        let b = w.get_component::<Bond>(child).unwrap();
+        assert_eq!(b.target, carer);
+        assert!(b.security > first);
     }
 
     #[test]

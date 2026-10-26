@@ -354,3 +354,30 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** writing-materials, vellum, parchment, papyrus, vegetable-papyrus, peppers, linen-paper, vatman, iron-gall-ink, lampblack, berry-ink, stone-dust-pigment, bookbinding, coptic-binding, codex, quires, illumination, gold-leaf, gesso, lapis-lazuli, literacy-tech-tree, scribes, illuminators
 
 ---
+
+### Cycle 3, Survey 4: Education & Pedagogy
+**Date Completed:** 2026-10-25
+**Domain:** Education, Pedagogy, Skill Development, Knowledge Transfer
+**Output:** wiki/literature-reviews/education-pedagogy.md
+**Yield:**
+- Medieval education structures (monastery schools 6th c., cathedral schools 1079 decree, universities 12th c.)
+- Seven liberal arts curriculum (trivium: grammar/rhetoric/logic, quadrivium: arithmetic/geometry/music/astronomy)
+- Guild apprenticeship three-tier system (apprentice 7 years → journeyman day-wage → master with workshop)
+- Deliberate practice framework (Ericsson 1993, quality over quantity, 10,000-hour misconception)
+- Literacy teaching tools (wax tablets reusable, hornbooks alphabet primers, oral recitation methods)
+- Tacit vs explicit knowledge transfer (90% tacit, apprenticeship for embodied skills, books for theory)
+
+**Key Sources:**
+- Medieval education system (monastery/cathedral schools, Papal decree 1079) - A+
+- Seven liberal arts (trivium and quadrivium standardized curriculum) - A+
+- Guild apprenticeship (1345 Spurriers ordinance, seven-year standard) - A+
+- Ericsson's deliberate practice (1993 landmark study, 10,000 hours average) - A+
+- Dreyfus model skill acquisition (five stages: novice → expert) - A+
+- Wax tablets and hornbooks (archaeological evidence, 1450 usage) - A
+- Tacit knowledge theory (Polanyi's Paradox, 90% tacit estimate) - A
+- Situated learning theory (Lave & Wenger communities of practice) - A
+
+**Confidence:** High
+**Tags:** education, pedagogy, monastery-schools, cathedral-schools, universities, trivium, quadrivium, seven-liberal-arts, apprenticeship, guilds, journeyman, masterpiece, deliberate-practice, Ericsson, 10000-hours, skill-acquisition, wax-tablets, hornbooks, literacy-teaching, tacit-knowledge, explicit-knowledge, situated-learning
+
+---

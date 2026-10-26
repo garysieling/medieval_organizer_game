@@ -209,10 +209,18 @@ Domains with no research yet but relevant to game vision.
 ---
 
 #### Education & Pedagogy
-**Coverage:** None
-**Gaps:** Learning systems, skill acquisition, knowledge transfer
-**Priority:** Medium
-**Next Survey:** When implementing education/skill systems
+**Coverage:** High
+**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/education-pedagogy.md)
+**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory
+**Mechanics Proposed:**
+- Medieval education structures (monastery schools, cathedral schools, universities with four faculties)
+- Seven liberal arts curriculum (trivium + quadrivium progression)
+- Guild apprenticeship system (apprentice → journeyman → master with masterpiece requirement)
+- Deliberate practice skill system (quality over quantity, 3x multiplier for focused practice)
+- Literacy teaching (wax tablets, hornbooks, oral recitation, reading vs writing as separate skills)
+- Tacit vs explicit knowledge transfer (books for theory, apprenticeship for embodied skills)
+**Next Steps:** Implement education.rs and skills.rs modules, test deliberate practice mechanics, balance apprenticeship timescales
 
 ---
 
@@ -294,10 +302,10 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 1. **Herbology & Medieval Medicine** ✓ (COMPLETE - four humors and herb gardens)
 2. **Medieval Crafts & Tools** ✓ (COMPLETE - luthier, beekeeping, stained glass, stonemason)
 3. **Writing Materials & Bookmaking** ✓ (COMPLETE - vellum, inks, bookbinding, illumination)
-4. Military History & Strategy (when needed)
-5. Linguistics & Communication (literacy/printmaking systems)
-6. Art History & Aesthetics (expanded art direction)
-7. Education & Pedagogy (skill/education systems)
+4. **Education & Pedagogy** ✓ (COMPLETE - schools, apprenticeships, deliberate practice)
+5. Military History & Strategy (when needed)
+6. Linguistics & Communication (literacy/printmaking systems)
+7. Art History & Aesthetics (expanded art direction)
 8. Magic Systems from Fiction (novel powers)
 9. Theory of Mind (advanced psychology)
 
@@ -316,16 +324,16 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 16
-**Domains Covered (High/Medium):** 16
+**Total Surveys Completed:** 17
+**Domains Covered (High/Medium):** 17
 **Domains Partially Covered:** 1 (History - general)
-**Domains Uncovered:** 3 (Military, Art History, Education)
-**Mechanics Implemented from Research:** ~51 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 7 misc proposed)
+**Domains Uncovered:** 2 (Military, Art History)
+**Mechanics Implemented from Research:** ~57 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 80% (16 well-covered / 20 total relevant domains including craft domains)
+**Coverage Score:** 85% (17 well-covered / 20 total relevant domains)
 **Cycle 2: COMPLETE** (6/6 surveys finished)
-**Cycle 3: IN PROGRESS** (3/? surveys - Herbology, Crafts, Writing Materials complete)
-**Target for Cycle 3:** Craft/profession surveys complete! Next: Education & Pedagogy or remaining domains as needed
+**Cycle 3: IN PROGRESS** (4/? surveys - Herbology, Crafts, Writing Materials, Education complete)
+**Target for Cycle 3:** Nearly complete! Remaining: Military History, Art History (low priority), optional advanced domains
 
 ---

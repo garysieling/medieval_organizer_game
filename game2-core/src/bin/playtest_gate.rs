@@ -8,6 +8,7 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::engine::render::Buffer;
+use game2_core::ui::font::draw_text;
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Pos, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
@@ -97,17 +98,44 @@ fn main() {
         .count();
     goals.push(Check { name: "hunger stays in range", pass: bad_hunger == 0, detail: format!("{bad_hunger} out-of-range") });
 
-    // --- render the real terrain+UI frame (same math as playcheck/game_ui) ---
+    // --- render the real terrain+entities+UI frame. This mirrors game_ui's
+    // content, not just its background: buildings and villagers are drawn
+    // at their actual world positions (as solid marks rather than sprites,
+    // since this gate deliberately has no asset-pack dependency), and the
+    // panel shows real text pulled from world state. That way a regression
+    // that silently drops buildings/villagers/panel content from the real
+    // game screen shows up here too, not just a missing-background check. ---
     let mut buf = Buffer::new(W, H);
     buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
     for ty in 0..terrain.height { for tx in 0..terrain.width {
         let h = terrain.get(tx, ty);
-        let (r, g, b) = if h < 0.15 { (30, 60, 180) } else if h < 0.35 { (60, 140, 60) }
-            else if h < 0.55 { (140, 110, 50) } else if h < 0.75 { (110, 90, 60) } else { (220, 220, 220) };
+        let (r, g, b) = Terrain::tile_color(h);
         let (sx, sy) = iso(tx as f32, ty as f32);
         buf.diamond(sx, sy, TILE_W, TILE_H, r, g, b);
     }}
+
+    // buildings: same handful of landmarks run_headless spawns, drawn as
+    // solid rects at their projected position (no sprite assets required)
+    let buildings = [(5.0f32, 5.0f32), (12.0, 4.0), (7.0, 12.0), (10.0, 9.0)];
+    for &(bx, by) in &buildings {
+        let (sx, sy) = iso(bx, by);
+        buf.rect(sx - 10, sy - 14, 20, 14, 150, 110, 70);
+    }
+
+    // villagers: solid marker + name label at their real Pos
+    for (i, &v) in villagers.iter().enumerate() {
+        if let Some(p) = world.get_component::<Pos>(v) {
+            let (sx, sy) = iso(p.x, p.y);
+            buf.rect(sx - 4, sy - 10, 8, 10, 230, 210, 160);
+            draw_text(&mut buf, sx - 14, sy - 22, &format!("v{i}"), 255, 255, 255);
+        }
+    }
+
     buf.rect(UI_X as i32, 0, 300, H as i32, 32, 32, 48);
+    draw_text(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 255, 220, 130);
+    draw_text(&mut buf, UI_X as i32 + 10, 24, &format!("villagers: {}", villagers.len()), 200, 200, 200);
+    draw_text(&mut buf, UI_X as i32 + 10, 36, &format!("guilds: {guild_count}"), 200, 200, 200);
+    draw_text(&mut buf, UI_X as i32 + 10, 48, &format!("tick: {TICKS}"), 200, 200, 200);
 
     let mut checks: Vec<Check> = vec![];
 
@@ -147,6 +175,33 @@ fn main() {
 
     let panel_lit = buf.pixels.get(UI_X * 4).copied().unwrap_or(0) > 20;
     checks.push(Check { name: "UI panel drawn", pass: panel_lit, detail: "right panel".into() });
+
+    // Pixel-level presence checks: these fail if the real content (not just
+    // the background rects) silently stops being drawn - e.g. a dropped
+    // building/villager draw call, or a panel left with no text in it.
+    let not_bg = |buf: &Buffer, x: i32, y: i32, bg: (u8, u8, u8)| -> bool {
+        if x < 0 || y < 0 || x as usize >= buf.width || y as usize >= buf.height { return false; }
+        let idx = (y as usize * buf.width + x as usize) * 4;
+        idx + 2 < buf.pixels.len() && (buf.pixels[idx], buf.pixels[idx+1], buf.pixels[idx+2]) != bg
+    };
+    let map_bg = (25u8, 25u8, 38u8);
+    let panel_bg = (32u8, 32u8, 48u8);
+
+    let buildings_drawn = buildings.iter()
+        .filter(|&&(bx, by)| { let (sx, sy) = iso(bx, by); not_bg(&buf, sx, sy - 7, map_bg) })
+        .count();
+    checks.push(Check { name: "buildings rendered", pass: buildings_drawn == buildings.len(), detail: format!("{buildings_drawn}/{} drawn", buildings.len()) });
+
+    let villagers_drawn = villagers.iter()
+        .filter_map(|v| world.get_component::<Pos>(*v))
+        .filter(|p| { let (sx, sy) = iso(p.x, p.y); not_bg(&buf, sx, sy - 5, map_bg) })
+        .count();
+    checks.push(Check { name: "villagers rendered", pass: villagers_drawn == villagers.len(), detail: format!("{villagers_drawn}/{} drawn", villagers.len()) });
+
+    let panel_content_pixels = (UI_X as i32 + 10..UI_X as i32 + 200)
+        .filter(|&x| not_bg(&buf, x, 24, panel_bg))
+        .count();
+    checks.push(Check { name: "panel shows content", pass: panel_content_pixels > 0, detail: format!("{panel_content_pixels} non-bg px in content row") });
 
     println!("\n=== PLAYTEST GATE (seed {seed}) ===\n");
     println!("-- goals --");

@@ -53,6 +53,10 @@ impl crate::engine::ecs::System for RelationshipSystem {
                 // Decay toward neutral if no recent interactions
                 r.strength *= 0.99;
             }
+            if let Some(r) = world.get_component::<Relationship>(e) {
+                let kind = infer_kind(r);
+                world.get_component_mut::<Relationship>(e).unwrap().kind = kind;
+            }
         }
     }
 }
@@ -73,7 +77,7 @@ pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<E
 /// creates one), applies the interaction's effect on strength, and
 /// re-infers the relationship kind from the new state.
 pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) -> Entity {
-    let delta = match interaction.kind {
+    let base_delta = match interaction.kind {
         InteractionKind::Conversation => 0.05,
         InteractionKind::SharedMeal => 0.08,
         InteractionKind::Conflict => -0.1,
@@ -81,6 +85,7 @@ pub fn record_interaction(world: &mut World, from: Entity, interaction: Interact
         InteractionKind::Betrayal => -0.3,
         InteractionKind::Romance => 0.15,
     };
+    let delta = base_delta * interaction.intensity.clamp(0.0, 1.0);
     let other = interaction.other;
 
     let rel_entity = find_relationship(world, from, other).unwrap_or_else(|| {
@@ -102,8 +107,13 @@ pub fn record_interaction(world: &mut World, from: Entity, interaction: Interact
     rel_entity
 }
 
-/// Infer relationship kind from history (emergent)
+/// Infer relationship kind from history (emergent). Explicitly assigned
+/// roles (Family, Lover, Mentor, Apprentice) are fixed and are never
+/// overwritten by the strength/interaction-based inference below.
 pub fn infer_kind(r: &Relationship) -> RelKind {
+    if matches!(r.kind, RelKind::Family | RelKind::Lover | RelKind::Mentor | RelKind::Apprentice) {
+        return r.kind;
+    }
     if r.strength > 0.6 {
         match r.interactions {
             0..=5 => RelKind::Acquaintance,
@@ -185,5 +195,50 @@ mod tests {
         }
         let r = world.get_component::<Relationship>(e).unwrap();
         assert_eq!(r.kind, RelKind::Rival);
+    }
+
+    #[test]
+    fn fixed_kinds_survive_interactions() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let e = record_interaction(&mut world, a, Interaction { other: b, kind: InteractionKind::Conversation, intensity: 1.0 });
+        world.get_component_mut::<Relationship>(e).unwrap().kind = RelKind::Family;
+
+        record_interaction(&mut world, a, Interaction { other: b, kind: InteractionKind::Conversation, intensity: 1.0 });
+
+        let r = world.get_component::<Relationship>(e).unwrap();
+        assert_eq!(r.kind, RelKind::Family, "a Family bond should not be reclassified as Acquaintance by an ordinary interaction");
+    }
+
+    #[test]
+    fn low_intensity_interactions_affect_bonds_less() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let weak = record_interaction(&mut world, a, Interaction { other: b, kind: InteractionKind::Conversation, intensity: 0.1 });
+        let r = world.get_component::<Relationship>(weak).unwrap();
+        assert!((r.strength - 0.005).abs() < 1e-6, "a low-intensity interaction should change strength proportionally less than a full-intensity one");
+    }
+
+    #[test]
+    fn rival_label_clears_once_strength_decays_back_to_neutral() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let mut e = Entity::default();
+        for _ in 0..5 {
+            e = record_interaction(&mut world, a, Interaction { other: b, kind: InteractionKind::Betrayal, intensity: 1.0 });
+        }
+        assert_eq!(world.get_component::<Relationship>(e).unwrap().kind, RelKind::Rival);
+
+        let mut system = RelationshipSystem;
+        for _ in 0..200 {
+            system.run(&mut world);
+        }
+
+        let r = world.get_component::<Relationship>(e).unwrap();
+        assert!(r.strength > -0.3, "strength should have decayed back above the rivalry threshold");
+        assert_ne!(r.kind, RelKind::Rival, "kind should be re-inferred once strength decays out of rivalry range");
     }
 }

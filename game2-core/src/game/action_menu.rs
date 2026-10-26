@@ -40,7 +40,23 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
     s += "  [c] Sign a contract (formal agreement)\n";
     s += "  [b] Build something (structure)\n";
     s += "  [w] Wait (let the world turn)\n";
+    s += "  [q] Quit\n";
+    s += "Add a number to choose who: t2 = talk to villager 2\n";
     s
+}
+
+/// Parse a typed command like "t" or "r3" into (action key, target index).
+/// The number is 1-based; without a valid one the current target is kept,
+/// so talking to someone and then recruiting them hits the same person.
+pub fn parse_command(input: &str, current_target: usize, num_targets: usize) -> (char, usize) {
+    let s = input.trim();
+    let choice = s.chars().next().map(|c| c.to_ascii_lowercase()).unwrap_or('w');
+    let rest: String = s.chars().skip(1).collect();
+    let target = rest.trim().parse::<usize>().ok()
+        .filter(|n| (1..=num_targets).contains(n))
+        .map(|n| n - 1)
+        .unwrap_or(current_target);
+    (choice, target)
 }
 
 /// Execute a chosen action
@@ -66,5 +82,27 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
         MenuActionType::Contract => "You draft a contract.".into(),
         MenuActionType::Build => "You commission a structure.".into(),
         MenuActionType::Wait => "You wait and observe.".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_command_keeps_target_without_number() {
+        assert_eq!(parse_command("t\n", 2, 5), ('t', 2));
+        assert_eq!(parse_command("R", 2, 5), ('r', 2));
+    }
+
+    #[test]
+    fn test_parse_command_picks_numbered_target() {
+        assert_eq!(parse_command("t4", 0, 5), ('t', 3));
+        assert_eq!(parse_command("r 1", 3, 5), ('r', 0));
+        // out-of-range or junk numbers keep the current target
+        assert_eq!(parse_command("t9", 1, 5), ('t', 1));
+        assert_eq!(parse_command("t0", 1, 5), ('t', 1));
+        assert_eq!(parse_command("tx", 1, 5), ('t', 1));
+        assert_eq!(parse_command("", 1, 5), ('w', 1));
     }
 }

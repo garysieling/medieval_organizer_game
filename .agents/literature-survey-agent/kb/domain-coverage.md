@@ -170,11 +170,18 @@ Domains with no research yet but relevant to game vision.
 
 ---
 
-#### Agriculture & Food Systems
-**Coverage:** Low
-**Gaps:** Farming techniques, crop rotation, food storage, cuisine
-**Priority:** Medium-High
-**Next Survey:** Next scheduled domain rotation
+#### Agriculture & Food Systems ✓
+**Coverage:** High
+**Surveys:** Cycle 2, Survey 1 (Agriculture & Food Systems)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/agriculture-food-systems.md)
+**Sources:** Winchester Manors data, Three-field system (Oxford/InTech), APSIM models
+**Mechanics Proposed:**
+- Three-field crop rotation (+33% yields)
+- Seasonal food security cycle
+- Food preservation tech tree
+- Crop yield variability
+- Village collective farming
+**Next Steps:** Implement agriculture.rs module, test rotation mechanics, balance seasonal cycle
 
 ---
 
@@ -200,9 +207,9 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 6. Religion & Emergence ✓
 7. Anti-Colonialist Liberation ✓
 
-**Cycle 2 (Proposed):**
-1. **Agriculture & Food Systems** (HIGH PRIORITY - core medieval gameplay)
-2. **Ecology & Climate** (HIGH PRIORITY - environmental simulation)
+**Cycle 2 (In Progress):**
+1. **Agriculture & Food Systems** ✓ (COMPLETE - core medieval gameplay)
+2. **Ecology & Climate** (HIGH PRIORITY - environmental simulation - NEXT)
 3. **Urban Planning** (MEDIUM - village to city scaling)
 4. **Philosophy & Ethics** (MEDIUM - trolley problem mechanics)
 5. **Anthropology** (MEDIUM - cultural systems)
@@ -231,14 +238,14 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 7
-**Domains Covered (High/Medium):** 7
-**Domains Partially Covered:** 2
-**Domains Uncovered:** 7
-**Mechanics Implemented from Research:** ~12
+**Total Surveys Completed:** 8
+**Domains Covered (High/Medium):** 8
+**Domains Partially Covered:** 1 (History - reduced from 2)
+**Domains Uncovered:** 6 (reduced from 7)
+**Mechanics Implemented from Research:** ~12 (5 new mechanics proposed for agriculture)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 44% (7 well-covered / 16 total relevant domains)
-**Target for Next Sprint:** 50% (add 1 new domain)
+**Coverage Score:** 50% (8 well-covered / 16 total relevant domains)
+**Target for Next Sprint:** 56% (add 1 new domain from Cycle 2)
 
 ---

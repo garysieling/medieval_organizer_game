@@ -2,7 +2,7 @@
 
 **Agent:** Literature Survey Agent
 **Last Updated:** 2026-10-25
-**Version:** 0.1.0
+**Version:** 0.2.0
 
 ## Summary
 Tracks completed literature surveys and their yields (mechanics, concepts, sources).
@@ -134,5 +134,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High
 **Tags:** liberation, anti-colonialism, power-dynamics, perspective
+
+---
+
+### Cycle 2, Survey 1: Agriculture & Food Systems
+**Date Completed:** 2026-10-25
+**Domain:** Agriculture, Food Systems, Medieval Economics
+**Output:** wiki/literature-reviews/agriculture-food-systems.md
+**Yield:**
+- Three-field crop rotation system (+33% yields)
+- Seasonal food security cycle (harvest → storage → hunger gap)
+- Food preservation tech tree (salting, smoking, cellaring)
+- Crop yield variability system (weather, fertility, pests)
+- Village collective farming mechanics
+
+**Key Sources:**
+- Winchester Manors historical data (1283-1349) - A
+- Three-field system research (Oxford Academic, InTech) - A+
+- APSIM crop simulation model - A+
+- Medieval preservation methods - B+
+- Seasonal food security analysis - B
+
+**Confidence:** High
+**Tags:** agriculture, crop-rotation, three-field-system, food-security, medieval, seasonal-gameplay
 
 ---

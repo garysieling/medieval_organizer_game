@@ -2,14 +2,14 @@
 //! labeled action buttons, inspector panel, event log.
 
 use minifb::{Key, Window, WindowOptions, MouseMode};
-use game2_core::engine::ecs::{Scheduler, World};
+use game2_core::engine::ecs::{Entity, Scheduler, World};
 use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
 use game2_core::ui::font::{draw_text, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
@@ -211,10 +211,9 @@ fn main() {
     let mut speed = 1u32;   // 1=normal 2=fast 4=turbo
     let mut selected_target = 0usize;
     let mut log: Vec<String> = vec!["Welcome to the village.".into()];
-    let mut rapport = [0.0f32; 5]; // relationship score per villager
     let mut inspector_open = true;
     let mut help_open = false;
-    let mut dialog: Option<(usize, String, u64)> = None; // (villager idx, text, until tick)
+    let mut dialog: Option<(Entity, String, u64)> = None; // (speaker, text, until tick)
     let mut frame_n = 0u32;
     let mut mouse_was_down = false;
 
@@ -266,15 +265,17 @@ fn main() {
             }
         }
 
-        // idle villagers wander (village feels alive)
+        // idle villagers wander (village feels alive); direction changes daily,
+        // step is per frame so they stroll ~0.6 tiles/day instead of racing to the edge
         if !paused {
+            let step = 0.6 / ticks_per_frame as f32;
             for v in villagers.iter() {
                 let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
                 if idle {
                     if let Some(p) = world.get_component_mut::<Pos>(*v) {
                         let wob = ((tick + *v as u64) % 8) as f32;
-                        if wob < 1.0 { p.x += 0.2; } else if wob < 2.0 { p.y += 0.2; }
-                        else if wob < 3.0 { p.x -= 0.2; } else if wob < 4.0 { p.y -= 0.2; }
+                        if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
+                        else if wob < 3.0 { p.x -= step; } else if wob < 4.0 { p.y -= step; }
                         p.x = p.x.clamp(2.0, 30.0);
                         p.y = p.y.clamp(2.0, 30.0);
                     }
@@ -476,7 +477,7 @@ fn main() {
         let dist_ok = world.get_component::<Pos>(villagers[selected_target])
             .map(|vp| { let dx = vp.x - player_pos.0; let dy = vp.y - player_pos.1; (dx*dx + dy*dy).sqrt() < 8.0 })
             .unwrap_or(false);
-        let recruit_infl_ok = world.get_component::<PlayerCharacter>(player).unwrap().influence >= 0.3;
+        let recruit_infl_ok = can_recruit(world.get_component::<PlayerCharacter>(player).unwrap().influence);
         let button_disabled = move |i: usize| (i == 0 || i == 1 || i == 3) && !dist_ok || i == 1 && !recruit_infl_ok;
         for (i, b) in buttons.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
@@ -546,7 +547,7 @@ fn main() {
                 // rain: dark blue tint bands on map area
                 for y in (0..H).step_by(6) {
                     for x in 0..MAP_W {
-                        let idx = (y * MAP_W + x) * 4;
+                        let idx = (y * W + x) * 4;
                         if idx + 2 < buf.pixels.len() {
                             buf.set(x as i32, y as i32,
                                 buf.pixels[idx].saturating_sub(10),
@@ -583,9 +584,9 @@ fn main() {
         buf.rect(mm_x + (player_pos.0 * 2.0) as i32, mm_y + (player_pos.1 * 2.0) as i32, 2, 2, 255, 255, 255); // player
 
         // dialog bubble over speaking villager
-        if let Some((vi, ref text, until)) = dialog {
+        if let Some((speaker, ref text, until)) = dialog {
             if tick < until {
-                if let Some(p) = world.get_component::<Pos>(villagers[vi]) {
+                if let Some(p) = world.get_component::<Pos>(speaker) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let bw = (text.len() as i32 * 6 + 12).max(60);
                     let bx = (sx - bw / 2).max(4);
@@ -672,7 +673,7 @@ fn main() {
                 if let Some(p) = world.get_component::<Pos>(*rv) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
-                    if d < 24.0 {
+                    if mx < MAP_W as i32 && d < 24.0 {
                         let p_inf = world.get_component::<PlayerCharacter>(player).unwrap().influence;
                         let (msg, tag) = if p_inf > 1.5 {
                             (format!("{}: we've heard of you - the organizer.", rival_names[i]), "opened")
@@ -681,19 +682,20 @@ fn main() {
                         } else {
                             (format!("{}: we don't know you, outsider.", rival_names[i]), "rebuffed")
                         };
-                        dialog = Some((selected_target, msg, tick + 60));
+                        dialog = Some((*rv, msg, tick + 60));
                         log.push(format!("t{}: {} {} your approach.", tick, rival_names[i], tag));
                     }
                 }
             }
             // click on map selects nearest villager
+            let on_map = mx < MAP_W as i32;
             let mut best = selected_target;
             let mut best_d = 9999.0f32;
             for (i, v) in villagers.iter().enumerate() {
                 if let Some(p) = world.get_component::<Pos>(*v) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
-                    if d < 30.0 && d < best_d { best = i; best_d = d; }
+                    if on_map && d < 30.0 && d < best_d { best = i; best_d = d; }
                 }
             }
             selected_target = best;
@@ -713,10 +715,9 @@ fn main() {
                 let msg = match i {
                     0 => {
                         let r = act_talk(&mut world, player, villagers[selected_target]);
-                        rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0);
                         let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
                         let concern = concerns[(tick as usize + selected_target) % concerns.len()];
-                        dialog = Some((selected_target, concern.to_string(), tick + 60));
+                        dialog = Some((villagers[selected_target], concern.to_string(), tick + 60));
                         r.description
                     }
                     1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { format!("{}.", r.description) } }
@@ -731,7 +732,6 @@ fn main() {
                     }
                     _ => "You wait and observe.".into(),
                 };
-                if i == 1 && msg.ends_with("joined!") { rapport[selected_target] = 1.0; }
                 log.push(msg);
             }
         }

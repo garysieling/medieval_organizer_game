@@ -70,11 +70,17 @@ fn main() {
     // 100.0), so GOAL 2 below can tell "everyone ate" from "someone ate a
     // lot" instead of inferring it from the aggregate serving count. ---
     let mut ate_at_least_once = vec![false; villagers.len()];
+    // villager-ticks spent standing in water: movement isn't terrain-aware,
+    // so a villager can wade through a lake and be back on land by the end
+    let mut water_ticks = 0u32;
     for _ in 0..TICKS {
         sched.tick(&mut world);
         for (i, &v) in villagers.iter().enumerate() {
             if world.get_component::<Hunger>(v).map(|h| h.value >= 100.0).unwrap_or(false) {
                 ate_at_least_once[i] = true;
+            }
+            if world.get_component::<Pos>(v).map(|p| terrain.get(p.x as usize, p.y as usize) < 0.15).unwrap_or(false) {
+                water_ticks += 1;
             }
         }
     }
@@ -167,11 +173,7 @@ fn main() {
     let off_map = positions.iter().filter(|(sx, sy)| *sx < -40 || *sx > MAP_W as i32 || *sy < -40 || *sy > H as i32).count();
     checks.push(Check { name: "entities on screen", pass: off_map == 0, detail: format!("{off_map} off-map") });
 
-    let on_water = villagers.iter()
-        .filter_map(|v| world.get_component::<Pos>(*v))
-        .filter(|p| terrain.get(p.x as usize, p.y as usize) < 0.15)
-        .count();
-    checks.push(Check { name: "villagers on land", pass: on_water == 0, detail: format!("{on_water} in water") });
+    checks.push(Check { name: "villagers stay on land", pass: water_ticks == 0, detail: format!("{water_ticks} villager-ticks in water") });
 
     let panel_lit = buf.pixels.get(UI_X * 4).copied().unwrap_or(0) > 20;
     checks.push(Check { name: "UI panel drawn", pass: panel_lit, detail: "right panel".into() });

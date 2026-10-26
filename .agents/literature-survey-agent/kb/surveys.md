@@ -282,3 +282,27 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** historical-events, disasters, black-death, great-famine, poisson-process, cascades, pandemics, invasions, medieval-crisis, technological-innovation
 
 ---
+
+### Cycle 3, Survey 1: Herbology & Medieval Medicine
+**Date Completed:** 2026-10-25
+**Domain:** Medieval Medicine, Herbology, Pharmacology, Medical History
+**Output:** wiki/literature-reviews/herbology-medieval-medicine.md
+**Yield:**
+- Four Humors diagnostic system (Hippocrates/Galen balance mechanics)
+- Monastic herb garden cultivation (50+ medicinal plants, monastery physic gardens)
+- Apothecary crafting system (infusions, decoctions, poultices, tinctures, salves)
+- Herb gathering & foraging (wild plants, seasonal availability, misidentification risk)
+- Poison & antidote system (hemlock, belladonna, mandrake, mithridatium)
+
+**Key Sources:**
+- Four Humors theory (Hippocrates, Galen) - A+
+- Monastic medicine and herb gardens (250+ plant species) - A
+- Apothecaries and preparation methods (historical profession) - A
+- Medieval medicinal herbs (Dioscorides' De Materia Medica, 600+ plants) - A
+- Medieval poisons & antidotes (hemlock, belladonna, mandrake) - A
+- Modern validation of medieval remedies (biological activity) - A
+
+**Confidence:** High
+**Tags:** herbology, medieval-medicine, four-humors, apothecary, herb-gardens, poisons, antidotes, Galen, Hippocrates, monastic-medicine, remedies
+
+---

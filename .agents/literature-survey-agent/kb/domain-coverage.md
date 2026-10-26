@@ -150,6 +150,21 @@ Domains with completed surveys and implemented mechanics.
 
 ---
 
+#### Herbology & Medieval Medicine
+**Coverage:** High
+**Surveys:** Cycle 3, Survey 1 (Herbology & Medieval Medicine)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/herbology-medieval-medicine.md)
+**Sources:** Four Humors (Hippocrates/Galen), Monastic medicine, Dioscorides, Medieval poisons
+**Mechanics Proposed:**
+- Four Humors diagnostic system (balance blood/phlegm/yellow bile/black bile)
+- Monastic herb garden cultivation (50+ medicinal plants)
+- Apothecary crafting (infusions, decoctions, poultices, tinctures, salves)
+- Herb gathering & foraging (seasonal, misidentification risk)
+- Poison & antidote system (hemlock, belladonna, mandrake, mithridatium)
+**Next Steps:** Implement herbology.rs and humors.rs modules, integrate with illness.rs
+
+---
+
 ### Partially-Covered Domains ⚠
 Domains with initial research but needing deeper surveys.
 
@@ -198,6 +213,22 @@ Domains with no research yet but relevant to game vision.
 **Gaps:** Learning systems, skill acquisition, knowledge transfer
 **Priority:** Medium
 **Next Survey:** When implementing education/skill systems
+
+---
+
+#### Medieval Crafts & Tools
+**Coverage:** None
+**Gaps:** Luthier tools (instrument making), beekeeping tools, stained glass making, stonemason tools, specific craft equipment
+**Priority:** Medium-High
+**Next Survey:** Medieval craft professions and their specialized tools
+
+---
+
+#### Writing Materials & Bookmaking
+**Coverage:** None
+**Gaps:** Papermaking, vellum (parchment), papyrus, plant fiber papers, ink making, bookbinding, illumination
+**Priority:** Medium-High (literacy tech tree)
+**Next Survey:** When implementing book production and literacy systems
 
 ---
 
@@ -269,15 +300,16 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 13
-**Domains Covered (High/Medium):** 13
-**Domains Partially Covered:** 1 (History)
-**Domains Uncovered:** 3 (down from 4)
-**Mechanics Implemented from Research:** ~37 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 7 misc proposed)
+**Total Surveys Completed:** 14
+**Domains Covered (High/Medium):** 14
+**Domains Partially Covered:** 1 (History - general)
+**Domains Uncovered:** 5 (Military, Linguistics, Education, Crafts & Tools, Writing Materials)
+**Mechanics Implemented from Research:** ~42 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 81% (13 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
+**Coverage Score:** 70% (14 well-covered / 20 total relevant domains including new craft domains)
 **Cycle 2: COMPLETE** (6/6 surveys finished)
-**Target for Cycle 3:** Fill remaining gaps (Military, Linguistics, Education, etc.)
+**Cycle 3: IN PROGRESS** (1/? surveys - Herbology complete)
+**Target for Cycle 3:** Fill craft/profession gaps (Crafts & Tools, Writing Materials), then remaining domains
 
 ---

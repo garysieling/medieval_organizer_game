@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::villager::{self, Pos};
-use game2_core::sim::illness::{Health, Disease, Stage, Treatment, apply_treatment};
+use game2_core::sim::illness::{Health, Disease, Stage, Treatment, treat_health};
 
 fn main() {
     println!("=== ILLNESS OUTBREAK ===\n");
@@ -51,7 +51,7 @@ fn main() {
             let remedy = Treatment { name: "willow_bark_tea".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.4 };
             for v in &infected {
                 if let Some(h) = world.get_component_mut::<Health>(*v) {
-                    h.condition = (h.condition + 0.15).min(1.0);
+                    treat_health(h, &remedy);
                 }
             }
         }

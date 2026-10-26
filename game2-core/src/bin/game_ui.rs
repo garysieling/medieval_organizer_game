@@ -685,7 +685,6 @@ fn main() {
                 match i {
                     0 => {
                         let r = act_talk(&mut world, player, villagers[selected_target]);
-                        rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0);
                         let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
                         let concern = concerns[(tick as usize + selected_target) % concerns.len()];
                         dialog = Some((villagers[selected_target], concern.to_string(), tick + 60));
@@ -693,7 +692,7 @@ fn main() {
                     }
                     1 => {
                         let r = act_recruit(&mut world, player, org, villagers[selected_target]);
-                        if r.success { rapport[selected_target] = 1.0; format!("{} joined!", names[selected_target]) } else { r.description }
+                        if r.success { format!("{} joined!", names[selected_target]) } else { r.description }
                     }
                     2 => { let r = act_invest(&mut world, player, 10.0); r.description }
                     3 => "You call a house meeting.".into(),

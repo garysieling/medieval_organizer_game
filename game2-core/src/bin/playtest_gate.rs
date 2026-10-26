@@ -9,7 +9,7 @@
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::engine::render::Buffer;
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Pos, FoodSource};
+use game2_core::game::villager::{self, Pos, FoodSource, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::sim::climate::{self, SeasonSystem};
@@ -29,6 +29,9 @@ fn iso(tx: f32, ty: f32) -> (i32, i32) {
 struct Check { name: &'static str, pass: bool, detail: String }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let seed: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(42);
+
     let mut world = World::new();
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
@@ -37,7 +40,7 @@ fn main() {
     sched.add_system(SeasonSystem);
     sched.add_system(GuildFormationSystem);
 
-    let terrain = Terrain::generate(33, 0.7, 42);
+    let terrain = Terrain::generate(33, 0.7, seed);
     let _climate = climate::spawn_climate(&mut world);
     villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
@@ -57,21 +60,32 @@ fn main() {
         });
     }
 
+    const TICKS: u64 = 500;
     let mut goals: Vec<Check> = vec![];
 
-    // --- GOAL 1: simulation survives 150 ticks without panicking ---
-    for _ in 0..150 { sched.tick(&mut world); }
-    goals.push(Check { name: "survives 150 ticks", pass: true, detail: "no panic".into() });
+    // --- GOAL 1: simulation survives TICKS ticks without panicking ---
+    for _ in 0..TICKS { sched.tick(&mut world); }
+    goals.push(Check { name: "survives 500 ticks", pass: true, detail: "no panic".into() });
 
-    // --- GOAL 2: villagers actually eat (food source depletes) ---
+    // --- GOAL 2: every villager eats at least once (food source depletes
+    // enough for each of them, not just one lucky villager near the start) ---
     let food_entity = world.query::<FoodSource>().first().copied();
     let servings = food_entity.and_then(|e| world.get_component::<FoodSource>(e)).map(|f| f.servings);
-    let ate = servings.map(|s| s < 500).unwrap_or(false);
-    goals.push(Check { name: "villagers eat", pass: ate, detail: format!("food servings: {:?}", servings) });
+    let meals_served = servings.map(|s| 500 - s).unwrap_or(0);
+    let ate = meals_served as usize >= villagers.len();
+    goals.push(Check { name: "every villager eats at least once", pass: ate, detail: format!("{meals_served} meals served, {} villagers", villagers.len()) });
 
     // --- GOAL 3: a guild emerges from vulnerable merchants ---
     let guild_count = world.query::<Guild>().len();
     goals.push(Check { name: "guild emerges", pass: guild_count > 0, detail: format!("{guild_count} guild(s)") });
+
+    // --- GOAL 4: hunger values stay within their documented 0-100 range,
+    // never NaN - catches underflow/overflow regressions in HungerSystem ---
+    let bad_hunger = villagers.iter()
+        .filter_map(|v| world.get_component::<Hunger>(*v))
+        .filter(|h| !h.value.is_finite() || h.value < 0.0 || h.value > 100.0)
+        .count();
+    goals.push(Check { name: "hunger stays in range", pass: bad_hunger == 0, detail: format!("{bad_hunger} out-of-range") });
 
     // --- render the real terrain+UI frame (same math as playcheck/game_ui) ---
     let mut buf = Buffer::new(W, H);
@@ -124,7 +138,7 @@ fn main() {
     let panel_lit = buf.pixels.get(UI_X * 4).copied().unwrap_or(0) > 20;
     checks.push(Check { name: "UI panel drawn", pass: panel_lit, detail: "right panel".into() });
 
-    println!("\n=== PLAYTEST GATE ===\n");
+    println!("\n=== PLAYTEST GATE (seed {seed}) ===\n");
     println!("-- goals --");
     let mut fails = 0;
     for c in goals.iter().chain(checks.iter()) {

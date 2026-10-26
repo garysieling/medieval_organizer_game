@@ -10,7 +10,7 @@ use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::player::PlayerCharacter;
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
-use game2_core::game::action_menu::{MenuActionType, show_menu, execute_choice};
+use game2_core::game::action_menu::{MenuActionType, show_menu, execute_choice, parse_command};
 use game2_core::game::tech_tree::extended_printmaking_tree;
 use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::sim::climate::{self, SeasonSystem};
@@ -63,6 +63,7 @@ fn main() {
     let _techs = extended_printmaking_tree();
     std::fs::create_dir_all("evidence").ok();
     let mut tick = 0u64;
+    let mut target_idx = 0usize; // villager the player is dealing with
 
     // Game loop
     loop {
@@ -77,11 +78,12 @@ fn main() {
         println!("--- Tick {} | {:?} | {} org members | {} guilds | hunger affects village ---",
             tick, cl.season, members, guilds);
 
-        // Villager status
+        // Villager status (numbered so the player can pick a target; * = current)
         for (i, v) in villagers.iter().enumerate() {
             if let (Some(h), Some(vil)) = (world.get_component::<Hunger>(*v), world.get_component::<Villager>(*v)) {
                 let status = match vil.activity { Activity::SeekingFood => "seeking food", _ => "idle" };
-                print!("{}:{}({:.0}) ", names[i], status, h.value);
+                let mark = if i == target_idx { "*" } else { "" };
+                print!("{}{}.{}:{}({:.0}) ", mark, i + 1, names[i], status, h.value);
             }
         }
         println!();
@@ -113,10 +115,16 @@ fn main() {
             println!("(end of input)");
             break;
         }
-        let choice = input.trim().chars().next().unwrap_or('w');
+        let (choice, new_target) = parse_command(&input, target_idx, villagers.len());
+        if choice == 'q' {
+            println!("You leave the village.");
+            break;
+        }
+        target_idx = new_target;
 
         // Execute choice
-        let target = villagers[(tick as usize) % 5];
+        let target = villagers[target_idx];
+        if "troc".contains(choice) { print!("[{}] ", names[target_idx]); }
         let result = match choice {
             't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target)),
             'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target)),

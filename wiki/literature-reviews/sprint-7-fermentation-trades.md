@@ -12,7 +12,7 @@
 - **Coagulation type:** lactic/acid (small, moist, fresh, >70% water, little calcium) vs rennet/enzymatic (large, firm, low moisture, ages months to years)
 - **Draining intensity:** cutting, stirring, pressing, "cooking" the curd (<40°C uncooked, <50°C semicooked, >50°C cooked) pushes water out
 - **Format → aging:** big low-moisture wheels last longest; small acid cheeses must be eaten fresh
-- **Relevance:** CRITICAL - a tiny 3-choice process makes a combinatorial cheese tree (fits the flexible recipe system)
+- **Relevance:** CRITICAL - a tiny 3-choice process makes a combinatorial cheese tree (fits the [flexible recipe system](../software-design/flexible-recipe-system.md))
 
 ### 2. Medieval Cheesemaking (Folia Magazine; Montanari (Columbia University Press), ch. "From Milk to Cheeses")
 - Cheese = **preserved milk**: keeps a perishable resource through winter and turns it into a trade good
@@ -59,11 +59,11 @@
 
 - **Value density rises down the table** → higher tiers are worth stealing → **guards, locked cellars, taxes, smuggling**
 - Ale is a social good (alehouse = gathering place, gossip hub → plugs into `sim/gossip.rs`)
-- Drunkenness: short mood boost, work penalty, raised conflict chance (contrast with tea's sobriety boost from the Sprint 4 review)
+- Drunkenness: short mood boost, work penalty, raised conflict chance (contrast with tea's sobriety boost from the [Sprint 4 tea review](sprint-4-tea-herbology.md))
 
 ## Design Proposals
 
-1. **Fermentation recipe family** in the flexible recipe system: shared verbs (curdle, press, ferment, age, distill) and a maturity clock per item
+1. **Fermentation recipe family** in the [flexible recipe system](../software-design/flexible-recipe-system.md): shared verbs (curdle, press, ferment, age, distill) and a maturity clock per item
 2. **Cellar/cave as a building with traits** (temperature, humidity, mold): the same recipe aged in different cellars yields different named products → regional identity
 3. **Hops event:** introducing hopped beer moves brewing from households to guild breweries. Shows labor displacement and who loses a livelihood (good fit for the labor organizing scenarios)
 4. **Guarded stock:** stockpiles above a value threshold attract theft events and need a guard or lock; this gives military/watch jobs an economic reason to exist

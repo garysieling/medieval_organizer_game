@@ -53,7 +53,7 @@ walker heading = direction to destination  +  gradient toward strong trails near
 
 ## Design Proposals
 
-1. **Emergent road layer** driven by agent footfall, rendered as a darkness/width overlay on the map (fits the dynamic map evolution doc)
+1. **Emergent road layer** driven by agent footfall, rendered as a darkness/width overlay on the map (fits the [dynamic map evolution doc](../software-design/dynamic-map-evolution.md))
 2. **Tuning knobs** from the ant paper: `reinforce_rate`, `decay_rate`, `saturation`, `visibility_radius`; expose them in the debug UI to find the "order" regime
 3. **Upgrade path:** trackway → (labor + stone) → road. Who pays (lord via corvée, guild via tolls, parish duty) is a governance choice that feeds the taxes/feudalism item
 4. **Desire-path politics:** planned roads that ignore desire lines get bypassed; a ruler who builds where people already walk gets more value per coin

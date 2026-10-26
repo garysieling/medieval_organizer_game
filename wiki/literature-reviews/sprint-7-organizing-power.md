@@ -51,7 +51,7 @@
   - failed or over-reaching actions cost capacity (burnout, demoralization)
 - **Transactional vs transformational asks** (Han): the same action either **consumes** member commitment (transactional) or **grows** it (transformational: real roles, reflection, relationship building)
 - Each action builds **relationships** (pairwise ties strengthen when people act together), and relationships *are* the stored power (Ganz)
-- Contrast: money/gold power **depletes when spent**; people power **compounds when spent well**. That asymmetry is the core gameplay contrast between oligarch and organizer factions (ties to the medieval allegory doc)
+- Contrast: money/gold power **depletes when spent**; people power **compounds when spent well**. That asymmetry is the core gameplay contrast between oligarch and organizer factions (ties to the [medieval allegory doc](../artistic-references/medieval-allegory-power-dynamics.md))
 
 ## Design Proposals
 

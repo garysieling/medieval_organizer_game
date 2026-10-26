@@ -51,7 +51,7 @@
 - Knowledge spreads socially (`sim/gossip.rs`) and can be **wrong** (folk rules like "poisonous ones tarnish silver" are false), which makes knowledge itself a gameplay object
 
 ### Effects
-- Psilocybin: vision/insight event (ties to `sim/magic.rs` and the Novel Magical Powers doc); chance of a "bad trip" fear state
+- Psilocybin: vision/insight event (ties to `sim/magic.rs` and the [Novel Magical Powers doc](../software-design/novel-magical-powers.md)); chance of a "bad trip" fear state
 - Amatoxin: hidden poisoned state with **delayed onset + false recovery** (plug into `sim/illness.rs`)
 - Ergot: wet harvest + rye → village-wide outbreak → religious/witch-hunt interpretations (`sim/religion.rs`, magic stance axiom "miracles-yes-sorcery-no")
 

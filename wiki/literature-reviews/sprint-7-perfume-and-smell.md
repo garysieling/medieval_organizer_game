@@ -61,7 +61,7 @@
 2. **Glassblower as a guarded trade:** the town can protect the secret (glassblowers can't emigrate) or lose it to a rival when someone defects
 3. **Odor layer** on the map (like weather/climate layers): diffuses and decays, drives NPC pathing preferences and zoning decisions
 4. **Smell-as-status:** perfume, incense, and bathing raise standing in courts. Shepherds have a smell penalty in town but fit in on the hills
-5. **Medicine/perfume overlap:** Hungary water is both, so it plugs into the herbology/apothecary tree from Sprint 4
+5. **Medicine/perfume overlap:** Hungary water is both, so it plugs into the herbology/apothecary tree from [Sprint 4](sprint-4-tea-herbology.md)
 
 ## Rating
 **High** - perfume is a satisfying 3-chain capstone (garden + distillery + glass), and smell is an unusual, cheap-to-simulate social layer with real historical grounding (miasma, odor of sanctity, zoned trades).

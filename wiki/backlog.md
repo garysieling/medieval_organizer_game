@@ -1008,18 +1008,18 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 
 - [ ] **Shepherds / goatherds** — implies farming; gives dogs more to do (herding)
 - [ ] **Toolmaker** — vocation; could also make paint brushes
-- [ ] **Luthier / string instruments** — deep dive on history of string instruments and luthiery; both playing and making are vocations
+- [x] **Luthier / string instruments** — deep dive on history of string instruments and luthiery; both playing and making are vocations → `wiki/literature-reviews/sprint-7-luthiery-and-minstrels.md`
 - [ ] **Ancient jobs** — research fletcher, cooper, shoemaker, tentmaker, perfumer
 - [ ] **Pigment collector / paint maker** — vocations; large orgs with money can hire painters to paint buildings for clout
 - [ ] **Roving pots-and-pans seller** — travelling merchant role
 - [ ] **Apprenticeship** — consider as a progression model for vocations
 - [ ] **Vocation-driven relationships** — you naturally build relationships through your work with customers/vendors/clients
-- [ ] **Translator/traveler** — valuable role if number systems (and possibly languages) differ between groups
+- [x] **Translator/traveler** — valuable role if number systems (and possibly languages) differ between groups → `wiki/literature-reviews/sprint-7-number-systems-and-translators.md`
 
 ### Farming, Gardens & Bees
 
 - [ ] **House gardens and community gardens** — food, flowers (for perfume), herbs
-- [ ] **Medicinal plants** — deep dive research on medicinal herbs; growable in gardens
+- [x] **Medicinal plants** — deep dive research on medicinal herbs; growable in gardens → `wiki/literature-reviews/sprint-7-medicinal-plants.md`
 - [x] **Beekeeping** — model the few kinds of beekeeping → `wiki/literature-reviews/sprint-7-beekeeping.md`
   - Bonus: replicate beehive social structure as a faction template (matriarchal, males don't work, die in winter)
 
@@ -1033,13 +1033,13 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 
 ### Society, Orgs & Power
 
-- [ ] **Galileo-style showdown** — disclosing a major discovery that confronts power makes the powerful mad; model as a scenario/event
+- [x] **Galileo-style showdown** — disclosing a major discovery that confronts power makes the powerful mad; model as a scenario/event → `wiki/literature-reviews/sprint-7-galileo-showdown.md`
 - [ ] **Travelling circus** — music, some animals; joining means you leave with them
   - Org membership: benefits + relationship boosts while in; major cost if you leave
 - [ ] **Relationships over time** — model influence as pairwise relationships that build or decay, not a flat stat
   - Build faster/stronger when sharing an organizational identity
 - [ ] **Injustices & labor organizing** — research historical injustices; create scenarios modeling labor action (withholding labor, blocking a bridge) as org-voted actions
-- [ ] **Non-violent deposition** — stocks, thrown tomatoes, thrown soup, exile, tar and feather
+- [x] **Non-violent deposition** — stocks, thrown tomatoes, thrown soup, exile, tar and feather → `wiki/literature-reviews/sprint-7-non-violent-deposition.md`
 - [ ] **Guillotine** — maybe; the violent end of the spectrum
 - [ ] **Taxes / feudalism** — use feudalism as the model for taxation
 - [ ] **Castles & dungeons** — castles have a dungeon; must be a way to maintain order
@@ -1060,7 +1060,7 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 - [ ] **Marriage / divorce** — TBD
 - [ ] **Language development** — "l'avion my uncle flew" style: slowly introduce words to teach a language
 - [ ] **Shakespearean language** — pull insults, jokes, compliments
-- [ ] **Number systems** — e.g., one group uses Roman numerals; conflict between groups using different systems
+- [x] **Number systems** — e.g., one group uses Roman numerals; conflict between groups using different systems → `wiki/literature-reviews/sprint-7-number-systems-and-translators.md`
 - [ ] **Disabilities** — consider modelling some
 
 ### Core Systems

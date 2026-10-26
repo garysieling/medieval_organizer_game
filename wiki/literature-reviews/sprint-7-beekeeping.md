@@ -56,13 +56,13 @@
 - **Roles shift with age** (a career ladder by age, not by choice)
 - One central reproductive authority whose "pheromone" (legitimacy) holds the group together; if she is lost, crisis follows until a successor emerges
 - **Non-working caste tolerated in good times, expelled in hard times** (seasonal cruelty, usable as allegory)
-- **Swarming = schism:** when a faction grows too big, the old leader leaves with followers to found a new settlement (compare Stark's sect cycle in the religion review)
+- **Swarming = schism:** when a faction grows too big, the old leader leaves with followers to found a new settlement (compare Stark's sect cycle in the [Sprint 6 comparative religions review](sprint-6-comparative-religions.md))
 
 ## Design Proposals
 
 1. **Beekeeper vocation** with the 4 hive kinds as tech/region variants; skep vs sustainable choice = short-term vs long-term tension
 2. **Wax economy:** churches consume candles continuously; scarcity of wax = darkened churches, which hurts piety/morale. Seals require wax, so contracts require bees
-3. **Forest rights conflict:** forest beekeepers vs woodcutters vs lord's hunting, an emergent dispute generator (ties to the legal framework doc)
+3. **Forest rights conflict:** forest beekeepers vs woodcutters vs lord's hunting, an emergent dispute generator (ties to the [legal framework doc](../software-design/legal-framework-contracts.md))
 4. **Swarm-split as faction growth rule:** any org above a size/strain threshold can "swarm", splitting into a daughter org with the old leader, used for guilds, sects, villages
 5. **Hive faction template** for a non-human or allegorical faction (matriarchal, age-based roles, drones expelled in winter)
 6. **Mead** joins the fermentation family (honey + water + time)

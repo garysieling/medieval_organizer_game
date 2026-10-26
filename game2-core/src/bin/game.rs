@@ -61,6 +61,7 @@ fn main() {
     pets::adopt(&mut world, dog, villagers[0]);
 
     let _techs = extended_printmaking_tree();
+    std::fs::create_dir_all("evidence").ok();
     let mut tick = 0u64;
 
     // Game loop
@@ -98,7 +99,7 @@ fn main() {
         // Player on map (white)
         render_entity(&mut board, 10.0, 10.0, 255, 255, 255);
         let frame_path = format!("evidence/game-frame-{:03}.bmp", tick);
-        board.save_bmp(&frame_path).unwrap();
+        board.save_bmp(&frame_path).ok();
         println!("  map: {}", frame_path);
 
         // Show menu

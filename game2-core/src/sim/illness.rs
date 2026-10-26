@@ -102,7 +102,7 @@ mod tests {
         w.add_component(p, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
         w.add_component(d, Disease { name: "flu".into(), stage: Stage::Mild, severity: 0.5, contagious: false });
-        let _t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
+        let t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
         apply_treatment(&mut w, p, &t);
         assert!(w.get_component::<Disease>(d).unwrap().severity < 0.2);
     }

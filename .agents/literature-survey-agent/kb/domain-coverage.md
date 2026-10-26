@@ -217,10 +217,16 @@ Domains with no research yet but relevant to game vision.
 ---
 
 #### Medieval Crafts & Tools
-**Coverage:** None
-**Gaps:** Luthier tools (instrument making), beekeeping tools, stained glass making, stonemason tools, specific craft equipment
-**Priority:** Medium-High
-**Next Survey:** Medieval craft professions and their specialized tools
+**Coverage:** High
+**Surveys:** Cycle 3, Survey 2 (Medieval Crafts & Tools)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/medieval-crafts-tools.md)
+**Sources:** Luthier tonewood research, Medieval beekeeping and skeps, Stained glass techniques, Stonemason tool progression
+**Mechanics Proposed:**
+- Luthier profession with wood selection (spruce soundboards, maple ribs, tonewood properties)
+- Beekeeping with skeps (rye/wheat straw basket hives, seasonal honey/wax harvest cycles)
+- Stained glass multi-stage crafting (design → cut → paint → fire → lead → assemble)
+- Stonemason skill tiers (apprentice → roughmason → freemason → master with tool progression)
+**Next Steps:** Implement craft.rs module with specialized profession systems, test guild mechanics
 
 ---
 
@@ -277,13 +283,16 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 5. **Anthropology** ✓ (COMPLETE - kinship and ritual systems)
 6. **Historical Events** ✓ (COMPLETE - dynamic world events)
 
-**Cycle 3 (Future):**
-1. Military History & Strategy (when needed)
-2. Linguistics & Communication (literacy/printmaking systems)
-3. Art History & Aesthetics (expanded art direction)
-4. Education & Pedagogy (skill/education systems)
-5. Magic Systems from Fiction (novel powers)
-6. Theory of Mind (advanced psychology)
+**Cycle 3 (IN PROGRESS):**
+1. **Herbology & Medieval Medicine** ✓ (COMPLETE - four humors and herb gardens)
+2. **Medieval Crafts & Tools** ✓ (COMPLETE - luthier, beekeeping, stained glass, stonemason)
+3. **Writing Materials & Bookmaking** (NEXT - papermaking, vellum, inks)
+4. Military History & Strategy (when needed)
+5. Linguistics & Communication (literacy/printmaking systems)
+6. Art History & Aesthetics (expanded art direction)
+7. Education & Pedagogy (skill/education systems)
+8. Magic Systems from Fiction (novel powers)
+9. Theory of Mind (advanced psychology)
 
 ---
 
@@ -300,16 +309,16 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 14
-**Domains Covered (High/Medium):** 14
+**Total Surveys Completed:** 15
+**Domains Covered (High/Medium):** 15
 **Domains Partially Covered:** 1 (History - general)
-**Domains Uncovered:** 5 (Military, Linguistics, Education, Crafts & Tools, Writing Materials)
-**Mechanics Implemented from Research:** ~42 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 7 misc proposed)
+**Domains Uncovered:** 4 (Military, Linguistics, Art History, Education)
+**Mechanics Implemented from Research:** ~46 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 70% (14 well-covered / 20 total relevant domains including new craft domains)
+**Coverage Score:** 75% (15 well-covered / 20 total relevant domains including craft domains)
 **Cycle 2: COMPLETE** (6/6 surveys finished)
-**Cycle 3: IN PROGRESS** (1/? surveys - Herbology complete)
-**Target for Cycle 3:** Fill craft/profession gaps (Crafts & Tools, Writing Materials), then remaining domains
+**Cycle 3: IN PROGRESS** (2/? surveys - Herbology, Crafts complete)
+**Target for Cycle 3:** Fill craft/profession gaps (Writing Materials next), then expand to remaining domains
 
 ---

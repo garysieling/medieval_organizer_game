@@ -306,3 +306,25 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** herbology, medieval-medicine, four-humors, apothecary, herb-gardens, poisons, antidotes, Galen, Hippocrates, monastic-medicine, remedies
 
 ---
+
+### Cycle 3, Survey 2: Medieval Crafts & Tools
+**Date Completed:** 2026-10-25
+**Domain:** Medieval Crafts, Material Culture, Specialized Professions
+**Output:** wiki/literature-reviews/medieval-crafts-tools.md
+**Yield:**
+- Luthier profession with wood selection (spruce soundboards, maple ribs, tonewood properties)
+- Beekeeping with skeps (rye/wheat straw basket hives, seasonal honey/wax harvest)
+- Stained glass multi-stage crafting (design, cutting, painting, firing, leading, assembly)
+- Stonemason skill tiers (apprentice, roughmason, freemason, master with progressive tools)
+
+**Key Sources:**
+- Luthier craft and tonewood selection (spruce, maple, rosewood, ebony) - A
+- Medieval beekeeping and skep construction (woven straw hives) - A
+- Stained glass techniques (grozing iron, lead caming, silver stain 14th c.) - A
+- Stonemason tool progression (point/claw/flat/fine chisels) - A
+- Medieval craft guilds and apprenticeship systems - A
+
+**Confidence:** High
+**Tags:** medieval-crafts, luthier, beekeeping, stained-glass, stonemason, specialized-tools, guild-professions, tonewood, skeps, glazier, chisels
+
+---

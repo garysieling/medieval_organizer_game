@@ -1046,6 +1046,11 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 - [ ] **Religion** — some religions have karma
 - [ ] **Carcassonne** — use as an idea source (tile-laying, region claiming, follower placement?)
 
+### Community Organizing
+
+- [ ] **Power recognizes power** — those in power only engage with/concede to groups that have demonstrated power of their own
+- [ ] **Power builds as you spend it** — power is a resource that grows through use (unlike gold, which depletes); unused power atrophies
+
 ### Culture, Language & Identity
 
 - [ ] **Art deep dive** — Hieronymus Bosch, Dürer included

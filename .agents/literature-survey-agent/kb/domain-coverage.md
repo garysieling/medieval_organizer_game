@@ -105,6 +105,21 @@ Domains with completed surveys and implemented mechanics.
 
 ---
 
+#### Philosophy & Ethics
+**Coverage:** High
+**Surveys:** Cycle 2, Survey 4 (Philosophy & Ethics)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/philosophy-ethics.md)
+**Sources:** Trolley problem (Foot, Thomson), Ethical frameworks, Medieval virtues (Aquinas), Game theory
+**Mechanics Proposed:**
+- Trolley problem scenarios (contextual moral dilemmas)
+- Three ethical alignment paths (utilitarianism/deontology/virtue ethics)
+- Medieval seven virtues system (character development)
+- Moral intensity modifiers (context-sensitive difficulty)
+- Reputation & indirect reciprocity (gossip-based enforcement)
+**Next Steps:** Implement ethics.rs and reputation.rs modules, test dilemma scenarios
+
+---
+
 ### Partially-Covered Domains ⚠
 Domains with initial research but needing deeper surveys.
 
@@ -143,14 +158,6 @@ Domains with no research yet but relevant to game vision.
 **Gaps:** Battle tactics, fortification, logistics, military organization
 **Priority:** Low-Medium (simple battle system planned)
 **Next Survey:** When implementing detailed military systems
-
----
-
-#### Philosophy & Ethics
-**Coverage:** None
-**Gaps:** Ethical frameworks, trolley problems, moral philosophy
-**Priority:** Medium (trolley problem mechanics planned)
-**Next Survey:** Ethical dilemmas as game mechanics
 
 ---
 
@@ -219,8 +226,8 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 1. **Agriculture & Food Systems** ✓ (COMPLETE - core medieval gameplay)
 2. **Ecology & Climate** ✓ (COMPLETE - environmental simulation)
 3. **Urban Planning** ✓ (COMPLETE - village to city scaling)
-4. **Philosophy & Ethics** (MEDIUM - trolley problem mechanics - NEXT)
-5. **Anthropology** (MEDIUM - cultural systems)
+4. **Philosophy & Ethics** ✓ (COMPLETE - trolley problem mechanics)
+5. **Anthropology** (MEDIUM - cultural systems - NEXT)
 6. **Historical Events** (MEDIUM - dynamic world events)
 
 **Cycle 3 (Future):**
@@ -246,14 +253,14 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 10
-**Domains Covered (High/Medium):** 10
+**Total Surveys Completed:** 11
+**Domains Covered (High/Medium):** 11
 **Domains Partially Covered:** 1 (History)
-**Domains Uncovered:** 5 (down from 6)
-**Mechanics Implemented from Research:** ~22 (5 agriculture + 5 ecology + 5 urban planning proposed)
+**Domains Uncovered:** 4 (down from 5)
+**Mechanics Implemented from Research:** ~27 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 63% (10 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
-**Target for Next Sprint:** 69% (add 1 more domain from Cycle 2)
+**Coverage Score:** 69% (11 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
+**Target for Next Sprint:** 75% (add 1 more domain from Cycle 2)
 
 ---

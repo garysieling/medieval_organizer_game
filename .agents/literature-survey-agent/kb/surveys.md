@@ -209,3 +209,27 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** urban-planning, scaling-laws, zoning, infrastructure, medieval-cities, market-squares, city-growth, density
 
 ---
+
+### Cycle 2, Survey 4: Philosophy & Ethics
+**Date Completed:** 2026-10-25
+**Domain:** Moral Philosophy, Ethics, Game Theory, Moral Psychology
+**Output:** wiki/literature-reviews/philosophy-ethics.md
+**Yield:**
+- Trolley problem scenarios (lever, footbridge, villain, personal variations)
+- Three ethical alignment paths (utilitarianism, deontology, virtue ethics)
+- Medieval seven virtues system (4 cardinal + 3 Christian virtues)
+- Moral intensity modifiers (context-sensitive difficulty)
+- Reputation & indirect reciprocity system (gossip-based enforcement)
+
+**Key Sources:**
+- Trolley problem (Foot 1967, Thomson variations) - A+
+- Three ethical frameworks (utilitarianism, deontology, virtue ethics) - A+
+- Medieval virtue ethics (Aristotle, Aquinas) - A
+- Moral psychology (Dual Process Theory, Rest's model) - A
+- Game theory reputation systems (Nature, PNAS) - A
+- Moral choices in games (design research) - B+
+
+**Confidence:** High
+**Tags:** philosophy, ethics, trolley-problem, moral-dilemmas, reputation-systems, virtue-ethics, medieval-virtues, utilitarianism, deontology
+
+---

@@ -120,4 +120,25 @@ mod tests {
         assert!(!recruit(&mut w, o, c, 0.8)); // already a member
         assert_eq!(w.get_component::<Organization>(o).unwrap().members.len(), 1);
     }
+
+    #[test]
+    fn test_influence_system_pools_member_influence() {
+        use crate::engine::ecs::System;
+        let mut w = World::new();
+        let o = w.create_entity();
+        let leader = w.create_entity();
+        w.add_component(o, Organization {
+            name: "Guild".into(), members: vec![], leader,
+            influence_pool: 0.0, resources: 100.0, charter: "Trade".into(),
+        });
+        for infl in [0.2, 0.3] {
+            let c = w.create_entity();
+            w.add_component(c, Citizen { influence: infl, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+            recruit(&mut w, o, c, 0.8);
+        }
+        // recruiting alone doesn't move the pool; the system must run
+        assert_eq!(exert_influence(&mut w, o, "village"), 0.0);
+        InfluenceSystem.run(&mut w);
+        assert!((exert_influence(&mut w, o, "village") - 0.5).abs() < 1e-6);
+    }
 }

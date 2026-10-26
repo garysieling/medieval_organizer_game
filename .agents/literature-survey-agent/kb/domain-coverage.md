@@ -191,10 +191,16 @@ Domains with initial research but needing deeper surveys.
 Domains with no research yet but relevant to game vision.
 
 #### Military History & Strategy
-**Coverage:** None
-**Gaps:** Battle tactics, fortification, logistics, military organization
-**Priority:** Low-Medium (simple battle system planned)
-**Next Survey:** When implementing detailed military systems
+**Coverage:** High
+**Surveys:** Cycle 3, Survey 6 (Military History & Strategy)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/military-history-strategy.md)
+**Sources:** Medieval warfare tactics, Fortification evolution, Military organization, Campaign logistics, Lanchester's Laws
+**Mechanics Proposed:**
+- Simple battle resolution (Lanchester's Linear Law with morale and terrain modifiers)
+- Military organization (feudal levies 40-day limit, professional soldiers reliable, mercenaries elite but loyalty risk)
+- Fortification system (wooden → motte-and-bailey → stone castle → concentric castle with 10x defensive advantage)
+- Campaign logistics (foraging 5-10 miles/day devastates countryside, naval supply 20 miles/day, seasonal spring-autumn)
+**Next Steps:** Implement battle.rs and fortification.rs modules for simple strategic combat
 
 ---
 
@@ -326,11 +332,11 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 3. **Writing Materials & Bookmaking** ✓ (COMPLETE - vellum, inks, bookbinding, illumination)
 4. **Education & Pedagogy** ✓ (COMPLETE - schools, apprenticeships, deliberate practice)
 5. **Systems Thinking & Dynamics** ✓ (COMPLETE - USER PRIORITY - stocks/flows, feedback loops, correlated yields)
-6. Military History & Strategy (when needed)
-7. Linguistics & Communication (literacy/printmaking systems)
-8. Art History & Aesthetics (expanded art direction)
-9. Magic Systems from Fiction (novel powers)
-10. Theory of Mind (advanced psychology)
+6. **Military History & Strategy** ✓ (COMPLETE - simple battle system, fortifications, logistics)
+7. Art History & Aesthetics (FINAL for 100% coverage!)
+8. Linguistics & Communication (optional advanced)
+9. Magic Systems from Fiction (optional advanced)
+10. Theory of Mind (optional advanced)
 
 ---
 
@@ -347,16 +353,16 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 18
-**Domains Covered (High/Medium):** 18
+**Total Surveys Completed:** 19
+**Domains Covered (High/Medium):** 19
 **Domains Partially Covered:** 1 (History - general)
-**Domains Uncovered:** 2 (Military, Art History)
-**Mechanics Implemented from Research:** ~63 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 7 misc proposed)
+**Domains Uncovered:** 1 (Art History only!)
+**Mechanics Implemented from Research:** ~67 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 90% (18 well-covered / 20 total relevant domains)
+**Coverage Score:** 95% (19 well-covered / 20 total relevant domains)
 **Cycle 2: COMPLETE** (6/6 surveys finished)
-**Cycle 3: IN PROGRESS** (5/? surveys - Herbology, Crafts, Writing Materials, Education, Systems Thinking complete)
-**Target for Cycle 3:** Excellent progress! Remaining: Military History, Art History (both low priority). Can reach 100% or move to advanced domains (Linguistics, Magic Systems, Theory of Mind).
+**Cycle 3: IN PROGRESS** (6/7 surveys - Herbology, Crafts, Writing Materials, Education, Systems Thinking, Military complete)
+**Target for Cycle 3:** ONE MORE TO 100%! Final domain: Art History & Aesthetics. Then optional advanced domains available.
 
 ---

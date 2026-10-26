@@ -409,3 +409,29 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** systems-thinking, system-dynamics, stocks-and-flows, feedback-loops, reinforcing-loops, balancing-loops, delays, oscillation, causal-loop-diagrams, system-archetypes, limits-to-growth, tragedy-of-commons, shifting-the-burden, agricultural-economics, correlated-yields, price-volatility, boom-bust-cycles, Forrester, Meadows, Senge
 
 ---
+
+### Cycle 3, Survey 6: Military History & Strategy
+**Date Completed:** 2026-10-25
+**Domain:** Military History, Medieval Warfare, Battle Tactics, Fortification
+**Output:** wiki/literature-reviews/military-history-strategy.md
+**Yield:**
+- Medieval warfare evolution (shield walls → longbows + pike squares → combined-arms professional forces)
+- Fortification progression (motte-and-bailey wooden → concentric stone castles 1270-1350, peak design 10x defensive advantage)
+- Military organization (feudal levies 40-day limit → professional soldiers → mercenaries with specialists)
+- Campaign logistics (foraging 5-10 miles/day devastates countryside vs naval supply 20 miles/day, season spring-autumn only)
+- Lanchester's Linear Law battle mechanics (ancient combat one-on-one engagement, casualties = enemy size × effectiveness)
+- Morale and rout (more common than annihilation, panic cascade when >20-30% casualties or commander killed)
+
+**Key Sources:**
+- Medieval warfare tactics (shield wall, pike square, longbow well-documented) - A
+- English longbow at Agincourt 1415 (historical records) - A
+- Swiss pike squares (famed discipline, almost invincible) - A
+- Fortification evolution (motte-and-bailey to concentric castles) - A
+- Medieval military organization (feudal levies, mercenary transition) - A
+- Campaign logistics (Bret Devereaux, historical speeds/supply) - A+
+- Lanchester's Laws for combat modeling (mathematical framework) - A
+
+**Confidence:** High
+**Tags:** military-history, medieval-warfare, shield-wall, pike-square, longbow, motte-and-bailey, concentric-castles, fortification, feudal-levy, mercenaries, siege-warfare, logistics, foraging, naval-supply, Lanchesters-laws, morale, rout, battle-mechanics
+
+---

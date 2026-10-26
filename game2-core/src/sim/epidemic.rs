@@ -12,6 +12,10 @@ pub struct Epidemic {
     pub recovery_rate: f32,
     pub mortality: f32,
     pub tick: u64,
+    // Fractional deaths carried over from the previous tick, so a small
+    // infected population with a sub-1-death-per-tick mortality rate still
+    // accumulates deaths over time instead of always rounding to zero.
+    pub mortality_carry: f32,
 }
 
 /// SIR compartment counts for the population
@@ -54,7 +58,9 @@ pub fn step_epidemic(world: &mut World, pop: &[Entity], ep: &mut Epidemic) -> Si
     let still_infected = pop.iter()
         .filter(|e| world.get_component::<Health>(**e).map(|h| h.condition > 0.0 && h.condition < 0.5).unwrap_or(false))
         .count();
-    let new_deaths = (still_infected as f32 * ep.mortality).round() as usize;
+    let raw_deaths = still_infected as f32 * ep.mortality + ep.mortality_carry;
+    let new_deaths = raw_deaths.floor() as usize;
+    ep.mortality_carry = raw_deaths - new_deaths as f32;
     let mut death_count = 0;
     for e in pop {
         if death_count >= new_deaths { break; }
@@ -75,7 +81,7 @@ pub fn step_epidemic(world: &mut World, pop: &[Entity], ep: &mut Epidemic) -> Si
             Some(h) if h.condition < 0.5 => sir.infected += 1,
             Some(h) if h.condition < 0.9 => sir.recovered += 1,
             Some(_) => sir.susceptible += 1,
-            None => sir.dead += 1,
+            None => {} // no Health component means never tracked, not dead
         }
     }
     sir
@@ -85,7 +91,7 @@ pub fn step_epidemic(world: &mut World, pop: &[Entity], ep: &mut Epidemic) -> Si
 pub fn spawn_epidemic(world: &mut World, name: &str, infection_rate: f32, recovery_rate: f32, mortality: f32) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Epidemic {
-        name: name.into(), infection_rate, recovery_rate, mortality, tick: 0,
+        name: name.into(), infection_rate, recovery_rate, mortality, tick: 0, mortality_carry: 0.0,
     });
     e
 }
@@ -106,7 +112,7 @@ mod tests {
     fn mortality_kills_infected_who_dont_recover() {
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
-        let mut ep = Epidemic { name: "plague".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 1.0, tick: 0 };
+        let mut ep = Epidemic { name: "plague".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 1.0, tick: 0, mortality_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
@@ -119,7 +125,7 @@ mod tests {
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
         // recovery pushes condition from 0.3 to 1.0, clearing infection before mortality is applied
-        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 1.0, tick: 0 };
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 1.0, tick: 0, mortality_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
@@ -133,12 +139,48 @@ mod tests {
         // BEFORE this tick's infection/recovery/mortality were applied.
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
-        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 0.0, tick: 0 };
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 0.0, tick: 0, mortality_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
         // Before the fix this would report infected: 4, recovered: 0 (the pre-tick state)
         assert_eq!(sir.infected, 0);
         assert_eq!(sir.susceptible, 4);
+    }
+
+    #[test]
+    fn sub_threshold_mortality_accumulates_deaths_over_ticks() {
+        // Regression test: a small infected population with a mortality rate
+        // below 1/population used to round to zero deaths every tick,
+        // forever. The fractional remainder should now carry over and
+        // eventually produce a death.
+        let mut world = World::new();
+        let pop = infected_pop(&mut world, 4);
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 0.1, tick: 0, mortality_carry: 0.0 };
+
+        let mut sir = step_epidemic(&mut world, &pop, &mut ep);
+        for _ in 0..9 {
+            sir = step_epidemic(&mut world, &pop, &mut ep);
+        }
+
+        assert!(sir.dead > 0, "mortality=0.1 over 10 ticks on 4 infected should kill at least one");
+    }
+
+    #[test]
+    fn entities_without_health_are_not_counted_as_dead() {
+        // Regression test: entities with no Health component (e.g. people
+        // spawned without health tracking) used to be miscounted as dead
+        // in the final tally instead of being excluded entirely.
+        let mut world = World::new();
+        let untracked = world.create_entity();
+        let pop = vec![untracked];
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 0.0, tick: 0, mortality_carry: 0.0 };
+
+        let sir = step_epidemic(&mut world, &pop, &mut ep);
+
+        assert_eq!(sir.dead, 0);
+        assert_eq!(sir.susceptible, 0);
+        assert_eq!(sir.infected, 0);
+        assert_eq!(sir.recovered, 0);
     }
 }

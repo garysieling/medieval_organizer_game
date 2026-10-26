@@ -15,4 +15,5 @@ pub mod epidemic;
 pub mod world_events;
 pub mod stratification;
 pub mod fundamentalism;
+pub mod organized_power;
 pub mod trails;

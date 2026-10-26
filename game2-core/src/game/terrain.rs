@@ -126,6 +126,17 @@ impl Terrain {
         self.heights[y][x]
     }
 
+    /// Map a height value to its terrain tile color (water/grass/hills/highlands/peaks).
+    /// Shared by every renderer (game_ui, playtest_gate) so they agree on what each
+    /// height band looks like.
+    pub fn tile_color(h: f32) -> (u8, u8, u8) {
+        if h < 0.15 { (30, 60, 180) }
+        else if h < 0.35 { (60, 140, 60) }
+        else if h < 0.55 { (140, 110, 50) }
+        else if h < 0.75 { (110, 90, 60) }
+        else { (220, 220, 220) }
+    }
+
     /// ASCII visualization for screenshots
     pub fn ascii(&self) -> String {
         let chars = " .:-=+*#%@";

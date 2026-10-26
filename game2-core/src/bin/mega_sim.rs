@@ -72,6 +72,7 @@ fn main() {
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let techs_done = techs.iter().filter(|t| t.discovered).count();
             println!("{},{:.1},{:.2},{:.2},{:?},{:.2},{}", tick, hunger, health, dog_bond, cl.season, climate_multiplier(cl, "food"), techs_done);
+            telem.set_tick(tick as u64);
             telem.gauge("hunger", hunger as f64);
         }
     }

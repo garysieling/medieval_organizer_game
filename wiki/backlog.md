@@ -993,14 +993,14 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 
 ### Food & Drink
 
-- [ ] **Cheese** — research all forms of cheese; cheesemaker as a discipline/vocation
+- [x] **Cheese** — research all forms of cheese; cheesemaker as a discipline/vocation → `wiki/literature-reviews/sprint-7-fermentation-trades.md`
   - Implies dairy animals, aging/cellars, regional varieties, trade value
 - [ ] **Pasta** — major research on pasta types; pasta-maker as a vocation
   - Grains, drying, regional shapes, associated sauces/trade
-- [ ] **Alcohol** — deep dive on alcohol types and manufacture; brewer/vintner/distiller as jobs
+- [x] **Alcohol** — deep dive on alcohol types and manufacture; brewer/vintner/distiller as jobs → `wiki/literature-reviews/sprint-7-fermentation-trades.md`
   - Very valuable commodity → implies need for defense/guarding stock
   - Feeds into perfume production (alcohol as solvent)
-- [ ] **Perfume** — make perfumes from garden flowers + alcohol + glass
+- [x] **Perfume** — make perfumes from garden flowers + alcohol + glass → `wiki/literature-reviews/sprint-7-perfume-and-smell.md`
   - Chains: gardens → flowers, alcohol production, glassblowing
   - Interacts with smell modelling (below)
 
@@ -1020,12 +1020,12 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 
 - [ ] **House gardens and community gardens** — food, flowers (for perfume), herbs
 - [ ] **Medicinal plants** — deep dive research on medicinal herbs; growable in gardens
-- [ ] **Beekeeping** — model the few kinds of beekeeping
+- [x] **Beekeeping** — model the few kinds of beekeeping → `wiki/literature-reviews/sprint-7-beekeeping.md`
   - Bonus: replicate beehive social structure as a faction template (matriarchal, males don't work, die in winter)
 
 ### Magic, Mushrooms & the World
 
-- [ ] **Magic mushrooms** — deep dive on types, including poisonous lookalikes
+- [x] **Magic mushrooms** — deep dive on types, including poisonous lookalikes → `wiki/literature-reviews/sprint-7-mushrooms.md`
 - [ ] **Caves** — concept to explore; underground is monochromatic
 - [ ] **Sea creatures** — sea monsters especially, plus fishable things: lobsters, prawns, squid
 - [ ] **Astrology / sky events** — model solstices and times between; comets, eclipses
@@ -1048,13 +1048,13 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 
 ### Community Organizing
 
-- [ ] **Power recognizes power** — those in power only engage with/concede to groups that have demonstrated power of their own
-- [ ] **Power builds as you spend it** — power is a resource that grows through use (unlike gold, which depletes); unused power atrophies
+- [x] **Power recognizes power** — those in power only engage with/concede to groups that have demonstrated power of their own → `wiki/literature-reviews/sprint-7-organizing-power.md`
+- [x] **Power builds as you spend it** — power is a resource that grows through use (unlike gold, which depletes); unused power atrophies → `wiki/literature-reviews/sprint-7-organizing-power.md`
 
 ### Culture, Language & Identity
 
 - [ ] **Art deep dive** — Hieronymus Bosch, Dürer included
-- [ ] **Smells** — model smell; shepherds are smelly, perfume helps
+- [x] **Smells** — model smell; shepherds are smelly, perfume helps → `wiki/literature-reviews/sprint-7-perfume-and-smell.md`
 - [ ] **Hairstyles** — think about modelling them
 - [ ] **Inside jokes** — characters can build shared jokes
 - [ ] **Marriage / divorce** — TBD
@@ -1066,7 +1066,7 @@ Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a
 ### Core Systems
 
 - [ ] **Death & continuation** — on death, a cutscene, then continue as another character
-- [ ] **Roads** — roads strengthen with use, fade without; stronger = faster, so pathfinding creates a use feedback loop
+- [x] **Roads** — roads strengthen with use, fade without; stronger = faster, so pathfinding creates a use feedback loop → `wiki/literature-reviews/sprint-7-roads-and-trails.md`
 
 ## Completed Items
 

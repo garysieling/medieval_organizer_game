@@ -7,7 +7,7 @@ use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::illness::{Health, Disease, Stage};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::economics::Market;
+use game2_core::sim::economics::{self, Market, ProductionSystem};
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
@@ -20,6 +20,7 @@ fn main() {
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(SeasonSystem);
+    sched.add_system(ProductionSystem);
 
     // Spawn 4 villagers with full component sets
     let mut villagers = vec![];
@@ -35,15 +36,24 @@ fn main() {
     }
     villager::spawn_food_source(&mut world, 6.0, 6.0, 200);
     let climate = climate::spawn_climate(&mut world);
-    let market = world.create_entity();
-    world.add_component(market, Market {
-        prices: [("food".to_string(), 10.0)].into_iter().collect(),
-        supply: [("food".to_string(), 50)].into_iter().collect(),
-    });
+    let market = economics::spawn_market(&mut world);
+    world.get_component_mut::<Market>(market).unwrap().add_supply("food", 20);
+    economics::spawn_producer(&mut world, "food", 10.0);
 
-    println!("tick,hunger_avg,health_avg,seeking,idle,sick,season,food_price\n");
+    println!("tick,hunger_avg,health_avg,seeking,idle,sick,season,food_price,food_stock\n");
     for tick in 0..200 {
         sched.tick(&mut world);
+
+        // Villagers getting hungry shop at the market; their demand moves the price
+        let demand = villagers.iter()
+            .filter(|v| world.get_component::<Hunger>(**v)
+                .map(|h| h.value < 60.0).unwrap_or(false))
+            .count() as u32;
+        if let Some(mkt) = world.get_component_mut::<Market>(market) {
+            mkt.update_price("food", demand);
+            let stock = mkt.supply.get("food").copied().unwrap_or(0);
+            mkt.buy("food", demand.min(stock));
+        }
 
         // Random villager gets sick at tick 50 (flu outbreak)
         if tick == 50 {
@@ -75,10 +85,11 @@ fn main() {
                 }
             }
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
-            let price = world.get_component::<Market>(market).unwrap().prices["food"];
-            println!("{},{:.1},{:.2},{},{},{},{:?},{:.2}",
+            let mkt = world.get_component::<Market>(market).unwrap();
+            let (price, stock) = (mkt.prices["food"], mkt.supply["food"]);
+            println!("{},{:.1},{:.2},{},{},{},{:?},{:.2},{}",
                 tick, hunger_sum / 4.0, health_sum / 4.0,
-                seeking, idle, sick, cl.season, price);
+                seeking, idle, sick, cl.season, price, stock);
             telem.gauge("hunger", (hunger_sum / 4.0) as f64);
             telem.gauge("health", (health_sum / 4.0) as f64);
         }

@@ -32,12 +32,17 @@ impl Market {
         let supply = self.supply.get(good).copied().unwrap_or(0);
         let base = 10.0; // base price
         let mut price = self.prices.get(good).copied().unwrap_or(base);
-        if demand > supply && supply > 0 {
-            price *= 1.0 + (demand - supply) as f32 / supply as f32 * 0.1;
+        if demand > supply {
+            // Empty stalls are the worst shortage, so treat zero supply as one
+            // unit rather than skipping the rise; cap the per-tick jump.
+            let shortage = (demand - supply) as f32 / supply.max(1) as f32;
+            price *= 1.0 + (shortage * 0.1).min(0.5);
         } else if supply > demand * 2 {
             price *= 0.95; // surplus drops price
         }
-        price = price.max(0.1);
+        // Drift back toward base so a glut or scare doesn't pin the price forever
+        price += (base - price) * 0.02;
+        price = price.clamp(base * 0.2, base * 5.0);
         self.prices.insert(good.to_string(), price);
     }
 
@@ -71,7 +76,7 @@ impl crate::engine::ecs::System for ProductionSystem {
     }
 }
 
-/// Spawn a good + a market
+/// Spawn a market with a base food price and no stock
 pub fn spawn_market(world: &mut World) -> Entity {
     let e = world.create_entity();
     let mut m = Market {
@@ -79,6 +84,14 @@ pub fn spawn_market(world: &mut World) -> Entity {
         supply: Default::default(),
     };
     m.prices.insert("food".to_string(), 10.0);
+    world.add_component(e, m);
+    e
+}
+
+/// Spawn a producer that adds one unit of `name` to the market each tick
+pub fn spawn_producer(world: &mut World, name: &str, base_value: f32) -> Entity {
+    let e = world.create_entity();
+    world.add_component(e, Good { name: name.to_string(), base_value });
     e
 }
 
@@ -101,6 +114,47 @@ mod tests {
         m.add_supply("food", 100);
         m.update_price("food", 10); // supply >> demand
         assert!(m.prices["food"] < 10.0);
+    }
+
+    #[test]
+    fn test_spawn_market_attaches_market() {
+        let mut w = World::new();
+        let m = spawn_market(&mut w);
+        assert_eq!(w.get_component::<Market>(m).unwrap().prices["food"], 10.0);
+    }
+
+    #[test]
+    fn test_production_fills_spawned_market() {
+        use crate::engine::ecs::System;
+        let mut w = World::new();
+        let m = spawn_market(&mut w);
+        spawn_producer(&mut w, "food", 10.0);
+        let mut sys = ProductionSystem;
+        for _ in 0..5 { sys.run(&mut w); }
+        assert_eq!(w.get_component::<Market>(m).unwrap().supply["food"], 5);
+    }
+
+    #[test]
+    fn test_price_rises_when_sold_out() {
+        let mut m = Market { prices: Default::default(), supply: Default::default() };
+        m.prices.insert("food".to_string(), 10.0);
+        m.update_price("food", 5); // no stock at all
+        assert!(m.prices["food"] > 10.0);
+    }
+
+    #[test]
+    fn test_glut_does_not_crash_price_to_zero() {
+        let mut m = Market { prices: Default::default(), supply: Default::default() };
+        m.add_supply("food", 1000);
+        for _ in 0..500 { m.update_price("food", 0); }
+        assert!(m.prices["food"] >= 2.0, "price should settle above a floor, got {}", m.prices["food"]);
+    }
+
+    #[test]
+    fn test_prolonged_shortage_price_is_bounded() {
+        let mut m = Market { prices: Default::default(), supply: Default::default() };
+        for _ in 0..500 { m.update_price("food", 10); }
+        assert!(m.prices["food"] <= 50.0, "price should be capped, got {}", m.prices["food"]);
     }
 
     #[test]

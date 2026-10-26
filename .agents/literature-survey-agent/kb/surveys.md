@@ -184,3 +184,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** ecology, climate, predator-prey, deforestation, medieval-climate, ecosystem-services, carrying-capacity
 
 ---
+
+### Cycle 2, Survey 3: Urban Planning
+**Date Completed:** 2026-10-25
+**Domain:** Urban Planning, Medieval History, Urban Scaling Theory
+**Output:** wiki/literature-reviews/urban-planning.md
+**Yield:**
+- Urban scaling with density laws (Area ∝ Population^0.75)
+- Zoning & mixed-use development (residential/commercial/industrial/civic)
+- Infrastructure tech tree (wells → conduits → sewers → water towers)
+- Market square & public space mechanics (scales with population)
+- Village → Town → City progression system (milestone-based)
+
+**Key Sources:**
+- PLOS ONE population-area scaling study (α = 0.71-0.79) - A+
+- Medieval urban layout research (organic vs planned growth) - A
+- Market square dimensions (100-200m typical, Kraków 200m) - A
+- Medieval infrastructure (water, sanitation, roads) - A
+- Córdoba advanced sanitation system - A
+- SimCity urban simulation mechanics - B+
+- Medieval urban growth timeline - B
+
+**Confidence:** High
+**Tags:** urban-planning, scaling-laws, zoning, infrastructure, medieval-cities, market-squares, city-growth, density
+
+---

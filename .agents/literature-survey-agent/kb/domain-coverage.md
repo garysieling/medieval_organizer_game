@@ -90,6 +90,21 @@ Domains with completed surveys and implemented mechanics.
 
 ---
 
+#### Urban Planning
+**Coverage:** High
+**Surveys:** Cycle 2, Survey 3 (Urban Planning)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/urban-planning.md)
+**Sources:** PLOS ONE scaling study, Medieval urban layouts, Infrastructure research
+**Mechanics Proposed:**
+- Urban scaling with density laws (Area ∝ Population^0.75)
+- Zoning system (residential/commercial/industrial/civic)
+- Infrastructure tech tree (water supply, sanitation, roads)
+- Market square mechanics (scales with population)
+- Village → Town → City progression
+**Next Steps:** Implement urban.rs and infrastructure.rs modules, test scaling formulas
+
+---
+
 ### Partially-Covered Domains ⚠
 Domains with initial research but needing deeper surveys.
 
@@ -163,14 +178,6 @@ Domains with no research yet but relevant to game vision.
 
 ---
 
-#### Urban Planning
-**Coverage:** None
-**Gaps:** City layout, infrastructure, public spaces, zoning
-**Priority:** Medium
-**Next Survey:** When scaling from village to city
-
----
-
 #### Agriculture & Food Systems ✓
 **Coverage:** High
 **Surveys:** Cycle 2, Survey 1 (Agriculture & Food Systems)
@@ -211,8 +218,8 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 **Cycle 2 (In Progress):**
 1. **Agriculture & Food Systems** ✓ (COMPLETE - core medieval gameplay)
 2. **Ecology & Climate** ✓ (COMPLETE - environmental simulation)
-3. **Urban Planning** (MEDIUM - village to city scaling - NEXT)
-4. **Philosophy & Ethics** (MEDIUM - trolley problem mechanics)
+3. **Urban Planning** ✓ (COMPLETE - village to city scaling)
+4. **Philosophy & Ethics** (MEDIUM - trolley problem mechanics - NEXT)
 5. **Anthropology** (MEDIUM - cultural systems)
 6. **Historical Events** (MEDIUM - dynamic world events)
 
@@ -239,14 +246,14 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 9
-**Domains Covered (High/Medium):** 9
+**Total Surveys Completed:** 10
+**Domains Covered (High/Medium):** 10
 **Domains Partially Covered:** 1 (History)
-**Domains Uncovered:** 6
-**Mechanics Implemented from Research:** ~17 (5 agriculture + 5 ecology proposed)
+**Domains Uncovered:** 5 (down from 6)
+**Mechanics Implemented from Research:** ~22 (5 agriculture + 5 ecology + 5 urban planning proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 56% (9 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
-**Target for Next Sprint:** 63% (add 1 more domain from Cycle 2)
+**Coverage Score:** 63% (10 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
+**Target for Next Sprint:** 69% (add 1 more domain from Cycle 2)
 
 ---

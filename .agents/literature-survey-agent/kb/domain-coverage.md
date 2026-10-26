@@ -120,6 +120,21 @@ Domains with completed surveys and implemented mechanics.
 
 ---
 
+#### Anthropology
+**Coverage:** High
+**Surveys:** Cycle 2, Survey 5 (Anthropology)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/anthropology.md)
+**Sources:** Kinship theory, Van Gennep, Turner, Medieval family structures, Cultural transmission
+**Mechanics Proposed:**
+- Kinship and descent systems (patrilineal/matrilineal/bilateral)
+- Rites of passage (separation, liminality, reincorporation)
+- Marriage alliances and negotiations (strategic politics)
+- Cultural transmission (vertical/horizontal/oblique learning)
+- Ritual calendar (annual events with social cohesion effects)
+**Next Steps:** Implement kinship.rs and ritual.rs modules, test family politics gameplay
+
+---
+
 ### Partially-Covered Domains ⚠
 Domains with initial research but needing deeper surveys.
 
@@ -133,20 +148,6 @@ Domains with initial research but needing deeper surveys.
 - Historical events as game mechanics (plagues, migrations, etc.)
 **Priority:** Medium
 **Next Survey:** Historical events and their game mechanic equivalents
-
----
-
-#### Anthropology
-**Coverage:** Low
-**Surveys:** None dedicated
-**Mechanics Implemented:** None directly
-**Gaps:**
-- Cultural evolution
-- Kinship systems
-- Ritual and ceremony
-- Material culture
-**Priority:** Medium
-**Next Survey:** Cultural systems and rituals
 
 ---
 
@@ -227,8 +228,8 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 2. **Ecology & Climate** ✓ (COMPLETE - environmental simulation)
 3. **Urban Planning** ✓ (COMPLETE - village to city scaling)
 4. **Philosophy & Ethics** ✓ (COMPLETE - trolley problem mechanics)
-5. **Anthropology** (MEDIUM - cultural systems - NEXT)
-6. **Historical Events** (MEDIUM - dynamic world events)
+5. **Anthropology** ✓ (COMPLETE - kinship and ritual systems)
+6. **Historical Events** (MEDIUM - dynamic world events - NEXT)
 
 **Cycle 3 (Future):**
 1. Military History & Strategy (when needed)
@@ -253,14 +254,14 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 11
-**Domains Covered (High/Medium):** 11
+**Total Surveys Completed:** 12
+**Domains Covered (High/Medium):** 12
 **Domains Partially Covered:** 1 (History)
-**Domains Uncovered:** 4 (down from 5)
-**Mechanics Implemented from Research:** ~27 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 7 misc proposed)
+**Domains Uncovered:** 4
+**Mechanics Implemented from Research:** ~32 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 69% (11 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
-**Target for Next Sprint:** 75% (add 1 more domain from Cycle 2)
+**Coverage Score:** 75% (12 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
+**Target for Next Sprint:** 81% (add Historical Events to complete Cycle 2)
 
 ---

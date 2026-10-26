@@ -233,3 +233,27 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** philosophy, ethics, trolley-problem, moral-dilemmas, reputation-systems, virtue-ethics, medieval-virtues, utilitarianism, deontology
 
 ---
+
+### Cycle 2, Survey 5: Anthropology
+**Date Completed:** 2026-10-25
+**Domain:** Cultural Anthropology, Kinship Systems, Ritual Studies, Material Culture
+**Output:** wiki/literature-reviews/anthropology.md
+**Yield:**
+- Kinship and descent systems (patrilineal, matrilineal, bilateral with inheritance rules)
+- Rites of passage with three phases (separation, liminality, reincorporation)
+- Marriage alliances and negotiations (strategic family politics)
+- Cultural transmission (vertical, horizontal, oblique learning pathways)
+- Ritual calendar and social cohesion (annual events with participation mechanics)
+
+**Key Sources:**
+- Kinship systems theory (patrilineal, matrilineal, bilateral) - A+
+- Medieval family structures and Church marriage law - A
+- Van Gennep's rites of passage (1909), Turner's liminality - A+
+- Ritual studies (social functions, symbolic meaning) - A
+- Cultural transmission and evolution theory - A
+- Material culture and symbolic artifacts - B+
+
+**Confidence:** High
+**Tags:** anthropology, kinship, rites-of-passage, ritual, cultural-transmission, medieval-family, marriage-alliances, descent-systems, liminality
+
+---

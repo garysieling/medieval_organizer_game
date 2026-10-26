@@ -23,7 +23,8 @@ const UI_X: usize = 660;
 
 fn iso(tx: f32, ty: f32) -> (i32, i32) {
     (MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32,
-     60 + ((tx + ty) * TILE_H as f32) as i32)
+     -60 + ((tx + ty) * TILE_H as f32) as i32)
+}
 }
 
 struct Check { name: &'static str, pass: bool, detail: String }

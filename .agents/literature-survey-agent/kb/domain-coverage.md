@@ -231,10 +231,17 @@ Domains with no research yet but relevant to game vision.
 ---
 
 #### Writing Materials & Bookmaking
-**Coverage:** None
-**Gaps:** Papermaking, vellum (parchment), papyrus, plant fiber papers, ink making, bookbinding, illumination
-**Priority:** Medium-High (literacy tech tree)
-**Next Survey:** When implementing book production and literacy systems
+**Coverage:** High
+**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md)
+**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus
+**Mechanics Proposed:**
+- Five writing surfaces (vellum 14-day process, papyrus, vegetable papyrus from peppers, linen rag paper)
+- Four ink types (iron gall archival, carbon/lampblack, berry inks, mineral pigment from stone dust)
+- Bookbinding progression (Coptic binding → medieval codex with raised cords)
+- Manuscript illumination (gold leaf on gesso, burnishing, lapis lazuli pigments)
+- Complete literacy tech tree (professions: parchment maker, vatman, scribe, bookbinder, illuminator)
+**Next Steps:** Implement writing.rs and bookmaking.rs modules, test literacy progression system
 
 ---
 
@@ -286,7 +293,7 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 **Cycle 3 (IN PROGRESS):**
 1. **Herbology & Medieval Medicine** ✓ (COMPLETE - four humors and herb gardens)
 2. **Medieval Crafts & Tools** ✓ (COMPLETE - luthier, beekeeping, stained glass, stonemason)
-3. **Writing Materials & Bookmaking** (NEXT - papermaking, vellum, inks)
+3. **Writing Materials & Bookmaking** ✓ (COMPLETE - vellum, inks, bookbinding, illumination)
 4. Military History & Strategy (when needed)
 5. Linguistics & Communication (literacy/printmaking systems)
 6. Art History & Aesthetics (expanded art direction)
@@ -309,16 +316,16 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 15
-**Domains Covered (High/Medium):** 15
+**Total Surveys Completed:** 16
+**Domains Covered (High/Medium):** 16
 **Domains Partially Covered:** 1 (History - general)
-**Domains Uncovered:** 4 (Military, Linguistics, Art History, Education)
-**Mechanics Implemented from Research:** ~46 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 7 misc proposed)
+**Domains Uncovered:** 3 (Military, Art History, Education)
+**Mechanics Implemented from Research:** ~51 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 75% (15 well-covered / 20 total relevant domains including craft domains)
+**Coverage Score:** 80% (16 well-covered / 20 total relevant domains including craft domains)
 **Cycle 2: COMPLETE** (6/6 surveys finished)
-**Cycle 3: IN PROGRESS** (2/? surveys - Herbology, Crafts complete)
-**Target for Cycle 3:** Fill craft/profession gaps (Writing Materials next), then expand to remaining domains
+**Cycle 3: IN PROGRESS** (3/? surveys - Herbology, Crafts, Writing Materials complete)
+**Target for Cycle 3:** Craft/profession surveys complete! Next: Education & Pedagogy or remaining domains as needed
 
 ---

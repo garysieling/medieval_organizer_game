@@ -328,3 +328,29 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** medieval-crafts, luthier, beekeeping, stained-glass, stonemason, specialized-tools, guild-professions, tonewood, skeps, glazier, chisels
 
 ---
+
+### Cycle 3, Survey 3: Writing Materials & Bookmaking
+**Date Completed:** 2026-10-25
+**Domain:** Medieval Crafts, Book Production, Material Culture, Literacy Systems
+**Output:** wiki/literature-reviews/writing-materials-bookmaking.md
+**Yield:**
+- Five writing surfaces (vellum/parchment 14-day process, papyrus, vegetable papyrus from peppers, linen rag paper with vatman/mould/deckle)
+- Four ink types (iron gall archival ink, carbon/lampblack from soot, berry inks with elderberry/pokeberry, mineral pigment inks from stone dust)
+- Bookbinding progression (Coptic binding 2nd century, medieval codex with raised cords, quires and sewing stations)
+- Manuscript illumination (gold leaf on gesso with Armenian bole, burnishing, pigments including lapis lazuli ultramarine)
+- Complete literacy tech tree (birch bark → parchment → vellum → paper, professions from scribe to illuminator)
+
+**Key Sources:**
+- Vellum/parchment making process (lime bath 8-14 days, lunar knife scraping, stretching frames) - A+
+- Iron gall ink chemistry (1400-year standard, bonds to cellulose, archival permanence) - A+
+- European linen rag papermaking (vatman, mould, deckle, coucher roles) - A
+- Coptic binding techniques (2nd-11th century, chain stitch linkings) - A+
+- Manuscript illumination (Getty Museum, gold leaf burnishing with hound's tooth) - A+
+- Vegetable papyrus from peppers and vegetables (modern experiments validate) - A
+- Berry inks (elderberry, blackberry, pokeberry historical usage) - A
+- Mineral pigments from ground stone (ochre, umber, stonemason dust byproduct) - A
+
+**Confidence:** High
+**Tags:** writing-materials, vellum, parchment, papyrus, vegetable-papyrus, peppers, linen-paper, vatman, iron-gall-ink, lampblack, berry-ink, stone-dust-pigment, bookbinding, coptic-binding, codex, quires, illumination, gold-leaf, gesso, lapis-lazuli, literacy-tech-tree, scribes, illuminators
+
+---

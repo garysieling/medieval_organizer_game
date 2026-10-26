@@ -62,7 +62,13 @@ Domains with completed surveys and implemented mechanics.
 **Surveys:** Sprint 3 (Religion & Emergence)
 **Mechanics Implemented:** Congregations, fundamentalism (religion.rs, fundamentalism.rs)
 **Sources:** Sociology of religion (needs specific citations)
-**Next Steps:** Syncretism, heresy, religious reform movements
+**User Note - Religion-Economics Feedback Loop (Bonhoeffer, Niebuhr):**
+- Economic scarcity → Religious coping (simplicity/hard work as values, celebration of pain, apocalyptic hope)
+- New technology → Removes need → Tension between faith and reality → Schism (new organizations form)
+- Reactionaries resist change (to maintain power)
+- Self-interest masked as selflessness (Niebuhr - hypocrisy in religious leadership)
+- **Systems dynamic**: Scarcity → Religion fills gap → Tech removes need → Crisis of faith → Reorganization
+**Next Steps:** Syncretism, heresy, religious reform movements, religion-economics interaction mechanics
 
 ---
 
@@ -268,6 +274,22 @@ Domains with no research yet but relevant to game vision.
 
 ---
 
+#### Systems Thinking & Dynamics
+**Coverage:** High
+**Surveys:** Cycle 3, Survey 5 (Systems Thinking & Dynamics)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/systems-thinking-dynamics.md)
+**Sources:** Meadows (Thinking in Systems), Forrester (System Dynamics), Senge (Fifth Discipline), Agricultural economics
+**Mechanics Proposed:**
+- Stock-flow framework (bathtub metaphor, accumulation dynamics for all resources)
+- Feedback loops (reinforcing R = growth/collapse, balancing B = stability/oscillation)
+- Delay system (time separation between cause and effect, oscillation dynamics)
+- **Correlated yield agricultural economics** (weather affects all farmers, inverse price-yield r=-0.51, bankruptcy in both bumper and drought years)
+- System archetypes (Limits to Growth, Shifting the Burden, Tragedy of Commons pattern recognition)
+- Causal loop diagram visualization (meta-game educational tool)
+**Next Steps:** Apply to ALL game systems - agriculture, population, economy, resources. CRITICAL foundation for realistic dynamics.
+
+---
+
 #### Magic Systems (Fiction)
 **Coverage:** None
 **Gaps:** Novel magic systems from fiction, non-standard powers
@@ -303,11 +325,12 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 2. **Medieval Crafts & Tools** ✓ (COMPLETE - luthier, beekeeping, stained glass, stonemason)
 3. **Writing Materials & Bookmaking** ✓ (COMPLETE - vellum, inks, bookbinding, illumination)
 4. **Education & Pedagogy** ✓ (COMPLETE - schools, apprenticeships, deliberate practice)
-5. Military History & Strategy (when needed)
-6. Linguistics & Communication (literacy/printmaking systems)
-7. Art History & Aesthetics (expanded art direction)
-8. Magic Systems from Fiction (novel powers)
-9. Theory of Mind (advanced psychology)
+5. **Systems Thinking & Dynamics** ✓ (COMPLETE - USER PRIORITY - stocks/flows, feedback loops, correlated yields)
+6. Military History & Strategy (when needed)
+7. Linguistics & Communication (literacy/printmaking systems)
+8. Art History & Aesthetics (expanded art direction)
+9. Magic Systems from Fiction (novel powers)
+10. Theory of Mind (advanced psychology)
 
 ---
 
@@ -324,16 +347,16 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 17
-**Domains Covered (High/Medium):** 17
+**Total Surveys Completed:** 18
+**Domains Covered (High/Medium):** 18
 **Domains Partially Covered:** 1 (History - general)
 **Domains Uncovered:** 2 (Military, Art History)
-**Mechanics Implemented from Research:** ~57 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 7 misc proposed)
+**Mechanics Implemented from Research:** ~63 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 85% (17 well-covered / 20 total relevant domains)
+**Coverage Score:** 90% (18 well-covered / 20 total relevant domains)
 **Cycle 2: COMPLETE** (6/6 surveys finished)
-**Cycle 3: IN PROGRESS** (4/? surveys - Herbology, Crafts, Writing Materials, Education complete)
-**Target for Cycle 3:** Nearly complete! Remaining: Military History, Art History (low priority), optional advanced domains
+**Cycle 3: IN PROGRESS** (5/? surveys - Herbology, Crafts, Writing Materials, Education, Systems Thinking complete)
+**Target for Cycle 3:** Excellent progress! Remaining: Military History, Art History (both low priority). Can reach 100% or move to advanced domains (Linguistics, Magic Systems, Theory of Mind).
 
 ---

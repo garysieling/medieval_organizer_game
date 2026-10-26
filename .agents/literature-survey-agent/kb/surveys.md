@@ -381,3 +381,31 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** education, pedagogy, monastery-schools, cathedral-schools, universities, trivium, quadrivium, seven-liberal-arts, apprenticeship, guilds, journeyman, masterpiece, deliberate-practice, Ericsson, 10000-hours, skill-acquisition, wax-tablets, hornbooks, literacy-teaching, tacit-knowledge, explicit-knowledge, situated-learning
 
 ---
+
+### Cycle 3, Survey 5: Systems Thinking & Dynamics
+**Date Completed:** 2026-10-25
+**Domain:** Systems Thinking, System Dynamics, Feedback Loops, Complex Systems
+**Output:** wiki/literature-reviews/systems-thinking-dynamics.md
+**Yield:**
+- Stocks and flows framework (bathtub metaphor, accumulation dynamics, stocks change only through flows)
+- Feedback loops (reinforcing R = exponential growth/collapse, balancing B = stability/oscillation)
+- Delays (separate cause from effect, B + delay = oscillation, overshoot dynamics)
+- Causal loop diagrams (visualization tool, +/− polarity, cycle detection, loop classification)
+- System archetypes (Limits to Growth, Shifting the Burden, Tragedy of Commons - recurring patterns)
+- **Correlated agricultural yields** (USER PRIORITY: weather affects all farmers → bumper crop crashes prices, drought spikes prices, farmers bankrupt in both cases without insurance)
+- Price-yield correlation (empirical: r = -0.51 in Corn Belt, inverse relationship drives boom-bust cycles)
+
+**Key Sources:**
+- Donella Meadows *Thinking in Systems* (canonical systems thinking primer) - A+
+- Jay Forrester System Dynamics (1950s foundational work, hydraulic metaphor) - A+
+- Peter Senge *The Fifth Discipline* (system archetypes) - A+
+- Stock-flow diagrams (bathtub metaphor, widely adopted notation) - A+
+- Causal loop diagrams (standard methodology for feedback visualization) - A+
+- Agricultural price-yield correlation (Corn Belt empirical data r = -0.51) - A
+- Price volatility research (weather as primary driver, correlated shocks) - A
+- User insight on correlated yields (validated by agricultural economics literature) - A
+
+**Confidence:** High
+**Tags:** systems-thinking, system-dynamics, stocks-and-flows, feedback-loops, reinforcing-loops, balancing-loops, delays, oscillation, causal-loop-diagrams, system-archetypes, limits-to-growth, tragedy-of-commons, shifting-the-burden, agricultural-economics, correlated-yields, price-volatility, boom-bust-cycles, Forrester, Meadows, Senge
+
+---

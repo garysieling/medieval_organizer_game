@@ -9,7 +9,7 @@ use game2_core::ui::font::{draw_text, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
@@ -211,12 +211,11 @@ fn main() {
     let mut speed = 1u32;   // 1=normal 2=fast 4=turbo
     let mut selected_target = 0usize;
     let mut log: Vec<String> = vec!["Welcome to the village.".into()];
-    let mut rapport = [0.0f32; 5]; // relationship score per villager
     let mut inspector_open = true;
     let mut help_open = false;
     let mut dialog: Option<(Entity, String, u64)> = None; // (speaker, text, until tick)
-    let mut mouse_was_down = false;
     let mut frame_n = 0u32;
+    let mut mouse_was_down = false;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // TITLE SCREEN until Enter
@@ -266,15 +265,17 @@ fn main() {
             }
         }
 
-        // idle villagers wander (village feels alive)
+        // idle villagers wander (village feels alive); direction changes daily,
+        // step is per frame so they stroll ~0.6 tiles/day instead of racing to the edge
         if !paused {
+            let step = 0.6 / ticks_per_frame as f32;
             for v in villagers.iter() {
                 let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
                 if idle {
                     if let Some(p) = world.get_component_mut::<Pos>(*v) {
                         let wob = ((tick + *v as u64) % 8) as f32;
-                        if wob < 1.0 { p.x += 0.2; } else if wob < 2.0 { p.y += 0.2; }
-                        else if wob < 3.0 { p.x -= 0.2; } else if wob < 4.0 { p.y -= 0.2; }
+                        if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
+                        else if wob < 3.0 { p.x -= step; } else if wob < 4.0 { p.y -= step; }
                         p.x = p.x.clamp(2.0, 30.0);
                         p.y = p.y.clamp(2.0, 30.0);
                     }
@@ -477,11 +478,11 @@ fn main() {
             .map(|vp| { let dx = vp.x - player_pos.0; let dy = vp.y - player_pos.1; (dx*dx + dy*dy).sqrt() < 8.0 })
             .unwrap_or(false);
         let target_alive = world.get_component::<Health>(villagers[selected_target]).is_some();
-        let low_influence = p.influence < 0.3;
+        let recruit_infl_ok = can_recruit(world.get_component::<PlayerCharacter>(player).unwrap().influence);
         let disabled_reason = |i: usize| -> Option<&'static str> {
             if (i == 0 || i == 1 || i == 3) && !target_alive { Some("they have died") }
             else if (i == 0 || i == 1 || i == 3) && !dist_ok { Some("too far away") }
-            else if i == 1 && low_influence { Some("need more influence") }
+            else if i == 1 && !recruit_infl_ok { Some("need more influence") }
             else { None }
         };
         for (i, b) in buttons.iter().enumerate() {
@@ -641,7 +642,7 @@ fn main() {
                 "click villager: select + inspect",
                 "1-5: select villager",
                 "T talk  R recruit  I invest",
-                "O organize  B build  W wait",
+                "O organize  B build  WASD move",
                 "arrows: pan map   +/-: zoom",
                 "Space: pause   0: speed 4x",
                 "F12: screenshot   Esc: quit",
@@ -714,7 +715,7 @@ fn main() {
                 if let Some(p) = world.get_component::<Pos>(*rv) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
-                    if d < 24.0 {
+                    if mx < MAP_W as i32 && d < 24.0 {
                         let p_inf = world.get_component::<PlayerCharacter>(player).unwrap().influence;
                         let (msg, tag) = if p_inf > 1.5 {
                             (format!("{}: we've heard of you - the organizer.", rival_names[i]), "opened")
@@ -729,13 +730,14 @@ fn main() {
                 }
             }
             // click on map selects nearest villager
+            let on_map = mx < MAP_W as i32;
             let mut best = selected_target;
             let mut best_d = 9999.0f32;
             for (i, v) in villagers.iter().enumerate() {
                 if let Some(p) = world.get_component::<Pos>(*v) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
-                    if d < 30.0 && d < best_d { best = i; best_d = d; }
+                    if on_map && d < 30.0 && d < best_d { best = i; best_d = d; }
                 }
             }
             selected_target = best;
@@ -765,7 +767,7 @@ fn main() {
         if window.is_key_down(Key::Up)    { cam_y += 6; }
         if window.is_key_down(Key::Down)  { cam_y -= 6; }
 
-        if window.is_key_down(Key::F12) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", frame_n)).ok(); frame_n += 1; }
+        if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", frame_n)).ok(); }
 
         // blit buffer to framebuffer
         let mut fb = vec![0u32; W * H];

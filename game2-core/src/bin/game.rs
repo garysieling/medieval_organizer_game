@@ -109,7 +109,10 @@ fn main() {
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        if io::stdin().read_line(&mut input).unwrap_or(0) == 0 {
+            println!("(end of input)");
+            break;
+        }
         let choice = input.trim().chars().next().unwrap_or('w');
 
         // Execute choice

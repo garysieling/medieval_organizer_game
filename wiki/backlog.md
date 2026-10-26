@@ -987,6 +987,87 @@ This file tracks research items that need to be completed for the game project.
 - **Output:** wiki/software-design/game-engine-architecture-research.md
 - **Notes:** Research game engine architectures and frameworks suitable for an experienced developer wanting to build a flexible exploration engine. Compare custom vs existing solutions (Godot, Unity, Bevy, etc.).
 
+## Brainstorm Ideas
+
+Ideas from brainstorming sessions. Each item needs a research deep-dive and/or a design pass before implementation.
+
+### Food & Drink
+
+- [x] **Cheese** — research all forms of cheese; cheesemaker as a discipline/vocation → `wiki/literature-reviews/sprint-7-fermentation-trades.md`
+  - Implies dairy animals, aging/cellars, regional varieties, trade value
+- [ ] **Pasta** — major research on pasta types; pasta-maker as a vocation
+  - Grains, drying, regional shapes, associated sauces/trade
+- [x] **Alcohol** — deep dive on alcohol types and manufacture; brewer/vintner/distiller as jobs → `wiki/literature-reviews/sprint-7-fermentation-trades.md`
+  - Very valuable commodity → implies need for defense/guarding stock
+  - Feeds into perfume production (alcohol as solvent)
+- [x] **Perfume** — make perfumes from garden flowers + alcohol + glass → `wiki/literature-reviews/sprint-7-perfume-and-smell.md`
+  - Chains: gardens → flowers, alcohol production, glassblowing
+  - Interacts with smell modelling (below)
+
+### Vocations & Labor
+
+- [ ] **Shepherds / goatherds** — implies farming; gives dogs more to do (herding)
+- [ ] **Toolmaker** — vocation; could also make paint brushes
+- [x] **Luthier / string instruments** — deep dive on history of string instruments and luthiery; both playing and making are vocations → `wiki/literature-reviews/sprint-7-luthiery-and-minstrels.md`
+- [ ] **Ancient jobs** — research fletcher, cooper, shoemaker, tentmaker, perfumer
+- [ ] **Pigment collector / paint maker** — vocations; large orgs with money can hire painters to paint buildings for clout
+- [ ] **Roving pots-and-pans seller** — travelling merchant role
+- [ ] **Apprenticeship** — consider as a progression model for vocations
+- [ ] **Vocation-driven relationships** — you naturally build relationships through your work with customers/vendors/clients
+- [x] **Translator/traveler** — valuable role if number systems (and possibly languages) differ between groups → `wiki/literature-reviews/sprint-7-number-systems-and-translators.md`
+
+### Farming, Gardens & Bees
+
+- [ ] **House gardens and community gardens** — food, flowers (for perfume), herbs
+- [x] **Medicinal plants** — deep dive research on medicinal herbs; growable in gardens → `wiki/literature-reviews/sprint-7-medicinal-plants.md`
+- [x] **Beekeeping** — model the few kinds of beekeeping → `wiki/literature-reviews/sprint-7-beekeeping.md`
+  - Bonus: replicate beehive social structure as a faction template (matriarchal, males don't work, die in winter)
+
+### Magic, Mushrooms & the World
+
+- [x] **Magic mushrooms** — deep dive on types, including poisonous lookalikes → `wiki/literature-reviews/sprint-7-mushrooms.md`
+- [ ] **Caves** — concept to explore; underground is monochromatic
+- [ ] **Sea creatures** — sea monsters especially, plus fishable things: lobsters, prawns, squid
+- [ ] **Astrology / sky events** — model solstices and times between; comets, eclipses
+- [ ] **Pandemics** — model disease spread
+
+### Society, Orgs & Power
+
+- [x] **Galileo-style showdown** — disclosing a major discovery that confronts power makes the powerful mad; model as a scenario/event → `wiki/literature-reviews/sprint-7-galileo-showdown.md`
+- [ ] **Travelling circus** — music, some animals; joining means you leave with them
+  - Org membership: benefits + relationship boosts while in; major cost if you leave
+- [ ] **Relationships over time** — model influence as pairwise relationships that build or decay, not a flat stat
+  - Build faster/stronger when sharing an organizational identity
+- [ ] **Injustices & labor organizing** — research historical injustices; create scenarios modeling labor action (withholding labor, blocking a bridge) as org-voted actions
+- [x] **Non-violent deposition** — stocks, thrown tomatoes, thrown soup, exile, tar and feather → `wiki/literature-reviews/sprint-7-non-violent-deposition.md`
+- [ ] **Guillotine** — maybe; the violent end of the spectrum
+- [ ] **Taxes / feudalism** — use feudalism as the model for taxation
+- [ ] **Castles & dungeons** — castles have a dungeon; must be a way to maintain order
+- [ ] **Religion** — some religions have karma
+- [ ] **Carcassonne** — use as an idea source (tile-laying, region claiming, follower placement?)
+
+### Community Organizing
+
+- [x] **Power recognizes power** — those in power only engage with/concede to groups that have demonstrated power of their own → `wiki/literature-reviews/sprint-7-organizing-power.md`
+- [x] **Power builds as you spend it** — power is a resource that grows through use (unlike gold, which depletes); unused power atrophies → `wiki/literature-reviews/sprint-7-organizing-power.md`
+
+### Culture, Language & Identity
+
+- [ ] **Art deep dive** — Hieronymus Bosch, Dürer included
+- [x] **Smells** — model smell; shepherds are smelly, perfume helps → `wiki/literature-reviews/sprint-7-perfume-and-smell.md`
+- [ ] **Hairstyles** — think about modelling them
+- [ ] **Inside jokes** — characters can build shared jokes
+- [ ] **Marriage / divorce** — TBD
+- [ ] **Language development** — "l'avion my uncle flew" style: slowly introduce words to teach a language
+- [ ] **Shakespearean language** — pull insults, jokes, compliments
+- [x] **Number systems** — e.g., one group uses Roman numerals; conflict between groups using different systems → `wiki/literature-reviews/sprint-7-number-systems-and-translators.md`
+- [ ] **Disabilities** — consider modelling some
+
+### Core Systems
+
+- [ ] **Death & continuation** — on death, a cutscene, then continue as another character
+- [x] **Roads** — roads strengthen with use, fade without; stronger = faster, so pathfinding creates a use feedback loop → `wiki/literature-reviews/sprint-7-roads-and-trails.md`
+
 ## Completed Items
 
 ### [x] Completed Research Item

@@ -61,6 +61,9 @@ impl System for SeekFoodSystem {
 
         // Find villagers and their state
         let villagers: Vec<Entity> = world.query::<Villager>();
+        let snapshot: Vec<(Entity, Pos)> = villagers.iter()
+            .filter_map(|&v| world.get_component::<Pos>(v).map(|p| (v, *p)))
+            .collect();
 
         for v in villagers {
             let hunger = match world.get_component::<Hunger>(v) {
@@ -129,8 +132,23 @@ impl System for SeekFoodSystem {
                 target = None;
                 // wander when idle: drift a little so they don't pile up
                 let seed = (v as u64).wrapping_add((pos.x * 7.0 + pos.y * 13.0) as u64);
-                let dx = ((seed % 7) as f32 - 3.0) * 0.06;
-                let dy = (((seed / 7) % 7) as f32 - 3.0) * 0.06;
+                let mut dx = ((seed % 7) as f32 - 3.0) * 0.06;
+                let mut dy = (((seed / 7) % 7) as f32 - 3.0) * 0.06;
+                // separation: idle villagers step away from crowded neighbours (e.g. after eating at the same food source)
+                let personal_space = 1.5;
+                for (o, op) in &snapshot {
+                    if *o == v { continue; }
+                    let (ox, oy) = (pos.x - op.x, pos.y - op.y);
+                    let d = (ox * ox + oy * oy).sqrt();
+                    if d < personal_space {
+                        let (ux, uy) = if d > 1e-3 { (ox / d, oy / d) } else {
+                            let a = (v as f32) * 2.399;
+                            (a.cos(), a.sin())
+                        };
+                        dx += ux * 0.2;
+                        dy += uy * 0.2;
+                    }
+                }
                 if let Some(p) = world.get_component_mut::<Pos>(v) {
                     p.x = (p.x + dx).clamp(0.0, 31.0);
                     p.y = (p.y + dy).clamp(0.0, 31.0);

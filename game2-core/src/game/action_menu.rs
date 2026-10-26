@@ -55,7 +55,7 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
         MenuActionType::Recruit => {
             if let Some(t) = target {
                 let r = act_recruit(world, player, org, t);
-                format!("{}", if r.success { "They joined!" } else { "They declined." })
+                if r.success { "They joined!".into() } else if r.description.contains("already") { "They're already a member.".into() } else { "They declined.".into() }
             } else { "No one to recruit.".into() }
         }
         MenuActionType::Invest => {

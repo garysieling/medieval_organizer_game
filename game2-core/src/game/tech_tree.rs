@@ -49,6 +49,7 @@ mod tests {
     fn test_prereq_gating() {
         let mut tree = printmaking_tree();
         assert!(!can_research(&tree, "Printing Press")); // needs Movable Type + Paper Mill
+        research(&mut tree, "Papyrus", 20.0);
         research(&mut tree, "Vellum", 30.0);
         assert!(!can_research(&tree, "Printing Press")); // still blocked
         research(&mut tree, "Woodblock", 50.0);

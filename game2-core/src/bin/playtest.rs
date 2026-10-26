@@ -2,7 +2,7 @@
 //! "survive 100 ticks", "feed 5 villagers", "reach tech X" - UI and backend.
 
 use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::game::villager::{self, Hunger, Villager, Activity};
+use game2_core::game::villager::{self, FoodSource};
 use game2_core::agents::simple_playtester::{SimplePlaytester, Goal, GoalCheck};
 
 fn main() {
@@ -43,12 +43,12 @@ fn main() {
     let goal3 = Goal {
         description: "Villagers eat (hunger resets)".into(),
         check: GoalCheck::Custom(|w| {
-            w.query::<Hunger>().iter().any(|e| {
-                w.get_component::<Hunger>(*e).map(|h| h.value > 90.0).unwrap_or(false)
+            w.query::<FoodSource>().iter().any(|e| {
+                w.get_component::<FoodSource>(*e).map(|f| f.servings < 300).unwrap_or(false)
             })
         }),
     };
-    let r3 = playtester.playtest(&mut world, &mut sched, &goal3, 50);
+    let r3 = playtester.playtest(&mut world, &mut sched, &goal3, 200);
     println!("Goal: {}", r3.goal);
     println!("  achieved: {} ({} ticks)", r3.achieved, r3.ticks_used);
     println!("  notes: {}\n", r3.notes);

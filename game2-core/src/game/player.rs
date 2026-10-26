@@ -48,6 +48,10 @@ pub fn act_talk(world: &mut World, player: Entity, _target: Entity) -> ActionRes
 
 /// Player attempts to recruit someone
 pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entity) -> ActionResult {
+    let already = world.get_component::<crate::sim::community::Organization>(org).map(|o| o.members.contains(&target)).unwrap_or(false);
+    if already {
+        return ActionResult { success: false, influence_change: 0.0, description: "They're already a member".into() };
+    }
     let player_infl = world.get_component::<PlayerCharacter>(player).map(|p| p.influence).unwrap_or(0.0);
     let trust = player_infl * 0.5 + 0.3;
     let recruited = crate::sim::community::recruit(world, org, target, trust);

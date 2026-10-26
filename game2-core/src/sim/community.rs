@@ -84,6 +84,7 @@ impl crate::engine::ecs::System for OneOnOneSystem {
 pub fn recruit(world: &mut World, org: Entity, citizen: Entity, rel_quality: f32) -> bool {
     if rel_quality < 0.5 { return false; } // need trust to recruit
     if let Some(o) = world.get_component_mut::<Organization>(org) {
+        if o.members.contains(&citizen) { return false; }
         o.members.push(citizen);
         return true;
     }

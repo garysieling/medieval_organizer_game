@@ -666,7 +666,7 @@ fn main() {
                             dialog = Some((selected_target, concern.to_string(), tick + 60));
                             r.description
                         }
-                        1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() } }
+                        1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { format!("{}.", r.description) } }
                         2 => { let r = act_invest(&mut world, player, 10.0); r.description }
                         3 => "You call a house meeting.".into(),
                         4 => {
@@ -717,15 +717,15 @@ fn main() {
         if window.is_key_down(Key::Key3) { selected_target = 2; }
         if window.is_key_down(Key::Key4) { selected_target = 3; }
         if window.is_key_down(Key::Key5) { selected_target = 4; }
-        if window.is_key_down(Key::T) {
+        if window.is_key_pressed(Key::T, minifb::KeyRepeat::No) {
             let r = act_talk(&mut world, player, villagers[selected_target]);
             rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0);
             let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
             dialog = Some((selected_target, concerns[(tick as usize + selected_target) % concerns.len()].to_string(), tick + 60));
             log.push(r.description);
         }
-        if window.is_key_down(Key::R) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { rapport[selected_target] = 1.0; } log.push(if r.success { format!("{} joined!", names[selected_target]) } else { "They declined.".into() }); }
-        if window.is_key_down(Key::I) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
+        if window.is_key_pressed(Key::R, minifb::KeyRepeat::No) { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { rapport[selected_target] = 1.0; } log.push(if r.success { format!("{} joined!", names[selected_target]) } else { format!("{}.", r.description) }); }
+        if window.is_key_pressed(Key::I, minifb::KeyRepeat::No) { let r = act_invest(&mut world, player, 10.0); log.push(r.description); }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }
         if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { help_open = !help_open; }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { zoom = (zoom + 0.02).min(2.0); }
@@ -746,7 +746,7 @@ fn main() {
         if window.is_key_down(Key::Up)    { cam_y += 6; }
         if window.is_key_down(Key::Down)  { cam_y -= 6; }
 
-        if window.is_key_down(Key::F12) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", frame_n)).ok(); frame_n += 1; }
+        if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", frame_n)).ok(); frame_n += 1; }
 
         // blit buffer to framebuffer
         let mut fb = vec![0u32; W * H];

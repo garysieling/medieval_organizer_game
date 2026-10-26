@@ -98,9 +98,9 @@ mod tests {
         let c = spawn_climate(&mut w);
         let mut s = crate::engine::ecs::Scheduler::new();
         s.add_system(SeasonSystem);
-        s.tick(&mut w);
+        for _ in 0..90 { s.tick(&mut w); }
         assert_eq!(w.get_component::<Climate>(c).unwrap().season, Season::Summer);
-        s.tick(&mut w); s.tick(&mut w); s.tick(&mut w);
+        for _ in 0..270 { s.tick(&mut w); }
         assert_eq!(w.get_component::<Climate>(c).unwrap().year, 2); // year advanced
     }
 

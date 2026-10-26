@@ -39,7 +39,7 @@ pub struct WeatherEvent {
     pub affected: String, // resource or region
 }
 
-/// System: advance seasons each tick (4 ticks = 1 year)
+/// System: advance one day per tick (90 days per season, 360 per year)
 pub struct SeasonSystem;
 impl crate::engine::ecs::System for SeasonSystem {
     fn run(&mut self, world: &mut World) {
@@ -98,9 +98,12 @@ mod tests {
         let c = spawn_climate(&mut w);
         let mut s = crate::engine::ecs::Scheduler::new();
         s.add_system(SeasonSystem);
-        for _ in 0..90 { s.tick(&mut w); }
+        for _ in 0..89 { s.tick(&mut w); }
+        assert_eq!(w.get_component::<Climate>(c).unwrap().season, Season::Spring);
+        s.tick(&mut w);
         assert_eq!(w.get_component::<Climate>(c).unwrap().season, Season::Summer);
         for _ in 0..270 { s.tick(&mut w); }
+        assert_eq!(w.get_component::<Climate>(c).unwrap().season, Season::Spring);
         assert_eq!(w.get_component::<Climate>(c).unwrap().year, 2); // year advanced
     }
 

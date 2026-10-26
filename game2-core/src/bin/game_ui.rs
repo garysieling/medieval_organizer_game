@@ -473,19 +473,24 @@ fn main() {
         // buttons
         let (mxf, myf) = window.get_mouse_pos(MouseMode::Clamp).unwrap_or((0.0, 0.0));
         let (mx, my) = (mxf as i32, myf as i32);
-        // proximity: Talk/Recruit/Organize need selected villager within 8 tiles of player
+        // proximity: Talk/Recruit/Organize need a living selected villager within 8 tiles of player
         let dist_ok = world.get_component::<Pos>(villagers[selected_target])
             .map(|vp| { let dx = vp.x - player_pos.0; let dy = vp.y - player_pos.1; (dx*dx + dy*dy).sqrt() < 8.0 })
             .unwrap_or(false);
+        let target_alive = world.get_component::<Health>(villagers[selected_target]).is_some();
         let recruit_infl_ok = can_recruit(world.get_component::<PlayerCharacter>(player).unwrap().influence);
-        let button_disabled = move |i: usize| (i == 0 || i == 1 || i == 3) && !dist_ok || i == 1 && !recruit_infl_ok;
+        let disabled_reason = |i: usize| -> Option<&'static str> {
+            if (i == 0 || i == 1 || i == 3) && !target_alive { Some("they have died") }
+            else if (i == 0 || i == 1 || i == 3) && !dist_ok { Some("too far away") }
+            else if i == 1 && !recruit_infl_ok { Some("need more influence") }
+            else { None }
+        };
         for (i, b) in buttons.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            let disabled = button_disabled(i);
-            draw_button(&mut buf, b, hover, disabled);
+            let reason = disabled_reason(i);
+            draw_button(&mut buf, b, hover, reason.is_some());
             if hover {
-                let tip = if !disabled { tooltips[i] } else if i == 1 && dist_ok { "need more influence" } else { "too far away" };
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, tip, 220, 220, 160);
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, reason.unwrap_or(tooltips[i]), 220, 220, 160);
             }
         }
 
@@ -660,6 +665,7 @@ fn main() {
         }
 
         // --- INPUT ---
+        // actions fire once per click / key press, not every frame the input is held
         let mouse_down = window.get_mouse_down(minifb::MouseButton::Left);
         let clicked = mouse_down && !mouse_was_down;
         mouse_was_down = mouse_down;
@@ -668,6 +674,42 @@ fn main() {
             for (i, b) in buttons.iter().enumerate() {
                 if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h { action = Some(i); }
             }
+        }
+        for (k, i) in [(Key::T, 0), (Key::R, 1), (Key::I, 2), (Key::O, 3), (Key::B, 4)] {
+            if window.is_key_pressed(k, minifb::KeyRepeat::No) { action = Some(i); }
+        }
+        if let Some(i) = action {
+            let msg = if let Some(reason) = disabled_reason(i) {
+                format!("Can't {}: {}.", buttons[i].label.to_lowercase(), reason)
+            } else {
+                match i {
+                    0 => {
+                        let r = act_talk(&mut world, player, villagers[selected_target]);
+                        rapport[selected_target] = (rapport[selected_target] + 0.15).min(1.0);
+                        let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
+                        let concern = concerns[(tick as usize + selected_target) % concerns.len()];
+                        dialog = Some((villagers[selected_target], concern.to_string(), tick + 60));
+                        r.description
+                    }
+                    1 => {
+                        let r = act_recruit(&mut world, player, org, villagers[selected_target]);
+                        if r.success { rapport[selected_target] = 1.0; format!("{} joined!", names[selected_target]) } else { r.description }
+                    }
+                    2 => { let r = act_invest(&mut world, player, 10.0); r.description }
+                    3 => "You call a house meeting.".into(),
+                    4 => {
+                        let bx = 4.0 + (built_count % 4) as f32 * 5.0;
+                        let by = 15.0 + (built_count / 4) as f32 * 4.0;
+                        buildings.push((bx, by, &house_s));
+                        built_count += 1;
+                        format!("A house rises at ({:.0},{:.0})", bx, by)
+                    }
+                    _ => "You wait and observe.".into(),
+                }
+            };
+            log.push(msg);
+        }
+        if clicked {
             // click on a rival villager -> they rebuff you (foreign village is wary)
             for (i, rv) in rivals.iter().enumerate() {
                 if let Some(p) = world.get_component::<Pos>(*rv) {
@@ -705,36 +747,6 @@ fn main() {
         if window.is_key_down(Key::Key3) { selected_target = 2; }
         if window.is_key_down(Key::Key4) { selected_target = 3; }
         if window.is_key_down(Key::Key5) { selected_target = 4; }
-        for (i, k) in [Key::T, Key::R, Key::I, Key::O, Key::B].iter().enumerate() {
-            if window.is_key_pressed(*k, minifb::KeyRepeat::No) { action = Some(i); }
-        }
-        if let Some(i) = action {
-            if button_disabled(i) {
-                log.push(if i == 1 && dist_ok { "Not enough influence to recruit.".into() } else { "Too far away - walk closer (WASD).".into() });
-            } else {
-                let msg = match i {
-                    0 => {
-                        let r = act_talk(&mut world, player, villagers[selected_target]);
-                        let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
-                        let concern = concerns[(tick as usize + selected_target) % concerns.len()];
-                        dialog = Some((villagers[selected_target], concern.to_string(), tick + 60));
-                        r.description
-                    }
-                    1 => { let r = act_recruit(&mut world, player, org, villagers[selected_target]); if r.success { format!("{} joined!", names[selected_target]) } else { format!("{}.", r.description) } }
-                    2 => { let r = act_invest(&mut world, player, 10.0); r.description }
-                    3 => "You call a house meeting.".into(),
-                    4 => {
-                        let bx = 4.0 + (built_count % 4) as f32 * 5.0;
-                        let by = 15.0 + (built_count / 4) as f32 * 4.0;
-                        buildings.push((bx, by, &house_s));
-                        built_count += 1;
-                        format!("A house rises at ({:.0},{:.0})", bx, by)
-                    }
-                    _ => "You wait and observe.".into(),
-                };
-                log.push(msg);
-            }
-        }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { paused = !paused; }
         if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { help_open = !help_open; }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { zoom = (zoom + 0.02).min(2.0); }

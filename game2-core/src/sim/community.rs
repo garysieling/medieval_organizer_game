@@ -117,5 +117,7 @@ mod tests {
         let c = w.create_entity();
         assert!(!recruit(&mut w, o, c, 0.3)); // low trust fails
         assert!(recruit(&mut w, o, c, 0.8));  // high trust succeeds
+        assert!(!recruit(&mut w, o, c, 0.8)); // already a member
+        assert_eq!(w.get_component::<Organization>(o).unwrap().members.len(), 1);
     }
 }

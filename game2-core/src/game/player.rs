@@ -67,9 +67,10 @@ pub fn can_recruit(player_influence: f32) -> bool {
 
 /// Player attempts to recruit someone
 pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entity) -> ActionResult {
-    let already = world.get_component::<crate::sim::community::Organization>(org).map(|o| o.members.contains(&target)).unwrap_or(false);
+    let already = world.get_component::<crate::sim::community::Organization>(org)
+        .map(|o| o.members.contains(&target)).unwrap_or(false);
     if already {
-        return ActionResult { success: false, influence_change: 0.0, description: "They're already a member".into() };
+        return ActionResult { success: false, influence_change: 0.0, description: "Already a member".into() };
     }
     let player_infl = world.get_component::<PlayerCharacter>(player).map(|p| p.influence).unwrap_or(0.0);
     let recruited = crate::sim::community::recruit(world, org, target, recruit_trust(player_infl));

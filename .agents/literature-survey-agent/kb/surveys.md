@@ -159,3 +159,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** agriculture, crop-rotation, three-field-system, food-security, medieval, seasonal-gameplay
 
 ---
+
+### Cycle 2, Survey 2: Ecology & Climate
+**Date Completed:** 2026-10-25
+**Domain:** Ecology, Climate Science, Environmental Systems
+**Output:** wiki/literature-reviews/ecology-climate.md
+**Yield:**
+- Climate event system (Medieval Warm Period, Little Ice Age transitions)
+- Predator-prey wildlife dynamics (Lotka-Volterra simplified model)
+- Forest depletion & regeneration (70% medieval deforestation rate)
+- Weather-modified crop yields (drought, frost, floods)
+- Ecosystem services & degradation mechanics
+
+**Key Sources:**
+- Lotka-Volterra predator-prey equations - A+
+- Medieval climate periods research (Medieval Warm Period 950-1250, Little Ice Age 1300-1850) - A
+- Medieval deforestation data (70% forest loss by 1086) - A
+- APSIM climate-crop integration - A+
+- Ecosystem services framework - B+
+- Carrying capacity models - A
+- Climate state transitions - B+
+
+**Confidence:** High
+**Tags:** ecology, climate, predator-prey, deforestation, medieval-climate, ecosystem-services, carrying-capacity
+
+---

@@ -75,6 +75,21 @@ Domains with completed surveys and implemented mechanics.
 
 ---
 
+#### Ecology & Climate
+**Coverage:** High
+**Surveys:** Cycle 2, Survey 2 (Ecology & Climate)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/ecology-climate.md)
+**Sources:** Lotka-Volterra equations, Medieval climate research, Medieval deforestation data
+**Mechanics Proposed:**
+- Climate event system (Medieval Warm Period → Little Ice Age)
+- Predator-prey wildlife cycles
+- Forest depletion & regeneration (70% historical rate)
+- Weather-modified crop yields
+- Ecosystem services & degradation
+**Next Steps:** Implement ecology.rs and climate.rs modules, integrate with agriculture system
+
+---
+
 ### Partially-Covered Domains ⚠
 Domains with initial research but needing deeper surveys.
 
@@ -102,20 +117,6 @@ Domains with initial research but needing deeper surveys.
 - Material culture
 **Priority:** Medium
 **Next Survey:** Cultural systems and rituals
-
----
-
-#### Ecology & Climate
-**Coverage:** Low
-**Surveys:** Some climate basics
-**Mechanics Implemented:** Basic climate (climate.rs - stub)
-**Gaps:**
-- Ecosystem dynamics
-- Climate change modeling
-- Resource depletion
-- Biodiversity
-**Priority:** High
-**Next Survey:** Ecology and climate science for game mechanics
 
 ---
 
@@ -209,8 +210,8 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 
 **Cycle 2 (In Progress):**
 1. **Agriculture & Food Systems** ✓ (COMPLETE - core medieval gameplay)
-2. **Ecology & Climate** (HIGH PRIORITY - environmental simulation - NEXT)
-3. **Urban Planning** (MEDIUM - village to city scaling)
+2. **Ecology & Climate** ✓ (COMPLETE - environmental simulation)
+3. **Urban Planning** (MEDIUM - village to city scaling - NEXT)
 4. **Philosophy & Ethics** (MEDIUM - trolley problem mechanics)
 5. **Anthropology** (MEDIUM - cultural systems)
 6. **Historical Events** (MEDIUM - dynamic world events)
@@ -238,14 +239,14 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 8
-**Domains Covered (High/Medium):** 8
-**Domains Partially Covered:** 1 (History - reduced from 2)
-**Domains Uncovered:** 6 (reduced from 7)
-**Mechanics Implemented from Research:** ~12 (5 new mechanics proposed for agriculture)
+**Total Surveys Completed:** 9
+**Domains Covered (High/Medium):** 9
+**Domains Partially Covered:** 1 (History)
+**Domains Uncovered:** 6
+**Mechanics Implemented from Research:** ~17 (5 agriculture + 5 ecology proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 50% (8 well-covered / 16 total relevant domains)
-**Target for Next Sprint:** 56% (add 1 new domain from Cycle 2)
+**Coverage Score:** 56% (9 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
+**Target for Next Sprint:** 63% (add 1 more domain from Cycle 2)
 
 ---

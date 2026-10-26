@@ -9,7 +9,7 @@
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::engine::render::Buffer;
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Pos, FoodSource, Hunger};
+use game2_core::game::villager::{self, Pos, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::sim::climate::{self, SeasonSystem};
@@ -24,7 +24,6 @@ const UI_X: usize = 660;
 fn iso(tx: f32, ty: f32) -> (i32, i32) {
     (MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32,
      -60 + ((tx + ty) * TILE_H as f32) as i32)
-}
 }
 
 struct Check { name: &'static str, pass: bool, detail: String }
@@ -64,17 +63,27 @@ fn main() {
     const TICKS: u64 = 500;
     let mut goals: Vec<Check> = vec![];
 
-    // --- GOAL 1: simulation survives TICKS ticks without panicking ---
-    for _ in 0..TICKS { sched.tick(&mut world); }
+    // --- GOAL 1: simulation survives TICKS ticks without panicking.
+    // Tracks, per tick, which villagers' hunger was just reset to full by
+    // SeekFoodSystem (the only place after spawn that sets it to exactly
+    // 100.0), so GOAL 2 below can tell "everyone ate" from "someone ate a
+    // lot" instead of inferring it from the aggregate serving count. ---
+    let mut ate_at_least_once = vec![false; villagers.len()];
+    for _ in 0..TICKS {
+        sched.tick(&mut world);
+        for (i, &v) in villagers.iter().enumerate() {
+            if world.get_component::<Hunger>(v).map(|h| h.value >= 100.0).unwrap_or(false) {
+                ate_at_least_once[i] = true;
+            }
+        }
+    }
     goals.push(Check { name: "survives 500 ticks", pass: true, detail: "no panic".into() });
 
-    // --- GOAL 2: every villager eats at least once (food source depletes
-    // enough for each of them, not just one lucky villager near the start) ---
-    let food_entity = world.query::<FoodSource>().first().copied();
-    let servings = food_entity.and_then(|e| world.get_component::<FoodSource>(e)).map(|f| f.servings);
-    let meals_served = servings.map(|s| 500 - s).unwrap_or(0);
-    let ate = meals_served as usize >= villagers.len();
-    goals.push(Check { name: "every villager eats at least once", pass: ate, detail: format!("{meals_served} meals served, {} villagers", villagers.len()) });
+    // --- GOAL 2: every villager eats at least once (not just some
+    // villagers eating repeatedly while another starves) ---
+    let fed_count = ate_at_least_once.iter().filter(|&&ate| ate).count();
+    let ate = fed_count == villagers.len();
+    goals.push(Check { name: "every villager eats at least once", pass: ate, detail: format!("{fed_count}/{} villagers ate", villagers.len()) });
 
     // --- GOAL 3: a guild emerges from vulnerable merchants ---
     let guild_count = world.query::<Guild>().len();
@@ -105,7 +114,7 @@ fn main() {
     // visual/structural checks (ported from playcheck.rs)
     let mut map_pixels = 0u32; let mut water_pixels = 0u32;
     for y in 0..H { for x in 0..MAP_W {
-        let idx = (y * MAP_W + x) * 4;
+        let idx = (y * W + x) * 4;
         if idx + 2 < buf.pixels.len() {
             let (r, g, b) = (buf.pixels[idx], buf.pixels[idx+1], buf.pixels[idx+2]);
             if r > 50 || g > 50 || b > 50 { map_pixels += 1; }

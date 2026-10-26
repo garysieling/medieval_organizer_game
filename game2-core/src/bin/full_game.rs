@@ -9,7 +9,7 @@ use game2_core::sim::illness::{Health, Disease, Stage};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::religion::{Faith, Congregation, Service};
 use game2_core::sim::economics::{Market, Trader};
-use game2_core::sim::community::{Citizen, Organization, recruit, exert_influence};
+use game2_core::sim::community::{Citizen, Organization, InfluenceSystem, recruit, exert_influence};
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
@@ -22,6 +22,7 @@ fn main() {
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
+    sched.add_system(InfluenceSystem); // pools member influence into the org each tick
 
     let climate = climate::spawn_climate(&mut world);
 

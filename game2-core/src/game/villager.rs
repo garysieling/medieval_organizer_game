@@ -81,6 +81,8 @@ impl System for SeekFoodSystem {
                 if target.is_none() {
                     let mut best: Option<(Entity, f32)> = None;
                     for f in world.query::<FoodSource>() {
+                        let has_food = world.get_component::<FoodSource>(f).map(|fs| fs.servings > 0).unwrap_or(false);
+                        if !has_food { continue; } // skip depleted sources, even if nearest
                         if let Some(fp) = world.get_component::<Pos>(f) {
                             let d = (fp.x - pos.x).abs() + (fp.y - pos.y).abs();
                             if best.map(|(_, bd)| d < bd).unwrap_or(true) {
@@ -100,17 +102,21 @@ impl System for SeekFoodSystem {
                         let dist = dx.abs() + dy.abs();
 
                         if dist <= eat_distance {
-                            // Eat!
-                            activity = Activity::Eating;
-                            if let Some(fs) = world.get_component_mut::<FoodSource>(f) {
-                                if fs.servings > 0 {
-                                    fs.servings -= 1;
-                                    if let Some(h) = world.get_component_mut::<Hunger>(v) {
-                                        h.value = 100.0;
-                                    }
-                                    activity = Activity::Idle;
-                                    target = None;
+                            let served = world.get_component_mut::<FoodSource>(f)
+                                .map(|fs| { if fs.servings > 0 { fs.servings -= 1; true } else { false } })
+                                .unwrap_or(false);
+                            if served {
+                                if let Some(h) = world.get_component_mut::<Hunger>(v) {
+                                    h.value = 100.0;
                                 }
+                                activity = Activity::Idle;
+                                target = None;
+                            } else {
+                                // this source is empty - give up on it and
+                                // look for another next tick, instead of
+                                // getting stuck reporting Eating forever
+                                activity = Activity::SeekingFood;
+                                target = None;
                             }
                         } else {
                             // Step toward food (speed 1 per tick)
@@ -211,6 +217,43 @@ mod tests {
         // Villager should have eaten
         let hunger = world.get_component::<Hunger>(v).unwrap().value;
         assert!(hunger > 50.0, "villager should have eaten, hunger={}", hunger);
+    }
+
+    #[test]
+    fn test_villager_does_not_get_stuck_eating_a_depleted_source() {
+        let mut world = World::new();
+        let v = spawn_villager(&mut world, 0.0, 0.0);
+        spawn_food_source(&mut world, 0.5, 0.0, 0); // already empty, right next to the villager
+        world.get_component_mut::<Hunger>(v).unwrap().value = 10.0;
+
+        let mut sched = Scheduler::new();
+        sched.add_system(SeekFoodSystem);
+        for _ in 0..5 {
+            sched.tick(&mut world);
+        }
+
+        let activity = world.get_component::<Villager>(v).unwrap().activity;
+        assert_ne!(activity, Activity::Eating, "a villager at an empty source never actually ate, so it shouldn't report Eating");
+        let hunger = world.get_component::<Hunger>(v).unwrap().value;
+        assert!(hunger <= 10.0, "hunger should not be falsely reset to 100 by an empty source, got {}", hunger);
+    }
+
+    #[test]
+    fn test_villager_finds_another_source_after_first_is_depleted() {
+        let mut world = World::new();
+        let v = spawn_villager(&mut world, 0.0, 0.0);
+        spawn_food_source(&mut world, 0.5, 0.0, 0);  // empty, nearest
+        spawn_food_source(&mut world, 3.0, 0.0, 5);  // has food, farther away
+        world.get_component_mut::<Hunger>(v).unwrap().value = 10.0;
+
+        let mut sched = Scheduler::new();
+        sched.add_system(SeekFoodSystem);
+        for _ in 0..10 {
+            sched.tick(&mut world);
+        }
+
+        let hunger = world.get_component::<Hunger>(v).unwrap().value;
+        assert!(hunger > 50.0, "villager should give up on the empty source and eat from the other one, hunger={}", hunger);
     }
 
     #[test]

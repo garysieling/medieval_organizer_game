@@ -90,6 +90,7 @@ fn main() {
             println!("{},{:.1},{:.2},{},{},{},{:?},{:.2},{}",
                 tick, hunger_sum / 4.0, health_sum / 4.0,
                 seeking, idle, sick, cl.season, price, stock);
+            telem.set_tick(tick as u64);
             telem.gauge("hunger", (hunger_sum / 4.0) as f64);
             telem.gauge("health", (health_sum / 4.0) as f64);
         }

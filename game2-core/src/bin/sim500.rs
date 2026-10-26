@@ -50,6 +50,7 @@ fn main() {
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let mult = climate_multiplier(cl, "food");
             println!("{},{:.1},{},{},{},{:?},{:.2}", tick, avg, seeking, eating, idle, cl.season, mult);
+            telem.set_tick(tick as u64);
             telem.gauge("avg_hunger", avg as f64);
             telem.gauge("food_mult", mult as f64);
         }

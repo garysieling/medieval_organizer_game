@@ -74,6 +74,7 @@ fn main() {
             }
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             println!("{},{:.1},{:.2},{},{},{:?},{:.2}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"));
+            telem.set_tick(tick as u64);
             telem.gauge("hunger", hunger as f64);
             telem.gauge("health", health as f64);
         }

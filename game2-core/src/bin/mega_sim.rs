@@ -31,6 +31,9 @@ fn main() {
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
         villagers.push(v);
     }
+    // Shared food store in the middle of the row - without it SeekFoodSystem
+    // has nothing to target and every villager starves by tick ~100
+    villager::spawn_food_source(&mut world, 6.0, 0.0, 500);
 
     // Pets
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);

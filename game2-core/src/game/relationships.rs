@@ -114,6 +114,10 @@ pub fn infer_kind(r: &Relationship) -> RelKind {
     if matches!(r.kind, RelKind::Family | RelKind::Lover | RelKind::Mentor | RelKind::Apprentice) {
         return r.kind;
     }
+    if r.interactions == 0 {
+        // Untouched pairs stay Stranger; neutral strength alone shouldn't age into Acquaintance.
+        return RelKind::Stranger;
+    }
     if r.strength > 0.6 {
         match r.interactions {
             0..=5 => RelKind::Acquaintance,
@@ -129,6 +133,7 @@ pub fn infer_kind(r: &Relationship) -> RelKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::ecs::System;
 
     #[test]
     fn record_interaction_creates_a_relationship() {
@@ -240,5 +245,25 @@ mod tests {
         let r = world.get_component::<Relationship>(e).unwrap();
         assert!(r.strength > -0.3, "strength should have decayed back above the rivalry threshold");
         assert_ne!(r.kind, RelKind::Rival, "kind should be re-inferred once strength decays out of rivalry range");
+    }
+
+    #[test]
+    fn untouched_stranger_stays_a_stranger_through_decay_ticks() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let e = world.create_entity();
+        world.add_component(e, Relationship {
+            from: a, other: b, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
+        });
+
+        let mut system = RelationshipSystem;
+        for _ in 0..5 {
+            system.run(&mut world);
+        }
+
+        let r = world.get_component::<Relationship>(e).unwrap();
+        assert_eq!(r.interactions, 0);
+        assert_eq!(r.kind, RelKind::Stranger, "a pair with zero interactions should not age into Acquaintance on its own");
     }
 }

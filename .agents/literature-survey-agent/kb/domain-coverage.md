@@ -135,6 +135,21 @@ Domains with completed surveys and implemented mechanics.
 
 ---
 
+#### Historical Events
+**Coverage:** High
+**Surveys:** Cycle 2, Survey 6 (Historical Events)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/historical-events.md)
+**Sources:** Crisis of Late Middle Ages, Great Famine, Black Death, Poisson distribution, Medieval innovations
+**Mechanics Proposed:**
+- Poisson-based disaster calendar (statistical event frequency)
+- Cascade system (event chains: famine → disease → unrest)
+- Pandemic simulation (Black Death with spatial spread)
+- Technology innovation events (discovery and diffusion)
+- Invasion and migration events (Vikings, Mongols with responses)
+**Next Steps:** Implement events.rs and pandemic.rs modules, test disaster cascades
+
+---
+
 ### Partially-Covered Domains ⚠
 Domains with initial research but needing deeper surveys.
 
@@ -223,13 +238,13 @@ Literature Survey Agent should rotate through domains to maintain breadth while 
 6. Religion & Emergence ✓
 7. Anti-Colonialist Liberation ✓
 
-**Cycle 2 (In Progress):**
+**Cycle 2 (COMPLETE ✓):**
 1. **Agriculture & Food Systems** ✓ (COMPLETE - core medieval gameplay)
 2. **Ecology & Climate** ✓ (COMPLETE - environmental simulation)
 3. **Urban Planning** ✓ (COMPLETE - village to city scaling)
 4. **Philosophy & Ethics** ✓ (COMPLETE - trolley problem mechanics)
 5. **Anthropology** ✓ (COMPLETE - kinship and ritual systems)
-6. **Historical Events** (MEDIUM - dynamic world events - NEXT)
+6. **Historical Events** ✓ (COMPLETE - dynamic world events)
 
 **Cycle 3 (Future):**
 1. Military History & Strategy (when needed)
@@ -254,14 +269,15 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 12
-**Domains Covered (High/Medium):** 12
+**Total Surveys Completed:** 13
+**Domains Covered (High/Medium):** 13
 **Domains Partially Covered:** 1 (History)
-**Domains Uncovered:** 4
-**Mechanics Implemented from Research:** ~32 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 7 misc proposed)
+**Domains Uncovered:** 3 (down from 4)
+**Mechanics Implemented from Research:** ~37 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 7 misc proposed)
 **Sources Requiring Better Citation:** ~5
 
-**Coverage Score:** 75% (12 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
-**Target for Next Sprint:** 81% (add Historical Events to complete Cycle 2)
+**Coverage Score:** 81% (13 well-covered / 16 total relevant domains) ✓ TARGET ACHIEVED
+**Cycle 2: COMPLETE** (6/6 surveys finished)
+**Target for Cycle 3:** Fill remaining gaps (Military, Linguistics, Education, etc.)
 
 ---

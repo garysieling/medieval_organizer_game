@@ -257,3 +257,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** anthropology, kinship, rites-of-passage, ritual, cultural-transmission, medieval-family, marriage-alliances, descent-systems, liminality
 
 ---
+
+### Cycle 2, Survey 6: Historical Events
+**Date Completed:** 2026-10-25
+**Domain:** Medieval History, Disaster Modeling, Event Simulation, Crisis Management
+**Output:** wiki/literature-reviews/historical-events.md
+**Yield:**
+- Poisson-based disaster calendar (statistical event frequency modeling)
+- Cascade system (event chains like famine → disease → unrest)
+- Pandemic simulation (Black Death-style with spatial spread)
+- Technology innovation events (windmills, mechanical clocks via discovery)
+- Invasion and migration events (Vikings, Mongols with player responses)
+
+**Key Sources:**
+- Crisis of the Late Middle Ages (Great Famine, Black Death) - A+
+- The Great Famine (1315-1317) historical data - A
+- The Black Death (1347-1351) mortality 30-60% - A+
+- Medieval migrations (Vikings, Mongols) - A
+- Medieval technological innovations (three-field, windmills) - A
+- Poisson distribution for rare disaster modeling - A+
+- Random event mechanics in games (Crusader Kings II, Oregon Trail) - B+
+
+**Confidence:** High
+**Tags:** historical-events, disasters, black-death, great-famine, poisson-process, cascades, pandemics, invasions, medieval-crisis, technological-innovation
+
+---

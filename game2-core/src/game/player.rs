@@ -63,12 +63,15 @@ pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entit
 }
 
 /// Player invests resources
+/// All 100 starting gold buys +0.5 influence; investing alone can't win.
+pub const INVEST_INFLUENCE_PER_GOLD: f32 = 0.005;
+
 pub fn act_invest(world: &mut World, player: Entity, amount: f32) -> ActionResult {
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
         if p.resources >= amount {
             p.resources -= amount;
-            p.influence += amount * 0.05;
-            return ActionResult { success: true, influence_change: amount * 0.05, description: format!("Invested {:.0} gold", amount) };
+            p.influence += amount * INVEST_INFLUENCE_PER_GOLD;
+            return ActionResult { success: true, influence_change: amount * INVEST_INFLUENCE_PER_GOLD, description: format!("Invested {:.0} gold", amount) };
         }
     }
     ActionResult { success: false, influence_change: 0.0, description: "Not enough resources".into() }

@@ -74,6 +74,7 @@ const TOOLTIPS: [&str; 6] = [
 ];
 
 /// Every sprite the game draws, loaded once up front
+#[derive(Default)]
 struct Art {
     villager_sprites: Vec<Sprite>,
     house_s: Option<Sprite>,
@@ -149,6 +150,7 @@ struct Game<'a> {
     climate: Entity,
     villagers: Vec<Entity>,
     rivals: Vec<Entity>,
+    rival_homes: Vec<(f32, f32)>, // where each rival lives, across the river
     player: Entity,
     org: Entity,
     dog: Entity,
@@ -227,12 +229,17 @@ impl<'a> Game<'a> {
             world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
         }
 
-        // rival village: foreign settlement across the river
+        // rival village: foreign settlement across the river, with its own
+        // granary so its people eat at home instead of crossing to our market
+        villager::spawn_food_source(&mut world, 30.0, 13.0, 500);
         let mut rivals = vec![];
+        let mut rival_homes = vec![];
         for i in 0..3 {
-            let r = villager::spawn_villager(&mut world, (28.0 + i as f32 * 2.0), (12.0 + (i % 2) as f32 * 3.0));
+            let home = (28.0 + i as f32 * 2.0, 12.0 + (i % 2) as f32 * 3.0);
+            let r = villager::spawn_villager(&mut world, home.0, home.1);
             world.add_component(r, Health { condition: 0.9, immunity: 0.5 });
             rivals.push(r);
+            rival_homes.push(home);
         }
 
         let player = world.create_entity();
@@ -253,7 +260,7 @@ impl<'a> Game<'a> {
         ];
 
         Game {
-            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, buildings, buttons,
+            art, world, sched, terrain, climate, villagers, rivals, rival_homes, player, org, dog, buildings, buttons,
             built_count: 0,
             zoom: 1.0,
             toasts: vec![],
@@ -344,6 +351,22 @@ impl<'a> Game<'a> {
                         else if wob < 3.0 { p.x -= step; } else if wob < 4.0 { p.y -= step; }
                         p.x = p.x.clamp(2.0, 30.0);
                         p.y = p.y.clamp(2.0, 30.0);
+                    }
+                }
+            }
+        }
+
+        // rivals keep to their own village: idle drift is a random walk, so
+        // without a pull home they'd wander across the river into ours
+        if !self.paused {
+            for (r, (hx, hy)) in self.rivals.iter().zip(&self.rival_homes) {
+                if let Some(p) = world.get_component_mut::<Pos>(*r) {
+                    let (dx, dy) = (hx - p.x, hy - p.y);
+                    let d = (dx * dx + dy * dy).sqrt();
+                    if d > 3.0 {
+                        let step = 0.6 / ticks_per_frame as f32; // as fast as villagers stroll
+                        p.x += dx / d * step;
+                        p.y += dy / d * step;
                     }
                 }
             }
@@ -935,4 +958,20 @@ fn run_headless(art: &Art, target_tick: u64) {
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
     buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
     println!("frame {} saved", target_tick);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rivals_stay_in_their_own_village() {
+        let art = Art::default(); // no sprites needed to run the game, only to draw it
+        let mut game = Game::new(&art);
+        while game.tick < 600 { game.update(); }
+        for (i, r) in game.rivals.iter().enumerate() {
+            let p = game.world.get_component::<Pos>(*r).unwrap();
+            assert!(p.x >= 24.0, "{} wandered into our village at ({:.1},{:.1})", RIVAL_NAMES[i], p.x, p.y);
+        }
+    }
 }

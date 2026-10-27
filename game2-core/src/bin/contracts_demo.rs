@@ -33,11 +33,8 @@ fn main() {
     let status = world.get_component::<Contract>(contract).unwrap().status;
     println!("contract status: {:?}", status);
 
-    // Miller's reputation takes the hit
-    let m = world.get_component_mut::<Reputation>(miller).unwrap();
-    m.contracts_breached += 1;
-    m.trust_score -= 0.3;
-    let m_rep = m.trust_score;
+    // Miller's reputation takes the hit (breach applies the penalty)
+    let m_rep = world.get_component::<Reputation>(miller).unwrap().trust_score;
     let b_rep = world.get_component::<Reputation>(baker).unwrap().trust_score;
     println!("\nmiller reputation: {:.2} (breached {} contracts)", m_rep,
         world.get_component::<Reputation>(miller).unwrap().contracts_breached);

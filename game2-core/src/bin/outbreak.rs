@@ -26,6 +26,7 @@ fn main() {
         known_herbs: vec!["willow_bark".into(), "yarrow".into()], remedies: vec![], skill: 0.7,
     });
     let willow = herbology::spawn_herb(&mut world, "willow_bark", 0.6, HerbEffect::PainRelief, PrepMethod::Tea);
+    let yarrow = herbology::spawn_herb(&mut world, "yarrow", 0.5, HerbEffect::Healing, PrepMethod::Poultice);
 
     // Patient zero gets flu at tick 0
     let flu = world.create_entity();
@@ -56,9 +57,14 @@ fn main() {
         // Herbalist treats sick villagers at tick 20+
         if tick == 20 {
             println!("\n  Apothecary starts treating the sick (willow bark + yarrow)\n");
-            for v in &infected {
-                // A fresh brew per patient; practice sharpens the apothecary
-                let Some(remedy) = herbology::prepare_remedy(&mut world, apothecary, willow, PrepMethod::Tea) else { continue };
+            for (i, v) in infected.iter().enumerate() {
+                // Alternate remedies per patient; practice sharpens the apothecary regardless
+                let (herb, method) = if i % 2 == 0 {
+                    (willow, PrepMethod::Tea)
+                } else {
+                    (yarrow, PrepMethod::Poultice)
+                };
+                let Some(remedy) = herbology::prepare_remedy(&mut world, apothecary, herb, method) else { continue };
                 if let Some(h) = world.get_component_mut::<Health>(*v) {
                     treat_health(h, &remedy);
                 }

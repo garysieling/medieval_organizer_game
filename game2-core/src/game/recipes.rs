@@ -20,6 +20,20 @@ impl Recipe {
         }
         None
     }
+
+    /// Make the output once: use the first input option the stock can
+    /// cover, take those inputs out of it, and add the output. Returns
+    /// which option was used, or None (stock untouched) if none fits.
+    pub fn craft(&self, stock: &mut std::collections::HashMap<String, u32>) -> Option<usize> {
+        let i = self.can_make(stock)?;
+        for (g, q) in &self.input_options[i] {
+            // can_make treats a missing good as 0, so a zero-quantity input may be absent
+            if let Some(have) = stock.get_mut(g) { *have -= q; }
+        }
+        let (out, qty) = &self.output;
+        *stock.entry(out.clone()).or_insert(0) += qty;
+        Some(i)
+    }
 }
 
 /// Printmaking recipes (detailed sim per Gary's interest)
@@ -55,5 +69,34 @@ mod tests {
         stock.insert("ink".into(), 1);
         stock.insert("vellum".into(), 1); // no papyrus, but vellum works
         assert_eq!(r.can_make(&stock), Some(1)); // used option 2
+    }
+
+    #[test]
+    fn test_craft_consumes_inputs_and_adds_output() {
+        let r = &printmaking_recipes()[1];
+        let mut stock = std::collections::HashMap::new();
+        stock.insert("woodblock".into(), 1);
+        stock.insert("ink".into(), 3);
+        stock.insert("paper".into(), 7);
+        assert_eq!(r.craft(&mut stock), Some(0));
+        assert_eq!(stock["print"], 5);
+        assert_eq!(stock["ink"], 1);
+        assert_eq!(stock["paper"], 2);
+        assert_eq!(stock["woodblock"], 0);
+        // The block is used up, so a second print run can't happen
+        assert_eq!(r.craft(&mut stock), None);
+        assert_eq!(stock["print"], 5, "a failed craft leaves stock untouched");
+    }
+
+    #[test]
+    fn test_craft_falls_back_to_alternative_inputs() {
+        let r = &printmaking_recipes()[0];
+        let mut stock: std::collections::HashMap<String, u32> =
+            [("quill", 2), ("ink", 2), ("papyrus", 1), ("vellum", 1)]
+                .into_iter().map(|(g, q)| (g.to_string(), q)).collect();
+        assert_eq!(r.craft(&mut stock), Some(0)); // papyrus first
+        assert_eq!(r.craft(&mut stock), Some(1)); // out of papyrus: vellum
+        assert_eq!(stock["document"], 2);
+        assert_eq!(r.craft(&mut stock), None); // out of quills
     }
 }

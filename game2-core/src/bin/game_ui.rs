@@ -9,7 +9,7 @@ use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, recruit_influence_needed};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, recruit_influence_needed, RECRUIT_INFLUENCE};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
@@ -1098,6 +1098,12 @@ impl<'a> Game<'a> {
             .filter(|v| self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(v)).unwrap_or(false))
             .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i]))
             .collect();
+        // a member won at a meeting counts toward leading the village just
+        // like one won with Recruit - otherwise every meeting recruit is
+        // influence the player can never get back (they can't be Recruited)
+        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) {
+            p.influence += RECRUIT_INFLUENCE * joined.len() as f32;
+        }
         let outcome = if joined.is_empty() {
             "No one joins yet, but they'll remember the conversation.".to_string()
         } else {
@@ -1267,6 +1273,42 @@ mod key_tests {
             assert_eq!(format!("{:?}", key), ch.to_string(), "{}: hint {} doesn't match key {:?}", b.label, ch, key);
             assert!(!MOVE_KEYS.contains(ch), "{} uses {}, which moves the player", b.label, ch);
         }
+    }
+}
+
+#[cfg(test)]
+mod progression_tests {
+    use super::*;
+
+    fn influence(game: &Game) -> f32 {
+        game.world.get_component::<PlayerCharacter>(game.player).unwrap().influence
+    }
+
+    /// Walk to each villager, hear them out, then win them over at house
+    /// meetings instead of with Recruit; finally invest the gold.
+    #[test]
+    fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        for i in 0..game.villagers.len() {
+            let v = game.villagers[i];
+            let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
+            { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy; }
+            game.selected_target = i;
+            for _ in 0..8 { game.act(0); } // talk until there's nothing new to hear
+            for _ in 0..40 {
+                if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) { break; }
+                game.act(3);
+            }
+            assert!(game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v),
+                "{} never joined at a meeting", NAMES[i]);
+        }
+        while game.disabled_reason(2).is_none()
+            && game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources >= 10.0 {
+            game.act(2);
+        }
+        assert!(influence(&game) > WIN_INFLUENCE,
+            "everyone joined and all gold invested, yet influence is only {:.2} (win at {})", influence(&game), WIN_INFLUENCE);
     }
 }
 

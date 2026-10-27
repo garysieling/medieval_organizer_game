@@ -23,6 +23,7 @@ fn main() {
     // All systems in order
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
+    sched.add_system(villager::NourishmentSystem); // starving hurts; eating well mends
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(IllnessSystem);

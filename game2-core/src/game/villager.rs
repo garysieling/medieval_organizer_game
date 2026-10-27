@@ -244,6 +244,44 @@ pub fn servings_grown(world: &World) -> u32 {
         .sum()
 }
 
+/// A market stall: a food source stocked from a market. Each tick it takes
+/// every unit of `good` the market holds and puts it out as servings, so
+/// what workers make (e.g. bakers' bread) becomes meals villagers can eat
+#[derive(Debug)]
+pub struct Stall {
+    pub market: Entity,
+    pub good: String,
+}
+
+/// Spawn an empty stall selling `good` from `market`
+pub fn spawn_stall(world: &mut World, x: f32, y: f32, market: Entity, good: &str) -> Entity {
+    let e = spawn_food_source(world, x, y, 0);
+    world.add_component(e, Stall { market, good: good.to_string() });
+    e
+}
+
+/// System: stalls take their good off the market and serve it
+pub struct StallSystem;
+impl System for StallSystem {
+    fn run(&mut self, world: &mut World) {
+        use crate::sim::economics::Market;
+        for e in world.query::<Stall>() {
+            let (market, good) = match world.get_component::<Stall>(e) {
+                Some(s) => (s.market, s.good.clone()),
+                None => continue,
+            };
+            let stock = world.get_component_mut::<Market>(market)
+                .and_then(|m| m.supply.get_mut(&good))
+                .map(|q| std::mem::take(q))
+                .unwrap_or(0);
+            if stock == 0 { continue; }
+            if let Some(f) = world.get_component_mut::<FoodSource>(e) {
+                f.servings += stock;
+            }
+        }
+    }
+}
+
 /// Servings left across every food source; the drop between two readings
 /// (plus anything grown in between) is how many meals were eaten
 pub fn servings_left(world: &World) -> u32 {
@@ -256,6 +294,32 @@ pub fn servings_left(world: &World) -> u32 {
 mod tests {
     use super::*;
     use crate::engine::ecs::Scheduler;
+
+    #[test]
+    fn test_stall_serves_market_bread() {
+        use crate::sim::economics::Market;
+        let mut w = World::new();
+        let m = w.create_entity();
+        w.add_component(m, Market::default());
+        let stall = spawn_stall(&mut w, 0.0, 0.0, m, "bread");
+        StallSystem.run(&mut w);
+        assert_eq!(w.get_component::<FoodSource>(stall).unwrap().servings, 0);
+        w.get_component_mut::<Market>(m).unwrap().add_supply("bread", 3);
+        w.get_component_mut::<Market>(m).unwrap().add_supply("wheat", 5);
+        StallSystem.run(&mut w);
+        assert_eq!(w.get_component::<FoodSource>(stall).unwrap().servings, 3);
+        let mkt = w.get_component::<Market>(m).unwrap();
+        assert_eq!(mkt.supply["bread"], 0, "bread moves off the market onto the stall");
+        assert_eq!(mkt.supply["wheat"], 5, "only the stall's own good is taken");
+
+        // A hungry villager eats there
+        let v = spawn_villager(&mut w, 0.0, 0.0);
+        w.get_component_mut::<Hunger>(v).unwrap().value = 10.0;
+        SeekFoodSystem.run(&mut w);
+        SeekFoodSystem.run(&mut w);
+        assert_eq!(w.get_component::<Hunger>(v).unwrap().value, 100.0);
+        assert_eq!(w.get_component::<FoodSource>(stall).unwrap().servings, 2);
+    }
 
     fn harvest_field(world: &mut World, field: Entity) {
         world.get_component_mut::<FoodSource>(field).unwrap().servings = 0;

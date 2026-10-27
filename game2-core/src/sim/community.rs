@@ -70,13 +70,24 @@ impl crate::engine::ecs::System for InfluenceSystem {
     }
 }
 
-/// System: 1-1s deepen relationships
+/// System: 1-1s deepen relationships. A OneOnOne on an entity is a
+/// conversation it has this tick with `with`; the system records it as a
+/// conversation whose intensity is how deep it went, then clears it (the
+/// meeting is over), so a personal 1-1 builds more trust than small talk.
 pub struct OneOnOneSystem;
 impl crate::engine::ecs::System for OneOnOneSystem {
     fn run(&mut self, world: &mut World) {
+        use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
         for e in world.query::<OneOnOne>() {
-            // Deep conversations build trust (emergent relationship)
-            let _ = e;
+            let (with, depth) = match world.get_component::<OneOnOne>(e) {
+                Some(m) => (m.with, m.depth),
+                None => continue,
+            };
+            world.remove_component::<OneOnOne>(e);
+            if with == e { continue; } // no 1-1 with yourself
+            record_interaction(world, e, Interaction {
+                other: with, kind: InteractionKind::Conversation, intensity: depth,
+            });
         }
     }
 }
@@ -199,5 +210,26 @@ mod tests {
         let o = guild_with_power(&mut w, 0, 0.5);
         exert_influence(&mut w, o, "village");
         assert!(w.get_component::<OrganizedPower>(o).unwrap().capacity < 0.5, "acting alone should burn power");
+    }
+
+    #[test]
+    fn test_one_on_one_builds_trust_by_depth_then_ends() {
+        use crate::engine::ecs::System;
+        use crate::game::relationships::{find_relationship, Relationship};
+        let mut w = World::new();
+        let organizer = w.create_entity();
+        let (deep, shallow) = (w.create_entity(), w.create_entity());
+        let strength = |w: &World, other| find_relationship(w, organizer, other)
+            .and_then(|r| w.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+
+        w.add_component(organizer, OneOnOne { with: deep, depth: 1.0 });
+        OneOnOneSystem.run(&mut w);
+        assert!(w.get_component::<OneOnOne>(organizer).is_none(), "the meeting is over");
+        OneOnOneSystem.run(&mut w); // nothing pending: no double count
+        w.add_component(organizer, OneOnOne { with: shallow, depth: 0.2 });
+        OneOnOneSystem.run(&mut w);
+
+        assert!((strength(&w, deep) - 0.05).abs() < 1e-6);
+        assert!(strength(&w, shallow) < strength(&w, deep), "a deeper 1-1 builds more trust");
     }
 }

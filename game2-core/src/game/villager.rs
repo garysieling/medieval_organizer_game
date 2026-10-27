@@ -189,8 +189,63 @@ pub fn spawn_food_source(world: &mut World, x: f32, y: f32, servings: u32) -> En
     e
 }
 
+/// A food source that regrows: it ripens `growth` servings per tick in a
+/// normal season, scaled by the climate (lean winters, climate drift), up
+/// to `capacity`
+#[derive(Debug)]
+pub struct Crop {
+    pub capacity: u32,
+    pub growth: f32,   // servings per tick at a climate multiplier of 1.0
+    pub progress: f32, // fraction of the next serving ripened so far
+    pub grown: u32,    // total servings this crop has produced
+}
+
+/// Spawn a crop field: a food source that starts full and regrows
+pub fn spawn_crop_field(world: &mut World, x: f32, y: f32, capacity: u32, growth: f32) -> Entity {
+    let e = spawn_food_source(world, x, y, capacity);
+    world.add_component(e, Crop { capacity, growth, progress: 0.0, grown: 0 });
+    e
+}
+
+/// System: crops ripen at a rate set by the season and the climate; with no
+/// climate in the world they grow at their base rate
+pub struct CropGrowthSystem;
+impl System for CropGrowthSystem {
+    fn run(&mut self, world: &mut World) {
+        use crate::sim::climate::{climate_multiplier, Climate};
+        let mult = world.query::<Climate>().first()
+            .and_then(|c| world.get_component::<Climate>(*c))
+            .map(|c| climate_multiplier(c, "food"))
+            .unwrap_or(1.0);
+        for e in world.query::<Crop>() {
+            let servings = world.get_component::<FoodSource>(e).map(|f| f.servings).unwrap_or(0);
+            let Some(crop) = world.get_component_mut::<Crop>(e) else { continue };
+            if servings >= crop.capacity {
+                crop.progress = 0.0; // a full field doesn't stockpile
+                continue;
+            }
+            crop.progress += crop.growth * mult;
+            let ripe = crop.progress.floor() as u32;
+            if ripe == 0 { continue; }
+            let ripe = ripe.min(crop.capacity - servings);
+            crop.progress -= ripe as f32;
+            crop.grown += ripe;
+            if let Some(f) = world.get_component_mut::<FoodSource>(e) {
+                f.servings += ripe;
+            }
+        }
+    }
+}
+
+/// Total servings every crop has produced so far
+pub fn servings_grown(world: &World) -> u32 {
+    world.query::<Crop>().iter()
+        .filter_map(|c| world.get_component::<Crop>(*c).map(|c| c.grown))
+        .sum()
+}
+
 /// Servings left across every food source; the drop between two readings
-/// is how many meals were eaten in between
+/// (plus anything grown in between) is how many meals were eaten
 pub fn servings_left(world: &World) -> u32 {
     world.query::<FoodSource>().iter()
         .filter_map(|f| world.get_component::<FoodSource>(*f).map(|fs| fs.servings))
@@ -201,6 +256,46 @@ pub fn servings_left(world: &World) -> u32 {
 mod tests {
     use super::*;
     use crate::engine::ecs::Scheduler;
+
+    fn harvest_field(world: &mut World, field: Entity) {
+        world.get_component_mut::<FoodSource>(field).unwrap().servings = 0;
+    }
+
+    #[test]
+    fn test_crop_regrows_up_to_capacity() {
+        let mut world = World::new();
+        let field = spawn_crop_field(&mut world, 0.0, 0.0, 5, 0.5);
+        harvest_field(&mut world, field);
+        for _ in 0..4 { CropGrowthSystem.run(&mut world); }
+        assert_eq!(world.get_component::<FoodSource>(field).unwrap().servings, 2);
+        for _ in 0..100 { CropGrowthSystem.run(&mut world); }
+        assert_eq!(world.get_component::<FoodSource>(field).unwrap().servings, 5, "a field tops out at capacity");
+        assert_eq!(servings_grown(&world), 5);
+    }
+
+    #[test]
+    fn test_winter_crops_grow_slower_than_spring() {
+        use crate::sim::climate::{self, Climate, Season};
+        let grown_in = |season: Season| {
+            let mut world = World::new();
+            let c = climate::spawn_climate(&mut world);
+            world.get_component_mut::<Climate>(c).unwrap().season = season;
+            let field = spawn_crop_field(&mut world, 0.0, 0.0, 100, 0.5);
+            harvest_field(&mut world, field);
+            for _ in 0..40 { CropGrowthSystem.run(&mut world); }
+            servings_grown(&world)
+        };
+        assert!(grown_in(Season::Winter) < grown_in(Season::Spring), "winter should be leaner");
+    }
+
+    #[test]
+    fn test_plain_food_source_does_not_regrow() {
+        let mut world = World::new();
+        let store = spawn_food_source(&mut world, 0.0, 0.0, 3);
+        harvest_field(&mut world, store);
+        for _ in 0..50 { CropGrowthSystem.run(&mut world); }
+        assert_eq!(world.get_component::<FoodSource>(store).unwrap().servings, 0);
+    }
 
     #[test]
     fn test_servings_left_drops_by_meals_eaten() {

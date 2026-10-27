@@ -6,6 +6,11 @@ use game2_core::game::villager::{self, Hunger, Villager, Activity};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::infra::telemetry::Telemetry;
 
+/// Servings each field holds when full
+const FIELD_CAPACITY: u32 = 2;
+/// Servings each field ripens per tick in a normal season
+const FIELD_GROWTH: f32 = 0.028;
+
 fn main() {
     println!("=== 500-TURN SIMULATION ===\n");
 
@@ -15,14 +20,16 @@ fn main() {
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(SeasonSystem);
+    sched.add_system(villager::CropGrowthSystem);
 
-    // Spawn a village: 5 villagers, 3 food sources
+    // Spawn a village: 5 villagers, 3 crop fields that regrow with the
+    // seasons - enough in spring and summer, lean in winter
     let mut villagers = vec![];
     for i in 0..5 {
         villagers.push(villager::spawn_villager(&mut world, (i * 2) as f32, 0.0));
     }
     for i in 0..3 {
-        villager::spawn_food_source(&mut world, (i * 5) as f32, 8.0, 100);
+        villager::spawn_crop_field(&mut world, (i * 5) as f32, 8.0, FIELD_CAPACITY, FIELD_GROWTH);
     }
     let climate = climate::spawn_climate(&mut world);
 
@@ -30,11 +37,18 @@ fn main() {
     // so count meals as servings consumed since the last sample instead of
     // looking for villagers caught mid-meal
     let mut last_servings = villager::servings_left(&world);
-    println!("tick,avg_hunger,seeking,meals,idle,season,food_mult");
+    let mut last_grown = villager::servings_grown(&world);
+    // villager-ticks spent going hungry since the last sample - shortages
+    // between samples would otherwise be invisible
+    let mut hungry_ticks = 0;
+    println!("tick,avg_hunger,seeking,meals,idle,season,food_mult,food_stock,hungry_ticks");
     for tick in 0..500 {
         let s = telem.span("tick");
         sched.tick(&mut world);
         telem.end_span(s);
+        hungry_ticks += villagers.iter()
+            .filter(|v| world.get_component::<Hunger>(**v).map(|h| h.value < 30.0).unwrap_or(false))
+            .count();
 
         if tick % 50 == 0 {
             // Gather metrics
@@ -49,13 +63,14 @@ fn main() {
                     }
                 }
             }
-            let servings = villager::servings_left(&world);
-            let meals = last_servings.saturating_sub(servings); // restocking would otherwise underflow
-            last_servings = servings;
+            let (servings, grown) = (villager::servings_left(&world), villager::servings_grown(&world));
+            let meals = (last_servings + grown - last_grown).saturating_sub(servings);
+            (last_servings, last_grown) = (servings, grown);
             let avg = hunger_sum / villagers.len() as f32;
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let mult = climate_multiplier(cl, "food");
-            println!("{},{:.1},{},{},{},{:?},{:.2}", tick, avg, seeking, meals, idle, cl.season, mult);
+            println!("{},{:.1},{},{},{},{:?},{:.2},{},{}", tick, avg, seeking, meals, idle, cl.season, mult, servings, hungry_ticks);
+            hungry_ticks = 0;
             telem.set_tick(tick as u64);
             telem.gauge("avg_hunger", avg as f64);
             telem.gauge("food_mult", mult as f64);

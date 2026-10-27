@@ -1244,40 +1244,6 @@ mod rain_tests {
 }
 
 #[cfg(test)]
-mod organize_tests {
-    use super::*;
-    use game2_core::game::relationships::RelKind;
-
-    #[test]
-    fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
-        let art = Art::default();
-        let mut game = Game::new(&art);
-        let (eliza, bram, corvin) = (game.villagers[1], game.villagers[2], game.villagers[3]);
-        // the player stands among Eliza and Bram; Corvin is far away
-        game.world.get_component_mut::<Pos>(game.player).unwrap().x = 16.0;
-        game.world.get_component_mut::<Pos>(game.player).unwrap().y = 16.0;
-        let (aldric, dagny) = (game.villagers[0], game.villagers[4]);
-        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0), (aldric, 2.0, 4.0), (dagny, 4.0, 2.0)] {
-            let p = game.world.get_component_mut::<Pos>(v).unwrap();
-            p.x = x; p.y = y;
-        }
-        // Eliza already trusts the player; Bram is a stranger
-        let rel = game.world.create_entity();
-        game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
-
-        assert_eq!(game.disabled_reason(3), None, "a house meeting needs someone nearby, not the selected villager");
-        game.act(3);
-
-        let members = game.world.get_component::<Organization>(game.org).unwrap().members.clone();
-        assert_eq!(members, vec![eliza], "the trusted neighbour joins; the stranger and the absent don't");
-        let last = game.log.last().unwrap();
-        assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
-        assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
-        assert!(relationships::find_relationship(&game.world, game.player, corvin).is_none(), "Corvin wasn't there");
-    }
-}
-
-#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -1564,5 +1530,39 @@ mod real_frame_tests {
                 .count();
             assert!(hud_text > 40, "day {}: HUD text missing ({} white px)", day, hud_text);
         }
+    }
+}
+
+#[cfg(test)]
+mod organize_tests {
+    use super::*;
+    use game2_core::game::relationships::RelKind;
+
+    #[test]
+    fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let (eliza, bram, corvin) = (game.villagers[1], game.villagers[2], game.villagers[3]);
+        // the player stands among Eliza and Bram; Corvin is far away
+        game.world.get_component_mut::<Pos>(game.player).unwrap().x = 16.0;
+        game.world.get_component_mut::<Pos>(game.player).unwrap().y = 16.0;
+        let (aldric, dagny) = (game.villagers[0], game.villagers[4]);
+        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0), (aldric, 2.0, 4.0), (dagny, 4.0, 2.0)] {
+            let p = game.world.get_component_mut::<Pos>(v).unwrap();
+            p.x = x; p.y = y;
+        }
+        // Eliza already trusts the player; Bram is a stranger
+        let rel = game.world.create_entity();
+        game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+
+        assert_eq!(game.disabled_reason(3), None, "a house meeting needs someone nearby, not the selected villager");
+        game.act(3);
+
+        let members = game.world.get_component::<Organization>(game.org).unwrap().members.clone();
+        assert_eq!(members, vec![eliza], "the trusted neighbour joins; the stranger and the absent don't");
+        let last = game.log.last().unwrap();
+        assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
+        assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
+        assert!(relationships::find_relationship(&game.world, game.player, corvin).is_none(), "Corvin wasn't there");
     }
 }

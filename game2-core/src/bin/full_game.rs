@@ -7,7 +7,7 @@ use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::illness::{Health, Disease, Stage};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
-use game2_core::sim::religion::{Faith, Congregation, Service};
+use game2_core::sim::religion::{self, Faith, Congregation, Service, DevotionSystem};
 use game2_core::sim::economics::{Market, Trader};
 use game2_core::sim::community::{Citizen, Organization, InfluenceSystem, recruit, influence};
 use game2_core::sim::organized_power::{OrganizedPower, PowerAtrophySystem};
@@ -26,6 +26,7 @@ fn main() {
     sched.add_system(SeasonSystem);
     sched.add_system(InfluenceSystem); // pools member influence into the org each tick
     sched.add_system(PowerAtrophySystem); // organized power fades when the guild sits idle
+    sched.add_system(DevotionSystem); // faith lapses a little each day without practice
 
     let climate = climate::spawn_climate(&mut world);
     // shared food store in the middle of the villager row, so hunger cycles
@@ -66,6 +67,12 @@ fn main() {
         }
     }
 
+    // The whole village keeps the Old Faith's harvest rite together
+    let church = world.create_entity();
+    world.add_component(church, Congregation {
+        name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![],
+    });
+
     // Market
     let market = world.create_entity();
     world.add_component(market, Market {
@@ -75,7 +82,7 @@ fn main() {
     });
 
     println!("\nRunning 200 ticks: the guild organizes until tick 100, then goes quiet...\n");
-    println!("tick,hunger,health,org_influence,org_power,dog_bond,season\n");
+    println!("tick,hunger,health,org_influence,org_power,dog_bond,season,devotion\n");
     for tick in 0..200 {
         sched.tick(&mut world);
 
@@ -90,6 +97,18 @@ fn main() {
             println!("EVENT: the guild stops meeting");
         }
 
+        // Weekly harvest rite: whoever isn't going hungry attends, deepening
+        // their faith (which otherwise lapses) and their bonds with each other
+        if tick % 7 == 0 {
+            let participants: Vec<_> = villagers.iter().copied()
+                .filter(|v| world.get_component::<Hunger>(*v).map(|h| h.value >= 30.0).unwrap_or(true))
+                .collect();
+            religion::perform_service(&mut world, church, Service {
+                name: "harvest_rite".into(), frequency: "weekly".into(),
+                participants, cohesion_boost: 0.1, charity_output: 0.0,
+            });
+        }
+
         if tick % 20 == 0 {
             let hunger: f32 = villagers.iter().map(|v| world.get_component::<Hunger>(*v).map(|h| h.value).unwrap_or(0.0)).sum::<f32>() / 4.0;
             let health: f32 = villagers.iter().map(|v| world.get_component::<Health>(*v).map(|h| h.condition).unwrap_or(0.0)).sum::<f32>() / 4.0;
@@ -97,7 +116,8 @@ fn main() {
             let power = world.get_component::<OrganizedPower>(org).map(|p| p.capacity).unwrap_or(0.0);
             let bond = world.get_component::<Pet>(dog).map(|p| p.bond_strength).unwrap_or(0.0);
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
-            println!("{},{:.1},{:.2},{:.2},{:.2},{:.2},{:?}", tick, hunger, health, infl, power, bond, cl.season);
+            let devotion: f32 = villagers.iter().map(|v| world.get_component::<Faith>(*v).map(|f| f.devotion).unwrap_or(0.0)).sum::<f32>() / 4.0;
+            println!("{},{:.1},{:.2},{:.2},{:.2},{:.2},{:?},{:.2}", tick, hunger, health, infl, power, bond, cl.season, devotion);
         }
     }
 
@@ -105,7 +125,7 @@ fn main() {
     for (i, v) in villagers.iter().enumerate() {
         if let Some(h) = world.get_component::<AttachmentHistory>(*v) {
             let style = infer_style(h);
-            println!("{}: attachment={:?} faith_devotion={:.1}",
+            println!("{}: attachment={:?} faith_devotion={:.2}",
                 names[i], style,
                 world.get_component::<Faith>(*v).map(|f| f.devotion).unwrap_or(0.0));
         }

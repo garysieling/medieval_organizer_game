@@ -825,6 +825,22 @@ impl<'a> Game<'a> {
     }
 }
 
+#[cfg(test)]
+mod rival_tests {
+    use super::*;
+
+    #[test]
+    fn test_rivals_stay_in_their_own_village() {
+        let art = Art::default(); // no sprites needed to run the game, only to draw it
+        let mut game = Game::new(&art);
+        while game.tick < 600 { game.update(); }
+        for (i, r) in game.rivals.iter().enumerate() {
+            let p = game.world.get_component::<Pos>(*r).unwrap();
+            assert!(p.x >= 24.0, "{} wandered into our village at ({:.1},{:.1})", RIVAL_NAMES[i], p.x, p.y);
+        }
+    }
+}
+
 /// Copy a Buffer to the window
 fn present(window: &mut Window, buf: &Buffer) {
     let mut fb = vec![0u32; W * H];
@@ -958,20 +974,4 @@ fn run_headless(art: &Art, target_tick: u64) {
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
     buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
     println!("frame {} saved", target_tick);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_rivals_stay_in_their_own_village() {
-        let art = Art::default(); // no sprites needed to run the game, only to draw it
-        let mut game = Game::new(&art);
-        while game.tick < 600 { game.update(); }
-        for (i, r) in game.rivals.iter().enumerate() {
-            let p = game.world.get_component::<Pos>(*r).unwrap();
-            assert!(p.x >= 24.0, "{} wandered into our village at ({:.1},{:.1})", RIVAL_NAMES[i], p.x, p.y);
-        }
-    }
 }

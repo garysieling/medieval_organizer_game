@@ -93,6 +93,37 @@ fn log_colour(entry: &str) -> (u8, u8, u8) {
     else { (210, 210, 210) }
 }
 
+/// Base colour of a terrain tile by height - shared by the map and minimap
+/// so they agree on what is water, grass, fields, hills and peaks
+fn terrain_colour(h: f32) -> (u8, u8, u8) {
+    if h < 0.15 { (30, 60, 180) }
+    else if h < 0.35 { (60, 140, 60) }
+    else if h < 0.55 { (140, 110, 50) }
+    else if h < 0.75 { (110, 90, 60) }
+    else { (220, 220, 220) }
+}
+
+// Minimap: the same isometric projection as the map, shrunk to fit a box in
+// the map's top-right corner (so up on the minimap is up on screen)
+const MM_W: i32 = 84;
+const MM_H: i32 = 46;
+const MM_LEFT: i32 = MAP_W as i32 - MM_W - 6;
+const MM_TOP: i32 = 6;
+const MM_K: f32 = 1.25; // minimap px per tile step along the x/y diagonal
+
+/// Minimap position of a world tile
+fn tile_to_minimap(tx: f32, ty: f32) -> (f32, f32) {
+    (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * MM_K, MM_TOP as f32 + 2.0 + (tx + ty) * MM_K / 2.0)
+}
+
+/// Minimap position of a point on screen (inverse of iso_to_screen_cam,
+/// then tile_to_minimap) - used to outline what the screen is showing
+fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (f32, f32) {
+    let diff = (sx - MAP_W as f32 / 2.0 - cam_x as f32) / (TILE_W as f32 * zoom); // tx - ty
+    let sum = (sy + 60.0 - cam_y as f32) / (TILE_H as f32 * zoom);                 // tx + ty
+    tile_to_minimap((sum + diff) / 2.0, (sum - diff) / 2.0)
+}
+
 struct Button {
     label: &'static str, key: char,
     x: i32, y: i32, w: i32, h: i32,
@@ -511,11 +542,7 @@ impl<'a> Game<'a> {
         for ty in 0..self.terrain.height {
             for tx in 0..self.terrain.width {
                 let h = self.terrain.get(tx, ty);
-                let (mut r, mut g, mut b) = if h < 0.15 { (30, 60, 180) }
-                    else if h < 0.35 { (60, 140, 60) }
-                    else if h < 0.55 { (140, 110, 50) }
-                    else if h < 0.75 { (110, 90, 60) }
-                    else { (220, 220, 220) };
+                let (mut r, mut g, mut b) = terrain_colour(h);
                 r = (r as f32 * tint_r).min(255.0) as u8;
                 g = (g as f32 * tint_g).min(255.0) as u8;
                 b = (b as f32 * tint_b).min(255.0) as u8;
@@ -751,28 +778,43 @@ impl<'a> Game<'a> {
             }
         }
 
-        // minimap (top-right of map area) - dots for villagers/player/buildings
-        let mm_x = MAP_W as i32 - 90;
-        let mm_y = 10;
-        buf.rect(mm_x - 4, mm_y - 4, 84, 84, 20, 20, 30);
-        buf.rect(mm_x - 4, mm_y - 4, 84, 1, 120, 120, 140);
-        buf.rect(mm_x - 4, mm_y + 80, 84, 1, 120, 120, 140);
-        // terrain thumbnail
-        for my in 0..33 { for mx in 0..33 {
-            let h = self.terrain.heights[my][mx];
-            let px = mm_x + (mx * 2) as i32;
-            let py = mm_y + (my * 2) as i32;
-            let (r, g, b) = if h < 0.35 { (40, 60, 160) } else if h < 0.6 { (60, 140, 60) } else { (160, 160, 160) };
-            buf.set(px, py, r, g, b); buf.set(px+1, py, r, g, b);
-            buf.set(px, py+1, r, g, b); buf.set(px+1, py+1, r, g, b);
-        }}
-        // entity dots
-        for v in villagers.iter() {
-            if let Some(p) = world.get_component::<Pos>(*v) {
-                buf.rect(mm_x + (p.x * 2.0) as i32, mm_y + (p.y * 2.0) as i32, 2, 2, 255, 80, 80);
+        // minimap (top-right of map area): the map in miniature, same projection
+        // and colours, with villagers, the player and the visible area marked
+        buf.rect(MM_LEFT - 2, MM_TOP - 2, MM_W + 4, MM_H + 4, 20, 20, 30);
+        let (w_t, h_t) = (self.terrain.width as f32, self.terrain.height as f32);
+        for my in 0..MM_H { for mx in 0..MM_W {
+            // which tile is under this minimap pixel (inverse of tile_to_minimap)
+            let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
+            let diff = (MM_LEFT + mx) as f32 + 0.5 - cx;
+            let sum = ((MM_TOP + my) as f32 + 0.5 - top) * 2.0;
+            let (tx, ty) = ((sum / MM_K + diff / MM_K) / 2.0, (sum / MM_K - diff / MM_K) / 2.0);
+            if tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t {
+                let (r, g, b) = terrain_colour(self.terrain.get(tx as usize, ty as usize));
+                buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
             }
+        }}
+        let mm_dot = |buf: &mut Buffer, tx: f32, ty: f32, r: u8, g: u8, b: u8| {
+            let (x, y) = tile_to_minimap(tx, ty);
+            buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
+        };
+        for v in villagers.iter() {
+            if let Some(p) = world.get_component::<Pos>(*v) { mm_dot(&mut buf, p.x, p.y, 255, 80, 80); }
         }
-        buf.rect(mm_x + (player_pos.0 * 2.0) as i32, mm_y + (player_pos.1 * 2.0) as i32, 2, 2, 255, 255, 255); // player
+        for rv in self.rivals.iter() {
+            if let Some(p) = world.get_component::<Pos>(*rv) { mm_dot(&mut buf, p.x, p.y, 255, 160, 60); }
+        }
+        mm_dot(&mut buf, player_pos.0, player_pos.1, 255, 255, 0);
+        // outline of what the map view is showing, clipped to the minimap box
+        let (vx0, vy0) = screen_to_minimap(0.0, 0.0, cam_x, cam_y, zoom);
+        let (vx1, vy1) = screen_to_minimap(MAP_W as f32, H as f32, cam_x, cam_y, zoom);
+        let (x0, x1) = ((vx0 as i32).max(MM_LEFT), (vx1 as i32).min(MM_LEFT + MM_W - 1));
+        let (y0, y1) = ((vy0 as i32).max(MM_TOP), (vy1 as i32).min(MM_TOP + MM_H - 1));
+        if x0 < x1 && y0 < y1 {
+            buf.rect(x0, y0, x1 - x0 + 1, 1, 255, 255, 255);
+            buf.rect(x0, y1, x1 - x0 + 1, 1, 255, 255, 255);
+            buf.rect(x0, y0, 1, y1 - y0 + 1, 255, 255, 255);
+            buf.rect(x1, y0, 1, y1 - y0 + 1, 255, 255, 255);
+        }
 
         // dialog bubble over speaking villager
         if let Some((speaker, ref text, until)) = self.dialog {
@@ -962,6 +1004,38 @@ mod panel_tests {
         assert_eq!(log_colour("t1: The Merchant Guild formed!"), (255, 215, 0));
         assert_ne!(log_colour("t120: Corvin tells Aldric - the guild merchants grow bold"), (255, 215, 0));
         assert_eq!(log_colour("Eliza joined!"), (120, 255, 120));
+    }
+}
+
+#[cfg(test)]
+mod minimap_tests {
+    use super::*;
+
+    #[test]
+    fn test_screen_and_tile_projections_agree_on_the_minimap() {
+        // a tile drawn on screen lands at the same minimap spot as the tile itself
+        for &(tx, ty, cam_x, cam_y, zoom) in &[(10.0f32, 16.0f32, 0, 0, 1.0f32), (28.0, 13.0, -120, 40, 1.0), (5.0, 2.0, 30, -10, 1.5)] {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let a = screen_to_minimap(sx as f32, sy as f32, cam_x, cam_y, zoom);
+            let b = tile_to_minimap(tx, ty);
+            assert!((a.0 - b.0).abs() < 1.0 && (a.1 - b.1).abs() < 1.0, "{:?} vs {:?}", a, b);
+        }
+    }
+
+    #[test]
+    fn test_whole_map_fits_in_the_minimap_box() {
+        for &(tx, ty) in &[(0.0, 0.0), (33.0, 0.0), (0.0, 33.0), (33.0, 33.0)] {
+            let (x, y) = tile_to_minimap(tx, ty);
+            assert!(x >= MM_LEFT as f32 && x <= (MM_LEFT + MM_W) as f32, "x {} for ({},{})", x, tx, ty);
+            assert!(y >= MM_TOP as f32 && y <= (MM_TOP + MM_H) as f32, "y {} for ({},{})", y, tx, ty);
+        }
+    }
+
+    #[test]
+    fn test_minimap_and_map_share_terrain_colours() {
+        // heights 0.15-0.35 are grass on the map; the old minimap drew them as water
+        assert_eq!(terrain_colour(0.25), (60, 140, 60));
+        assert_eq!(terrain_colour(0.05), (30, 60, 180));
     }
 }
 

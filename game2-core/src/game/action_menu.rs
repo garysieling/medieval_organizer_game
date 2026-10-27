@@ -78,7 +78,23 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             let r = act_invest(world, player, 10.0);
             format!("{}", r.description)
         }
-        MenuActionType::Organize => "You call a house meeting. People gather.".into(),
+        MenuActionType::Organize => {
+            // Every villager is invited; those who already trust you join
+            let invited = world.query::<super::villager::Villager>();
+            if invited.is_empty() { return "No one comes to your house meeting.".into(); }
+            let members = world.get_component::<crate::sim::community::Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            let outsiders = invited.iter().filter(|v| !members.contains(v)).count();
+            let r = super::organizing::house_meeting(world, org, &invited);
+            let joined = match r.attendees_recruited {
+                0 if outsiders == 0 => "Everyone here is already with you; the meeting strengthens your ties.".to_string(),
+                0 => "No one joins yet, but they'll remember the conversation.".to_string(),
+                1 => "1 joins your cause.".to_string(),
+                n => format!("{} join your cause{}.", n, if r.formed_committee { " and form a committee" } else { "" }),
+            };
+            format!("You call a house meeting. {} come, and talk about {}. {}",
+                invited.len(), r.shared_concerns.join(" and "), joined)
+        }
         MenuActionType::Contract => "You draft a contract.".into(),
         MenuActionType::Build => "You commission a structure.".into(),
         MenuActionType::Wait => "You wait and observe.".into(),
@@ -104,5 +120,26 @@ mod tests {
         assert_eq!(parse_command("t0", 1, 5), ('t', 1));
         assert_eq!(parse_command("tx", 1, 5), ('t', 1));
         assert_eq!(parse_command("", 1, 5), ('w', 1));
+    }
+
+    #[test]
+    fn test_organize_holds_a_real_house_meeting() {
+        use crate::game::relationships::{find_relationship, Relationship, RelKind};
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let friend = crate::game::villager::spawn_villager(&mut w, 0.0, 0.0);
+        let stranger = crate::game::villager::spawn_villager(&mut w, 1.0, 0.0);
+        let rel = w.create_entity();
+        w.add_component(rel, Relationship { from: player, other: friend, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Organize, None);
+
+        let members = &w.get_component::<Organization>(org).unwrap().members;
+        assert_eq!(members, &vec![friend], "the trusted friend joins, the stranger doesn't");
+        assert!(find_relationship(&w, player, stranger).is_some(), "the meeting still starts a relationship with the stranger");
+        assert!(msg.contains("1 joins"), "{}", msg);
     }
 }

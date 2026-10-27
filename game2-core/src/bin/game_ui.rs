@@ -124,6 +124,31 @@ fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (f3
     tile_to_minimap((sum + diff) / 2.0, (sum - diff) / 2.0)
 }
 
+/// Nudge name labels so none overlap: each label (x, y, width) keeps its x
+/// and, if it would sit on a label already placed, moves up a line at a time
+/// (at most a few lines) until it's clear. Labels nearer the bottom of the
+/// screen (characters in front) are placed first and keep their spot.
+fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
+    const LINE: i32 = GLYPH_H + 3;
+    let mut order: Vec<usize> = (0..labels.len()).collect();
+    order.sort_by_key(|&i| -labels[i].1);
+    let mut placed: Vec<(i32, i32, i32)> = vec![];
+    let mut ys = vec![0; labels.len()];
+    for i in order {
+        let (x, mut y, w) = labels[i];
+        let hits = |y: i32, placed: &[(i32, i32, i32)]| placed.iter().any(|&(px, py, pw)| {
+            x < px + pw + 2 && px < x + w + 2 && y < py + LINE && py < y + LINE
+        });
+        for _ in 0..4 {
+            if !hits(y, &placed) { break; }
+            y -= LINE;
+        }
+        placed.push((x, y, w));
+        ys[i] = y;
+    }
+    ys
+}
+
 struct Button {
     label: &'static str, key: char,
     x: i32, y: i32, w: i32, h: i32,
@@ -585,15 +610,10 @@ impl<'a> Game<'a> {
         let (msx, msy) = iso_to_screen_cam(10.0, 9.0, cam_x, cam_y, zoom);
         mill_frame.blit_center(&mut buf, msx, msy);
 
-        // food stock indicator at market
+        // market food stock: shown in the HUD (top-left), not on the market
+        // tile, where villagers always gather to eat and covered it up
         let food_stock = world.get_component::<villager::FoodSource>(self.market_food)
             .map(|f| f.servings).unwrap_or(0);
-        let (fsx, fsy) = iso_to_screen_cam(16.0, 15.0, cam_x, cam_y, zoom);
-        // stock bar under the market
-        buf.rect(fsx - 20, fsy + 10, 40, 4, 60, 40, 40);
-        let fw = ((food_stock as f32 / 500.0) * 40.0) as i32;
-        buf.rect(fsx - 20, fsy + 10, fw, 4, 80, 200, 80);
-        draw_text_outlined(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
 
 
         // villagers as sprites (sorted by y for depth)
@@ -601,26 +621,21 @@ impl<'a> Game<'a> {
             .filter_map(|(i, v)| world.get_component::<Pos>(*v).map(|p| (i, p.x, p.y)))
             .collect();
         v_sorted.sort_by(|a, b| (a.1 + a.2).partial_cmp(&(b.1 + b.2)).unwrap());
+        // name labels are drawn after every sprite (so no sprite covers one)
+        // and de-overlapped: (text, x, y, colour, hungry, selected)
+        let mut labels: Vec<(&str, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
         for (i, wx, wy) in v_sorted {
             let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
             art.villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
             let (lx, ly) = name_label_pos(sx, sy, NAMES[i]);
-            // selection highlight: underline the selected villager's name
-            if i == selected_target {
-                draw_rect(&mut buf, lx - 1, ly + GLYPH_H + 1, NAMES[i].len() as i32 * GLYPH_W + 1, 2, 255, 255, 0);
-            }
             // grave if dead (no Health component)
             if world.get_component::<Health>(villagers[i]).is_none() {
                 buf.rect(sx - 4, sy - 10, 8, 10, 120, 120, 130); // gravestone
                 draw_text_outlined(&mut buf, sx - 6, sy - 20, "RIP", 200, 200, 210);
                 continue;
             }
-            // name label
-            draw_text_outlined(&mut buf, lx, ly, NAMES[i], 255, 255, 255);
-            // hunger indicator, right after the name
-            if let Some(h) = world.get_component::<Hunger>(villagers[i]) {
-                if h.value < 40.0 { draw_text_outlined(&mut buf, lx + NAMES[i].len() as i32 * GLYPH_W + 2, ly, "!", 255, 100, 100); }
-            }
+            let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
+            labels.push((NAMES[i], lx, ly, (255, 255, 255), hungry, i == selected_target));
             // activity marker beside the head
             if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
                 match vil.activity {
@@ -638,7 +653,7 @@ impl<'a> Game<'a> {
                 buf.rect(dx - 3, dy - 6, 6, 4, 139, 90, 43); // brown dog body
                 buf.rect(dx - 4, dy - 9, 3, 3, 139, 90, 43); // head
                 if pet.bond_strength > 0.5 {
-                    draw_text_outlined(&mut buf, dx - 3, dy - 16, "<3", 255, 120, 120);
+                    labels.push(("<3", dx - 6, dy - 16, (255, 120, 120), false, false)); // placed with the names
                 }
             }
         }
@@ -652,7 +667,7 @@ impl<'a> Game<'a> {
                     rs.blit_scaled(&mut buf, sx - 32, sy - 60, 2);
                 }
                 let (lx, ly) = name_label_pos(sx, sy, RIVAL_NAMES[i]);
-                draw_text_outlined(&mut buf, lx, ly, RIVAL_NAMES[i], 255, 140, 140);
+                labels.push((RIVAL_NAMES[i], lx, ly, (255, 140, 140), false, false));
             }
         }
 
@@ -667,7 +682,19 @@ impl<'a> Game<'a> {
             draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         }
         let (lx, ly) = name_label_pos(px, py, "YOU");
-        draw_text_outlined(&mut buf, lx, ly, "YOU", 255, 255, 0);
+        labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
+
+        // all name labels, on top of every sprite, nudged apart where they'd overlap
+        let boxes: Vec<(i32, i32, i32)> = labels.iter()
+            .map(|(t, x, y, _, hungry, _)| (*x, *y, t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 }))
+            .collect();
+        for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(place_labels(&boxes)) {
+            draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
+            // hunger indicator, right after the name
+            if *hungry { draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, "!", 255, 100, 100); }
+            // selection: underline the selected villager's name
+            if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
+        }
 
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, (W as i32 - UI_X as i32), H as i32, 32, 32, 48);
@@ -859,7 +886,7 @@ impl<'a> Game<'a> {
         }
 
         // season banner
-        draw_text_outlined(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
+        draw_text_outlined(&mut buf, 10, 8, &format!("{:?}  t{}  food {}{}", season, tick, food_stock,
             if self.paused { " [PAUSED]" } else if self.speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
 
         // help overlay
@@ -1039,6 +1066,34 @@ mod minimap_tests {
         // heights 0.15-0.35 are grass on the map; the old minimap drew them as water
         assert_eq!(terrain_colour(0.25), (60, 140, 60));
         assert_eq!(terrain_colour(0.05), (30, 60, 180));
+    }
+}
+
+#[cfg(test)]
+mod label_tests {
+    use super::*;
+
+    #[test]
+    fn test_overlapping_labels_are_stacked_apart() {
+        // three names on the same spot (villagers sharing the market tile)
+        let ys = place_labels(&[(100, 200, 36), (104, 202, 30), (98, 199, 30)]);
+        for a in 0..3 { for b in (a + 1)..3 {
+            assert!((ys[a] - ys[b]).abs() >= GLYPH_H + 3, "labels {} and {} still overlap: {:?}", a, b, ys);
+        }}
+    }
+
+    #[test]
+    fn test_separate_labels_stay_where_they_are() {
+        let ys = place_labels(&[(10, 100, 30), (200, 100, 30), (10, 300, 30)]);
+        assert_eq!(ys, vec![100, 100, 300]);
+    }
+
+    #[test]
+    fn test_front_label_keeps_its_spot() {
+        // the lower label (character in front) stays put; the other moves up
+        let ys = place_labels(&[(100, 200, 36), (100, 205, 36)]);
+        assert_eq!(ys[1], 205);
+        assert!(ys[0] < 200);
     }
 }
 

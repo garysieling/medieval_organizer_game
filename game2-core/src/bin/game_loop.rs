@@ -5,6 +5,7 @@ use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
+use game2_core::game::jobs::{self, Job, JobSystem};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
@@ -26,6 +27,7 @@ fn main() {
     sched.add_system(SeasonSystem);
     sched.add_system(IllnessSystem);
     sched.add_system(DevotionSystem); // faith fades a little each day without practice
+    sched.add_system(JobSystem); // workers stock the market: wheat -> flour -> bread
 
     // World setup
     let terrain = Terrain::generate(33, 0.7, 42);
@@ -36,6 +38,7 @@ fn main() {
 
     // Villagers with full stacks
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny","Wystan"];
+    let roles = [Job::Farmer, Job::Farmer, Job::Miller, Job::Baker, Job::Priest, Job::Carpenter];
     let mut villagers = vec![];
     for (i, name) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
@@ -43,6 +46,7 @@ fn main() {
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (5-i) as u32, episodes: vec![] });
         world.add_component(v, Faith { religion: "Old Faith".into(), devotion: 0.3, traditions: vec![] });
         world.add_component(v, Citizen { influence: 0.1, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        jobs::assign_job(&mut world, v, roles[i]);
         villagers.push(v);
     }
 
@@ -60,7 +64,8 @@ fn main() {
         .map(|v| infer_style(world.get_component::<AttachmentHistory>(*v).unwrap()))
         .collect();
 
-    println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult,avg_devotion,at_service,dog_bond\n");
+    println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult,avg_devotion,at_service,dog_bond,wheat,flour,bread,lumber
+");
     let mut last_attendance = 0;
     let mut famine_stores = vec![]; // food set aside during the famine
     for tick in 0..500 {
@@ -144,10 +149,14 @@ fn main() {
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let devotion: f32 = villagers.iter().map(|v| world.get_component::<Faith>(*v).map(|f| f.devotion).unwrap_or(0.0)).sum::<f32>() / 6.0;
             let bond = world.get_component::<Pet>(dog).map(|p| p.bond_strength).unwrap_or(0.0);
-            println!("{},{:.1},{:.2},{},{},{:?},{:.2},{:.2},{},{:.2}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"), devotion, last_attendance, bond);
+            let mkt = world.get_component::<Market>(market).unwrap();
+            let stock = |g: &str| mkt.supply.get(g).copied().unwrap_or(0);
+            println!("{},{:.1},{:.2},{},{},{:?},{:.2},{:.2},{},{:.2},{},{},{},{}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"), devotion, last_attendance, bond,
+                stock("wheat"), stock("flour"), stock("bread"), stock("lumber"));
             telem.set_tick(tick as u64);
             telem.gauge("hunger", hunger as f64);
             telem.gauge("health", health as f64);
+            telem.gauge("bread", stock("bread") as f64);
         }
     }
 

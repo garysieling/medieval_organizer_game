@@ -80,20 +80,28 @@ struct Art {
     mill_frames: Vec<Sprite>,
     blacksmith_s: Option<Sprite>,
     tree_s: Option<Sprite>,
-    wheat_s: Option<Sprite>,
-    corn_s: Option<Sprite>,
     stone_s: Option<Sprite>,
     player_s: Option<Sprite>,
     tower_s: Option<Sprite>,
-    river_s: Option<Sprite>,
     wall_s: Option<Sprite>,
-    road_s: Option<Sprite>,
-    corn2_s: Option<Sprite>,
     church_s: Option<Sprite>,
     guildhall_s: Option<Sprite>,
     smoke_s: Option<Sprite>,
     rival_house: Option<Sprite>,
     rival_woodhouse: Option<Sprite>,
+    // flat ground features: just the top face of each ground block, laid on a tile
+    road_top: Option<Sprite>,
+    wheat_top: Option<Sprite>,
+    corn_top: Option<Sprite>,
+    corn2_top: Option<Sprite>,
+    river_top: Option<Sprite>,
+}
+
+/// The top face of an isometric ground block (the pack draws roads, fields
+/// and rivers as full raised blocks sized for a much bigger tile grid); laid
+/// flat on a map tile it reads as a road or field instead of a tower
+fn top_face(block: &Option<Sprite>) -> Option<Sprite> {
+    block.as_ref().map(|b| b.crop(0, 0, b.width, b.width / 2 + 1))
 }
 
 impl Art {
@@ -111,24 +119,30 @@ impl Art {
             }
         }).collect();
 
+        let road_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Roads/Spring/road(1).png")).ok();
+        let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
+        let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
+        let corn2_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(2).png")).ok();
+        let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
+
         // Load building sprites
         Art {
             villager_sprites,
+            road_top: top_face(&road_s),
+            wheat_top: top_face(&wheat_s),
+            corn_top: top_face(&corn_s),
+            corn2_top: top_face(&corn2_s),
+            river_top: top_face(&river_s),
             house_s: Sprite::load(&assets.path(&assets.building_sprite("house", "blue"))).ok(),
             mill_frames: (1..=4).map(|i|
                 Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
             ).collect(),
             blacksmith_s: Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok(),
             tree_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok(),
-            wheat_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok(),
-            corn_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok(),
             stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok(),
             player_s: Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok(),
             tower_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok(),
-            river_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok(),
             wall_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok(),
-            road_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Roads/Spring/road(1).png")).ok(),
-            corn2_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(2).png")).ok(),
             church_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok(),
             guildhall_s: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
             smoke_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/smoke.png")).ok(),
@@ -153,6 +167,7 @@ struct Game<'a> {
     org: Entity,
     dog: Entity,
     buildings: Vec<(f32, f32, &'a Option<Sprite>)>,
+    ground: Vec<(f32, f32, &'a Option<Sprite>)>, // flat tiles: roads, fields, river
     buttons: Vec<Button>,
     built_count: usize,
     zoom: f32, // 0.5 - 2.0
@@ -190,19 +205,7 @@ impl<'a> Game<'a> {
             (5.0, 5.0, &art.house_s), (12.0, 4.0, &art.house_s), (7.0, 12.0, &art.house_s),
             (15.0, 8.0, &art.blacksmith_s),
             (3.0, 14.0, &art.tree_s), (18.0, 5.0, &art.tree_s), (9.0, 16.0, &art.tree_s), (20.0, 12.0, &art.tree_s),
-            // farms: wheat + corn fields near the village
-            (14.0, 14.0, &art.wheat_s), (15.0, 14.0, &art.wheat_s), (14.0, 15.0, &art.wheat_s), (15.0, 15.0, &art.wheat_s),
-            (16.0, 15.0, &art.corn_s), (16.0, 16.0, &art.corn_s), (17.0, 15.0, &art.corn_s),
             (4.0, 18.0, &art.stone_s), (19.0, 16.0, &art.stone_s),
-            // market plaza (packed dirt tiles around stalls)
-            (7.0, 6.0, &art.road_s), (8.0, 6.0, &art.road_s), (9.0, 6.0, &art.road_s),
-            // food market stalls (dim when food runs low)
-            (7.0, 7.0, &art.corn2_s), (9.0, 7.0, &art.corn2_s),
-            // main road through the village center
-            (8.0, 8.0, &art.road_s), (9.0, 9.0, &art.road_s), (10.0, 10.0, &art.road_s), (11.0, 11.0, &art.road_s),
-            (12.0, 8.0, &art.road_s), (13.0, 7.0, &art.road_s), (8.0, 12.0, &art.road_s), (9.0, 13.0, &art.road_s),
-            // river along the east edge
-            (24.0, 3.0, &art.river_s), (26.0, 5.0, &art.river_s), (28.0, 7.0, &art.river_s), (30.0, 9.0, &art.river_s),
             // castle towers at the far edge (the ruler overlooks the village)
             (26.0, 6.0, &art.tower_s), (28.0, 8.0, &art.tower_s), (27.0, 4.0, &art.tower_s),
             // rival village across the river (red-roofed foreign houses)
@@ -211,6 +214,22 @@ impl<'a> Game<'a> {
             (25.0, 5.0, &art.wall_s), (27.0, 7.0, &art.wall_s), (29.0, 9.0, &art.wall_s),
             // church (religion center) + guild hall (merchant base)
             (2.0, 8.0, &art.church_s), (17.0, 10.0, &art.guildhall_s),
+        ];
+
+        // flat ground features, drawn on the terrain under everything that stands
+        let ground: Vec<(f32, f32, &Option<Sprite>)> = vec![
+            // farms: wheat + corn fields near the village
+            (14.0, 14.0, &art.wheat_top), (15.0, 14.0, &art.wheat_top), (14.0, 15.0, &art.wheat_top), (15.0, 15.0, &art.wheat_top),
+            (16.0, 15.0, &art.corn_top), (16.0, 16.0, &art.corn_top), (17.0, 15.0, &art.corn_top),
+            // market plaza (packed dirt tiles around stalls)
+            (7.0, 6.0, &art.road_top), (8.0, 6.0, &art.road_top), (9.0, 6.0, &art.road_top),
+            // food market stalls
+            (7.0, 7.0, &art.corn2_top), (9.0, 7.0, &art.corn2_top),
+            // main road through the village center
+            (8.0, 8.0, &art.road_top), (9.0, 9.0, &art.road_top), (10.0, 10.0, &art.road_top), (11.0, 11.0, &art.road_top),
+            (12.0, 8.0, &art.road_top), (13.0, 7.0, &art.road_top), (8.0, 12.0, &art.road_top), (9.0, 13.0, &art.road_top),
+            // river along the east edge
+            (24.0, 3.0, &art.river_top), (26.0, 5.0, &art.river_top), (28.0, 7.0, &art.river_top), (30.0, 9.0, &art.river_top),
         ];
 
         let mut villagers = vec![];
@@ -253,7 +272,7 @@ impl<'a> Game<'a> {
         ];
 
         Game {
-            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, buildings, buttons,
+            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, buildings, ground, buttons,
             built_count: 0,
             zoom: 1.0,
             toasts: vec![],
@@ -299,11 +318,11 @@ impl<'a> Game<'a> {
     /// One frame of game time: the sim ticks every few frames, and between
     /// ticks villagers keep strolling
     fn update(&mut self) {
+        let ticks_per_frame = self.ticks_per_frame();
         let Game { world, villagers, log, toasts, .. } = self;
 
         // sim advance: one tick = one day, throttled by frame count
         self.frame_n += 1;
-        let ticks_per_frame = if self.speed == 1 { 60 } else { 15 };
         let mut ticked = false;
         if !self.paused && self.frame_n % ticks_per_frame == 0 {
             self.tick += 1;
@@ -427,6 +446,14 @@ impl<'a> Game<'a> {
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
                 buf.diamond(sx, sy, tw, th, r, g, b);
                 buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
+            }
+        }
+
+        // flat ground tiles (roads, fields, river), scaled onto the tile diamond
+        for (gx, gy, sprite) in self.ground.iter() {
+            if let Some(s) = sprite {
+                let (sx, sy) = iso_to_screen_cam(*gx, *gy, cam_x, cam_y, zoom);
+                s.scaled((2 * tw) as usize, (2 * th) as usize).blit(&mut buf, sx - tw, sy - th);
             }
         }
 
@@ -935,4 +962,19 @@ fn run_headless(art: &Art, target_tick: u64) {
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
     buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
     println!("frame {} saved", target_tick);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ground_block_top_face_fits_one_tile() {
+        // the pack's ground blocks are ~95x97: a raised cube for a far bigger grid
+        let block = Some(Sprite { width: 95, height: 97, pixels: vec![255; 95 * 97 * 4] });
+        let top = top_face(&block).unwrap();
+        assert_eq!((top.width, top.height), (95, 48), "keep only the top diamond, not the sides");
+        let tile = top.scaled((2 * TILE_W) as usize, (2 * TILE_H) as usize);
+        assert_eq!((tile.width, tile.height), (56, 28), "a ground tile covers exactly one map tile");
+    }
 }

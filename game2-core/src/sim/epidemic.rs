@@ -16,6 +16,8 @@ pub struct Epidemic {
     // infected population with a sub-1-death-per-tick mortality rate still
     // accumulates deaths over time instead of always rounding to zero.
     pub mortality_carry: f32,
+    // Fractional new infections carried over, for the same reason
+    pub infection_carry: f32,
 }
 
 /// SIR compartment counts for the population
@@ -31,11 +33,19 @@ pub struct SirState {
 /// and apply mortality to those who don't recover. Returns the SIR tally
 /// reflecting the state *after* this tick's changes.
 pub fn step_epidemic(world: &mut World, pop: &[Entity], ep: &mut Epidemic) -> SirState {
-    // Spread: susceptibles get infected proportional to rate
-    let susceptible_before = pop.iter()
-        .filter(|e| world.get_component::<Health>(**e).map(|h| h.condition >= 0.9).unwrap_or(false))
+    // Spread (SIR mass action): each susceptible's chance of catching it
+    // scales with the share of the living population that's infected, so
+    // with no one sick nothing spreads, and more cases spread it faster
+    let count = |world: &World, f: fn(f32) -> bool| pop.iter()
+        .filter(|e| world.get_component::<Health>(**e).map(|h| f(h.condition)).unwrap_or(false))
         .count();
-    let new_infections = (susceptible_before as f32 * ep.infection_rate * 0.3) as usize;
+    let susceptible_before = count(world, |c| c >= 0.9);
+    let infected_before = count(world, |c| c > 0.0 && c < 0.5);
+    let alive = count(world, |c| c > 0.0).max(1);
+    let raw_infections = susceptible_before as f32 * ep.infection_rate
+        * infected_before as f32 / alive as f32 + ep.infection_carry;
+    let new_infections = raw_infections.floor() as usize;
+    ep.infection_carry = raw_infections - new_infections as f32;
     let mut infected_count = 0;
     for e in pop {
         if infected_count >= new_infections { break; }
@@ -91,7 +101,7 @@ pub fn step_epidemic(world: &mut World, pop: &[Entity], ep: &mut Epidemic) -> Si
 pub fn spawn_epidemic(world: &mut World, name: &str, infection_rate: f32, recovery_rate: f32, mortality: f32) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Epidemic {
-        name: name.into(), infection_rate, recovery_rate, mortality, tick: 0, mortality_carry: 0.0,
+        name: name.into(), infection_rate, recovery_rate, mortality, tick: 0, mortality_carry: 0.0, infection_carry: 0.0,
     });
     e
 }
@@ -112,7 +122,7 @@ mod tests {
     fn mortality_kills_infected_who_dont_recover() {
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
-        let mut ep = Epidemic { name: "plague".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 1.0, tick: 0, mortality_carry: 0.0 };
+        let mut ep = Epidemic { name: "plague".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 1.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
@@ -125,7 +135,7 @@ mod tests {
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
         // recovery pushes condition from 0.3 to 1.0, clearing infection before mortality is applied
-        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 1.0, tick: 0, mortality_carry: 0.0 };
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 1.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
@@ -139,7 +149,7 @@ mod tests {
         // BEFORE this tick's infection/recovery/mortality were applied.
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
-        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 0.0, tick: 0, mortality_carry: 0.0 };
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.7, mortality: 0.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
@@ -156,7 +166,7 @@ mod tests {
         // eventually produce a death.
         let mut world = World::new();
         let pop = infected_pop(&mut world, 4);
-        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 0.1, tick: 0, mortality_carry: 0.0 };
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 0.1, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
 
         let mut sir = step_epidemic(&mut world, &pop, &mut ep);
         for _ in 0..9 {
@@ -174,7 +184,7 @@ mod tests {
         let mut world = World::new();
         let untracked = world.create_entity();
         let pop = vec![untracked];
-        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 0.0, tick: 0, mortality_carry: 0.0 };
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.0, recovery_rate: 0.0, mortality: 0.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
 
         let sir = step_epidemic(&mut world, &pop, &mut ep);
 
@@ -182,5 +192,49 @@ mod tests {
         assert_eq!(sir.susceptible, 0);
         assert_eq!(sir.infected, 0);
         assert_eq!(sir.recovered, 0);
+    }
+
+    fn healthy_pop(world: &mut World, n: usize) -> Vec<Entity> {
+        (0..n).map(|_| {
+            let e = world.create_entity();
+            world.add_component(e, Health { condition: 1.0, immunity: 0.5 });
+            e
+        }).collect()
+    }
+
+    #[test]
+    fn no_infected_means_no_spread() {
+        let mut world = World::new();
+        let pop = healthy_pop(&mut world, 20);
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.9, recovery_rate: 0.0, mortality: 0.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
+        for _ in 0..10 {
+            let sir = step_epidemic(&mut world, &pop, &mut ep);
+            assert_eq!(sir.infected, 0, "a disease-free village can't catch it from no one");
+        }
+    }
+
+    #[test]
+    fn spread_grows_with_number_infected() {
+        let new_cases = |seeded: usize| {
+            let mut world = World::new();
+            let pop = healthy_pop(&mut world, 20);
+            for e in &pop[..seeded] {
+                world.get_component_mut::<Health>(*e).unwrap().condition = 0.3;
+            }
+            let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.5, recovery_rate: 0.0, mortality: 0.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
+            step_epidemic(&mut world, &pop, &mut ep).infected - seeded
+        };
+        assert!(new_cases(8) > new_cases(2), "more cases should mean faster spread");
+    }
+
+    #[test]
+    fn single_case_eventually_spreads() {
+        let mut world = World::new();
+        let pop = healthy_pop(&mut world, 10);
+        world.get_component_mut::<Health>(pop[0]).unwrap().condition = 0.3;
+        let mut ep = Epidemic { name: "flu".into(), infection_rate: 0.3, recovery_rate: 0.0, mortality: 0.0, tick: 0, mortality_carry: 0.0, infection_carry: 0.0 };
+        let mut infected = 1;
+        for _ in 0..10 { infected = step_epidemic(&mut world, &pop, &mut ep).infected; }
+        assert!(infected > 1, "sub-1 infections per tick should accumulate via the carry");
     }
 }

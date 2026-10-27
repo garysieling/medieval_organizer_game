@@ -21,7 +21,7 @@ fn main() {
 
     // Patient zero gets flu at tick 0
     let flu = world.create_entity();
-    world.add_component(flu, Disease { name: "flu".into(), stage: Stage::Mild, severity: 0.3, contagious: true });
+    world.add_component(flu, Disease { name: "flu".into(), patient: villagers[0], stage: Stage::Mild, severity: 0.3, contagious: true });
     world.get_component_mut::<Health>(villagers[0]).unwrap().condition -= 0.2;
 
     println!("Patient zero ({}) infected. Watching spread...\n", names[0]);

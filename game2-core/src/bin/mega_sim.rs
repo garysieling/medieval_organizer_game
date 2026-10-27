@@ -43,7 +43,7 @@ fn main() {
 
     // Market + climate
     let market = world.create_entity();
-    world.add_component(market, Market { prices: [("food".into(), 10.0)].into_iter().collect(), supply: [("food".into(), 100)].into_iter().collect() });
+    world.add_component(market, Market { prices: [("food".into(), 10.0)].into_iter().collect(), supply: [("food".into(), 100)].into_iter().collect(), ..Default::default() });
     let climate = climate::spawn_climate(&mut world);
 
     // Religion: a congregation

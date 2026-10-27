@@ -50,7 +50,7 @@ fn main() {
                 }
             }
             let servings = villager::servings_left(&world);
-            let meals = last_servings - servings;
+            let meals = last_servings.saturating_sub(servings); // restocking would otherwise underflow
             last_servings = servings;
             let avg = hunger_sum / villagers.len() as f32;
             let cl = world.get_component::<climate::Climate>(climate).unwrap();

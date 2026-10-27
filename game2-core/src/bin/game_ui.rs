@@ -5,7 +5,7 @@ use minifb::{Key, Window, WindowOptions, MouseMode};
 use game2_core::engine::ecs::{Entity, Scheduler, World};
 use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
-use game2_core::ui::font::{draw_text, draw_text_scaled};
+use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
@@ -593,7 +593,7 @@ impl<'a> Game<'a> {
         buf.rect(fsx - 20, fsy + 10, 40, 4, 60, 40, 40);
         let fw = ((food_stock as f32 / 500.0) * 40.0) as i32;
         buf.rect(fsx - 20, fsy + 10, fw, 4, 80, 200, 80);
-        draw_text(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
+        draw_text_outlined(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
 
 
         // villagers as sprites (sorted by y for depth)
@@ -612,21 +612,21 @@ impl<'a> Game<'a> {
             // grave if dead (no Health component)
             if world.get_component::<Health>(villagers[i]).is_none() {
                 buf.rect(sx - 4, sy - 10, 8, 10, 120, 120, 130); // gravestone
-                draw_text(&mut buf, sx - 6, sy - 20, "RIP", 200, 200, 210);
+                draw_text_outlined(&mut buf, sx - 6, sy - 20, "RIP", 200, 200, 210);
                 continue;
             }
             // name label
-            draw_text(&mut buf, lx, ly, NAMES[i], 255, 255, 255);
+            draw_text_outlined(&mut buf, lx, ly, NAMES[i], 255, 255, 255);
             // hunger indicator, right after the name
             if let Some(h) = world.get_component::<Hunger>(villagers[i]) {
-                if h.value < 40.0 { draw_text(&mut buf, lx + NAMES[i].len() as i32 * GLYPH_W + 2, ly, "!", 255, 100, 100); }
+                if h.value < 40.0 { draw_text_outlined(&mut buf, lx + NAMES[i].len() as i32 * GLYPH_W + 2, ly, "!", 255, 100, 100); }
             }
             // activity marker beside the head
             if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
                 match vil.activity {
-                    Activity::SeekingFood => { draw_text(&mut buf, sx + 10, sy + SPRITE_HEAD, "o", 255, 200, 100); }
+                    Activity::SeekingFood => { draw_text_outlined(&mut buf, sx + 10, sy + SPRITE_HEAD, "o", 255, 200, 100); }
                     Activity::Idle => {},
-                    _ => { draw_text(&mut buf, sx + 10, sy + SPRITE_HEAD, "*", 180, 180, 255); }
+                    _ => { draw_text_outlined(&mut buf, sx + 10, sy + SPRITE_HEAD, "*", 180, 180, 255); }
                 }
             }
         }
@@ -638,7 +638,7 @@ impl<'a> Game<'a> {
                 buf.rect(dx - 3, dy - 6, 6, 4, 139, 90, 43); // brown dog body
                 buf.rect(dx - 4, dy - 9, 3, 3, 139, 90, 43); // head
                 if pet.bond_strength > 0.5 {
-                    draw_text(&mut buf, dx - 3, dy - 16, "<3", 255, 120, 120);
+                    draw_text_outlined(&mut buf, dx - 3, dy - 16, "<3", 255, 120, 120);
                 }
             }
         }
@@ -652,7 +652,7 @@ impl<'a> Game<'a> {
                     rs.blit_scaled(&mut buf, sx - 32, sy - 60, 2);
                 }
                 let (lx, ly) = name_label_pos(sx, sy, RIVAL_NAMES[i]);
-                draw_text(&mut buf, lx, ly, RIVAL_NAMES[i], 255, 140, 140);
+                draw_text_outlined(&mut buf, lx, ly, RIVAL_NAMES[i], 255, 140, 140);
             }
         }
 
@@ -667,7 +667,7 @@ impl<'a> Game<'a> {
             draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         }
         let (lx, ly) = name_label_pos(px, py, "YOU");
-        draw_text(&mut buf, lx, ly, "YOU", 255, 255, 0);
+        draw_text_outlined(&mut buf, lx, ly, "YOU", 255, 255, 0);
 
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, (W as i32 - UI_X as i32), H as i32, 32, 32, 48);
@@ -755,7 +755,10 @@ impl<'a> Game<'a> {
         // season change: subtle banner notification instead of flash
         if tick > 10 && tick % 90 < 3 {
             let sname = match season { Season::Spring => "Spring", Season::Summer => "Summer", Season::Autumn => "Autumn", Season::Winter => "Winter" };
-            draw_text(&mut buf, MAP_W as i32 / 2 - 30, 60, &format!("{} arrives", sname), 255, 220, 130);
+            let banner = format!("{} arrives", sname);
+            let bw = banner.len() as i32 * GLYPH_W + 16;
+            buf.rect(MAP_W as i32 / 2 - bw / 2, 56, bw, 16, 20, 20, 35);
+            draw_text(&mut buf, MAP_W as i32 / 2 - bw / 2 + 8, 60, &banner, 255, 220, 130);
         }
 
 
@@ -856,7 +859,7 @@ impl<'a> Game<'a> {
         }
 
         // season banner
-        draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
+        draw_text_outlined(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
             if self.paused { " [PAUSED]" } else if self.speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
 
         // help overlay

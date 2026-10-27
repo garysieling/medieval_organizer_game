@@ -27,7 +27,8 @@ impl Recipe {
     pub fn craft(&self, stock: &mut std::collections::HashMap<String, u32>) -> Option<usize> {
         let i = self.can_make(stock)?;
         for (g, q) in &self.input_options[i] {
-            *stock.get_mut(g).unwrap() -= q;
+            // can_make treats a missing good as 0, so a zero-quantity input may be absent
+            if let Some(have) = stock.get_mut(g) { *have -= q; }
         }
         let (out, qty) = &self.output;
         *stock.entry(out.clone()).or_insert(0) += qty;

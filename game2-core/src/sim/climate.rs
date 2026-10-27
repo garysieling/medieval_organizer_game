@@ -93,14 +93,26 @@ pub fn is_raining(c: &Climate) -> bool {
 }
 
 /// Climate affects resource availability (emergent scarcity)
-pub fn climate_multiplier(c: &Climate, _resource: &str) -> f32 {
+pub fn climate_multiplier(c: &Climate, resource: &str) -> f32 {
     let base = match c.season {
         Season::Spring => 1.1,
         Season::Summer => 1.0,
         Season::Autumn => 0.9,
         Season::Winter => 0.7,
     };
-    base * (1.0 - c.severity * 0.5)
+    let weather = if resource == "food" { rain_effect(c) } else { 1.0 };
+    base * weather * (1.0 - c.severity * 0.5)
+}
+
+/// How much a wet or dry spell changes crop growth per unit of wetness
+/// away from the season's norm
+pub const RAIN_SENSITIVITY: f32 = 0.5;
+
+/// Crops grow faster in a wet spell and slower in a dry one. Measured
+/// against the season's typical wetness, so it averages out over a season:
+/// the seasonal base above already covers which seasons are lean
+pub fn rain_effect(c: &Climate) -> f32 {
+    1.0 + RAIN_SENSITIVITY * (c.rainfall_drift - season_wetness(c.season))
 }
 
 /// Spawn climate entity
@@ -111,7 +123,9 @@ pub fn spawn_climate(world: &mut World) -> Entity {
         day: 0,
         year: 1,
         temperature_drift: 0.0,
-        rainfall_drift: 0.0,
+        // day 0's real weather, so food growth isn't read as a drought
+        // before SeasonSystem's first tick sets it
+        rainfall_drift: wetness(Season::Spring, 0),
         severity: 0.0,
     });
     e
@@ -157,5 +171,36 @@ mod tests {
         let total: u32 = rainy.iter().sum();
         assert!(total > 20 && total < 180, "rain should be occasional, got {} rainy days", total);
         assert!(rainy[Season::Spring as usize] > rainy[Season::Summer as usize], "spring wetter than summer: {:?}", rainy);
+    }
+
+    #[test]
+    fn test_rain_helps_crops_and_drought_hurts() {
+        let mut c = Climate { season: Season::Spring, year: 1, day: 0, temperature_drift: 0.0, rainfall_drift: 0.45, severity: 0.0 };
+        let normal = climate_multiplier(&c, "food");
+        c.rainfall_drift = 0.75;
+        let wet = climate_multiplier(&c, "food");
+        c.rainfall_drift = 0.15;
+        let dry = climate_multiplier(&c, "food");
+        assert!(wet > normal && normal > dry, "wet {} normal {} dry {}", wet, normal, dry);
+        assert_eq!(climate_multiplier(&c, "timber"), 1.1, "rain only affects food");
+    }
+
+    #[test]
+    fn test_rain_effect_averages_out_over_a_season() {
+        for (season, start) in [(Season::Spring, 0), (Season::Summer, 90), (Season::Autumn, 180), (Season::Winter, 270)] {
+            let mean: f32 = (start..start + 90).map(|d| {
+                let c = Climate { season, year: 1, day: d, temperature_drift: 0.0, rainfall_drift: wetness(season, d), severity: 0.0 };
+                rain_effect(&c)
+            }).sum::<f32>() / 90.0;
+            assert!((mean - 1.0).abs() < 0.03, "{:?} mean rain effect {}", season, mean);
+        }
+    }
+
+    #[test]
+    fn test_new_climate_is_not_a_drought() {
+        let mut w = World::new();
+        let c = spawn_climate(&mut w);
+        let cl = w.get_component::<Climate>(c).unwrap();
+        assert!((rain_effect(cl) - 1.0).abs() < 0.01, "a fresh climate should start at normal weather, got {}", rain_effect(cl));
     }
 }

@@ -101,6 +101,43 @@ impl Sprite {
         }}
         Sprite { width: w, height: h, pixels }
     }
+
+    /// Resize to w x h (nearest-neighbor), e.g. to fit a sprite drawn for a
+    /// bigger tile grid onto the map's tiles
+    pub fn scaled(&self, w: usize, h: usize) -> Sprite {
+        let mut pixels = vec![0u8; w * h * 4];
+        if self.width == 0 || self.height == 0 { return Sprite { width: w, height: h, pixels }; }
+        for dy in 0..h { for dx in 0..w {
+            let sx = dx * self.width / w;
+            let sy = dy * self.height / h;
+            let src = (sy * self.width + sx) * 4;
+            let dst = (dy * w + dx) * 4;
+            pixels[dst..dst+4].copy_from_slice(&self.pixels[src..src+4]);
+        }}
+        Sprite { width: w, height: h, pixels }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scaled_resizes_and_keeps_corners() {
+        // 4x2 sprite: left half red, right half blue
+        let mut pixels = vec![];
+        for _ in 0..2 { for x in 0..4 {
+            pixels.extend_from_slice(if x < 2 { &[255, 0, 0, 255] } else { &[0, 0, 255, 255] });
+        }}
+        let s = Sprite { width: 4, height: 2, pixels };
+        let small = s.scaled(2, 1);
+        assert_eq!((small.width, small.height), (2, 1));
+        assert_eq!(&small.pixels[0..4], &[255, 0, 0, 255]);
+        assert_eq!(&small.pixels[4..8], &[0, 0, 255, 255]);
+        let big = s.scaled(8, 4);
+        assert_eq!(big.pixels.len(), 8 * 4 * 4);
+        assert_eq!(&big.pixels[(3 * 8 + 7) * 4..(3 * 8 + 8) * 4], &[0, 0, 255, 255]);
+    }
 }
 
 /// Asset registry: maps roles to sprite paths

@@ -6,7 +6,7 @@ use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::illness::{Health, Disease, Stage};
+use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
 use game2_core::sim::religion::{Faith, Congregation, Service};
 use game2_core::sim::economics::Market;
@@ -24,6 +24,7 @@ fn main() {
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
+    sched.add_system(IllnessSystem);
 
     // World setup
     let terrain = Terrain::generate(33, 0.7, 42);
@@ -58,9 +59,9 @@ fn main() {
         }
         // Emergent event: flu outbreak at tick 300
         if tick == 300 {
-            let d = world.create_entity();
-            world.add_component(d, Disease { name: "flu".into(), stage: Stage::Mild, severity: 0.3, contagious: true });
             for v in &villagers {
+                let d = world.create_entity();
+                world.add_component(d, Disease { name: "flu".into(), patient: *v, stage: Stage::Mild, severity: 0.3, contagious: true });
                 if let Some(h) = world.get_component_mut::<Health>(*v) { h.condition -= 0.15; }
             }
             println!("EVENT: flu outbreak at tick 300");

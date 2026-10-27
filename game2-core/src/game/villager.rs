@@ -169,6 +169,38 @@ impl System for SeekFoodSystem {
     }
 }
 
+/// Health lost per tick while starving (hunger at 0)
+pub const STARVATION_DAMAGE: f32 = 0.005;
+/// Health regained per tick while well fed and not sick
+pub const NOURISHED_HEALING: f32 = 0.002;
+/// Hunger at or above which a villager counts as well fed
+pub const WELL_FED: f32 = 50.0;
+/// Health a well-fed body mends back up to on its own
+pub const NOURISHED_HEALTH: f32 = 0.9;
+
+/// System: going without food wears down health; a well-fed villager who
+/// isn't sick slowly mends back to normal health. The dead (health 0) are
+/// left alone.
+pub struct NourishmentSystem;
+impl System for NourishmentSystem {
+    fn run(&mut self, world: &mut World) {
+        use crate::sim::illness::{Disease, Health};
+        let sick: Vec<Entity> = world.query::<Disease>().iter()
+            .filter_map(|d| world.get_component::<Disease>(*d).map(|d| d.patient))
+            .collect();
+        for e in world.query::<Hunger>() {
+            let hunger = world.get_component::<Hunger>(e).unwrap().value;
+            let Some(h) = world.get_component_mut::<Health>(e) else { continue };
+            if h.condition <= 0.0 { continue; }
+            if hunger <= 0.0 {
+                h.condition = (h.condition - STARVATION_DAMAGE).max(0.0);
+            } else if hunger >= WELL_FED && !sick.contains(&e) && h.condition < NOURISHED_HEALTH {
+                h.condition = (h.condition + NOURISHED_HEALING).min(NOURISHED_HEALTH);
+            }
+        }
+    }
+}
+
 /// Spawn a villager at a position
 pub fn spawn_villager(world: &mut World, x: f32, y: f32) -> Entity {
     let e = world.create_entity();
@@ -319,6 +351,33 @@ mod tests {
         SeekFoodSystem.run(&mut w);
         assert_eq!(w.get_component::<Hunger>(v).unwrap().value, 100.0);
         assert_eq!(w.get_component::<FoodSource>(stall).unwrap().servings, 2);
+    }
+
+    #[test]
+    fn test_starving_hurts_and_eating_well_mends() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let v = spawn_villager(&mut w, 0.0, 0.0);
+        w.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+        w.get_component_mut::<Hunger>(v).unwrap().value = 0.0;
+        for _ in 0..40 { NourishmentSystem.run(&mut w); }
+        let starved = w.get_component::<Health>(v).unwrap().condition;
+        assert!((starved - 0.7).abs() < 1e-4, "40 ticks starving should cost 0.2 health, got {}", starved);
+        w.get_component_mut::<Hunger>(v).unwrap().value = 80.0;
+        for _ in 0..200 { NourishmentSystem.run(&mut w); }
+        assert_eq!(w.get_component::<Health>(v).unwrap().condition, NOURISHED_HEALTH);
+    }
+
+    #[test]
+    fn test_the_sick_do_not_mend_from_food_alone() {
+        use crate::sim::illness::{Disease, Health, Stage};
+        let mut w = World::new();
+        let v = spawn_villager(&mut w, 0.0, 0.0);
+        w.add_component(v, Health { condition: 0.5, immunity: 0.5 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
+        for _ in 0..50 { NourishmentSystem.run(&mut w); }
+        assert_eq!(w.get_component::<Health>(v).unwrap().condition, 0.5);
     }
 
     fn harvest_field(world: &mut World, field: Entity) {

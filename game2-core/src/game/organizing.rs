@@ -4,6 +4,7 @@
 use crate::engine::ecs::{Entity, World};
 use crate::game::relationships::{record_interaction, Interaction, InteractionKind, Relationship};
 use crate::sim::community::{Citizen, Organization};
+use crate::sim::organized_power::{self, ActionQuality};
 
 /// What a 1-1 reveals about a citizen
 #[derive(Debug)]
@@ -35,7 +36,9 @@ pub struct HouseMeetingResult {
 
 /// Run a house meeting with identified citizens. The meeting is a
 /// conversation between the org's leader and each attendee; only attendees
-/// whose relationship with the leader is already strong enough join.
+/// whose relationship with the leader is already strong enough join. A
+/// meeting where at least two members take part develops people and builds
+/// the org's organized power; a thin one barely does.
 pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> HouseMeetingResult {
     // Shared concerns emerge from overlap
     let shared = vec!["fair wages".into(), "safe harvest".into()];
@@ -44,6 +47,7 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         None => return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 },
     };
     let mut recruited = 0;
+    let mut members_present = 0;
     for &a in attendees {
         let rel = record_interaction(world, leader, Interaction {
             other: a, kind: InteractionKind::Conversation, intensity: 1.0,
@@ -52,7 +56,12 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         if crate::sim::community::recruit(world, org, a, trust) {
             recruited += 1;
         }
+        if world.get_component::<Organization>(org).map(|o| o.members.contains(&a)).unwrap_or(false) {
+            members_present += 1;
+        }
     }
+    let quality = if members_present >= 2 { ActionQuality::Transformational } else { ActionQuality::Transactional };
+    organized_power::record_action(world, org, quality);
     HouseMeetingResult {
         shared_concerns: shared,
         formed_committee: recruited >= 2,
@@ -102,5 +111,26 @@ mod tests {
         assert_eq!(r.attendees_recruited, 2);
         assert!(r.formed_committee);
         assert!(!w.get_component::<Organization>(org).unwrap().members.contains(&stranger));
+    }
+
+    #[test]
+    fn test_house_meeting_with_members_builds_more_power_than_a_thin_one() {
+        use crate::sim::organized_power::OrganizedPower;
+        let mut w = World::new();
+        let (strong, _) = guild(&mut w);
+        let (thin, _) = guild(&mut w);
+        for org in [strong, thin] {
+            w.add_component(org, OrganizedPower::new());
+        }
+        let members: Vec<Entity> = (0..2).map(|_| w.create_entity()).collect();
+        for &m in &members {
+            crate::sim::community::recruit(&mut w, strong, m, 0.9);
+        }
+        house_meeting(&mut w, strong, &members);
+        let strangers: Vec<Entity> = (0..2).map(|_| w.create_entity()).collect();
+        house_meeting(&mut w, thin, &strangers);
+        let cap = |o| w.get_component::<OrganizedPower>(o).unwrap().capacity;
+        assert!(cap(strong) > cap(thin), "meeting with members should develop more power ({} vs {})", cap(strong), cap(thin));
+        assert!(cap(thin) > 0.0, "even a thin meeting is some use of the muscle");
     }
 }

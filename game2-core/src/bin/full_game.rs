@@ -9,7 +9,9 @@ use game2_core::sim::illness::{Health, Disease, Stage};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::religion::{Faith, Congregation, Service};
 use game2_core::sim::economics::{Market, Trader};
-use game2_core::sim::community::{Citizen, Organization, InfluenceSystem, recruit, exert_influence};
+use game2_core::sim::community::{Citizen, Organization, InfluenceSystem, recruit, influence};
+use game2_core::sim::organized_power::{OrganizedPower, PowerAtrophySystem};
+use game2_core::game::organizing::house_meeting;
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
@@ -23,6 +25,7 @@ fn main() {
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(InfluenceSystem); // pools member influence into the org each tick
+    sched.add_system(PowerAtrophySystem); // organized power fades when the guild sits idle
 
     let climate = climate::spawn_climate(&mut world);
     // shared food store in the middle of the villager row, so hunger cycles
@@ -52,6 +55,7 @@ fn main() {
         name: "Harvesters Guild".into(), members: vec![], leader: villagers[0],
         influence_pool: 0.0, resources: 100.0, charter: "Mutual aid".into(),
     });
+    world.add_component(org, OrganizedPower::new());
 
     // Recruit villagers into org (needs trust > 0.5)
     for (i, v) in villagers.iter().enumerate() {
@@ -70,18 +74,30 @@ fn main() {
         ..Default::default()
     });
 
-    println!("\nRunning 200 ticks...\n");
-    println!("tick,hunger,health,org_influence,dog_bond,season\n");
+    println!("\nRunning 200 ticks: the guild organizes until tick 100, then goes quiet...\n");
+    println!("tick,hunger,health,org_influence,org_power,dog_bond,season\n");
     for tick in 0..200 {
         sched.tick(&mut world);
+
+        // The guild organizes: the leader holds a house meeting with the
+        // members every few days, building organized power; after tick 100
+        // it stops, and the power it built starts to atrophy
+        if tick < 100 && tick % 5 == 0 {
+            let attendees = world.get_component::<Organization>(org).unwrap().members.clone();
+            house_meeting(&mut world, org, &attendees);
+        }
+        if tick == 100 {
+            println!("EVENT: the guild stops meeting");
+        }
 
         if tick % 20 == 0 {
             let hunger: f32 = villagers.iter().map(|v| world.get_component::<Hunger>(*v).map(|h| h.value).unwrap_or(0.0)).sum::<f32>() / 4.0;
             let health: f32 = villagers.iter().map(|v| world.get_component::<Health>(*v).map(|h| h.condition).unwrap_or(0.0)).sum::<f32>() / 4.0;
-            let infl = exert_influence(&mut world, org, "village");
+            let infl = influence(&world, org);
+            let power = world.get_component::<OrganizedPower>(org).map(|p| p.capacity).unwrap_or(0.0);
             let bond = world.get_component::<Pet>(dog).map(|p| p.bond_strength).unwrap_or(0.0);
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
-            println!("{},{:.1},{:.2},{:.2},{:.2},{:?}", tick, hunger, health, infl, bond, cl.season);
+            println!("{},{:.1},{:.2},{:.2},{:.2},{:.2},{:?}", tick, hunger, health, infl, power, bond, cl.season);
         }
     }
 

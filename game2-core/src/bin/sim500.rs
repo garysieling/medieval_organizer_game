@@ -26,7 +26,11 @@ fn main() {
     }
     let climate = climate::spawn_climate(&mut world);
 
-    println!("tick,avg_hunger,seeking,eating,idle,season,food_mult");
+    // eating is instant (a villager refills and goes straight back to Idle),
+    // so count meals as servings consumed since the last sample instead of
+    // looking for villagers caught mid-meal
+    let mut last_servings = villager::servings_left(&world);
+    println!("tick,avg_hunger,seeking,meals,idle,season,food_mult");
     for tick in 0..500 {
         let s = telem.span("tick");
         sched.tick(&mut world);
@@ -35,29 +39,32 @@ fn main() {
         if tick % 50 == 0 {
             // Gather metrics
             let mut hunger_sum = 0.0;
-            let (mut seeking, mut eating, mut idle) = (0, 0, 0);
+            let (mut seeking, mut idle) = (0, 0);
             for v in &villagers {
                 if let Some(h) = world.get_component::<Hunger>(*v) { hunger_sum += h.value; }
                 if let Some(vil) = world.get_component::<Villager>(*v) {
                     match vil.activity {
                         Activity::SeekingFood => seeking += 1,
-                        Activity::Eating => eating += 1,
-                        Activity::Idle => idle += 1,
+                        _ => idle += 1,
                     }
                 }
             }
+            let servings = villager::servings_left(&world);
+            let meals = last_servings.saturating_sub(servings); // restocking would otherwise underflow
+            last_servings = servings;
             let avg = hunger_sum / villagers.len() as f32;
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let mult = climate_multiplier(cl, "food");
-            println!("{},{:.1},{},{},{},{:?},{:.2}", tick, avg, seeking, eating, idle, cl.season, mult);
+            println!("{},{:.1},{},{},{},{:?},{:.2}", tick, avg, seeking, meals, idle, cl.season, mult);
             telem.set_tick(tick as u64);
             telem.gauge("avg_hunger", avg as f64);
             telem.gauge("food_mult", mult as f64);
+            telem.gauge("meals", meals as f64);
         }
     }
 
     println!("\n=== METRICS EXPORT ===");
-    for line in telem.export_metrics().iter().take(10) {
+    for line in telem.export_metrics() {
         println!("{}", line);
     }
     println!("\n=== 500-TURN SIM COMPLETE ===");

@@ -103,6 +103,30 @@ fn terrain_colour(h: f32) -> (u8, u8, u8) {
     else { (220, 220, 220) }
 }
 
+/// Mix colour `a` toward `b` by `t` (0 = all a, 1 = all b)
+fn blend(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
+    let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
+    (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
+}
+
+/// A tile's colour in the current season: snow lies on the land in winter
+/// and the water turns cold, grass goes gold in autumn and fresh in spring,
+/// summer is the base palette. Shared by the map and the minimap.
+fn season_colour(h: f32, season: Season) -> (u8, u8, u8) {
+    let base = terrain_colour(h);
+    let water = h < 0.15;
+    let peak = h >= 0.75;
+    match season {
+        Season::Summer => base,
+        Season::Spring if water || peak => base,
+        Season::Spring => blend(base, (70, 170, 70), 0.25),
+        Season::Autumn if water || peak => base,
+        Season::Autumn => blend(base, (185, 125, 45), 0.45),
+        Season::Winter if water => blend(base, (60, 80, 120), 0.5),
+        Season::Winter => blend(base, (228, 232, 240), 0.65),
+    }
+}
+
 // Minimap: the same isometric projection as the map, shrunk to fit a box in
 // the map's top-right corner (so up on the minimap is up on screen)
 const MM_W: i32 = 84;
@@ -588,23 +612,14 @@ impl<'a> Game<'a> {
 
         // terrain rendered in the SAME projection as entities (unified map)
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
-        let (tint_r, tint_g, tint_b) = match season {
-            Season::Spring => (1.0, 1.1, 0.9),
-            Season::Summer => (1.0, 1.0, 1.0),
-            Season::Autumn => (1.15, 0.9, 0.7),
-            Season::Winter => (0.85, 0.9, 1.15),
-        };
         let wave_phase = (tick % 40) < 20;
         let tw = (TILE_W as f32 * zoom) as i32;
         let th = (TILE_H as f32 * zoom) as i32;
         for ty in 0..self.terrain.height {
             for tx in 0..self.terrain.width {
                 let h = self.terrain.get(tx, ty);
-                let (mut r, mut g, mut b) = terrain_colour(h);
-                r = (r as f32 * tint_r).min(255.0) as u8;
-                g = (g as f32 * tint_g).min(255.0) as u8;
-                b = (b as f32 * tint_b).min(255.0) as u8;
-                if b > r && b > g && wave_phase { b = b.saturating_add(15); } // water shimmer
+                let (r, g, mut b) = season_colour(h, season);
+                if h < 0.15 && wave_phase { b = b.saturating_add(15); } // water shimmer
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
                 buf.diamond(sx, sy, tw, th, r, g, b);
                 buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
@@ -857,7 +872,7 @@ impl<'a> Game<'a> {
             let sum = ((MM_TOP + my) as f32 + 0.5 - top) * 2.0;
             let (tx, ty) = ((sum / MM_K + diff / MM_K) / 2.0, (sum / MM_K - diff / MM_K) / 2.0);
             if tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t {
-                let (r, g, b) = terrain_colour(self.terrain.get(tx as usize, ty as usize));
+                let (r, g, b) = season_colour(self.terrain.get(tx as usize, ty as usize), season);
                 buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
             }
         }}
@@ -916,10 +931,12 @@ impl<'a> Game<'a> {
         let raining = world.get_component::<climate::Climate>(self.climate).map(|c| c.rainfall_drift > 0.5).unwrap_or(false);
         if is_winter || raining {
             let (pr, pg, pb) = if is_winter { (230, 235, 255) } else { (120, 160, 220) };
-            for i in 0..20 {
-                let px = ((tick + i * 37) % MAP_W as u64) as i32;
-                let py = ((tick * 2 + i * 23) % H as u64) as i32;
-                if px < MAP_W as i32 { buf.set(px, py, pr, pg, pb); }
+            // snow falls thicker than rain, in 2px flakes
+            let (count, size) = if is_winter { (90, 2) } else { (20, 1) };
+            for i in 0..count {
+                let px = ((tick * 3 + i * 37 + i * i * 7) % MAP_W as u64) as i32;
+                let py = ((tick * 2 + i * 23 + i * i * 3) % H as u64) as i32;
+                if px < MAP_W as i32 { buf.rect(px, py, size, size, pr, pg, pb); }
             }
         }
 
@@ -1063,6 +1080,31 @@ mod illness_tests {
         while game.tick < 600 { game.update(); }
         assert!(game.villagers.iter().all(|v| !is_sick(&game.world, *v)), "the flu should have run its course by day 600");
         assert!(game.log.iter().any(|l| l.contains("recovered from the flu")), "the log should say who recovered");
+    }
+}
+
+#[cfg(test)]
+mod season_tests {
+    use super::*;
+
+    fn brightness(c: (u8, u8, u8)) -> u32 { c.0 as u32 + c.1 as u32 + c.2 as u32 }
+
+    #[test]
+    fn test_winter_land_is_snowy_and_water_stays_water() {
+        for h in [0.25, 0.45, 0.65] {
+            let summer = season_colour(h, Season::Summer);
+            let winter = season_colour(h, Season::Winter);
+            assert!(brightness(winter) > brightness(summer) + 150, "winter land at {} should be snow-pale: {:?} vs {:?}", h, winter, summer);
+        }
+        let water = season_colour(0.05, Season::Winter);
+        assert!(water.2 > water.0 && water.2 > water.1, "winter water should still read as water: {:?}", water);
+    }
+
+    #[test]
+    fn test_autumn_grass_turns_gold_and_summer_is_the_base_palette() {
+        let (r, g, _) = season_colour(0.25, Season::Autumn);
+        assert!(r > 100 && r as i32 > g as i32 - 20, "autumn grass should turn golden: {:?}", (r, g));
+        assert_eq!(season_colour(0.25, Season::Summer), terrain_colour(0.25));
     }
 }
 

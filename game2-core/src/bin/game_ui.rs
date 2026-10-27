@@ -173,6 +173,40 @@ fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
     ys
 }
 
+/// How fed a villager is, in words. `Hunger` stores fullness (100 = just
+/// ate, 0 = starving), so the raw number reads backwards as "hunger".
+fn fullness_word(fullness: f32) -> &'static str {
+    if fullness >= 70.0 { "full" }
+    else if fullness >= 40.0 { "peckish" }
+    else if fullness >= 15.0 { "hungry" }
+    else { "starving" }
+}
+
+/// What a villager is doing, in plain words
+fn activity_text(a: Activity) -> &'static str {
+    match a {
+        Activity::Idle => "idle",
+        Activity::SeekingFood => "looking for food",
+        Activity::Eating => "eating",
+    }
+}
+
+/// Green when high, amber in the middle, red when low (0..=1)
+fn meter_colour(frac: f32) -> (u8, u8, u8) {
+    if frac >= 0.6 { (90, 200, 90) } else if frac >= 0.3 { (230, 180, 60) } else { (230, 80, 70) }
+}
+
+/// A small labelled meter: label, bar filled to `frac`, then a note
+fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &str, frac: f32, note: &str) {
+    const BAR_X: i32 = 44;
+    const BAR_W: i32 = 70;
+    draw_text(buf, x, y, label, 200, 200, 200);
+    buf.rect(x + BAR_X, y, BAR_W, 6, 30, 30, 45);
+    let (r, g, b) = meter_colour(frac);
+    buf.rect(x + BAR_X, y, (frac.clamp(0.0, 1.0) * BAR_W as f32) as i32, 6, r, g, b);
+    draw_text(buf, x + BAR_X + BAR_W + 6, y, note, r, g, b);
+}
+
 /// The disease `who` is fighting, if any: (name, stage)
 fn disease_of(world: &World, who: Entity) -> Option<(String, Stage)> {
     world.query::<Disease>().into_iter()
@@ -789,19 +823,22 @@ impl<'a> Game<'a> {
             // puts it level with the stats beside it
             art.villager_sprites[selected_target].blit_scaled(&mut buf, UI_X as i32 + 6, 312, 2);
             draw_text(&mut buf, UI_X as i32 + 60, 340, NAMES[selected_target], 255, 255, 255);
+            // meters with plain words (Hunger stores fullness, so "Hunger: 24"
+            // used to mean very hungry)
             if let Some(h) = world.get_component::<Hunger>(v) {
-                draw_text(&mut buf, UI_X as i32 + 60, 352, &format!("Hunger: {:.0}", h.value), 200, 200, 100);
+                draw_meter(&mut buf, UI_X as i32 + 60, 352, "Fed", h.value / 100.0, fullness_word(h.value));
             }
             if let Some(he) = world.get_component::<Health>(v) {
-                let ill = disease_of(world, v).map(|(name, stage)| format!(" - {} ({:?})", name, stage)).unwrap_or_default();
-                draw_text(&mut buf, UI_X as i32 + 60, 364, &format!("Health: {:.0}%{}", he.condition * 100.0, ill), 100, 220, 100);
+                let note = disease_of(world, v).map(|(name, stage)| format!("{} ({:?})", name, stage))
+                    .unwrap_or_else(|| format!("{:.0}%", he.condition * 100.0));
+                draw_meter(&mut buf, UI_X as i32 + 60, 364, "Health", he.condition, &note);
             }
             if let Some(a) = world.get_component::<AttachmentHistory>(v) {
                 let style = infer_style(a);
                 draw_text(&mut buf, UI_X as i32 + 60, 376, &format!("Style: {:?}", style), 180, 180, 255);
             }
             if let Some(vil) = world.get_component::<Villager>(v) {
-                draw_text(&mut buf, UI_X as i32 + 60, 388, &format!("Doing: {:?}", vil.activity), 200, 160, 160);
+                draw_text(&mut buf, UI_X as i32 + 60, 388, &format!("Doing: {}", activity_text(vil.activity)), 200, 160, 160);
             }
             draw_text(&mut buf, UI_X as i32 + 18, 426, "keys 1-5: select villager", 120, 120, 140);
         }
@@ -1105,6 +1142,27 @@ mod season_tests {
         let (r, g, _) = season_colour(0.25, Season::Autumn);
         assert!(r > 100 && r as i32 > g as i32 - 20, "autumn grass should turn golden: {:?}", (r, g));
         assert_eq!(season_colour(0.25, Season::Summer), terrain_colour(0.25));
+    }
+}
+
+#[cfg(test)]
+mod inspector_tests {
+    use super::*;
+
+    #[test]
+    fn test_fullness_reads_the_right_way_round() {
+        // Hunger stores fullness: a low number is a hungry villager
+        assert_eq!(fullness_word(95.0), "full");
+        assert_eq!(fullness_word(24.0), "hungry");
+        assert_eq!(fullness_word(5.0), "starving");
+        assert_eq!(meter_colour(0.24), (230, 80, 70), "a hungry villager's bar should be red");
+        assert_eq!(meter_colour(0.95), (90, 200, 90));
+    }
+
+    #[test]
+    fn test_activity_in_plain_words() {
+        assert_eq!(activity_text(Activity::SeekingFood), "looking for food");
+        assert_eq!(activity_text(Activity::Idle), "idle");
     }
 }
 

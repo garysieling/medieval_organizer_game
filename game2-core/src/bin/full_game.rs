@@ -25,6 +25,9 @@ fn main() {
     sched.add_system(InfluenceSystem); // pools member influence into the org each tick
 
     let climate = climate::spawn_climate(&mut world);
+    // shared food store in the middle of the villager row, so hunger cycles
+    // instead of the village quietly starving
+    villager::spawn_food_source(&mut world, 6.0, 4.0, 200);
 
     // Villagers with full component stacks
     let names = ["Aldric", "Eliza", "Bram", "Corvin"];
@@ -66,9 +69,9 @@ fn main() {
         supply: [("food".to_string(), 80)].into_iter().collect(),
     });
 
-    println!("\nRunning 80 ticks...\n");
+    println!("\nRunning 200 ticks...\n");
     println!("tick,hunger,health,org_influence,dog_bond,season\n");
-    for tick in 0..80 {
+    for tick in 0..200 {
         sched.tick(&mut world);
 
         if tick % 20 == 0 {

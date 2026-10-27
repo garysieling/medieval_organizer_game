@@ -54,6 +54,43 @@ fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
     (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - 4)
 }
 
+/// Word-wrap `text` into lines of at most `max` characters, breaking at
+/// spaces (a word longer than a whole line is split)
+fn wrap_text(text: &str, max: usize) -> Vec<String> {
+    let mut lines = vec![];
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        let mut word = word.to_string();
+        while word.chars().count() > max {
+            if !line.is_empty() { lines.push(std::mem::take(&mut line)); }
+            let head: String = word.chars().take(max).collect();
+            word = word.chars().skip(max).collect();
+            lines.push(head);
+        }
+        if line.is_empty() {
+            line = word;
+        } else if line.chars().count() + 1 + word.chars().count() <= max {
+            line.push(' ');
+            line.push_str(&word);
+        } else {
+            lines.push(std::mem::replace(&mut line, word));
+        }
+    }
+    if !line.is_empty() { lines.push(line); }
+    lines
+}
+
+/// Colour for a log entry: deaths red, guild events gold, joins green,
+/// weather/illness cyan, idle gossip dimmed so real events stand out
+fn log_colour(entry: &str) -> (u8, u8, u8) {
+    if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
+    else if entry.contains(" tells ") { (140, 140, 160) } // gossip, even when it mentions the guild
+    else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
+    else if entry.contains("joined") { (120, 255, 120) }
+    else if entry.contains("storm") || entry.contains("rain") || entry.contains("flu") { (120, 200, 255) }
+    else { (210, 210, 210) }
+}
+
 struct Button {
     label: &'static str, key: char,
     x: i32, y: i32, w: i32, h: i32,
@@ -631,7 +668,9 @@ impl<'a> Game<'a> {
         if self.inspector_open {
             draw_rect(&mut buf, UI_X as i32 + 10, 330, 270, 110, 45, 45, 65);
             let v = villagers[selected_target];
-            art.villager_sprites[selected_target].blit(&mut buf, UI_X as i32 + 18, 340);
+            // 2x portrait: the figure fills the frame's bottom rows, so this
+            // puts it level with the stats beside it
+            art.villager_sprites[selected_target].blit_scaled(&mut buf, UI_X as i32 + 6, 312, 2);
             draw_text(&mut buf, UI_X as i32 + 60, 340, NAMES[selected_target], 255, 255, 255);
             if let Some(h) = world.get_component::<Hunger>(v) {
                 draw_text(&mut buf, UI_X as i32 + 60, 352, &format!("Hunger: {:.0}", h.value), 200, 200, 100);
@@ -646,30 +685,33 @@ impl<'a> Game<'a> {
             if let Some(vil) = world.get_component::<Villager>(v) {
                 draw_text(&mut buf, UI_X as i32 + 60, 388, &format!("Doing: {:?}", vil.activity), 200, 160, 160);
             }
-            draw_text(&mut buf, UI_X as i32 + 10, 400, &format!("(keys 1-5 select villager)"), 120, 120, 140);
+            draw_text(&mut buf, UI_X as i32 + 18, 426, "keys 1-5: select villager", 120, 120, 140);
         }
 
-        // organization panel: member portraits + name
-        draw_text(&mut buf, UI_X as i32 + 160, 404, &format!("ORG:"), 255, 215, 0);
+        // organization: who has joined, by name
         let org_members = world.get_component::<Organization>(self.org).unwrap().members.clone();
-        for (i, m) in org_members.iter().take(6).enumerate() {
-            // find which villager index this is
-            let vi = villagers.iter().position(|v| v == m).unwrap_or(0);
-            art.villager_sprites[vi].blit(&mut buf, UI_X as i32 + 200 + i as i32 * 14, 396);
-        }
+        let member_names: Vec<&str> = org_members.iter()
+            .filter_map(|m| villagers.iter().position(|v| v == m).map(|i| NAMES[i]))
+            .collect();
+        let org_line = if member_names.is_empty() { "nobody yet - recruit!".to_string() } else { member_names.join(", ") };
+        draw_text(&mut buf, UI_X as i32 + 18, 408, "Org:", 255, 215, 0);
+        let org_line: String = org_line.chars().take(36).collect();
+        draw_text(&mut buf, UI_X as i32 + 48, 408, &org_line, 220, 220, 180);
 
         // event log
         draw_rect(&mut buf, UI_X as i32 + 10, 450, 270, 170, 25, 25, 40);
         draw_text(&mut buf, UI_X as i32 + 14, 454, "LOG", 150, 150, 180);
-        for (i, entry) in self.log.iter().rev().take(9).enumerate() {
-            let trunc: String = entry.chars().take(42).collect();
-            // color by event type: deaths red, guilds gold, joins green, weather cyan, talk white
-            let (r, g, b) = if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
-                else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
-                else if entry.contains("joined") { (120, 255, 120) }
-                else if entry.contains("storm") || entry.contains("rain") || entry.contains("flu") { (120, 200, 255) }
-                else { (210, 210, 210) };
-            draw_text(&mut buf, UI_X as i32 + 14, 470 + i as i32 * 16, &trunc, r, g, b);
+        // newest first, word-wrapped to the box instead of cut off mid-word
+        const LOG_CHARS: usize = 43;      // (box width - padding) / glyph width
+        const LOG_ROWS: usize = 12;
+        let mut row = 0;
+        'log: for entry in self.log.iter().rev() {
+            let (r, g, b) = log_colour(entry);
+            for line in wrap_text(entry, LOG_CHARS) {
+                if row == LOG_ROWS { break 'log; }
+                draw_text(&mut buf, UI_X as i32 + 14, 468 + row as i32 * 12, &line, r, g, b);
+                row += 1;
+            }
         }
 
         // season change: subtle banner notification instead of flash
@@ -883,6 +925,32 @@ mod rival_tests {
             let p = game.world.get_component::<Pos>(*r).unwrap();
             assert!(p.x >= 24.0, "{} wandered into our village at ({:.1},{:.1})", RIVAL_NAMES[i], p.x, p.y);
         }
+    }
+}
+
+#[cfg(test)]
+mod panel_tests {
+    use super::*;
+
+    #[test]
+    fn test_wrap_text_breaks_at_words() {
+        let lines = wrap_text("t280: Bram tells Dagny - someone saw the lord's tax collector", 20);
+        assert!(lines.iter().all(|l| l.chars().count() <= 20), "{:?}", lines);
+        assert_eq!(lines.join(" "), "t280: Bram tells Dagny - someone saw the lord's tax collector");
+        assert_eq!(lines[0], "t280: Bram tells");
+    }
+
+    #[test]
+    fn test_wrap_text_splits_overlong_words() {
+        assert_eq!(wrap_text("abcdefghij", 4), vec!["abcd", "efgh", "ij"]);
+        assert!(wrap_text("", 10).is_empty());
+    }
+
+    #[test]
+    fn test_gossip_about_the_guild_is_not_coloured_as_a_guild_event() {
+        assert_eq!(log_colour("t1: The Merchant Guild formed!"), (255, 215, 0));
+        assert_ne!(log_colour("t120: Corvin tells Aldric - the guild merchants grow bold"), (255, 215, 0));
+        assert_eq!(log_colour("Eliza joined!"), (120, 255, 120));
     }
 }
 

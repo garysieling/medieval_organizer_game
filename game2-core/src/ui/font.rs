@@ -135,6 +135,15 @@ pub fn draw_text(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: 
     cx - x
 }
 
+/// Draw a string with a 1px dark outline, so it stays readable over busy
+/// art (map labels over roofs, fields and sprites). Returns width drawn.
+pub fn draw_text_outlined(buf: &mut Buffer, x: i32, y: i32, text: &str, r: u8, g: u8, b: u8) -> i32 {
+    for (dx, dy) in [(-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1)] {
+        draw_text(buf, x + dx, y + dy, text, 12, 12, 18);
+    }
+    draw_text(buf, x, y, text, r, g, b)
+}
+
 /// Draw text with a scale factor (2 = double size)
 pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usize, r: u8, g: u8, b: u8) -> i32 {
     if scale <= 1 { return draw_text(buf, x, y, text, r, g, b); }
@@ -157,4 +166,33 @@ pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usi
         cx += 6 * scale as i32;
     }
     cx - x
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_outlined_text_has_a_dark_border_and_coloured_glyph() {
+        let mut buf = Buffer::new(40, 20);
+        buf.rect(0, 0, 40, 20, 250, 250, 250); // white background, like a roof
+        draw_text_outlined(&mut buf, 5, 5, "I", 255, 220, 0);
+        let px = |x: i32, y: i32| {
+            let i = (y as usize * 40 + x as usize) * 4;
+            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2])
+        };
+        // somewhere in the glyph is the text colour, and right next to the
+        // glyph (where the white background was) is the dark outline
+        let mut coloured = 0;
+        let mut outlined = 0;
+        for y in 3..15 { for x in 3..14 {
+            match px(x, y) {
+                (255, 220, 0) => coloured += 1,
+                (12, 12, 18) => outlined += 1,
+                _ => {}
+            }
+        }}
+        assert!(coloured > 0, "glyph should be drawn in the text colour");
+        assert!(outlined > coloured, "glyph should be ringed by a dark outline");
+    }
 }

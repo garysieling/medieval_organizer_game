@@ -3,6 +3,7 @@
 //! Player starts with influence without authority, builds organization.
 
 use crate::engine::ecs::{Entity, World};
+use crate::sim::organized_power::{self, ActionQuality, OrganizedPower};
 
 /// A person with social/political attributes
 #[derive(Debug)]
@@ -93,12 +94,28 @@ pub fn recruit(world: &mut World, org: Entity, citizen: Entity, rel_quality: f32
     false
 }
 
-/// Player exercises influence via an organization
+/// An org's current sway: its members' pooled influence, amplified by the
+/// organized power it has built up. Read-only, for reporting.
+pub fn influence(world: &World, org: Entity) -> f32 {
+    let pool = match world.get_component::<Organization>(org) {
+        Some(o) => o.influence_pool,
+        None => return 0.0,
+    };
+    let capacity = world.get_component::<OrganizedPower>(org).map(|p| p.capacity).unwrap_or(0.0);
+    pool * (1.0 + capacity)
+}
+
+/// Player exercises influence via an organization. Using power is itself an
+/// organizing action: a routine ask with members behind it keeps the
+/// muscle working, while acting with no members at all overreaches and
+/// burns capacity.
 pub fn exert_influence(world: &mut World, org: Entity, _target: &str) -> f32 {
-    if let Some(o) = world.get_component::<Organization>(org) {
-        return o.influence_pool; // sway toward target
-    }
-    0.0
+    let sway = influence(world, org); // sway toward target
+    let has_members = world.get_component::<Organization>(org)
+        .map(|o| !o.members.is_empty()).unwrap_or(false);
+    let quality = if has_members { ActionQuality::Transactional } else { ActionQuality::Overreach };
+    organized_power::record_action(world, org, quality);
+    sway
 }
 
 #[cfg(test)]
@@ -140,5 +157,47 @@ mod tests {
         assert_eq!(exert_influence(&mut w, o, "village"), 0.0);
         InfluenceSystem.run(&mut w);
         assert!((exert_influence(&mut w, o, "village") - 0.5).abs() < 1e-6);
+    }
+
+    fn guild_with_power(w: &mut World, members: usize, capacity: f32) -> Entity {
+        let o = w.create_entity();
+        let leader = w.create_entity();
+        w.add_component(o, Organization {
+            name: "Guild".into(), members: vec![], leader,
+            influence_pool: 0.5, resources: 0.0, charter: "Wages".into(),
+        });
+        w.add_component(o, OrganizedPower { capacity, idle_ticks: 7 });
+        for _ in 0..members {
+            let c = w.create_entity();
+            recruit(w, o, c, 0.8);
+        }
+        o
+    }
+
+    #[test]
+    fn test_organized_power_amplifies_influence() {
+        let mut w = World::new();
+        let weak = guild_with_power(&mut w, 2, 0.0);
+        let strong = guild_with_power(&mut w, 2, 1.0);
+        assert!((influence(&w, weak) - 0.5).abs() < 1e-6);
+        assert!((influence(&w, strong) - 1.0).abs() < 1e-6, "capacity 1.0 should double sway");
+    }
+
+    #[test]
+    fn test_exerting_influence_uses_the_muscle() {
+        let mut w = World::new();
+        let o = guild_with_power(&mut w, 2, 0.5);
+        exert_influence(&mut w, o, "village");
+        let p = w.get_component::<OrganizedPower>(o).unwrap();
+        assert!(p.capacity > 0.5, "a routine ask with members should build a little power");
+        assert_eq!(p.idle_ticks, 0);
+    }
+
+    #[test]
+    fn test_exerting_influence_with_no_members_overreaches() {
+        let mut w = World::new();
+        let o = guild_with_power(&mut w, 0, 0.5);
+        exert_influence(&mut w, o, "village");
+        assert!(w.get_component::<OrganizedPower>(o).unwrap().capacity < 0.5, "acting alone should burn power");
     }
 }

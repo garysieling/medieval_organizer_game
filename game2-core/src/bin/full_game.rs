@@ -64,6 +64,7 @@ fn main() {
     world.add_component(market, Market {
         prices: [("food".to_string(), 10.0)].into_iter().collect(),
         supply: [("food".to_string(), 80)].into_iter().collect(),
+        ..Default::default()
     });
 
     println!("\nRunning 80 ticks...\n");

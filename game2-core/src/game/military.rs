@@ -56,6 +56,9 @@ pub fn army_power(world: &World, army: &Army) -> f32 {
 /// its units; the loser's morale breaks a little and the winner's rises.
 /// Closer fights last longer.
 pub fn resolve_battle(world: &mut World, a: Entity, b: Entity) -> BattleResult {
+    if a == b {
+        return BattleResult { winner: None, casualties_a: 0.0, casualties_b: 0.0, duration: 0 };
+    }
     let (pa, pb) = match (world.get_component::<Army>(a), world.get_component::<Army>(b)) {
         (Some(x), Some(y)) => (army_power(world, x), army_power(world, y)),
         _ => return BattleResult { winner: None, casualties_a: 0.0, casualties_b: 0.0, duration: 0 },
@@ -154,5 +157,16 @@ mod tests {
         let r = resolve_battle(&mut w, a, b);
         assert_eq!(r.winner, None);
         assert_eq!(r.duration, 15);
+    }
+
+    #[test]
+    fn test_self_battle_does_not_double_damage_one_army() {
+        let mut w = World::new();
+        let a = army(&mut w, &[(100.0, 1.0)]);
+        let r = resolve_battle(&mut w, a, a);
+        assert_eq!(r.winner, None);
+        assert_eq!(r.casualties_a, 0.0);
+        assert_eq!(r.casualties_b, 0.0);
+        assert!((w.get_component::<Army>(a).unwrap().total_strength - 100.0).abs() < 1e-4);
     }
 }

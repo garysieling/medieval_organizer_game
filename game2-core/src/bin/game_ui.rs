@@ -260,9 +260,10 @@ impl<'a> Game<'a> {
         ];
 
         Game {
-            art, world, sched, terrain, climate, villagers, rivals, rival_homes, player, org, dog, buildings, buttons,
+            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, buildings, buttons,
             built_count: 0,
             zoom: 1.0,
+            rival_homes,
             toasts: vec![],
             last_guild_count: 0,
             tick: 0,

@@ -41,6 +41,19 @@ fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (i3
     (sx, sy)
 }
 
+/// Top of a character's head relative to its ground point. Characters are
+/// 32px frames drawn 2x from (sx-32, sy-60), but the figure only fills the
+/// frame's bottom rows (18-31), so the head is at about sy-24.
+const SPRITE_HEAD: i32 = -24;
+/// Font glyph width and height (ui::font)
+const GLYPH_W: i32 = 6;
+const GLYPH_H: i32 = 7;
+
+/// Where to draw a character's name: centred over them, just above the head
+fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
+    (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - 4)
+}
+
 struct Button {
     label: &'static str, key: char,
     x: i32, y: i32, w: i32, h: i32,
@@ -525,9 +538,10 @@ impl<'a> Game<'a> {
         for (i, wx, wy) in v_sorted {
             let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
             art.villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
-            // selection highlight
+            let (lx, ly) = name_label_pos(sx, sy, NAMES[i]);
+            // selection highlight: underline the selected villager's name
             if i == selected_target {
-                draw_rect(&mut buf, sx - 14, sy - 66, 28, 2, 255, 255, 0);
+                draw_rect(&mut buf, lx - 1, ly + GLYPH_H + 1, NAMES[i].len() as i32 * GLYPH_W + 1, 2, 255, 255, 0);
             }
             // grave if dead (no Health component)
             if world.get_component::<Health>(villagers[i]).is_none() {
@@ -536,16 +550,17 @@ impl<'a> Game<'a> {
                 continue;
             }
             // name label
-            draw_text(&mut buf, sx - 14, sy - 76, NAMES[i], 255, 255, 255);
-            // hunger indicator
+            draw_text(&mut buf, lx, ly, NAMES[i], 255, 255, 255);
+            // hunger indicator, right after the name
             if let Some(h) = world.get_component::<Hunger>(villagers[i]) {
-                if h.value < 40.0 { draw_text(&mut buf, sx - 3, sy - 66, "!", 255, 100, 100); }
+                if h.value < 40.0 { draw_text(&mut buf, lx + NAMES[i].len() as i32 * GLYPH_W + 2, ly, "!", 255, 100, 100); }
             }
+            // activity marker beside the head
             if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
                 match vil.activity {
-                    Activity::SeekingFood => { draw_text(&mut buf, sx + 8, sy - 60, "o", 255, 200, 100); }
+                    Activity::SeekingFood => { draw_text(&mut buf, sx + 10, sy + SPRITE_HEAD, "o", 255, 200, 100); }
                     Activity::Idle => {},
-                    _ => { draw_text(&mut buf, sx + 8, sy - 60, "*", 180, 180, 255); }
+                    _ => { draw_text(&mut buf, sx + 10, sy + SPRITE_HEAD, "*", 180, 180, 255); }
                 }
             }
         }
@@ -570,7 +585,8 @@ impl<'a> Game<'a> {
                 if let Some(rs) = &art.player_s {
                     rs.blit_scaled(&mut buf, sx - 32, sy - 60, 2);
                 }
-                draw_text(&mut buf, sx - 14, sy - 76, RIVAL_NAMES[i], 255, 140, 140);
+                let (lx, ly) = name_label_pos(sx, sy, RIVAL_NAMES[i]);
+                draw_text(&mut buf, lx, ly, RIVAL_NAMES[i], 255, 140, 140);
             }
         }
 
@@ -584,7 +600,8 @@ impl<'a> Game<'a> {
         } else {
             draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         }
-        draw_text(&mut buf, px - 12, py - 76, "YOU", 255, 255, 0);
+        let (lx, ly) = name_label_pos(px, py, "YOU");
+        draw_text(&mut buf, lx, ly, "YOU", 255, 255, 0);
 
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, (W as i32 - UI_X as i32), H as i32, 32, 32, 48);
@@ -711,7 +728,7 @@ impl<'a> Game<'a> {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     let bw = (text.len() as i32 * 6 + 12).max(60);
                     let bx = (sx - bw / 2).max(4);
-                    let by = sy - 95;
+                    let by = sy + SPRITE_HEAD - GLYPH_H - 4 - 26; // just above the name label
                     buf.rect(bx, by, bw, 18, 240, 240, 220);   // cream bubble
                     buf.rect(bx, by + 16, 8, 6, 240, 240, 220); // tail
                     draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
@@ -1016,5 +1033,17 @@ mod tests {
         assert_eq!((top.width, top.height), (95, 48), "keep only the top diamond, not the sides");
         let tile = top.scaled((2 * TILE_W) as usize, (2 * TILE_H) as usize);
         assert_eq!((tile.width, tile.height), (56, 28), "a ground tile covers exactly one map tile");
+    }
+
+    #[test]
+    fn test_name_label_sits_just_above_the_head_and_centred() {
+        let (sx, sy) = (300, 200);
+        let (lx, ly) = name_label_pos(sx, sy, "Aldric");
+        let label_bottom = ly + GLYPH_H;
+        let head = sy + SPRITE_HEAD;
+        assert!(label_bottom <= head && head - label_bottom <= 6,
+            "label should end just above the head (bottom {} vs head {})", label_bottom, head);
+        let centre = lx + "Aldric".len() as i32 * GLYPH_W / 2;
+        assert_eq!(centre, sx, "label should be centred over the character");
     }
 }

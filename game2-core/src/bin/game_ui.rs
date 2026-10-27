@@ -249,6 +249,16 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
 /// Day a traveller brings the flu to the village
 const FLU_DAY: u64 = 120;
 
+/// Keyboard shortcut for each action button, in button order (Talk, Recruit,
+/// Invest, Organize, Build, Wait). The input loop and the buttons' key hints
+/// both come from here so they can't disagree. W/A/S/D move the player, so
+/// no action may use them.
+const ACTION_KEYS: [(Key, char); 6] = [
+    (Key::T, 'T'), (Key::R, 'R'), (Key::I, 'I'), (Key::O, 'O'), (Key::B, 'B'), (Key::Z, 'Z'),
+];
+/// Keys that move the player
+const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
+
 const NAMES: [&str; 5] = ["Aldric","Eliza","Bram","Corvin","Dagny"];
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 const TOOLTIPS: [&str; 6] = [
@@ -462,12 +472,12 @@ impl<'a> Game<'a> {
         pets::adopt(&mut world, dog, villagers[0]);
 
         let buttons = vec![
-            Button { label: "Talk",     key: 'T', x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
-            Button { label: "Recruit",  key: 'R', x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
-            Button { label: "Invest",   key: 'I', x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
-            Button { label: "Organize", key: 'O', x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (120,100,40) },
-            Button { label: "Build",    key: 'B', x: UI_X as i32 + 10, y: 236, w: 130, h: 36, color: (80,60,120) },
-            Button { label: "Wait",     key: 'W', x: UI_X as i32 + 10, y: 280, w: 130, h: 36, color: (60,90,100) }, // not grey: grey means disabled
+            Button { label: "Talk",     key: ACTION_KEYS[0].1, x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
+            Button { label: "Recruit",  key: ACTION_KEYS[1].1, x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
+            Button { label: "Invest",   key: ACTION_KEYS[2].1, x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
+            Button { label: "Organize", key: ACTION_KEYS[3].1, x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (120,100,40) },
+            Button { label: "Build",    key: ACTION_KEYS[4].1, x: UI_X as i32 + 10, y: 236, w: 130, h: 36, color: (80,60,120) },
+            Button { label: "Wait",     key: ACTION_KEYS[5].1, x: UI_X as i32 + 10, y: 280, w: 130, h: 36, color: (60,90,100) }, // not grey: grey means disabled
         ];
 
         Game {
@@ -1001,8 +1011,8 @@ impl<'a> Game<'a> {
                 "click villager: select + inspect",
                 "1-5: select villager",
                 "T talk  R recruit  I invest",
-                "O organize  B build  WASD move",
-                "arrows: pan map   +/-: zoom",
+                "O organize  B build  Z wait",
+                "WASD: move   arrows: pan   +/-: zoom",
                 "Space: pause   0: speed 4x",
                 "F12: screenshot   Esc: quit",
             ];
@@ -1208,6 +1218,23 @@ mod rain_tests {
 }
 
 #[cfg(test)]
+mod key_tests {
+    use super::*;
+
+    #[test]
+    fn test_every_button_hint_is_its_bound_key_and_none_move_the_player() {
+        let art = Art::default();
+        let game = Game::new(&art);
+        assert_eq!(game.buttons.len(), ACTION_KEYS.len(), "every action button needs a key");
+        for (b, (key, ch)) in game.buttons.iter().zip(ACTION_KEYS.iter()) {
+            assert_eq!(b.key, *ch, "{} shows key {} but is bound to {:?}", b.label, b.key, key);
+            assert_eq!(format!("{:?}", key), ch.to_string(), "{}: hint {} doesn't match key {:?}", b.label, ch, key);
+            assert!(!MOVE_KEYS.contains(ch), "{} uses {}, which moves the player", b.label, ch);
+        }
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -1354,8 +1381,8 @@ fn main() {
                 if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h { action = Some(i); }
             }
         }
-        for (k, i) in [(Key::T, 0), (Key::R, 1), (Key::I, 2), (Key::O, 3), (Key::B, 4)] {
-            if window.is_key_pressed(k, minifb::KeyRepeat::No) { action = Some(i); }
+        for (i, (k, _)) in ACTION_KEYS.iter().enumerate() {
+            if window.is_key_pressed(*k, minifb::KeyRepeat::No) { action = Some(i); }
         }
         if let Some(i) = action { game.act(i); }
         if clicked { game.click_map(mx, my); }

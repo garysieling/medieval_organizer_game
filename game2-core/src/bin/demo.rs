@@ -33,7 +33,7 @@ fn main() {
     }
 
     println!("\n--- B1: Economics (price formation) ---");
-    let mut m = Market { prices: Default::default(), supply: Default::default() };
+    let mut m = Market::default();
     m.prices.insert("food".to_string(), 10.0);
     m.add_supply("food", 10);
     for demand in [10, 20, 40, 80] {

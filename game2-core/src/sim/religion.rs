@@ -4,6 +4,7 @@
 
 use crate::engine::ecs::{Entity, World};
 use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+use crate::game::villager::Hunger;
 
 /// An agent's faith/religious identity
 #[derive(Debug)]
@@ -65,10 +66,17 @@ impl crate::engine::ecs::System for DevotionSystem {
     }
 }
 
+/// Hunger a hungry member regains per giver per unit of charity_output
+pub const AID_PER_GIVER: f32 = 20.0;
+/// Below this hunger a member is in need of the congregation's charity
+pub const NEEDY_HUNGER: f32 = 30.0;
+
 /// Congregation performs a service - emergent effects. Each participant who
 /// belongs to the congregation grows in devotion (with diminishing returns,
 /// so the devout gain less than the lapsed), and the shared ritual bonds
-/// every pair of participants. Returns how many members took part.
+/// every pair of participants. With charity_output > 0, the fed members who
+/// attend share food with every hungry member - present or not - so more
+/// givers mean more aid. Returns how many members took part.
 pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usize {
     let members = match world.get_component::<Congregation>(cong) {
         Some(c) => c.members.clone(),
@@ -88,6 +96,16 @@ pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usi
             record_interaction(world, a, Interaction {
                 other: b, kind: InteractionKind::Conversation, intensity: service.cohesion_boost,
             });
+        }
+    }
+    if service.charity_output > 0.0 {
+        let fed = |w: &World, e: Entity| w.get_component::<Hunger>(e).map(|h| h.value >= NEEDY_HUNGER).unwrap_or(false);
+        let givers = present.iter().filter(|&&p| fed(world, p)).count();
+        let aid = service.charity_output * givers as f32 * AID_PER_GIVER;
+        for &m in &members {
+            if let Some(h) = world.get_component_mut::<Hunger>(m) {
+                if h.value < NEEDY_HUNGER { h.value = (h.value + aid).min(100.0); }
+            }
         }
     }
     present.len()
@@ -186,5 +204,40 @@ mod tests {
         }
         let d = w.get_component::<Faith>(b).unwrap().devotion;
         assert!(d > 0.5 && d < 0.95, "weekly practice should hold devotion high but not pinned at 1, got {}", d);
+    }
+
+    #[test]
+    fn test_charity_feeds_hungry_members_from_the_fed() {
+        let mut w = World::new();
+        let givers: Vec<Entity> = (0..3).map(|_| {
+            let e = believer(&mut w, 0.5);
+            w.add_component(e, Hunger { value: 80.0 });
+            e
+        }).collect();
+        let hungry = believer(&mut w, 0.5);
+        w.add_component(hungry, Hunger { value: 5.0 });
+        let mut members = givers.clone();
+        members.push(hungry);
+        let c = congregation(&mut w, members);
+        perform_service(&mut w, c, Service {
+            name: "Harvest Rite".into(), frequency: "weekly".into(),
+            participants: givers.clone(), cohesion_boost: 0.1, charity_output: 0.1,
+        });
+        // 3 givers x 0.1 x 20 = +6, though the hungry member stayed home
+        assert!((w.get_component::<Hunger>(hungry).unwrap().value - 11.0).abs() < 1e-4);
+        assert_eq!(w.get_component::<Hunger>(givers[0]).unwrap().value, 80.0, "the fed don't get aid");
+    }
+
+    #[test]
+    fn test_no_charity_without_fed_givers() {
+        let mut w = World::new();
+        let a = believer(&mut w, 0.5);
+        w.add_component(a, Hunger { value: 10.0 });
+        let c = congregation(&mut w, vec![a]);
+        perform_service(&mut w, c, Service {
+            name: "Rite".into(), frequency: "weekly".into(),
+            participants: vec![a], cohesion_boost: 0.1, charity_output: 0.5,
+        });
+        assert_eq!(w.get_component::<Hunger>(a).unwrap().value, 10.0, "the starving can't feed themselves");
     }
 }

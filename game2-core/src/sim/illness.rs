@@ -15,6 +15,7 @@ pub struct Health {
 #[derive(Debug)]
 pub struct Disease {
     pub name: String,
+    pub patient: Entity, // who is sick with it
     pub stage: Stage,
     pub severity: f32,
     pub contagious: bool,
@@ -40,43 +41,60 @@ pub struct Treatment {
     pub efficacy: f32,    // how much it helps
 }
 
-/// System: diseases progress, health declines/recovers
+/// Health lost per tick per unit of severity while a disease is active
+const DAMAGE_RATE: f32 = 0.01;
+/// Severity the immune system clears per tick per unit of immunity
+const IMMUNE_RATE: f32 = 0.01;
+/// Health regained per tick once a disease is beaten
+const RECOVERY_RATE: f32 = 0.005;
+/// Health at which a recovering patient is cleared of the disease
+const RECOVERED: f32 = 0.9;
+
+/// System: each disease wears down its own patient while their immune
+/// system fights it off; once severity drops low enough they recover, and
+/// the disease is cleared when their health is back
 pub struct IllnessSystem;
 impl crate::engine::ecs::System for IllnessSystem {
     fn run(&mut self, world: &mut World) {
-        for e in world.query::<Health>() {
-            let mut condition = world.get_component::<Health>(e).unwrap().condition;
-            let mut new_stage = None;
-            for d in world.query::<Disease>() {
-                if let Some(dis) = world.get_component::<Disease>(d) {
-                    condition -= dis.severity * 0.05;
-                    new_stage = Some(advance_stage(dis));
+        for d in world.query::<Disease>() {
+            let (patient, stage, severity) = match world.get_component::<Disease>(d) {
+                Some(dis) => (dis.patient, dis.stage, dis.severity),
+                None => continue,
+            };
+            let Some(h) = world.get_component_mut::<Health>(patient) else {
+                world.destroy_entity(d); // patient is gone
+                continue;
+            };
+            if stage == Stage::Recovering {
+                h.condition = (h.condition + RECOVERY_RATE).min(1.0);
+                if h.condition >= RECOVERED {
+                    world.destroy_entity(d);
                 }
+                continue;
             }
-            if let Some(_s) = new_stage {
-                if let Some(h) = world.get_component_mut::<Health>(e) {
-                    h.condition = condition.max(0.0);
-                }
+            h.condition = (h.condition - severity * DAMAGE_RATE).max(0.0);
+            let severity = (severity - h.immunity * IMMUNE_RATE).max(0.0);
+            if let Some(dis) = world.get_component_mut::<Disease>(d) {
+                dis.severity = severity;
+                dis.stage = stage_for(severity);
             }
         }
     }
 }
 
-fn advance_stage(d: &Disease) -> Stage {
-    match d.stage {
-        Stage::Latent => Stage::Mild,
-        Stage::Mild => Stage::Moderate,
-        Stage::Moderate => Stage::Severe,
-        Stage::Severe => Stage::Critical,
-        Stage::Critical => Stage::Critical,
-        Stage::Recovering => Stage::Recovering,
-    }
+fn stage_for(severity: f32) -> Stage {
+    if severity < 0.1 { Stage::Recovering }
+    else if severity < 0.3 { Stage::Mild }
+    else if severity < 0.6 { Stage::Moderate }
+    else if severity < 0.85 { Stage::Severe }
+    else { Stage::Critical }
 }
 
-/// Apply treatment - modifies disease severity based on efficacy
-pub fn apply_treatment(world: &mut World, _patient: Entity, treatment: &Treatment) {
+/// Apply treatment - modifies the patient's disease severity based on efficacy
+pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
     for d in world.query::<Disease>() {
         if let Some(dis) = world.get_component_mut::<Disease>(d) {
+            if dis.patient != patient { continue; }
             dis.severity *= 1.0 - treatment.efficacy * treatment.dose;
             if dis.severity < 0.1 {
                 dis.stage = Stage::Recovering;
@@ -99,10 +117,44 @@ pub fn treat_health(health: &mut Health, treatment: &Treatment) {
 mod tests {
     use super::*;
 
+    use crate::engine::ecs::System;
+
     #[test]
-    fn test_stage_progression() {
-        let d = Disease { name: "flu".into(), stage: Stage::Latent, severity: 0.5, contagious: false };
-        assert_eq!(advance_stage(&d), Stage::Mild);
+    fn test_stage_follows_severity() {
+        assert_eq!(stage_for(0.9), Stage::Critical);
+        assert_eq!(stage_for(0.4), Stage::Moderate);
+        assert_eq!(stage_for(0.05), Stage::Recovering);
+    }
+
+    #[test]
+    fn test_disease_only_harms_its_patient() {
+        let mut w = World::new();
+        let sick = w.create_entity();
+        let well = w.create_entity();
+        w.add_component(sick, Health { condition: 0.9, immunity: 0.5 });
+        w.add_component(well, Health { condition: 0.9, immunity: 0.5 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "flu".into(), patient: sick, stage: Stage::Mild, severity: 0.4, contagious: false });
+        IllnessSystem.run(&mut w);
+        assert!(w.get_component::<Health>(sick).unwrap().condition < 0.9);
+        assert_eq!(w.get_component::<Health>(well).unwrap().condition, 0.9);
+    }
+
+    #[test]
+    fn test_patient_recovers_and_disease_clears() {
+        let mut w = World::new();
+        let p = w.create_entity();
+        w.add_component(p, Health { condition: 0.7, immunity: 0.5 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.4, contagious: false });
+        let mut lowest = 1.0f32;
+        for _ in 0..300 {
+            IllnessSystem.run(&mut w);
+            lowest = lowest.min(w.get_component::<Health>(p).unwrap().condition);
+        }
+        assert!(lowest < 0.7, "the disease should do some harm first");
+        assert!(w.get_component::<Health>(p).unwrap().condition >= RECOVERED, "patient should get better");
+        assert!(w.get_component::<Disease>(d).is_none(), "a beaten disease should be cleared");
     }
 
     #[test]
@@ -111,10 +163,13 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), stage: Stage::Mild, severity: 0.5, contagious: false });
+        w.add_component(d, Disease { name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.5, contagious: false });
+        let other = w.create_entity();
+        w.add_component(other, Disease { name: "flu".into(), patient: d, stage: Stage::Mild, severity: 0.5, contagious: false });
         let t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
         apply_treatment(&mut w, p, &t);
         assert!(w.get_component::<Disease>(d).unwrap().severity < 0.2);
+        assert_eq!(w.get_component::<Disease>(other).unwrap().severity, 0.5, "only the treated patient's disease eases");
     }
 
     #[test]

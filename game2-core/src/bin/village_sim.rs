@@ -5,7 +5,7 @@
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
-use game2_core::sim::illness::{Health, Disease, Stage};
+use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::economics::{self, Market, ProductionSystem};
 use game2_core::infra::telemetry::Telemetry;
@@ -21,6 +21,7 @@ fn main() {
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(ProductionSystem);
+    sched.add_system(IllnessSystem);
 
     // Spawn 4 villagers with full component sets
     let mut villagers = vec![];
@@ -59,7 +60,7 @@ fn main() {
         if tick == 50 {
             let d = world.create_entity();
             world.add_component(d, Disease {
-                name: "flu".into(), stage: Stage::Mild,
+                name: "flu".into(), patient: villagers[0], stage: Stage::Mild,
                 severity: 0.4, contagious: true,
             });
             if let Some(h) = world.get_component_mut::<Health>(villagers[0]) {

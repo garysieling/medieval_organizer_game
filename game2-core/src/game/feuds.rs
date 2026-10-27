@@ -54,11 +54,23 @@ pub fn vengeance_escalation(kind: &VengeanceKind) -> VengeanceKind {
     }
 }
 
-/// Peacemaking: arbitration resolves (or fails) the feud
+/// Intensity below which arbitration settles a feud outright
+pub const RESOLVABLE_INTENSITY: f32 = 0.5;
+/// How much a failed arbitration still cools a feud
+pub const ARBITRATION_COOLING: f32 = 0.2;
+
+/// Peacemaking: arbitration resolves the feud if tempers are low enough.
+/// Otherwise talks still cool it and pause escalation (Peacemaking), so
+/// repeated arbitration can settle even a burning feud.
 pub fn peacemaking(world: &mut World, feud: Entity, _arbitrator: Entity) -> bool {
     if let Some(f) = world.get_component_mut::<Feud>(feud) {
-        // Success depends on intensity - lower = easier to resolve
-        f.status = if f.intensity < 0.5 { FeudStatus::Resolved } else { FeudStatus::Burning };
+        if f.status == FeudStatus::Resolved { return true; }
+        if f.intensity < RESOLVABLE_INTENSITY {
+            f.status = FeudStatus::Resolved;
+        } else {
+            f.intensity = (f.intensity - ARBITRATION_COOLING).max(0.0);
+            f.status = FeudStatus::Peacemaking;
+        }
         return f.status == FeudStatus::Resolved;
     }
     false
@@ -73,17 +85,73 @@ pub fn spawn_feud(world: &mut World, offender: Entity, aggrieved: Entity, offens
     e
 }
 
-/// System: feuds escalate if unresolved
+/// System: feuds escalate unless settled or under arbitration
 pub struct FeudSystem;
 impl crate::engine::ecs::System for FeudSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Feud>() {
             if let Some(f) = world.get_component_mut::<Feud>(e) {
-                if f.status == FeudStatus::Active {
+                f.tick += 1;
+                // Open conflict keeps escalating too; only talks or a
+                // settlement stop it
+                if matches!(f.status, FeudStatus::Active | FeudStatus::Burning) {
                     f.intensity = (f.intensity + 0.05).min(1.0);
                     if f.intensity > 0.7 { f.status = FeudStatus::Burning; }
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::ecs::System;
+
+    fn feud(w: &mut World) -> (Entity, Entity) {
+        let a = w.create_entity();
+        let b = w.create_entity();
+        let arb = w.create_entity();
+        (spawn_feud(w, a, b, "insult"), arb)
+    }
+
+    #[test]
+    fn test_burning_feud_keeps_escalating() {
+        let mut w = World::new();
+        let (f, _) = feud(&mut w);
+        for _ in 0..20 { FeudSystem.run(&mut w); }
+        let fd = w.get_component::<Feud>(f).unwrap();
+        assert_eq!(fd.status, FeudStatus::Burning);
+        assert!(fd.intensity > 0.95, "burning feud stalled at {}", fd.intensity);
+        assert_eq!(fd.tick, 20);
+    }
+
+    #[test]
+    fn test_young_feud_resolves_by_arbitration() {
+        let mut w = World::new();
+        let (f, arb) = feud(&mut w);
+        assert!(peacemaking(&mut w, f, arb));
+        FeudSystem.run(&mut w);
+        let fd = w.get_component::<Feud>(f).unwrap();
+        assert_eq!(fd.status, FeudStatus::Resolved);
+        assert!((fd.intensity - 0.3).abs() < 1e-6, "settled feuds don't escalate");
+    }
+
+    #[test]
+    fn test_repeated_arbitration_settles_burning_feud() {
+        let mut w = World::new();
+        let (f, arb) = feud(&mut w);
+        for _ in 0..20 { FeudSystem.run(&mut w); }
+        assert!(!peacemaking(&mut w, f, arb));
+        assert_eq!(w.get_component::<Feud>(f).unwrap().status, FeudStatus::Peacemaking);
+        // Talks pause escalation
+        let before = w.get_component::<Feud>(f).unwrap().intensity;
+        FeudSystem.run(&mut w);
+        assert_eq!(w.get_component::<Feud>(f).unwrap().intensity, before);
+        // 1.0 -> 0.8 -> 0.6 -> 0.4, then the fourth round settles it
+        assert!(!peacemaking(&mut w, f, arb));
+        assert!(!peacemaking(&mut w, f, arb));
+        assert!(peacemaking(&mut w, f, arb));
+        assert_eq!(w.get_component::<Feud>(f).unwrap().status, FeudStatus::Resolved);
     }
 }

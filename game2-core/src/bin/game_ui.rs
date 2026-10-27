@@ -13,7 +13,7 @@ use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_inves
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
-use game2_core::sim::illness::Health;
+use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
 use game2_core::game::traits::{self, Personality, personality_from_seed};
@@ -149,6 +149,19 @@ fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
     ys
 }
 
+/// The disease `who` is fighting, if any: (name, stage)
+fn disease_of(world: &World, who: Entity) -> Option<(String, Stage)> {
+    world.query::<Disease>().into_iter()
+        .filter_map(|d| world.get_component::<Disease>(d))
+        .find(|d| d.patient == who)
+        .map(|d| (d.name.clone(), d.stage))
+}
+
+/// Is `who` ill right now (a disease not yet beaten)?
+fn is_sick(world: &World, who: Entity) -> bool {
+    disease_of(world, who).map(|(_, stage)| stage != Stage::Recovering).unwrap_or(false)
+}
+
 struct Button {
     label: &'static str, key: char,
     x: i32, y: i32, w: i32, h: i32,
@@ -169,6 +182,9 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
     let key = format!("{}", b.key);
     draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);
 }
+
+/// Day a traveller brings the flu to the village
+const FLU_DAY: u64 = 120;
 
 const NAMES: [&str; 5] = ["Aldric","Eliza","Bram","Corvin","Dagny"];
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
@@ -295,6 +311,7 @@ struct Game<'a> {
     help_open: bool,
     dialog: Option<(Entity, String, u64)>, // (speaker, text, until tick)
     frame_n: u32,
+    was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
 }
 
 impl<'a> Game<'a> {
@@ -306,6 +323,7 @@ impl<'a> Game<'a> {
         sched.add_system(pets::PetBondSystem);
         sched.add_system(SeasonSystem);
         sched.add_system(GuildFormationSystem);
+        sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
 
         let terrain = Terrain::generate(33, 0.7, 42);
         let climate = climate::spawn_climate(&mut world);
@@ -404,6 +422,7 @@ impl<'a> Game<'a> {
             inspector_open: true,
             help_open: false,
             dialog: None,
+            was_sick: vec![false; NAMES.len()],
             frame_n: 0,
         }
     }
@@ -527,6 +546,20 @@ impl<'a> Game<'a> {
             log.push(format!("t{}: {} tells {} - {}", tick, NAMES[a], NAMES[b], rumors[tick as usize / 40 % 5]));
         }
 
+        // a traveller brings the flu; it's contagious, so neighbours may catch it
+        if ticked && tick == FLU_DAY {
+            let d = world.create_entity();
+            world.add_component(d, Disease { name: "flu".into(), patient: villagers[2], stage: Stage::Moderate, severity: 0.45, contagious: true });
+            toasts.push((format!("A traveller brings the flu - {} falls ill", NAMES[2]), tick + 40));
+        }
+        // log who falls ill and who recovers
+        let sick_now: Vec<bool> = villagers.iter().map(|v| is_sick(world, *v)).collect();
+        for (i, (&now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
+            if now && !*was { log.push(format!("t{}: {} has the flu", tick, NAMES[i])); }
+            if !now && *was { log.push(format!("t{}: {} recovered from the flu", tick, NAMES[i])); }
+            *was = now;
+        }
+
         // detect events -> toasts
         let gc = world.query::<Guild>().len();
         if gc > self.last_guild_count {
@@ -636,6 +669,10 @@ impl<'a> Game<'a> {
             }
             let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
             labels.push((NAMES[i], lx, ly, (255, 255, 255), hungry, i == selected_target));
+            // sick: a green cross on the other side of the head
+            if is_sick(world, villagers[i]) {
+                draw_text_outlined(&mut buf, sx - 16, sy + SPRITE_HEAD, "+", 140, 230, 110);
+            }
             // activity marker beside the head
             if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
                 match vil.activity {
@@ -741,7 +778,8 @@ impl<'a> Game<'a> {
                 draw_text(&mut buf, UI_X as i32 + 60, 352, &format!("Hunger: {:.0}", h.value), 200, 200, 100);
             }
             if let Some(he) = world.get_component::<Health>(v) {
-                draw_text(&mut buf, UI_X as i32 + 60, 364, &format!("Health: {:.0}%", he.condition * 100.0), 100, 220, 100);
+                let ill = disease_of(world, v).map(|(name, stage)| format!(" - {} ({:?})", name, stage)).unwrap_or_default();
+                draw_text(&mut buf, UI_X as i32 + 60, 364, &format!("Health: {:.0}%{}", he.condition * 100.0, ill), 100, 220, 100);
             }
             if let Some(a) = world.get_component::<AttachmentHistory>(v) {
                 let style = infer_style(a);
@@ -1008,6 +1046,23 @@ mod rival_tests {
             let p = game.world.get_component::<Pos>(*r).unwrap();
             assert!(p.x >= 24.0, "{} wandered into our village at ({:.1},{:.1})", RIVAL_NAMES[i], p.x, p.y);
         }
+    }
+}
+
+#[cfg(test)]
+mod illness_tests {
+    use super::*;
+
+    #[test]
+    fn test_flu_arrives_spreads_through_the_log_and_passes() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        while game.tick < FLU_DAY + 5 { game.update(); }
+        assert!(is_sick(&game.world, game.villagers[2]), "Bram should have the flu just after it arrives");
+        assert!(game.log.iter().any(|l| l.contains("Bram has the flu")), "the log should say who fell ill");
+        while game.tick < 600 { game.update(); }
+        assert!(game.villagers.iter().all(|v| !is_sick(&game.world, *v)), "the flu should have run its course by day 600");
+        assert!(game.log.iter().any(|l| l.contains("recovered from the flu")), "the log should say who recovered");
     }
 }
 

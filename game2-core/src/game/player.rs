@@ -102,6 +102,11 @@ pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entit
 pub const INVEST_INFLUENCE_PER_GOLD: f32 = 0.005;
 
 pub fn act_invest(world: &mut World, player: Entity, amount: f32) -> ActionResult {
+    // Only a real, positive sum can be invested: a negative amount would pass
+    // the affordability check and mint gold, and NaN would poison both stats
+    if !(amount.is_finite() && amount > 0.0) {
+        return ActionResult { success: false, influence_change: 0.0, description: "Nothing to invest".into() };
+    }
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
         if p.resources >= amount {
             p.resources -= amount;
@@ -161,5 +166,17 @@ mod tests {
         for _ in 0..10 { act_invest(&mut w, p, 10.0); }
         for v in &vs { act_recruit(&mut w, p, o, *v); }
         assert!(w.get_component::<PlayerCharacter>(p).unwrap().influence > 2.0);
+    }
+
+    #[test]
+    fn test_invest_rejects_negative_and_nan_amounts() {
+        let (mut w, p, _, _) = setup();
+        for bad in [-50.0, 0.0, f32::NAN, f32::INFINITY] {
+            let r = act_invest(&mut w, p, bad);
+            assert!(!r.success, "investing {} should fail", bad);
+        }
+        let pc = w.get_component::<PlayerCharacter>(p).unwrap();
+        assert_eq!(pc.resources, 100.0, "no gold minted or lost");
+        assert_eq!(pc.influence, 0.1);
     }
 }

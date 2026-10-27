@@ -654,6 +654,7 @@ impl<'a> Game<'a> {
                     toasts.push((format!("{} has died.", NAMES[i]), tick + 60));
                     log.push(format!("t{}: {} died.", tick, NAMES[i]));
                     world.remove_component::<Health>(*v);
+                    world.add_component(*v, villager::Dead);
                 }
             }
         }

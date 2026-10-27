@@ -56,11 +56,16 @@ fn main() {
         name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![],
     });
 
+    // Dagny takes in a dog; if they look after it, it'll see them through hard times
+    let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
+    pets::adopt(&mut world, dog, villagers[4]);
+
     let start_styles: Vec<_> = villagers.iter()
         .map(|v| infer_style(world.get_component::<AttachmentHistory>(*v).unwrap()))
         .collect();
 
-    println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult,avg_devotion,at_service,wheat,flour,bread,lumber\n");
+    println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult,avg_devotion,at_service,dog_bond,wheat,flour,bread,lumber
+");
     let mut last_attendance = 0;
     let mut famine_stores = vec![]; // food set aside during the famine
     for tick in 0..500 {
@@ -109,8 +114,9 @@ fn main() {
             });
         }
 
-        // Attachment episodes: going hungry alone is distressing; during the
-        // flu Aldric nurses the sick every few days, a warm moment for both
+        // Attachment episodes: going hungry alone is distressing, though a
+        // well-bonded pet is a comfort through it; during the flu Aldric
+        // nurses the sick every few days, a warm moment for both
         if tick % 10 == 0 {
             let carer = villagers[0];
             for (i, v) in villagers.iter().enumerate() {
@@ -119,6 +125,9 @@ fn main() {
                 let other = villagers[(i + 1) % villagers.len()];
                 if hungry {
                     psychology::record_episode(&mut world, *v, Episode { with: other, kind: EpisodeKind::Anxiety });
+                    if let Some(pet) = pets::comforting_pet(&world, *v) {
+                        psychology::record_episode(&mut world, *v, Episode { with: pet, kind: EpisodeKind::Warmth });
+                    }
                 }
                 if sick && (300..400).contains(&tick) && tick % 25 == 0 && *v != carer {
                     psychology::record_episode(&mut world, *v, Episode { with: carer, kind: EpisodeKind::Warmth });
@@ -139,9 +148,10 @@ fn main() {
             }
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let devotion: f32 = villagers.iter().map(|v| world.get_component::<Faith>(*v).map(|f| f.devotion).unwrap_or(0.0)).sum::<f32>() / 6.0;
+            let bond = world.get_component::<Pet>(dog).map(|p| p.bond_strength).unwrap_or(0.0);
             let mkt = world.get_component::<Market>(market).unwrap();
             let stock = |g: &str| mkt.supply.get(g).copied().unwrap_or(0);
-            println!("{},{:.1},{:.2},{},{},{:?},{:.2},{:.2},{},{},{},{},{}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"), devotion, last_attendance,
+            println!("{},{:.1},{:.2},{},{},{:?},{:.2},{:.2},{},{:.2},{},{},{},{}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"), devotion, last_attendance, bond,
                 stock("wheat"), stock("flour"), stock("bread"), stock("lumber"));
             telem.set_tick(tick as u64);
             telem.gauge("hunger", hunger as f64);

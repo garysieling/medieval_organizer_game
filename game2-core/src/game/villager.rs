@@ -189,10 +189,33 @@ pub fn spawn_food_source(world: &mut World, x: f32, y: f32, servings: u32) -> En
     e
 }
 
+/// Servings left across every food source; the drop between two readings
+/// is how many meals were eaten in between
+pub fn servings_left(world: &World) -> u32 {
+    world.query::<FoodSource>().iter()
+        .filter_map(|f| world.get_component::<FoodSource>(*f).map(|fs| fs.servings))
+        .sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::engine::ecs::Scheduler;
+
+    #[test]
+    fn test_servings_left_drops_by_meals_eaten() {
+        let mut world = World::new();
+        spawn_food_source(&mut world, 0.0, 0.0, 5);
+        spawn_food_source(&mut world, 9.0, 9.0, 3);
+        let v = spawn_villager(&mut world, 0.0, 0.0);
+        world.get_component_mut::<Hunger>(v).unwrap().value = 10.0;
+        let before = servings_left(&world);
+        assert_eq!(before, 8);
+        let mut sched = Scheduler::new();
+        sched.add_system(SeekFoodSystem);
+        sched.tick(&mut world);
+        assert_eq!(before - servings_left(&world), 1, "one hungry villager eats one meal");
+    }
 
     #[test]
     fn test_villager_eats_when_hungry() {

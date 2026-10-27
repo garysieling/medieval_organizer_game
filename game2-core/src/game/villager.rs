@@ -40,11 +40,18 @@ pub struct Villager {
     pub target_food: Option<Entity>,
 }
 
-/// Hunger rises each tick
+/// Whether an entity has died (health 0). Entities without Health are
+/// never counted as dead.
+pub fn is_dead(world: &World, e: Entity) -> bool {
+    world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
+}
+
+/// Hunger rises each tick (the dead no longer hunger)
 pub struct HungerSystem;
 impl System for HungerSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Hunger>() {
+            if is_dead(world, e) { continue; }
             if let Some(h) = world.get_component_mut::<Hunger>(e) {
                 h.value = (h.value - 1.0).max(0.0);
             }
@@ -52,7 +59,7 @@ impl System for HungerSystem {
     }
 }
 
-/// Hungry villagers seek and eat food
+/// Hungry villagers seek and eat food; the dead lie still and eat nothing
 pub struct SeekFoodSystem;
 impl System for SeekFoodSystem {
     fn run(&mut self, world: &mut World) {
@@ -66,6 +73,7 @@ impl System for SeekFoodSystem {
             .collect();
 
         for v in villagers {
+            if is_dead(world, v) { continue; }
             let hunger = match world.get_component::<Hunger>(v) {
                 Some(h) => h.value,
                 None => continue,
@@ -378,6 +386,27 @@ mod tests {
         w.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
         for _ in 0..50 { NourishmentSystem.run(&mut w); }
         assert_eq!(w.get_component::<Health>(v).unwrap().condition, 0.5);
+    }
+
+    #[test]
+    fn test_the_dead_do_not_hunger_move_or_eat() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let food = spawn_food_source(&mut w, 0.0, 0.0, 3);
+        let v = spawn_villager(&mut w, 5.0, 0.0);
+        w.get_component_mut::<Hunger>(v).unwrap().value = 0.0;
+        w.add_component(v, Health { condition: 0.0, immunity: 0.5 });
+        for _ in 0..20 {
+            HungerSystem.run(&mut w);
+            SeekFoodSystem.run(&mut w);
+        }
+        assert_eq!(w.get_component::<FoodSource>(food).unwrap().servings, 3, "a corpse ate the village's food");
+        assert_eq!(*w.get_component::<Pos>(v).unwrap(), Pos { x: 5.0, y: 0.0 }, "the dead don't walk");
+        // and a living villager without Health is unaffected
+        let alive = spawn_villager(&mut w, 1.0, 0.0);
+        w.get_component_mut::<Hunger>(alive).unwrap().value = 10.0;
+        for _ in 0..3 { SeekFoodSystem.run(&mut w); }
+        assert_eq!(w.get_component::<FoodSource>(food).unwrap().servings, 2);
     }
 
     fn harvest_field(world: &mut World, field: Entity) {

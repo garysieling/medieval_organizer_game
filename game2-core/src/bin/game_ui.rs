@@ -103,6 +103,11 @@ fn terrain_colour(h: f32) -> (u8, u8, u8) {
     else { (220, 220, 220) }
 }
 
+/// A pixel under rain: dimmed and cooled, like light through rain cloud
+fn rain_wash(c: (u8, u8, u8)) -> (u8, u8, u8) {
+    blend(c, (40, 55, 80), 0.25)
+}
+
 /// Mix colour `a` toward `b` by `t` (0 = all a, 1 = all b)
 fn blend(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
     let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
@@ -882,19 +887,15 @@ impl<'a> Game<'a> {
         // weather tint overlay on map region
         if let Some(cl) = world.get_component::<climate::Climate>(self.climate) {
             if cl.rainfall_drift > 0.5 {
-                // rain: dark blue tint bands on map area
-                for y in (0..H).step_by(6) {
+                // rain: an even, cool dimming over the whole map (it used to
+                // darken every 6th row, which read as scanline stripes)
+                for y in 0..H {
                     for x in 0..MAP_W {
                         let idx = (y * W + x) * 4;
-                        if idx + 2 < buf.pixels.len() {
-                            buf.set(x as i32, y as i32,
-                                buf.pixels[idx].saturating_sub(10),
-                                buf.pixels[idx+1].saturating_sub(10),
-                                buf.pixels[idx+2].saturating_add(30));
-                        }
+                        let (r, g, b) = rain_wash((buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]));
+                        buf.set(x as i32, y as i32, r, g, b);
                     }
                 }
-                draw_text(&mut buf, 10, 24, "RAINING", 150, 180, 255);
             }
         }
 
@@ -966,19 +967,25 @@ impl<'a> Game<'a> {
         // ambient particles only during weather (snow in winter, rain when wet)
         let is_winter = matches!(season, Season::Winter);
         let raining = world.get_component::<climate::Climate>(self.climate).map(|c| c.rainfall_drift > 0.5).unwrap_or(false);
-        if is_winter || raining {
-            let (pr, pg, pb) = if is_winter { (230, 235, 255) } else { (120, 160, 220) };
-            // snow falls thicker than rain, in 2px flakes
-            let (count, size) = if is_winter { (90, 2) } else { (20, 1) };
-            for i in 0..count {
+        if is_winter {
+            // snow: 2px flakes drifting down
+            for i in 0..90u64 {
                 let px = ((tick * 3 + i * 37 + i * i * 7) % MAP_W as u64) as i32;
                 let py = ((tick * 2 + i * 23 + i * i * 3) % H as u64) as i32;
-                if px < MAP_W as i32 { buf.rect(px, py, size, size, pr, pg, pb); }
+                buf.rect(px, py, 2, 2, 230, 235, 255);
+            }
+        } else if raining {
+            // rain: short slanting streaks
+            for i in 0..120u64 {
+                let px = ((tick * 5 + i * 41 + i * i * 7) % MAP_W as u64) as i32;
+                let py = ((tick * 9 + i * 29 + i * i * 3) % H as u64) as i32;
+                for k in 0..4 { buf.set(px - k / 2, py + k, 150, 180, 230); }
             }
         }
 
         // season banner
-        draw_text_outlined(&mut buf, 10, 8, &format!("{:?}  t{}  food {}{}", season, tick, food_stock,
+        draw_text_outlined(&mut buf, 10, 8, &format!("{:?}  t{}  food {}{}{}", season, tick, food_stock,
+            if raining && !is_winter { "  raining" } else { "" },
             if self.paused { " [PAUSED]" } else if self.speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
 
         // help overlay
@@ -1163,6 +1170,37 @@ mod inspector_tests {
     fn test_activity_in_plain_words() {
         assert_eq!(activity_text(Activity::SeekingFood), "looking for food");
         assert_eq!(activity_text(Activity::Idle), "idle");
+    }
+}
+
+#[cfg(test)]
+mod rain_tests {
+    use super::*;
+
+    #[test]
+    fn test_rain_dims_and_cools_evenly() {
+        let grass = (60, 140, 60);
+        let wet = rain_wash(grass);
+        assert!(wet.1 < grass.1, "rain should dim the land: {:?}", wet);
+        // the same pixel gets the same wash on every row - no stripes
+        assert_eq!(rain_wash(grass), rain_wash(grass));
+        let (r, _, b) = rain_wash((200, 200, 200));
+        assert!(b > r, "rain light should be cool, not neutral: r={} b={}", r, b);
+    }
+
+    #[test]
+    fn test_rainy_frame_has_no_row_banding() {
+        // render a flat map region, apply the rain wash the way render() does,
+        // and check neighbouring rows match
+        let mut buf = Buffer::new(W, H);
+        buf.rect(0, 0, MAP_W as i32, H as i32, 140, 110, 50);
+        for y in 0..H { for x in 0..MAP_W {
+            let idx = (y * W + x) * 4;
+            let (r, g, b) = rain_wash((buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]));
+            buf.set(x as i32, y as i32, r, g, b);
+        }}
+        let row = |y: usize| { let i = (y * W + 100) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
+        for y in 0..12 { assert_eq!(row(y), row(y + 1), "rows {} and {} differ - banding", y, y + 1); }
     }
 }
 

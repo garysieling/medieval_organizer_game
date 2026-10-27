@@ -246,6 +246,10 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
     draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);
 }
 
+/// How close (in tiles) a villager must be to the player to talk, recruit,
+/// or come to a house meeting
+const MEETING_REACH: f32 = 8.0;
+
 /// Day a traveller brings the flu to the village
 const FLU_DAY: u64 = 120;
 
@@ -512,17 +516,16 @@ impl<'a> Game<'a> {
 
     /// Why action button `i` can't be used right now, if it can't
     fn disabled_reason(&self, i: usize) -> Option<String> {
-        // proximity: Talk/Recruit/Organize need a living selected villager within 8 tiles of player
-        let player_pos = self.player_pos();
+        // Talk/Recruit need the selected villager alive and within reach; a
+        // house meeting (Organize) just needs someone nearby to come
         let target = self.villagers[self.selected_target];
-        let dist_ok = self.world.get_component::<Pos>(target)
-            .map(|vp| { let dx = vp.x - player_pos.0; let dy = vp.y - player_pos.1; (dx*dx + dy*dy).sqrt() < 8.0 })
-            .unwrap_or(false);
+        let in_reach = self.villagers_in_reach();
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let recruit_infl_ok = can_recruit(self.world.get_component::<PlayerCharacter>(self.player).unwrap().influence);
-        if (i == 0 || i == 1 || i == 3) && !target_alive { Some("they have died".into()) }
-        else if (i == 0 || i == 1 || i == 3) && !dist_ok { Some("too far away".into()) }
+        if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
+        else if (i == 0 || i == 1) && !in_reach.contains(&target) { Some("too far away".into()) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
+        else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
         else { None }
     }
 
@@ -1056,7 +1059,7 @@ impl<'a> Game<'a> {
                     if r.success { format!("{} joined!", NAMES[selected_target]) } else { r.description }
                 }
                 2 => { let r = act_invest(&mut self.world, self.player, 10.0); r.description }
-                3 => "You call a house meeting.".into(),
+                3 => self.house_meeting(),
                 4 => {
                     let bx = 4.0 + (self.built_count % 4) as f32 * 5.0;
                     let by = 15.0 + (self.built_count / 4) as f32 * 4.0;
@@ -1068,6 +1071,39 @@ impl<'a> Game<'a> {
             }
         };
         self.log.push(msg);
+    }
+
+    /// Living villagers within MEETING_REACH of the player
+    fn villagers_in_reach(&self) -> Vec<Entity> {
+        let (px, py) = self.player_pos();
+        self.villagers.iter().copied().filter(|v| {
+            let alive = self.world.get_component::<Health>(*v).is_some();
+            let near = self.world.get_component::<Pos>(*v)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < MEETING_REACH)
+                .unwrap_or(false);
+            alive && near
+        }).collect()
+    }
+
+    /// Organize: hold a house meeting with every living villager within reach.
+    /// Those who already trust you join the org; everyone who comes gets to
+    /// know you a little better (organizing::house_meeting).
+    fn house_meeting(&mut self) -> String {
+        let invited = self.villagers_in_reach();
+        if invited.is_empty() { return "No one is near enough to come to your house meeting.".into(); }
+        let members_before = self.world.get_component::<Organization>(self.org).map(|o| o.members.clone()).unwrap_or_default();
+        let r = game2_core::game::organizing::house_meeting(&mut self.world, self.org, &invited);
+        let joined: Vec<&str> = invited.iter()
+            .filter(|v| !members_before.contains(v))
+            .filter(|v| self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(v)).unwrap_or(false))
+            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i]))
+            .collect();
+        let outcome = if joined.is_empty() {
+            "No one joins yet, but they'll remember the conversation.".to_string()
+        } else {
+            format!("{} joined{}!", joined.join(", "), if r.formed_committee { " and formed a committee" } else { "" })
+        };
+        format!("t{}: House meeting - {} came. {}", self.tick, invited.len(), outcome)
     }
 
     /// A left click on the map: rivals rebuff or greet you, villagers get selected
@@ -1521,5 +1557,39 @@ mod real_frame_tests {
                 .count();
             assert!(hud_text > 40, "day {}: HUD text missing ({} white px)", day, hud_text);
         }
+    }
+}
+
+#[cfg(test)]
+mod organize_tests {
+    use super::*;
+    use game2_core::game::relationships::RelKind;
+
+    #[test]
+    fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let (eliza, bram, corvin) = (game.villagers[1], game.villagers[2], game.villagers[3]);
+        // the player stands among Eliza and Bram; Corvin is far away
+        game.world.get_component_mut::<Pos>(game.player).unwrap().x = 16.0;
+        game.world.get_component_mut::<Pos>(game.player).unwrap().y = 16.0;
+        let (aldric, dagny) = (game.villagers[0], game.villagers[4]);
+        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0), (aldric, 2.0, 4.0), (dagny, 4.0, 2.0)] {
+            let p = game.world.get_component_mut::<Pos>(v).unwrap();
+            p.x = x; p.y = y;
+        }
+        // Eliza already trusts the player; Bram is a stranger
+        let rel = game.world.create_entity();
+        game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+
+        assert_eq!(game.disabled_reason(3), None, "a house meeting needs someone nearby, not the selected villager");
+        game.act(3);
+
+        let members = game.world.get_component::<Organization>(game.org).unwrap().members.clone();
+        assert_eq!(members, vec![eliza], "the trusted neighbour joins; the stranger and the absent don't");
+        let last = game.log.last().unwrap();
+        assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
+        assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
+        assert!(relationships::find_relationship(&game.world, game.player, corvin).is_none(), "Corvin wasn't there");
     }
 }

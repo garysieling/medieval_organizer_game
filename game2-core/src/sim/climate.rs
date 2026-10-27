@@ -123,7 +123,9 @@ pub fn spawn_climate(world: &mut World) -> Entity {
         day: 0,
         year: 1,
         temperature_drift: 0.0,
-        rainfall_drift: 0.0,
+        // day 0's real weather, so food growth isn't read as a drought
+        // before SeasonSystem's first tick sets it
+        rainfall_drift: wetness(Season::Spring, 0),
         severity: 0.0,
     });
     e
@@ -192,5 +194,13 @@ mod tests {
             }).sum::<f32>() / 90.0;
             assert!((mean - 1.0).abs() < 0.03, "{:?} mean rain effect {}", season, mean);
         }
+    }
+
+    #[test]
+    fn test_new_climate_is_not_a_drought() {
+        let mut w = World::new();
+        let c = spawn_climate(&mut w);
+        let cl = w.get_component::<Climate>(c).unwrap();
+        assert!((rain_effect(cl) - 1.0).abs() < 0.01, "a fresh climate should start at normal weather, got {}", rain_effect(cl));
     }
 }

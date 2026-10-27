@@ -17,6 +17,7 @@ use game2_core::sim::climate::{self, SeasonSystem};
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::AttachmentHistory;
 use game2_core::sim::community::{Citizen, Organization};
+use game2_core::sim::organized_power::{OrganizedPower, PowerAtrophySystem};
 
 fn main() {
     println!("=== THE WANDERER ===\n");
@@ -30,6 +31,7 @@ fn main() {
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(GuildFormationSystem);
+    sched.add_system(PowerAtrophySystem); // people power fades if you stop organizing
 
     let terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
@@ -57,6 +59,7 @@ fn main() {
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
     let org = world.create_entity();
     world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+    world.add_component(org, OrganizedPower::new()); // grows with house meetings
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
     pets::adopt(&mut world, dog, villagers[0]);
 
@@ -74,9 +77,10 @@ fn main() {
         let p = world.get_component::<PlayerCharacter>(player).unwrap();
         let members = world.get_component::<Organization>(org).unwrap().members.len();
         let guilds = world.query::<Guild>().len();
+        let power = world.get_component::<OrganizedPower>(org).map(|p| p.capacity).unwrap_or(0.0);
         let cl = world.get_component::<climate::Climate>(climate).unwrap();
-        println!("--- Tick {} | {:?} | {} org members | {} guilds | hunger affects village ---",
-            tick, cl.season, members, guilds);
+        println!("--- Tick {} | {:?} | {} org members | people power {:.2} | {} guilds ---",
+            tick, cl.season, members, power, guilds);
 
         // Villager status (numbered so the player can pick a target; * = current)
         for (i, v) in villagers.iter().enumerate() {

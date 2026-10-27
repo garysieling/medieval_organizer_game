@@ -5,7 +5,7 @@
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::villager::{self, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
-use game2_core::game::tech_tree::{printmaking_tree, research};
+use game2_core::game::tech_tree::{printmaking_tree, research, next_researchable};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
@@ -16,6 +16,8 @@ use game2_core::infra::telemetry::Telemetry;
 const FIELD_CAPACITY: u32 = 2;
 /// Servings each field ripens per tick in a normal season
 const FIELD_GROWTH: f32 = 0.028;
+/// Research points each fed, healthy villager contributes per tick
+const RESEARCH_PER_VILLAGER: f32 = 0.1;
 
 fn main() {
     println!("=== MEGA SIM: All Systems Together ===\n");
@@ -75,10 +77,19 @@ fn main() {
     for tick in 0..360 {
         sched.tick(&mut world);
 
-        // Progress tech over time
-        if tick == 40 { research(&mut techs, "Quill & Ink", 50.0); }
-        if tick == 80 { research(&mut techs, "Papyrus", 50.0); }
-        if tick == 120 { research(&mut techs, "Vellum", 60.0); }
+        // Research comes from the village: every villager who's fed and well
+        // puts a little thought into the next tech, so hunger and the flu
+        // slow progress
+        let thinkers = villagers.iter().filter(|v| {
+            let fed = world.get_component::<Hunger>(**v).map(|h| h.value >= 30.0).unwrap_or(false);
+            let well = world.get_component::<Health>(**v).map(|h| h.condition >= 0.8).unwrap_or(false);
+            fed && well
+        }).count();
+        if let Some(next) = next_researchable(&techs).map(str::to_string) {
+            if research(&mut techs, &next, thinkers as f32 * RESEARCH_PER_VILLAGER) {
+                println!("EVENT: tick {}: the village works out {}", tick, next);
+            }
+        }
 
         // A traveller brings the flu; it's contagious, so neighbours may catch it
         if tick == 100 {

@@ -46,6 +46,15 @@ pub fn research(tree: &mut Vec<Tech>, tech_name: &str, points: f32) -> bool {
     false
 }
 
+/// The cheapest tech whose prereqs are met and that isn't discovered yet:
+/// where a village with no particular plan puts its research
+pub fn next_researchable(tree: &[Tech]) -> Option<&str> {
+    tree.iter()
+        .filter(|t| !t.discovered && can_research(tree, &t.name))
+        .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap())
+        .map(|t| t.name.as_str())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,6 +70,16 @@ mod tests {
         assert!(research(&mut tree, "Movable Type", 100.0));
         assert!(research(&mut tree, "Paper Mill", 70.0));
         assert!(can_research(&tree, "Printing Press")); // now unlocked
+    }
+
+    #[test]
+    fn test_next_researchable_is_cheapest_unlocked() {
+        let mut tree = printmaking_tree();
+        assert_eq!(next_researchable(&tree), Some("Quill & Ink")); // 10 < Papyrus 15
+        research(&mut tree, "Quill & Ink", 10.0);
+        assert_eq!(next_researchable(&tree), Some("Papyrus"));
+        for t in tree.iter_mut() { t.discovered = true; }
+        assert_eq!(next_researchable(&tree), None);
     }
 
     #[test]

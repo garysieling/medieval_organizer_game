@@ -74,10 +74,16 @@ impl World {
         }
     }
 
-    /// Iterate over all entities that have component T
+    /// All entities that have component T, in creation (id) order. The
+    /// storage is a HashMap whose iteration order is randomized per process,
+    /// so sorting keeps systems - and every sim and playtest - reproducible.
     pub fn query<T: Any>(&self) -> Vec<Entity> {
         match self.storages.get(&TypeId::of::<T>()) {
-            Some(storage) => storage.keys().copied().collect(),
+            Some(storage) => {
+                let mut entities: Vec<Entity> = storage.keys().copied().collect();
+                entities.sort_unstable();
+                entities
+            }
             None => Vec::new(),
         }
     }
@@ -183,5 +189,17 @@ mod tests {
 
         assert_eq!(world.query::<Position>().len(), 2);
         assert_eq!(world.query::<Velocity>().len(), 0);
+    }
+
+    #[test]
+    fn test_query_returns_entities_in_creation_order() {
+        let mut w = World::new();
+        let ids: Vec<Entity> = (0..200).map(|i| {
+            let e = w.create_entity();
+            w.add_component(e, i as u32);
+            e
+        }).collect();
+        // A HashMap's key order is effectively random over 200 entries
+        assert_eq!(w.query::<u32>(), ids);
     }
 }

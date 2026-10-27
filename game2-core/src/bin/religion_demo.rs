@@ -47,7 +47,16 @@ fn main() {
     let mut sched = game2_core::engine::ecs::Scheduler::new();
     sched.add_system(GatherSystem);
     sched.add_system(DevotionSystem);
-    for _ in 0..20 { sched.tick(&mut world); }
+    for tick in 0..20 {
+        sched.tick(&mut world);
+        // the circle meets weekly; between meetings faith lapses a little
+        if tick % 7 == 0 {
+            game2_core::sim::religion::perform_service(&mut world, congregation, Service {
+                name: "Harvest Rite".into(), frequency: "weekly".into(),
+                participants: devout.clone(), cohesion_boost: 0.15, charity_output: 0.1,
+            });
+        }
+    }
 
     let c = world.get_component::<Congregation>(congregation).unwrap();
     println!("After 20 ticks:");

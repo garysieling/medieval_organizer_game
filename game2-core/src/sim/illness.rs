@@ -52,7 +52,9 @@ const RECOVERED: f32 = 0.9;
 
 /// System: each disease wears down its own patient while their immune
 /// system fights it off; once severity drops low enough they recover, and
-/// the disease is cleared when their health is back
+/// the disease is cleared when their health is back. A patient whose health
+/// reaches 0 has died: the disease ends with them, and they neither recover
+/// nor infect anyone.
 pub struct IllnessSystem;
 impl crate::engine::ecs::System for IllnessSystem {
     fn run(&mut self, world: &mut World) {
@@ -65,6 +67,10 @@ impl crate::engine::ecs::System for IllnessSystem {
                 world.destroy_entity(d); // patient is gone
                 continue;
             };
+            if h.condition <= 0.0 {
+                world.destroy_entity(d); // the patient has died
+                continue;
+            }
             if stage == Stage::Recovering {
                 h.condition = (h.condition + RECOVERY_RATE).min(1.0);
                 if h.condition >= RECOVERED {
@@ -75,6 +81,10 @@ impl crate::engine::ecs::System for IllnessSystem {
                 continue;
             }
             h.condition = (h.condition - severity * DAMAGE_RATE).max(0.0);
+            if h.condition <= 0.0 {
+                world.destroy_entity(d); // the disease killed them
+                continue;
+            }
             let severity = (severity - h.immunity * IMMUNE_RATE).max(0.0);
             if let Some(dis) = world.get_component_mut::<Disease>(d) {
                 dis.severity = severity;
@@ -118,6 +128,7 @@ fn spread_contagion(world: &mut World) {
     }
     for e in world.query::<Health>() {
         if sick.contains(&e) { continue; }
+        if world.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false) { continue; } // the dead don't catch it
         let Some(p) = world.get_component::<Pos>(e).map(|p| (p.x, p.y)) else { continue };
         let near: Vec<_> = sources.iter()
             .filter(|((x, y), _, _)| (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE)
@@ -314,5 +325,42 @@ mod tests {
         let t = Treatment { name: "strong".into(), dose: 2.0, absorption: 1.0, clearance: 0.1, efficacy: 1.0 };
         treat_health(&mut h, &t);
         assert!(h.condition <= 1.0);
+    }
+
+    #[test]
+    fn test_a_patient_killed_by_disease_stays_dead() {
+        use crate::engine::ecs::System;
+        let mut w = World::new();
+        let p = w.create_entity();
+        w.add_component(p, Health { condition: 0.02, immunity: 0.9 });
+        w.add_component(p, crate::game::villager::Pos { x: 0.0, y: 0.0 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "plague".into(), patient: p, stage: Stage::Critical, severity: 1.0, contagious: true });
+        let neighbour = w.create_entity();
+        w.add_component(neighbour, Health { condition: 1.0, immunity: 0.0 });
+        w.add_component(neighbour, crate::game::villager::Pos { x: 1.0, y: 0.0 });
+
+        for _ in 0..3 { IllnessSystem.run(&mut w); }
+        assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0);
+        assert!(w.query::<Disease>().iter().all(|d| w.get_component::<Disease>(*d).unwrap().patient != p),
+            "the disease ends with its patient");
+        for _ in 0..500 { IllnessSystem.run(&mut w); }
+        assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0, "the dead don't recover");
+    }
+
+    #[test]
+    fn test_the_dead_do_not_catch_disease() {
+        use crate::engine::ecs::System;
+        let mut w = World::new();
+        let sick = w.create_entity();
+        w.add_component(sick, Health { condition: 0.9, immunity: 0.0 });
+        w.add_component(sick, crate::game::villager::Pos { x: 0.0, y: 0.0 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "flu".into(), patient: sick, stage: Stage::Severe, severity: 0.8, contagious: true });
+        let corpse = w.create_entity();
+        w.add_component(corpse, Health { condition: 0.0, immunity: 0.0 });
+        w.add_component(corpse, crate::game::villager::Pos { x: 1.0, y: 0.0 });
+        for _ in 0..50 { IllnessSystem.run(&mut w); }
+        assert!(w.query::<Disease>().iter().all(|d| w.get_component::<Disease>(*d).unwrap().patient != corpse));
     }
 }

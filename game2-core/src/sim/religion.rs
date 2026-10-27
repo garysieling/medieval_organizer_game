@@ -66,7 +66,8 @@ impl crate::engine::ecs::System for DevotionSystem {
     }
 }
 
-/// Hunger a hungry member regains per giver per unit of charity_output
+/// Hunger each fed attendee gives up per unit of charity_output, shared out
+/// among the congregation's hungry members
 pub const AID_PER_GIVER: f32 = 20.0;
 /// Below this hunger a member is in need of the congregation's charity
 pub const NEEDY_HUNGER: f32 = 30.0;
@@ -75,8 +76,8 @@ pub const NEEDY_HUNGER: f32 = 30.0;
 /// belongs to the congregation grows in devotion (with diminishing returns,
 /// so the devout gain less than the lapsed), and the shared ritual bonds
 /// every pair of participants. With charity_output > 0, the fed members who
-/// attend share food with every hungry member - present or not - so more
-/// givers mean more aid. Returns how many members took part.
+/// attend share their food with the hungry members - present or not - so
+/// more givers mean more aid. Returns how many members took part.
 pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usize {
     let members = match world.get_component::<Congregation>(cong) {
         Some(c) => c.members.clone(),
@@ -99,12 +100,30 @@ pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usi
         }
     }
     if service.charity_output > 0.0 {
-        let fed = |w: &World, e: Entity| w.get_component::<Hunger>(e).map(|h| h.value >= NEEDY_HUNGER).unwrap_or(false);
-        let givers = present.iter().filter(|&&p| fed(world, p)).count();
-        let aid = service.charity_output * givers as f32 * AID_PER_GIVER;
-        for &m in &members {
-            if let Some(h) = world.get_component_mut::<Hunger>(m) {
-                if h.value < NEEDY_HUNGER { h.value = (h.value + aid).min(100.0); }
+        // Charity moves food, it doesn't make it: each fed attendee puts in
+        // charity_output * AID_PER_GIVER, the pool is split among the needy,
+        // and the givers bear what was actually handed out
+        let hunger = |w: &World, e: Entity| w.get_component::<Hunger>(e).map(|h| h.value);
+        let givers: Vec<Entity> = present.iter().copied()
+            .filter(|&p| hunger(world, p).map(|v| v >= NEEDY_HUNGER).unwrap_or(false))
+            .collect();
+        let needy: Vec<Entity> = members.iter().copied()
+            .filter(|&m| hunger(world, m).map(|v| v < NEEDY_HUNGER).unwrap_or(false))
+            .collect();
+        if !givers.is_empty() && !needy.is_empty() {
+            let share = service.charity_output * AID_PER_GIVER * givers.len() as f32 / needy.len() as f32;
+            let mut handed_out = 0.0;
+            for &m in &needy {
+                if let Some(h) = world.get_component_mut::<Hunger>(m) {
+                    let got = share.min(100.0 - h.value);
+                    h.value += got;
+                    handed_out += got;
+                }
+            }
+            for &g in &givers {
+                if let Some(h) = world.get_component_mut::<Hunger>(g) {
+                    h.value = (h.value - handed_out / givers.len() as f32).max(0.0);
+                }
             }
         }
     }
@@ -225,7 +244,30 @@ mod tests {
         });
         // 3 givers x 0.1 x 20 = +6, though the hungry member stayed home
         assert!((w.get_component::<Hunger>(hungry).unwrap().value - 11.0).abs() < 1e-4);
-        assert_eq!(w.get_component::<Hunger>(givers[0]).unwrap().value, 80.0, "the fed don't get aid");
+        // ...and the givers paid for it: 6 shared three ways
+        assert!((w.get_component::<Hunger>(givers[0]).unwrap().value - 78.0).abs() < 1e-4, "givers share their own food");
+    }
+
+    #[test]
+    fn test_charity_is_split_among_the_needy_not_multiplied() {
+        let mut w = World::new();
+        let giver = believer(&mut w, 0.5);
+        w.add_component(giver, Hunger { value: 80.0 });
+        let needy: Vec<Entity> = (0..2).map(|_| {
+            let e = believer(&mut w, 0.5);
+            w.add_component(e, Hunger { value: 10.0 });
+            e
+        }).collect();
+        let c = congregation(&mut w, vec![giver, needy[0], needy[1]]);
+        perform_service(&mut w, c, Service {
+            name: "Rite".into(), frequency: "weekly".into(),
+            participants: vec![giver], cohesion_boost: 0.1, charity_output: 0.5,
+        });
+        // the giver puts in 0.5 x 20 = 10, split between two: +5 each
+        let total: f32 = [giver, needy[0], needy[1]].iter()
+            .map(|e| w.get_component::<Hunger>(*e).unwrap().value).sum();
+        assert!((total - 100.0).abs() < 1e-4, "charity moves food, it doesn't make it (total {})", total);
+        assert!((w.get_component::<Hunger>(needy[0]).unwrap().value - 15.0).abs() < 1e-4);
     }
 
     #[test]

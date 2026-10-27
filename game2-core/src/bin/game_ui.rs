@@ -888,9 +888,10 @@ impl<'a> Game<'a> {
         if let Some(cl) = world.get_component::<climate::Climate>(self.climate) {
             if cl.rainfall_drift > 0.5 {
                 // rain: an even, cool dimming over the whole map (it used to
-                // darken every 6th row, which read as scanline stripes)
+                // darken every 6th row, which read as scanline stripes). The
+                // terrain runs right up to the panel, so wash to UI_X, not MAP_W
                 for y in 0..H {
-                    for x in 0..MAP_W {
+                    for x in 0..UI_X {
                         let idx = (y * W + x) * 4;
                         let (r, g, b) = rain_wash((buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]));
                         buf.set(x as i32, y as i32, r, g, b);

@@ -65,6 +65,11 @@ impl crate::engine::ecs::System for IllnessSystem {
                 world.destroy_entity(d); // patient is gone
                 continue;
             };
+            if h.condition <= 0.0 {
+                // the dead don't recover or keep fighting off disease
+                world.destroy_entity(d);
+                continue;
+            }
             if stage == Stage::Recovering {
                 h.condition = (h.condition + RECOVERY_RATE).min(1.0);
                 if h.condition >= RECOVERED {
@@ -218,6 +223,18 @@ mod tests {
         assert!(lowest < 0.7, "the disease should do some harm first");
         assert!(w.get_component::<Health>(p).unwrap().condition >= RECOVERED, "patient should get better");
         assert!(w.get_component::<Disease>(d).is_none(), "a beaten disease should be cleared");
+    }
+
+    #[test]
+    fn test_a_dead_patient_does_not_revive_while_recovering() {
+        let mut w = World::new();
+        let p = w.create_entity();
+        w.add_component(p, Health { condition: 0.0, immunity: 0.5 });
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "flu".into(), patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false });
+        IllnessSystem.run(&mut w);
+        assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0, "the dead should stay dead");
+        assert!(w.get_component::<Disease>(d).is_none(), "the dead don't keep fighting off disease");
     }
 
     fn villager_at(w: &mut World, x: f32, immunity: f32) -> Entity {

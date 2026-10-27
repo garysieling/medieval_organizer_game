@@ -25,7 +25,16 @@ pub struct MusicState {
     pub mood: Mood,
     pub intensity: f32,
     pub tick: u64,
+    /// The mood the world is currently pointing toward, and since which
+    /// tick; it becomes `mood` only once it has held for MOOD_HOLD_TICKS
+    pub pending_mood: Mood,
+    pub pending_since: u64,
 }
+
+/// Ticks a new mood must persist before the music commits to it - a techno
+/// build before the drop, so metrics hovering at a threshold don't flip
+/// the track back and forth every tick
+pub const MOOD_HOLD_TICKS: u64 = 8;
 
 /// Metrics that drive music
 #[derive(Debug)]
@@ -74,15 +83,23 @@ fn target_layers(mood: Mood) -> Vec<(&'static str, f32)> {
 /// Evolve layers toward target (techno-style: layers fade in/out over ticks)
 pub fn evolve(state: &mut MusicState, metrics: &WorldMetrics) {
     let target_mood = infer_mood(metrics);
-    state.mood = target_mood;
-    let targets = target_layers(target_mood);
+    if target_mood != state.pending_mood {
+        state.pending_mood = target_mood;
+        state.pending_since = state.tick;
+    }
+    if state.pending_mood != state.mood && state.tick - state.pending_since + 1 >= MOOD_HOLD_TICKS {
+        state.mood = state.pending_mood;
+    }
+    let targets = target_layers(state.mood);
 
     // For each layer, move intensity toward target (techno-style gradual change)
     for layer in state.layers.iter_mut() {
         let target = targets.iter().find(|(n, _)| n == &layer.name.as_str()).map(|(_, i)| *i).unwrap_or(0.0);
         let diff = target - layer.intensity;
         layer.intensity = (layer.intensity + diff * 0.1).clamp(0.0, 1.0);
+        let was_active = layer.active;
         layer.active = layer.intensity > 0.05;
+        if layer.active && !was_active { layer.added_at = state.tick; }
     }
 
     // Overall intensity from prosperity+conflict
@@ -110,6 +127,51 @@ pub fn spawn_music(world: &mut World) -> Entity {
         mood: Mood::Calm,
         intensity: 0.3,
         tick: 0,
+        pending_mood: Mood::Calm,
+        pending_since: 0,
     });
     e
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn metrics(conflict: f32) -> WorldMetrics {
+        WorldMetrics { growth: 0.0, conflict, loss: 0.0, discovery: 0.0, prosperity: 0.0 }
+    }
+
+    fn music() -> (World, Entity) {
+        let mut w = World::new();
+        let m = spawn_music(&mut w);
+        (w, m)
+    }
+
+    #[test]
+    fn test_mood_commits_after_holding() {
+        let (mut w, m) = music();
+        let st = w.get_component_mut::<MusicState>(m).unwrap();
+        for _ in 0..MOOD_HOLD_TICKS - 1 { evolve(st, &metrics(0.8)); }
+        assert_eq!(st.mood, Mood::Calm, "still building");
+        evolve(st, &metrics(0.8));
+        assert_eq!(st.mood, Mood::Tense);
+    }
+
+    #[test]
+    fn test_flickering_metrics_do_not_flip_the_mood() {
+        let (mut w, m) = music();
+        let st = w.get_component_mut::<MusicState>(m).unwrap();
+        for i in 0..40 { evolve(st, &metrics(if i % 2 == 0 { 0.51 } else { 0.49 })); }
+        assert_eq!(st.mood, Mood::Calm, "conflict hovering at the threshold shouldn't flip the track");
+    }
+
+    #[test]
+    fn test_layers_record_when_they_come_in() {
+        let (mut w, m) = music();
+        let st = w.get_component_mut::<MusicState>(m).unwrap();
+        for _ in 0..20 { evolve(st, &metrics(0.8)); }
+        let kick = st.layers.iter().find(|l| l.name == "kick").unwrap();
+        assert!(kick.active);
+        assert!(kick.added_at >= MOOD_HOLD_TICKS - 1, "kick came in after the drop, at {}", kick.added_at);
+    }
 }

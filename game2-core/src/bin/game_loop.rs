@@ -49,12 +49,28 @@ fn main() {
         .collect();
 
     println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult\n");
+    let mut famine_stores = vec![]; // food set aside during the famine
     for tick in 0..500 {
         sched.tick(&mut world);
 
         // Emergent event: famine at tick 200 (food source depletes -> hunger spikes)
         if tick == 200 {
             println!("EVENT: famine begins (food scarcity)");
+            for f in world.query::<villager::FoodSource>() {
+                if let Some(fs) = world.get_component_mut::<villager::FoodSource>(f) {
+                    famine_stores.push((f, fs.servings));
+                    fs.servings = 0;
+                }
+            }
+        }
+        // ...until the harvest comes in and the stores are refilled
+        if tick == 250 {
+            for (f, servings) in famine_stores.drain(..) {
+                if let Some(fs) = world.get_component_mut::<villager::FoodSource>(f) {
+                    fs.servings += servings;
+                }
+            }
+            println!("EVENT: harvest ends the famine");
         }
         // Emergent event: flu outbreak at tick 300
         if tick == 300 {

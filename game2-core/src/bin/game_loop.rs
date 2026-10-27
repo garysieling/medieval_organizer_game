@@ -8,7 +8,7 @@ use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
-use game2_core::sim::religion::{Faith, Congregation, Service};
+use game2_core::sim::religion::{self, Faith, Congregation, Service, DevotionSystem};
 use game2_core::sim::economics::Market;
 use game2_core::sim::community::{Citizen, Organization};
 use game2_core::infra::telemetry::Telemetry;
@@ -25,6 +25,7 @@ fn main() {
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(IllnessSystem);
+    sched.add_system(DevotionSystem); // faith fades a little each day without practice
 
     // World setup
     let terrain = Terrain::generate(33, 0.7, 42);
@@ -45,11 +46,18 @@ fn main() {
         villagers.push(v);
     }
 
+    // The whole village belongs to the Old Faith's congregation
+    let church = world.create_entity();
+    world.add_component(church, Congregation {
+        name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![],
+    });
+
     let start_styles: Vec<_> = villagers.iter()
         .map(|v| infer_style(world.get_component::<AttachmentHistory>(*v).unwrap()))
         .collect();
 
-    println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult\n");
+    println!("tick,avg_hunger,avg_health,seeking,idle,season,food_mult,avg_devotion,at_service\n");
+    let mut last_attendance = 0;
     let mut famine_stores = vec![]; // food set aside during the famine
     for tick in 0..500 {
         sched.tick(&mut world);
@@ -83,6 +91,20 @@ fn main() {
             println!("EVENT: flu outbreak at tick 300");
         }
 
+        // Weekly service: whoever isn't starving or sick in bed attends,
+        // deepening their faith and their bonds with each other
+        if tick % 7 == 0 {
+            let participants: Vec<_> = villagers.iter().copied().filter(|v| {
+                let fed = world.get_component::<Hunger>(*v).map(|h| h.value >= 30.0).unwrap_or(true);
+                let well = world.get_component::<Health>(*v).map(|h| h.condition >= 0.8).unwrap_or(true);
+                fed && well
+            }).collect();
+            last_attendance = religion::perform_service(&mut world, church, Service {
+                name: "Harvest Rite".into(), frequency: "weekly".into(),
+                participants, cohesion_boost: 0.1, charity_output: 0.0,
+            });
+        }
+
         // Attachment episodes: going hungry alone is distressing; during the
         // flu Aldric nurses the sick every few days, a warm moment for both
         if tick % 10 == 0 {
@@ -112,7 +134,8 @@ fn main() {
                 }
             }
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
-            println!("{},{:.1},{:.2},{},{},{:?},{:.2}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"));
+            let devotion: f32 = villagers.iter().map(|v| world.get_component::<Faith>(*v).map(|f| f.devotion).unwrap_or(0.0)).sum::<f32>() / 6.0;
+            println!("{},{:.1},{:.2},{},{},{:?},{:.2},{:.2},{}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"), devotion, last_attendance);
             telem.set_tick(tick as u64);
             telem.gauge("hunger", hunger as f64);
             telem.gauge("health", health as f64);
@@ -122,9 +145,10 @@ fn main() {
     println!("\n=== Final villager states ===");
     for (i, v) in villagers.iter().enumerate() {
         if let Some(h) = world.get_component::<AttachmentHistory>(*v) {
-            println!("{}: attachment={:?} -> {:?} (anx={} warm={}) health={:.2}",
+            println!("{}: attachment={:?} -> {:?} (anx={} warm={}) health={:.2} devotion={:.2}",
                 names[i], start_styles[i], infer_style(h), h.anxiety_episodes, h.warmth_episodes,
-                world.get_component::<Health>(*v).map(|h| h.condition).unwrap_or(0.0));
+                world.get_component::<Health>(*v).map(|h| h.condition).unwrap_or(0.0),
+                world.get_component::<Faith>(*v).map(|f| f.devotion).unwrap_or(0.0));
         }
     }
     println!("\n=== GAME LOOP COMPLETE (500 ticks) ===");

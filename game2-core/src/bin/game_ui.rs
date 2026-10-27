@@ -9,7 +9,7 @@ use game2_core::ui::font::{draw_text, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, recruit_influence_needed};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
@@ -25,6 +25,8 @@ const MAP_W: usize = 640;
 const UI_X: usize = 660;
 const TILE_W: i32 = 28;
 const TILE_H: i32 = 14;
+/// Influence at which the village recognizes the player as its leader (the win)
+const WIN_INFLUENCE: f32 = 2.0;
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 { ((r as u32) << 16) | ((g as u32) << 8) | b as u32 }
 
@@ -326,7 +328,7 @@ impl<'a> Game<'a> {
             Button { label: "Invest",   key: 'I', x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
             Button { label: "Organize", key: 'O', x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (120,100,40) },
             Button { label: "Build",    key: 'B', x: UI_X as i32 + 10, y: 236, w: 130, h: 36, color: (80,60,120) },
-            Button { label: "Wait",     key: 'W', x: UI_X as i32 + 10, y: 280, w: 130, h: 36, color: (60,60,60) },
+            Button { label: "Wait",     key: 'W', x: UI_X as i32 + 10, y: 280, w: 130, h: 36, color: (60,90,100) }, // not grey: grey means disabled
         ];
 
         Game {
@@ -359,7 +361,7 @@ impl<'a> Game<'a> {
     }
 
     /// Why action button `i` can't be used right now, if it can't
-    fn disabled_reason(&self, i: usize) -> Option<&'static str> {
+    fn disabled_reason(&self, i: usize) -> Option<String> {
         // proximity: Talk/Recruit/Organize need a living selected villager within 8 tiles of player
         let player_pos = self.player_pos();
         let target = self.villagers[self.selected_target];
@@ -368,9 +370,9 @@ impl<'a> Game<'a> {
             .unwrap_or(false);
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let recruit_infl_ok = can_recruit(self.world.get_component::<PlayerCharacter>(self.player).unwrap().influence);
-        if (i == 0 || i == 1 || i == 3) && !target_alive { Some("they have died") }
-        else if (i == 0 || i == 1 || i == 3) && !dist_ok { Some("too far away") }
-        else if i == 1 && !recruit_infl_ok { Some("need more influence") }
+        if (i == 0 || i == 1 || i == 3) && !target_alive { Some("they have died".into()) }
+        else if (i == 0 || i == 1 || i == 3) && !dist_ok { Some("too far away".into()) }
+        else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else { None }
     }
 
@@ -648,19 +650,28 @@ impl<'a> Game<'a> {
         let p = world.get_component::<PlayerCharacter>(self.player).unwrap();
         let members = world.get_component::<Organization>(self.org).unwrap().members.len();
         let guilds = world.query::<Guild>().len();
-        draw_text(&mut buf, UI_X as i32 + 10, 30, &format!("Influence"), 200, 200, 200);
-        draw_rect(&mut buf, UI_X as i32 + 90, 30, 140, 10, 40, 40, 60);
-        let infl_w = (p.influence * 50.0).min(140.0) as i32;
-        draw_rect(&mut buf, UI_X as i32 + 90, 30, infl_w, 10, 255, 200, 80);
-        draw_text(&mut buf, UI_X as i32 + 10, 44, &format!("Org: {} | Guilds: {} | Gold: {:.0}", members, guilds, p.resources), 200, 200, 200);
+        // influence bar runs to the win: reach WIN_INFLUENCE and the village
+        // follows you; the tick marks where recruiting starts to work
+        const BAR_W: i32 = 120;
+        draw_text(&mut buf, UI_X as i32 + 10, 30, "Influence", 200, 200, 200);
+        draw_rect(&mut buf, UI_X as i32 + 70, 30, BAR_W, 10, 40, 40, 60);
+        let infl_w = ((p.influence / WIN_INFLUENCE).clamp(0.0, 1.0) * BAR_W as f32) as i32;
+        draw_rect(&mut buf, UI_X as i32 + 70, 30, infl_w, 10, 255, 200, 80);
+        let recruit_x = UI_X as i32 + 70 + ((recruit_influence_needed() / WIN_INFLUENCE) * BAR_W as f32) as i32;
+        draw_rect(&mut buf, recruit_x, 28, 1, 14, 120, 255, 120);
+        draw_text(&mut buf, UI_X as i32 + 70 + BAR_W + 6, 31, &format!("{:.2}/{:.1}", p.influence, WIN_INFLUENCE), 255, 220, 130);
+        draw_text(&mut buf, UI_X as i32 + 10, 44, &format!("Org {} | Guilds {} | Gold {:.0} | lead at {:.1}", members, guilds, p.resources, WIN_INFLUENCE), 200, 200, 200);
 
         // buttons
         for (i, b) in self.buttons.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             let reason = self.disabled_reason(i);
             draw_button(&mut buf, b, hover, reason.is_some());
-            if hover {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, reason.unwrap_or(TOOLTIPS[i]), 220, 220, 160);
+            // a greyed-out button always says why; others explain themselves on hover
+            if let Some(r) = &reason {
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, r, 200, 140, 120);
+            } else if hover {
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, TOOLTIPS[i], 220, 220, 160);
             }
         }
 
@@ -1051,7 +1062,7 @@ fn main() {
         present(&mut window, &buf);
 
         let p = game.world.get_component::<PlayerCharacter>(game.player).unwrap();
-        if p.influence > 2.0 {
+        if p.influence > WIN_INFLUENCE {
             let members = game.world.get_component::<Organization>(game.org).unwrap().members.len();
             // win overlay in-window
             buf.rect(200, 240, 400, 100, 20, 20, 35);

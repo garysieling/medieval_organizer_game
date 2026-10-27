@@ -2,7 +2,8 @@
 //! From lit review: relational interview reveals concerns/networks/leadership -> recruit.
 
 use crate::engine::ecs::{Entity, World};
-use crate::sim::community::Citizen;
+use crate::game::relationships::{record_interaction, Interaction, InteractionKind, Relationship};
+use crate::sim::community::{Citizen, Organization};
 
 /// What a 1-1 reveals about a citizen
 #[derive(Debug)]
@@ -32,13 +33,23 @@ pub struct HouseMeetingResult {
     pub attendees_recruited: u32,
 }
 
-/// Run a house meeting with identified citizens
+/// Run a house meeting with identified citizens. The meeting is a
+/// conversation between the org's leader and each attendee; only attendees
+/// whose relationship with the leader is already strong enough join.
 pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> HouseMeetingResult {
     // Shared concerns emerge from overlap
     let shared = vec!["fair wages".into(), "safe harvest".into()];
+    let leader = match world.get_component::<Organization>(org) {
+        Some(o) => o.leader,
+        None => return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 },
+    };
     let mut recruited = 0;
-    for a in attendees {
-        if crate::sim::community::recruit(world, org, *a, 0.6) {
+    for &a in attendees {
+        let rel = record_interaction(world, leader, Interaction {
+            other: a, kind: InteractionKind::Conversation, intensity: 1.0,
+        });
+        let trust = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(0.0);
+        if crate::sim::community::recruit(world, org, a, trust) {
             recruited += 1;
         }
     }
@@ -46,5 +57,50 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         shared_concerns: shared,
         formed_committee: recruited >= 2,
         attendees_recruited: recruited,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::relationships::RelKind;
+
+    fn guild(w: &mut World) -> (Entity, Entity) {
+        let org = w.create_entity();
+        let leader = w.create_entity();
+        w.add_component(org, Organization {
+            name: "Guild".into(), members: vec![], leader,
+            influence_pool: 0.0, resources: 0.0, charter: "Wages".into(),
+        });
+        (org, leader)
+    }
+
+    #[test]
+    fn test_house_meeting_does_not_recruit_strangers() {
+        let mut w = World::new();
+        let (org, _) = guild(&mut w);
+        let strangers: Vec<Entity> = (0..3).map(|_| w.create_entity()).collect();
+        let r = house_meeting(&mut w, org, &strangers);
+        assert_eq!(r.attendees_recruited, 0);
+        assert!(!r.formed_committee);
+        assert!(w.get_component::<Organization>(org).unwrap().members.is_empty());
+    }
+
+    #[test]
+    fn test_house_meeting_recruits_trusted_attendees() {
+        let mut w = World::new();
+        let (org, leader) = guild(&mut w);
+        let friends: Vec<Entity> = (0..2).map(|_| w.create_entity()).collect();
+        for &f in &friends {
+            let rel = w.create_entity();
+            w.add_component(rel, Relationship {
+                from: leader, other: f, kind: RelKind::Friend, strength: 0.6, interactions: 5,
+            });
+        }
+        let stranger = w.create_entity();
+        let r = house_meeting(&mut w, org, &[friends[0], friends[1], stranger]);
+        assert_eq!(r.attendees_recruited, 2);
+        assert!(r.formed_committee);
+        assert!(!w.get_component::<Organization>(org).unwrap().members.contains(&stranger));
     }
 }

@@ -168,6 +168,7 @@ struct Game<'a> {
     player: Entity,
     org: Entity,
     dog: Entity,
+    market_food: Entity, // our village's food store (the rivals have their own)
     buildings: Vec<(f32, f32, &'a Option<Sprite>)>,
     ground: Vec<(f32, f32, &'a Option<Sprite>)>, // flat tiles: roads, fields, river
     buttons: Vec<Button>,
@@ -200,7 +201,7 @@ impl<'a> Game<'a> {
 
         let terrain = Terrain::generate(33, 0.7, 42);
         let climate = climate::spawn_climate(&mut world);
-        villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
+        let market_food = villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
         // buildings placed on map
         let buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
@@ -279,7 +280,7 @@ impl<'a> Game<'a> {
         ];
 
         Game {
-            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, buildings, ground, buttons,
+            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, market_food, buildings, ground, buttons,
             built_count: 0,
             zoom: 1.0,
             rival_homes,
@@ -506,8 +507,7 @@ impl<'a> Game<'a> {
         mill_frame.blit_center(&mut buf, msx, msy);
 
         // food stock indicator at market
-        let food_stock = world.query::<villager::FoodSource>().first()
-            .and_then(|f| world.get_component::<villager::FoodSource>(*f))
+        let food_stock = world.get_component::<villager::FoodSource>(self.market_food)
             .map(|f| f.servings).unwrap_or(0);
         let (fsx, fsy) = iso_to_screen_cam(16.0, 15.0, cam_x, cam_y, zoom);
         // stock bar under the market

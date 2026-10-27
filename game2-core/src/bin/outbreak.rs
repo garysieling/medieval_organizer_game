@@ -3,7 +3,8 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::villager::{self, Pos};
-use game2_core::sim::illness::{Health, Disease, Stage, Treatment, treat_health};
+use game2_core::sim::illness::{Health, Disease, Stage, treat_health};
+use game2_core::game::herbology::{self, Apothecary, HerbEffect, PrepMethod};
 
 fn main() {
     println!("=== ILLNESS OUTBREAK ===\n");
@@ -18,6 +19,14 @@ fn main() {
         world.add_component(v, Health { condition: 1.0, immunity: 0.4 + (i as f32 * 0.1) });
         villagers.push(v);
     }
+
+    // The village apothecary knows willow bark and yarrow
+    let apothecary = world.create_entity();
+    world.add_component(apothecary, Apothecary {
+        known_herbs: vec!["willow_bark".into(), "yarrow".into()], remedies: vec![], skill: 0.7,
+    });
+    let willow = herbology::spawn_herb(&mut world, "willow_bark", 0.6, HerbEffect::PainRelief, PrepMethod::Tea);
+    let yarrow = herbology::spawn_herb(&mut world, "yarrow", 0.5, HerbEffect::Healing, PrepMethod::Poultice);
 
     // Patient zero gets flu at tick 0
     let flu = world.create_entity();
@@ -48,8 +57,14 @@ fn main() {
         // Herbalist treats sick villagers at tick 20+
         if tick == 20 {
             println!("\n  Apothecary starts treating the sick (willow bark + yarrow)\n");
-            let remedy = Treatment { name: "willow_bark_tea".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.4 };
-            for v in &infected {
+            for (i, v) in infected.iter().enumerate() {
+                // Alternate remedies per patient; practice sharpens the apothecary regardless
+                let (herb, method) = if i % 2 == 0 {
+                    (willow, PrepMethod::Tea)
+                } else {
+                    (yarrow, PrepMethod::Poultice)
+                };
+                let Some(remedy) = herbology::prepare_remedy(&mut world, apothecary, herb, method) else { continue };
                 if let Some(h) = world.get_component_mut::<Health>(*v) {
                     treat_health(h, &remedy);
                 }

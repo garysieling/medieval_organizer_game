@@ -5,7 +5,7 @@ use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::jobs::{self, Job, JobSystem};
+use game2_core::game::jobs::{self, Job, JobHolder, JobSystem};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
@@ -28,6 +28,7 @@ fn main() {
     sched.add_system(IllnessSystem);
     sched.add_system(DevotionSystem); // faith fades a little each day without practice
     sched.add_system(JobSystem); // workers stock the market: wheat -> flour -> bread
+    sched.add_system(villager::StallSystem); // the market's bread goes on sale as meals
 
     // World setup
     let terrain = Terrain::generate(33, 0.7, 42);
@@ -35,6 +36,7 @@ fn main() {
     villager::spawn_food_source(&mut world, 8.0, 8.0, 300);
     let market = world.create_entity();
     world.add_component(market, Market { prices: [("food".into(), 10.0)].into_iter().collect(), supply: [("food".into(), 100)].into_iter().collect(), ..Default::default() });
+    let bakery = villager::spawn_stall(&mut world, 12.0, 4.0, market, "bread");
 
     // Villagers with full stacks
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny","Wystan"];
@@ -71,9 +73,19 @@ fn main() {
     for tick in 0..500 {
         sched.tick(&mut world);
 
-        // Emergent event: famine at tick 200 (food source depletes -> hunger spikes)
+        // Emergent event: famine at tick 200 (food source depletes -> hunger spikes).
+        // It's a crop failure too: blight spoils the grain in the market and
+        // the farms yield nothing, so the bakery can't bake through it
         if tick == 200 {
             println!("EVENT: famine begins (food scarcity)");
+            for v in &villagers {
+                if let Some(j) = world.get_component_mut::<JobHolder>(*v) {
+                    if j.job == Job::Farmer { j.output_rate = 0.0; }
+                }
+            }
+            if let Some(m) = world.get_component_mut::<Market>(market) {
+                for g in ["wheat", "flour"] { m.supply.remove(g); }
+            }
             for f in world.query::<villager::FoodSource>() {
                 if let Some(fs) = world.get_component_mut::<villager::FoodSource>(f) {
                     famine_stores.push((f, fs.servings));
@@ -86,6 +98,11 @@ fn main() {
             for (f, servings) in famine_stores.drain(..) {
                 if let Some(fs) = world.get_component_mut::<villager::FoodSource>(f) {
                     fs.servings += servings;
+                }
+            }
+            for v in &villagers {
+                if let Some(j) = world.get_component_mut::<JobHolder>(*v) {
+                    if j.job == Job::Farmer { j.output_rate = 1.0; }
                 }
             }
             println!("EVENT: harvest ends the famine");
@@ -151,12 +168,13 @@ fn main() {
             let bond = world.get_component::<Pet>(dog).map(|p| p.bond_strength).unwrap_or(0.0);
             let mkt = world.get_component::<Market>(market).unwrap();
             let stock = |g: &str| mkt.supply.get(g).copied().unwrap_or(0);
+            let bread = world.get_component::<villager::FoodSource>(bakery).map(|f| f.servings).unwrap_or(0);
             println!("{},{:.1},{:.2},{},{},{:?},{:.2},{:.2},{},{:.2},{},{},{},{}", tick, hunger, health, seek, idle, cl.season, climate_multiplier(cl, "food"), devotion, last_attendance, bond,
-                stock("wheat"), stock("flour"), stock("bread"), stock("lumber"));
+                stock("wheat"), stock("flour"), bread, stock("lumber"));
             telem.set_tick(tick as u64);
             telem.gauge("hunger", hunger as f64);
             telem.gauge("health", health as f64);
-            telem.gauge("bread", stock("bread") as f64);
+            telem.gauge("bread", bread as f64);
         }
     }
 

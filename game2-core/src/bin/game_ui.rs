@@ -249,6 +249,12 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
+/// Gold a new house costs
+const BUILD_COST: f32 = 30.0;
+/// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
+const MILL_TILE: (f32, f32) = (10.0, 9.0);
+/// How far from the player (in tiles) to look for a free building site
+const BUILD_SEARCH: i32 = 8;
 
 /// Day a traveller brings the flu to the village
 const FLU_DAY: u64 = 120;
@@ -514,6 +520,48 @@ impl<'a> Game<'a> {
         self.world.get_component::<Pos>(self.player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0))
     }
 
+    /// Why action button `i` can't be used right now, if it can't: Build's
+    /// own rules (gold, a free site), otherwise disabled_reason
+    fn action_blocker(&self, i: usize) -> Option<String> {
+        if i == 4 {
+            let gold = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.resources).unwrap_or(0.0);
+            if gold < BUILD_COST { return Some(format!("need {:.0} gold", BUILD_COST)); }
+            if self.build_site().is_none() { return Some("no room nearby".into()); }
+            return None;
+        }
+        self.disabled_reason(i)
+    }
+
+    /// The nearest free tile to the player where a house can go: dry,
+    /// buildable land (not water or peaks), with no building (or the
+    /// windmill) on it or next to it - a house sprite is ~2 tiles wide - not
+    /// on a road, field or food store, and not right on top of the player
+    fn build_site(&self) -> Option<(f32, f32)> {
+        let (px, py) = self.player_pos();
+        let (cx, cy) = (px.round() as i32, py.round() as i32);
+        let taken = |x: i32, y: i32| {
+            let on = |bx: f32, by: f32| bx.round() as i32 == x && by.round() as i32 == y;
+            let beside = |bx: f32, by: f32| (bx.round() as i32 - x).abs() <= 1 && (by.round() as i32 - y).abs() <= 1;
+            self.buildings.iter().any(|(bx, by, _)| beside(*bx, *by))
+                || beside(MILL_TILE.0, MILL_TILE.1)
+                || self.ground.iter().any(|(gx, gy, _)| on(*gx, *gy))
+                || self.world.query::<villager::FoodSource>().iter()
+                    .filter_map(|f| self.world.get_component::<Pos>(*f))
+                    .any(|p| on(p.x, p.y))
+        };
+        let mut best: Option<((f32, f32), i32)> = None;
+        for y in (cy - BUILD_SEARCH)..=(cy + BUILD_SEARCH) {
+            for x in (cx - BUILD_SEARCH)..=(cx + BUILD_SEARCH) {
+                if x < 1 || y < 1 || x as usize >= self.terrain.width - 1 || y as usize >= self.terrain.height - 1 { continue; }
+                let h = self.terrain.get(x as usize, y as usize);
+                if !(0.15..0.75).contains(&h) || taken(x, y) { continue; }
+                let d = (x - cx).abs() + (y - cy).abs();
+                if d >= 2 && best.map(|(_, bd)| d < bd).unwrap_or(true) { best = Some(((x as f32, y as f32), d)); }
+            }
+        }
+        best.map(|(site, _)| site)
+    }
+
     /// Why action button `i` can't be used right now, if it can't
     fn disabled_reason(&self, i: usize) -> Option<String> {
         // Talk/Recruit need the selected villager alive and within reach; a
@@ -709,7 +757,7 @@ impl<'a> Game<'a> {
 
         // windmill: animated blades (frame cycles every 10 ticks)
         let mill_frame = &art.mill_frames[((tick / 10) % 4) as usize];
-        let (msx, msy) = iso_to_screen_cam(10.0, 9.0, cam_x, cam_y, zoom);
+        let (msx, msy) = iso_to_screen_cam(MILL_TILE.0, MILL_TILE.1, cam_x, cam_y, zoom);
         mill_frame.blit_center(&mut buf, msx, msy);
 
         // market food stock: shown in the HUD (top-left), not on the market
@@ -825,7 +873,7 @@ impl<'a> Game<'a> {
         // buttons
         for (i, b) in self.buttons.iter().enumerate() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            let reason = self.disabled_reason(i);
+            let reason = self.action_blocker(i);
             draw_button(&mut buf, b, hover, reason.is_some());
             // a greyed-out button always says why; others explain themselves on hover
             if let Some(r) = &reason {
@@ -1043,7 +1091,7 @@ impl<'a> Game<'a> {
     fn act(&mut self, i: usize) {
         let tick = self.tick;
         let selected_target = self.selected_target;
-        let msg = if let Some(reason) = self.disabled_reason(i) {
+        let msg = if let Some(reason) = self.action_blocker(i) {
             format!("Can't {}: {}.", self.buttons[i].label.to_lowercase(), reason)
         } else {
             match i {
@@ -1061,11 +1109,12 @@ impl<'a> Game<'a> {
                 2 => { let r = act_invest(&mut self.world, self.player, 10.0); r.description }
                 3 => self.house_meeting(),
                 4 => {
-                    let bx = 4.0 + (self.built_count % 4) as f32 * 5.0;
-                    let by = 15.0 + (self.built_count / 4) as f32 * 4.0;
+                    // action_blocker checked there's gold and a site
+                    let (bx, by) = self.build_site().unwrap();
+                    if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, &self.art.house_s));
                     self.built_count += 1;
-                    format!("A house rises at ({:.0},{:.0})", bx, by)
+                    format!("t{}: A house rises at ({:.0},{:.0}) - {:.0} gold", tick, bx, by, BUILD_COST)
                 }
                 _ => "You wait and observe.".into(),
             }
@@ -1591,5 +1640,41 @@ mod organize_tests {
         assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
         assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
         assert!(relationships::find_relationship(&game.world, game.player, corvin).is_none(), "Corvin wasn't there");
+    }
+}
+
+#[cfg(test)]
+mod build_tests {
+    use super::*;
+
+    #[test]
+    fn test_build_costs_gold_and_uses_free_land_near_the_player() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let gold0 = game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources;
+        let start = game.buildings.len();
+        let mut built = 0;
+        while game.action_blocker(4).is_none() {
+            game.act(4);
+            built += 1;
+            assert!(built < 100, "Build never stopped");
+        }
+        assert_eq!(built, (gold0 / BUILD_COST) as usize, "one house per {} gold", BUILD_COST);
+        let gold = game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources;
+        assert!((gold0 - gold - built as f32 * BUILD_COST).abs() < 1e-3, "gold should drop by the cost of each house");
+        assert_eq!(game.action_blocker(4), Some(format!("need {:.0} gold", BUILD_COST)));
+        let (px, py) = game.player_pos();
+        let new: Vec<_> = game.buildings[start..].iter().map(|(x, y, _)| (*x, *y)).collect();
+        for (i, &(x, y)) in new.iter().enumerate() {
+            let h = game.terrain.get(x as usize, y as usize);
+            assert!((0.15..0.75).contains(&h), "house on unbuildable ground at ({},{}) h={}", x, y, h);
+            assert!((x - px).abs() + (y - py).abs() <= 2.0 * BUILD_SEARCH as f32, "house far from the player");
+            let clear_of = |bx: f32, by: f32| (bx.round() - x).abs() > 1.0 || (by.round() - y).abs() > 1.0;
+            assert!(game.buildings[..start].iter().all(|(bx, by, _)| clear_of(*bx, *by)), "house on or beside an existing building at ({},{})", x, y);
+            assert!(clear_of(MILL_TILE.0, MILL_TILE.1), "house on the windmill at ({},{})", x, y);
+            assert!((x - px.round()).abs() + (y - py.round()).abs() >= 2.0, "house right on top of the player at ({},{})", x, y);
+            assert!(game.ground.iter().all(|(gx, gy, _)| (gx.round(), gy.round()) != (x, y)), "house on a road or field");
+            assert!(new[..i].iter().all(|&(ox, oy)| clear_of(ox, oy)), "two houses on or beside each other at ({},{})", x, y);
+        }
     }
 }

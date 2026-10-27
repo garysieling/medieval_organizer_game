@@ -127,7 +127,7 @@ fn main() {
             }).collect();
             last_attendance = religion::perform_service(&mut world, church, Service {
                 name: "Harvest Rite".into(), frequency: "weekly".into(),
-                participants, cohesion_boost: 0.1, charity_output: 0.0,
+                participants, cohesion_boost: 0.1, charity_output: 0.1, // the fed share with the hungry
             });
         }
 

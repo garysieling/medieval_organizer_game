@@ -68,6 +68,8 @@ impl crate::engine::ecs::System for IllnessSystem {
             if stage == Stage::Recovering {
                 h.condition = (h.condition + RECOVERY_RATE).min(1.0);
                 if h.condition >= RECOVERED {
+                    // beating it leaves them harder to reinfect
+                    h.immunity = (h.immunity + ACQUIRED_IMMUNITY).min(1.0);
                     world.destroy_entity(d);
                 }
                 continue;
@@ -79,6 +81,67 @@ impl crate::engine::ecs::System for IllnessSystem {
                 dis.stage = stage_for(severity);
             }
         }
+        spread_contagion(world);
+    }
+}
+
+/// Manhattan distance within which a sick villager exposes others
+pub const CONTACT_RANGE: f32 = 3.0;
+/// Exposure gained per tick per unit of a nearby source's severity
+const EXPOSURE_RATE: f32 = 0.08;
+/// Fraction of built-up exposure kept each tick (it fades away from the sick)
+const EXPOSURE_RETAINED: f32 = 0.98;
+/// Share of the source's severity a newly caught case starts with
+const TRANSMITTED_SEVERITY: f32 = 0.8;
+/// Immunity gained from beating a disease
+const ACQUIRED_IMMUNITY: f32 = 0.3;
+
+/// How much contagion a healthy agent has soaked up from the sick around them
+#[derive(Debug, Default)]
+pub struct Exposure(pub f32);
+
+/// Contagious diseases spread by proximity: each tick, healthy agents within
+/// CONTACT_RANGE of an actively sick one build up exposure in proportion to
+/// that patient's severity (fading when they're away from the sick); once
+/// exposure outweighs their immunity they catch a slightly milder case.
+fn spread_contagion(world: &mut World) {
+    use crate::game::villager::Pos;
+    let mut sources = vec![]; // (position, severity, name)
+    let mut sick = vec![];
+    for d in world.query::<Disease>() {
+        let Some(dis) = world.get_component::<Disease>(d) else { continue };
+        sick.push(dis.patient);
+        if !dis.contagious || dis.stage == Stage::Recovering { continue; }
+        if let Some(p) = world.get_component::<Pos>(dis.patient) {
+            sources.push(((p.x, p.y), dis.severity, dis.name.clone()));
+        }
+    }
+    for e in world.query::<Health>() {
+        if sick.contains(&e) { continue; }
+        let Some(p) = world.get_component::<Pos>(e).map(|p| (p.x, p.y)) else { continue };
+        let near: Vec<_> = sources.iter()
+            .filter(|((x, y), _, _)| (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE)
+            .collect();
+        let dose: f32 = near.iter().map(|(_, sev, _)| sev * EXPOSURE_RATE).sum();
+        if dose == 0.0 && world.get_component::<Exposure>(e).is_none() { continue; }
+        if world.get_component::<Exposure>(e).is_none() {
+            world.add_component(e, Exposure::default());
+        }
+        let immunity = world.get_component::<Health>(e).map(|h| h.immunity).unwrap_or(0.0);
+        let exposure = world.get_component_mut::<Exposure>(e).unwrap();
+        exposure.0 = exposure.0 * EXPOSURE_RETAINED + dose;
+        if exposure.0 <= immunity { continue; }
+        exposure.0 = 0.0;
+        // catch the worst case they were exposed to, a little weakened
+        let (_, sev, name) = near.iter()
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .copied()
+            .cloned()
+            .unwrap_or(((0.0, 0.0), 0.0, String::new()));
+        let severity = sev * TRANSMITTED_SEVERITY;
+        if severity < 0.1 { continue; } // too weak to take hold
+        let d = world.create_entity();
+        world.add_component(d, Disease { name, patient: e, stage: stage_for(severity), severity, contagious: true });
     }
 }
 
@@ -155,6 +218,66 @@ mod tests {
         assert!(lowest < 0.7, "the disease should do some harm first");
         assert!(w.get_component::<Health>(p).unwrap().condition >= RECOVERED, "patient should get better");
         assert!(w.get_component::<Disease>(d).is_none(), "a beaten disease should be cleared");
+    }
+
+    fn villager_at(w: &mut World, x: f32, immunity: f32) -> Entity {
+        let e = w.create_entity();
+        w.add_component(e, Health { condition: 0.9, immunity });
+        w.add_component(e, crate::game::villager::Pos { x, y: 0.0 });
+        e
+    }
+
+    fn infect(w: &mut World, patient: Entity, contagious: bool) {
+        let d = w.create_entity();
+        w.add_component(d, Disease { name: "flu".into(), patient, stage: Stage::Moderate, severity: 0.5, contagious });
+    }
+
+    fn is_sick(w: &World, e: Entity) -> bool {
+        w.query::<Disease>().iter().any(|d| w.get_component::<Disease>(*d).unwrap().patient == e)
+    }
+
+    #[test]
+    fn test_contagion_spreads_to_close_contacts_only() {
+        let mut w = World::new();
+        let zero = villager_at(&mut w, 0.0, 0.5);
+        let neighbour = villager_at(&mut w, 2.0, 0.5);
+        let far = villager_at(&mut w, 20.0, 0.5);
+        infect(&mut w, zero, true);
+        for _ in 0..40 { IllnessSystem.run(&mut w); }
+        assert!(is_sick(&w, neighbour), "sustained close contact should pass the flu on");
+        assert!(!is_sick(&w, far), "someone far away shouldn't catch it");
+    }
+
+    #[test]
+    fn test_non_contagious_disease_does_not_spread() {
+        let mut w = World::new();
+        let zero = villager_at(&mut w, 0.0, 0.5);
+        let neighbour = villager_at(&mut w, 1.0, 0.5);
+        infect(&mut w, zero, false);
+        for _ in 0..40 { IllnessSystem.run(&mut w); }
+        assert!(!is_sick(&w, neighbour));
+    }
+
+    #[test]
+    fn test_strong_immunity_resists_brief_contact() {
+        let mut w = World::new();
+        let zero = villager_at(&mut w, 0.0, 0.5);
+        let weak = villager_at(&mut w, 1.0, 0.1);
+        let strong = villager_at(&mut w, -1.0, 0.95);
+        infect(&mut w, zero, true);
+        for _ in 0..10 { IllnessSystem.run(&mut w); }
+        assert!(is_sick(&w, weak), "low immunity should catch it quickly");
+        assert!(!is_sick(&w, strong), "high immunity should hold out through brief contact");
+    }
+
+    #[test]
+    fn test_beating_a_disease_builds_immunity() {
+        let mut w = World::new();
+        let p = villager_at(&mut w, 0.0, 0.5);
+        infect(&mut w, p, false);
+        for _ in 0..300 { IllnessSystem.run(&mut w); }
+        assert!(!is_sick(&w, p));
+        assert!(w.get_component::<Health>(p).unwrap().immunity > 0.5, "recovering should leave acquired immunity");
     }
 
     #[test]

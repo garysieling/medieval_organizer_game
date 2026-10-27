@@ -41,7 +41,7 @@ fn main() {
     world.get_component_mut::<Market>(market).unwrap().add_supply("food", 20);
     economics::spawn_producer(&mut world, "food", 10.0);
 
-    println!("tick,hunger_avg,health_avg,seeking,idle,sick,season,food_price,food_stock\n");
+    println!("tick,hunger_avg,health_avg,seeking,idle,sick,infected,season,food_price,food_stock\n");
     for tick in 0..200 {
         sched.tick(&mut world);
 
@@ -56,7 +56,8 @@ fn main() {
             mkt.buy("food", demand.min(stock));
         }
 
-        // Random villager gets sick at tick 50 (flu outbreak)
+        // Random villager gets sick at tick 50 (flu outbreak); it's contagious,
+        // so whoever spends time near them may catch it too
         if tick == 50 {
             let d = world.create_entity();
             world.add_component(d, Disease {
@@ -85,12 +86,14 @@ fn main() {
                     }
                 }
             }
+            // everyone carrying the flu, however mild
+            let infected = world.query::<Disease>().len();
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let mkt = world.get_component::<Market>(market).unwrap();
             let (price, stock) = (mkt.prices["food"], mkt.supply["food"]);
-            println!("{},{:.1},{:.2},{},{},{},{:?},{:.2},{}",
+            println!("{},{:.1},{:.2},{},{},{},{},{:?},{:.2},{}",
                 tick, hunger_sum / 4.0, health_sum / 4.0,
-                seeking, idle, sick, cl.season, price, stock);
+                seeking, idle, sick, infected, cl.season, price, stock);
             telem.set_tick(tick as u64);
             telem.gauge("hunger", (hunger_sum / 4.0) as f64);
             telem.gauge("health", (health_sum / 4.0) as f64);

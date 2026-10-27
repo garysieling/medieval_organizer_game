@@ -57,8 +57,20 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResu
     }
 }
 
+/// Trust a stranger places in the player before any influence counts
+const RECRUIT_BASE_TRUST: f32 = 0.3;
+/// Extra trust per point of the player's influence
+const RECRUIT_TRUST_PER_INFLUENCE: f32 = 0.5;
+
 /// Trust a villager places in the player when asked to join
-pub fn recruit_trust(player_influence: f32) -> f32 { player_influence * 0.5 + 0.3 }
+pub fn recruit_trust(player_influence: f32) -> f32 {
+    player_influence * RECRUIT_TRUST_PER_INFLUENCE + RECRUIT_BASE_TRUST
+}
+
+/// The least influence at which a recruit attempt succeeds
+pub fn recruit_influence_needed() -> f32 {
+    (crate::sim::community::RECRUIT_MIN_TRUST - RECRUIT_BASE_TRUST) / RECRUIT_TRUST_PER_INFLUENCE
+}
 
 /// Whether the player has enough influence for a recruit attempt to succeed
 pub fn can_recruit(player_influence: f32) -> bool {
@@ -103,6 +115,13 @@ pub fn act_invest(world: &mut World, player: Entity, amount: f32) -> ActionResul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_recruit_influence_needed_is_the_threshold() {
+        let needed = recruit_influence_needed();
+        assert!(can_recruit(needed + 1e-4));
+        assert!(!can_recruit(needed - 0.01));
+    }
     use crate::sim::community::Organization;
 
     fn setup() -> (World, Entity, Entity, Vec<Entity>) {

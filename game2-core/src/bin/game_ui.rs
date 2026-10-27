@@ -9,7 +9,7 @@ use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, recruit_influence_needed};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, recruit_influence_needed, RECRUIT_INFLUENCE};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
@@ -89,7 +89,8 @@ fn log_colour(entry: &str) -> (u8, u8, u8) {
     else if entry.contains(" tells ") { (140, 140, 160) } // gossip, even when it mentions the guild
     else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
     else if entry.contains("joined") { (120, 255, 120) }
-    else if entry.contains("storm") || entry.contains("rain") || entry.contains("flu") { (120, 200, 255) }
+    // whole words only: "influence" contains "flu" and "grain" contains "rain"
+    else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "flu")) { (120, 200, 255) }
     else { (210, 210, 210) }
 }
 
@@ -1091,6 +1092,7 @@ impl<'a> Game<'a> {
     fn act(&mut self, i: usize) {
         let tick = self.tick;
         let selected_target = self.selected_target;
+        let influence_before = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.influence).unwrap_or(0.0);
         let msg = if let Some(reason) = self.action_blocker(i) {
             format!("Can't {}: {}.", self.buttons[i].label.to_lowercase(), reason)
         } else {
@@ -1100,11 +1102,16 @@ impl<'a> Game<'a> {
                     let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
                     let concern = concerns[(tick as usize + selected_target) % concerns.len()];
                     self.dialog = Some((self.villagers[selected_target], concern.to_string(), tick + 60));
-                    r.description
+                    if r.influence_change > 0.0 {
+                        format!("Talked with {}: \"{}\"", NAMES[selected_target], concern)
+                    } else {
+                        format!("{} has nothing new to tell you", NAMES[selected_target])
+                    }
                 }
                 1 => {
                     let r = act_recruit(&mut self.world, self.player, self.org, self.villagers[selected_target]);
-                    if r.success { format!("{} joined!", NAMES[selected_target]) } else { r.description }
+                    if r.success { format!("{} joined!", NAMES[selected_target]) }
+                    else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
                 }
                 2 => { let r = act_invest(&mut self.world, self.player, 10.0); r.description }
                 3 => self.house_meeting(),
@@ -1114,12 +1121,16 @@ impl<'a> Game<'a> {
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, &self.art.house_s));
                     self.built_count += 1;
-                    format!("t{}: A house rises at ({:.0},{:.0}) - {:.0} gold", tick, bx, by, BUILD_COST)
+                    format!("A house rises at ({:.0},{:.0}) - {:.0} gold", bx, by, BUILD_COST)
                 }
                 _ => "You wait and observe.".into(),
             }
         };
-        self.log.push(msg);
+        // every action line is dated like the rest of the log, and says how
+        // far it moved the player toward leading the village
+        let gained = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.influence).unwrap_or(0.0) - influence_before;
+        let msg = if gained > 1e-4 { format!("{} (+{:.2} influence)", msg, gained) } else { msg };
+        self.log.push(format!("t{}: {}", tick, msg));
     }
 
     /// Living villagers within MEETING_REACH of the player
@@ -1147,12 +1158,18 @@ impl<'a> Game<'a> {
             .filter(|v| self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(v)).unwrap_or(false))
             .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i]))
             .collect();
+        // a member won at a meeting counts toward leading the village just
+        // like one won with Recruit - otherwise every meeting recruit is
+        // influence the player can never get back (they can't be Recruited)
+        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) {
+            p.influence += RECRUIT_INFLUENCE * joined.len() as f32;
+        }
         let outcome = if joined.is_empty() {
             "No one joins yet, but they'll remember the conversation.".to_string()
         } else {
             format!("{} joined{}!", joined.join(", "), if r.formed_committee { " and formed a committee" } else { "" })
         };
-        format!("t{}: House meeting - {} came. {}", self.tick, invited.len(), outcome)
+        format!("House meeting - {} came. {}", invited.len(), outcome)
     }
 
     /// A left click on the map: rivals rebuff or greet you, villagers get selected
@@ -1316,6 +1333,84 @@ mod key_tests {
             assert_eq!(format!("{:?}", key), ch.to_string(), "{}: hint {} doesn't match key {:?}", b.label, ch, key);
             assert!(!MOVE_KEYS.contains(ch), "{} uses {}, which moves the player", b.label, ch);
         }
+    }
+}
+
+#[cfg(test)]
+mod progression_tests {
+    use super::*;
+
+    fn influence(game: &Game) -> f32 {
+        game.world.get_component::<PlayerCharacter>(game.player).unwrap().influence
+    }
+
+    /// Walk to each villager, hear them out, then win them over at house
+    /// meetings instead of with Recruit; finally invest the gold.
+    #[test]
+    fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        for i in 0..game.villagers.len() {
+            let v = game.villagers[i];
+            let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
+            { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy; }
+            game.selected_target = i;
+            for _ in 0..8 { game.act(0); } // talk until there's nothing new to hear
+            for _ in 0..40 {
+                if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) { break; }
+                game.act(3);
+            }
+            assert!(game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v),
+                "{} never joined at a meeting", NAMES[i]);
+        }
+        while game.disabled_reason(2).is_none()
+            && game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources >= 10.0 {
+            game.act(2);
+        }
+        assert!(influence(&game) > WIN_INFLUENCE,
+            "everyone joined and all gold invested, yet influence is only {:.2} (win at {})", influence(&game), WIN_INFLUENCE);
+    }
+}
+
+#[cfg(test)]
+mod action_log_tests {
+    use super::*;
+
+    #[test]
+    fn test_action_lines_are_dated_and_show_who_and_the_gain() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        while game.tick < 3 { game.update(); }
+        // stand next to Eliza and select her
+        let (ex, ey) = { let p = game.world.get_component::<Pos>(game.villagers[1]).unwrap(); (p.x, p.y) };
+        { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = ex + 0.5; p.y = ey; }
+        game.selected_target = 1;
+
+        game.act(0);
+        let talk = game.log.last().unwrap().clone();
+        assert!(talk.starts_with("t3: Talked with Eliza") && talk.ends_with("(+0.05 influence)"), "{}", talk);
+
+        game.act(1); // not enough influence yet
+        let recruit = game.log.last().unwrap().clone();
+        assert!(recruit.starts_with("t3: Can't recruit") && !recruit.contains("influence)"), "{}", recruit);
+
+        game.act(2);
+        let invest = game.log.last().unwrap().clone();
+        assert!(invest.starts_with("t3: Invested 10 gold") && invest.contains("(+0.05 influence)"), "{}", invest);
+
+        game.act(5);
+        assert_eq!(game.log.last().unwrap(), "t3: You wait and observe.");
+    }
+
+    #[test]
+    fn test_influence_lines_are_not_coloured_as_illness() {
+        // "influence" contains "flu"; it used to turn every influence line weather-cyan
+        let illness = (120, 200, 255);
+        assert_ne!(log_colour("t3: Invested 10 gold (+0.05 influence)"), illness);
+        assert_ne!(log_colour("t3: Can't recruit: need influence 0.40."), illness);
+        assert_ne!(log_colour("t9: the grain store is low"), illness);
+        assert_eq!(log_colour("t120: Bram has the flu"), illness);
+        assert_eq!(log_colour("t200: it's raining"), illness);
     }
 }
 

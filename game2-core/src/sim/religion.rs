@@ -83,9 +83,12 @@ pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usi
         Some(c) => c.members.clone(),
         None => return 0,
     };
+    // The dead (health 0) neither attend nor receive aid
+    let alive = |w: &World, e: Entity| w.get_component::<crate::sim::illness::Health>(e)
+        .map(|h| h.condition > 0.0).unwrap_or(true);
     let present: Vec<Entity> = service.participants.iter()
         .copied()
-        .filter(|p| members.contains(p))
+        .filter(|p| members.contains(p) && alive(world, *p))
         .collect();
     for &p in &present {
         if let Some(f) = world.get_component_mut::<Faith>(p) {
@@ -108,7 +111,7 @@ pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usi
             .filter(|&p| hunger(world, p).map(|v| v >= NEEDY_HUNGER).unwrap_or(false))
             .collect();
         let needy: Vec<Entity> = members.iter().copied()
-            .filter(|&m| hunger(world, m).map(|v| v < NEEDY_HUNGER).unwrap_or(false))
+            .filter(|&m| alive(world, m) && hunger(world, m).map(|v| v < NEEDY_HUNGER).unwrap_or(false))
             .collect();
         if !givers.is_empty() && !needy.is_empty() {
             let share = service.charity_output * AID_PER_GIVER * givers.len() as f32 / needy.len() as f32;
@@ -281,5 +284,51 @@ mod tests {
             participants: vec![a], cohesion_boost: 0.1, charity_output: 0.5,
         });
         assert_eq!(w.get_component::<Hunger>(a).unwrap().value, 10.0, "the starving can't feed themselves");
+    }
+
+    #[test]
+    fn test_the_dead_neither_worship_give_nor_receive() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let corpse = believer(&mut w, 0.5);
+        w.add_component(corpse, Hunger { value: 80.0 }); // died fed
+        w.add_component(corpse, Health { condition: 0.0, immunity: 0.5 });
+        let dead_hungry = believer(&mut w, 0.5);
+        w.add_component(dead_hungry, Hunger { value: 5.0 });
+        w.add_component(dead_hungry, Health { condition: 0.0, immunity: 0.5 });
+        let hungry = believer(&mut w, 0.5);
+        w.add_component(hungry, Hunger { value: 5.0 });
+        let c = congregation(&mut w, vec![corpse, dead_hungry, hungry]);
+        let attended = perform_service(&mut w, c, Service {
+            name: "Rite".into(), frequency: "weekly".into(),
+            participants: vec![corpse], cohesion_boost: 0.2, charity_output: 0.5,
+        });
+        assert_eq!(attended, 0, "a corpse doesn't attend");
+        assert_eq!(w.get_component::<Faith>(corpse).unwrap().devotion, 0.5);
+        assert_eq!(w.get_component::<Hunger>(hungry).unwrap().value, 5.0, "the dead can't give charity");
+        assert_eq!(w.get_component::<Hunger>(dead_hungry).unwrap().value, 5.0, "nor receive it");
+    }
+
+    #[test]
+    fn test_the_dead_do_not_soak_up_charity_meant_for_the_living() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let giver = believer(&mut w, 0.5);
+        w.add_component(giver, Hunger { value: 90.0 });
+        let dead = believer(&mut w, 0.5);
+        w.add_component(dead, Hunger { value: 5.0 });
+        w.add_component(dead, Health { condition: 0.0, immunity: 0.5 });
+        let living = believer(&mut w, 0.5);
+        w.add_component(living, Hunger { value: 5.0 });
+        let c = congregation(&mut w, vec![giver, dead, living]);
+        perform_service(&mut w, c, Service {
+            name: "Rite".into(), frequency: "weekly".into(),
+            participants: vec![giver], cohesion_boost: 0.0, charity_output: 0.1,
+        });
+        let with_corpse = w.get_component::<Hunger>(living).unwrap().value;
+        assert_eq!(w.get_component::<Hunger>(dead).unwrap().value, 5.0);
+        assert!(with_corpse > 5.0, "the living member still gets the whole share");
+        // the corpse doesn't split the pool: the living get a lone needy member's share
+        assert!((with_corpse - (5.0 + 0.1 * AID_PER_GIVER)).abs() < 1e-4, "got {}", with_corpse);
     }
 }

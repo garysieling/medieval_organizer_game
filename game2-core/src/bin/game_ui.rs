@@ -14,7 +14,7 @@ use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
-use game2_core::sim::psychology::{AttachmentHistory, infer_style};
+use game2_core::sim::psychology::{AttachmentHistory, AttachmentStyle, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
 use game2_core::game::traits::{self, Personality, personality_from_seed};
 use game2_core::game::relationships::{self, Relationship};
@@ -333,6 +333,17 @@ const LEGEND_Y: i32 = 627;
 fn makes_room(world: &World, v: Entity) -> bool {
     !villager::is_dead(world, v)
         && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
+}
+
+/// A villager's attachment style as a player would put it: the card showed
+/// the psychology term ("Style: Disorganized"), which reads like a fault
+fn nature_word(style: AttachmentStyle) -> &'static str {
+    match style {
+        AttachmentStyle::Secure => "steady and trusting",
+        AttachmentStyle::Anxious => "anxious, needs reassurance",
+        AttachmentStyle::Avoidant => "keeps to themselves",
+        AttachmentStyle::Disorganized => "wary and unpredictable",
+    }
 }
 
 /// How fed a villager is, in words. `Hunger` stores fullness (100 = just
@@ -1114,7 +1125,7 @@ impl<'a> Game<'a> {
             }
             if let Some(a) = world.get_component::<AttachmentHistory>(v) {
                 let style = infer_style(a);
-                draw_text(&mut buf, UI_X as i32 + 60, 376, &format!("Style: {:?}", style), 180, 180, 255);
+                draw_text(&mut buf, UI_X as i32 + 60, 376, &format!("Nature: {}", nature_word(style)), 180, 180, 255);
             }
             if let Some(vil) = world.get_component::<Villager>(v) {
                 draw_text(&mut buf, UI_X as i32 + 60, 388, &format!("Doing: {}", activity_text(vil.activity)), 200, 160, 160);
@@ -2012,6 +2023,21 @@ mod reach_name_tests {
         assert!(b > 10 && d == 0, "{} is in reach but not bright ({} bright, {} dim)", NAMES[0], b, d);
         let (_, d) = name_colour(far, 4);
         assert!(d > 10, "{} is out of reach but not dimmed", NAMES[4]);
+    }
+}
+
+#[cfg(test)]
+mod nature_tests {
+    use super::*;
+
+    #[test]
+    fn test_card_describes_nature_in_plain_words_that_fit() {
+        use AttachmentStyle::*;
+        for st in [Secure, Anxious, Avoidant, Disorganized] {
+            let line = format!("Nature: {}", nature_word(st));
+            assert!(!line.contains(&format!("{:?}", st)), "{} still uses the jargon", line);
+            assert!(UI_X as i32 + 60 + text_width(&line, 1) <= UI_X as i32 + 278, "{} runs off the card", line);
+        }
     }
 }
 

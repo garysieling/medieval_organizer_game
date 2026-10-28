@@ -208,6 +208,10 @@ const MM_LEFT: i32 = MAP_W as i32 - MM_W - 6;
 const MM_TOP: i32 = 6;
 const MM_K: f32 = 1.25; // minimap px per tile step along the x/y diagonal
 
+/// Minimap dot colours: living villagers, and the graves of the dead
+const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
+const MM_GRAVE: (u8, u8, u8) = (150, 150, 160);
+
 /// Minimap position of a world tile
 fn tile_to_minimap(tx: f32, ty: f32) -> (f32, f32) {
     (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * MM_K, MM_TOP as f32 + 2.0 + (tx + ty) * MM_K / 2.0)
@@ -1072,7 +1076,11 @@ impl<'a> Game<'a> {
             buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
         };
         for v in villagers.iter() {
-            if let Some(p) = world.get_component::<Pos>(*v) { mm_dot(&mut buf, p.x, p.y, 255, 80, 80); }
+            if let Some(p) = world.get_component::<Pos>(*v) {
+                // the dead are graves now: grey, not a living red villager
+                let (r, g, b) = if world.get_component::<Health>(*v).is_some() { MM_VILLAGER } else { MM_GRAVE };
+                mm_dot(&mut buf, p.x, p.y, r, g, b);
+            }
         }
         for rv in self.rivals.iter() {
             if let Some(p) = world.get_component::<Pos>(*rv) { mm_dot(&mut buf, p.x, p.y, 255, 160, 60); }
@@ -1983,5 +1991,30 @@ mod death_tests {
         let figure_colours: Vec<(u8, u8, u8)> = fig.pixels.chunks(4).filter(|c| c[3] > 128).map(|c| (c[0], c[1], c[2])).collect();
         let head = head_y(sy, game.zoom) + 4;
         assert!(!figure_colours.contains(&px(sx, head)), "Corvin is still drawn standing over his grave");
+    }
+}
+
+#[cfg(test)]
+mod minimap_dead_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_dead_show_as_graves_on_the_minimap() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        while game.tick < 60 { game.update(); }
+        let corvin = game.villagers[3];
+        game.world.get_component_mut::<Health>(corvin).unwrap().condition = 0.0;
+        let t = game.tick;
+        while game.tick < t + 2 { game.update(); }
+        let buf = game.render((-1, -1));
+        let px = |v: Entity| {
+            let p = *game.world.get_component::<Pos>(v).unwrap();
+            let (x, y) = tile_to_minimap(p.x, p.y);
+            let i = ((y as i32 - 1) as usize * W + (x as i32 - 1) as usize) * 4;
+            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2])
+        };
+        assert_eq!(px(corvin), MM_GRAVE, "dead Corvin still shows as a living villager on the minimap");
+        assert_eq!(px(game.villagers[0]), MM_VILLAGER);
     }
 }

@@ -395,6 +395,8 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
+/// Gold the Invest action spends
+const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
@@ -714,13 +716,19 @@ impl<'a> Game<'a> {
 
     /// Why action button `i` can't be used right now, if it can't
     fn disabled_reason(&self, i: usize) -> Option<String> {
+        // Recruit is pointless on a member and Invest on an empty purse: say
+        // so on the button, as Build does, rather than fail in the log
         // Talk/Recruit need the selected villager alive and within reach; a
         // house meeting (Organize) just needs someone nearby to come
         let target = self.villagers[self.selected_target];
         let in_reach = self.villagers_in_reach();
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let recruit_infl_ok = can_recruit(self.world.get_component::<PlayerCharacter>(self.player).unwrap().influence);
+        let p = self.world.get_component::<PlayerCharacter>(self.player).unwrap();
+        let recruit_infl_ok = can_recruit(p.influence);
+        let member = self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(&target)).unwrap_or(false);
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
+        else if i == 1 && member { Some("already a member".into()) }
+        else if i == 2 && p.resources < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if (i == 0 || i == 1) && !in_reach.contains(&target) { Some("too far away".into()) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
@@ -1090,7 +1098,7 @@ impl<'a> Game<'a> {
                 draw_text(&mut buf, UI_X as i32 + 60, 388, &format!("Doing: {}", activity_text(vil.activity)), 200, 160, 160);
             }
             }
-            draw_text(&mut buf, UI_X as i32 + 18, 426, "keys 1-5: select villager", 120, 120, 140);
+            draw_text(&mut buf, UI_X as i32 + 18, 426, PANEL_HINT, 120, 120, 140);
         }
 
         // organization: who has joined, by name
@@ -1261,25 +1269,7 @@ impl<'a> Game<'a> {
         draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
 
         // help overlay
-        if self.help_open {
-            buf.rect(200, 140, 420, 300, 20, 20, 35);
-            buf.rect(200, 140, 420, 2, 200, 200, 220);
-            draw_text_scaled(&mut buf, 290, 155, "CONTROLS", 2, 255, 220, 130);
-            let lines = [
-                "click button / key: take action",
-                "click villager: select + inspect",
-                "1-5: select villager",
-                "T talk  R recruit  I invest",
-                "O organize  B build  Z wait",
-                "WASD: move   arrows: pan   +/-: zoom",
-                "Space: pause   0: speed 4x",
-                "F12: screenshot   Esc: quit",
-            ];
-            for (i, l) in lines.iter().enumerate() {
-                draw_text(&mut buf, 240, 200 + i as i32 * 22, l, 210, 210, 210);
-            }
-            draw_text(&mut buf, 300, 420, "press H to close", 150, 150, 170);
-        }
+        if self.help_open { draw_help(&mut buf); }
 
         // pause menu overlay
         if self.paused {
@@ -1320,7 +1310,7 @@ impl<'a> Game<'a> {
                     if r.success { format!("{} joined!", NAMES[selected_target]) }
                     else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
                 }
-                2 => { let r = act_invest(&mut self.world, self.player, 10.0); r.description }
+                2 => { let r = act_invest(&mut self.world, self.player, INVEST_GOLD); r.description }
                 3 => self.house_meeting(),
                 4 => {
                     // action_blocker checked there's gold and a site
@@ -1792,6 +1782,74 @@ mod food_reach_tests {
 }
 
 #[cfg(test)]
+mod help_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_panel_points_to_help() {
+        assert!(PANEL_HINT.contains("H help"));
+        assert!(UI_X as i32 + 18 + text_width(PANEL_HINT, 1) < W as i32 - 20, "hint runs off the panel card");
+    }
+
+    #[test]
+    fn test_help_box_is_centred_on_the_map_and_fits_its_text() {
+        let (x, y, w, h) = help_rect();
+        assert!(((x + w / 2) - MAP_W as i32 / 2).abs() <= 1, "help box not centred on the map view");
+        assert!(x >= 0 && x + w <= MAP_W as i32 && y >= 0 && y + h <= H as i32);
+        let widest = HELP_LINES.iter().map(|l| text_width(l, 1)).max().unwrap();
+        assert!(widest + 40 <= w, "help text too wide for its box");
+
+        // in a real frame, the drawn text inside the box is balanced left/right
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        game.help_open = true;
+        let buf = game.render((-1, -1));
+        let (mut lo, mut hi) = (i32::MAX, i32::MIN);
+        for yy in y + 10..y + h - 5 { for xx in x + 4..x + w - 4 {
+            let i = (yy as usize * W + xx as usize) * 4;
+            if buf.pixels[i] > 140 { lo = lo.min(xx); hi = hi.max(xx); }
+        }}
+        let (left, right) = (lo - x, x + w - hi);
+        assert!((left - right).abs() <= 12, "help text hugs one side: {}px left, {}px right", left, right);
+    }
+}
+
+#[cfg(test)]
+mod blocker_tests {
+    use super::*;
+
+    #[test]
+    fn test_invest_is_greyed_out_with_no_gold() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 5.0;
+        assert_eq!(game.action_blocker(2).as_deref(), Some("need 10 gold"));
+        game.act(2);
+        assert!(game.log.last().unwrap().ends_with("Can't invest: need 10 gold."), "{}", game.log.last().unwrap());
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 10.0;
+        assert_eq!(game.action_blocker(2), None);
+    }
+
+    #[test]
+    fn test_recruit_is_greyed_out_for_a_member() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        let v = game.villagers[2];
+        game.world.get_component_mut::<Organization>(game.org).unwrap().members.push(v);
+        game.selected_target = 2;
+        assert_eq!(game.action_blocker(1).as_deref(), Some("already a member"));
+        // the log line mustn't read as a success (log_colour greens "joined")
+        game.act(1);
+        assert_ne!(log_colour(game.log.last().unwrap()), (120, 255, 120), "{}", game.log.last().unwrap());
+        // and the button is drawn disabled, with the reason beside it
+        let buf = game.render((-1, -1));
+        let b = &game.buttons[1];
+        let i = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
+        assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Recruit still drawn in its live colour");
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -1882,6 +1940,43 @@ fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: boo
     format!("{:?} | day {} | food store {}{}{}", season, day, food,
         if raining { " | raining" } else { "" },
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
+}
+
+/// The panel's standing reminder of the keys - the only on-screen pointer
+/// to the help overlay once the title screen is gone
+const PANEL_HINT: &str = "1-5 select villager   H help";
+
+const HELP_LINES: [&str; 8] = [
+    "click button / key: take action",
+    "click villager: select + inspect",
+    "1-5: select villager",
+    "T talk  R recruit  I invest",
+    "O organize  B build  Z wait",
+    "WASD: move   arrows: pan   +/-: zoom",
+    "Space: pause   0: speed 4x",
+    "F12: screenshot   Esc: quit",
+];
+const HELP_W: i32 = 420;
+const HELP_ROW: i32 = 22;
+
+/// Where the help box sits: centred on the map view, as tall as its text
+fn help_rect() -> (i32, i32, i32, i32) {
+    let h = 55 + HELP_LINES.len() as i32 * HELP_ROW + 30;
+    (MAP_W as i32 / 2 - HELP_W / 2, H as i32 / 2 - h / 2, HELP_W, h)
+}
+
+fn draw_help(buf: &mut Buffer) {
+    let (x, y, w, h) = help_rect();
+    let cx = x + w / 2;
+    buf.rect(x, y, w, h, 20, 20, 35);
+    buf.rect(x, y, w, 2, 200, 200, 220);
+    draw_centered_at(buf, cx, y + 15, "CONTROLS", 2, (255, 220, 130));
+    // the block of lines is centred as a whole, left-aligned within it
+    let block = HELP_LINES.iter().map(|l| text_width(l, 1)).max().unwrap_or(0);
+    for (i, l) in HELP_LINES.iter().enumerate() {
+        draw_text(buf, cx - block / 2, y + 55 + i as i32 * HELP_ROW, l, 210, 210, 210);
+    }
+    draw_centered_at(buf, cx, y + h - 22, "press H to close", 1, (150, 150, 170));
 }
 
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px

@@ -91,6 +91,36 @@ pub fn breach(world: &mut World, contract: Entity) {
     }
 }
 
+/// Gold the player gives when sealing a mutual-aid pact
+pub const PACT_AID: f32 = 10.0;
+
+/// Whether `a` and `b` already have a pact (a contract between them)
+pub fn has_pact(world: &World, a: Entity, b: Entity) -> bool {
+    world.query::<Contract>().into_iter()
+        .filter_map(|c| world.get_component::<Contract>(c))
+        .any(|c| c.parties.contains(&a) && c.parties.contains(&b))
+}
+
+/// Seal a mutual-aid pact: `giver` hands `receiver` PACT_AID gold of aid
+/// out of `gold`, which counts as an Aid interaction between them (the
+/// strongest trust-builder), recorded as a fulfilled contract so each pair
+/// makes only one. Returns the contract, or None if they already have a
+/// pact or the giver can't afford it (nothing changes then).
+pub fn seal_aid_pact(world: &mut World, giver: Entity, receiver: Entity, gold: &mut f32) -> Option<Entity> {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    if giver == receiver || *gold < PACT_AID || has_pact(world, giver, receiver) { return None; }
+    *gold -= PACT_AID;
+    record_interaction(world, giver, Interaction { other: receiver, kind: InteractionKind::Aid, intensity: 1.0 });
+    let c = world.create_entity();
+    world.add_component(c, Contract {
+        parties: vec![giver, receiver],
+        terms: vec![Term { description: format!("give {:.0} gold of aid", PACT_AID), obligated: giver, fulfilled: true }],
+        status: ContractStatus::Fulfilled,
+        breach_penalty: 0.0,
+    });
+    Some(c)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,5 +180,25 @@ mod tests {
         // A fulfilled contract can no longer be breached
         breach(&mut w, c);
         assert_eq!(w.get_component::<Reputation>(miller).unwrap().contracts_breached, 0);
+    }
+
+    #[test]
+    fn test_aid_pact_builds_trust_once_per_pair() {
+        use crate::game::relationships::{find_relationship, Relationship};
+        let mut w = World::new();
+        let (player, villager) = (w.create_entity(), w.create_entity());
+        let mut gold = 25.0;
+        assert!(seal_aid_pact(&mut w, player, villager, &mut gold).is_some());
+        assert_eq!(gold, 15.0);
+        let r = find_relationship(&w, player, villager).unwrap();
+        assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.12).abs() < 1e-6);
+        // one pact per pair, and no charge for asking again
+        assert!(seal_aid_pact(&mut w, player, villager, &mut gold).is_none());
+        assert_eq!(gold, 15.0);
+        // can't afford another with someone else
+        let other = w.create_entity();
+        let mut poor = 5.0;
+        assert!(seal_aid_pact(&mut w, player, other, &mut poor).is_none());
+        assert_eq!(poor, 5.0);
     }
 }

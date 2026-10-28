@@ -36,7 +36,7 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
     s += "  [r] Recruit to your cause (needs trust)\n";
     s += "  [i] Invest resources (gold -> influence)\n";
     s += "  [o] Organize a meeting (gather people)\n";
-    s += "  [c] Sign a contract (formal agreement)\n";
+    s += "  [c] Seal a mutual-aid pact (10 gold of aid; builds their trust)\n";
     s += "  [b] Build a meeting hall (40 gold; meetings become shared meals)\n";
     s += "  [w] Wait (let the world turn)\n";
     s += "  [q] Quit\n";
@@ -107,7 +107,22 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             format!("You call a house meeting. {} come, and talk about {}. {}",
                 invited.len(), r.shared_concerns.join(" and "), joined)
         }
-        MenuActionType::Contract => "You draft a contract.".into(),
+        MenuActionType::Contract => {
+            use super::contracts::{has_pact, seal_aid_pact, PACT_AID};
+            let Some(t) = target else { return "No one to make a pact with.".into() };
+            if has_pact(world, player, t) { return "You already have a pact with them.".into(); }
+            let mut gold = world.get_component::<PlayerCharacter>(player).map(|p| p.resources).unwrap_or(0.0);
+            if seal_aid_pact(world, player, t, &mut gold).is_none() {
+                return format!("A pact means giving {:.0} gold of aid; you have {:.0}.", PACT_AID, gold);
+            }
+            // Aid to a villager is an investment in the village, like the hall:
+            // it earns the influence the same gold would have through Invest
+            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
+                p.resources = gold;
+                p.influence += PACT_AID * super::player::INVEST_INFLUENCE_PER_GOLD;
+            }
+            format!("You seal a mutual-aid pact and give {:.0} gold of help. They won't forget it.", PACT_AID)
+        }
         MenuActionType::Build => {
             use super::organizing::{MeetingHall, HALL_COST};
             if world.get_component::<MeetingHall>(org).is_some() {
@@ -227,6 +242,27 @@ mod tests {
     }
 
     #[test]
+    fn test_pacts_dont_put_the_win_out_of_reach() {
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
+        // Spend gold every way there is - the hall and a pact with everyone - then win
+        execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        for &v in &villagers {
+            execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v));
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+        }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
+        assert!(infl > 2.0, "spent gold on the hall and pacts, yet influence is {:.2} (win at 2.0)", infl);
+    }
+
+    #[test]
     fn test_menu_shows_the_goal_and_a_standing_that_matches_the_rules() {
         let p = |influence: f32| PlayerCharacter { name: "P".into(), influence, authority: 0.0, resources: 100.0, standing: 0.0 };
         assert!(show_menu(&p(0.1), 0, 1).contains("influence: 0.10 / 2.0 to lead | standing: Outsider"));
@@ -266,5 +302,23 @@ mod tests {
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("costs 40 gold; you have 30"));
         assert!(w.get_component::<MeetingHall>(org).is_none());
+    }
+
+    #[test]
+    fn test_contract_seals_an_aid_pact_with_the_target() {
+        use crate::game::relationships::{find_relationship, Relationship};
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let v = w.create_entity();
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v));
+        assert!(msg.contains("seal a mutual-aid pact"), "{}", msg);
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
+        assert!(find_relationship(&w, player, v).and_then(|r| w.get_component::<Relationship>(r)).unwrap().strength > 0.1);
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v)).contains("already have a pact"));
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
     }
 }

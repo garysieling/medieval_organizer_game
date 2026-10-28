@@ -167,6 +167,11 @@ fn main() {
                         println!("EVENT: a storm passes over the village.");
                     }
                 }
+                "harvest" => match game2_core::game::organizing::harvest_together(&mut world, org) {
+                    0 => println!("EVENT: harvest! The villagers each bring in their own fields."),
+                    1 => println!("EVENT: harvest! Your one member brings in the harvest for the Harvesters."),
+                    n => println!("EVENT: harvest! {} Harvesters bring it in together, side by side - and the people power grows.", n),
+                },
                 other => println!("EVENT: {} occurs!", other),
             }
         }

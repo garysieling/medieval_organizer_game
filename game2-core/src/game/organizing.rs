@@ -190,9 +190,49 @@ pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
     if top.is_empty() { vec!["the coming harvest".into()] } else { top }
 }
 
+/// Harvest: the org's living members bring in the harvest together. Working
+/// side by side bonds each pair of them (an Aid interaction at half
+/// strength), and a shared effort of two or more is real organizing that
+/// builds the org's people power (one person alone barely does). Returns
+/// how many members took part.
+pub fn harvest_together(world: &mut World, org: Entity) -> usize {
+    let workers: Vec<Entity> = world.get_component::<Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default()
+        .into_iter().filter(|&m| !is_dead(world, m)).collect();
+    for (i, &a) in workers.iter().enumerate() {
+        for &b in &workers[i + 1..] {
+            record_interaction(world, a, Interaction { other: b, kind: InteractionKind::Aid, intensity: 0.5 });
+        }
+    }
+    match workers.len() {
+        0 => {}
+        1 => organized_power::record_action(world, org, ActionQuality::Transactional),
+        _ => organized_power::record_action(world, org, ActionQuality::Transformational),
+    }
+    workers.len()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_harvesting_together_bonds_members_and_builds_power() {
+        use crate::game::relationships::find_relationship;
+        use crate::sim::organized_power::OrganizedPower;
+        let mut w = World::new();
+        let (org, _) = guild(&mut w);
+        w.add_component(org, OrganizedPower::new());
+        assert_eq!(harvest_together(&mut w, org), 0);
+        let (a, b, c) = (w.create_entity(), w.create_entity(), w.create_entity());
+        w.get_component_mut::<Organization>(org).unwrap().members = vec![a, b, c];
+        assert_eq!(harvest_together(&mut w, org), 3);
+        for (x, y) in [(a, b), (a, c), (b, c)] {
+            let r = find_relationship(&w, x, y).expect("members who harvest together bond");
+            assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.06).abs() < 1e-6);
+        }
+        assert!(w.get_component::<OrganizedPower>(org).unwrap().capacity > 0.1, "a shared effort builds people power");
+    }
 
     #[test]
     fn test_one_on_one_reveals_real_concerns_and_network_and_builds_trust() {

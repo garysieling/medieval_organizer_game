@@ -49,11 +49,24 @@ pub struct HouseMeeting {
     pub issues: Vec<String>,
 }
 
-/// System: organizations accumulate influence from members
+/// System: organizations accumulate influence from their living members
+/// (members who have died are taken off the rolls)
 pub struct InfluenceSystem;
 impl crate::engine::ecs::System for InfluenceSystem {
     fn run(&mut self, world: &mut World) {
         for o in world.query::<Organization>() {
+            // The dead leave the rolls: they lend no sway and aren't counted
+            // as members (entities without Health are never dead)
+            let dead = |w: &World, e: Entity| w.get_component::<crate::sim::illness::Health>(e)
+                .map(|h| h.condition <= 0.0).unwrap_or(false);
+            let gone: Vec<Entity> = world.get_component::<Organization>(o)
+                .map(|org| org.members.iter().copied().filter(|&m| dead(world, m)).collect())
+                .unwrap_or_default();
+            if !gone.is_empty() {
+                if let Some(org) = world.get_component_mut::<Organization>(o) {
+                    org.members.retain(|m| !gone.contains(m));
+                }
+            }
             // Collect member influence first (immutable), then mutate
             let member_influence: f32 = {
                 match world.get_component::<Organization>(o) {
@@ -231,5 +244,33 @@ mod tests {
 
         assert!((strength(&w, deep) - 0.05).abs() < 1e-6);
         assert!(strength(&w, shallow) < strength(&w, deep), "a deeper 1-1 builds more trust");
+    }
+
+    #[test]
+    fn test_dead_members_leave_the_org_and_its_influence() {
+        use crate::engine::ecs::System;
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let o = w.create_entity();
+        let leader = w.create_entity();
+        w.add_component(o, Organization {
+            name: "Guild".into(), members: vec![], leader,
+            influence_pool: 0.0, resources: 0.0, charter: "".into(),
+        });
+        let mut ms = vec![];
+        for infl in [0.2, 0.3] {
+            let c = w.create_entity();
+            w.add_component(c, Citizen { influence: infl, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+            w.add_component(c, Health { condition: 0.9, immunity: 0.5 });
+            recruit(&mut w, o, c, 0.8);
+            ms.push(c);
+        }
+        InfluenceSystem.run(&mut w);
+        assert!((w.get_component::<Organization>(o).unwrap().influence_pool - 0.5).abs() < 1e-6);
+        w.get_component_mut::<Health>(ms[1]).unwrap().condition = 0.0;
+        InfluenceSystem.run(&mut w);
+        let org = w.get_component::<Organization>(o).unwrap();
+        assert_eq!(org.members, vec![ms[0]]);
+        assert!((org.influence_pool - 0.2).abs() < 1e-6, "a dead member lends no sway");
     }
 }

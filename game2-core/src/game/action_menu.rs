@@ -83,7 +83,7 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 if r.success { "They joined!".into() }
                 else if r.description == "They declined" && !super::player::can_recruit(infl) {
                     // Say what's missing, as game_ui's disabled button does
-                    format!("They declined - they don't trust you enough yet (you need influence {:.2}, you have {:.2}).",
+                    format!("They declined - they don't trust you enough yet (you need influence {:.2}, you have {:.2}; or win them over by talking with them and at meetings).",
                         super::player::recruit_influence_needed(), infl)
                 }
                 else { format!("{}.", r.description) }

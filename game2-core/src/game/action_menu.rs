@@ -44,6 +44,13 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
     s
 }
 
+/// How the game went, shown however it ends (won, quit, or out of turns)
+pub fn end_summary(player: &PlayerCharacter, members: usize, villagers: usize, turns: u64) -> String {
+    format!("\nAfter {} turns: influence {:.2} / {:.1} ({}), {} of {} villagers with the Harvesters, {:.0} gold left.",
+        turns, player.influence, super::player::LEAD_INFLUENCE, super::player::standing(player.influence),
+        members, villagers, player.resources)
+}
+
 /// Parse a typed command like "t" or "r3" into (action key, target index).
 /// The number is 1-based; without a valid one the current target is kept,
 /// so talking to someone and then recruiting them hits the same person.
@@ -351,5 +358,12 @@ mod tests {
         assert!(w.get_component::<HallDamaged>(org).is_none());
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 35.0);
         assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("already stands"));
+    }
+
+    #[test]
+    fn test_end_summary_reports_how_it_went() {
+        let p = PlayerCharacter { name: "P".into(), influence: 1.25, authority: 0.0, resources: 35.0, standing: 0.0 };
+        let s = end_summary(&p, 4, 6, 501);
+        assert!(s.contains("After 501 turns: influence 1.25 / 2.0 (Respected), 4 of 6 villagers with the Harvesters, 35 gold left."), "{}", s);
     }
 }

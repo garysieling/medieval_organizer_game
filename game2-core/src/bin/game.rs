@@ -178,8 +178,11 @@ fn main() {
             println!("The Wanderer became someone who matters.");
             break;
         }
-        if tick > 500 { println!("\n500 turns passed. The game continues..."); break; }
+        if tick > 500 { println!("\n500 turns have passed, and the village never chose you to lead it."); break; }
     }
+    let p = world.get_component::<PlayerCharacter>(player).unwrap();
+    let members = world.get_component::<Organization>(org).map(|o| o.members.len()).unwrap_or(0);
+    println!("{}", game2_core::game::action_menu::end_summary(p, members, villagers.len(), tick));
     println!("\n=== GAME OVER ===");
 }
 

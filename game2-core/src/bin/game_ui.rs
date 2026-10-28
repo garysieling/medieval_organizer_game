@@ -1120,10 +1120,8 @@ impl<'a> Game<'a> {
         let member_names: Vec<&str> = org_members.iter()
             .filter_map(|m| villagers.iter().position(|v| v == m).map(|i| NAMES[i]))
             .collect();
-        let org_line = if member_names.is_empty() { "nobody yet - recruit!".to_string() } else { member_names.join(", ") };
-        draw_text(&mut buf, UI_X as i32 + 18, 408, "Org:", 255, 215, 0);
-        let org_line: String = org_line.chars().take(36).collect();
-        draw_text(&mut buf, UI_X as i32 + 48, 408, &org_line, 220, 220, 180);
+        draw_text(&mut buf, UI_X as i32 + 18, 408, MEMBERS_LABEL, 255, 215, 0);
+        draw_text(&mut buf, UI_X as i32 + 18 + (MEMBERS_LABEL.len() as i32 + 1) * GLYPH_W, 408, &members_line(&member_names), 220, 220, 180);
 
         // event log
         draw_rect(&mut buf, UI_X as i32 + 10, 450, 270, 170, 25, 25, 40);
@@ -1329,7 +1327,7 @@ impl<'a> Game<'a> {
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, &self.art.house_s));
                     self.built_count += 1;
-                    format!("A house rises at ({:.0},{:.0}) - {:.0} gold", bx, by, BUILD_COST)
+                    format!("A new house goes up beside you - {:.0} gold", BUILD_COST)
                 }
                 _ => "You wait and observe.".into(),
             }
@@ -1942,6 +1940,36 @@ mod dead_portrait_tests {
 }
 
 #[cfg(test)]
+mod member_line_tests {
+    use super::*;
+
+    #[test]
+    fn test_member_line_reads_and_fits_the_card() {
+        assert_eq!(members_line(&[]), "nobody yet - recruit!");
+        assert_eq!(members_line(&["Dagny", "Bram"]), "Dagny, Bram");
+        let all = members_line(&["Dagny", "Bram", "Aldric", "Corvin", "Eliza"]);
+        assert_eq!(all, "Dagny, Bram, Aldric, Corvin, Eliza");
+        // past the width it stops at a whole name instead of mid-word
+        let long = members_line(&["Dagny", "Bram", "Aldric", "Corvin", "Eliza", "Wulfric"]);
+        assert!(long.ends_with(" ..") && long.len() <= MEMBERS_CHARS, "{}", long);
+        // the card box ends at UI_X + 280
+        let x = UI_X as i32 + 18 + (MEMBERS_LABEL.len() as i32 + 1) * GLYPH_W;
+        for line in [&all, &long] {
+            assert!(x + text_width(line, 1) <= UI_X as i32 + 278, "{} runs off the card", line);
+        }
+    }
+
+    #[test]
+    fn test_build_log_doesnt_quote_tile_coordinates() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        game.act(4);
+        let line = game.log.last().unwrap();
+        assert!(line.contains("house goes up") && !line.contains('('), "{}", line);
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -2099,6 +2127,26 @@ fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> St
 
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
+/// Label for who's in your organization, on the villager card ("Org:" never
+/// said which, and the status line calls it the Harvesters)
+const MEMBERS_LABEL: &str = "Joined";
+/// Characters that fit after the label, inside the villager card
+const MEMBERS_CHARS: usize = 36;
+
+/// The card's member list, cut at a whole name with ".." when it won't fit
+fn members_line(names: &[&str]) -> String {
+    if names.is_empty() { return "nobody yet - recruit!".into(); }
+    let all = names.join(", ");
+    if all.len() <= MEMBERS_CHARS { return all; }
+    let mut line = names[0].to_string();
+    for n in &names[1..] {
+        let next = format!("{}, {}", line, n);
+        if next.len() + 3 > MEMBERS_CHARS { break; }
+        line = next;
+    }
+    format!("{} ..", line)
+}
+
 fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }

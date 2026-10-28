@@ -2,10 +2,10 @@
 //! Villagers have hunger+health+attachment+faith+pet+trader+relationships.
 
 use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
+use game2_core::game::villager::{self, Hunger};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::illness::{Health, Disease, Stage};
+use game2_core::sim::climate::{self, SeasonSystem};
+use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::religion::{self, Faith, Congregation, Service, DevotionSystem};
 use game2_core::sim::economics::{Market, Trader};
@@ -18,7 +18,7 @@ fn main() {
     println!("=== UNIFIED WORLD STATE ===\n");
 
     let mut world = World::new();
-    let mut telem = Telemetry::new();
+    let _telem = Telemetry::new();
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
@@ -36,7 +36,7 @@ fn main() {
     // Villagers with full component stacks
     let names = ["Aldric", "Eliza", "Bram", "Corvin"];
     let mut villagers = vec![];
-    for (i, name) in names.iter().enumerate() {
+    for (i, _name) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i * 4) as f32, 0.0);
         world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (3-i) as u32, episodes: vec![] });

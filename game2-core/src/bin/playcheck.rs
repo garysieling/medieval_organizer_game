@@ -44,7 +44,7 @@ fn main() {
     villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
     let assets = Assets::new("assets");
 
-    let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
+    let _names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
     // spawn villagers on land tiles only
     let spawn_pts = [(10.0f32,16.0f32),(16.0,20.0),(20.0,14.0),(14.0,10.0),(22.0,18.0)];
@@ -68,7 +68,7 @@ fn main() {
     // render the real frame
     let mut buf = Buffer::new(W, H);
     buf.rect(0,0,W as i32,H as i32,25,25,38);
-    let season = world.get_component::<climate::Climate>(climate).unwrap().season;
+    let _season = world.get_component::<climate::Climate>(climate).unwrap().season;
     for ty in 0..terrain.height { for tx in 0..terrain.width {
         let h = terrain.get(tx, ty);
         let (r,g,b) = if h<0.15 {(30,60,180)} else if h<0.35 {(60,140,60)} else if h<0.55 {(140,110,50)} else if h<0.75 {(110,90,60)} else {(220,220,220)};

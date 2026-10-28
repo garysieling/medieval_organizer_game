@@ -4,9 +4,9 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Activity, Hunger};
+use game2_core::game::villager::{self, Hunger};
 use game2_core::sim::economics::Market;
-use game2_core::sim::psychology::{infer_style, AttachmentHistory, AttachmentStyle};
+use game2_core::sim::psychology::{infer_style, AttachmentHistory};
 
 fn main() {
     println!("=== EVIDENCE DEMO ===\n");

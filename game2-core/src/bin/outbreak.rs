@@ -2,19 +2,19 @@
 //! Emergent: contagion spreads villager to villager, treatments affect outcome.
 
 use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::game::villager::{self, Pos};
+use game2_core::game::villager::{self};
 use game2_core::sim::illness::{Health, Disease, Stage, treat_health};
 use game2_core::game::herbology::{self, Apothecary, HerbEffect, PrepMethod};
 
 fn main() {
     println!("=== ILLNESS OUTBREAK ===\n");
     let mut world = World::new();
-    let mut sched = Scheduler::new();
+    let _sched = Scheduler::new();
 
     // 6 villagers in close quarters
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny","Wystan"];
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i % 3) as f32, (i / 3) as f32);
         world.add_component(v, Health { condition: 1.0, immunity: 0.4 + (i as f32 * 0.1) });
         villagers.push(v);

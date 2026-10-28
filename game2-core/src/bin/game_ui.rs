@@ -11,13 +11,13 @@ use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, Rapport, TALK_RAPPORT_STEP, recruit_influence_needed, RECRUIT_INFLUENCE};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
-use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, AttachmentStyle, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
 use game2_core::game::organizing::talk_response;
-use game2_core::game::traits::{self, Personality, personality_from_seed};
+use game2_core::game::traits::personality_from_seed;
+#[cfg(test)]
 use game2_core::game::relationships::{self, Relationship};
 
 const W: usize = 960;
@@ -459,6 +459,7 @@ const FLU_DAY: u64 = 120;
 const ACTION_KEYS: [(Key, char); 6] = [
     (Key::T, 'T'), (Key::R, 'R'), (Key::I, 'I'), (Key::O, 'O'), (Key::B, 'B'), (Key::Z, 'Z'),
 ];
+#[cfg(test)] // only the tests check against it
 /// Keys that move the player
 const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
 
@@ -1124,7 +1125,7 @@ impl<'a> Game<'a> {
         }
 
         // --- UI PANEL ---
-        draw_rect(&mut buf, UI_X as i32, 0, (W as i32 - UI_X as i32), H as i32, 32, 32, 48);
+        draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
         draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
 
         // status: influence bar, members, season, tick
@@ -2264,6 +2265,7 @@ const HELP_LINES: [&str; 9] = [
 const HELP_W: i32 = 420;
 const HELP_ROW: i32 = 22;
 
+#[cfg(test)] // only the tests check against it
 /// Where the help box sits: centred on the map view, as tall as its text
 fn help_rect() -> (i32, i32, i32, i32) {
     overlay_rect(HELP_W, HELP_LINES.len(), HELP_ROW, true)
@@ -2277,6 +2279,7 @@ const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", 
 const PAUSE_W: i32 = 260;
 const PAUSE_ROW: i32 = 20;
 
+#[cfg(test)]
 fn pause_rect() -> (i32, i32, i32, i32) {
     overlay_rect(PAUSE_W, PAUSE_LINES.len(), PAUSE_ROW, false)
 }

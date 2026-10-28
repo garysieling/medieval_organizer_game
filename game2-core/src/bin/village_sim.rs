@@ -3,10 +3,10 @@
 //! Evidence: emergent interplay between systems on real entities.
 
 use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
+use game2_core::game::villager::{self, Hunger, Villager, Activity};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
-use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
+use game2_core::sim::climate::{self, SeasonSystem};
 use game2_core::sim::economics::{self, Market, ProductionSystem};
 use game2_core::infra::telemetry::Telemetry;
 

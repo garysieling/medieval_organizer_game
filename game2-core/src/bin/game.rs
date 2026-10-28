@@ -4,7 +4,6 @@
 
 use std::io::{self, Write};
 use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::engine::render::Buffer;
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole};
@@ -72,7 +71,7 @@ fn main() {
         sched.tick(&mut world);
 
         // Show state
-        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        let _p = world.get_component::<PlayerCharacter>(player).unwrap();
         let members = world.get_component::<Organization>(org).unwrap().members.len();
         let guilds = world.query::<Guild>().len();
         let power = world.get_component::<OrganizedPower>(org).map(|p| p.capacity).unwrap_or(0.0);
@@ -99,7 +98,7 @@ fn main() {
                 render_entity(&mut board, p.x, p.y, c.0, c.1, c.2);
             }
         }
-        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        let _p = world.get_component::<PlayerCharacter>(player).unwrap();
         // Player on map (white)
         render_entity(&mut board, 10.0, 10.0, 255, 255, 255);
         let frame_path = format!("evidence/game-frame-{:03}.bmp", tick);
@@ -107,7 +106,7 @@ fn main() {
         println!("  map: {}", frame_path);
 
         // Show menu
-        let p_ref = world.get_component::<PlayerCharacter>(player).unwrap().clone();
+        let p_ref = world.get_component::<PlayerCharacter>(player).unwrap();
         print!("{}", show_menu(&p_ref, members, tick as u32));
         print!("choose: ");
         io::stdout().flush().unwrap();

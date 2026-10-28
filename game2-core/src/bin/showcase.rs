@@ -4,13 +4,12 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger};
+use game2_core::game::villager::{self};
 use game2_core::game::tech_tree::{printmaking_tree, research};
 use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::ui::graph::{Person, Bond, render_graph};
 use game2_core::ui::tech_view::render_tech_tree;
 use game2_core::ui::character_sheet::{Character, render_sheet};
-use game2_core::ui::minimap::FogOfWar;
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style, AttachmentStyle};
 use game2_core::infra::telemetry::Telemetry;
@@ -32,7 +31,7 @@ fn main() {
     // 2. Spawn villagers with personalities
     let names = ["Aldric", "Eliza", "Bram", "Corvin", "Dagny", "Wystan"];
     let mut villagers = vec![];
-    for (i, name) in names.iter().enumerate() {
+    for (i, _name) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i * 4) as f32, (i * 3) as f32);
         world.add_component(v, AttachmentHistory {
             anxiety_episodes: (i % 3) as u32,
@@ -55,7 +54,7 @@ fn main() {
 
     // 4. Render the world + villagers
     let mut board = render_terrain(&terrain, 500, 350);
-    for (i, v) in villagers.iter().enumerate() {
+    for (i, _v) in villagers.iter().enumerate() {
         let col = [(255,80,80),(80,255,80),(80,80,255),(255,255,80),(255,80,255),(80,255,255)][i];
         render_entity(&mut board, (i*4) as f32, (i*3) as f32, col.0, col.1, col.2);
     }

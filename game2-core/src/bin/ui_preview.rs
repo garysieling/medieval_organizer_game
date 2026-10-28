@@ -1,20 +1,17 @@
 //! Headless render of the game UI layout -> BMP for verification.
 //! Same layout as game_ui.rs but renders one frame to file.
 
-use game2_core::engine::ecs::{Scheduler, World};
+use game2_core::engine::ecs::World;
 use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
 use game2_core::ui::font::{draw_text, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
-use game2_core::game::pets::{self, Species, PetRole};
+use game2_core::game::villager::{self, Hunger, Villager, Pos};
 use game2_core::game::player::PlayerCharacter;
-use game2_core::game::guilds::{Merchant};
 use game2_core::ui::isometric::render_terrain;
-use game2_core::sim::climate;
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
-use game2_core::sim::community::{Citizen, Organization};
+use game2_core::sim::community::Organization;
 
 const W: usize = 960;
 const H: usize = 640;
@@ -196,7 +193,7 @@ fn main() {
     }
 
     // rival village across the river (foreign, red)
-    for (i, (rx, ry)) in [(28.0f32, 13.0f32), (30.0, 15.0)].iter().enumerate() {
+    for (_i, (rx, ry)) in [(28.0f32, 13.0f32), (30.0, 15.0)].iter().enumerate() {
         let rh = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
         if let Some(h) = rh { let (sx, sy) = iso_to_screen(*rx, *ry); h.blit_center(&mut buf, sx, sy); }
     }

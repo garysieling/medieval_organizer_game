@@ -81,9 +81,7 @@ fn can_care(world: &World, owner: Entity) -> bool {
     fed && well
 }
 
-fn is_dead(world: &World, e: Entity) -> bool {
-    world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
-}
+use crate::game::villager::is_dead; // health 0, or marked Dead by the windowed game
 
 /// Who takes in a pet when its owner dies: the living person the owner was
 /// closest to (strongest positive relationship), if anyone
@@ -231,5 +229,15 @@ mod tests {
         PetBondSystem.run(&mut w);
         assert_eq!(w.get_component::<Pet>(dog).unwrap().owner, None);
         PetBondSystem.run(&mut w); // strays are left alone
+    }
+
+    #[test]
+    fn test_pet_of_an_owner_marked_dead_is_rehomed() {
+        // the windowed game removes Health on death and marks the villager Dead
+        let mut w = World::new();
+        let (owner, dog) = owner_with_dog(&mut w, 80.0, PetRole::Companion);
+        w.add_component(owner, crate::game::villager::Dead);
+        PetBondSystem.run(&mut w);
+        assert_eq!(w.get_component::<Pet>(dog).unwrap().owner, None, "a corpse can't keep a pet");
     }
 }

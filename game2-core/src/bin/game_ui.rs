@@ -25,8 +25,9 @@ const MAP_W: usize = 640;
 const UI_X: usize = 660;
 const TILE_W: i32 = 28;
 const TILE_H: i32 = 14;
-/// Influence at which the village recognizes the player as its leader (the win)
-const WIN_INFLUENCE: f32 = 2.0;
+/// Influence at which the village recognizes the player as its leader (the
+/// win) - the same goal as the text game
+const WIN_INFLUENCE: f32 = game2_core::game::player::LEAD_INFLUENCE;
 
 fn rgb(r: u8, g: u8, b: u8) -> u32 { ((r as u32) << 16) | ((g as u32) << 8) | b as u32 }
 

@@ -27,10 +27,9 @@ pub enum MenuActionType {
 /// Display the action menu for a turn
 pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> String {
     let mut s = format!("\n=== Turn {} ===\n", turn);
-    s += &format!("You: {} | influence: {:.2} | standing: {} | gold: {:.0}\n",
-        player.name, player.influence,
-        if player.influence > 0.8 { "Recognized" } else if player.influence > 0.5 { "Trusted" } else { "Outsider" },
-        player.resources);
+    s += &format!("You: {} | influence: {:.2} / {:.1} to lead | standing: {} | gold: {:.0}\n",
+        player.name, player.influence, super::player::LEAD_INFLUENCE,
+        super::player::standing(player.influence), player.resources);
     s += &format!("Organization: {} members\n\n", org_members);
     s += "Actions:\n";
     s += "  [t] Talk to someone (1-1, learn concerns)\n";
@@ -187,5 +186,16 @@ mod tests {
         for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
         let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
         assert!(infl > 2.0, "organized the whole village and invested everything, yet influence is {:.2} (win at 2.0)", infl);
+    }
+
+    #[test]
+    fn test_menu_shows_the_goal_and_a_standing_that_matches_the_rules() {
+        let p = |influence: f32| PlayerCharacter { name: "P".into(), influence, authority: 0.0, resources: 100.0, standing: 0.0 };
+        assert!(show_menu(&p(0.1), 0, 1).contains("influence: 0.10 / 2.0 to lead | standing: Outsider"));
+        // Trusted exactly when recruiting starts to work
+        let needed = crate::game::player::recruit_influence_needed();
+        assert!(show_menu(&p(needed + 1e-3), 0, 1).contains("standing: Trusted"));
+        assert!(show_menu(&p(needed - 0.01), 0, 1).contains("standing: Outsider"));
+        assert!(show_menu(&p(1.2), 0, 1).contains("standing: Respected"));
     }
 }

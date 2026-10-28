@@ -204,13 +204,29 @@ fn concern_speech(concern: &str) -> (&'static str, &'static str) {
     }
 }
 
-/// What `name` says when the player talks with them: one of the concerns
-/// actually on their mind (village_concerns), worked through in turn as
-/// the player talks with them again (`talks_before`). Returns the log line
-/// ("Bram complained about wages") and their own words, for a speech bubble.
+/// Small talk, for someone who has already told you what's on their mind
+const SMALL_TALK: [(&str, &str); 5] = [
+    ("chatted about the weather", "Looks like rain again, doesn't it?"),
+    ("passed on some village gossip", "Did you hear who was seen down by the mill?"),
+    ("asked how you were keeping", "Good to see you again."),
+    ("talked about their family", "The little ones keep me on my toes."),
+    ("swapped stories by the well", "Remember the winter the river froze?"),
+];
+
+/// What `name` says when the player talks with them (`talks_before` is how
+/// many times they've talked already). First the concerns actually on
+/// their mind (village_concerns), one per talk; once they've said those,
+/// small talk - though going hungry or sick still comes up every other
+/// time. Returns the log line ("Bram complained about wages") and their
+/// own words, for a speech bubble.
 pub fn talk_response(world: &World, person: Entity, name: &str, talks_before: usize) -> (String, String) {
     let concerns = village_concerns(world, &[person]);
-    let (did, said) = concern_speech(&concerns[talks_before % concerns.len()]);
+    let pressing = concerns.iter().find(|c| *c == "the food running short" || *c == "the sickness");
+    let (did, said) = match (concerns.get(talks_before), pressing) {
+        (Some(c), _) => concern_speech(c),
+        (None, Some(c)) if talks_before % 2 == 0 => concern_speech(c),
+        _ => SMALL_TALK[talks_before % SMALL_TALK.len()],
+    };
     (format!("{} {}", name, did), said.to_string())
 }
 
@@ -252,7 +268,16 @@ mod tests {
         assert!(!said.is_empty());
         // talk again and they move on to the next thing on their mind
         assert_eq!(talk_response(&w, v, "Bram", 1).0, "Bram complained about wages");
+        // after that it's small talk, though hunger keeps coming back up
         assert_eq!(talk_response(&w, v, "Bram", 2).0, "Bram complained the store is running low");
+        let (chat, _) = talk_response(&w, v, "Bram", 3);
+        assert!(SMALL_TALK.iter().any(|(d, _)| chat == format!("Bram {}", d)), "{}", chat);
+        // someone fed and well just makes small talk once they've said their piece
+        w.add_component(v, Hunger { value: 90.0 });
+        for n in 1..6 {
+            let (chat, said) = talk_response(&w, v, "Bram", n);
+            assert!(SMALL_TALK.iter().any(|(d, s)| chat == format!("Bram {}", d) && said == *s), "{}", chat);
+        }
     }
 
     #[test]

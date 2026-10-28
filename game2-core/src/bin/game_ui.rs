@@ -453,11 +453,11 @@ const BUILD_SEARCH: i32 = 8;
 const FLU_DAY: u64 = 120;
 
 /// Keyboard shortcut for each action button, in button order (Talk, Recruit,
-/// Invest, Organize, Build, Wait). The input loop and the buttons' key hints
+/// Invest, Organize, Build). The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [(Key, char); 6] = [
-    (Key::T, 'T'), (Key::R, 'R'), (Key::I, 'I'), (Key::O, 'O'), (Key::B, 'B'), (Key::Z, 'Z'),
+const ACTION_KEYS: [(Key, char); 5] = [
+    (Key::T, 'T'), (Key::R, 'R'), (Key::I, 'I'), (Key::O, 'O'), (Key::B, 'B'),
 ];
 #[cfg(test)] // only the tests check against it
 /// Keys that move the player
@@ -465,13 +465,12 @@ const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
 
 const NAMES: [&str; 5] = ["Aldric","Eliza","Bram","Corvin","Dagny"];
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
-const TOOLTIPS: [&str; 6] = [
-    "talk to selected villager",
+const TOOLTIPS: [&str; 5] = [
+    "talk to someone nearby",
     "recruit villager to your org",
     "spend gold for influence",
     "call a house meeting",
     "commission a new house",
-    "watch the village",
 ];
 
 /// Every sprite the game draws, loaded once up front
@@ -684,7 +683,6 @@ impl<'a> Game<'a> {
             Button { label: "Invest",   key: ACTION_KEYS[2].1, x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
             Button { label: "Organize", key: ACTION_KEYS[3].1, x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (120,100,40) },
             Button { label: "Build",    key: ACTION_KEYS[4].1, x: UI_X as i32 + 10, y: 236, w: 130, h: 36, color: (80,60,120) },
-            Button { label: "Wait",     key: ACTION_KEYS[5].1, x: UI_X as i32 + 10, y: 280, w: 130, h: 36, color: (60,90,100) }, // not grey: grey means disabled
         ];
 
         Game {
@@ -1374,7 +1372,7 @@ impl<'a> Game<'a> {
         buf
     }
 
-    /// Take action button `i` (Talk, Recruit, Invest, Organize, Build, Wait)
+    /// Take action button `i` (Talk, Recruit, Invest, Organize, Build)
     fn act(&mut self, i: usize) {
         let tick = self.tick;
         if i == 0 || i == 1 { self.selected_target = self.reach_target(); }
@@ -1408,7 +1406,7 @@ impl<'a> Game<'a> {
                     self.built_count += 1;
                     format!("A new house goes up beside you - {:.0} gold", BUILD_COST)
                 }
-                _ => "You wait and observe.".into(),
+                _ => unreachable!("no action button {}", i),
             }
         };
         // every action line is dated like the rest of the log, and says how
@@ -1733,8 +1731,6 @@ mod action_log_tests {
         let invest = game.log.last().unwrap().clone();
         assert!(invest.starts_with("t3: Invested 10 gold") && invest.contains("(+0.05 influence)"), "{}", invest);
 
-        game.act(5);
-        assert_eq!(game.log.last().unwrap(), "t3: You wait and observe.");
     }
 
     #[test]
@@ -2257,7 +2253,7 @@ const HELP_LINES: [&str; 9] = [
     "bright name: close enough to talk",
     "1-5: select villager",
     "T talk  R recruit  I invest",
-    "O organize  B build  Z wait",
+    "O organize  B build",
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
     "F12: screenshot   Esc: quit",

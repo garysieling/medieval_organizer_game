@@ -60,6 +60,9 @@ fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     }
 }
 
+/// The dog's coat
+const DOG: (u8, u8, u8) = (139, 90, 43);
+
 /// Gravestone colours
 const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
@@ -903,12 +906,15 @@ impl<'a> Game<'a> {
             }
         }
 
-        // dog follows its owner's position
+        // the dog keeps by its owner - whoever that is now: PetBondSystem
+        // rehomes it when its owner dies; a stray lingers where it was first
+        // kept, by Aldric
         if let Some(pet) = world.get_component::<Pet>(self.dog) {
-            if let Some(owner_p) = world.get_component::<Pos>(villagers[0]) {
+            let keeper = pet.owner.unwrap_or(villagers[0]);
+            if let Some(owner_p) = world.get_component::<Pos>(keeper) {
                 let (dx, dy) = iso_to_screen_cam(owner_p.x + 0.8, owner_p.y + 0.5, cam_x, cam_y, zoom);
-                buf.rect(dx - 3, dy - 6, 6, 4, 139, 90, 43); // brown dog body
-                buf.rect(dx - 4, dy - 9, 3, 3, 139, 90, 43); // head
+                buf.rect(dx - 3, dy - 6, 6, 4, DOG.0, DOG.1, DOG.2); // brown dog body
+                buf.rect(dx - 4, dy - 9, 3, 3, DOG.0, DOG.1, DOG.2); // head
                 if pet.bond_strength > 0.5 {
                     labels.push(("<3", dx - 6, dy - 16, (255, 120, 120), false, false)); // placed with the names
                 }
@@ -2061,5 +2067,38 @@ mod minimap_dead_tests {
         };
         assert_eq!(px(corvin), MM_GRAVE, "dead Corvin still shows as a living villager on the minimap");
         assert_eq!(px(game.villagers[0]), MM_VILLAGER);
+    }
+}
+
+#[cfg(test)]
+mod dog_tests {
+    use super::*;
+
+    #[test]
+    fn test_dog_goes_with_its_new_owner_when_aldric_dies() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        while game.tick < 60 { game.update(); }
+        let aldric = game.villagers[0];
+        // Aldric is close to Eliza, so she's who takes his dog in
+        let rel = game.world.create_entity();
+        game.world.add_component(rel, Relationship {
+            from: aldric, other: game.villagers[1], kind: game2_core::game::relationships::RelKind::Friend, strength: 0.6, interactions: 5,
+        });
+        game.world.get_component_mut::<Health>(aldric).unwrap().condition = 0.0;
+        let t = game.tick;
+        while game.tick < t + 3 { game.update(); }
+        let owner = game.world.get_component::<Pet>(game.dog).unwrap().owner.expect("someone should take the dog in");
+        assert_ne!(owner, aldric, "the dog should be rehomed");
+
+        let buf = game.render((-1, -1));
+        let dog_at = |v: Entity| {
+            let p = *game.world.get_component::<Pos>(v).unwrap();
+            let (dx, dy) = iso_to_screen_cam(p.x + 0.8, p.y + 0.5, game.cam_x, game.cam_y, game.zoom);
+            let i = ((dy - 4) as usize * W + dx as usize) * 4;
+            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == DOG
+        };
+        assert!(dog_at(owner), "the dog isn't drawn beside its new owner");
+        assert!(!dog_at(aldric), "the dog is still drawn at Aldric's grave");
     }
 }

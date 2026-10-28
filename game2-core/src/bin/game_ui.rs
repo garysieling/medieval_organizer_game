@@ -395,6 +395,8 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
+/// Gold the Invest action spends
+const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
@@ -714,13 +716,19 @@ impl<'a> Game<'a> {
 
     /// Why action button `i` can't be used right now, if it can't
     fn disabled_reason(&self, i: usize) -> Option<String> {
+        // Recruit is pointless on a member and Invest on an empty purse: say
+        // so on the button, as Build does, rather than fail in the log
         // Talk/Recruit need the selected villager alive and within reach; a
         // house meeting (Organize) just needs someone nearby to come
         let target = self.villagers[self.selected_target];
         let in_reach = self.villagers_in_reach();
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let recruit_infl_ok = can_recruit(self.world.get_component::<PlayerCharacter>(self.player).unwrap().influence);
+        let p = self.world.get_component::<PlayerCharacter>(self.player).unwrap();
+        let recruit_infl_ok = can_recruit(p.influence);
+        let member = self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(&target)).unwrap_or(false);
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
+        else if i == 1 && member { Some("already a member".into()) }
+        else if i == 2 && p.resources < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if (i == 0 || i == 1) && !in_reach.contains(&target) { Some("too far away".into()) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
@@ -1302,7 +1310,7 @@ impl<'a> Game<'a> {
                     if r.success { format!("{} joined!", NAMES[selected_target]) }
                     else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
                 }
-                2 => { let r = act_invest(&mut self.world, self.player, 10.0); r.description }
+                2 => { let r = act_invest(&mut self.world, self.player, INVEST_GOLD); r.description }
                 3 => self.house_meeting(),
                 4 => {
                     // action_blocker checked there's gold and a site
@@ -1803,6 +1811,41 @@ mod help_tests {
         }}
         let (left, right) = (lo - x, x + w - hi);
         assert!((left - right).abs() <= 12, "help text hugs one side: {}px left, {}px right", left, right);
+    }
+}
+
+#[cfg(test)]
+mod blocker_tests {
+    use super::*;
+
+    #[test]
+    fn test_invest_is_greyed_out_with_no_gold() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 5.0;
+        assert_eq!(game.action_blocker(2).as_deref(), Some("need 10 gold"));
+        game.act(2);
+        assert!(game.log.last().unwrap().ends_with("Can't invest: need 10 gold."), "{}", game.log.last().unwrap());
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 10.0;
+        assert_eq!(game.action_blocker(2), None);
+    }
+
+    #[test]
+    fn test_recruit_is_greyed_out_for_a_member() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        let v = game.villagers[2];
+        game.world.get_component_mut::<Organization>(game.org).unwrap().members.push(v);
+        game.selected_target = 2;
+        assert_eq!(game.action_blocker(1).as_deref(), Some("already a member"));
+        // the log line mustn't read as a success (log_colour greens "joined")
+        game.act(1);
+        assert_ne!(log_colour(game.log.last().unwrap()), (120, 255, 120), "{}", game.log.last().unwrap());
+        // and the button is drawn disabled, with the reason beside it
+        let buf = game.render((-1, -1));
+        let b = &game.buttons[1];
+        let i = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
+        assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Recruit still drawn in its live colour");
     }
 }
 

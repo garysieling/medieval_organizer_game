@@ -29,6 +29,58 @@ fn iso(tx: f32, ty: f32) -> (i32, i32) {
 
 struct Check { name: &'static str, pass: bool, detail: String }
 
+/// Checks on the frame a player actually sees. The render in main() below
+/// is this gate's own simplified copy of the scene; this runs the real
+/// game's headless dump (`game_ui --dump-frame`, built next to this binary)
+/// and inspects that image - the panel, event log, minimap and HUD.
+fn real_frame_checks() -> Vec<Check> {
+    const DAY: &str = "120";
+    let fail = |why: String| vec![Check { name: "real game frame", pass: false, detail: why }];
+    let exe = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join(format!("game_ui{}", std::env::consts::EXE_SUFFIX))));
+    let Some(game_ui) = exe.filter(|p| p.exists()) else {
+        return fail("game_ui isn't built next to playtest_gate - build with `cargo build --release --bins`".into());
+    };
+    // render into a temp file of our own (evidence/frame-check-*.bmp are tracked)
+    let path = std::env::temp_dir().join(format!("playtest-gate-frame-{}.bmp", std::process::id()));
+    let path = path.to_string_lossy().to_string();
+    match std::process::Command::new(&game_ui).args(["--dump-frame", DAY, "--out", &path]).output() {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => return fail(format!("game_ui --dump-frame failed: {}", String::from_utf8_lossy(&out.stderr).trim())),
+        Err(e) => return fail(format!("couldn't run game_ui: {e}")),
+    }
+    let frame = match Buffer::load_bmp(&path) {
+        Ok(b) => b,
+        Err(e) => return fail(format!("couldn't read {path}: {e}")),
+    };
+    std::fs::remove_file(&path).ok();
+    if (frame.width, frame.height) != (W, H) {
+        return fail(format!("frame is {}x{}, expected {W}x{H}", frame.width, frame.height));
+    }
+    let drawn = |x0: usize, y0: usize, x1: usize, y1: usize, bg: (u8, u8, u8)| {
+        let mut n = 0;
+        for y in y0..y1 { for x in x0..x1 {
+            let i = (y * W + x) * 4;
+            if (frame.pixels[i], frame.pixels[i + 1], frame.pixels[i + 2]) != bg { n += 1; }
+        }}
+        n
+    };
+    // the game's layout: panel from UI_X, event log box at y 466-618,
+    // minimap box 84x46 in the map's top-right corner
+    let panel = drawn(UI_X, 0, W, H, (32, 32, 48));
+    let log = drawn(UI_X + 12, 466, UI_X + 278, 618, (25, 25, 40));
+    let (mm_x, mm_y) = (MAP_W - 84 - 6, 6);
+    let minimap = drawn(mm_x, mm_y, mm_x + 84, mm_y + 46, (20, 20, 30));
+    let hud = (0..120).flat_map(|x| (6..16).map(move |y| (x, y)))
+        .filter(|&(x, y)| { let i = (y * W + x) * 4; frame.pixels[i] > 230 && frame.pixels[i + 1] > 230 && frame.pixels[i + 2] > 230 })
+        .count();
+    vec![
+        Check { name: "real frame: side panel drawn", pass: panel > (W - UI_X) * H / 6, detail: format!("{panel} px drawn") },
+        Check { name: "real frame: event log has text", pass: log > 300, detail: format!("{log} px") },
+        Check { name: "real frame: minimap shows terrain", pass: minimap > 84 * 46 / 3, detail: format!("{minimap} px") },
+        Check { name: "real frame: HUD line present", pass: hud > 40, detail: format!("{hud} px") },
+    ]
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let seed: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(42);
@@ -204,6 +256,8 @@ fn main() {
         .filter(|&x| not_bg(&buf, x, 24, panel_bg))
         .count();
     checks.push(Check { name: "panel shows content", pass: panel_content_pixels > 0, detail: format!("{panel_content_pixels} non-bg px in content row") });
+
+    checks.extend(real_frame_checks());
 
     println!("\n=== PLAYTEST GATE (seed {seed}) ===\n");
     println!("-- goals --");

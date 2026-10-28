@@ -190,6 +190,30 @@ pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
     if top.is_empty() { vec!["the coming harvest".into()] } else { top }
 }
 
+/// How a concern comes up in conversation: what the player saw them do
+/// (for the log) and what they actually said (for their speech bubble)
+fn concern_speech(concern: &str) -> (&'static str, &'static str) {
+    match concern {
+        "the food running short" => ("complained the store is running low", "There's hardly anything left in the store."),
+        "the sickness" => ("worried about the sickness going round", "Half the village is coughing. Who's next?"),
+        "fair wages" => ("complained about wages", "A day's work hardly buys a day's bread."),
+        "safe roads" => ("complained the roads aren't safe", "Nobody will trade with us if the roads stay like this."),
+        "the faith" => ("talked about keeping the faith", "We need something to believe in, these days."),
+        "lower rents" => ("complained about the rents", "The rents go up every season."),
+        _ => ("talked about the coming harvest", "If the harvest is good, we'll get through the winter."),
+    }
+}
+
+/// What `name` says when the player talks with them: one of the concerns
+/// actually on their mind (village_concerns), worked through in turn as
+/// the player talks with them again (`talks_before`). Returns the log line
+/// ("Bram complained about wages") and their own words, for a speech bubble.
+pub fn talk_response(world: &World, person: Entity, name: &str, talks_before: usize) -> (String, String) {
+    let concerns = village_concerns(world, &[person]);
+    let (did, said) = concern_speech(&concerns[talks_before % concerns.len()]);
+    (format!("{} {}", name, did), said.to_string())
+}
+
 /// Harvest: the org's living members bring in the harvest together. Working
 /// side by side bonds each pair of them (an Aid interaction at half
 /// strength), and a shared effort of two or more is real organizing that
@@ -215,6 +239,21 @@ pub fn harvest_together(world: &mut World, org: Entity) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_talk_response_says_what_they_actually_said() {
+        use crate::game::villager::Hunger;
+        let mut w = World::new();
+        let v = w.create_entity();
+        w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        w.add_component(v, Hunger { value: 10.0 });
+        let (log, said) = talk_response(&w, v, "Bram", 0);
+        assert_eq!(log, "Bram complained the store is running low");
+        assert!(!said.is_empty());
+        // talk again and they move on to the next thing on their mind
+        assert_eq!(talk_response(&w, v, "Bram", 1).0, "Bram complained about wages");
+        assert_eq!(talk_response(&w, v, "Bram", 2).0, "Bram complained the store is running low");
+    }
 
     #[test]
     fn test_harvesting_together_bonds_members_and_builds_power() {

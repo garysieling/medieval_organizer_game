@@ -9,13 +9,14 @@ use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, recruit_influence_needed, RECRUIT_INFLUENCE};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, Rapport, TALK_RAPPORT_STEP, recruit_influence_needed, RECRUIT_INFLUENCE};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, AttachmentStyle, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
+use game2_core::game::organizing::talk_response;
 use game2_core::game::traits::{self, Personality, personality_from_seed};
 use game2_core::game::relationships::{self, Relationship};
 
@@ -129,6 +130,22 @@ fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() 
 /// The point to hand name_label_pos so a label sits just above a zoomed head
 fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
 
+/// How far below SPRITE_HEAD this sprite's head actually starts, in screen
+/// pixels at zoom 1: some figures (the old man) have blank rows above
+/// row 18, which left their name floating
+fn head_drop(sprite: &Sprite) -> i32 {
+    let w = sprite.width as usize;
+    let top = (0..sprite.height as usize)
+        .find(|&y| (0..w).any(|x| sprite.pixels[(y * w + x) * 4 + 3] > 0))
+        .unwrap_or(18) as i32;
+    (top - 18).max(0) * 2
+}
+
+/// label_anchor for a particular sprite, so its name sits on its own head
+fn sprite_label_anchor(sprite: &Sprite, sy: i32, zoom: f32) -> i32 {
+    label_anchor(sy, zoom) + (head_drop(sprite) as f32 * zoom).round() as i32
+}
+
 /// Height of a speech bubble
 const BUBBLE_H: i32 = 18;
 
@@ -141,7 +158,7 @@ fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) ->
     if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
     let bw = (text.len() as i32 * GLYPH_W + 12).max(60).min(MAP_W as i32 - 8);
     let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
-    let label_top = (head_y(sy, zoom) - GLYPH_H - 4).min(label_y.map(|y| y - 4).unwrap_or(i32::MAX));
+    let label_top = (head_y(sy, zoom) - GLYPH_H - LABEL_GAP).min(label_y.map(|y| y - 4).unwrap_or(i32::MAX));
     let by = (label_top - BUBBLE_H - 8).max(4);
     Some((bx, by, bw))
 }
@@ -153,10 +170,13 @@ const SPRITE_HEAD: i32 = -24;
 /// Font glyph width and height (ui::font)
 const GLYPH_W: i32 = 6;
 const GLYPH_H: i32 = 7;
+/// Space between a name label and the head below it (the text outline
+/// adds one more pixel)
+const LABEL_GAP: i32 = 1;
 
 /// Where to draw a character's name: centred over them, just above the head
 fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
-    (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - 4)
+    (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
 }
 
 /// Word-wrap `text` into lines of at most `max` characters, breaking at
@@ -739,13 +759,28 @@ impl<'a> Game<'a> {
         best.map(|(site, _)| site)
     }
 
+    /// Who Talk and Recruit go to: the selected villager if they're alive
+    /// and in reach, otherwise the nearest living villager who is - the
+    /// player who walks up to someone means them, not whoever was clicked
+    /// last. With no one in reach it stays the selected villager.
+    fn reach_target(&self) -> usize {
+        let in_reach = self.villagers_in_reach();
+        if in_reach.contains(&self.villagers[self.selected_target]) { return self.selected_target; }
+        let (px, py) = self.player_pos();
+        let dist = |v: &Entity| self.world.get_component::<Pos>(*v).map(|p| (p.x - px).powi(2) + (p.y - py).powi(2)).unwrap_or(f32::MAX);
+        in_reach.iter()
+            .min_by(|a, b| dist(a).partial_cmp(&dist(b)).unwrap())
+            .and_then(|v| self.villagers.iter().position(|x| x == v))
+            .unwrap_or(self.selected_target)
+    }
+
     /// Why action button `i` can't be used right now, if it can't
     fn disabled_reason(&self, i: usize) -> Option<String> {
         // Recruit is pointless on a member and Invest on an empty purse: say
         // so on the button, as Build does, rather than fail in the log
         // Talk/Recruit need the selected villager alive and within reach; a
         // house meeting (Organize) just needs someone nearby to come
-        let target = self.villagers[self.selected_target];
+        let target = self.villagers[self.reach_target()];
         let in_reach = self.villagers_in_reach();
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let p = self.world.get_component::<PlayerCharacter>(self.player).unwrap();
@@ -997,11 +1032,11 @@ impl<'a> Game<'a> {
             if world.get_component::<Health>(villagers[i]).is_none() {
                 let top = draw_grave(&mut buf, sx, sy, zoom);
                 let (lx, _) = name_label_pos(sx, sy, NAMES[i]);
-                labels.push((NAMES[i], lx, top - GLYPH_H - 3, (160, 160, 170), false, i == selected_target));
+                labels.push((NAMES[i], lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, i == selected_target));
                 continue;
             }
             draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
-            let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), NAMES[i]);
+            let (lx, ly) = name_label_pos(sx, sprite_label_anchor(&art.villager_sprites[i], sy, zoom), NAMES[i]);
             let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
             // bright when close enough to talk, recruit or meet; dim otherwise
             let rgb = if in_reach.contains(&villagers[i]) { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
@@ -1040,7 +1075,7 @@ impl<'a> Game<'a> {
                     None => 0,
                 };
                 if pet.bond_strength > 0.5 {
-                    labels.push(("<3", dx - 6, dy - h - GLYPH_H - 3, (255, 120, 120), false, false)); // placed with the names
+                    labels.push(("<3", dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
                 }
             }
         }
@@ -1050,10 +1085,11 @@ impl<'a> Game<'a> {
             if let Some(p) = world.get_component::<Pos>(*rv) {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                 // rival sprite tinted different
-                if let Some(rs) = &art.player_s {
-                    draw_character(&mut buf, rs, sx, sy, zoom);
-                }
-                let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), RIVAL_NAMES[i]);
+                let anchor = match &art.player_s {
+                    Some(rs) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
+                    None => label_anchor(sy, zoom),
+                };
+                let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
                 labels.push((RIVAL_NAMES[i], lx, ly, (255, 140, 140), false, false));
             }
         }
@@ -1068,7 +1104,8 @@ impl<'a> Game<'a> {
         } else {
             draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         }
-        let (lx, ly) = name_label_pos(px, label_anchor(py, zoom), "YOU");
+        let anchor = art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, py, zoom)).unwrap_or(label_anchor(py, zoom));
+        let (lx, ly) = name_label_pos(px, anchor, "YOU");
         labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
@@ -1339,6 +1376,7 @@ impl<'a> Game<'a> {
     /// Take action button `i` (Talk, Recruit, Invest, Organize, Build, Wait)
     fn act(&mut self, i: usize) {
         let tick = self.tick;
+        if i == 0 || i == 1 { self.selected_target = self.reach_target(); }
         let selected_target = self.selected_target;
         let influence_before = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.influence).unwrap_or(0.0);
         let msg = if let Some(reason) = self.action_blocker(i) {
@@ -1346,15 +1384,13 @@ impl<'a> Game<'a> {
         } else {
             match i {
                 0 => {
-                    let r = act_talk(&mut self.world, self.player, self.villagers[selected_target]);
-                    let concerns = ["the harvest is thin this year", "the miller takes too much", "the lord's taxes are heavy", "we need more hands for the fields", "the old feud still burns", "winter is coming"];
-                    let concern = concerns[(tick as usize + selected_target) % concerns.len()];
-                    self.dialog = Some((self.villagers[selected_target], concern.to_string(), tick + 60));
-                    if r.influence_change > 0.0 {
-                        format!("Talked with {}: \"{}\"", NAMES[selected_target], concern)
-                    } else {
-                        format!("{} has nothing new to tell you", NAMES[selected_target])
-                    }
+                    let v = self.villagers[selected_target];
+                    let talks_before = self.world.get_component::<Rapport>(v)
+                        .map(|r| (r.value / TALK_RAPPORT_STEP).round() as usize).unwrap_or(0);
+                    let (did, said) = talk_response(&self.world, v, NAMES[selected_target], talks_before);
+                    act_talk(&mut self.world, self.player, v);
+                    self.dialog = Some((v, said.clone(), tick + 60));
+                    format!("{}: \"{}\"", did, said)
                 }
                 1 => {
                     let r = act_recruit(&mut self.world, self.player, self.org, self.villagers[selected_target]);
@@ -1647,6 +1683,30 @@ mod progression_tests {
 }
 
 #[cfg(test)]
+mod talk_reach_tests {
+    use super::*;
+
+    #[test]
+    fn test_talk_goes_to_whoever_is_beside_you_not_the_last_clicked() {
+        // on main, Talk with Aldric selected (the default) said "too far
+        // away" while the player stood right next to Bram
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let (px, py) = game.player_pos();
+        for (i, v) in game.villagers.clone().into_iter().enumerate() {
+            let far = if i == 2 { (px + 1.0, py) } else { (px + 20.0 + i as f32, py + 20.0) };
+            *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: far.0, y: far.1 };
+        }
+        game.selected_target = 0;
+        assert_eq!(game.disabled_reason(0), None, "someone is beside you, so Talk should be usable");
+        game.act(0);
+        assert_eq!(game.selected_target, 2, "Talk should turn to the villager in reach");
+        let line = game.log.last().unwrap();
+        assert!(line.contains(NAMES[2]) && !line.contains("Can't"), "{}", line);
+    }
+}
+
+#[cfg(test)]
 mod action_log_tests {
     use super::*;
 
@@ -1662,7 +1722,7 @@ mod action_log_tests {
 
         game.act(0);
         let talk = game.log.last().unwrap().clone();
-        assert!(talk.starts_with("t3: Talked with Eliza") && talk.ends_with("(+0.05 influence)"), "{}", talk);
+        assert!(talk.starts_with("t3: Eliza ") && talk.contains(": \"") && talk.ends_with("(+0.05 influence)"), "{}", talk);
 
         game.act(1); // not enough influence yet
         let recruit = game.log.last().unwrap().clone();
@@ -1784,7 +1844,7 @@ mod zoom_tests {
         assert_eq!(count(2.0), 800);
         // and labels follow a zoomed head
         assert_eq!(head_y(300, 2.0), 300 + 2 * SPRITE_HEAD);
-        assert_eq!(name_label_pos(0, label_anchor(300, 0.5), "X").1 + GLYPH_H + 4, head_y(300, 0.5));
+        assert_eq!(name_label_pos(0, label_anchor(300, 0.5), "X").1 + GLYPH_H + LABEL_GAP, head_y(300, 0.5));
     }
 }
 
@@ -1926,6 +1986,9 @@ mod blocker_tests {
         let mut game = Game::new(&art);
         let v = game.villagers[2];
         game.world.get_component_mut::<Organization>(game.org).unwrap().members.push(v);
+        // beside them, so Recruit doesn't turn to someone nearer (reach_target)
+        let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 0.5, y: vy };
         game.selected_target = 2;
         assert_eq!(game.action_blocker(1).as_deref(), Some("already a member"));
         // the log line mustn't read as a success (log_colour greens "joined")
@@ -2055,7 +2118,7 @@ mod reach_name_tests {
         let name_colour = |v: Entity, i: usize| {
             let p = *game.world.get_component::<Pos>(v).unwrap();
             let (sx, sy) = iso_to_screen_cam(p.x, p.y, game.cam_x, game.cam_y, game.zoom);
-            let (lx, ly) = name_label_pos(sx, label_anchor(sy, game.zoom), NAMES[i]);
+            let (lx, ly) = name_label_pos(sx, sprite_label_anchor(&art.villager_sprites[i], sy, game.zoom), NAMES[i]);
             // labels may be nudged up a line or two; look over that band
             let (mut bright, mut dim) = (0, 0);
             for y in (ly - 40).max(0)..ly + GLYPH_H { for x in lx.max(0)..(lx + NAMES[i].len() as i32 * GLYPH_W).min(MAP_W as i32) {

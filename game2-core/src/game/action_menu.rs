@@ -70,10 +70,12 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
     match choice {
         MenuActionType::Talk => {
             if let Some(t) = target {
-                let r = act_talk(world, player, t);
-                // Name what's actually on their mind right now
-                let concerns = super::organizing::village_concerns(world, &[t]).join(" and ");
-                format!("You talk. {}: {}.", r.description, concerns)
+                // What they actually say: the next thing on their mind
+                let talks_before = world.get_component::<super::player::Rapport>(t)
+                    .map(|r| (r.value / super::player::TALK_RAPPORT_STEP).round() as usize).unwrap_or(0);
+                let (did, said) = super::organizing::talk_response(world, t, "They", talks_before);
+                act_talk(world, player, t);
+                format!("{}: \"{}\"", did, said)
             } else { "No one to talk to.".into() }
         }
         MenuActionType::Recruit => {
@@ -185,7 +187,9 @@ mod tests {
         w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.add_component(v, Hunger { value: 10.0 });
         let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v));
-        assert!(msg.ends_with("learned their concerns: the food running short and fair wages."), "{}", msg);
+        assert_eq!(msg, "They complained the store is running low: \"There's hardly anything left in the store.\"");
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v));
+        assert!(msg.starts_with("They complained about wages"), "{}", msg);
     }
 
     #[test]

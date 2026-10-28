@@ -142,7 +142,20 @@ fn main() {
         println!("{}\n", result);
 
         // Random world events
-        if tick % 50 == 0 { println!("EVENT: {} occurs!", ["harvest","market day","pilgrimage","storm warning"][tick as usize / 50 % 4]); }
+        if tick % 50 == 0 {
+            match ["harvest","market day","pilgrimage","storm warning"][tick as usize / 50 % 4] {
+                "market day" => {
+                    // The Harvesters sell their members' work; the player gets a share
+                    let earned = game2_core::game::player::market_day(&mut world, player, org);
+                    if earned > 0.0 {
+                        println!("EVENT: market day! The Harvesters sell their work and you earn {:.0} gold.", earned);
+                    } else {
+                        println!("EVENT: market day! With no members, the Harvesters have nothing to sell.");
+                    }
+                }
+                other => println!("EVENT: {} occurs!", other),
+            }
+        }
 
         // Win/lose check
         let p = world.get_component::<PlayerCharacter>(player).unwrap();

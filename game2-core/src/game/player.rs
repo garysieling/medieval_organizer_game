@@ -130,6 +130,23 @@ pub fn act_invest(world: &mut World, player: Entity, amount: f32) -> ActionResul
     ActionResult { success: false, influence_change: 0.0, description: "Not enough resources".into() }
 }
 
+/// Gold each member of the player's organization earns them on market day
+pub const MARKET_PAY_PER_MEMBER: f32 = 5.0;
+
+/// Market day: the organization sells its living members' work, and the
+/// player's share comes back as gold - so organizing people also funds the
+/// halls, pacts and investments that cost gold. Returns the gold earned.
+pub fn market_day(world: &mut World, player: Entity, org: Entity) -> f32 {
+    let workers = world.get_component::<crate::sim::community::Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default()
+        .into_iter().filter(|m| !crate::game::villager::is_dead(world, *m)).count();
+    let earned = workers as f32 * MARKET_PAY_PER_MEMBER;
+    if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
+        p.resources += earned;
+    }
+    earned
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -191,5 +208,16 @@ mod tests {
         let pc = w.get_component::<PlayerCharacter>(p).unwrap();
         assert_eq!(pc.resources, 100.0, "no gold minted or lost");
         assert_eq!(pc.influence, 0.1);
+    }
+
+    #[test]
+    fn test_market_day_pays_for_living_members() {
+        use crate::sim::illness::Health;
+        let (mut w, p, o, vs) = setup();
+        assert_eq!(market_day(&mut w, p, o), 0.0, "no members, nothing to sell");
+        w.get_component_mut::<Organization>(o).unwrap().members = vs[..3].to_vec();
+        w.add_component(vs[2], Health { condition: 0.0, immunity: 0.5 });
+        assert_eq!(market_day(&mut w, p, o), 10.0, "two living members");
+        assert_eq!(w.get_component::<PlayerCharacter>(p).unwrap().resources, 110.0);
     }
 }

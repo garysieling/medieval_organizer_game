@@ -1281,13 +1281,7 @@ impl<'a> Game<'a> {
 
         // pause menu overlay
         if self.paused {
-            buf.rect(280, 200, 260, 140, 20, 20, 35);
-            buf.rect(280, 200, 260, 2, 200, 200, 220);
-            draw_text_scaled(&mut buf, 340, 215, "PAUSED", 2, 255, 255, 255);
-            draw_text(&mut buf, 300, 255, "Space: resume", 200, 200, 200);
-            draw_text(&mut buf, 300, 275, "0: speed 1x/4x", 200, 200, 200);
-            draw_text(&mut buf, 300, 295, "Esc: quit", 200, 200, 200);
-            draw_text(&mut buf, 300, 315, "1-5: select villager", 200, 200, 200);
+            draw_overlay(&mut buf, PAUSE_W, "PAUSED", (255, 255, 255), &PAUSE_LINES, PAUSE_ROW, None);
         }
 
         buf
@@ -1886,6 +1880,29 @@ mod status_line_tests {
 }
 
 #[cfg(test)]
+mod pause_box_tests {
+    use super::*;
+
+    #[test]
+    fn test_pause_box_is_centred_with_balanced_text() {
+        let (x, y, w, h) = pause_rect();
+        assert!(((x + w / 2) - MAP_W as i32 / 2).abs() <= 1, "pause box not centred on the map view");
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        game.paused = true;
+        let buf = game.render((-1, -1));
+        let (mut lo, mut hi) = (i32::MAX, i32::MIN);
+        for yy in y + 10..y + h - 4 { for xx in x + 4..x + w - 4 {
+            let i = (yy as usize * W + xx as usize) * 4;
+            if buf.pixels[i] > 140 { lo = lo.min(xx); hi = hi.max(xx); }
+        }}
+        let (left, right) = (lo - x, x + w - hi);
+        // was ~20px left vs ~120px right, and the box centred at x 410 not 330
+        assert!((left - right).abs() <= 12, "pause text hugs one side: {}px left, {}px right", left, right);
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -1997,22 +2014,40 @@ const HELP_ROW: i32 = 22;
 
 /// Where the help box sits: centred on the map view, as tall as its text
 fn help_rect() -> (i32, i32, i32, i32) {
-    let h = 55 + HELP_LINES.len() as i32 * HELP_ROW + 30;
-    (MAP_W as i32 / 2 - HELP_W / 2, H as i32 / 2 - h / 2, HELP_W, h)
+    overlay_rect(HELP_W, HELP_LINES.len(), HELP_ROW, true)
 }
 
 fn draw_help(buf: &mut Buffer) {
-    let (x, y, w, h) = help_rect();
+    draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
+}
+
+const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-5: select villager"];
+const PAUSE_W: i32 = 260;
+const PAUSE_ROW: i32 = 20;
+
+fn pause_rect() -> (i32, i32, i32, i32) {
+    overlay_rect(PAUSE_W, PAUSE_LINES.len(), PAUSE_ROW, false)
+}
+
+/// A modal box over the map (help, pause): centred on the map view and
+/// sized to its lines, which are centred as a block under a scale-2 title
+fn overlay_rect(w: i32, lines: usize, row: i32, footer: bool) -> (i32, i32, i32, i32) {
+    let h = 55 + lines as i32 * row + if footer { 30 } else { 12 };
+    (MAP_W as i32 / 2 - w / 2, H as i32 / 2 - h / 2, w, h)
+}
+
+fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8, u8, u8), lines: &[&str], row: i32, footer: Option<&str>) {
+    let (x, y, w, h) = overlay_rect(w, lines.len(), row, footer.is_some());
     let cx = x + w / 2;
     buf.rect(x, y, w, h, 20, 20, 35);
     buf.rect(x, y, w, 2, 200, 200, 220);
-    draw_centered_at(buf, cx, y + 15, "CONTROLS", 2, (255, 220, 130));
+    draw_centered_at(buf, cx, y + 15, title, 2, title_rgb);
     // the block of lines is centred as a whole, left-aligned within it
-    let block = HELP_LINES.iter().map(|l| text_width(l, 1)).max().unwrap_or(0);
-    for (i, l) in HELP_LINES.iter().enumerate() {
-        draw_text(buf, cx - block / 2, y + 55 + i as i32 * HELP_ROW, l, 210, 210, 210);
+    let block = lines.iter().map(|l| text_width(l, 1)).max().unwrap_or(0);
+    for (i, l) in lines.iter().enumerate() {
+        draw_text(buf, cx - block / 2, y + 55 + i as i32 * row, l, 210, 210, 210);
     }
-    draw_centered_at(buf, cx, y + h - 22, "press H to close", 1, (150, 150, 170));
+    if let Some(f) = footer { draw_centered_at(buf, cx, y + h - 22, f, 1, (150, 150, 170)); }
 }
 
 /// The panel's status line: your organization by name, your gold, and the

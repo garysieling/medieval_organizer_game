@@ -3,9 +3,10 @@
 //! until some villagers die, and the
 //! mortality chain plays out on its own: the dead stop eating, those who
 //! loved them grieve, a dead owner's dog finds a new keeper, and the guild
-//! takes its dead off the rolls.
+//! takes its dead off the rolls and passes on leadership.
 
 use game2_core::engine::ecs::{Entity, Scheduler, World};
+use game2_core::game::organizing::living_leader;
 use game2_core::game::pets::{self, Pet, PetRole, Species};
 use game2_core::game::relationships::{Relationship, RelKind};
 use game2_core::game::villager::{self, Hunger};
@@ -98,7 +99,10 @@ fn main() {
                 println!("  Rex is taken in by {}", keeper.map(name).unwrap_or("no one - a stray now"));
             }
             if world.get_component::<Organization>(guild).map(|o| o.leader == v).unwrap_or(false) {
-                println!("  the Harvesters have lost their leader");
+                match living_leader(&mut world, guild) {
+                    Some(l) => println!("  {} now leads the Harvesters", name(l)),
+                    None => println!("  the Harvesters have no one left to lead them"),
+                }
             }
         }
 

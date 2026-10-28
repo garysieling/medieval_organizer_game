@@ -1739,11 +1739,20 @@ mod label_tests {
     }
 }
 
+/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
+/// spacing, and the last space doesn't count
+fn text_width(text: &str, scale: usize) -> i32 {
+    (text.chars().count() * 6 * scale) as i32 - scale as i32
+}
+
+/// Draw `text` horizontally centred on x = `cx` at row `y`
+fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
+    draw_text_scaled(buf, cx - text_width(text, scale) / 2, y, text, scale, r, g, b);
+}
+
 /// Draw `text` horizontally centred on the screen at row `y`
-fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
-    // each glyph is 5px wide plus 1px spacing, so the last space doesn't count
-    let width = (text.chars().count() * 6 * scale) as i32 - scale as i32;
-    draw_text_scaled(buf, (W as i32 - width) / 2, y, text, scale, r, g, b);
+fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, rgb: (u8, u8, u8)) {
+    draw_centered_at(buf, W as i32 / 2, y, text, scale, rgb);
 }
 
 /// The title screen shown until the player presses Enter: what the game
@@ -1758,6 +1767,32 @@ fn render_title() -> Buffer {
     draw_centered(&mut tbuf, 340, "WASD move   T talk   R recruit   O organize   H help", 1, (140, 140, 160));
     draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
     tbuf
+}
+
+/// Width of the win banner
+const BANNER_W: i32 = 360;
+
+/// The "you've won" banner drawn over the last frame, centred on the map
+/// view (not straddling the side panel)
+fn draw_win_banner(buf: &mut Buffer) {
+    let cx = MAP_W as i32 / 2;
+    buf.rect(cx - BANNER_W / 2, 240, BANNER_W, 100, 20, 20, 35);
+    buf.rect(cx - BANNER_W / 2, 240, BANNER_W, 2, 255, 215, 0);
+    draw_centered_at(buf, cx, 265, "RECOGNIZED LEADER", 2, (255, 215, 0));
+    draw_centered_at(buf, cx, 302, "the village is yours", 1, (200, 200, 200));
+}
+
+/// The game-over summary screen after a win
+fn render_summary(game: &Game) -> Buffer {
+    let members = game.world.get_component::<Organization>(game.org).unwrap().members.len();
+    let influence = game.world.get_component::<PlayerCharacter>(game.player).unwrap().influence;
+    let mut obuf = Buffer::new(W, H);
+    obuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+    draw_centered(&mut obuf, 150, "VILLAGE WON", 4, (255, 215, 0));
+    draw_centered(&mut obuf, 240, &format!("led the village after {} days", game.tick), 1, (220, 220, 220));
+    draw_centered(&mut obuf, 260, &format!("influence {:.2}   members {}   houses built {}", influence, members, game.built_count), 1, (200, 200, 200));
+    draw_centered(&mut obuf, 300, "the wanderer became a leader", 1, (160, 160, 180));
+    obuf
 }
 
 /// Copy a Buffer to the window
@@ -1854,24 +1889,11 @@ fn main() {
 
         let p = game.world.get_component::<PlayerCharacter>(game.player).unwrap();
         if p.influence > WIN_INFLUENCE {
-            let members = game.world.get_component::<Organization>(game.org).unwrap().members.len();
-            // win overlay in-window
-            buf.rect(200, 240, 400, 100, 20, 20, 35);
-            buf.rect(200, 240, 400, 2, 255, 215, 0);
-            draw_text_scaled(&mut buf, 260, 265, "RECOGNIZED LEADER", 2, 255, 215, 0);
-            draw_text(&mut buf, 290, 300, "the village is yours", 200, 200, 200);
+            // win banner over the village, then the summary screen
+            draw_win_banner(&mut buf);
             present(&mut window, &buf);
             std::thread::sleep(std::time::Duration::from_secs(3));
-            // game over summary screen
-            let mut obuf = Buffer::new(W, H);
-            obuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
-            draw_text_scaled(&mut obuf, 300, 150, "VILLAGE WON", 4, 255, 215, 0);
-            draw_text(&mut obuf, 300, 240, &format!("org members: {}", members), 200, 200, 200);
-            draw_text(&mut obuf, 300, 260, &format!("influence: {:.2}", p.influence), 200, 200, 200);
-            draw_text(&mut obuf, 300, 280, &format!("buildings built: {}", game.built_count), 200, 200, 200);
-            draw_text(&mut obuf, 300, 300, &format!("ticks: {}", game.tick), 200, 200, 200);
-            draw_text(&mut obuf, 300, 340, "the wanderer became a leader", 160, 160, 180);
-            present(&mut window, &obuf);
+            present(&mut window, &render_summary(&game));
             std::thread::sleep(std::time::Duration::from_secs(5));
             break;
         }
@@ -2196,6 +2218,55 @@ mod title_tests {
         for (top, lo, hi) in bands {
             let centre = (lo + hi) as i32 / 2;
             assert!((centre - W as i32 / 2).abs() <= 3, "line at y={} is centred at x={}, not {}", top, centre, W / 2);
+        }
+    }
+}
+
+#[cfg(test)]
+mod end_screen_tests {
+    use super::*;
+
+    /// Horizontal centre of each band of drawn rows in [y0, y1)
+    fn line_centres(buf: &Buffer, bg: (u8, u8, u8), x0: usize, x1: usize, y0: usize, y1: usize) -> Vec<(usize, i32)> {
+        let lit = |x: usize, y: usize| { let i = (y * W + x) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) != bg };
+        let mut out = vec![];
+        let mut y = y0;
+        while y < y1 {
+            if (x0..x1).any(|x| lit(x, y)) {
+                let top = y;
+                let (mut lo, mut hi) = (x1, x0);
+                while y < y1 && (x0..x1).any(|x| lit(x, y)) {
+                    for x in x0..x1 { if lit(x, y) { lo = lo.min(x); hi = hi.max(x); } }
+                    y += 1;
+                }
+                out.push((top, (lo + hi) as i32 / 2));
+            }
+            y += 1;
+        }
+        out
+    }
+
+    #[test]
+    fn test_summary_lines_are_centred_and_speak_in_days() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        while game.tick < 90 { game.update(); }
+        let buf = render_summary(&game);
+        let lines = line_centres(&buf, (15, 15, 25), 0, W, 0, H);
+        assert!(lines.len() >= 4, "expected title and three lines, found {}", lines.len());
+        for (y, c) in lines {
+            assert!((c - W as i32 / 2).abs() <= 3, "summary line at y={} is centred at x={}", y, c);
+        }
+    }
+
+    #[test]
+    fn test_win_banner_is_centred_on_the_map_view() {
+        let mut buf = Buffer::new(W, H);
+        draw_win_banner(&mut buf);
+        let (bx, bw) = (MAP_W as i32 / 2 - BANNER_W / 2, BANNER_W);
+        assert!(bx >= 0 && bx + bw <= MAP_W as i32, "banner {}..{} spills off the map view", bx, bx + bw);
+        for (y, c) in line_centres(&buf, (20, 20, 35), bx as usize, (bx + bw) as usize, 250, 340) {
+            assert!((c - MAP_W as i32 / 2).abs() <= 3, "banner text at y={} is centred at x={}", y, c);
         }
     }
 }

@@ -15,14 +15,52 @@ pub struct OneOnOneResult {
     pub trust_gained: f32,
 }
 
-/// Conduct a 1-1 relational meeting (from NEA organizing guide)
-pub fn one_on_one(world: &World, _organizer: Entity, citizen: Entity) -> OneOnOneResult {
-    let c = world.get_component::<Citizen>(citizen);
+/// Conduct a 1-1 relational meeting (from NEA organizing guide): a real
+/// conversation between organizer and citizen, which builds the trust it
+/// reports, and reveals what's on the citizen's mind (village_concerns),
+/// who they're close to (their relationships, by kind), and how much they
+/// could lead (their influence)
+pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneOnOneResult {
+    use crate::game::relationships::RelKind;
+    let before = crate::game::relationships::find_relationship(world, organizer, citizen)
+        .and_then(|r| world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+    let rel = record_interaction(world, organizer, Interaction {
+        other: citizen, kind: InteractionKind::Conversation, intensity: 1.0,
+    });
+    let after = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(before);
+
+    // Their network: the people they know, by kind of tie (not counting the organizer)
+    let mut kinds: Vec<(RelKind, usize)> = vec![];
+    for r in world.query::<Relationship>() {
+        let Some(r) = world.get_component::<Relationship>(r) else { continue };
+        let other = if r.from == citizen { r.other } else if r.other == citizen { r.from } else { continue };
+        if other == organizer || r.kind == RelKind::Stranger { continue; }
+        match kinds.iter_mut().find(|(k, _)| *k == r.kind) {
+            Some(k) => k.1 += 1,
+            None => kinds.push((r.kind, 1)),
+        }
+    }
+    let networks = kinds.into_iter()
+        .map(|(k, n)| {
+            let (one, many) = match k {
+                RelKind::Family => ("relative", "relatives"),
+                RelKind::Acquaintance => ("acquaintance", "acquaintances"),
+                RelKind::Friend => ("friend", "friends"),
+                RelKind::Rival => ("rival", "rivals"),
+                RelKind::Lover => ("lover", "lovers"),
+                RelKind::Mentor => ("mentor", "mentors"),
+                RelKind::Apprentice => ("apprentice", "apprentices"),
+                RelKind::Stranger => ("stranger", "strangers"),
+            };
+            format!("{} {}", n, if n == 1 { one } else { many })
+        })
+        .collect();
+
     OneOnOneResult {
-        concerns: vec![format!("worried about {}", c.map(|x| x.ideology.as_str()).unwrap_or("work"))],
-        networks: vec!["neighbors".into(), "workmates".into()],
-        leadership_potential: c.map(|x| x.influence * 1.5).unwrap_or(0.3).min(1.0),
-        trust_gained: 0.2,
+        concerns: village_concerns(world, &[citizen]),
+        networks,
+        leadership_potential: world.get_component::<Citizen>(citizen).map(|c| c.influence * 1.5).unwrap_or(0.3).min(1.0),
+        trust_gained: after - before,
     }
 }
 
@@ -155,6 +193,29 @@ pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_one_on_one_reveals_real_concerns_and_network_and_builds_trust() {
+        use crate::game::relationships::RelKind;
+        use crate::game::villager::Hunger;
+        let mut w = World::new();
+        let organizer = w.create_entity();
+        let c = w.create_entity();
+        w.add_component(c, Citizen { influence: 0.4, authority: 0.0, ideology: "merchant".into(), allegiance: "none".into() });
+        w.add_component(c, Hunger { value: 10.0 });
+        for (kind, n) in [(RelKind::Friend, 2), (RelKind::Rival, 1), (RelKind::Family, 2)] {
+            for _ in 0..n {
+                let other = w.create_entity();
+                let r = w.create_entity();
+                w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6 });
+            }
+        }
+        let r = one_on_one(&mut w, organizer, c);
+        assert_eq!(r.concerns, vec!["the food running short".to_string(), "safe roads".to_string()]);
+        assert_eq!(r.networks, vec!["2 friends".to_string(), "1 rival".to_string(), "2 relatives".to_string()]);
+        assert!((r.trust_gained - 0.05).abs() < 1e-6, "the conversation really builds trust");
+        assert!((r.leadership_potential - 0.6).abs() < 1e-6);
+    }
 
     #[test]
     fn test_concerns_come_from_what_attendees_are_living_through() {

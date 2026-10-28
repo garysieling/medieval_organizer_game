@@ -71,7 +71,14 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
         MenuActionType::Recruit => {
             if let Some(t) = target {
                 let r = act_recruit(world, player, org, t);
-                if r.success { "They joined!".into() } else { format!("{}.", r.description) }
+                let infl = world.get_component::<PlayerCharacter>(player).map(|p| p.influence).unwrap_or(0.0);
+                if r.success { "They joined!".into() }
+                else if r.description == "They declined" && !super::player::can_recruit(infl) {
+                    // Say what's missing, as game_ui's disabled button does
+                    format!("They declined - they don't trust you enough yet (you need influence {:.2}, you have {:.2}).",
+                        super::player::recruit_influence_needed(), infl)
+                }
+                else { format!("{}.", r.description) }
             } else { "No one to recruit.".into() }
         }
         MenuActionType::Invest => {
@@ -104,6 +111,19 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_declined_recruit_says_what_is_missing() {
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let v = w.create_entity();
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Recruit, Some(v));
+        assert!(msg.contains("need influence 0.40") && msg.contains("you have 0.10"), "{}", msg);
+    }
 
     #[test]
     fn test_parse_command_keeps_target_without_number() {

@@ -34,9 +34,7 @@ pub struct HouseMeetingResult {
     pub attendees_recruited: u32,
 }
 
-fn is_dead(world: &World, e: Entity) -> bool {
-    world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
-}
+use crate::game::villager::is_dead; // health 0, or marked Dead by the windowed game
 
 /// The org's leader, handing leadership on if they've died: the living
 /// member with the most influence (the earliest-joined on a tie) takes
@@ -189,5 +187,17 @@ mod tests {
         house_meeting(&mut w, org, &[stranger]);
         assert!(crate::game::relationships::find_relationship(&w, leader, stranger).is_none(),
             "a dead leader holds no conversations");
+    }
+
+    #[test]
+    fn test_leader_marked_dead_hands_on_leadership() {
+        // the windowed game removes Health on death and marks the villager Dead
+        let mut w = World::new();
+        let (org, leader) = guild(&mut w);
+        w.add_component(leader, crate::game::villager::Dead);
+        let heir = w.create_entity();
+        w.add_component(heir, Citizen { influence: 0.3, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        w.get_component_mut::<Organization>(org).unwrap().members.push(heir);
+        assert_eq!(living_leader(&mut w, org), Some(heir));
     }
 }

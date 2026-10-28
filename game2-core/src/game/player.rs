@@ -99,7 +99,9 @@ pub fn can_recruit(player_influence: f32) -> bool {
     recruit_trust(player_influence) >= crate::sim::community::RECRUIT_MIN_TRUST
 }
 
-/// Player attempts to recruit someone
+/// Player attempts to recruit someone: they join if they trust the player
+/// enough, whether through the player's influence in the village or their
+/// own relationship with the player
 pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entity) -> ActionResult {
     let already = world.get_component::<crate::sim::community::Organization>(org)
         .map(|o| o.members.contains(&target)).unwrap_or(false);
@@ -107,7 +109,13 @@ pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entit
         return ActionResult { success: false, influence_change: 0.0, description: "Already a member".into() };
     }
     let player_infl = world.get_component::<PlayerCharacter>(player).map(|p| p.influence).unwrap_or(0.0);
-    let recruited = crate::sim::community::recruit(world, org, target, recruit_trust(player_infl));
+    // They'll join on the player's standing in the village, or on their own
+    // trust in the player (built by talking with them and at meetings)
+    let personal = crate::game::relationships::find_relationship(world, player, target)
+        .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0);
+    let trust = recruit_trust(player_infl).max(personal);
+    let recruited = crate::sim::community::recruit(world, org, target, trust);
     let gained = if recruited { RECRUIT_INFLUENCE } else { 0.0 };
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
         p.influence += gained;
@@ -244,5 +252,16 @@ mod tests {
         assert!((heard_out - 0.1925).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
         act_talk(&mut w, p, vs[0]);
         assert_eq!(trust(&w), heard_out, "once you've heard everything, more talk adds nothing");
+    }
+
+    #[test]
+    fn test_someone_who_trusts_you_joins_even_before_you_have_influence() {
+        use crate::game::relationships::{Relationship, RelKind};
+        let (mut w, p, o, vs) = setup();
+        assert!(!can_recruit(0.1));
+        assert!(!act_recruit(&mut w, p, o, vs[0]).success, "a stranger won't join a low-influence outsider");
+        let r = w.create_entity();
+        w.add_component(r, Relationship { from: p, other: vs[1], kind: RelKind::Friend, strength: 0.6, interactions: 8 });
+        assert!(act_recruit(&mut w, p, o, vs[1]).success, "a friend who trusts you joins anyway");
     }
 }

@@ -126,11 +126,13 @@ const BUBBLE_H: i32 = 18;
 /// Where a speech bubble goes for a speaker standing on screen point
 /// (sx, sy): just above their (zoomed) name label, kept inside the map view.
 /// None when the speaker isn't on the map view at all.
-fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str) -> Option<(i32, i32, i32)> {
+/// `label_y` is where the speaker's name label actually ended up: place_labels
+/// nudges crowded labels upward, and the bubble must clear the nudged one
+fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) -> Option<(i32, i32, i32)> {
     if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
     let bw = (text.len() as i32 * GLYPH_W + 12).max(60).min(MAP_W as i32 - 8);
     let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
-    let label_top = head_y(sy, zoom) - GLYPH_H - 4;
+    let label_top = (head_y(sy, zoom) - GLYPH_H - 4).min(label_y.map(|y| y - 4).unwrap_or(i32::MAX));
     let by = (label_top - BUBBLE_H - 8).max(4);
     Some((bx, by, bw))
 }
@@ -1027,7 +1029,10 @@ impl<'a> Game<'a> {
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
             .map(|(t, x, y, _, hungry, _)| (*x, *y, t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 }))
             .collect();
-        for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(place_labels(&boxes)) {
+        let placed = place_labels(&boxes);
+        // where each name finally sits, so a speech bubble can clear it
+        let label_ys: Vec<(&str, i32)> = labels.iter().zip(&placed).map(|(l, y)| (l.0, *y)).collect();
+        for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(placed) {
             draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
             // hunger indicator, right after the name
             if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, m, r, g, b); }
@@ -1221,7 +1226,10 @@ impl<'a> Game<'a> {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     // off the map view (e.g. under the panel): the log already
                     // has what they said, so don't float a bubble over the panel
-                    if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text) {
+                    let name = self.villagers.iter().position(|v| *v == speaker).map(|i| NAMES[i])
+                        .or_else(|| self.rivals.iter().position(|r| *r == speaker).map(|i| RIVAL_NAMES[i]));
+                    let label_y = name.and_then(|n| label_ys.iter().find(|(t, _)| *t == n).map(|(_, y)| *y));
+                    if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text, label_y) {
                         let tail_x = (sx - 4).clamp(bx + 2, bx + bw - 10);
                         buf.rect(bx, by, bw, BUBBLE_H, 240, 240, 220);        // cream bubble
                         buf.rect(tail_x, by + BUBBLE_H - 2, 8, 6, 240, 240, 220); // tail, under the speaker
@@ -1644,22 +1652,35 @@ mod bubble_tests {
     fn test_bubbles_stay_inside_the_map_view() {
         let text = "the lord's taxes are heavy";
         // near the right edge: pulled left so it doesn't spill into the panel
-        let (bx, _, bw) = bubble_rect(MAP_W as i32 - 10, 300, 1.0, text).unwrap();
+        let (bx, _, bw) = bubble_rect(MAP_W as i32 - 10, 300, 1.0, text, None).unwrap();
         assert!(bx + bw <= MAP_W as i32 - 4, "bubble runs into the panel: {}..{}", bx, bx + bw);
         // near the left and top edges: pushed back on screen
-        let (bx, by, _) = bubble_rect(5, 20, 1.0, text).unwrap();
+        let (bx, by, _) = bubble_rect(5, 20, 1.0, text, None).unwrap();
         assert!(bx >= 4 && by >= 4);
         // a speaker under the panel or off screen gets no bubble at all
-        assert_eq!(bubble_rect(MAP_W as i32 + 40, 300, 1.0, text), None);
-        assert_eq!(bubble_rect(-30, 300, 1.0, text), None);
+        assert_eq!(bubble_rect(MAP_W as i32 + 40, 300, 1.0, text, None), None);
+        assert_eq!(bubble_rect(-30, 300, 1.0, text, None), None);
     }
 
     #[test]
     fn test_bubble_clears_the_name_label_at_any_zoom() {
         for z in [0.5f32, 1.0, 2.0] {
-            let (_, by, _) = bubble_rect(300, 400, z, "hello").unwrap();
+            let (_, by, _) = bubble_rect(300, 400, z, "hello", None).unwrap();
             let (_, label_y) = name_label_pos(300, label_anchor(400, z), "hello");
             assert!(by + BUBBLE_H <= label_y, "zoom {}: bubble (bottom {}) overlaps the name label (top {})", z, by + BUBBLE_H, label_y);
+        }
+    }
+
+    #[test]
+    fn test_bubble_clears_a_label_nudged_up_by_the_crowd() {
+        // place_labels can lift a crowded name up to 4 lines (40px); the
+        // bubble used to sit 8px above the un-nudged spot, right on top of it
+        let (_, home) = name_label_pos(300, label_anchor(400, 1.0), "Bram");
+        for lift in [10, 20, 40] {
+            let nudged = home - lift;
+            let (_, by, _) = bubble_rect(300, 400, 1.0, "the lord's taxes are heavy", Some(nudged)).unwrap();
+            // the bubble and its 4px tail end above the label
+            assert!(by + BUBBLE_H + 4 <= nudged, "lift {}: bubble bottom {} covers the label at {}", lift, by + BUBBLE_H + 4, nudged);
         }
     }
 }

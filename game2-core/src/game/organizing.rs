@@ -62,6 +62,23 @@ pub struct MeetingHall;
 /// Gold it costs to build a meeting hall
 pub const HALL_COST: f32 = 40.0;
 
+/// Marks a meeting hall a storm has damaged: until it's repaired, house
+/// meetings there are plain talk again
+#[derive(Debug)]
+pub struct HallDamaged;
+
+/// Gold it costs to repair a storm-damaged meeting hall
+pub const HALL_REPAIR_COST: f32 = 15.0;
+
+/// A storm strikes: the org's meeting hall, if it has one, is damaged.
+/// Returns whether there was a standing hall to damage.
+pub fn storm_strikes_hall(world: &mut World, org: Entity) -> bool {
+    let standing = world.get_component::<MeetingHall>(org).is_some()
+        && world.get_component::<HallDamaged>(org).is_none();
+    if standing { world.add_component(org, HallDamaged); }
+    standing
+}
+
 /// Run a house meeting with identified citizens. The meeting is a
 /// conversation between the org's leader and each attendee; only attendees
 /// whose relationship with the leader is already strong enough join. A
@@ -75,7 +92,8 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
     let Some(leader) = living_leader(world, org) else {
         return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 };
     };
-    let world_has_hall = world.get_component::<MeetingHall>(org).is_some();
+    let world_has_hall = world.get_component::<MeetingHall>(org).is_some()
+        && world.get_component::<HallDamaged>(org).is_none();
     // In a hall the meeting is a shared meal; otherwise it's just talk
     let kind = || if world_has_hall { InteractionKind::SharedMeal } else { InteractionKind::Conversation };
     let mut recruited = 0;
@@ -225,5 +243,19 @@ mod tests {
         assert!(with_hall < without, "hall {} vs no hall {} meetings", with_hall, without);
         assert_eq!(without, 10);
         assert_eq!(with_hall, 7);
+    }
+
+    #[test]
+    fn test_a_storm_damaged_hall_hosts_plain_talk_until_repaired() {
+        let mut w = World::new();
+        let (org, leader) = guild(&mut w);
+        assert!(!storm_strikes_hall(&mut w, org), "no hall to damage");
+        w.add_component(org, MeetingHall);
+        assert!(storm_strikes_hall(&mut w, org));
+        assert!(!storm_strikes_hall(&mut w, org), "already damaged");
+        let v = w.create_entity();
+        house_meeting(&mut w, org, &[v]);
+        let r = crate::game::relationships::find_relationship(&w, leader, v).unwrap();
+        assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.05).abs() < 1e-6, "plain talk, not a shared meal");
     }
 }

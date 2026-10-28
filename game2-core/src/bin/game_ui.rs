@@ -192,8 +192,6 @@ fn visible_log(log: &[String]) -> Vec<&String> {
     }).collect()
 }
 
-/// Colour for a log entry: deaths red, guild events gold, joins green,
-/// weather/illness cyan, idle gossip dimmed so real events stand out
 /// Split a log entry stored as "t120: message" into the day the player
 /// sees ("day 120", matching the HUD) and the message
 fn log_parts(entry: &str) -> (Option<String>, &str) {
@@ -205,6 +203,8 @@ fn log_parts(entry: &str) -> (Option<String>, &str) {
     (None, entry)
 }
 
+/// Colour for a log entry: deaths red, guild events gold, joins green,
+/// weather/illness cyan, idle gossip dimmed so real events stand out
 fn log_colour(entry: &str) -> (u8, u8, u8) {
     if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
     else if is_gossip(entry) { (140, 140, 160) } // gossip, even when it mentions the guild

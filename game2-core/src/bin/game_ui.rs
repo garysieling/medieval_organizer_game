@@ -7,6 +7,7 @@ use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
 use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
+use game2_core::game::tilemap::{Layout, Tile, TileMap};
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, Rapport, TALK_RAPPORT_STEP, recruit_influence_needed, RECRUIT_INFLUENCE};
@@ -285,6 +286,25 @@ fn season_colour(h: f32, season: Season) -> (u8, u8, u8) {
     }
 }
 
+/// A map tile's colour in a season: the minimap's, and the map's own when
+/// a tile's block art is missing. Open ground follows season_colour.
+fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
+    let land = |c: (u8, u8, u8)| match season {
+        Season::Winter => blend(c, (228, 232, 240), 0.65),
+        _ => c,
+    };
+    match tile {
+        Tile::Water | Tile::River => season_colour(0.05, season),
+        Tile::Grass => season_colour(0.25, season),
+        Tile::Hill => season_colour(0.45, season),
+        Tile::Rock => season_colour(0.65, season),
+        Tile::Wheat => land((220, 185, 80)),
+        Tile::Corn => land((200, 160, 60)),
+        Tile::Road => land((229, 143, 77)),
+        Tile::Bridge => (229, 143, 77),
+    }
+}
+
 // Minimap: the same isometric projection as the map, shrunk to fit a box in
 // the map's top-right corner (so up on the minimap is up on screen)
 const MM_W: i32 = 84;
@@ -480,7 +500,6 @@ struct Art {
     house_s: Option<Sprite>,
     mill_frames: Vec<Sprite>,
     blacksmith_s: Option<Sprite>,
-    tree_s: Option<Sprite>,
     stone_s: Option<Sprite>,
     player_s: Option<Sprite>,
     tower_s: Option<Sprite>,
@@ -491,19 +510,125 @@ struct Art {
     rival_house: Option<Sprite>,
     rival_woodhouse: Option<Sprite>,
     dog: Option<Sprite>, // hand-drawn: the asset packs have no animals
-    // flat ground features: just the top face of each ground block, laid on a tile
-    road_top: Option<Sprite>,
-    wheat_top: Option<Sprite>,
-    corn_top: Option<Sprite>,
-    corn2_top: Option<Sprite>,
-    river_top: Option<Sprite>,
+    /// Ground blocks for the green seasons, autumn and winter (season_tiles)
+    tiles: [TileSet; 3],
 }
 
-/// The top face of an isometric ground block (the pack draws roads, fields
-/// and rivers as full raised blocks sized for a much bigger tile grid); laid
-/// flat on a map tile it reads as a road or field instead of a tower
-fn top_face(block: &Option<Sprite>) -> Option<Sprite> {
-    block.as_ref().map(|b| b.crop(0, 0, b.width, b.width / 2 + 1))
+/// The pack's ground blocks for one season's look: one per kind of map
+/// tile, and every numbered road and river piece, in the pack's order
+#[derive(Default)]
+struct TileSet {
+    grass: Option<Sprite>,
+    rock: Option<Sprite>,
+    water: Option<Sprite>,
+    wheat: Option<Sprite>,
+    corn: Option<Sprite>,
+    roads: Vec<Sprite>,
+    rivers: Vec<Sprite>,
+    tree: Option<Sprite>,
+}
+
+/// Which TileSet a season draws with
+fn season_tiles(season: Season) -> usize {
+    match season { Season::Autumn => 1, Season::Winter => 2, _ => 0 }
+}
+
+/// `block` with its greens recoloured by `f` (grass to water, or autumn gold)
+fn recolour_greens(block: &Sprite, f: impl Fn((u8, u8, u8)) -> (u8, u8, u8)) -> Sprite {
+    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
+    for p in out.pixels.chunks_mut(4) {
+        if p[3] > 0 && p[1] > p[0] && p[1] > p[2] {
+            let (r, g, b) = f((p[0], p[1], p[2]));
+            p[0] = r; p[1] = g; p[2] = b;
+        }
+    }
+    out
+}
+
+/// The sea: the pack has no open-water block, so it's the grass block with
+/// its grass turned to water, colder in winter
+fn water_block(grass: &Sprite, winter: bool) -> Sprite {
+    let k = if winter { 0.8 } else { 1.0 };
+    recolour_greens(grass, |(_, g, _)| {
+        let l = g as f32 * k;
+        ((l * 0.55) as u8, (l * 0.8) as u8, (l * 1.2).min(255.0) as u8)
+    })
+}
+
+impl TileSet {
+    /// Load the blocks for the green seasons (0), autumn (1: the green set
+    /// gone gold) or winter (2)
+    fn load(assets: &Assets, season: usize) -> TileSet {
+        let load = |rel: &str| Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/{}", rel))).ok();
+        let winter = season == 2;
+        let gold = |s: Sprite| if season == 1 { recolour_greens(&s, |c| blend(c, (185, 125, 45), 0.45)) } else { s };
+        let pieces = |dir: &str, name: &str, n: usize| -> Vec<Sprite> {
+            (1..=n).filter_map(|i| load(&format!("{}/{}({}).png", dir, name, i))).map(gold).collect()
+        };
+        let grass = load("Enviroument/Spring/grass.png");
+        // fields lie under the snow in winter
+        let snow = || load("Enviroument/Winter/snow.png");
+        TileSet {
+            water: grass.as_ref().map(|g| water_block(g, winter)),
+            grass: if winter { snow() } else { grass.map(gold) },
+            rock: load("Enviroument/Spring/ground(1).png"),
+            tree: if winter { load("Enviroument/Winter/trees/tree(1).png") } else { load("Enviroument/Spring/trees/tree(1).png").map(gold) },
+            wheat: if winter { snow() } else { load("Buildings/wheat/wheat(1).png").map(gold) },
+            corn: if winter { snow() } else { load("Buildings/corn/corn(1).png").map(gold) },
+            roads: if winter {
+                // the winter set numbers its two straight roads the other way round
+                let mut r = pieces("Roads/Winter", "road_winter", 15);
+                if r.len() > 2 { r.swap(1, 2); }
+                r
+            } else { pieces("Roads/Spring", "road", 15) },
+            rivers: if winter { pieces("Rivers/Winter", "river_winter", 17) } else { pieces("Rivers/Spring", "river", 17) },
+        }
+    }
+
+    /// The block for map tile (x, y), joined up with its neighbours
+    fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
+        match map.get(x, y)? {
+            Tile::Grass | Tile::Hill => self.grass.as_ref(),
+            Tile::Rock => self.rock.as_ref(),
+            Tile::Water => self.water.as_ref(),
+            Tile::Wheat => self.wheat.as_ref(),
+            Tile::Corn => self.corn.as_ref(),
+            Tile::Road => self.roads.get(map.piece(x, y)? as usize - 1),
+            Tile::River | Tile::Bridge => self.rivers.get(map.piece(x, y)? as usize - 1),
+        }
+    }
+}
+
+/// The pack's ground blocks are 94px wide; the top face inside its outline
+/// is about 91x50, starting 1.5px down. A block is scaled so that face is
+/// exactly one map tile (neighbours' outlines overlap, as in the pack).
+const BLOCK_FACE: (f32, f32, f32) = (91.0, 50.0, 1.5);
+/// How far below the land the sea's surface lies, at zoom 1: the shore
+/// shows as a low bank
+const WATER_DROP: f32 = 7.0;
+
+/// Size and top-left of the block drawn for the tile centred on (sx, sy)
+fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32, i32) {
+    let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+    let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
+    let (w, h) = ((block.width as f32 * kx).round() as usize, (block.height as f32 * ky).round() as usize);
+    (w, h, sx - w as i32 / 2, sy - (TILE_H as f32 * zoom + BLOCK_FACE.2 * ky).round() as i32)
+}
+
+/// Draw a building standing on the tile centred on (sx, sy): scaled so its
+/// base spans exactly one tile, its front corner on the tile's front corner
+fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+    let w = (2.0 * TILE_W as f32 * zoom).round() as usize;
+    let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
+    s.scaled(w, h).blit(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32);
+}
+
+/// Draw a tree or boulder standing in the middle of the tile centred on
+/// (sx, sy), at the ground blocks' scale (the pack draws them for its blocks)
+fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+    let k = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+    let (w, h) = ((s.width as f32 * k).round() as i32, (s.height as f32 * k).round() as i32);
+    draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
 }
 
 impl Art {
@@ -523,26 +648,15 @@ impl Art {
             }
         }).collect();
 
-        let road_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Roads/Spring/road(1).png")).ok();
-        let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
-        let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
-        let corn2_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(2).png")).ok();
-        let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
-
         // Load building sprites
         Art {
             villager_sprites,
-            road_top: top_face(&road_s),
-            wheat_top: top_face(&wheat_s),
-            corn_top: top_face(&corn_s),
-            corn2_top: top_face(&corn2_s),
-            river_top: top_face(&river_s),
+            tiles: [TileSet::load(&assets, 0), TileSet::load(&assets, 1), TileSet::load(&assets, 2)],
             house_s: Sprite::load(&assets.path(&assets.building_sprite("house", "blue"))).ok(),
             mill_frames: (1..=4).map(|i|
                 Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
             ).collect(),
             blacksmith_s: Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok(),
-            tree_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok(),
             stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(2).png")).ok(),
             player_s: Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok(),
             tower_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok(),
@@ -564,7 +678,8 @@ struct Game<'a> {
     art: &'a Art,
     world: World,
     sched: Scheduler,
-    terrain: Terrain,
+    /// What each tile is (water, grass, road, river...), laid out on the terrain
+    map: TileMap,
     climate: Entity,
     villagers: Vec<Entity>,
     rivals: Vec<Entity>,
@@ -574,7 +689,7 @@ struct Game<'a> {
     dog: Entity,
     market_food: Entity, // our village's food store (the rivals have their own)
     buildings: Vec<(f32, f32, &'a Option<Sprite>)>,
-    ground: Vec<(f32, f32, &'a Option<Sprite>)>, // flat tiles: roads, fields, river
+    stones: Vec<(i32, i32)>, // boulders out in the fields
     buttons: Vec<Button>,
     built_count: usize,
     zoom: f32, // 0.5 - 2.0
@@ -606,41 +721,45 @@ impl<'a> Game<'a> {
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
 
-        let terrain = Terrain::generate(33, 0.7, 42);
+        let mut terrain = Terrain::generate(33, 0.7, 42);
         let climate = climate::spawn_climate(&mut world);
         let market_food = villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
-        // buildings placed on map
-        let buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
-            (5.0, 5.0, &art.house_s), (12.0, 4.0, &art.house_s), (7.0, 12.0, &art.house_s),
-            (15.0, 8.0, &art.blacksmith_s),
-            (3.0, 14.0, &art.tree_s), (18.0, 5.0, &art.tree_s), (9.0, 16.0, &art.tree_s), (20.0, 12.0, &art.tree_s),
-            (4.0, 18.0, &art.stone_s), (19.0, 16.0, &art.stone_s),
-            // castle towers at the far edge (the ruler overlooks the village)
-            (26.0, 6.0, &art.tower_s), (28.0, 8.0, &art.tower_s), (27.0, 4.0, &art.tower_s),
+        // where each building wants to stand; the map moves one onto dry land if it must
+        let planned: Vec<((i32, i32), &Option<Sprite>)> = vec![
+            // homes around the market (the first three have chimney smoke)
+            ((13, 12), &art.house_s), ((19, 12), &art.house_s), ((12, 18), &art.house_s),
+            ((19, 19), &art.blacksmith_s),
+            // church (religion centre) + guild hall (merchant base)
+            ((14, 9), &art.church_s), ((17, 10), &art.guildhall_s),
+            // the ruler's castle on the far bank, overlooking the village
+            ((26, 5), &art.tower_s), ((27, 5), &art.wall_s), ((28, 5), &art.tower_s),
             // rival village across the river (red-roofed foreign houses)
-            (28.0, 13.0, &art.rival_house), (30.0, 15.0, &art.rival_woodhouse),
-            // castle walls connecting the towers
-            (25.0, 5.0, &art.wall_s), (27.0, 7.0, &art.wall_s), (29.0, 9.0, &art.wall_s),
-            // church (religion center) + guild hall (merchant base)
-            (2.0, 8.0, &art.church_s), (17.0, 10.0, &art.guildhall_s),
+            ((28, 13), &art.rival_house), ((30, 15), &art.rival_woodhouse),
         ];
-
-        // flat ground features, drawn on the terrain under everything that stands
-        let ground: Vec<(f32, f32, &Option<Sprite>)> = vec![
-            // farms: wheat + corn fields near the village
-            (14.0, 14.0, &art.wheat_top), (15.0, 14.0, &art.wheat_top), (14.0, 15.0, &art.wheat_top), (15.0, 15.0, &art.wheat_top),
-            (16.0, 15.0, &art.corn_top), (16.0, 16.0, &art.corn_top), (17.0, 15.0, &art.corn_top),
-            // market plaza (packed dirt tiles around stalls)
-            (7.0, 6.0, &art.road_top), (8.0, 6.0, &art.road_top), (9.0, 6.0, &art.road_top),
-            // food market stalls
-            (7.0, 7.0, &art.corn2_top), (9.0, 7.0, &art.corn2_top),
-            // main road through the village center
-            (8.0, 8.0, &art.road_top), (9.0, 9.0, &art.road_top), (10.0, 10.0, &art.road_top), (11.0, 11.0, &art.road_top),
-            (12.0, 8.0, &art.road_top), (13.0, 7.0, &art.road_top), (8.0, 12.0, &art.road_top), (9.0, 13.0, &art.road_top),
-            // river along the east edge
-            (24.0, 3.0, &art.river_top), (26.0, 5.0, &art.river_top), (28.0, 7.0, &art.river_top), (30.0, 9.0, &art.river_top),
-        ];
+        let mut layout = Layout {
+            // our village, the rivals' and the castle each stand on dry land
+            settlements: vec![(16, 16, 9), (29, 14, 4), (27, 5, 3)],
+            // a river from the northern hills to the southern shore, between
+            // our village and the rivals'
+            river: vec![(22, 5), (23, 8), (24, 10), (24, 26)],
+            bridge_near: (24, 14),
+            // fields beside the food store
+            fields: vec![
+                (13, 14, Tile::Wheat), (14, 14, Tile::Wheat), (13, 15, Tile::Wheat), (14, 15, Tile::Wheat),
+                (17, 14, Tile::Corn), (18, 14, Tile::Corn), (18, 15, Tile::Corn),
+            ],
+            buildings: planned.iter().map(|(p, _)| *p).collect(),
+            road_hub: (16, 16),
+            road_ends: vec![(29, 14)],
+        };
+        layout.buildings.push((MILL_TILE.0 as i32, MILL_TILE.1 as i32));
+        let mut map = TileMap::generate(&mut terrain, &layout);
+        let buildings: Vec<(f32, f32, &Option<Sprite>)> = planned.iter().zip(&map.buildings)
+            .map(|((_, s), (x, y))| (*x as f32, *y as f32, *s)).collect();
+        let stones: Vec<(i32, i32)> = [(6, 19), (20, 23)].iter()
+            .filter_map(|&(x, y)| map.nearest_buildable(x, y)).collect();
+        for &(x, y) in &stones { map.occupy(x, y); }
 
         let mut villagers = vec![];
         for (i, _n) in NAMES.iter().enumerate() {
@@ -686,7 +805,7 @@ impl<'a> Game<'a> {
         ];
 
         Game {
-            art, world, sched, terrain, climate, villagers, rivals, player, org, dog, market_food, buildings, ground, buttons,
+            art, world, sched, map, climate, villagers, rivals, player, org, dog, market_food, buildings, stones, buttons,
             built_count: 0,
             zoom: 1.0,
             rival_homes,
@@ -740,7 +859,6 @@ impl<'a> Game<'a> {
             let beside = |bx: f32, by: f32| (bx.round() as i32 - x).abs() <= 1 && (by.round() as i32 - y).abs() <= 1;
             self.buildings.iter().any(|(bx, by, _)| beside(*bx, *by))
                 || beside(MILL_TILE.0, MILL_TILE.1)
-                || self.ground.iter().any(|(gx, gy, _)| on(*gx, *gy))
                 || self.world.query::<villager::FoodSource>().iter()
                     .filter_map(|f| self.world.get_component::<Pos>(*f))
                     .any(|p| on(p.x, p.y))
@@ -748,9 +866,8 @@ impl<'a> Game<'a> {
         let mut best: Option<((f32, f32), i32)> = None;
         for y in (cy - BUILD_SEARCH)..=(cy + BUILD_SEARCH) {
             for x in (cx - BUILD_SEARCH)..=(cx + BUILD_SEARCH) {
-                if x < 1 || y < 1 || x as usize >= self.terrain.width - 1 || y as usize >= self.terrain.height - 1 { continue; }
-                let h = self.terrain.get(x as usize, y as usize);
-                if !(0.15..0.75).contains(&h) || taken(x, y) { continue; }
+                if x < 1 || y < 1 || x as usize >= self.map.width - 1 || y as usize >= self.map.height - 1 { continue; }
+                if !self.map.buildable(x, y) || taken(x, y) { continue; }
                 let d = (x - cx).abs() + (y - cy).abs();
                 if d >= 2 && best.map(|(_, bd)| d < bd).unwrap_or(true) { best = Some(((x as f32, y as f32), d)); }
             }
@@ -963,36 +1080,46 @@ impl<'a> Game<'a> {
 
         // terrain rendered in the SAME projection as entities (unified map)
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
-        let wave_phase = (tick % 40) < 20;
         let tw = (TILE_W as f32 * zoom) as i32;
         let th = (TILE_H as f32 * zoom) as i32;
-        for ty in 0..self.terrain.height {
-            for tx in 0..self.terrain.width {
-                let h = self.terrain.get(tx, ty);
-                let (r, g, mut b) = season_colour(h, season);
-                if h < 0.15 && wave_phase { b = b.saturating_add(15); } // water shimmer
+        // each tile is its block from the pack, drawn back to front so nearer
+        // blocks overlap farther ones; the sea lies a little below the land.
+        // Blocks are scaled once per frame, not once per tile.
+        let set = &art.tiles[season_tiles(season)];
+        let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
+        let (w_t, h_t) = (self.map.width as i32, self.map.height as i32);
+        for d in 0..(w_t + h_t - 1) {
+            for tx in (d - h_t + 1).max(0)..=d.min(w_t - 1) {
+                let ty = d - tx;
+                let Some(tile) = self.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
-                buf.diamond(sx, sy, tw, th, r, g, b);
-                buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
+                if sx < -2 * tw || sx > MAP_W as i32 + 2 * tw || sy < -4 * th || sy > H as i32 + 4 * th { continue; }
+                let sy = if tile == Tile::Water { sy + (WATER_DROP * zoom).round() as i32 } else { sy };
+                match set.block(&self.map, tx, ty) {
+                    Some(block) => {
+                        let (w, h, x, y) = block_rect(block, sx, sy, zoom);
+                        let key = block as *const Sprite;
+                        if !scaled.iter().any(|(k, _)| *k == key) { scaled.push((key, block.scaled(w, h))); }
+                        scaled.iter().find(|(k, _)| *k == key).unwrap().1.blit(&mut buf, x, y);
+                    }
+                    None => {
+                        let (r, g, b) = tile_colour(tile, season);
+                        buf.diamond(sx, sy, tw, th, r, g, b);
+                        buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
+                    }
+                }
             }
         }
 
-        // flat ground tiles (roads, fields, river), scaled onto the tile diamond
-        for (gx, gy, sprite) in self.ground.iter() {
+        // buildings, trees and boulders, back to front
+        let mut standing: Vec<(f32, f32, &Option<Sprite>, bool)> = self.buildings.iter().map(|(x, y, s)| (*x, *y, *s, true)).collect();
+        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, &set.tree, false)));
+        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, &art.stone_s, false)));
+        standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
+        for (bx, by, sprite, building) in standing {
             if let Some(s) = sprite {
-                let (sx, sy) = iso_to_screen_cam(*gx, *gy, cam_x, cam_y, zoom);
-                s.scaled((2 * tw) as usize, (2 * th) as usize).blit(&mut buf, sx - tw, sy - th);
-            }
-        }
-
-        // buildings on map (sorted back-to-front by tile y)
-        let mut b_sorted: Vec<_> = self.buildings.iter().collect();
-        b_sorted.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-        for (bx, by, sprite) in b_sorted {
-            if let Some(s) = sprite {
-                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
-                let (w, h) = ((s.width as f32 * zoom) as i32, (s.height as f32 * zoom) as i32);
-                draw_zoomed(&mut buf, s, sx - w / 2, sy + (TILE_H as f32 * zoom) as i32 - h, zoom);
+                let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
+                if building { draw_on_tile(&mut buf, s, sx, sy, zoom); } else { draw_prop(&mut buf, s, sx, sy, zoom); }
             }
         }
 
@@ -1008,8 +1135,7 @@ impl<'a> Game<'a> {
         // windmill: animated blades (frame cycles every 10 ticks)
         let mill_frame = &art.mill_frames[((tick / 10) % 4) as usize];
         let (msx, msy) = iso_to_screen_cam(MILL_TILE.0, MILL_TILE.1, cam_x, cam_y, zoom);
-        let (mw, mh) = ((mill_frame.width as f32 * zoom) as i32, (mill_frame.height as f32 * zoom) as i32);
-        draw_zoomed(&mut buf, mill_frame, msx - mw / 2, msy - mh, zoom); // bottom-centred, as blit_center does
+        draw_on_tile(&mut buf, mill_frame, msx, msy, zoom);
 
         // market food stock: shown in the HUD (top-left), not on the market
         // tile, where villagers always gather to eat and covered it up
@@ -1265,7 +1391,7 @@ impl<'a> Game<'a> {
         // minimap (top-right of map area): the map in miniature, same projection
         // and colours, with villagers, the player and the visible area marked
         buf.rect(MM_LEFT - 2, MM_TOP - 2, MM_W + 4, MM_H + 4, 20, 20, 30);
-        let (w_t, h_t) = (self.terrain.width as f32, self.terrain.height as f32);
+        let (w_t, h_t) = (self.map.width as f32, self.map.height as f32);
         for my in 0..MM_H { for mx in 0..MM_W {
             // which tile is under this minimap pixel (inverse of tile_to_minimap)
             let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
@@ -1273,7 +1399,7 @@ impl<'a> Game<'a> {
             let sum = ((MM_TOP + my) as f32 + 0.5 - top) * 2.0;
             let (tx, ty) = ((sum / MM_K + diff / MM_K) / 2.0, (sum / MM_K - diff / MM_K) / 2.0);
             if tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t {
-                let (r, g, b) = season_colour(self.terrain.get(tx as usize, ty as usize), season);
+                let (r, g, b) = self.map.get(tx as i32, ty as i32).map(|t| tile_colour(t, season)).unwrap_or((20, 20, 30));
                 buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
             }
         }}
@@ -1403,6 +1529,8 @@ impl<'a> Game<'a> {
                     let (bx, by) = self.build_site().unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, &self.art.house_s));
+                    self.map.occupy(bx as i32, by as i32);
+                    self.map.connect((bx as i32, by as i32));
                     self.built_count += 1;
                     format!("A new house goes up beside you - {:.0} gold", BUILD_COST)
                 }
@@ -2404,9 +2532,14 @@ fn main() {
         .and_then(|i| args.get(i+1)).and_then(|v| v.parse().ok());
     // optional --out PATH for the dump (default evidence/frame-check-N.bmp)
     let out: Option<String> = args.iter().position(|a| a == "--out").and_then(|i| args.get(i + 1)).cloned();
+    // optional --zoom Z for the dump (default 1)
+    let zoom: f32 = args.iter().position(|a| a == "--zoom").and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok()).unwrap_or(1.0);
+    // optional --cam X,Y to pan the dump
+    let cam: (i32, i32) = args.iter().position(|a| a == "--cam").and_then(|i| args.get(i + 1))
+        .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?))).unwrap_or((0, 0));
     let art = Art::load("assets");
     if let Some(target) = dump_at {
-        run_headless(&art, target, out);
+        run_headless(&art, target, out, zoom, cam);
         return;
     }
 
@@ -2495,8 +2628,10 @@ fn main() {
 /// Headless verification: play the game (no input) until tick N, then
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
-fn run_headless(art: &Art, target_tick: u64, out: Option<String>) {
+fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: (i32, i32)) {
     let mut game = Game::new(art);
+    game.zoom = zoom;
+    (game.cam_x, game.cam_y) = cam;
     while game.tick < target_tick { game.update(); }
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
@@ -2509,13 +2644,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ground_block_top_face_fits_one_tile() {
-        // the pack's ground blocks are ~95x97: a raised cube for a far bigger grid
-        let block = Some(Sprite { width: 95, height: 97, pixels: vec![255; 95 * 97 * 4] });
-        let top = top_face(&block).unwrap();
-        assert_eq!((top.width, top.height), (95, 48), "keep only the top diamond, not the sides");
-        let tile = top.scaled((2 * TILE_W) as usize, (2 * TILE_H) as usize);
-        assert_eq!((tile.width, tile.height), (56, 28), "a ground tile covers exactly one map tile");
+    fn test_ground_block_top_face_covers_one_tile() {
+        // the pack's ground blocks are 94x97 cubes drawn for a bigger grid
+        let block = Sprite { width: 94, height: 97, pixels: vec![255; 94 * 97 * 4] };
+        for zoom in [0.5, 1.0, 2.0] {
+            let (sx, sy) = (300, 200);
+            let (w, h, x, y) = block_rect(&block, sx, sy, zoom);
+            let face_w = BLOCK_FACE.0 / 94.0 * w as f32;
+            let face_top = y as f32 + BLOCK_FACE.2 * h as f32 / 97.0;
+            assert!((face_w - 2.0 * TILE_W as f32 * zoom).abs() <= 1.0, "zoom {}: face {} px wide", zoom, face_w);
+            assert!((face_top - (sy as f32 - TILE_H as f32 * zoom)).abs() <= 1.0, "zoom {}: face starts at {}", zoom, face_top);
+            assert!((x + w as i32 / 2 - sx).abs() <= 1, "zoom {}: block centred on its tile", zoom);
+        }
+    }
+
+    #[test]
+    fn test_a_building_stands_with_its_base_on_its_tile() {
+        let mut buf = Buffer::new(W, H);
+        let house = Sprite { width: 70, height: 67, pixels: vec![255; 70 * 67 * 4] };
+        draw_on_tile(&mut buf, &house, 300, 200, 1.0);
+        let lit: Vec<(usize, usize)> = (0..H).flat_map(|y| (0..W).map(move |x| (x, y)))
+            .filter(|&(x, y)| buf.pixels[(y * W + x) * 4] == 255).collect();
+        let (x0, x1) = (lit.iter().map(|p| p.0).min().unwrap(), lit.iter().map(|p| p.0).max().unwrap());
+        let bottom = lit.iter().map(|p| p.1).max().unwrap();
+        assert_eq!(x1 - x0 + 1, 2 * TILE_W as usize, "a building's base is one tile wide");
+        assert_eq!(bottom as i32 + 1, 200 + TILE_H, "it stands on the tile's front corner");
     }
 
     #[test]
@@ -2643,14 +2796,13 @@ mod build_tests {
         let (px, py) = game.player_pos();
         let new: Vec<_> = game.buildings[start..].iter().map(|(x, y, _)| (*x, *y)).collect();
         for (i, &(x, y)) in new.iter().enumerate() {
-            let h = game.terrain.get(x as usize, y as usize);
-            assert!((0.15..0.75).contains(&h), "house on unbuildable ground at ({},{}) h={}", x, y, h);
+            let tile = game.map.get(x as i32, y as i32);
+            assert!(matches!(tile, Some(Tile::Grass) | Some(Tile::Hill)), "house on {:?} at ({},{})", tile, x, y);
             assert!((x - px).abs() + (y - py).abs() <= 2.0 * BUILD_SEARCH as f32, "house far from the player");
             let clear_of = |bx: f32, by: f32| (bx.round() - x).abs() > 1.0 || (by.round() - y).abs() > 1.0;
             assert!(game.buildings[..start].iter().all(|(bx, by, _)| clear_of(*bx, *by)), "house on or beside an existing building at ({},{})", x, y);
             assert!(clear_of(MILL_TILE.0, MILL_TILE.1), "house on the windmill at ({},{})", x, y);
             assert!((x - px.round()).abs() + (y - py.round()).abs() >= 2.0, "house right on top of the player at ({},{})", x, y);
-            assert!(game.ground.iter().all(|(gx, gy, _)| (gx.round(), gy.round()) != (x, y)), "house on a road or field");
             assert!(new[..i].iter().all(|&(ox, oy)| clear_of(ox, oy)), "two houses on or beside each other at ({},{})", x, y);
         }
     }

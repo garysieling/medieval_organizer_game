@@ -92,6 +92,11 @@ fn dog_sprite() -> Sprite {
 /// (UI_X+6, 312), the figure centred in it and ending at its bottom row
 const PORTRAIT_FOOT: (i32, i32) = (UI_X as i32 + 6 + 32, 312 + 62);
 
+/// Villager name colours on the map: within MEETING_REACH of the player
+/// (Talk, Recruit and Organize can reach them) or not
+const NAME_IN_REACH: (u8, u8, u8) = (255, 255, 255);
+const NAME_OUT_OF_REACH: (u8, u8, u8) = (150, 150, 165);
+
 /// Gravestone colours
 const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
@@ -883,6 +888,7 @@ impl<'a> Game<'a> {
         let (tick, cam_x, cam_y, zoom) = (self.tick, self.cam_x, self.cam_y, self.zoom);
         let villagers = &self.villagers;
         let selected_target = self.selected_target;
+        let in_reach = self.villagers_in_reach();
 
         let mut buf = Buffer::new(W, H);
         buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
@@ -963,7 +969,9 @@ impl<'a> Game<'a> {
             draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
             let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), NAMES[i]);
             let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
-            labels.push((NAMES[i], lx, ly, (255, 255, 255), hungry, i == selected_target));
+            // bright when close enough to talk, recruit or meet; dim otherwise
+            let rgb = if in_reach.contains(&villagers[i]) { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
+            labels.push((NAMES[i], lx, ly, rgb, hungry, i == selected_target));
             // sick: a green cross on the other side of the head
             if is_sick(world, villagers[i]) {
                 let (m, (r, g, b), _) = MARK_SICK;
@@ -1970,6 +1978,44 @@ mod member_line_tests {
 }
 
 #[cfg(test)]
+mod reach_name_tests {
+    use super::*;
+
+    #[test]
+    fn test_names_are_bright_only_within_reach() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        // one villager beside the player, one far across the village
+        let (px, py) = game.player_pos();
+        let (near, far) = (game.villagers[0], game.villagers[4]);
+        *game.world.get_component_mut::<Pos>(near).unwrap() = Pos { x: px + 1.5, y: py };
+        *game.world.get_component_mut::<Pos>(far).unwrap() = Pos { x: px + 6.0, y: py + 6.0 }; // 8.5 tiles: just out of reach, still on screen
+        game.selected_target = 2;
+        let buf = game.render((-1, -1));
+        let name_colour = |v: Entity, i: usize| {
+            let p = *game.world.get_component::<Pos>(v).unwrap();
+            let (sx, sy) = iso_to_screen_cam(p.x, p.y, game.cam_x, game.cam_y, game.zoom);
+            let (lx, ly) = name_label_pos(sx, label_anchor(sy, game.zoom), NAMES[i]);
+            // labels may be nudged up a line or two; look over that band
+            let (mut bright, mut dim) = (0, 0);
+            for y in (ly - 40).max(0)..ly + GLYPH_H { for x in lx.max(0)..(lx + NAMES[i].len() as i32 * GLYPH_W).min(MAP_W as i32) {
+                let k = (y as usize * W + x as usize) * 4;
+                match (buf.pixels[k], buf.pixels[k + 1], buf.pixels[k + 2]) {
+                    c if c == NAME_IN_REACH => bright += 1,
+                    c if c == NAME_OUT_OF_REACH => dim += 1,
+                    _ => {}
+                }
+            }}
+            (bright, dim)
+        };
+        let (b, d) = name_colour(near, 0);
+        assert!(b > 10 && d == 0, "{} is in reach but not bright ({} bright, {} dim)", NAMES[0], b, d);
+        let (_, d) = name_colour(far, 4);
+        assert!(d > 10, "{} is out of reach but not dimmed", NAMES[4]);
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -2066,9 +2112,10 @@ fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: boo
 /// to the help overlay once the title screen is gone
 const PANEL_HINT: &str = "1-5 select villager   H help";
 
-const HELP_LINES: [&str; 8] = [
+const HELP_LINES: [&str; 9] = [
     "click button / key: take action",
     "click villager: select + inspect",
+    "bright name: close enough to talk",
     "1-5: select villager",
     "T talk  R recruit  I invest",
     "O organize  B build  Z wait",

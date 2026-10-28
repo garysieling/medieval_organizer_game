@@ -124,9 +124,22 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             format!("You seal a mutual-aid pact and give {:.0} gold of help. They won't forget it.", PACT_AID)
         }
         MenuActionType::Build => {
-            use super::organizing::{MeetingHall, HALL_COST};
+            use super::organizing::{HallDamaged, MeetingHall, HALL_COST, HALL_REPAIR_COST};
             if world.get_component::<MeetingHall>(org).is_some() {
-                return "Your meeting hall already stands.".into();
+                if world.get_component::<HallDamaged>(org).is_none() {
+                    return "Your meeting hall already stands.".into();
+                }
+                // Repairing storm damage is also gold put into the village
+                let gold = world.get_component::<PlayerCharacter>(player).map(|p| p.resources).unwrap_or(0.0);
+                if gold < HALL_REPAIR_COST {
+                    return format!("Repairing the storm-damaged hall costs {:.0} gold; you have {:.0}.", HALL_REPAIR_COST, gold);
+                }
+                if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
+                    p.resources -= HALL_REPAIR_COST;
+                    p.influence += HALL_REPAIR_COST * super::player::INVEST_INFLUENCE_PER_GOLD;
+                }
+                world.remove_component::<HallDamaged>(org);
+                return format!("You repair the meeting hall ({:.0} gold). Meetings there share a meal again.", HALL_REPAIR_COST);
             }
             let gold = world.get_component::<PlayerCharacter>(player).map(|p| p.resources).unwrap_or(0.0);
             if gold < HALL_COST {
@@ -320,5 +333,23 @@ mod tests {
         assert!(find_relationship(&w, player, v).and_then(|r| w.get_component::<Relationship>(r)).unwrap().strength > 0.1);
         assert!(execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v)).contains("already have a pact"));
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
+    }
+
+    #[test]
+    fn test_build_repairs_a_storm_damaged_hall() {
+        use crate::game::organizing::{storm_strikes_hall, HallDamaged, MeetingHall};
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 50.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, MeetingHall);
+        storm_strikes_hall(&mut w, org);
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        assert!(msg.contains("repair the meeting hall"), "{}", msg);
+        assert!(w.get_component::<HallDamaged>(org).is_none());
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 35.0);
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("already stands"));
     }
 }

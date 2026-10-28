@@ -57,6 +57,19 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResu
     }
 }
 
+/// Influence at which the village recognizes the player as its leader
+pub const LEAD_INFLUENCE: f32 = 2.0;
+
+/// How the village sees the player, by influence: an Outsider until people
+/// trust them enough to join (recruit_influence_needed), Respected halfway
+/// to leading, and Leader at LEAD_INFLUENCE
+pub fn standing(influence: f32) -> &'static str {
+    if influence > LEAD_INFLUENCE { "Leader" }
+    else if influence >= LEAD_INFLUENCE / 2.0 { "Respected" }
+    else if can_recruit(influence) { "Trusted" }
+    else { "Outsider" }
+}
+
 /// Trust a stranger places in the player before any influence counts
 const RECRUIT_BASE_TRUST: f32 = 0.3;
 /// Extra trust per point of the player's influence

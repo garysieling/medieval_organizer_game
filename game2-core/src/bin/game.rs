@@ -145,7 +145,7 @@ fn main() {
 
         // Win/lose check
         let p = world.get_component::<PlayerCharacter>(player).unwrap();
-        if p.influence > 2.0 {
+        if p.influence > game2_core::game::player::LEAD_INFLUENCE {
             println!("\n*** You are now the recognized leader of the village! ***");
             println!("The Wanderer became someone who matters.");
             break;

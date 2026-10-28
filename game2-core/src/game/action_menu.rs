@@ -71,7 +71,9 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
         MenuActionType::Talk => {
             if let Some(t) = target {
                 let r = act_talk(world, player, t);
-                format!("You talk. {}", r.description)
+                // Name what's actually on their mind right now
+                let concerns = super::organizing::village_concerns(world, &[t]).join(" and ");
+                format!("You talk. {}: {}.", r.description, concerns)
             } else { "No one to talk to.".into() }
         }
         MenuActionType::Recruit => {
@@ -169,6 +171,22 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_talk_names_what_is_on_their_mind() {
+        use crate::game::villager::Hunger;
+        use crate::sim::community::{Citizen, Organization};
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let v = w.create_entity();
+        w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        w.add_component(v, Hunger { value: 10.0 });
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v));
+        assert!(msg.ends_with("learned their concerns: the food running short and fair wages."), "{}", msg);
+    }
 
     #[test]
     fn test_declined_recruit_says_what_is_missing() {

@@ -1566,9 +1566,11 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let dump_at: Option<u64> = args.iter().position(|a| a == "--dump-frame")
         .and_then(|i| args.get(i+1)).and_then(|v| v.parse().ok());
+    // optional --out PATH for the dump (default evidence/frame-check-N.bmp)
+    let out: Option<String> = args.iter().position(|a| a == "--out").and_then(|i| args.get(i + 1)).cloned();
     let art = Art::load("assets");
     if let Some(target) = dump_at {
-        run_headless(&art, target);
+        run_headless(&art, target, out);
         return;
     }
 
@@ -1676,12 +1678,13 @@ fn main() {
 /// Headless verification: play the game (no input) until tick N, then
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
-fn run_headless(art: &Art, target_tick: u64) {
+fn run_headless(art: &Art, target_tick: u64, out: Option<String>) {
     let mut game = Game::new(art);
     while game.tick < target_tick { game.update(); }
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
-    buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
-    println!("frame {} saved", target_tick);
+    let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
+    buf.save_bmp(&path).unwrap();
+    println!("frame {} saved to {}", target_tick, path);
 }
 
 #[cfg(test)]

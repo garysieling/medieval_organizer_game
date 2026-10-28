@@ -41,7 +41,19 @@ pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneO
         }
     }
     let networks = kinds.into_iter()
-        .map(|(k, n)| format!("{} {:?}{}", n, k, if n == 1 { "" } else { "s" }).to_lowercase())
+        .map(|(k, n)| {
+            let (one, many) = match k {
+                RelKind::Family => ("relative", "relatives"),
+                RelKind::Acquaintance => ("acquaintance", "acquaintances"),
+                RelKind::Friend => ("friend", "friends"),
+                RelKind::Rival => ("rival", "rivals"),
+                RelKind::Lover => ("lover", "lovers"),
+                RelKind::Mentor => ("mentor", "mentors"),
+                RelKind::Apprentice => ("apprentice", "apprentices"),
+                RelKind::Stranger => ("stranger", "strangers"),
+            };
+            format!("{} {}", n, if n == 1 { one } else { many })
+        })
         .collect();
 
     OneOnOneResult {
@@ -191,7 +203,7 @@ mod tests {
         let c = w.create_entity();
         w.add_component(c, Citizen { influence: 0.4, authority: 0.0, ideology: "merchant".into(), allegiance: "none".into() });
         w.add_component(c, Hunger { value: 10.0 });
-        for (kind, n) in [(RelKind::Friend, 2), (RelKind::Rival, 1)] {
+        for (kind, n) in [(RelKind::Friend, 2), (RelKind::Rival, 1), (RelKind::Family, 2)] {
             for _ in 0..n {
                 let other = w.create_entity();
                 let r = w.create_entity();
@@ -200,7 +212,7 @@ mod tests {
         }
         let r = one_on_one(&mut w, organizer, c);
         assert_eq!(r.concerns, vec!["the food running short".to_string(), "safe roads".to_string()]);
-        assert_eq!(r.networks, vec!["2 friends".to_string(), "1 rival".to_string()]);
+        assert_eq!(r.networks, vec!["2 friends".to_string(), "1 rival".to_string(), "2 relatives".to_string()]);
         assert!((r.trust_gained - 0.05).abs() < 1e-6, "the conversation really builds trust");
         assert!((r.leadership_potential - 0.6).abs() < 1e-6);
     }

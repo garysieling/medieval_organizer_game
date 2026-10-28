@@ -56,10 +56,10 @@ pub struct AgingSystem;
 impl crate::engine::ecs::System for AgingSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Age>() {
-            // Someone already killed by illness or hunger (Health 0) is dead
-            // here too: mark them so, and they stop aging
-            let health_gone = world.get_component::<crate::sim::illness::Health>(e)
-                .map(|h| h.condition <= 0.0).unwrap_or(false);
+            // Someone already killed by illness or hunger (Health 0, or marked
+            // Dead by the windowed game) is dead here too: mark them so, and
+            // they stop aging
+            let health_gone = crate::game::villager::is_dead(world, e);
             if health_gone {
                 if let Some(a) = world.get_component_mut::<Age>(e) {
                     if a.stage == LifeStage::Dead { continue; }
@@ -94,10 +94,13 @@ impl crate::engine::ecs::System for AgingSystem {
             };
             if died {
                 world.get_component_mut::<Age>(e).unwrap().stage = LifeStage::Dead;
-                // The rest of the sim reads death from Health (hunger, food,
-                // services, grief, pets, orgs), so make it agree
+                // The rest of the sim reads death through villager::is_dead
+                // (hunger, food, services, grief, pets, orgs), so make it
+                // agree: Health to 0, or the Dead marker if there's no Health
                 if let Some(h) = world.get_component_mut::<crate::sim::illness::Health>(e) {
                     h.condition = 0.0;
+                } else {
+                    world.add_component(e, crate::game::villager::Dead);
                 }
             }
         }
@@ -200,5 +203,34 @@ mod tests {
         w.get_component_mut::<Age>(p).unwrap().years = 69.95;
         AgingSystem.run(&mut w);
         assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0);
+    }
+}
+
+#[cfg(test)]
+mod dead_marker_tests {
+    use super::*;
+    use crate::engine::ecs::System;
+    use crate::game::villager::{is_dead, Dead};
+
+    #[test]
+    fn test_old_age_without_health_is_still_seen_as_dead() {
+        let mut w = World::new();
+        let p = spawn_person(&mut w, "Wystan");
+        w.get_component_mut::<Age>(p).unwrap().years = 69.95;
+        AgingSystem.run(&mut w);
+        assert!(is_dead(&w, p), "the rest of the sim should see an old-age death");
+    }
+
+    #[test]
+    fn test_marked_dead_stops_aging() {
+        // the windowed game removes Health on death and marks the villager Dead
+        let mut w = World::new();
+        let p = spawn_person(&mut w, "Bram");
+        w.get_component_mut::<Age>(p).unwrap().years = 30.0;
+        w.add_component(p, Dead);
+        for _ in 0..12 { AgingSystem.run(&mut w); }
+        let a = w.get_component::<Age>(p).unwrap();
+        assert_eq!(a.stage, LifeStage::Dead);
+        assert_eq!(a.years, 30.0);
     }
 }

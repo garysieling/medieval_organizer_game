@@ -35,13 +35,42 @@ fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8, g: u8, b: 
 }
 
 /// Convert world tile coords to screen isometric position
+/// Point the zoom scales about: the centre of the map view, so zooming
+/// keeps what you're looking at on screen
+const ZOOM_PIVOT: (f32, f32) = (MAP_W as f32 / 2.0, H as f32 / 2.0);
+
 fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (i32, i32) {
-    let tw = TILE_W as f32 * zoom;
-    let th = TILE_H as f32 * zoom;
-    let sx = MAP_W as i32 / 2 + ((tx - ty) * tw) as i32 + cam_x;
-    let sy = -60 + ((tx + ty) * th) as i32 + cam_y;
-    (sx, sy)
+    // position at zoom 1, then scaled about the view centre
+    let bx = MAP_W as f32 / 2.0 + (tx - ty) * TILE_W as f32 + cam_x as f32;
+    let by = -60.0 + (tx + ty) * TILE_H as f32 + cam_y as f32;
+    let sx = ZOOM_PIVOT.0 + (bx - ZOOM_PIVOT.0) * zoom;
+    let sy = ZOOM_PIVOT.1 + (by - ZOOM_PIVOT.1) * zoom;
+    (sx.round() as i32, sy.round() as i32)
 }
+
+/// Draw `sprite` with its top-left at (x, y), scaled by `scale`
+fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
+    if (scale - 1.0).abs() < 0.01 {
+        sprite.blit(buf, x, y);
+    } else if (scale - 2.0).abs() < 0.01 {
+        sprite.blit_scaled(buf, x, y, 2);
+    } else {
+        let (w, h) = ((sprite.width as f32 * scale).round().max(1.0) as usize, (sprite.height as f32 * scale).round().max(1.0) as usize);
+        sprite.scaled(w, h).blit(buf, x, y);
+    }
+}
+
+/// Draw a character sprite (a 32px frame drawn 2x at zoom 1) standing on
+/// screen point (sx, sy), at the current zoom
+fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
+    draw_zoomed(buf, sprite, sx - (32.0 * zoom).round() as i32, sy - (60.0 * zoom).round() as i32, 2.0 * zoom);
+}
+
+/// Screen y of a character's head at the current zoom
+fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
+
+/// The point to hand name_label_pos so a label sits just above a zoomed head
+fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
 
 /// Top of a character's head relative to its ground point. Characters are
 /// 32px frames drawn 2x from (sx-32, sy-60), but the figure only fills the
@@ -167,8 +196,11 @@ fn tile_to_minimap(tx: f32, ty: f32) -> (f32, f32) {
 /// Minimap position of a point on screen (inverse of iso_to_screen_cam,
 /// then tile_to_minimap) - used to outline what the screen is showing
 fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (f32, f32) {
-    let diff = (sx - MAP_W as f32 / 2.0 - cam_x as f32) / (TILE_W as f32 * zoom); // tx - ty
-    let sum = (sy + 60.0 - cam_y as f32) / (TILE_H as f32 * zoom);                 // tx + ty
+    // undo the zoom about the view centre, then the zoom-1 projection
+    let bx = ZOOM_PIVOT.0 + (sx - ZOOM_PIVOT.0) / zoom;
+    let by = ZOOM_PIVOT.1 + (sy - ZOOM_PIVOT.1) / zoom;
+    let diff = (bx - MAP_W as f32 / 2.0 - cam_x as f32) / TILE_W as f32; // tx - ty
+    let sum = (by + 60.0 - cam_y as f32) / TILE_H as f32;                 // tx + ty
     tile_to_minimap((sum + diff) / 2.0, (sum - diff) / 2.0)
 }
 
@@ -767,7 +799,8 @@ impl<'a> Game<'a> {
         for (bx, by, sprite) in b_sorted {
             if let Some(s) = sprite {
                 let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
-                s.blit_bottom(&mut buf, sx, sy + (TILE_H as f32 * zoom) as i32);
+                let (w, h) = ((s.width as f32 * zoom) as i32, (s.height as f32 * zoom) as i32);
+                draw_zoomed(&mut buf, s, sx - w / 2, sy + (TILE_H as f32 * zoom) as i32 - h, zoom);
             }
         }
 
@@ -776,14 +809,15 @@ impl<'a> Game<'a> {
             for (i, (bx, by, _)) in self.buildings.iter().enumerate().take(3) {
                 let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
                 let drift = ((tick + i as u64 * 7) % 30) as i32;
-                sm.blit(&mut buf, sx - 6, sy - 40 - drift);
+                draw_zoomed(&mut buf, sm, sx - (6.0 * zoom) as i32, sy - ((40 + drift) as f32 * zoom) as i32, zoom);
             }
         }
 
         // windmill: animated blades (frame cycles every 10 ticks)
         let mill_frame = &art.mill_frames[((tick / 10) % 4) as usize];
         let (msx, msy) = iso_to_screen_cam(MILL_TILE.0, MILL_TILE.1, cam_x, cam_y, zoom);
-        mill_frame.blit_center(&mut buf, msx, msy);
+        let (mw, mh) = ((mill_frame.width as f32 * zoom) as i32, (mill_frame.height as f32 * zoom) as i32);
+        draw_zoomed(&mut buf, mill_frame, msx - mw / 2, msy - mh, zoom); // bottom-centred, as blit_center does
 
         // market food stock: shown in the HUD (top-left), not on the market
         // tile, where villagers always gather to eat and covered it up
@@ -801,8 +835,8 @@ impl<'a> Game<'a> {
         let mut labels: Vec<(&str, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
         for (i, wx, wy) in v_sorted {
             let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
-            art.villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
-            let (lx, ly) = name_label_pos(sx, sy, NAMES[i]);
+            draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
+            let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), NAMES[i]);
             // grave if dead (no Health component)
             if world.get_component::<Health>(villagers[i]).is_none() {
                 buf.rect(sx - 4, sy - 10, 8, 10, 120, 120, 130); // gravestone
@@ -813,14 +847,14 @@ impl<'a> Game<'a> {
             labels.push((NAMES[i], lx, ly, (255, 255, 255), hungry, i == selected_target));
             // sick: a green cross on the other side of the head
             if is_sick(world, villagers[i]) {
-                draw_text_outlined(&mut buf, sx - 16, sy + SPRITE_HEAD, "+", 140, 230, 110);
+                draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), "+", 140, 230, 110);
             }
             // activity marker beside the head
             if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
                 match vil.activity {
-                    Activity::SeekingFood => { draw_text_outlined(&mut buf, sx + 10, sy + SPRITE_HEAD, "o", 255, 200, 100); }
+                    Activity::SeekingFood => { draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), "o", 255, 200, 100); }
                     Activity::Idle => {},
-                    _ => { draw_text_outlined(&mut buf, sx + 10, sy + SPRITE_HEAD, "*", 180, 180, 255); }
+                    _ => { draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), "*", 180, 180, 255); }
                 }
             }
         }
@@ -843,9 +877,9 @@ impl<'a> Game<'a> {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                 // rival sprite tinted different
                 if let Some(rs) = &art.player_s {
-                    rs.blit_scaled(&mut buf, sx - 32, sy - 60, 2);
+                    draw_character(&mut buf, rs, sx, sy, zoom);
                 }
-                let (lx, ly) = name_label_pos(sx, sy, RIVAL_NAMES[i]);
+                let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), RIVAL_NAMES[i]);
                 labels.push((RIVAL_NAMES[i], lx, ly, (255, 140, 140), false, false));
             }
         }
@@ -854,13 +888,13 @@ impl<'a> Game<'a> {
         let player_pos = self.player_pos();
         let (px, py) = iso_to_screen_cam(player_pos.0, player_pos.1, cam_x, cam_y, zoom);
         if let Some(ps) = &art.player_s {
-            ps.blit_scaled(&mut buf, px - 32, py - 60, 2);
+            draw_character(&mut buf, ps, px, py, zoom);
             // gold ring under player
             buf.rect(px - 12, py - 4, 24, 3, 255, 215, 0);
         } else {
             draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         }
-        let (lx, ly) = name_label_pos(px, py, "YOU");
+        let (lx, ly) = name_label_pos(px, label_anchor(py, zoom), "YOU");
         labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
@@ -1464,6 +1498,40 @@ mod log_priority_tests {
 }
 
 #[cfg(test)]
+mod zoom_tests {
+    use super::*;
+
+    #[test]
+    fn test_zoom_keeps_the_view_centre_still() {
+        // whatever sits at the middle of the map view stays there as you zoom
+        let (cx, cy) = (ZOOM_PIVOT.0 as i32, ZOOM_PIVOT.1 as i32);
+        let (tx, ty) = (11.4f32, 11.4f32); // a tile near the view centre at zoom 1, camera at rest
+        let at1 = iso_to_screen_cam(tx, ty, 0, 0, 1.0);
+        for z in [0.5, 1.5, 2.0] {
+            let at = iso_to_screen_cam(tx, ty, 0, 0, z);
+            let (d1, dz) = ((at1.0 - cx).abs() + (at1.1 - cy).abs(), (at.0 - cx).abs() + (at.1 - cy).abs());
+            assert!(dz as f32 <= d1 as f32 * z.max(1.0) + 2.0, "zoom {} moved the centre tile from {:?} to {:?}", z, at1, at);
+        }
+    }
+
+    #[test]
+    fn test_sprites_scale_with_zoom() {
+        let sprite = Sprite { width: 20, height: 10, pixels: vec![255; 20 * 10 * 4] };
+        let count = |scale: f32| {
+            let mut buf = Buffer::new(100, 100);
+            draw_zoomed(&mut buf, &sprite, 10, 10, scale);
+            buf.pixels.chunks(4).filter(|p| p[0] == 255).count()
+        };
+        assert_eq!(count(1.0), 200);
+        assert_eq!(count(0.5), 50, "half zoom should draw a quarter of the pixels");
+        assert_eq!(count(2.0), 800);
+        // and labels follow a zoomed head
+        assert_eq!(head_y(300, 2.0), 300 + 2 * SPRITE_HEAD);
+        assert_eq!(name_label_pos(0, label_anchor(300, 0.5), "X").1 + GLYPH_H + 4, head_y(300, 0.5));
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -1566,9 +1634,11 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let dump_at: Option<u64> = args.iter().position(|a| a == "--dump-frame")
         .and_then(|i| args.get(i+1)).and_then(|v| v.parse().ok());
+    // optional --out PATH for the dump (default evidence/frame-check-N.bmp)
+    let out: Option<String> = args.iter().position(|a| a == "--out").and_then(|i| args.get(i + 1)).cloned();
     let art = Art::load("assets");
     if let Some(target) = dump_at {
-        run_headless(&art, target);
+        run_headless(&art, target, out);
         return;
     }
 
@@ -1676,12 +1746,13 @@ fn main() {
 /// Headless verification: play the game (no input) until tick N, then
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
-fn run_headless(art: &Art, target_tick: u64) {
+fn run_headless(art: &Art, target_tick: u64, out: Option<String>) {
     let mut game = Game::new(art);
     while game.tick < target_tick { game.update(); }
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
-    buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
-    println!("frame {} saved", target_tick);
+    let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
+    buf.save_bmp(&path).unwrap();
+    println!("frame {} saved to {}", target_tick, path);
 }
 
 #[cfg(test)]

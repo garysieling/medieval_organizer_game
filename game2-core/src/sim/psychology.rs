@@ -105,17 +105,23 @@ pub struct Mourned;
 /// Relationship strength at which someone grieves a death
 pub const GRIEF_TIE: f32 = 0.3;
 
-/// System: when someone dies (health 0), everyone still alive who was
-/// attached to them - their primary bond, or a relationship of at least
-/// GRIEF_TIE - records a Loss episode, shaking their attachment security.
-/// Each death is grieved once.
+/// System: when someone dies (villager::is_dead - health 0, or marked Dead
+/// as the windowed game does after removing Health), everyone still alive
+/// who was attached to them - their primary bond, or a relationship of at
+/// least GRIEF_TIE - records a Loss episode, shaking their attachment
+/// security. Each death is grieved once.
 pub struct GriefSystem;
 impl crate::engine::ecs::System for GriefSystem {
     fn run(&mut self, world: &mut World) {
         use crate::game::relationships::{find_relationship, Relationship};
+        use crate::game::villager::{is_dead, Dead};
         use crate::sim::illness::Health;
-        let dead_now = |w: &World, e: Entity| w.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false);
-        let newly_dead: Vec<Entity> = world.query::<Health>().into_iter()
+        let dead_now = |w: &World, e: Entity| is_dead(w, e);
+        let mut candidates = world.query::<Health>();
+        candidates.extend(world.query::<Dead>());
+        candidates.sort_unstable();
+        candidates.dedup();
+        let newly_dead: Vec<Entity> = candidates.into_iter()
             .filter(|&e| dead_now(world, e) && world.get_component::<Mourned>(e).is_none())
             .collect();
         for dead in newly_dead {
@@ -234,5 +240,19 @@ mod tests {
         assert_eq!(w.get_component::<AttachmentHistory>(friend).unwrap().anxiety_episodes, 1);
         assert!(w.get_component::<Bond>(friend).is_none(), "grief doesn't bond the friend to the dead");
         assert_eq!(w.get_component::<AttachmentHistory>(stranger).unwrap().anxiety_episodes, 0);
+    }
+
+    #[test]
+    fn test_death_marked_without_health_is_grieved() {
+        // the windowed game removes Health on death and marks the villager Dead
+        use crate::engine::ecs::System;
+        let mut w = World::new();
+        let elder = w.create_entity();
+        let child = w.create_entity();
+        w.add_component(child, AttachmentHistory { anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+        w.add_component(child, Bond { target: elder, security: 0.8 });
+        w.add_component(elder, crate::game::villager::Dead);
+        GriefSystem.run(&mut w);
+        assert_eq!(w.get_component::<AttachmentHistory>(child).unwrap().anxiety_episodes, 1);
     }
 }

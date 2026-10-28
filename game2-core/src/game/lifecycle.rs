@@ -56,6 +56,21 @@ pub struct AgingSystem;
 impl crate::engine::ecs::System for AgingSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Age>() {
+            // Someone already killed by illness or hunger (Health 0) is dead
+            // here too: mark them so, and they stop aging
+            let health_gone = world.get_component::<crate::sim::illness::Health>(e)
+                .map(|h| h.condition <= 0.0).unwrap_or(false);
+            if health_gone {
+                if let Some(a) = world.get_component_mut::<Age>(e) {
+                    if a.stage == LifeStage::Dead { continue; }
+                    a.stage = LifeStage::Dead;
+                }
+                if let Some(v) = world.get_component_mut::<Vitality>(e) {
+                    v.health = 0.0;
+                    v.cause_of_death.get_or_insert_with(|| "illness or hunger".to_string());
+                }
+                continue;
+            }
             let years = match world.get_component_mut::<Age>(e) {
                 Some(a) if a.stage != LifeStage::Dead => {
                     a.years += 0.083;
@@ -79,6 +94,11 @@ impl crate::engine::ecs::System for AgingSystem {
             };
             if died {
                 world.get_component_mut::<Age>(e).unwrap().stage = LifeStage::Dead;
+                // The rest of the sim reads death from Health (hunger, food,
+                // services, grief, pets, orgs), so make it agree
+                if let Some(h) = world.get_component_mut::<crate::sim::illness::Health>(e) {
+                    h.condition = 0.0;
+                }
             }
         }
     }
@@ -155,5 +175,30 @@ mod tests {
         for _ in 0..120 { AgingSystem.run(&mut w); }
         assert_eq!(w.get_component::<Age>(p).unwrap().stage, LifeStage::Adult);
         assert!(w.get_component::<Vitality>(p).unwrap().cause_of_death.is_none());
+    }
+
+    #[test]
+    fn test_death_from_illness_or_hunger_ends_aging() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let p = spawn_person(&mut w, "Bram");
+        w.get_component_mut::<Age>(p).unwrap().years = 30.0;
+        w.add_component(p, Health { condition: 0.0, immunity: 0.5 });
+        for _ in 0..12 { AgingSystem.run(&mut w); }
+        let a = w.get_component::<Age>(p).unwrap();
+        assert_eq!(a.stage, LifeStage::Dead);
+        assert_eq!(a.years, 30.0, "the dead stop aging");
+        assert_eq!(w.get_component::<Vitality>(p).unwrap().cause_of_death.as_deref(), Some("illness or hunger"));
+    }
+
+    #[test]
+    fn test_old_age_death_is_seen_by_the_rest_of_the_sim() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let p = spawn_person(&mut w, "Wystan");
+        w.add_component(p, Health { condition: 0.9, immunity: 0.5 });
+        w.get_component_mut::<Age>(p).unwrap().years = 69.95;
+        AgingSystem.run(&mut w);
+        assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0);
     }
 }

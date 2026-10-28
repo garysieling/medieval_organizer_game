@@ -192,6 +192,17 @@ fn visible_log(log: &[String]) -> Vec<&String> {
     }).collect()
 }
 
+/// Split a log entry stored as "t120: message" into the day the player
+/// sees ("day 120", matching the HUD) and the message
+fn log_parts(entry: &str) -> (Option<String>, &str) {
+    if let Some((stamp, msg)) = entry.split_once(": ") {
+        if let Some(day) = stamp.strip_prefix('t').filter(|d| !d.is_empty() && d.chars().all(|c| c.is_ascii_digit())) {
+            return (Some(format!("day {}", day)), msg);
+        }
+    }
+    (None, entry)
+}
+
 /// Colour for a log entry: deaths red, guild events gold, joins green,
 /// weather/illness cyan, idle gossip dimmed so real events stand out
 fn log_colour(entry: &str) -> (u8, u8, u8) {
@@ -305,6 +316,13 @@ const MARK_SICK: (&str, (u8, u8, u8), &str) = ("+", (140, 230, 110), "sick");
 const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK_BUSY, MARK_SICK];
 /// The legend's row, between the log box and the bottom of the window
 const LEGEND_Y: i32 = 627;
+
+/// Whether the crowd-separation pass may push this villager aside: not the
+/// dead, and not someone on their way to food
+fn makes_room(world: &World, v: Entity) -> bool {
+    !villager::is_dead(world, v)
+        && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
+}
 
 /// How fed a villager is, in words. `Hunger` stores fullness (100 = just
 /// ate, 0 = starving), so the raw number reads backwards as "hunger".
@@ -738,11 +756,14 @@ impl<'a> Game<'a> {
                     let d = d2.sqrt();
                     let push = (3.0 - d) * 0.08;
                     let nx = dx / d * push; let ny = dy / d * push;
-                    // a grave stays put; the living step around it
-                    if !villager::is_dead(world, villagers[i]) {
+                    // a grave stays put; the living step around it. Nor is
+                    // anyone shoved who's going for food: the push reaches 3
+                    // tiles but eating needs 1, so two hungry villagers at
+                    // the store pushed each other out of reach and starved
+                    if makes_room(world, villagers[i]) {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
                     }
-                    if !villager::is_dead(world, villagers[j]) {
+                    if makes_room(world, villagers[j]) {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
                     }
                 }
@@ -1091,9 +1112,19 @@ impl<'a> Game<'a> {
         let mut row = 0;
         'log: for entry in visible_log(&self.log) {
             let (r, g, b) = log_colour(entry);
-            for line in wrap_text(entry, LOG_CHARS) {
+            // "day 120" in dim grey, then the message in its colour
+            let (day, msg) = log_parts(entry);
+            let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
+            for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
                 if row == LOG_ROWS { break 'log; }
-                draw_text(&mut buf, UI_X as i32 + 14, 468 + row as i32 * 12, &line, r, g, b);
+                let y = 468 + row as i32 * 12;
+                match &day {
+                    Some(d) if n == 0 && line.starts_with(d.as_str()) => {
+                        draw_text(&mut buf, UI_X as i32 + 14, y, d, 120, 120, 145);
+                        draw_text(&mut buf, UI_X as i32 + 14 + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
+                    }
+                    _ => { draw_text(&mut buf, UI_X as i32 + 14, y, line, r, g, b); }
+                }
                 row += 1;
             }
         }
@@ -1700,6 +1731,63 @@ mod legend_tests {
             }));
             assert!(found, "the legend doesn't show '{}' ({})", m, word);
         }
+    }
+}
+
+#[cfg(test)]
+mod log_day_tests {
+    use super::*;
+
+    #[test]
+    fn test_log_entries_show_the_day_like_the_hud() {
+        assert_eq!(log_parts("t120: Bram has the flu"), (Some("day 120".into()), "Bram has the flu"));
+        assert_eq!(log_parts("Welcome to the village."), (None, "Welcome to the village."));
+        assert_eq!(log_parts("tea: not a day"), (None, "tea: not a day"));
+    }
+
+    #[test]
+    fn test_the_log_draws_the_day_dim_and_the_message_in_colour() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        game.log.push("t5: The Merchant Guild formed!".into());
+        let buf = game.render((-1, -1));
+        let row = |x0: i32, x1: i32, rgb: (u8, u8, u8)| (468..468 + GLYPH_H).any(|y| (x0..x1).any(|x| {
+            let i = (y as usize * W + x as usize) * 4;
+            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb
+        }));
+        let x = UI_X as i32 + 14;
+        let msg_x = x + 6 * GLYPH_W; // after "day 5 "
+        assert!(row(x, msg_x - GLYPH_W, (120, 120, 145)), "the day stamp should be dim");
+        assert!(!row(x, msg_x - GLYPH_W, (255, 215, 0)), "the day stamp shouldn't take the message colour");
+        assert!(row(msg_x, msg_x + 10 * GLYPH_W, (255, 215, 0)), "the guild message keeps its gold");
+    }
+}
+
+#[cfg(test)]
+mod food_reach_tests {
+    use super::*;
+
+    #[test]
+    fn test_no_one_starves_beside_a_full_store() {
+        // the crowd-separation push (3 tiles) used to hold hungry villagers
+        // out of eating reach (1 tile) of the store: on main they sat at zero
+        // hunger for up to 75 days in a row while it held ~480 servings
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        let (mut last, mut run, mut worst) = (0, [0u64; 5], 0u64);
+        while game.tick < 720 {
+            game.update();
+            if game.tick == last { continue; }
+            last = game.tick;
+            for (k, &v) in game.villagers.iter().enumerate() {
+                let empty = game.world.get_component::<Hunger>(v).map(|h| h.value <= 0.0).unwrap_or(false);
+                run[k] = if empty { run[k] + 1 } else { 0 };
+                worst = worst.max(run[k]);
+            }
+        }
+        let servings = game.world.get_component::<villager::FoodSource>(game.market_food).unwrap().servings;
+        assert!(servings > 0, "the store ran out - this test is about reach, not supply");
+        assert!(worst <= 5, "a villager went {} days at zero hunger with {} servings in the store", worst, servings);
     }
 }
 

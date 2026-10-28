@@ -115,7 +115,12 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             if seal_aid_pact(world, player, t, &mut gold).is_none() {
                 return format!("A pact means giving {:.0} gold of aid; you have {:.0}.", PACT_AID, gold);
             }
-            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) { p.resources = gold; }
+            // Aid to a villager is an investment in the village, like the hall:
+            // it earns the influence the same gold would have through Invest
+            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
+                p.resources = gold;
+                p.influence += PACT_AID * super::player::INVEST_INFLUENCE_PER_GOLD;
+            }
             format!("You seal a mutual-aid pact and give {:.0} gold of help. They won't forget it.", PACT_AID)
         }
         MenuActionType::Build => {
@@ -127,7 +132,13 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             if gold < HALL_COST {
                 return format!("A meeting hall costs {:.0} gold; you have {:.0}.", HALL_COST, gold);
             }
-            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) { p.resources -= HALL_COST; }
+            // The hall is an investment in the village: it earns the influence
+            // the same gold would have through Invest, so building it never
+            // puts the win (which needs every coin's worth) out of reach
+            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
+                p.resources -= HALL_COST;
+                p.influence += HALL_COST * super::player::INVEST_INFLUENCE_PER_GOLD;
+            }
             world.add_component(org, MeetingHall);
             format!("You build a meeting hall ({:.0} gold). From now on your house meetings share a meal.", HALL_COST)
         }
@@ -208,6 +219,47 @@ mod tests {
         for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
         let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
         assert!(infl > 2.0, "organized the whole village and invested everything, yet influence is {:.2} (win at 2.0)", infl);
+    }
+
+    #[test]
+    fn test_building_the_hall_doesnt_put_the_win_out_of_reach() {
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
+        // Build the hall first, then the same route as above
+        execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        for &v in &villagers {
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+        }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
+        assert!(infl > 2.0, "built the hall, organized everyone and invested the rest, yet influence is {:.2} (win at 2.0)", infl);
+    }
+
+    #[test]
+    fn test_pacts_dont_put_the_win_out_of_reach() {
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
+        // Spend gold every way there is - the hall and a pact with everyone - then win
+        execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        for &v in &villagers {
+            execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v));
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+        }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
+        assert!(infl > 2.0, "spent gold on the hall and pacts, yet influence is {:.2} (win at 2.0)", infl);
     }
 
     #[test]

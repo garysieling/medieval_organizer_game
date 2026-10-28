@@ -83,9 +83,9 @@ pub fn perform_service(world: &mut World, cong: Entity, service: Service) -> usi
         Some(c) => c.members.clone(),
         None => return 0,
     };
-    // The dead (health 0) neither attend nor receive aid
-    let alive = |w: &World, e: Entity| w.get_component::<crate::sim::illness::Health>(e)
-        .map(|h| h.condition > 0.0).unwrap_or(true);
+    // The dead neither attend nor receive aid (villager::is_dead: health 0,
+    // or the Dead marker the windowed game leaves after removing Health)
+    let alive = |w: &World, e: Entity| !crate::game::villager::is_dead(w, e);
     let present: Vec<Entity> = service.participants.iter()
         .copied()
         .filter(|p| members.contains(p) && alive(world, *p))
@@ -330,5 +330,24 @@ mod tests {
         assert!(with_corpse > 5.0, "the living member still gets the whole share");
         // the corpse doesn't split the pool: the living get a lone needy member's share
         assert!((with_corpse - (5.0 + 0.1 * AID_PER_GIVER)).abs() < 1e-4, "got {}", with_corpse);
+    }
+
+    #[test]
+    fn test_dead_marker_without_health_still_counts_as_dead() {
+        // The windowed game removes Health on death and leaves a Dead marker
+        let mut w = World::new();
+        let corpse = believer(&mut w, 0.5);
+        w.add_component(corpse, Hunger { value: 80.0 });
+        w.add_component(corpse, crate::game::villager::Dead);
+        let hungry = believer(&mut w, 0.5);
+        w.add_component(hungry, Hunger { value: 5.0 });
+        let c = congregation(&mut w, vec![corpse, hungry]);
+        let attended = perform_service(&mut w, c, Service {
+            name: "Rite".into(), frequency: "weekly".into(),
+            participants: vec![corpse], cohesion_boost: 0.2, charity_output: 0.5,
+        });
+        assert_eq!(attended, 0);
+        assert_eq!(w.get_component::<Faith>(corpse).unwrap().devotion, 0.5);
+        assert_eq!(w.get_component::<Hunger>(hungry).unwrap().value, 5.0, "a marked-dead villager gives no charity");
     }
 }

@@ -60,6 +60,18 @@ fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     }
 }
 
+/// Draw a character sprite (a 32px frame drawn 2x at zoom 1) standing on
+/// screen point (sx, sy), at the current zoom
+fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
+    draw_zoomed(buf, sprite, sx - (32.0 * zoom).round() as i32, sy - (60.0 * zoom).round() as i32, 2.0 * zoom);
+}
+
+/// Screen y of a character's head at the current zoom
+fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
+
+/// The point to hand name_label_pos so a label sits just above a zoomed head
+fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
+
 /// Height of a speech bubble
 const BUBBLE_H: i32 = 18;
 
@@ -74,18 +86,6 @@ fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str) -> Option<(i32, i32, i32
     let by = (label_top - BUBBLE_H - 8).max(4);
     Some((bx, by, bw))
 }
-
-/// Draw a character sprite (a 32px frame drawn 2x at zoom 1) standing on
-/// screen point (sx, sy), at the current zoom
-fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    draw_zoomed(buf, sprite, sx - (32.0 * zoom).round() as i32, sy - (60.0 * zoom).round() as i32, 2.0 * zoom);
-}
-
-/// Screen y of a character's head at the current zoom
-fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
-
-/// The point to hand name_label_pos so a label sits just above a zoomed head
-fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
 
 /// Top of a character's head relative to its ground point. Characters are
 /// 32px frames drawn 2x from (sx-32, sy-60), but the figure only fills the
@@ -1515,6 +1515,34 @@ mod log_priority_tests {
 }
 
 #[cfg(test)]
+mod bubble_tests {
+    use super::*;
+
+    #[test]
+    fn test_bubbles_stay_inside_the_map_view() {
+        let text = "the lord's taxes are heavy";
+        // near the right edge: pulled left so it doesn't spill into the panel
+        let (bx, _, bw) = bubble_rect(MAP_W as i32 - 10, 300, 1.0, text).unwrap();
+        assert!(bx + bw <= MAP_W as i32 - 4, "bubble runs into the panel: {}..{}", bx, bx + bw);
+        // near the left and top edges: pushed back on screen
+        let (bx, by, _) = bubble_rect(5, 20, 1.0, text).unwrap();
+        assert!(bx >= 4 && by >= 4);
+        // a speaker under the panel or off screen gets no bubble at all
+        assert_eq!(bubble_rect(MAP_W as i32 + 40, 300, 1.0, text), None);
+        assert_eq!(bubble_rect(-30, 300, 1.0, text), None);
+    }
+
+    #[test]
+    fn test_bubble_clears_the_name_label_at_any_zoom() {
+        for z in [0.5f32, 1.0, 2.0] {
+            let (_, by, _) = bubble_rect(300, 400, z, "hello").unwrap();
+            let (_, label_y) = name_label_pos(300, label_anchor(400, z), "hello");
+            assert!(by + BUBBLE_H <= label_y, "zoom {}: bubble (bottom {}) overlaps the name label (top {})", z, by + BUBBLE_H, label_y);
+        }
+    }
+}
+
+#[cfg(test)]
 mod zoom_tests {
     use super::*;
 
@@ -1545,34 +1573,6 @@ mod zoom_tests {
         // and labels follow a zoomed head
         assert_eq!(head_y(300, 2.0), 300 + 2 * SPRITE_HEAD);
         assert_eq!(name_label_pos(0, label_anchor(300, 0.5), "X").1 + GLYPH_H + 4, head_y(300, 0.5));
-    }
-}
-
-#[cfg(test)]
-mod bubble_tests {
-    use super::*;
-
-    #[test]
-    fn test_bubbles_stay_inside_the_map_view() {
-        let text = "the lord's taxes are heavy";
-        // near the right edge: pulled left so it doesn't spill into the panel
-        let (bx, _, bw) = bubble_rect(MAP_W as i32 - 10, 300, 1.0, text).unwrap();
-        assert!(bx + bw <= MAP_W as i32 - 4, "bubble runs into the panel: {}..{}", bx, bx + bw);
-        // near the left and top edges: pushed back on screen
-        let (bx, by, _) = bubble_rect(5, 20, 1.0, text).unwrap();
-        assert!(bx >= 4 && by >= 4);
-        // a speaker under the panel or off screen gets no bubble at all
-        assert_eq!(bubble_rect(MAP_W as i32 + 40, 300, 1.0, text), None);
-        assert_eq!(bubble_rect(-30, 300, 1.0, text), None);
-    }
-
-    #[test]
-    fn test_bubble_clears_the_name_label_at_any_zoom() {
-        for z in [0.5f32, 1.0, 2.0] {
-            let (_, by, _) = bubble_rect(300, 400, z, "hello").unwrap();
-            let (_, label_y) = name_label_pos(300, label_anchor(400, z), "hello");
-            assert!(by + BUBBLE_H <= label_y, "zoom {}: bubble (bottom {}) overlaps the name label (top {})", z, by + BUBBLE_H, label_y);
-        }
     }
 }
 

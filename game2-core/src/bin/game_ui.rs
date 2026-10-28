@@ -1046,8 +1046,8 @@ impl<'a> Game<'a> {
 
         // status: influence bar, members, season, tick
         let p = world.get_component::<PlayerCharacter>(self.player).unwrap();
-        let members = world.get_component::<Organization>(self.org).unwrap().members.len();
-        let guilds = world.query::<Guild>().len();
+        let org = world.get_component::<Organization>(self.org).unwrap();
+        let guild = world.query::<Guild>().first().and_then(|g| world.get_component::<Guild>(*g)).map(|g| g.members.len());
         // influence bar runs to the win: reach WIN_INFLUENCE and the village
         // follows you; the tick marks where recruiting starts to work
         const BAR_W: i32 = 120;
@@ -1057,8 +1057,8 @@ impl<'a> Game<'a> {
         draw_rect(&mut buf, UI_X as i32 + 70, 30, infl_w, 10, 255, 200, 80);
         let recruit_x = UI_X as i32 + 70 + ((recruit_influence_needed() / WIN_INFLUENCE) * BAR_W as f32) as i32;
         draw_rect(&mut buf, recruit_x, 28, 1, 14, 120, 255, 120);
-        draw_text(&mut buf, UI_X as i32 + 70 + BAR_W + 6, 31, &format!("{:.2}/{:.1}", p.influence, WIN_INFLUENCE), 255, 220, 130);
-        draw_text(&mut buf, UI_X as i32 + 10, 44, &format!("Org {} | Guilds {} | Gold {:.0} | lead at {:.1}", members, guilds, p.resources, WIN_INFLUENCE), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 70 + BAR_W + 6, 31, &format!("{:.2}/{:.1} lead", p.influence, WIN_INFLUENCE), 255, 220, 130);
+        draw_text(&mut buf, UI_X as i32 + 10, 44, &status_line(&org.name, org.members.len(), p.resources, guild), 200, 200, 200);
 
         // buttons
         for (i, b) in self.buttons.iter().enumerate() {
@@ -1871,6 +1871,21 @@ mod blocker_tests {
 }
 
 #[cfg(test)]
+mod status_line_tests {
+    use super::*;
+
+    #[test]
+    fn test_status_line_names_things_and_fits() {
+        assert_eq!(status_line("The Harvesters", 5, 0.0, Some(3)), "Harvesters 5 | Gold 0 | Merchant Guild 3");
+        assert_eq!(status_line("The Harvesters", 0, 100.0, None), "Harvesters 0 | Gold 100 | no guild yet");
+        // the widest it gets still fits the panel
+        let widest = status_line("The Harvesters", 5, 9999.0, Some(99));
+        assert!(UI_X as i32 + 10 + text_width(&widest, 1) <= W as i32 - 6, "{} runs off the panel", widest);
+        assert!(UI_X as i32 + 70 + 120 + 6 + text_width("1.99/2.0 lead", 1) <= W as i32 - 4);
+    }
+}
+
+#[cfg(test)]
 mod panel_tests {
     use super::*;
 
@@ -1998,6 +2013,14 @@ fn draw_help(buf: &mut Buffer) {
         draw_text(buf, cx - block / 2, y + 55 + i as i32 * HELP_ROW, l, 210, 210, 210);
     }
     draw_centered_at(buf, cx, y + h - 22, "press H to close", 1, (150, 150, 170));
+}
+
+/// The panel's status line: your organization by name, your gold, and the
+/// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
+/// 2.0" - a count of guild objects, and the goal the bar already shows)
+fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> String {
+    let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
+    format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
 }
 
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px

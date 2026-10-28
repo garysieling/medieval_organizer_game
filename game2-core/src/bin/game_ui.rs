@@ -2015,8 +2015,6 @@ fn draw_help(buf: &mut Buffer) {
     draw_centered_at(buf, cx, y + h - 22, "press H to close", 1, (150, 150, 170));
 }
 
-/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
-/// spacing, and the last space doesn't count
 /// The panel's status line: your organization by name, your gold, and the
 /// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
 /// 2.0" - a count of guild objects, and the goal the bar already shows)
@@ -2025,6 +2023,8 @@ fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> St
     format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
 }
 
+/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
+/// spacing, and the last space doesn't count
 fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }

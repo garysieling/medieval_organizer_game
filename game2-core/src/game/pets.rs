@@ -81,13 +81,41 @@ fn can_care(world: &World, owner: Entity) -> bool {
     fed && well
 }
 
+fn is_dead(world: &World, e: Entity) -> bool {
+    world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
+}
+
+/// Who takes in a pet when its owner dies: the living person the owner was
+/// closest to (strongest positive relationship), if anyone
+fn next_keeper(world: &World, dead_owner: Entity) -> Option<Entity> {
+    use crate::game::relationships::Relationship;
+    world.query::<Relationship>().into_iter()
+        .filter_map(|r| world.get_component::<Relationship>(r))
+        .filter_map(|r| {
+            let other = if r.from == dead_owner { r.other } else if r.other == dead_owner { r.from } else { return None };
+            (r.strength > 0.0 && !is_dead(world, other)).then_some((other, r.strength))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(e, _)| e)
+}
+
 /// System: bonds strengthen with care over time, and fray when the owner
-/// is too hungry or sick to look after the pet
+/// is too hungry or sick to look after the pet. When the owner dies, the
+/// person they were closest to takes the pet in and the bond starts over;
+/// with no one to take it, the pet becomes a stray.
 pub struct PetBondSystem;
 impl crate::engine::ecs::System for PetBondSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Pet>() {
             let Some(owner) = world.get_component::<Pet>(e).and_then(|p| p.owner) else { continue };
+            if is_dead(world, owner) {
+                let keeper = next_keeper(world, owner);
+                if let Some(p) = world.get_component_mut::<Pet>(e) {
+                    p.owner = keeper;
+                    p.bond_strength = 0.0;
+                }
+                continue;
+            }
             let cared_for = can_care(world, owner);
             if let Some(p) = world.get_component_mut::<Pet>(e) {
                 p.bond_strength = if cared_for {
@@ -167,5 +195,41 @@ mod tests {
         let (farmer, horse) = owner_with_dog(&mut w, 80.0, PetRole::Labor);
         w.get_component_mut::<Pet>(horse).unwrap().bond_strength = 0.8;
         assert_eq!(comforting_pet(&w, farmer), None, "a work animal offers no comfort");
+    }
+
+    #[test]
+    fn test_pet_goes_to_closest_survivor_when_owner_dies() {
+        use crate::game::relationships::{Relationship, RelKind};
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let (owner, dog) = owner_with_dog(&mut w, 80.0, PetRole::Companion);
+        w.add_component(owner, Health { condition: 0.9, immunity: 0.5 });
+        let rel = |w: &mut World, other: Entity, strength: f32| {
+            let r = w.create_entity();
+            w.add_component(r, Relationship { from: owner, other, kind: RelKind::Friend, strength, interactions: 5 });
+        };
+        let (friend, best_friend, rival) = (w.create_entity(), w.create_entity(), w.create_entity());
+        rel(&mut w, friend, 0.4);
+        rel(&mut w, best_friend, 0.8);
+        rel(&mut w, rival, -0.6);
+        for _ in 0..40 { PetBondSystem.run(&mut w); }
+        assert!(bond(&w, dog) > 0.1);
+
+        w.get_component_mut::<Health>(owner).unwrap().condition = 0.0;
+        PetBondSystem.run(&mut w);
+        let p = w.get_component::<Pet>(dog).unwrap();
+        assert_eq!(p.owner, Some(best_friend), "the closest survivor takes the dog in");
+        assert_eq!(p.bond_strength, 0.0, "and has to build the bond from scratch");
+    }
+
+    #[test]
+    fn test_pet_with_no_one_left_becomes_a_stray() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let (owner, dog) = owner_with_dog(&mut w, 80.0, PetRole::Companion);
+        w.add_component(owner, Health { condition: 0.0, immunity: 0.5 });
+        PetBondSystem.run(&mut w);
+        assert_eq!(w.get_component::<Pet>(dog).unwrap().owner, None);
+        PetBondSystem.run(&mut w); // strays are left alone
     }
 }

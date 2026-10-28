@@ -76,6 +76,7 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         EpisodeKind::Loss => -0.3,
     };
     let target = episode.with;
+    let is_loss = matches!(episode.kind, EpisodeKind::Loss);
     if let Some(hist) = world.get_component_mut::<AttachmentHistory>(agent) {
         match episode.kind {
             EpisodeKind::Warmth => hist.warmth_episodes += 1,
@@ -90,8 +91,48 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
             b.security = (b.security + bond_update).clamp(0.0, 1.0);
         }
         Some(_) => {}
+        None if is_loss => {} // losing someone doesn't form a first bond with them
         None => {
             world.add_component(agent, Bond { target, security: (0.5 + bond_update).clamp(0.0, 1.0) });
+        }
+    }
+}
+
+/// Marks someone whose death has already been grieved
+#[derive(Debug)]
+pub struct Mourned;
+
+/// Relationship strength at which someone grieves a death
+pub const GRIEF_TIE: f32 = 0.3;
+
+/// System: when someone dies (health 0), everyone still alive who was
+/// attached to them - their primary bond, or a relationship of at least
+/// GRIEF_TIE - records a Loss episode, shaking their attachment security.
+/// Each death is grieved once.
+pub struct GriefSystem;
+impl crate::engine::ecs::System for GriefSystem {
+    fn run(&mut self, world: &mut World) {
+        use crate::game::relationships::{find_relationship, Relationship};
+        use crate::sim::illness::Health;
+        let dead_now = |w: &World, e: Entity| w.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false);
+        let newly_dead: Vec<Entity> = world.query::<Health>().into_iter()
+            .filter(|&e| dead_now(world, e) && world.get_component::<Mourned>(e).is_none())
+            .collect();
+        for dead in newly_dead {
+            world.add_component(dead, Mourned);
+            let mourners: Vec<Entity> = world.query::<AttachmentHistory>().into_iter()
+                .filter(|&m| m != dead && !dead_now(world, m))
+                .filter(|&m| {
+                    let bonded = world.get_component::<Bond>(m).map(|b| b.target == dead).unwrap_or(false);
+                    let close = find_relationship(world, m, dead)
+                        .and_then(|r| world.get_component::<Relationship>(r))
+                        .map(|r| r.strength >= GRIEF_TIE).unwrap_or(false);
+                    bonded || close
+                })
+                .collect();
+            for m in mourners {
+                record_episode(world, m, Episode { with: dead, kind: EpisodeKind::Loss });
+            }
         }
     }
 }
@@ -161,5 +202,37 @@ mod tests {
             anxiety_episodes: 6, warmth_episodes: 4, episodes: vec![],
         };
         assert_eq!(infer_style(&hist), AttachmentStyle::Anxious);
+    }
+
+    #[test]
+    fn test_death_is_grieved_once_by_those_attached() {
+        use crate::engine::ecs::System;
+        use crate::game::relationships::{Relationship, RelKind};
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let hist = || AttachmentHistory { anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] };
+        let elder = w.create_entity();
+        w.add_component(elder, Health { condition: 0.5, immunity: 0.5 });
+        let child = w.create_entity(); // primary bond with the elder
+        w.add_component(child, hist());
+        w.add_component(child, Bond { target: elder, security: 0.8 });
+        let friend = w.create_entity(); // close relationship, bonded elsewhere
+        w.add_component(friend, hist());
+        let r = w.create_entity();
+        w.add_component(r, Relationship { from: friend, other: elder, kind: RelKind::Friend, strength: 0.6, interactions: 9 });
+        let stranger = w.create_entity();
+        w.add_component(stranger, hist());
+
+        GriefSystem.run(&mut w);
+        assert_eq!(w.get_component::<AttachmentHistory>(child).unwrap().anxiety_episodes, 0, "no one has died yet");
+
+        w.get_component_mut::<Health>(elder).unwrap().condition = 0.0;
+        GriefSystem.run(&mut w);
+        GriefSystem.run(&mut w); // grieved once, not every tick
+        assert_eq!(w.get_component::<AttachmentHistory>(child).unwrap().anxiety_episodes, 1);
+        assert!(w.get_component::<Bond>(child).unwrap().security < 0.8, "losing their attachment figure shakes them");
+        assert_eq!(w.get_component::<AttachmentHistory>(friend).unwrap().anxiety_episodes, 1);
+        assert!(w.get_component::<Bond>(friend).is_none(), "grief doesn't bond the friend to the dead");
+        assert_eq!(w.get_component::<AttachmentHistory>(stranger).unwrap().anxiety_episodes, 0);
     }
 }

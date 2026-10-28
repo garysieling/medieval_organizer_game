@@ -62,6 +62,38 @@ pub struct MeetingHall;
 /// Gold it costs to build a meeting hall
 pub const HALL_COST: f32 = 40.0;
 
+/// What's on the minds of these people: the two concerns most of them
+/// share - going hungry, sickness, or what their trade cares about -
+/// most widespread first (the dead have no say). With nothing pressing,
+/// talk turns to the coming harvest.
+pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
+    use crate::game::villager::Hunger;
+    use crate::sim::illness::Health;
+    let mut tally: Vec<(&'static str, usize)> = vec![];
+    let mut raise = |c: &'static str| match tally.iter_mut().find(|(n, _)| *n == c) {
+        Some(t) => t.1 += 1,
+        None => tally.push((c, 1)),
+    };
+    for &p in people {
+        if is_dead(world, p) { continue; }
+        if world.get_component::<Hunger>(p).map(|h| h.value < 30.0).unwrap_or(false) { raise("the food running short"); }
+        if world.get_component::<Health>(p).map(|h| h.condition < 0.8).unwrap_or(false) { raise("the sickness"); }
+        if let Some(c) = world.get_component::<Citizen>(p) {
+            raise(match c.ideology.as_str() {
+                "laborer" => "fair wages",
+                "merchant" => "safe roads",
+                "clergy" => "the faith",
+                "lord" => "lower rents",
+                _ => "the coming harvest",
+            });
+        }
+    }
+    // Most widespread first; ties keep the order concerns were first raised
+    tally.sort_by(|a, b| b.1.cmp(&a.1));
+    let top: Vec<String> = tally.into_iter().take(2).map(|(c, _)| c.to_string()).collect();
+    if top.is_empty() { vec!["the coming harvest".into()] } else { top }
+}
+
 /// Run a house meeting with identified citizens. The meeting is a
 /// conversation between the org's leader and each attendee; only attendees
 /// whose relationship with the leader is already strong enough join. A
@@ -70,8 +102,8 @@ pub const HALL_COST: f32 = 40.0;
 /// died, leadership passes on first (living_leader); with no one left to
 /// lead, or for dead attendees, nothing happens.
 pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> HouseMeetingResult {
-    // Shared concerns emerge from overlap
-    let shared = vec!["fair wages".into(), "safe harvest".into()];
+    // Shared concerns emerge from what the attendees are living through
+    let shared = village_concerns(world, attendees);
     let Some(leader) = living_leader(world, org) else {
         return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 };
     };
@@ -225,5 +257,26 @@ mod tests {
         assert!(with_hall < without, "hall {} vs no hall {} meetings", with_hall, without);
         assert_eq!(without, 10);
         assert_eq!(with_hall, 7);
+    }
+
+    #[test]
+    fn test_concerns_come_from_what_attendees_are_living_through() {
+        use crate::game::villager::Hunger;
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let person = |w: &mut World, ideology: &str, hunger: f32, health: f32| {
+            let e = w.create_entity();
+            w.add_component(e, Citizen { influence: 0.1, authority: 0.0, ideology: ideology.into(), allegiance: "none".into() });
+            w.add_component(e, Hunger { value: hunger });
+            w.add_component(e, Health { condition: health, immunity: 0.5 });
+            e
+        };
+        let fed: Vec<Entity> = (0..3).map(|_| person(&mut w, "laborer", 90.0, 0.9)).collect();
+        assert_eq!(village_concerns(&w, &fed), vec!["fair wages".to_string()]);
+        // A famine and a merchant: hunger is what everyone talks about
+        let mut famine: Vec<Entity> = (0..3).map(|_| person(&mut w, "laborer", 10.0, 0.9)).collect();
+        famine.push(person(&mut w, "merchant", 10.0, 0.9));
+        assert_eq!(village_concerns(&w, &famine), vec!["the food running short".to_string(), "fair wages".to_string()]);
+        assert_eq!(village_concerns(&w, &[]), vec!["the coming harvest".to_string()]);
     }
 }

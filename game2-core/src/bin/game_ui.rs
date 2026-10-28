@@ -1899,8 +1899,6 @@ fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: boo
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
 }
 
-/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
-/// spacing, and the last space doesn't count
 /// The panel's standing reminder of the keys - the only on-screen pointer
 /// to the help overlay once the title screen is gone
 const PANEL_HINT: &str = "1-5 select villager   H help";
@@ -1938,6 +1936,8 @@ fn draw_help(buf: &mut Buffer) {
     draw_centered_at(buf, cx, y + h - 22, "press H to close", 1, (150, 150, 170));
 }
 
+/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
+/// spacing, and the last space doesn't count
 fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }

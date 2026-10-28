@@ -417,6 +417,9 @@ fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
+/// How far (tiles) an idle villager strays from the village food store
+/// before heading back
+const VILLAGE_RADIUS: f32 = 7.0;
 /// Gold the Invest action spends
 const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
@@ -827,6 +830,26 @@ impl<'a> Game<'a> {
                     let d = (dx * dx + dy * dy).sqrt();
                     if d > 3.0 {
                         let step = 0.6 / ticks_per_frame as f32; // as fast as villagers stroll
+                        p.x += dx / d * step;
+                        p.y += dy / d * step;
+                    }
+                }
+            }
+        }
+
+        // and so do ours: left to the random walk, a villager drifted east
+        // until the rivals' food store was nearer than ours, then ate there
+        // and lived in their village, off the edge of the view
+        if !self.paused {
+            let home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
+            for v in villagers.iter() {
+                let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
+                if !idle || villager::is_dead(world, *v) { continue; }
+                if let (Some((hx, hy)), Some(p)) = (home, world.get_component_mut::<Pos>(*v)) {
+                    let (dx, dy) = (hx - p.x, hy - p.y);
+                    let d = (dx * dx + dy * dy).sqrt();
+                    if d > VILLAGE_RADIUS {
+                        let step = 0.6 / ticks_per_frame as f32;
                         p.x += dx / d * step;
                         p.y += dy / d * step;
                     }
@@ -1431,6 +1454,32 @@ impl<'a> Game<'a> {
             }
         }
         self.selected_target = best;
+    }
+}
+
+#[cfg(test)]
+mod stay_home_tests {
+    use super::*;
+
+    #[test]
+    fn test_villagers_stay_in_their_own_village() {
+        // on main, Aldric was at x 27.5 by day 1050 - the rivals' village -
+        // and stayed there, eating from their store
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        let home = *game.world.get_component::<Pos>(game.market_food).unwrap();
+        let mut worst: f32 = 0.0;
+        let mut last = 0;
+        while game.tick < 1500 {
+            game.update();
+            if game.tick == last { continue; }
+            last = game.tick;
+            for v in &game.villagers {
+                let p = game.world.get_component::<Pos>(*v).unwrap();
+                worst = worst.max(((p.x - home.x).powi(2) + (p.y - home.y).powi(2)).sqrt());
+            }
+        }
+        assert!(worst < VILLAGE_RADIUS + 3.0, "a villager strayed {:.1} tiles from the village store", worst);
     }
 }
 

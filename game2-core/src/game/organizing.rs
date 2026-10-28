@@ -137,6 +137,27 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_concerns_come_from_what_attendees_are_living_through() {
+        use crate::game::villager::Hunger;
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let person = |w: &mut World, ideology: &str, hunger: f32, health: f32| {
+            let e = w.create_entity();
+            w.add_component(e, Citizen { influence: 0.1, authority: 0.0, ideology: ideology.into(), allegiance: "none".into() });
+            w.add_component(e, Hunger { value: hunger });
+            w.add_component(e, Health { condition: health, immunity: 0.5 });
+            e
+        };
+        let fed: Vec<Entity> = (0..3).map(|_| person(&mut w, "laborer", 90.0, 0.9)).collect();
+        assert_eq!(village_concerns(&w, &fed), vec!["fair wages".to_string()]);
+        // A famine and a merchant: hunger is what everyone talks about
+        let mut famine: Vec<Entity> = (0..3).map(|_| person(&mut w, "laborer", 10.0, 0.9)).collect();
+        famine.push(person(&mut w, "merchant", 10.0, 0.9));
+        assert_eq!(village_concerns(&w, &famine), vec!["the food running short".to_string(), "fair wages".to_string()]);
+        assert_eq!(village_concerns(&w, &[]), vec!["the coming harvest".to_string()]);
+    }
     use crate::game::relationships::RelKind;
 
     fn guild(w: &mut World) -> (Entity, Entity) {
@@ -257,26 +278,5 @@ mod tests {
         assert!(with_hall < without, "hall {} vs no hall {} meetings", with_hall, without);
         assert_eq!(without, 10);
         assert_eq!(with_hall, 7);
-    }
-
-    #[test]
-    fn test_concerns_come_from_what_attendees_are_living_through() {
-        use crate::game::villager::Hunger;
-        use crate::sim::illness::Health;
-        let mut w = World::new();
-        let person = |w: &mut World, ideology: &str, hunger: f32, health: f32| {
-            let e = w.create_entity();
-            w.add_component(e, Citizen { influence: 0.1, authority: 0.0, ideology: ideology.into(), allegiance: "none".into() });
-            w.add_component(e, Hunger { value: hunger });
-            w.add_component(e, Health { condition: health, immunity: 0.5 });
-            e
-        };
-        let fed: Vec<Entity> = (0..3).map(|_| person(&mut w, "laborer", 90.0, 0.9)).collect();
-        assert_eq!(village_concerns(&w, &fed), vec!["fair wages".to_string()]);
-        // A famine and a merchant: hunger is what everyone talks about
-        let mut famine: Vec<Entity> = (0..3).map(|_| person(&mut w, "laborer", 10.0, 0.9)).collect();
-        famine.push(person(&mut w, "merchant", 10.0, 0.9));
-        assert_eq!(village_concerns(&w, &famine), vec!["the food running short".to_string(), "fair wages".to_string()]);
-        assert_eq!(village_concerns(&w, &[]), vec!["the coming harvest".to_string()]);
     }
 }

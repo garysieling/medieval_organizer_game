@@ -296,6 +296,16 @@ fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
     ys
 }
 
+/// Marks drawn by villagers on the map: (glyph, colour, meaning). The
+/// panel's legend lists them, so the map and the key can't drift apart.
+const MARK_HUNGRY: (&str, (u8, u8, u8), &str) = ("!", (255, 100, 100), "hungry");
+const MARK_FOOD: (&str, (u8, u8, u8), &str) = ("o", (255, 200, 100), "finding food");
+const MARK_BUSY: (&str, (u8, u8, u8), &str) = ("*", (180, 180, 255), "busy");
+const MARK_SICK: (&str, (u8, u8, u8), &str) = ("+", (140, 230, 110), "sick");
+const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK_BUSY, MARK_SICK];
+/// The legend's row, between the log box and the bottom of the window
+const LEGEND_Y: i32 = 627;
+
 /// How fed a villager is, in words. `Hunger` stores fullness (100 = just
 /// ate, 0 = starving), so the raw number reads backwards as "hunger".
 fn fullness_word(fullness: f32) -> &'static str {
@@ -921,14 +931,17 @@ impl<'a> Game<'a> {
             labels.push((NAMES[i], lx, ly, (255, 255, 255), hungry, i == selected_target));
             // sick: a green cross on the other side of the head
             if is_sick(world, villagers[i]) {
-                draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), "+", 140, 230, 110);
+                let (m, (r, g, b), _) = MARK_SICK;
+                draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), m, r, g, b);
             }
             // activity marker beside the head
             if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
                 match vil.activity {
-                    Activity::SeekingFood => { draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), "o", 255, 200, 100); }
                     Activity::Idle => {},
-                    _ => { draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), "*", 180, 180, 255); }
+                    a => {
+                        let (m, (r, g, b), _) = if a == Activity::SeekingFood { MARK_FOOD } else { MARK_BUSY };
+                        draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), m, r, g, b);
+                    }
                 }
             }
         }
@@ -988,7 +1001,7 @@ impl<'a> Game<'a> {
         for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(place_labels(&boxes)) {
             draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
             // hunger indicator, right after the name
-            if *hungry { draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, "!", 255, 100, 100); }
+            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, m, r, g, b); }
             // selection: underline the selected villager's name
             if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
         }
@@ -1083,6 +1096,15 @@ impl<'a> Game<'a> {
                 draw_text(&mut buf, UI_X as i32 + 14, 468 + row as i32 * 12, &line, r, g, b);
                 row += 1;
             }
+        }
+
+        // what the marks over villagers' heads mean, under the log
+        let mut mx = UI_X as i32 + 14;
+        for (m, (r, g, b), word) in MAP_MARKS {
+            draw_text(&mut buf, mx, LEGEND_Y, m, r, g, b);
+            mx += (m.len() as i32 + 1) * GLYPH_W;
+            draw_text(&mut buf, mx, LEGEND_Y, word, 150, 150, 170);
+            mx += (word.len() as i32 + 2) * GLYPH_W;
         }
 
         // season change: subtle banner notification instead of flash
@@ -1652,6 +1674,32 @@ mod zoom_tests {
         // and labels follow a zoomed head
         assert_eq!(head_y(300, 2.0), 300 + 2 * SPRITE_HEAD);
         assert_eq!(name_label_pos(0, label_anchor(300, 0.5), "X").1 + GLYPH_H + 4, head_y(300, 0.5));
+    }
+}
+
+#[cfg(test)]
+mod legend_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_panel_explains_the_map_marks() {
+        // the legend fits the panel and sits below the log box
+        let chars: usize = MAP_MARKS.iter().map(|(m, _, w)| m.len() + 1 + w.len() + 2).sum();
+        assert!(UI_X as i32 + 14 + chars as i32 * GLYPH_W <= W as i32 - 4, "legend runs off the panel");
+        assert!(LEGEND_Y >= 450 + 170 && LEGEND_Y + GLYPH_H <= H as i32);
+
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        while game.tick < 30 { game.update(); }
+        let buf = game.render((-1, -1));
+        // each mark's colour appears in the legend row
+        for (m, rgb, word) in MAP_MARKS {
+            let found = (LEGEND_Y..LEGEND_Y + GLYPH_H).any(|y| (UI_X..W).any(|x| {
+                let i = (y as usize * W + x) * 4;
+                (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb
+            }));
+            assert!(found, "the legend doesn't show '{}' ({})", m, word);
+        }
     }
 }
 

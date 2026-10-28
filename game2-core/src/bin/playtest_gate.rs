@@ -68,6 +68,8 @@ fn real_frame_checks() -> Vec<Check> {
     // minimap box 84x46 in the map's top-right corner
     let panel = drawn(UI_X, 0, W, H, (32, 32, 48));
     let log = drawn(UI_X + 12, 466, UI_X + 278, 618, (25, 25, 40));
+    // the key to the marks over villagers' heads, under the log box
+    let legend = drawn(UI_X + 10, 625, UI_X + 280, 636, (32, 32, 48));
     let (mm_x, mm_y) = (MAP_W - 84 - 6, 6);
     let minimap = drawn(mm_x, mm_y, mm_x + 84, mm_y + 46, (20, 20, 30));
     let hud = (0..120).flat_map(|x| (6..16).map(move |y| (x, y)))
@@ -77,6 +79,7 @@ fn real_frame_checks() -> Vec<Check> {
         Check { name: "real frame: side panel drawn", pass: panel > (W - UI_X) * H / 6, detail: format!("{panel} px drawn") },
         Check { name: "real frame: event log has text", pass: log > 300, detail: format!("{log} px") },
         Check { name: "real frame: minimap shows terrain", pass: minimap > 84 * 46 / 3, detail: format!("{minimap} px") },
+        Check { name: "real frame: map-marks legend shown", pass: legend > 80, detail: format!("{legend} px") },
         Check { name: "real frame: HUD line present", pass: hud > 40, detail: format!("{hud} px") },
     ]
 }

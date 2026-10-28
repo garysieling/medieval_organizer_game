@@ -36,7 +36,7 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
     s += "  [r] Recruit to your cause (needs trust)\n";
     s += "  [i] Invest resources (gold -> influence)\n";
     s += "  [o] Organize a meeting (gather people)\n";
-    s += "  [c] Sign a contract (formal agreement)\n";
+    s += "  [c] Seal a mutual-aid pact (10 gold of aid; builds their trust)\n";
     s += "  [b] Build a meeting hall (40 gold; meetings become shared meals)\n";
     s += "  [w] Wait (let the world turn)\n";
     s += "  [q] Quit\n";
@@ -107,7 +107,17 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             format!("You call a house meeting. {} come, and talk about {}. {}",
                 invited.len(), r.shared_concerns.join(" and "), joined)
         }
-        MenuActionType::Contract => "You draft a contract.".into(),
+        MenuActionType::Contract => {
+            use super::contracts::{has_pact, seal_aid_pact, PACT_AID};
+            let Some(t) = target else { return "No one to make a pact with.".into() };
+            if has_pact(world, player, t) { return "You already have a pact with them.".into(); }
+            let mut gold = world.get_component::<PlayerCharacter>(player).map(|p| p.resources).unwrap_or(0.0);
+            if seal_aid_pact(world, player, t, &mut gold).is_none() {
+                return format!("A pact means giving {:.0} gold of aid; you have {:.0}.", PACT_AID, gold);
+            }
+            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) { p.resources = gold; }
+            format!("You seal a mutual-aid pact and give {:.0} gold of help. They won't forget it.", PACT_AID)
+        }
         MenuActionType::Build => {
             use super::organizing::{MeetingHall, HALL_COST};
             if world.get_component::<MeetingHall>(org).is_some() {
@@ -240,5 +250,23 @@ mod tests {
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("costs 40 gold; you have 30"));
         assert!(w.get_component::<MeetingHall>(org).is_none());
+    }
+
+    #[test]
+    fn test_contract_seals_an_aid_pact_with_the_target() {
+        use crate::game::relationships::{find_relationship, Relationship};
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let v = w.create_entity();
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v));
+        assert!(msg.contains("seal a mutual-aid pact"), "{}", msg);
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
+        assert!(find_relationship(&w, player, v).and_then(|r| w.get_component::<Relationship>(r)).unwrap().strength > 0.1);
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v)).contains("already have a pact"));
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
     }
 }

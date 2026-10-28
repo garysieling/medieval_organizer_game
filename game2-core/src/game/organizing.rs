@@ -34,21 +34,45 @@ pub struct HouseMeetingResult {
     pub attendees_recruited: u32,
 }
 
+fn is_dead(world: &World, e: Entity) -> bool {
+    world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
+}
+
+/// The org's leader, handing leadership on if they've died: the living
+/// member with the most influence (the earliest-joined on a tie) takes
+/// over. None if the org is gone or no one living is left to lead.
+pub fn living_leader(world: &mut World, org: Entity) -> Option<Entity> {
+    let (leader, members) = world.get_component::<Organization>(org).map(|o| (o.leader, o.members.clone()))?;
+    if !is_dead(world, leader) { return Some(leader); }
+    let successor = members.iter().copied()
+        .filter(|&m| !is_dead(world, m))
+        .map(|m| (m, world.get_component::<Citizen>(m).map(|c| c.influence).unwrap_or(0.0)))
+        .fold(None, |best: Option<(Entity, f32)>, (m, infl)| match best {
+            Some((_, b)) if b >= infl => best,
+            _ => Some((m, infl)),
+        })
+        .map(|(m, _)| m)?;
+    world.get_component_mut::<Organization>(org)?.leader = successor;
+    Some(successor)
+}
+
 /// Run a house meeting with identified citizens. The meeting is a
 /// conversation between the org's leader and each attendee; only attendees
 /// whose relationship with the leader is already strong enough join. A
 /// meeting where at least two members take part develops people and builds
-/// the org's organized power; a thin one barely does.
+/// the org's organized power; a thin one barely does. If the leader has
+/// died, leadership passes on first (living_leader); with no one left to
+/// lead, or for dead attendees, nothing happens.
 pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> HouseMeetingResult {
     // Shared concerns emerge from overlap
     let shared = vec!["fair wages".into(), "safe harvest".into()];
-    let leader = match world.get_component::<Organization>(org) {
-        Some(o) => o.leader,
-        None => return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 },
+    let Some(leader) = living_leader(world, org) else {
+        return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 };
     };
     let mut recruited = 0;
     let mut members_present = 0;
     for &a in attendees {
+        if a == leader || is_dead(world, a) { continue; }
         let rel = record_interaction(world, leader, Interaction {
             other: a, kind: InteractionKind::Conversation, intensity: 1.0,
         });
@@ -132,5 +156,38 @@ mod tests {
         let cap = |o| w.get_component::<OrganizedPower>(o).unwrap().capacity;
         assert!(cap(strong) > cap(thin), "meeting with members should develop more power ({} vs {})", cap(strong), cap(thin));
         assert!(cap(thin) > 0.0, "even a thin meeting is some use of the muscle");
+    }
+
+    #[test]
+    fn test_leadership_passes_to_most_influential_living_member() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let (org, leader) = guild(&mut w);
+        w.add_component(leader, Health { condition: 0.0, immunity: 0.5 });
+        let member = |w: &mut World, infl: f32, alive: bool| {
+            let m = w.create_entity();
+            w.add_component(m, Citizen { influence: infl, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+            w.add_component(m, Health { condition: if alive { 0.9 } else { 0.0 }, immunity: 0.5 });
+            w.get_component_mut::<Organization>(org).unwrap().members.push(m);
+            m
+        };
+        let _quiet = member(&mut w, 0.2, true);
+        let _dead_star = member(&mut w, 0.9, false);
+        let voice = member(&mut w, 0.5, true);
+        let r = house_meeting(&mut w, org, &[]);
+        assert_eq!(w.get_component::<Organization>(org).unwrap().leader, voice);
+        assert_eq!(r.attendees_recruited, 0);
+    }
+
+    #[test]
+    fn test_no_meeting_without_a_living_leader() {
+        use crate::sim::illness::Health;
+        let mut w = World::new();
+        let (org, leader) = guild(&mut w);
+        w.add_component(leader, Health { condition: 0.0, immunity: 0.5 });
+        let stranger = w.create_entity();
+        house_meeting(&mut w, org, &[stranger]);
+        assert!(crate::game::relationships::find_relationship(&w, leader, stranger).is_none(),
+            "a dead leader holds no conversations");
     }
 }

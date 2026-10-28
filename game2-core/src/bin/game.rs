@@ -38,15 +38,13 @@ fn main() {
     villager::spawn_food_source(&mut world, 8.0, 8.0, 500);
 
     // Villagers
-    let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
+    let mut names: Vec<String> = ["Aldric","Eliza","Bram","Corvin","Dagny"].iter().map(|n| n.to_string()).collect();
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
-        let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
-        world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
-        world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
-        world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-        villagers.push(v);
+    for i in 0..names.len() {
+        villagers.push(settle(&mut world, i));
     }
+    // Pilgrims who may settle here on a pilgrimage, in order of arrival
+    let mut pilgrims = vec!["Wystan", "Hild", "Osric", "Maud"].into_iter();
 
     // Merchants (guild may form)
     for i in 0..3 {
@@ -97,7 +95,7 @@ fn main() {
         let colors = [(255,80,80),(80,255,80),(80,80,255),(255,255,80),(255,80,255)];
         for (i, v) in villagers.iter().enumerate() {
             if let Some(p) = world.get_component::<Pos>(*v) {
-                let c = colors[i];
+                let c = colors[i % colors.len()];
                 render_entity(&mut board, p.x, p.y, c.0, c.1, c.2);
             }
         }
@@ -153,6 +151,15 @@ fn main() {
                         println!("EVENT: market day! With no members, the Harvesters have nothing to sell.");
                     }
                 }
+                "pilgrimage" => match pilgrims.next() {
+                    // A pilgrim stays on: one more villager to hear out and win over
+                    Some(name) => {
+                        villagers.push(settle(&mut world, villagers.len()));
+                        names.push(name.to_string());
+                        println!("EVENT: pilgrimage! {} decides to settle in the village (villager {}).", name, villagers.len());
+                    }
+                    None => println!("EVENT: pilgrims pass through, but none stay."),
+                },
                 other => println!("EVENT: {} occurs!", other),
             }
         }
@@ -167,4 +174,13 @@ fn main() {
         if tick > 500 { println!("\n500 turns passed. The game continues..."); break; }
     }
     println!("\n=== GAME OVER ===");
+}
+
+/// A villager settles at the i-th homestead along the village row
+fn settle(world: &mut World, i: usize) -> game2_core::engine::ecs::Entity {
+    let v = villager::spawn_villager(world, ((i * 4) % 30) as f32, (i % 3) as f32);
+    world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+    world.add_component(v, AttachmentHistory { anxiety_episodes: (i % 5) as u32, warmth_episodes: (4 - i % 5) as u32, episodes: vec![] });
+    world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+    v
 }

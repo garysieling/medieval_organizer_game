@@ -60,6 +60,26 @@ fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     }
 }
 
+/// Gravestone colours
+const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
+const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
+
+/// Draw a gravestone standing on screen point (sx, sy) at the current zoom;
+/// returns the y of its top, for the name label
+fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) -> i32 {
+    let z = |v: f32| (v * zoom).round() as i32;
+    let (w, h) = (z(12.0).max(4), z(16.0).max(5));
+    let (x, top) = (sx - w / 2, sy - h);
+    // outline, then the stone with a rounded head, then a carved cross
+    buf.rect(x - 1, top + 2, w + 2, h - 1, GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
+    buf.rect(x + 1, top, w - 2, 3, GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
+    buf.rect(x, top + 2, w, h - 2, GRAVE_STONE.0, GRAVE_STONE.1, GRAVE_STONE.2);
+    buf.rect(x + 2, top + 1, w - 4, 2, GRAVE_STONE.0, GRAVE_STONE.1, GRAVE_STONE.2);
+    buf.rect(sx - 1, top + z(3.0), 2, z(8.0).max(3), GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
+    buf.rect(sx - z(3.0), top + z(5.0), z(6.0).max(2), 2, GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
+    top
+}
+
 /// Draw a character sprite (a 32px frame drawn 2x at zoom 1) standing on
 /// screen point (sx, sy), at the current zoom
 fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
@@ -448,6 +468,7 @@ struct Game<'a> {
     dialog: Option<(Entity, String, u64)>, // (speaker, text, until tick)
     frame_n: u32,
     was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
+    died_on: Vec<Option<u64>>, // per villager, the day they died
 }
 
 impl<'a> Game<'a> {
@@ -559,6 +580,7 @@ impl<'a> Game<'a> {
             help_open: false,
             dialog: None,
             was_sick: vec![false; NAMES.len()],
+            died_on: vec![None; NAMES.len()],
             frame_n: 0,
         }
     }
@@ -703,6 +725,7 @@ impl<'a> Game<'a> {
         }
 
         // death check: health <= 0 -> grave + log
+        let died_on = &mut self.died_on;
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
@@ -710,6 +733,7 @@ impl<'a> Game<'a> {
                     log.push(format!("t{}: {} died.", tick, NAMES[i]));
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
+                    died_on[i] = Some(tick);
                 }
             }
         }
@@ -835,14 +859,15 @@ impl<'a> Game<'a> {
         let mut labels: Vec<(&str, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
         for (i, wx, wy) in v_sorted {
             let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
-            draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
-            let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), NAMES[i]);
-            // grave if dead (no Health component)
+            // the dead get a gravestone where they fell, not their standing figure
             if world.get_component::<Health>(villagers[i]).is_none() {
-                buf.rect(sx - 4, sy - 10, 8, 10, 120, 120, 130); // gravestone
-                draw_text_outlined(&mut buf, sx - 6, sy - 20, "RIP", 200, 200, 210);
+                let top = draw_grave(&mut buf, sx, sy, zoom);
+                let (lx, _) = name_label_pos(sx, sy, NAMES[i]);
+                labels.push((NAMES[i], lx, top - GLYPH_H - 3, (160, 160, 170), false, i == selected_target));
                 continue;
             }
+            draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
+            let (lx, ly) = name_label_pos(sx, label_anchor(sy, zoom), NAMES[i]);
             let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
             labels.push((NAMES[i], lx, ly, (255, 255, 255), hungry, i == selected_target));
             // sick: a green cross on the other side of the head
@@ -950,6 +975,10 @@ impl<'a> Game<'a> {
             // puts it level with the stats beside it
             art.villager_sprites[selected_target].blit_scaled(&mut buf, UI_X as i32 + 6, 312, 2);
             draw_text(&mut buf, UI_X as i32 + 60, 340, NAMES[selected_target], 255, 255, 255);
+            if let Some(day) = self.died_on[selected_target] {
+                draw_text(&mut buf, UI_X as i32 + 60, 356, &format!("Died on day {}", day), 230, 90, 80);
+                draw_text(&mut buf, UI_X as i32 + 60, 372, "rest in peace", 150, 150, 165);
+            } else {
             // meters with plain words (Hunger stores fullness, so "Hunger: 24"
             // used to mean very hungry)
             if let Some(h) = world.get_component::<Hunger>(v) {
@@ -966,6 +995,7 @@ impl<'a> Game<'a> {
             }
             if let Some(vil) = world.get_component::<Villager>(v) {
                 draw_text(&mut buf, UI_X as i32 + 60, 388, &format!("Doing: {}", activity_text(vil.activity)), 200, 160, 160);
+            }
             }
             draw_text(&mut buf, UI_X as i32 + 18, 426, "keys 1-5: select villager", 120, 120, 140);
         }
@@ -1923,5 +1953,35 @@ mod grave_tests {
         while game.tick < 200 { game.update(); }
         let now = { let p = game.world.get_component::<Pos>(bram).unwrap(); (p.x, p.y) };
         assert_eq!(now, at, "the dead don't wander or get jostled");
+    }
+}
+
+#[cfg(test)]
+mod death_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_dead_lie_under_a_gravestone_not_standing() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        while game.tick < 60 { game.update(); }
+        let corvin = game.villagers[3];
+        game.world.get_component_mut::<Health>(corvin).unwrap().condition = 0.0;
+        let t = game.tick;
+        while game.tick < t + 2 { game.update(); }
+        assert!(game.died_on[3].is_some(), "the day of death should be recorded");
+
+        let buf = game.render((-1, -1));
+        let p = *game.world.get_component::<Pos>(corvin).unwrap();
+        let (sx, sy) = iso_to_screen_cam(p.x, p.y, game.cam_x, game.cam_y, game.zoom);
+        let px = |x: i32, y: i32| { let i = (y as usize * W + x as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
+        // the stone is there, beside the carved cross down its middle
+        assert_eq!(px(sx - 3, sy - 4), GRAVE_STONE, "no gravestone where Corvin fell");
+        // and nothing is standing on it: the space where a living head would be
+        // shows no sprite colours from Corvin's figure
+        let fig = &art.villager_sprites[3];
+        let figure_colours: Vec<(u8, u8, u8)> = fig.pixels.chunks(4).filter(|c| c[3] > 128).map(|c| (c[0], c[1], c[2])).collect();
+        let head = head_y(sy, game.zoom) + 4;
+        assert!(!figure_colours.contains(&px(sx, head)), "Corvin is still drawn standing over his grave");
     }
 }

@@ -92,6 +92,21 @@ fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() 
 /// The point to hand name_label_pos so a label sits just above a zoomed head
 fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
 
+/// Height of a speech bubble
+const BUBBLE_H: i32 = 18;
+
+/// Where a speech bubble goes for a speaker standing on screen point
+/// (sx, sy): just above their (zoomed) name label, kept inside the map view.
+/// None when the speaker isn't on the map view at all.
+fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str) -> Option<(i32, i32, i32)> {
+    if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
+    let bw = (text.len() as i32 * GLYPH_W + 12).max(60).min(MAP_W as i32 - 8);
+    let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
+    let label_top = head_y(sy, zoom) - GLYPH_H - 4;
+    let by = (label_top - BUBBLE_H - 8).max(4);
+    Some((bx, by, bw))
+}
+
 /// Top of a character's head relative to its ground point. Characters are
 /// 32px frames drawn 2x from (sx-32, sy-60), but the figure only fills the
 /// frame's bottom rows (18-31), so the head is at about sy-24.
@@ -1095,12 +1110,14 @@ impl<'a> Game<'a> {
             if tick < until {
                 if let Some(p) = world.get_component::<Pos>(speaker) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
-                    let bw = (text.len() as i32 * 6 + 12).max(60);
-                    let bx = (sx - bw / 2).max(4);
-                    let by = sy + SPRITE_HEAD - GLYPH_H - 4 - 26; // just above the name label
-                    buf.rect(bx, by, bw, 18, 240, 240, 220);   // cream bubble
-                    buf.rect(bx, by + 16, 8, 6, 240, 240, 220); // tail
-                    draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
+                    // off the map view (e.g. under the panel): the log already
+                    // has what they said, so don't float a bubble over the panel
+                    if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text) {
+                        let tail_x = (sx - 4).clamp(bx + 2, bx + bw - 10);
+                        buf.rect(bx, by, bw, BUBBLE_H, 240, 240, 220);        // cream bubble
+                        buf.rect(tail_x, by + BUBBLE_H - 2, 8, 6, 240, 240, 220); // tail, under the speaker
+                        draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
+                    }
                 }
             }
         }
@@ -1524,6 +1541,34 @@ mod log_priority_tests {
         while game.tick < 600 { game.update(); }
         let shown: Vec<&String> = visible_log(&game.log).into_iter().take(8).collect();
         assert!(shown.iter().any(|e| e.contains("flu")), "by day 600 the flu has scrolled away: {:?}", shown);
+    }
+}
+
+#[cfg(test)]
+mod bubble_tests {
+    use super::*;
+
+    #[test]
+    fn test_bubbles_stay_inside_the_map_view() {
+        let text = "the lord's taxes are heavy";
+        // near the right edge: pulled left so it doesn't spill into the panel
+        let (bx, _, bw) = bubble_rect(MAP_W as i32 - 10, 300, 1.0, text).unwrap();
+        assert!(bx + bw <= MAP_W as i32 - 4, "bubble runs into the panel: {}..{}", bx, bx + bw);
+        // near the left and top edges: pushed back on screen
+        let (bx, by, _) = bubble_rect(5, 20, 1.0, text).unwrap();
+        assert!(bx >= 4 && by >= 4);
+        // a speaker under the panel or off screen gets no bubble at all
+        assert_eq!(bubble_rect(MAP_W as i32 + 40, 300, 1.0, text), None);
+        assert_eq!(bubble_rect(-30, 300, 1.0, text), None);
+    }
+
+    #[test]
+    fn test_bubble_clears_the_name_label_at_any_zoom() {
+        for z in [0.5f32, 1.0, 2.0] {
+            let (_, by, _) = bubble_rect(300, 400, z, "hello").unwrap();
+            let (_, label_y) = name_label_pos(300, label_anchor(400, z), "hello");
+            assert!(by + BUBBLE_H <= label_y, "zoom {}: bubble (bottom {}) overlaps the name label (top {})", z, by + BUBBLE_H, label_y);
+        }
     }
 }
 

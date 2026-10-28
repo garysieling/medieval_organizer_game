@@ -607,8 +607,13 @@ impl<'a> Game<'a> {
                     let d = d2.sqrt();
                     let push = (3.0 - d) * 0.08;
                     let nx = dx / d * push; let ny = dy / d * push;
-                    if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
-                    if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
+                    // a grave stays put; the living step around it
+                    if !villager::is_dead(world, villagers[i]) {
+                        if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
+                    }
+                    if !villager::is_dead(world, villagers[j]) {
+                        if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
+                    }
                 }
             }
         }
@@ -619,7 +624,7 @@ impl<'a> Game<'a> {
             let step = 0.6 / ticks_per_frame as f32;
             for v in villagers.iter() {
                 let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
-                if idle {
+                if idle && !villager::is_dead(world, *v) {
                     if let Some(p) = world.get_component_mut::<Pos>(*v) {
                         let wob = ((tick + *v as u64) % 8) as f32;
                         if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
@@ -654,6 +659,7 @@ impl<'a> Game<'a> {
                     toasts.push((format!("{} has died.", NAMES[i]), tick + 60));
                     log.push(format!("t{}: {} died.", tick, NAMES[i]));
                     world.remove_component::<Health>(*v);
+                    world.add_component(*v, villager::Dead);
                 }
             }
         }
@@ -1771,5 +1777,24 @@ mod build_tests {
             assert!(game.ground.iter().all(|(gx, gy, _)| (gx.round(), gy.round()) != (x, y)), "house on a road or field");
             assert!(new[..i].iter().all(|&(ox, oy)| clear_of(ox, oy)), "two houses on or beside each other at ({},{})", x, y);
         }
+    }
+}
+
+#[cfg(test)]
+mod grave_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_grave_stays_where_the_villager_died() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let bram = game.villagers[2];
+        game.world.get_component_mut::<Health>(bram).unwrap().condition = 0.0;
+        while game.tick < 5 { game.update(); } // the death check turns them into a grave
+        assert!(villager::is_dead(&game.world, bram));
+        let at = { let p = game.world.get_component::<Pos>(bram).unwrap(); (p.x, p.y) };
+        while game.tick < 200 { game.update(); }
+        let now = { let p = game.world.get_component::<Pos>(bram).unwrap(); (p.x, p.y) };
+        assert_eq!(now, at, "the dead don't wander or get jostled");
     }
 }

@@ -260,10 +260,17 @@ pub struct CropGrowthSystem;
 impl System for CropGrowthSystem {
     fn run(&mut self, world: &mut World) {
         use crate::sim::climate::{climate_multiplier, Climate};
-        let mult = world.query::<Climate>().first()
+        use crate::sim::weather::{food_effect, CurrentWeather};
+        let climate = world.query::<Climate>().first()
             .and_then(|c| world.get_component::<Climate>(*c))
             .map(|c| climate_multiplier(c, "food"))
             .unwrap_or(1.0);
+        // Any weather event under way (a drought, a frost) stunts the crops too
+        let weather: f32 = world.query::<CurrentWeather>().iter()
+            .filter_map(|w| world.get_component::<CurrentWeather>(*w))
+            .map(food_effect)
+            .product();
+        let mult = climate * weather.max(0.0);
         for e in world.query::<Crop>() {
             let servings = world.get_component::<FoodSource>(e).map(|f| f.servings).unwrap_or(0);
             let Some(crop) = world.get_component_mut::<Crop>(e) else { continue };
@@ -433,6 +440,25 @@ mod tests {
         }
         assert_eq!(w.get_component::<FoodSource>(food).unwrap().servings, 3, "a corpse ate the village's food");
         assert_eq!(*w.get_component::<Pos>(v).unwrap(), Pos { x: 5.0, y: 0.0 }, "the dead don't walk");
+    }
+
+    #[test]
+    fn test_a_drought_stunts_the_crops_until_it_passes() {
+        use crate::sim::weather::{spawn_weather, Weather, WeatherSystem};
+        let grown_in = |drought: bool| {
+            let mut w = World::new();
+            let field = spawn_crop_field(&mut w, 0.0, 0.0, 100, 0.5);
+            w.get_component_mut::<FoodSource>(field).unwrap().servings = 0;
+            if drought { spawn_weather(&mut w, Weather::Drought, 1.0, 10); }
+            for _ in 0..10 { CropGrowthSystem.run(&mut w); WeatherSystem.run(&mut w); }
+            let during = w.get_component::<FoodSource>(field).unwrap().servings;
+            for _ in 0..10 { CropGrowthSystem.run(&mut w); WeatherSystem.run(&mut w); }
+            (during, w.get_component::<FoodSource>(field).unwrap().servings - during)
+        };
+        let (dry, after_dry) = grown_in(true);
+        let (normal, after_normal) = grown_in(false);
+        assert!(dry < normal, "a full drought should stunt growth: {} vs {}", dry, normal);
+        assert_eq!(after_dry, after_normal, "once it passes, growth recovers");
     }
 
     fn harvest_field(world: &mut World, field: Entity) {

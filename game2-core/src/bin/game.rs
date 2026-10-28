@@ -160,6 +160,13 @@ fn main() {
                     }
                     None => println!("EVENT: pilgrims pass through, but none stay."),
                 },
+                "storm warning" => {
+                    if game2_core::game::organizing::storm_strikes_hall(&mut world, org) {
+                        println!("EVENT: a storm batters the village and damages your meeting hall. [b] repairs it.");
+                    } else {
+                        println!("EVENT: a storm passes over the village.");
+                    }
+                }
                 other => println!("EVENT: {} occurs!", other),
             }
         }

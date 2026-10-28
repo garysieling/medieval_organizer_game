@@ -56,9 +56,9 @@ impl crate::engine::ecs::System for InfluenceSystem {
     fn run(&mut self, world: &mut World) {
         for o in world.query::<Organization>() {
             // The dead leave the rolls: they lend no sway and aren't counted
-            // as members (entities without Health are never dead)
-            let dead = |w: &World, e: Entity| w.get_component::<crate::sim::illness::Health>(e)
-                .map(|h| h.condition <= 0.0).unwrap_or(false);
+            // as members (villager::is_dead also sees the windowed game's
+            // Dead marker, since it removes Health on death)
+            let dead = |w: &World, e: Entity| crate::game::villager::is_dead(w, e);
             let gone: Vec<Entity> = world.get_component::<Organization>(o)
                 .map(|org| org.members.iter().copied().filter(|&m| dead(world, m)).collect())
                 .unwrap_or_default();
@@ -272,5 +272,11 @@ mod tests {
         let org = w.get_component::<Organization>(o).unwrap();
         assert_eq!(org.members, vec![ms[0]]);
         assert!((org.influence_pool - 0.2).abs() < 1e-6, "a dead member lends no sway");
+
+        // the windowed game removes Health on death and marks the villager Dead
+        w.remove_component::<Health>(ms[0]);
+        w.add_component(ms[0], crate::game::villager::Dead);
+        InfluenceSystem.run(&mut w);
+        assert!(w.get_component::<Organization>(o).unwrap().members.is_empty(), "a member marked Dead leaves too");
     }
 }

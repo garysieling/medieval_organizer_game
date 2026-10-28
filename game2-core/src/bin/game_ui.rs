@@ -2125,8 +2125,6 @@ fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> St
     format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
 }
 
-/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
-/// spacing, and the last space doesn't count
 /// Label for who's in your organization, on the villager card ("Org:" never
 /// said which, and the status line calls it the Harvesters)
 const MEMBERS_LABEL: &str = "Joined";
@@ -2147,6 +2145,8 @@ fn members_line(names: &[&str]) -> String {
     format!("{} ..", line)
 }
 
+/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
+/// spacing, and the last space doesn't count
 fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }

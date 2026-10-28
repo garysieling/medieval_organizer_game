@@ -129,7 +129,7 @@ fn spread_contagion(world: &mut World) {
     }
     for e in world.query::<Health>() {
         if sick.contains(&e) { continue; }
-        if world.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false) { continue; } // the dead don't catch it
+        if crate::game::villager::is_dead(world, e) { continue; } // the dead don't catch it
         let Some(p) = world.get_component::<Pos>(e).map(|p| (p.x, p.y)) else { continue };
         let near: Vec<_> = sources.iter()
             .filter(|((x, y), _, _)| (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE)

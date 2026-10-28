@@ -1739,6 +1739,27 @@ mod label_tests {
     }
 }
 
+/// Draw `text` horizontally centred on the screen at row `y`
+fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
+    // each glyph is 5px wide plus 1px spacing, so the last space doesn't count
+    let width = (text.chars().count() * 6 * scale) as i32 - scale as i32;
+    draw_text_scaled(buf, (W as i32 - width) / 2, y, text, scale, r, g, b);
+}
+
+/// The title screen shown until the player presses Enter: what the game
+/// is, what winning means, the main keys, and how to start
+fn render_title() -> Buffer {
+    let mut tbuf = Buffer::new(W, H);
+    tbuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+    draw_centered(&mut tbuf, 160, "THE WANDERER", 4, (255, 220, 130));
+    draw_centered(&mut tbuf, 230, "an outsider builds power", 2, (200, 200, 200));
+    draw_centered(&mut tbuf, 290, "Talk with the villagers, win their trust, organize.", 1, (190, 190, 205));
+    draw_centered(&mut tbuf, 306, &format!("Reach {:.1} influence and the village is yours.", WIN_INFLUENCE), 1, (190, 190, 205));
+    draw_centered(&mut tbuf, 340, "WASD move   T talk   R recruit   O organize   H help", 1, (140, 140, 160));
+    draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
+    tbuf
+}
+
 /// Copy a Buffer to the window
 fn present(window: &mut Window, buf: &Buffer) {
     let mut fb = vec![0u32; W * H];
@@ -1773,13 +1794,7 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // TITLE SCREEN until Enter
         if !started {
-            let mut tbuf = Buffer::new(W, H);
-            tbuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
-            draw_text_scaled(&mut tbuf, 300, 200, "THE WANDERER", 4, 255, 220, 130);
-            draw_text_scaled(&mut tbuf, 260, 280, "an outsider builds power", 2, 200, 200, 200);
-            draw_text(&mut tbuf, 350, 360, "press ENTER to begin", 255, 255, 255);
-            draw_text(&mut tbuf, 310, 400, "organize the village. gain influence.", 150, 150, 170);
-            present(&mut window, &tbuf);
+            present(&mut window, &render_title());
             if window.is_key_down(Key::Enter) { started = true; }
             continue;
         }
@@ -2152,5 +2167,35 @@ mod dog_sprite_tests {
         let coat = dog.pixels.chunks(4).filter(|p| p[3] > 0 && (p[0], p[1], p[2]) == DOG).count();
         // drawn 2x that's 4x as many on screen; the old two rectangles were 33 px
         assert!(coat * 4 >= 2 * 33, "only {} coat pixels ({} on screen)", coat, coat * 4);
+    }
+}
+
+#[cfg(test)]
+mod title_tests {
+    use super::*;
+
+    #[test]
+    fn test_title_lines_are_centred_and_say_how_to_win() {
+        let buf = render_title();
+        let bg = (15u8, 15u8, 25u8);
+        let lit = |x: usize, y: usize| { let i = (y * W + x) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) != bg };
+        // find each band of text rows and check it's centred on the screen
+        let mut bands = vec![];
+        let mut y = 0;
+        while y < H {
+            if (0..W).any(|x| lit(x, y)) {
+                let top = y;
+                while y < H && (0..W).any(|x| lit(x, y)) { y += 1; }
+                let (mut lo, mut hi) = (W, 0);
+                for yy in top..y { for x in 0..W { if lit(x, yy) { lo = lo.min(x); hi = hi.max(x); } } }
+                bands.push((top, lo, hi));
+            }
+            y += 1;
+        }
+        assert!(bands.len() >= 5, "expected title, subtitle, goal, keys and start lines; found {}", bands.len());
+        for (top, lo, hi) in bands {
+            let centre = (lo + hi) as i32 / 2;
+            assert!((centre - W as i32 / 2).abs() <= 3, "line at y={} is centred at x={}, not {}", top, centre, W / 2);
+        }
     }
 }

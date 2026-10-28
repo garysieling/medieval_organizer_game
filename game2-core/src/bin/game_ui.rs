@@ -63,6 +63,30 @@ fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
 /// The dog's coat
 const DOG: (u8, u8, u8) = (139, 90, 43);
 
+/// A little dog, facing left, as pixel art: o outline, b coat, n eye/nose,
+/// . transparent. Drawn 2x like the villagers.
+const DOG_ART: [&str; 7] = [
+    "..oo.......",
+    ".obbo....o.",
+    "obnbboooobo",
+    ".obbbbbbbo.",
+    "..obbbbbbo.",
+    "..ob.o.obo.",
+    "..oo....oo.",
+];
+
+fn dog_sprite() -> Sprite {
+    let (w, h) = (DOG_ART[0].len(), DOG_ART.len());
+    let mut pixels = vec![0u8; w * h * 4];
+    for (y, row) in DOG_ART.iter().enumerate() {
+        for (x, c) in row.chars().enumerate() {
+            let rgb = match c { 'o' => (45, 28, 16), 'b' => DOG, 'n' => (15, 10, 8), _ => continue };
+            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
+        }
+    }
+    Sprite { width: w, height: h, pixels }
+}
+
 /// Gravestone colours
 const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
@@ -390,6 +414,7 @@ struct Art {
     smoke_s: Option<Sprite>,
     rival_house: Option<Sprite>,
     rival_woodhouse: Option<Sprite>,
+    dog: Option<Sprite>, // hand-drawn: the asset packs have no animals
     // flat ground features: just the top face of each ground block, laid on a tile
     road_top: Option<Sprite>,
     wheat_top: Option<Sprite>,
@@ -451,6 +476,7 @@ impl Art {
             smoke_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/smoke.png")).ok(),
             rival_house: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
             rival_woodhouse: Sprite::load(&assets.path(&assets.building_sprite("woodhouse", "red"))).ok(),
+            dog: Some(dog_sprite()),
         }
     }
 }
@@ -913,10 +939,17 @@ impl<'a> Game<'a> {
             let keeper = pet.owner.unwrap_or(villagers[0]);
             if let Some(owner_p) = world.get_component::<Pos>(keeper) {
                 let (dx, dy) = iso_to_screen_cam(owner_p.x + 0.8, owner_p.y + 0.5, cam_x, cam_y, zoom);
-                buf.rect(dx - 3, dy - 6, 6, 4, DOG.0, DOG.1, DOG.2); // brown dog body
-                buf.rect(dx - 4, dy - 9, 3, 3, DOG.0, DOG.1, DOG.2); // head
+                // standing on its spot, drawn at the villagers' scale
+                let h = match &art.dog {
+                    Some(dog) => {
+                        let (w, h) = ((dog.width as f32 * 2.0 * zoom) as i32, (dog.height as f32 * 2.0 * zoom) as i32);
+                        draw_zoomed(&mut buf, dog, dx - w / 2, dy - h, 2.0 * zoom);
+                        h
+                    }
+                    None => 0,
+                };
                 if pet.bond_strength > 0.5 {
-                    labels.push(("<3", dx - 6, dy - 16, (255, 120, 120), false, false)); // placed with the names
+                    labels.push(("<3", dx - 6, dy - h - GLYPH_H - 3, (255, 120, 120), false, false)); // placed with the names
                 }
             }
         }
@@ -2095,10 +2128,29 @@ mod dog_tests {
         let dog_at = |v: Entity| {
             let p = *game.world.get_component::<Pos>(v).unwrap();
             let (dx, dy) = iso_to_screen_cam(p.x + 0.8, p.y + 0.5, game.cam_x, game.cam_y, game.zoom);
-            let i = ((dy - 4) as usize * W + dx as usize) * 4;
-            (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == DOG
+            let mut coat = 0;
+            for y in (dy - 16)..dy { for x in (dx - 12)..(dx + 12) {
+                let i = (y as usize * W + x as usize) * 4;
+                if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == DOG { coat += 1; }
+            }}
+            coat >= 20
         };
         assert!(dog_at(owner), "the dog isn't drawn beside its new owner");
         assert!(!dog_at(aldric), "the dog is still drawn at Aldric's grave");
+    }
+}
+
+#[cfg(test)]
+mod dog_sprite_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_dog_is_a_proper_little_sprite() {
+        let dog = dog_sprite();
+        assert_eq!((dog.width, dog.height), (11, 7));
+        assert!(DOG_ART.iter().all(|r| r.len() == dog.width), "every row of the art is the same width");
+        let coat = dog.pixels.chunks(4).filter(|p| p[3] > 0 && (p[0], p[1], p[2]) == DOG).count();
+        // drawn 2x that's 4x as many on screen; the old two rectangles were 33 px
+        assert!(coat * 4 >= 2 * 33, "only {} coat pixels ({} on screen)", coat, coat * 4);
     }
 }

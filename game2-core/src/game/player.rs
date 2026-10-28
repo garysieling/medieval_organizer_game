@@ -42,10 +42,19 @@ pub const RECRUIT_INFLUENCE: f32 = 0.1;
 
 /// Player takes a talk action (1-1 meeting).
 /// Repeat talks with the same person yield less; talking alone can't win.
+/// The conversation also builds the person's trust in the player (their
+/// relationship), so someone you've heard out is readier to join you at a
+/// house meeting; it too tapers off once you've heard all their concerns.
 pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });
+    if rapport < 1.0 {
+        record_interaction(world, player, Interaction {
+            other: target, kind: InteractionKind::Conversation, intensity: 1.0 - rapport,
+        });
+    }
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
         p.influence += gained;
     }
@@ -219,5 +228,21 @@ mod tests {
         w.add_component(vs[2], Health { condition: 0.0, immunity: 0.5 });
         assert_eq!(market_day(&mut w, p, o), 10.0, "two living members");
         assert_eq!(w.get_component::<PlayerCharacter>(p).unwrap().resources, 110.0);
+    }
+
+    #[test]
+    fn test_hearing_someone_out_builds_their_trust_and_tapers() {
+        use crate::game::relationships::{find_relationship, Relationship};
+        let (mut w, p, _, vs) = setup();
+        let trust = |w: &World| find_relationship(w, p, vs[0])
+            .and_then(|r| w.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+        act_talk(&mut w, p, vs[0]);
+        assert!((trust(&w) - 0.05).abs() < 1e-6);
+        for _ in 0..20 { act_talk(&mut w, p, vs[0]); }
+        let heard_out = trust(&w);
+        // 0.05 x (1 + 0.85 + ... + 0.1) = 0.1925: about three meetings' worth
+        assert!((heard_out - 0.1925).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
+        act_talk(&mut w, p, vs[0]);
+        assert_eq!(trust(&w), heard_out, "once you've heard everything, more talk adds nothing");
     }
 }

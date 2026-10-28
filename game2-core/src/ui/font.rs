@@ -77,7 +77,7 @@ const GLYPHS: [[u8; 7]; 95] = [
     [1,1,13,19,17,17,15],               // 100 d
     [0,0,14,17,31,16,14],               // 101 e
     [6,9,8,30,8,8,8],                   // 102 f
-    [0,0,15,17,15,1,14],                // 103 g
+    [0,15,17,17,15,1,14],               // 103 g (a closed bowl, so it doesn't read as s)
     [16,16,22,25,17,17,17],             // 104 h
     [4,0,12,4,4,4,14],                  // 105 i
     [2,0,6,2,2,18,12],                // 106 j
@@ -171,6 +171,22 @@ pub fn draw_text_scaled(buf: &mut Buffer, x: i32, y: i32, text: &str, scale: usi
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// rows of a glyph as strings of '#' and '.', for readable asserts
+    fn rows(c: char) -> Vec<String> {
+        glyph_for(c as u8).iter().map(|r| (0..5).map(|b| if r & (16 >> b) != 0 { '#' } else { '.' }).collect()).collect()
+    }
+
+    #[test]
+    fn test_g_has_a_closed_bowl_and_differs_from_s() {
+        // "Spring", "raining", "hungry" all rendered as "Sprins", "rainins",
+        // "hunsry": the old g's bowl was one row high, the same shape as s
+        let g = rows('g');
+        let walls = g.iter().filter(|r| r.starts_with('#') && r.ends_with('#')).count();
+        assert!(walls >= 2, "g needs a bowl with two walled rows: {:?}", g);
+        let differ = g.iter().zip(rows('s')).filter(|(a, b)| *a != b).count();
+        assert!(differ >= 4, "g and s differ in only {} rows", differ);
+    }
 
     #[test]
     fn test_outlined_text_has_a_dark_border_and_coloured_glyph() {

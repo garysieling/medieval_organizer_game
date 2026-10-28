@@ -1201,9 +1201,10 @@ impl<'a> Game<'a> {
         }
 
         // season banner
-        draw_text_outlined(&mut buf, 10, 8, &format!("{:?}  t{}  food {}{}{}", season, tick, food_stock,
-            if raining && !is_winter { "  raining" } else { "" },
-            if self.paused { " [PAUSED]" } else if self.speed > 1 { " [4x]" } else { "" }), 255, 255, 255);
+        let hud = hud_text(season, tick, food_stock, raining && !is_winter, self.paused, self.speed);
+        // on a dark strip so it reads over any terrain the camera shows
+        buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
+        draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
 
         // help overlay
         if self.help_open {
@@ -1741,6 +1742,13 @@ mod label_tests {
 
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
+/// The top-left status line: season, day, the village food store, weather, speed
+fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: bool, paused: bool, speed: u32) -> String {
+    format!("{:?} | day {} | food store {}{}{}", season, day, food,
+        if raining { " | raining" } else { "" },
+        if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
+}
+
 fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }
@@ -2268,5 +2276,31 @@ mod end_screen_tests {
         for (y, c) in line_centres(&buf, (20, 20, 35), bx as usize, (bx + bw) as usize, 250, 340) {
             assert!((c - MAP_W as i32 / 2).abs() <= 3, "banner text at y={} is centred at x={}", y, c);
         }
+    }
+}
+
+#[cfg(test)]
+mod hud_tests {
+    use super::*;
+
+    #[test]
+    fn test_hud_speaks_in_days_and_names_the_food_store() {
+        let hud = hud_text(Season::Summer, 120, 495, true, false, 1);
+        assert_eq!(hud, "Summer | day 120 | food store 495 | raining");
+        assert!(!hud.contains("t120"));
+        assert!(hud_text(Season::Winter, 3, 0, false, true, 1).ends_with("[PAUSED]"));
+    }
+
+    #[test]
+    fn test_hud_sits_on_a_dark_strip() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        while game.tick < 30 { game.update(); }
+        let buf = game.render((-1, -1));
+        // just past the end of the text, still on the strip
+        let hud = hud_text(Season::Summer, game.tick, 0, false, false, 1);
+        let x = 10 + text_width(&hud, 1) - 20;
+        let i = ((GLYPH_H + 10) as usize * W + x as usize) * 4;
+        assert_eq!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), (20, 20, 32), "no backing strip under the HUD");
     }
 }

@@ -128,7 +128,8 @@ fn main() {
 
         // Execute choice
         let target = villagers[target_idx];
-        if "troc".contains(choice) { print!("[{}] ", names[target_idx]); }
+        // Name the villager for actions aimed at one person (Organize invites everyone)
+        if "trc".contains(choice) { print!("[{}] ", names[target_idx]); }
         let result = match choice {
             't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target)),
             'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target)),

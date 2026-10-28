@@ -62,38 +62,6 @@ pub struct MeetingHall;
 /// Gold it costs to build a meeting hall
 pub const HALL_COST: f32 = 40.0;
 
-/// What's on the minds of these people: the two concerns most of them
-/// share - going hungry, sickness, or what their trade cares about -
-/// most widespread first (the dead have no say). With nothing pressing,
-/// talk turns to the coming harvest.
-pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
-    use crate::game::villager::Hunger;
-    use crate::sim::illness::Health;
-    let mut tally: Vec<(&'static str, usize)> = vec![];
-    let mut raise = |c: &'static str| match tally.iter_mut().find(|(n, _)| *n == c) {
-        Some(t) => t.1 += 1,
-        None => tally.push((c, 1)),
-    };
-    for &p in people {
-        if is_dead(world, p) { continue; }
-        if world.get_component::<Hunger>(p).map(|h| h.value < 30.0).unwrap_or(false) { raise("the food running short"); }
-        if world.get_component::<Health>(p).map(|h| h.condition < 0.8).unwrap_or(false) { raise("the sickness"); }
-        if let Some(c) = world.get_component::<Citizen>(p) {
-            raise(match c.ideology.as_str() {
-                "laborer" => "fair wages",
-                "merchant" => "safe roads",
-                "clergy" => "the faith",
-                "lord" => "lower rents",
-                _ => "the coming harvest",
-            });
-        }
-    }
-    // Most widespread first; ties keep the order concerns were first raised
-    tally.sort_by(|a, b| b.1.cmp(&a.1));
-    let top: Vec<String> = tally.into_iter().take(2).map(|(c, _)| c.to_string()).collect();
-    if top.is_empty() { vec!["the coming harvest".into()] } else { top }
-}
-
 /// Run a house meeting with identified citizens. The meeting is a
 /// conversation between the org's leader and each attendee; only attendees
 /// whose relationship with the leader is already strong enough join. A
@@ -132,6 +100,38 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         formed_committee: recruited >= 2,
         attendees_recruited: recruited,
     }
+}
+
+/// What's on the minds of these people: the two concerns most of them
+/// share - going hungry, sickness, or what their trade cares about -
+/// most widespread first (the dead have no say). With nothing pressing,
+/// talk turns to the coming harvest.
+pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
+    use crate::game::villager::Hunger;
+    use crate::sim::illness::Health;
+    let mut tally: Vec<(&'static str, usize)> = vec![];
+    let mut raise = |c: &'static str| match tally.iter_mut().find(|(n, _)| *n == c) {
+        Some(t) => t.1 += 1,
+        None => tally.push((c, 1)),
+    };
+    for &p in people {
+        if is_dead(world, p) { continue; }
+        if world.get_component::<Hunger>(p).map(|h| h.value < 30.0).unwrap_or(false) { raise("the food running short"); }
+        if world.get_component::<Health>(p).map(|h| h.condition < 0.8).unwrap_or(false) { raise("the sickness"); }
+        if let Some(c) = world.get_component::<Citizen>(p) {
+            raise(match c.ideology.as_str() {
+                "laborer" => "fair wages",
+                "merchant" => "safe roads",
+                "clergy" => "the faith",
+                "lord" => "lower rents",
+                _ => "the coming harvest",
+            });
+        }
+    }
+    // Most widespread first; ties keep the order concerns were first raised
+    tally.sort_by(|a, b| b.1.cmp(&a.1));
+    let top: Vec<String> = tally.into_iter().take(2).map(|(c, _)| c.to_string()).collect();
+    if top.is_empty() { vec!["the coming harvest".into()] } else { top }
 }
 
 #[cfg(test)]

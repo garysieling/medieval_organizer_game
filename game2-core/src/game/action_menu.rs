@@ -86,6 +86,12 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 .map(|o| o.members.clone()).unwrap_or_default();
             let outsiders = invited.iter().filter(|v| !members.contains(v)).count();
             let r = super::organizing::house_meeting(world, org, &invited);
+            // Each member won at a meeting counts toward leading the village
+            // just like one won with Recruit (as in game_ui, #74) - otherwise
+            // organizing the whole village could never win the game
+            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
+                p.influence += super::player::RECRUIT_INFLUENCE * r.attendees_recruited as f32;
+            }
             let joined = match r.attendees_recruited {
                 0 if outsiders == 0 => "Everyone here is already with you; the meeting strengthens your ties.".to_string(),
                 0 => "No one joins yet, but they'll remember the conversation.".to_string(),
@@ -141,5 +147,25 @@ mod tests {
         assert_eq!(members, &vec![friend], "the trusted friend joins, the stranger doesn't");
         assert!(find_relationship(&w, player, stranger).is_some(), "the meeting still starts a relationship with the stranger");
         assert!(msg.contains("1 joins"), "{}", msg);
+    }
+
+    #[test]
+    fn test_the_text_game_can_be_won_by_organizing() {
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
+        // Hear everyone out, organize until the village has joined, invest the gold
+        for &v in &villagers {
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+        }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
+        assert_eq!(w.get_component::<Organization>(org).unwrap().members.len(), 5);
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
+        assert!(infl > 2.0, "organized the whole village and invested everything, yet influence is {:.2} (win at 2.0)", infl);
     }
 }

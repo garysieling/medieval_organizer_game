@@ -1740,8 +1740,6 @@ mod label_tests {
     }
 }
 
-/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
-/// spacing, and the last space doesn't count
 /// The top-left status line: season, day, the village food store, weather, speed
 fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: bool, paused: bool, speed: u32) -> String {
     format!("{:?} | day {} | food store {}{}{}", season, day, food,
@@ -1749,6 +1747,8 @@ fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: boo
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
 }
 
+/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
+/// spacing, and the last space doesn't count
 fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }

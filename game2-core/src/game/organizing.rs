@@ -54,6 +54,14 @@ pub fn living_leader(world: &mut World, org: Entity) -> Option<Entity> {
     Some(successor)
 }
 
+/// An organization's meeting hall: with somewhere to gather, house meetings
+/// become shared meals, which build trust faster than talk alone
+#[derive(Debug)]
+pub struct MeetingHall;
+
+/// Gold it costs to build a meeting hall
+pub const HALL_COST: f32 = 40.0;
+
 /// Run a house meeting with identified citizens. The meeting is a
 /// conversation between the org's leader and each attendee; only attendees
 /// whose relationship with the leader is already strong enough join. A
@@ -67,12 +75,15 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
     let Some(leader) = living_leader(world, org) else {
         return HouseMeetingResult { shared_concerns: shared, formed_committee: false, attendees_recruited: 0 };
     };
+    let world_has_hall = world.get_component::<MeetingHall>(org).is_some();
+    // In a hall the meeting is a shared meal; otherwise it's just talk
+    let kind = || if world_has_hall { InteractionKind::SharedMeal } else { InteractionKind::Conversation };
     let mut recruited = 0;
     let mut members_present = 0;
     for &a in attendees {
         if a == leader || is_dead(world, a) { continue; }
         let rel = record_interaction(world, leader, Interaction {
-            other: a, kind: InteractionKind::Conversation, intensity: 1.0,
+            other: a, kind: kind(), intensity: 1.0,
         });
         let trust = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(0.0);
         if crate::sim::community::recruit(world, org, a, trust) {
@@ -199,5 +210,20 @@ mod tests {
         w.add_component(heir, Citizen { influence: 0.3, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.get_component_mut::<Organization>(org).unwrap().members.push(heir);
         assert_eq!(living_leader(&mut w, org), Some(heir));
+    }
+
+    #[test]
+    fn test_a_meeting_hall_builds_trust_faster() {
+        let meetings_to_win = |hall: bool| {
+            let mut w = World::new();
+            let (org, _) = guild(&mut w);
+            if hall { w.add_component(org, MeetingHall); }
+            let v = w.create_entity();
+            (1..=20).find(|_| house_meeting(&mut w, org, &[v]).attendees_recruited == 1).unwrap()
+        };
+        let (with_hall, without) = (meetings_to_win(true), meetings_to_win(false));
+        assert!(with_hall < without, "hall {} vs no hall {} meetings", with_hall, without);
+        assert_eq!(without, 10);
+        assert_eq!(with_hall, 7);
     }
 }

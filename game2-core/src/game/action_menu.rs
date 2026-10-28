@@ -37,7 +37,7 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
     s += "  [i] Invest resources (gold -> influence)\n";
     s += "  [o] Organize a meeting (gather people)\n";
     s += "  [c] Sign a contract (formal agreement)\n";
-    s += "  [b] Build something (structure)\n";
+    s += "  [b] Build a meeting hall (40 gold; meetings become shared meals)\n";
     s += "  [w] Wait (let the world turn)\n";
     s += "  [q] Quit\n";
     s += "Add a number to choose who: t2 = talk to villager 2\n";
@@ -108,7 +108,19 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 invited.len(), r.shared_concerns.join(" and "), joined)
         }
         MenuActionType::Contract => "You draft a contract.".into(),
-        MenuActionType::Build => "You commission a structure.".into(),
+        MenuActionType::Build => {
+            use super::organizing::{MeetingHall, HALL_COST};
+            if world.get_component::<MeetingHall>(org).is_some() {
+                return "Your meeting hall already stands.".into();
+            }
+            let gold = world.get_component::<PlayerCharacter>(player).map(|p| p.resources).unwrap_or(0.0);
+            if gold < HALL_COST {
+                return format!("A meeting hall costs {:.0} gold; you have {:.0}.", HALL_COST, gold);
+            }
+            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) { p.resources -= HALL_COST; }
+            world.add_component(org, MeetingHall);
+            format!("You build a meeting hall ({:.0} gold). From now on your house meetings share a meal.", HALL_COST)
+        }
         MenuActionType::Wait => "You wait and observe.".into(),
     }
 }
@@ -197,5 +209,36 @@ mod tests {
         assert!(show_menu(&p(needed + 1e-3), 0, 1).contains("standing: Trusted"));
         assert!(show_menu(&p(needed - 0.01), 0, 1).contains("standing: Outsider"));
         assert!(show_menu(&p(1.2), 0, 1).contains("standing: Respected"));
+    }
+
+    #[test]
+    fn test_build_buys_one_meeting_hall() {
+        use crate::game::organizing::MeetingHall;
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        assert!(msg.contains("build a meeting hall"), "{}", msg);
+        assert!(w.get_component::<MeetingHall>(org).is_some());
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 60.0);
+        // only one hall, and no charge for trying again
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("already stands"));
+        assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 60.0);
+    }
+
+    #[test]
+    fn test_build_needs_the_gold() {
+        use crate::game::organizing::MeetingHall;
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 30.0, standing: 0.0 });
+        let org = w.create_entity();
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("costs 40 gold; you have 30"));
+        assert!(w.get_component::<MeetingHall>(org).is_none());
     }
 }

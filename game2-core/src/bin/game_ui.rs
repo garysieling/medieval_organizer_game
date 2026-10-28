@@ -317,6 +317,13 @@ const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK
 /// The legend's row, between the log box and the bottom of the window
 const LEGEND_Y: i32 = 627;
 
+/// Whether the crowd-separation pass may push this villager aside: not the
+/// dead, and not someone on their way to food
+fn makes_room(world: &World, v: Entity) -> bool {
+    !villager::is_dead(world, v)
+        && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
+}
+
 /// How fed a villager is, in words. `Hunger` stores fullness (100 = just
 /// ate, 0 = starving), so the raw number reads backwards as "hunger".
 fn fullness_word(fullness: f32) -> &'static str {
@@ -749,11 +756,14 @@ impl<'a> Game<'a> {
                     let d = d2.sqrt();
                     let push = (3.0 - d) * 0.08;
                     let nx = dx / d * push; let ny = dy / d * push;
-                    // a grave stays put; the living step around it
-                    if !villager::is_dead(world, villagers[i]) {
+                    // a grave stays put; the living step around it. Nor is
+                    // anyone shoved who's going for food: the push reaches 3
+                    // tiles but eating needs 1, so two hungry villagers at
+                    // the store pushed each other out of reach and starved
+                    if makes_room(world, villagers[i]) {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
                     }
-                    if !villager::is_dead(world, villagers[j]) {
+                    if makes_room(world, villagers[j]) {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
                     }
                 }
@@ -1750,6 +1760,34 @@ mod log_day_tests {
         assert!(row(x, msg_x - GLYPH_W, (120, 120, 145)), "the day stamp should be dim");
         assert!(!row(x, msg_x - GLYPH_W, (255, 215, 0)), "the day stamp shouldn't take the message colour");
         assert!(row(msg_x, msg_x + 10 * GLYPH_W, (255, 215, 0)), "the guild message keeps its gold");
+    }
+}
+
+#[cfg(test)]
+mod food_reach_tests {
+    use super::*;
+
+    #[test]
+    fn test_no_one_starves_beside_a_full_store() {
+        // the crowd-separation push (3 tiles) used to hold hungry villagers
+        // out of eating reach (1 tile) of the store: on main they sat at zero
+        // hunger for up to 75 days in a row while it held ~480 servings
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        let (mut last, mut run, mut worst) = (0, [0u64; 5], 0u64);
+        while game.tick < 720 {
+            game.update();
+            if game.tick == last { continue; }
+            last = game.tick;
+            for (k, &v) in game.villagers.iter().enumerate() {
+                let empty = game.world.get_component::<Hunger>(v).map(|h| h.value <= 0.0).unwrap_or(false);
+                run[k] = if empty { run[k] + 1 } else { 0 };
+                worst = worst.max(run[k]);
+            }
+        }
+        let servings = game.world.get_component::<villager::FoodSource>(game.market_food).unwrap().servings;
+        assert!(servings > 0, "the store ran out - this test is about reach, not supply");
+        assert!(worst <= 5, "a villager went {} days at zero hunger with {} servings in the store", worst, servings);
     }
 }
 

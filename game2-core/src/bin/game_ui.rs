@@ -82,11 +82,29 @@ fn wrap_text(text: &str, max: usize) -> Vec<String> {
     lines
 }
 
+/// Gossip lines shown in the log at once; older gossip is hidden so it
+/// can't push real events (illness, joins, deaths, guilds) out of view
+const LOG_GOSSIP_SHOWN: usize = 2;
+
+/// Is this log entry idle gossip ("X tells Y - ...")?
+fn is_gossip(entry: &str) -> bool { entry.contains(" tells ") }
+
+/// The log entries to show, newest first: every event, but only the latest
+/// LOG_GOSSIP_SHOWN pieces of gossip
+fn visible_log(log: &[String]) -> Vec<&String> {
+    let mut gossip = 0;
+    log.iter().rev().filter(|e| {
+        if !is_gossip(e) { return true; }
+        gossip += 1;
+        gossip <= LOG_GOSSIP_SHOWN
+    }).collect()
+}
+
 /// Colour for a log entry: deaths red, guild events gold, joins green,
 /// weather/illness cyan, idle gossip dimmed so real events stand out
 fn log_colour(entry: &str) -> (u8, u8, u8) {
     if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
-    else if entry.contains(" tells ") { (140, 140, 160) } // gossip, even when it mentions the guild
+    else if is_gossip(entry) { (140, 140, 160) } // gossip, even when it mentions the guild
     else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
     else if entry.contains("joined") { (120, 255, 120) }
     // whole words only: "influence" contains "flu" and "grain" contains "rain"
@@ -935,7 +953,7 @@ impl<'a> Game<'a> {
         const LOG_CHARS: usize = 43;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 12;
         let mut row = 0;
-        'log: for entry in self.log.iter().rev() {
+        'log: for entry in visible_log(&self.log) {
             let (r, g, b) = log_colour(entry);
             for line in wrap_text(entry, LOG_CHARS) {
                 if row == LOG_ROWS { break 'log; }
@@ -1417,6 +1435,31 @@ mod action_log_tests {
         assert_ne!(log_colour("t9: the grain store is low"), illness);
         assert_eq!(log_colour("t120: Bram has the flu"), illness);
         assert_eq!(log_colour("t200: it's raining"), illness);
+    }
+}
+
+#[cfg(test)]
+mod log_priority_tests {
+    use super::*;
+
+    #[test]
+    fn test_old_gossip_does_not_push_events_out_of_the_log() {
+        let mut log: Vec<String> = vec!["t1: The Merchant Guild formed!".into(), "t120: Bram has the flu".into()];
+        for t in (160..=600).step_by(40) { log.push(format!("t{}: Aldric tells Bram - word spreads", t)); }
+        let shown = visible_log(&log);
+        assert!(shown.iter().any(|e| e.contains("has the flu")), "the flu should still be in view: {:?}", shown);
+        assert!(shown.iter().any(|e| e.contains("Guild formed")), "the guild should still be in view");
+        assert_eq!(shown.iter().filter(|e| is_gossip(e)).count(), LOG_GOSSIP_SHOWN);
+        assert_eq!(shown[0], "t600: Aldric tells Bram - word spreads", "newest first");
+    }
+
+    #[test]
+    fn test_flu_from_a_real_game_stays_in_the_log_by_day_600() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        while game.tick < 600 { game.update(); }
+        let shown: Vec<&String> = visible_log(&game.log).into_iter().take(8).collect();
+        assert!(shown.iter().any(|e| e.contains("flu")), "by day 600 the flu has scrolled away: {:?}", shown);
     }
 }
 

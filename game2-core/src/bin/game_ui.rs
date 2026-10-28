@@ -350,7 +350,7 @@ impl Art {
             ).collect(),
             blacksmith_s: Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok(),
             tree_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok(),
-            stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok(),
+            stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(2).png")).ok(),
             player_s: Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok(),
             tower_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok(),
             wall_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok(),
@@ -1683,6 +1683,19 @@ mod real_frame_tests {
             if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) != bg { n += 1; }
         }}
         n
+    }
+
+    #[test]
+    fn test_rocks_read_as_rocks_not_holes() {
+        // the pack's stone(1) is a tiny pebble that's nearly all dark outline:
+        // on the map it read as a black hole in the ground
+        let art = Art::load("../assets");
+        let stone = art.stone_s.as_ref().expect("stone sprite should load");
+        let opaque: Vec<&[u8]> = stone.pixels.chunks(4).filter(|p| p[3] > 128).collect();
+        // every stone has a thick dark outline; what makes it read as a rock
+        // is a visible light face (stone(1): 10% of its pixels, the boulders 25-33%)
+        let light = opaque.iter().filter(|p| (p[0] as u32 + p[1] as u32 + p[2] as u32) > 300).count();
+        assert!(light * 5 >= opaque.len(), "stone sprite shows almost no rock face ({} of {} px light)", light, opaque.len());
     }
 
     #[test]

@@ -88,6 +88,10 @@ fn dog_sprite() -> Sprite {
     Sprite { width: w, height: h, pixels }
 }
 
+/// Where the panel portrait's feet are: a 32px frame drawn 2x from
+/// (UI_X+6, 312), the figure centred in it and ending at its bottom row
+const PORTRAIT_FOOT: (i32, i32) = (UI_X as i32 + 6 + 32, 312 + 62);
+
 /// Gravestone colours
 const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
@@ -1079,7 +1083,12 @@ impl<'a> Game<'a> {
             let v = villagers[selected_target];
             // 2x portrait: the figure fills the frame's bottom rows, so this
             // puts it level with the stats beside it
-            art.villager_sprites[selected_target].blit_scaled(&mut buf, UI_X as i32 + 6, 312, 2);
+            // the dead get their gravestone, as on the map, not a standing figure
+            if self.died_on[selected_target].is_some() {
+                draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);
+            } else {
+                art.villager_sprites[selected_target].blit_scaled(&mut buf, UI_X as i32 + 6, 312, 2);
+            }
             draw_text(&mut buf, UI_X as i32 + 60, 340, NAMES[selected_target], 255, 255, 255);
             if let Some(day) = self.died_on[selected_target] {
                 draw_text(&mut buf, UI_X as i32 + 60, 356, &format!("Died on day {}", day), 230, 90, 80);
@@ -1899,6 +1908,36 @@ mod pause_box_tests {
         let (left, right) = (lo - x, x + w - hi);
         // was ~20px left vs ~120px right, and the box centred at x 410 not 330
         assert!((left - right).abs() <= 12, "pause text hugs one side: {}px left, {}px right", left, right);
+    }
+}
+
+#[cfg(test)]
+mod dead_portrait_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_dead_villagers_card_shows_a_gravestone() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        while game.tick < 60 { game.update(); }
+        let corvin = game.villagers[3];
+        game.world.get_component_mut::<Health>(corvin).unwrap().condition = 0.0;
+        let t = game.tick;
+        while game.tick < t + 3 { game.update(); }
+        game.selected_target = 3;
+        let buf = game.render((-1, -1));
+        let (x0, y0) = (UI_X as i32 + 6, 312);
+        let mut stone = 0;
+        let fig: Vec<(u8, u8, u8)> = art.villager_sprites[3].pixels.chunks(4).filter(|c| c[3] > 128).map(|c| (c[0], c[1], c[2])).collect();
+        let mut figure = 0;
+        for y in y0..y0 + 64 { for x in x0..x0 + 64 {
+            let i = (y as usize * W + x as usize) * 4;
+            let px = (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]);
+            if px == GRAVE_STONE { stone += 1; }
+            else if fig.contains(&px) && px != GRAVE_EDGE { figure += 1; }
+        }}
+        assert!(stone > 200, "no gravestone in the card ({} stone px)", stone);
+        assert!(figure < 20, "Corvin's living portrait is still drawn ({} px)", figure);
     }
 }
 

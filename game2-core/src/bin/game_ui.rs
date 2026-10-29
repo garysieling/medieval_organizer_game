@@ -21,10 +21,10 @@ use game2_core::game::traits::personality_from_seed;
 #[cfg(test)]
 use game2_core::game::relationships::{self, Relationship};
 
-const W: usize = 960;
-const H: usize = 640;
-const MAP_W: usize = 640;
-const UI_X: usize = 660;
+const W: usize = 1440;
+const H: usize = 960;
+const MAP_W: usize = 1080;
+const UI_X: usize = 1100;
 const TILE_W: i32 = 28;
 const TILE_H: i32 = 14;
 /// Influence at which the village recognizes the player as its leader (the
@@ -305,13 +305,13 @@ fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
     }
 }
 
-// Minimap: the same isometric projection as the map, shrunk to fit a box in
-// the map's top-right corner (so up on the minimap is up on screen)
-const MM_W: i32 = 84;
-const MM_H: i32 = 46;
-const MM_LEFT: i32 = MAP_W as i32 - MM_W - 6;
-const MM_TOP: i32 = 6;
-const MM_K: f32 = 1.25; // minimap px per tile step along the x/y diagonal
+// Minimap: the same isometric projection as the map, shrunk to fit a box at
+// the bottom of the side panel (so up on the minimap is up on screen)
+const MM_W: i32 = 320;
+const MM_H: i32 = 160;
+const MM_LEFT: i32 = UI_X as i32 + 10;
+const MM_TOP: i32 = 660;
+const MM_K: f32 = 4.7; // minimap px per tile step along the x/y diagonal
 
 /// Minimap dot colours: living villagers, and the graves of the dead
 const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
@@ -320,6 +320,23 @@ const MM_GRAVE: (u8, u8, u8) = (150, 150, 160);
 /// Minimap position of a world tile
 fn tile_to_minimap(tx: f32, ty: f32) -> (f32, f32) {
     (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * MM_K, MM_TOP as f32 + 2.0 + (tx + ty) * MM_K / 2.0)
+}
+
+/// The tile under minimap pixel (mx, my), if it's on the minimap's tiles
+/// (inverse of tile_to_minimap)
+fn minimap_tile(mx: f32, my: f32, w_t: f32, h_t: f32) -> Option<(f32, f32)> {
+    let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
+    let diff = mx - cx;
+    let sum = (my - top) * 2.0;
+    let (tx, ty) = ((sum / MM_K + diff / MM_K) / 2.0, (sum / MM_K - diff / MM_K) / 2.0);
+    let inside = mx >= MM_LEFT as f32 && mx < (MM_LEFT + MM_W) as f32 && my >= MM_TOP as f32 && my < (MM_TOP + MM_H) as f32;
+    (inside && tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t).then_some((tx, ty))
+}
+
+/// The camera offset that puts tile (tx, ty) in the middle of the map view
+/// (at any zoom: the zoom pivots about the view's centre)
+fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
+    (-((tx - ty) * TILE_W as f32).round() as i32, (ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32).round() as i32)
 }
 
 /// Minimap position of a point on screen (inverse of iso_to_screen_cam,
@@ -1452,12 +1469,7 @@ impl<'a> Game<'a> {
         buf.rect(MM_LEFT - 2, MM_TOP - 2, MM_W + 4, MM_H + 4, 20, 20, 30);
         let (w_t, h_t) = (self.map.width as f32, self.map.height as f32);
         for my in 0..MM_H { for mx in 0..MM_W {
-            // which tile is under this minimap pixel (inverse of tile_to_minimap)
-            let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
-            let diff = (MM_LEFT + mx) as f32 + 0.5 - cx;
-            let sum = ((MM_TOP + my) as f32 + 0.5 - top) * 2.0;
-            let (tx, ty) = ((sum / MM_K + diff / MM_K) / 2.0, (sum / MM_K - diff / MM_K) / 2.0);
-            if tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t {
+            if let Some((tx, ty)) = minimap_tile((MM_LEFT + mx) as f32 + 0.5, (MM_TOP + my) as f32 + 0.5, w_t, h_t) {
                 let (r, g, b) = self.map.get(tx as i32, ty as i32).map(|t| tile_colour(t, season)).unwrap_or((20, 20, 30));
                 buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
             }
@@ -1638,6 +1650,15 @@ impl<'a> Game<'a> {
             format!("{} joined{}!", joined.join(", "), if r.formed_committee { " and formed a committee" } else { "" })
         };
         format!("House meeting - {} came. {}", invited.len(), outcome)
+    }
+
+    /// The mouse held on the minimap: look at that part of the map.
+    /// Returns whether (mx, my) was on the minimap.
+    fn look_at_minimap(&mut self, mx: i32, my: i32) -> bool {
+        match minimap_tile(mx as f32, my as f32, self.map.width as f32, self.map.height as f32) {
+            Some((tx, ty)) => { (self.cam_x, self.cam_y) = camera_on(tx, ty); true }
+            None => false,
+        }
     }
 
     /// A left click on the map: rivals rebuff or greet you, villagers get selected
@@ -2687,7 +2708,8 @@ fn main() {
             if window.is_key_pressed(*k, minifb::KeyRepeat::No) { action = Some(i); }
         }
         if let Some(i) = action { game.act(i); }
-        if clicked { game.click_map(mx, my); }
+        // holding the mouse on the minimap moves the view there
+        if !(mouse_down && game.look_at_minimap(mx, my)) && clicked { game.click_map(mx, my); }
         if window.is_key_down(Key::Key1) { game.selected_target = 0; }
         if window.is_key_down(Key::Key2) { game.selected_target = 1; }
         if window.is_key_down(Key::Key3) { game.selected_target = 2; }

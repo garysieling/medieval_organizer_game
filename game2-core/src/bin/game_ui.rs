@@ -466,6 +466,13 @@ const INVEST_GOLD: f32 = 10.0;
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
 const MILL_TILE: (f32, f32) = (10.0, 9.0);
+/// Frames drawn per second
+const FPS: u32 = 60;
+/// How far the player walks each frame, in tiles (3.5 tiles a second)
+const WALK_SPEED: f32 = 3.5 / FPS as f32;
+/// How much faster the player goes on a road, and slower through woods
+const ROAD_SPEEDUP: f32 = 1.8;
+const WOODS_SLOWDOWN: f32 = 0.6;
 /// How far from the player (in tiles) to look for a free building site
 const BUILD_SEARCH: i32 = 8;
 
@@ -498,7 +505,8 @@ const TOOLTIPS: [&str; 5] = [
 struct Art {
     villager_sprites: Vec<Sprite>,
     house_s: Option<Sprite>,
-    mill_frames: Vec<Sprite>,
+    mill_frames: Vec<Sprite>, // the sails only: they turn on mill_tower
+    mill_tower: Option<Sprite>,
     blacksmith_s: Option<Sprite>,
     stone_s: Option<Sprite>,
     player_s: Option<Sprite>,
@@ -603,9 +611,6 @@ impl TileSet {
 /// is about 91x50, starting 1.5px down. A block is scaled so that face is
 /// exactly one map tile (neighbours' outlines overlap, as in the pack).
 const BLOCK_FACE: (f32, f32, f32) = (91.0, 50.0, 1.5);
-/// How far below the land the sea's surface lies, at zoom 1: the shore
-/// shows as a low bank
-const WATER_DROP: f32 = 7.0;
 
 /// Size and top-left of the block drawn for the tile centred on (sx, sy)
 fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32, i32) {
@@ -622,6 +627,19 @@ fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
     s.scaled(w, h).blit(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32);
 }
+
+/// Where a windmill's sails turn: on the front of its tower, just below the
+/// roof (MILL_HUB, in the tower sprite's pixels), for a tower drawn with
+/// draw_on_tile on the tile centred on (sx, sy)
+fn mill_hub(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
+    let k = 2.0 * TILE_W as f32 * zoom / tower.width as f32;
+    let (w, h) = ((2.0 * TILE_W as f32 * zoom).round() as i32, (tower.height as f32 * k).round() as i32);
+    let top = sy + (TILE_H as f32 * zoom).round() as i32 - h;
+    (sx - w / 2 + (MILL_HUB.0 * k).round() as i32, top + (MILL_HUB.1 * k).round() as i32)
+}
+const MILL_HUB: (f32, f32) = (24.5, 44.0);
+/// The sails' size against the tower's (the pack draws them about as tall)
+const MILL_SAILS: f32 = 0.7;
 
 /// Draw a tree or boulder standing in the middle of the tile centred on
 /// (sx, sy), at the ground blocks' scale (the pack draws them for its blocks)
@@ -656,6 +674,7 @@ impl Art {
             mill_frames: (1..=4).map(|i|
                 Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
             ).collect(),
+            mill_tower: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill_wood.png")).ok(),
             blacksmith_s: Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok(),
             stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(2).png")).ok(),
             player_s: Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok(),
@@ -828,7 +847,39 @@ impl<'a> Game<'a> {
     }
 
     fn ticks_per_frame(&self) -> u32 {
-        if self.speed == 1 { 60 } else { 15 } // ~5s/day normal, ~1.2s turbo
+        // frames per day: ~5s/day normal, ~1.2s turbo
+        if self.speed == 1 { 5 * FPS } else { 5 * FPS / 4 }
+    }
+
+    /// Whether the player can stand at (x, y): not in the water or the
+    /// river (the bridge is fine), and not inside a building - walking
+    /// round behind one is fine
+    fn walkable(&self, x: f32, y: f32) -> bool {
+        let (tx, ty) = (x.round() as i32, y.round() as i32);
+        let built = self.map.is_occupied(tx, ty)
+            || self.buildings.iter().any(|(bx, by, _)| bx.round() as i32 == tx && by.round() as i32 == ty);
+        !built && !matches!(self.map.get(tx, ty), None | Some(Tile::Water) | Some(Tile::River))
+    }
+
+    /// One frame's step of the player in direction (dx, dy) (tile axes),
+    /// quicker along a road and slower through the woods. Blocked straight on, they slide along whatever
+    /// is in the way where they can.
+    fn walk(&mut self, dx: f32, dy: f32) {
+        let (px, py) = self.player_pos();
+        let at = (px.round() as i32, py.round() as i32);
+        let spd = WALK_SPEED * match self.map.get(at.0, at.1) {
+            Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
+            _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
+            _ => 1.0,
+        };
+        // the same pace whichever way they go, diagonals included
+        let len = (dx * dx + dy * dy).sqrt();
+        let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
+        let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
+        if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.player)) {
+            p.x = x;
+            p.y = y;
+        }
     }
 
     fn player_pos(&self) -> (f32, f32) {
@@ -938,7 +989,7 @@ impl<'a> Game<'a> {
                 let d2 = dx*dx + dy*dy;
                 if d2 < 9.0 && d2 > 0.001 {
                     let d = d2.sqrt();
-                    let push = (3.0 - d) * 0.08;
+                    let push = (3.0 - d) * 0.4 / FPS as f32; // eased apart over a few frames
                     let nx = dx / d * push; let ny = dy / d * push;
                     // a grave stays put; the living step around it. Nor is
                     // anyone shoved who's going for food: the push reaches 3
@@ -1083,7 +1134,8 @@ impl<'a> Game<'a> {
         let tw = (TILE_W as f32 * zoom) as i32;
         let th = (TILE_H as f32 * zoom) as i32;
         // each tile is its block from the pack, drawn back to front so nearer
-        // blocks overlap farther ones; the sea lies a little below the land.
+        // blocks overlap farther ones (the sea is level with the land, or the
+        // shore blocks' sides showed over it like a strip of grass).
         // Blocks are scaled once per frame, not once per tile.
         let set = &art.tiles[season_tiles(season)];
         let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
@@ -1094,7 +1146,6 @@ impl<'a> Game<'a> {
                 let Some(tile) = self.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
                 if sx < -2 * tw || sx > MAP_W as i32 + 2 * tw || sy < -4 * th || sy > H as i32 + 4 * th { continue; }
-                let sy = if tile == Tile::Water { sy + (WATER_DROP * zoom).round() as i32 } else { sy };
                 match set.block(&self.map, tx, ty) {
                     Some(block) => {
                         let (w, h, x, y) = block_rect(block, sx, sy, zoom);
@@ -1132,10 +1183,18 @@ impl<'a> Game<'a> {
             }
         }
 
-        // windmill: animated blades (frame cycles every 10 ticks)
-        let mill_frame = &art.mill_frames[((tick / 10) % 4) as usize];
+        // windmill: the tower on its tile, its sails turning on the tower's
+        // face (frame cycles every 10 ticks)
         let (msx, msy) = iso_to_screen_cam(MILL_TILE.0, MILL_TILE.1, cam_x, cam_y, zoom);
-        draw_on_tile(&mut buf, mill_frame, msx, msy, zoom);
+        if let Some(tower) = &art.mill_tower {
+            draw_on_tile(&mut buf, tower, msx, msy, zoom);
+            if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                let (hx, hy) = mill_hub(tower, msx, msy, zoom);
+                let k = MILL_SAILS * 2.0 * TILE_W as f32 * zoom / tower.width as f32;
+                let (w, h) = ((sails.width as f32 * k).round() as i32, (sails.height as f32 * k).round() as i32);
+                draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, k);
+            }
+        }
 
         // market food stock: shown in the HUD (top-left), not on the market
         // tile, where villagers always gather to eat and covered it up
@@ -1503,7 +1562,6 @@ impl<'a> Game<'a> {
         let tick = self.tick;
         if i == 0 || i == 1 { self.selected_target = self.reach_target(); }
         let selected_target = self.selected_target;
-        let influence_before = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.influence).unwrap_or(0.0);
         let msg = if let Some(reason) = self.action_blocker(i) {
             format!("Can't {}: {}.", self.buttons[i].label.to_lowercase(), reason)
         } else {
@@ -1537,10 +1595,9 @@ impl<'a> Game<'a> {
                 _ => unreachable!("no action button {}", i),
             }
         };
-        // every action line is dated like the rest of the log, and says how
-        // far it moved the player toward leading the village
-        let gained = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.influence).unwrap_or(0.0) - influence_before;
-        let msg = if gained > 1e-4 { format!("{} (+{:.2} influence)", msg, gained) } else { msg };
+        // every action line is dated like the rest of the log. It doesn't
+        // show the influence it earned: the log reads as what happened in
+        // the village, not a score sheet (the panel's bar shows standing)
         self.log.push(format!("t{}: {}", tick, msg));
     }
 
@@ -1810,6 +1867,57 @@ mod progression_tests {
 }
 
 #[cfg(test)]
+mod walk_tests {
+    use super::*;
+
+    fn put_player(game: &mut Game, x: f32, y: f32) {
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x, y };
+    }
+
+    #[test]
+    fn test_the_player_cant_walk_into_a_building_but_can_go_round_behind() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let (bx, by, _) = game.buildings[0];
+        // walking straight at it (along +x) stops at the building's tile
+        put_player(&mut game, bx - 2.0, by);
+        for _ in 0..60 { game.walk(1.0, 0.0); }
+        let (px, _) = game.player_pos();
+        assert!(px.round() < bx, "walked into the building at {} (player at {})", bx, px);
+        // but the tiles behind it (farther from the viewer) are open ground
+        assert!([(bx - 1.0, by), (bx, by - 1.0)].iter().any(|&(x, y)| game.walkable(x, y)), "can't get behind the building");
+    }
+
+    #[test]
+    fn test_the_player_cant_walk_into_the_sea() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        put_player(&mut game, 16.0, 16.0);
+        for _ in 0..600 { game.walk(1.0, 1.0); }
+        let (px, py) = game.player_pos();
+        assert!(!matches!(game.map.get(px.round() as i32, py.round() as i32), Some(Tile::Water) | Some(Tile::River) | None),
+            "the player walked into the water at ({:.1},{:.1})", px, py);
+    }
+
+    #[test]
+    fn test_roads_are_quicker() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let road = (0..33).flat_map(|y| (0..33).map(move |x| (x, y)))
+            .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Road) && game.map.get(x + 1, y) == Some(Tile::Road)).unwrap();
+        let grass = (0..33).flat_map(|y| (0..33).map(move |x| (x, y)))
+            .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Grass) && game.walkable(x as f32 + 0.2, y as f32)).unwrap();
+        let step = |game: &mut Game, (x, y): (i32, i32)| {
+            put_player(game, x as f32 - 0.2, y as f32);
+            game.walk(1.0, 0.0);
+            game.player_pos().0 - (x as f32 - 0.2)
+        };
+        let (on_road, off_road) = (step(&mut game, road), step(&mut game, grass));
+        assert!((on_road - WALK_SPEED * ROAD_SPEEDUP).abs() < 1e-4 && (off_road - WALK_SPEED).abs() < 1e-4, "road {} vs grass {}", on_road, off_road);
+    }
+}
+
+#[cfg(test)]
 mod talk_reach_tests {
     use super::*;
 
@@ -1838,7 +1946,7 @@ mod action_log_tests {
     use super::*;
 
     #[test]
-    fn test_action_lines_are_dated_and_show_who_and_the_gain() {
+    fn test_action_lines_are_dated_and_say_who_not_the_score() {
         let art = Art::default();
         let mut game = Game::new(&art);
         while game.tick < 3 { game.update(); }
@@ -1849,7 +1957,7 @@ mod action_log_tests {
 
         game.act(0);
         let talk = game.log.last().unwrap().clone();
-        assert!(talk.starts_with("t3: Eliza ") && talk.contains(": \"") && talk.ends_with("(+0.05 influence)"), "{}", talk);
+        assert!(talk.starts_with("t3: Eliza ") && talk.contains(": \"") && !talk.contains("influence"), "{}", talk);
 
         game.act(1); // not enough influence yet
         let recruit = game.log.last().unwrap().clone();
@@ -1857,7 +1965,7 @@ mod action_log_tests {
 
         game.act(2);
         let invest = game.log.last().unwrap().clone();
-        assert!(invest.starts_with("t3: Invested 10 gold") && invest.contains("(+0.05 influence)"), "{}", invest);
+        assert!(invest.starts_with("t3: Invested 10 gold") && !invest.contains("influence"), "{}", invest);
 
     }
 
@@ -1865,7 +1973,7 @@ mod action_log_tests {
     fn test_influence_lines_are_not_coloured_as_illness() {
         // "influence" contains "flu"; it used to turn every influence line weather-cyan
         let illness = (120, 200, 255);
-        assert_ne!(log_colour("t3: Invested 10 gold (+0.05 influence)"), illness);
+        assert_ne!(log_colour("t3: Invested 10 gold"), illness);
         assert_ne!(log_colour("t3: Can't recruit: need influence 0.40."), illness);
         assert_ne!(log_colour("t9: the grain store is low"), illness);
         assert_eq!(log_colour("t120: Bram has the flu"), illness);
@@ -2587,23 +2695,22 @@ fn main() {
         if window.is_key_down(Key::Key5) { game.selected_target = 4; }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { game.paused = !game.paused; }
         if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { game.help_open = !game.help_open; }
-        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { game.zoom = (game.zoom + 0.02).min(2.0); }
-        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { game.zoom = (game.zoom - 0.02).max(0.5); }
+        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { game.zoom = (game.zoom + 0.006).min(2.0); }
+        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { game.zoom = (game.zoom - 0.006).max(0.5); }
         if window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { game.speed = if game.speed == 1 { 4 } else { 1 }; }
-        // WASD moves the player character (iso directions)
-        if let Some(pp) = game.world.get_component_mut::<Pos>(game.player) {
-            let spd = 0.15;
-            if window.is_key_down(Key::W) { pp.x -= spd; pp.y -= spd; }  // up
-            if window.is_key_down(Key::S) { pp.x += spd; pp.y += spd; }  // down
-            if window.is_key_down(Key::A) { pp.x -= spd; pp.y += spd; }  // left
-            if window.is_key_down(Key::D) { pp.x += spd; pp.y -= spd; }  // right
-            pp.x = pp.x.clamp(0.0, 31.0); pp.y = pp.y.clamp(0.0, 31.0);
-        }
+        // WASD walk along the grid, so the player can follow a road or a
+        // row of tiles: W/S up-right and down-left, A/D up-left and down-right
+        let (mut dx, mut dy) = (0.0, 0.0);
+        if window.is_key_down(Key::W) { dy -= 1.0; }
+        if window.is_key_down(Key::S) { dy += 1.0; }
+        if window.is_key_down(Key::A) { dx -= 1.0; }
+        if window.is_key_down(Key::D) { dx += 1.0; }
+        if dx != 0.0 || dy != 0.0 { game.walk(dx, dy); }
         // arrows pan the camera
-        if window.is_key_down(Key::Left)  { game.cam_x += 6; }
-        if window.is_key_down(Key::Right) { game.cam_x -= 6; }
-        if window.is_key_down(Key::Up)    { game.cam_y += 6; }
-        if window.is_key_down(Key::Down)  { game.cam_y -= 6; }
+        if window.is_key_down(Key::Left)  { game.cam_x += 2; }
+        if window.is_key_down(Key::Right) { game.cam_x -= 2; }
+        if window.is_key_down(Key::Up)    { game.cam_y += 2; }
+        if window.is_key_down(Key::Down)  { game.cam_y -= 2; }
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", game.frame_n)).ok(); }
 
@@ -2620,7 +2727,7 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_secs(5));
             break;
         }
-        std::thread::sleep(std::time::Duration::from_millis(80)); // ~12fps
+        std::thread::sleep(std::time::Duration::from_millis(1000 / FPS as u64));
     }
 }
 

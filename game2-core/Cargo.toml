@@ -9,5 +9,9 @@ png = "0.18.1"
 # No external dependencies for simplicity
 # Using std library only
 
+[lints.rust]
+# warnings are errors: keep the build clean
+warnings = "deny"
+
 [dev-dependencies]
 # Add test dependencies as needed

@@ -12,7 +12,7 @@ fn main() {
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let devotions = [0.8, 0.75, 0.2, 0.7, 0.15]; // 3 devout, 2 secular
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = world.create_entity();
         world.add_component(v, Faith {
             religion: "Old Faith".into(),

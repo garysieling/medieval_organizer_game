@@ -33,8 +33,9 @@ impl Rng {
 }
 
 impl Terrain {
-    /// Generate terrain using midpoint displacement (diamond-square)
-    pub fn generate(size: usize, roughness: f32, seed: u64) -> Self {
+    /// Fractal heights by midpoint displacement (diamond-square), spread
+    /// over the full 0-1 range: the raw relief both shapes of map start from
+    fn fractal(size: usize, roughness: f32, seed: u64) -> (usize, Vec<Vec<f32>>) {
         let mut rng = Rng::new(seed);
         // size must be 2^n + 1 for diamond-square; round up to nearest valid
         let n = ((size - 1) as f32).log2().ceil() as u32;
@@ -97,6 +98,14 @@ impl Terrain {
             }
         }
 
+        (size, heights)
+    }
+
+    /// Generate terrain using midpoint displacement (diamond-square), on a
+    /// dome: an island, land in the middle and sea all round
+    pub fn generate(size: usize, roughness: f32, seed: u64) -> Self {
+        let (size, mut heights) = Self::fractal(size, roughness, seed);
+
         // Continent bias: strong land dome in center, water only at rim
         let center = (size / 2) as f32;
         for y in 0..size {
@@ -118,6 +127,23 @@ impl Terrain {
             }
         }
 
+        Self { width: size, height: size, heights, seed }
+    }
+
+    /// A stretch of country rather than an island: hills and bare rock to
+    /// the north (the top of the screen), falling away to a coast along the
+    /// south, with the fractal relief giving it ridges, valleys and the odd
+    /// lake
+    pub fn generate_country(size: usize, roughness: f32, seed: u64) -> Self {
+        let (size, mut heights) = Self::fractal(size, roughness, seed);
+        let span = (2 * (size - 1)) as f32;
+        for y in 0..size {
+            for x in 0..size {
+                let south = (x + y) as f32 / span; // 0 at the top corner, 1 at the bottom
+                let slope = 0.95 - 1.05 * south;
+                heights[y][x] = (heights[y][x] * 0.5 + slope * 0.75).clamp(0.0, 1.0);
+            }
+        }
         Self { width: size, height: size, heights, seed }
     }
 

@@ -3,14 +3,13 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger, Villager, Activity};
+use game2_core::game::villager::{self, Hunger};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::tech_tree::{printmaking_tree, research};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
-use game2_core::game::organizing::one_on_one;
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
-use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::weather::{Weather, WeatherSystem, CurrentWeather, spawn_weather, food_effect};
+use game2_core::sim::climate::{self, SeasonSystem};
+use game2_core::sim::weather::{Weather, WeatherSystem, spawn_weather};
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::religion::Faith;
@@ -21,7 +20,7 @@ fn main() {
     println!("=== FULL SESSION: the game in one run ===\n");
 
     let mut world = World::new();
-    let mut telem = Telemetry::new();
+    let _telem = Telemetry::new();
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
@@ -31,14 +30,14 @@ fn main() {
     sched.add_system(GuildFormationSystem);
 
     // World
-    let terrain = Terrain::generate(33, 0.7, 42);
+    let _terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
     villager::spawn_food_source(&mut world, 8.0, 8.0, 400);
 
     // Villagers
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
         world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
@@ -82,9 +81,9 @@ fn main() {
         if tick % 10 == 0 && tick > 0 {
             let target = villagers[(tick / 10) as usize % 5];
             match tick % 30 {
-                0 => { let r = act_talk(&mut world, player, target); }
+                0 => { let _r = act_talk(&mut world, player, target); }
                 10 => { let r = act_recruit(&mut world, player, org, target); if r.success { println!("  {} recruited to guild", names[(tick/10) as usize % 5]); } }
-                20 => { let r = act_invest(&mut world, player, 10.0); }
+                20 => { let _r = act_invest(&mut world, player, 10.0); }
                 _ => {}
             }
         }

@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger, Villager, Pos};
+use game2_core::game::villager::{self, Pos};
 use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::sim::climate::{self, SeasonSystem};
 

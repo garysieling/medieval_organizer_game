@@ -190,6 +190,74 @@ pub fn village_concerns(world: &World, people: &[Entity]) -> Vec<String> {
     if top.is_empty() { vec!["the coming harvest".into()] } else { top }
 }
 
+/// How a concern comes up in conversation: what the player saw them do
+/// (for the log) and what they actually said (for their speech bubble)
+fn concern_speech(concern: &str) -> (&'static str, &'static str) {
+    match concern {
+        "the food running short" => ("complained the store is running low", "There's hardly anything left in the store."),
+        "the sickness" => ("worried about the sickness going round", "Half the village is coughing. Who's next?"),
+        "fair wages" => ("complained about wages", "A day's work hardly buys a day's bread."),
+        "safe roads" => ("complained the roads aren't safe", "Nobody will trade with us if the roads stay like this."),
+        "the faith" => ("talked about keeping the faith", "We need something to believe in, these days."),
+        "lower rents" => ("complained about the rents", "The rents go up every season."),
+        _ => ("talked about the coming harvest", "If the harvest is good, we'll get through the winter."),
+    }
+}
+
+/// The ways people put a concern when it comes up at a meeting
+fn meeting_sayings(concern: &str) -> [&'static str; 3] {
+    match concern {
+        "the food running short" => ["The store won't last the month.", "My children go to bed hungry.", "We need to share what grain there is."],
+        "the sickness" => ["Half the village is coughing.", "Who'll work the fields if we're all sick?", "We should look after the sick together."],
+        "fair wages" => ["A day's work hardly buys a day's bread.", "The miller takes more every season.", "If we asked together, they'd have to listen."],
+        "safe roads" => ["The roads aren't safe to travel.", "No trader comes this way any more.", "We could watch the roads in turns."],
+        "the faith" => ["We need something to hold on to.", "The church is the only thing that brings us together.", "Let's keep faith with each other."],
+        "lower rents" => ["The rents go up every season.", "I can't pay what the lord asks.", "One of us alone can't argue the rent."],
+        _ => ["If the harvest is good, we'll get through.", "We'll need every hand at harvest.", "Let's bring the harvest in together."],
+    }
+}
+
+/// What `name` says at a house meeting on round `round`: one of their own
+/// concerns, in words of their own (each person puts it differently)
+pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -> String {
+    let concerns = village_concerns(world, &[person]);
+    let concern = &concerns[round % concerns.len()];
+    let voice = name.bytes().map(|b| b as usize).sum::<usize>();
+    meeting_sayings(concern)[(voice + round) % 3].to_string()
+}
+
+/// Small talk, for someone who has already told you what's on their mind
+const SMALL_TALK: [(&str, &str); 5] = [
+    ("chatted about the weather", "Looks like rain again, doesn't it?"),
+    ("passed on some village gossip", "Did you hear who was seen down by the mill?"),
+    ("asked how you were keeping", "Good to see you again."),
+    ("talked about their family", "The little ones keep me on my toes."),
+    ("swapped stories by the well", "Remember the winter the river froze?"),
+];
+
+/// Something said in passing, when people meet: one of the small-talk
+/// lines, picked by `n`
+pub fn passing_remark(n: usize) -> &'static str {
+    SMALL_TALK[n % SMALL_TALK.len()].1
+}
+
+/// What `name` says when the player talks with them (`talks_before` is how
+/// many times they've talked already). First the concerns actually on
+/// their mind (village_concerns), one per talk; once they've said those,
+/// small talk - though going hungry or sick still comes up every other
+/// time. Returns the log line ("Bram complained about wages") and their
+/// own words, for a speech bubble.
+pub fn talk_response(world: &World, person: Entity, name: &str, talks_before: usize) -> (String, String) {
+    let concerns = village_concerns(world, &[person]);
+    let pressing = concerns.iter().find(|c| *c == "the food running short" || *c == "the sickness");
+    let (did, said) = match (concerns.get(talks_before), pressing) {
+        (Some(c), _) => concern_speech(c),
+        (None, Some(c)) if talks_before % 2 == 0 => concern_speech(c),
+        _ => SMALL_TALK[talks_before % SMALL_TALK.len()],
+    };
+    (format!("{} {}", name, did), said.to_string())
+}
+
 /// Harvest: the org's living members bring in the harvest together. Working
 /// side by side bonds each pair of them (an Aid interaction at half
 /// strength), and a shared effort of two or more is real organizing that
@@ -215,6 +283,41 @@ pub fn harvest_together(world: &mut World, org: Entity) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_talk_response_says_what_they_actually_said() {
+        use crate::game::villager::Hunger;
+        let mut w = World::new();
+        let v = w.create_entity();
+        w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        w.add_component(v, Hunger { value: 10.0 });
+        let (log, said) = talk_response(&w, v, "Bram", 0);
+        assert_eq!(log, "Bram complained the store is running low");
+        assert!(!said.is_empty());
+        // talk again and they move on to the next thing on their mind
+        assert_eq!(talk_response(&w, v, "Bram", 1).0, "Bram complained about wages");
+        // after that it's small talk, though hunger keeps coming back up
+        assert_eq!(talk_response(&w, v, "Bram", 2).0, "Bram complained the store is running low");
+        let (chat, _) = talk_response(&w, v, "Bram", 3);
+        assert!(SMALL_TALK.iter().any(|(d, _)| chat == format!("Bram {}", d)), "{}", chat);
+        // someone fed and well just makes small talk once they've said their piece
+        w.add_component(v, Hunger { value: 90.0 });
+        for n in 1..6 {
+            let (chat, said) = talk_response(&w, v, "Bram", n);
+            assert!(SMALL_TALK.iter().any(|(d, s)| chat == format!("Bram {}", d) && said == *s), "{}", chat);
+        }
+    }
+
+    #[test]
+    fn test_people_put_the_same_concern_their_own_way_at_a_meeting() {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        for v in [a, b] { w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() }); }
+        let (ra, rb) = (meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, b, "Bram", 0));
+        assert_ne!(ra, rb, "two laborers shouldn't say the very same thing");
+        assert!(meeting_sayings("fair wages").contains(&ra.as_str()));
+        assert_ne!(meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, a, "Eliza", 1), "nor repeat themselves");
+    }
 
     #[test]
     fn test_harvesting_together_bonds_members_and_builds_power() {

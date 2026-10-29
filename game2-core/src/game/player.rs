@@ -36,32 +36,43 @@ pub struct ActionResult {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Rapport { pub value: f32 }
 
+/// How many times the player has talked with this villager - uncapped,
+/// unlike `Rapport` (which caps at 1.0 for influence/relationship purposes).
+/// talk_response uses this so the recurring hunger/sickness concern keeps
+/// coming up on schedule even once rapport itself has maxed out.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TalkCount { pub value: usize }
+
 pub const TALK_INFLUENCE: f32 = 0.05;
 pub const TALK_RAPPORT_STEP: f32 = 0.15;
 pub const RECRUIT_INFLUENCE: f32 = 0.1;
+/// How much a talk still counts with someone you already know well: a
+/// catch-up that keeps the relationship topped off against its daily decay
+pub const TALK_MAINTENANCE: f32 = 0.1;
 
 /// Player takes a talk action (1-1 meeting).
 /// Repeat talks with the same person yield less; talking alone can't win.
 /// The conversation also builds the person's trust in the player (their
 /// relationship), so someone you've heard out is readier to join you at a
-/// house meeting; it too tapers off once you've heard all their concerns.
+/// house meeting; it tapers off as you get to know them, down to
+/// TALK_MAINTENANCE - a catch-up that keeps an old friendship from fading.
 pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });
-    if rapport < 1.0 {
-        record_interaction(world, player, Interaction {
-            other: target, kind: InteractionKind::Conversation, intensity: 1.0 - rapport,
-        });
-    }
+    let talks = world.get_component::<TalkCount>(target).map(|c| c.value).unwrap_or(0);
+    world.add_component(target, TalkCount { value: talks + 1 });
+    record_interaction(world, player, Interaction {
+        other: target, kind: InteractionKind::Conversation, intensity: (1.0 - rapport).max(TALK_MAINTENANCE),
+    });
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
         p.influence += gained;
     }
     ActionResult {
         success: true,
         influence_change: gained,
-        description: if rapport >= 1.0 { "You've already heard all their concerns".into() }
+        description: if rapport >= 1.0 { "Caught up with them".into() }
             else { "Had a conversation, learned their concerns".into() },
     }
 }
@@ -248,10 +259,11 @@ mod tests {
         assert!((trust(&w) - 0.05).abs() < 1e-6);
         for _ in 0..20 { act_talk(&mut w, p, vs[0]); }
         let heard_out = trust(&w);
-        // 0.05 x (1 + 0.85 + ... + 0.1) = 0.1925: about three meetings' worth
-        assert!((heard_out - 0.1925).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
+        // 0.05 x (1 + 0.85 + ... + 0.1), then 14 catch-ups at 0.1 each
+        assert!((heard_out - 0.2625).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
         act_talk(&mut w, p, vs[0]);
-        assert_eq!(trust(&w), heard_out, "once you've heard everything, more talk adds nothing");
+        let topped = trust(&w) - heard_out;
+        assert!((topped - 0.05 * TALK_MAINTENANCE).abs() < 1e-6, "once you know them, a talk only tops the relationship off, got +{}", topped);
     }
 
     #[test]

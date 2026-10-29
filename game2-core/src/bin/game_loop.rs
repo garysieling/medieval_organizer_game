@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
+use game2_core::game::villager::{self, Hunger, Villager, Activity};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::jobs::{self, Job, JobHolder, JobSystem};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
@@ -11,7 +11,7 @@ use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
 use game2_core::sim::religion::{self, Faith, Congregation, Service, DevotionSystem};
 use game2_core::sim::economics::Market;
-use game2_core::sim::community::{Citizen, Organization};
+use game2_core::sim::community::Citizen;
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
@@ -32,7 +32,7 @@ fn main() {
     sched.add_system(villager::StallSystem); // the market's bread goes on sale as meals
 
     // World setup
-    let terrain = Terrain::generate(33, 0.7, 42);
+    let _terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
     villager::spawn_food_source(&mut world, 8.0, 8.0, 300);
     let market = world.create_entity();
@@ -43,7 +43,7 @@ fn main() {
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny","Wystan"];
     let roles = [Job::Farmer, Job::Farmer, Job::Miller, Job::Baker, Job::Priest, Job::Carpenter];
     let mut villagers = vec![];
-    for (i, name) in names.iter().enumerate() {
+    for (i, _name) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
         world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (5-i) as u32, episodes: vec![] });

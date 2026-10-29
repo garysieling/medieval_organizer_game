@@ -497,8 +497,8 @@ const CHAT_BUBBLE_SECS: u32 = 3;
 const CHAT_RANGE: f32 = 1.5;
 const CHAT_COOLDOWN: u64 = 10;
 const CHAT_INTENSITY: f32 = 0.2;
-/// How far the player walks each frame, in tiles (3.5 tiles a second)
-const WALK_SPEED: f32 = 3.5 / FPS as f32;
+/// How far the player walks each frame, in tiles (7 tiles a second)
+const WALK_SPEED: f32 = 7.0 / FPS as f32;
 /// How much faster the player goes on a road, and slower through woods
 const ROAD_SPEEDUP: f32 = 1.8;
 const WOODS_SLOWDOWN: f32 = 0.6;
@@ -547,8 +547,10 @@ struct Art {
     rival_house: Option<Sprite>,
     rival_woodhouse: Option<Sprite>,
     dog: Option<Sprite>, // hand-drawn: the asset packs have no animals
-    /// Ground blocks for the green seasons, autumn and winter (season_tiles)
+    /// Ground blocks for the green seasons, autumn and winter (season_tiles),
+    /// and the same as top faces only, for inland tiles
     tiles: [TileSet; 3],
+    faces: [TileSet; 3],
 }
 
 /// The pack's ground blocks for one season's look: one per kind of map
@@ -581,6 +583,58 @@ fn recolour_greens(block: &Sprite, f: impl Fn((u8, u8, u8)) -> (u8, u8, u8)) -> 
     out
 }
 
+/// The top face of the pack's 94x97 ground blocks: a diamond centred on
+/// (47, 26.5), 47 across and 26.5 down from its centre to its corners
+const FACE_CENTRE: (f32, f32, f32, f32) = (47.0, 26.5, 47.0, 26.5);
+/// How far the top face's outline runs either side of its edge, as a
+/// fraction of the way to the centre (measured on the grass block: 0.76
+/// to 1.12 - it's thickest at the corners)
+const FACE_OUTLINE: (f32, f32) = (0.25, 0.15);
+
+/// `block` with the dark outline round its top face (and its soft,
+/// half-dark edge) painted over in the colour just inside it
+fn strip_face_outline(block: &Sprite) -> Sprite {
+    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
+    let (cx, cy, rx, ry) = FACE_CENTRE;
+    let px = |x: i32, y: i32| -> [u8; 4] {
+        let i = (y as usize * block.width + x as usize) * 4;
+        [block.pixels[i], block.pixels[i + 1], block.pixels[i + 2], block.pixels[i + 3]]
+    };
+    let lum = |p: [u8; 4]| p[0] as u32 + p[1] as u32 + p[2] as u32;
+    for y in 0..block.height.min(60) as i32 {
+        for x in 0..block.width as i32 {
+            let d = ((x as f32 + 0.5 - cx) / rx).abs() + ((y as f32 + 0.5 - cy) / ry).abs();
+            let here = px(x, y);
+            if d < 1.0 - FACE_OUTLINE.0 || d > 1.0 + FACE_OUTLINE.1 || here[3] == 0 { continue; }
+            // the face's own colour, just inside the outline on the way to
+            // the centre (the distance shrinks evenly along that line)
+            let t = 1.0 - (1.0 - FACE_OUTLINE.0 - 0.04) / d;
+            let (ix, iy) = ((x as f32 + (cx - x as f32) * t) as i32, (y as f32 + (cy - y as f32) * t) as i32);
+            let fill = px(ix, iy);
+            if fill[3] > 0 && lum(here) * 100 < lum(fill) * 85 {
+                let i = (y as usize * block.width + x as usize) * 4;
+                out.pixels[i..i + 4].copy_from_slice(&fill);
+            }
+        }
+    }
+    out
+}
+
+/// Just the top face of a ground block, its sides cut away: inland, where
+/// the blocks in front cover the sides anyway, their edges only peeked
+/// between the tiles as faint lines
+fn face_only(block: &Sprite) -> Sprite {
+    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
+    let (cx, cy, rx, ry) = FACE_CENTRE;
+    for y in 0..block.height {
+        for x in 0..block.width {
+            let d = ((x as f32 + 0.5 - cx) / rx).abs() + ((y as f32 + 0.5 - cy) / ry).abs();
+            if d > 1.0 + FACE_OUTLINE.1 / 2.0 { out.pixels[(y * block.width + x) * 4 + 3] = 0; }
+        }
+    }
+    out
+}
+
 /// The sea: the pack has no open-water block, so it's the grass block with
 /// its grass turned to water, colder in winter
 fn water_block(grass: &Sprite, winter: bool) -> Sprite {
@@ -604,7 +658,7 @@ impl TileSet {
         let grass = load("Enviroument/Spring/grass.png");
         // fields lie under the snow in winter
         let snow = || load("Enviroument/Winter/snow.png");
-        TileSet {
+        let set = TileSet {
             water: grass.as_ref().map(|g| water_block(g, winter)),
             grass: if winter { snow() } else { grass.map(gold) },
             tree: if winter { load("Enviroument/Winter/trees/tree(1).png") } else { load("Enviroument/Spring/trees/tree(1).png").map(gold) },
@@ -617,6 +671,23 @@ impl TileSet {
                 r
             } else { pieces("Roads/Spring", "road", 15) },
             rivers: if winter { pieces("Rivers/Winter", "river_winter", 17) } else { pieces("Rivers/Spring", "river", 17) },
+        };
+        // without the dark outline round their top faces, so the ground
+        // reads as one surface rather than a grid of tiles (lines inside a
+        // tile, like a road's or a riverbank's edges, stay)
+        set.map_blocks(strip_face_outline)
+    }
+
+    /// Every ground block put through `f` (the tree stays as it is)
+    fn map_blocks(&self, f: impl Fn(&Sprite) -> Sprite) -> TileSet {
+        TileSet {
+            grass: self.grass.as_ref().map(&f),
+            water: self.water.as_ref().map(&f),
+            wheat: self.wheat.as_ref().map(&f),
+            corn: self.corn.as_ref().map(&f),
+            roads: self.roads.iter().map(&f).collect(),
+            rivers: self.rivers.iter().map(&f).collect(),
+            tree: self.tree.clone(),
         }
     }
 
@@ -721,6 +792,7 @@ impl Art {
         Art {
             villager_sprites,
             tiles: [TileSet::load(&assets, 0), TileSet::load(&assets, 1), TileSet::load(&assets, 2)],
+            faces: [0, 1, 2].map(|season| TileSet::load(&assets, season).map_blocks(face_only)),
             house_s: Sprite::load(&assets.path(&assets.building_sprite("house", "blue"))).ok(),
             mill_frames: (1..=4).map(|i|
                 Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
@@ -1238,6 +1310,7 @@ impl<'a> Game<'a> {
         // shore blocks' sides showed over it like a strip of grass).
         // Blocks are scaled once per frame, not once per tile.
         let set = &art.tiles[season_tiles(season)];
+        let faces = &art.faces[season_tiles(season)];
         let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
         let (w_t, h_t) = (self.map.width as i32, self.map.height as i32);
         for d in 0..(w_t + h_t - 1) {
@@ -1246,6 +1319,9 @@ impl<'a> Game<'a> {
                 let Some(tile) = self.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
                 if sx < -2 * tw || sx > MAP_W as i32 + 2 * tw || sy < -4 * th || sy > H as i32 + 4 * th { continue; }
+                // inland the blocks in front cover a tile's sides: just its face
+                let inland = tx + 1 < w_t && ty + 1 < h_t;
+                let set = if inland { faces } else { set };
                 match set.block(&self.map, tx, ty) {
                     Some(block) => {
                         let (w, h, x, y) = block_rect(block, sx, sy, zoom);

@@ -213,6 +213,12 @@ const SMALL_TALK: [(&str, &str); 5] = [
     ("swapped stories by the well", "Remember the winter the river froze?"),
 ];
 
+/// Something said in passing, when people meet: one of the small-talk
+/// lines, picked by `n`
+pub fn passing_remark(n: usize) -> &'static str {
+    SMALL_TALK[n % SMALL_TALK.len()].1
+}
+
 /// What `name` says when the player talks with them (`talks_before` is how
 /// many times they've talked already). First the concerns actually on
 /// their mind (village_concerns), one per talk; once they've said those,

@@ -16,10 +16,11 @@ use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, AttachmentStyle, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
-use game2_core::game::organizing::talk_response;
+use game2_core::game::organizing::{passing_remark, talk_response};
 use game2_core::game::traits::personality_from_seed;
+use game2_core::game::relationships;
 #[cfg(test)]
-use game2_core::game::relationships::{self, Relationship};
+use game2_core::game::relationships::Relationship;
 
 const W: usize = 1440;
 const H: usize = 960;
@@ -485,6 +486,15 @@ const BUILD_COST: f32 = 30.0;
 const MILL_TILE: (f32, f32) = (10.0, 9.0);
 /// Frames drawn per second
 const FPS: u32 = 60;
+/// How long a reply to Talk, and a remark in passing, stay up (seconds)
+const TALK_BUBBLE_SECS: u32 = 5;
+const CHAT_BUBBLE_SECS: u32 = 3;
+/// How near two people must be to chat in passing (tiles), how many days
+/// before the same pair chat again, and how much a chat counts for (a fifth
+/// of a conversation: +0.01 to the relationship)
+const CHAT_RANGE: f32 = 1.5;
+const CHAT_COOLDOWN: u64 = 10;
+const CHAT_INTENSITY: f32 = 0.2;
 /// How far the player walks each frame, in tiles (3.5 tiles a second)
 const WALK_SPEED: f32 = 3.5 / FPS as f32;
 /// How much faster the player goes on a road, and slower through woods
@@ -740,7 +750,10 @@ struct Game<'a> {
     log: Vec<String>,
     inspector_open: bool,
     help_open: bool,
-    dialog: Option<(Entity, String, u64)>, // (speaker, text, until tick)
+    bubbles: Vec<(Entity, String, u32)>, // speech bubbles: (speaker, text, until frame)
+    /// Pairs of people standing near each other, and the day each pair last chatted
+    near: Vec<(Entity, Entity)>,
+    last_chat: Vec<((Entity, Entity), u64)>,
     frame_n: u32,
     was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
     died_on: Vec<Option<u64>>, // per villager, the day they died
@@ -856,7 +869,9 @@ impl<'a> Game<'a> {
             log: vec!["Welcome to the village.".into()],
             inspector_open: true,
             help_open: false,
-            dialog: None,
+            bubbles: vec![],
+            near: vec![],
+            last_chat: vec![],
             was_sick: vec![false; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
@@ -1128,8 +1143,10 @@ impl<'a> Game<'a> {
         self.last_guild_count = gc;
 
         // expire speech bubbles and toasts
-        if matches!(&self.dialog, Some((_, _, until)) if tick >= *until) { self.dialog = None; }
         toasts.retain(|(_, until)| tick < *until);
+        let frame = self.frame_n;
+        self.bubbles.retain(|(_, _, until)| frame < *until);
+        self.chat_in_passing();
     }
 
     /// Draw the whole frame: map, villagers, overlays and the side panel.
@@ -1501,9 +1518,10 @@ impl<'a> Game<'a> {
             buf.rect(x1, y0, 1, y1 - y0 + 1, 255, 255, 255);
         }
 
-        // dialog bubble over speaking villager
-        if let Some((speaker, ref text, until)) = self.dialog {
-            if tick < until {
+        // speech bubbles over whoever is speaking
+        for (speaker, text, _) in &self.bubbles {
+            let (speaker, text) = (*speaker, text.as_str());
+            {
                 if let Some(p) = world.get_component::<Pos>(speaker) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                     // off the map view (e.g. under the panel): the log already
@@ -1584,7 +1602,7 @@ impl<'a> Game<'a> {
                         .map(|r| (r.value / TALK_RAPPORT_STEP).round() as usize).unwrap_or(0);
                     let (did, said) = talk_response(&self.world, v, NAMES[selected_target], talks_before);
                     act_talk(&mut self.world, self.player, v);
-                    self.dialog = Some((v, said.clone(), tick + 60));
+                    self.say(v, &said, TALK_BUBBLE_SECS);
                     format!("{}: \"{}\"", did, said)
                 }
                 1 => {
@@ -1652,6 +1670,44 @@ impl<'a> Game<'a> {
         format!("House meeting - {} came. {}", invited.len(), outcome)
     }
 
+    /// Put a speech bubble over `who` for `secs` seconds (replacing any
+    /// they already had)
+    fn say(&mut self, who: Entity, text: &str, secs: u32) {
+        self.bubbles.retain(|(w, _, _)| *w != who);
+        self.bubbles.push((who, text.to_string(), self.frame_n + secs * FPS));
+    }
+
+    /// When the player and a villager, or two villagers, come within
+    /// CHAT_RANGE of each other, one of them passes a remark - at most once
+    /// a CHAT_COOLDOWN days a pair - and the pair get on a little better
+    fn chat_in_passing(&mut self) {
+        let mut people: Vec<Entity> = self.villagers.iter().copied().filter(|v| !villager::is_dead(&self.world, *v)).collect();
+        people.push(self.player);
+        let pos = |w: &World, e: Entity| w.get_component::<Pos>(e).map(|p| (p.x, p.y));
+        let mut near = vec![];
+        for (i, &a) in people.iter().enumerate() {
+            for &b in &people[i + 1..] {
+                let (Some(pa), Some(pb)) = (pos(&self.world, a), pos(&self.world, b)) else { continue };
+                if (pa.0 - pb.0).powi(2) + (pa.1 - pb.1).powi(2) < CHAT_RANGE * CHAT_RANGE { near.push((a, b)); }
+            }
+        }
+        let tick = self.tick;
+        for &(a, b) in &near {
+            if self.near.contains(&(a, b)) { continue; } // already together: they've said hello
+            let last = self.last_chat.iter().find(|(p, _)| *p == (a, b)).map(|(_, t)| *t);
+            if last.map(|t| tick < t + CHAT_COOLDOWN).unwrap_or(false) { continue; }
+            // the player is listed last, so a villager always does the talking
+            let n = self.last_chat.len() + (a as usize) + tick as usize;
+            self.say(a, passing_remark(n), CHAT_BUBBLE_SECS);
+            relationships::record_interaction(&mut self.world, if b == self.player { b } else { a }, relationships::Interaction {
+                other: if b == self.player { a } else { b }, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
+            });
+            self.last_chat.retain(|(p, _)| *p != (a, b));
+            self.last_chat.push(((a, b), tick));
+        }
+        self.near = near;
+    }
+
     /// The mouse held on the minimap: look at that part of the map.
     /// Returns whether (mx, my) was on the minimap.
     fn look_at_minimap(&mut self, mx: i32, my: i32) -> bool {
@@ -1665,8 +1721,8 @@ impl<'a> Game<'a> {
     fn click_map(&mut self, mx: i32, my: i32) {
         let (tick, cam_x, cam_y, zoom) = (self.tick, self.cam_x, self.cam_y, self.zoom);
         // click on a rival villager -> they rebuff you (foreign village is wary)
-        for (i, rv) in self.rivals.iter().enumerate() {
-            if let Some(p) = self.world.get_component::<Pos>(*rv) {
+        for (i, rv) in self.rivals.clone().into_iter().enumerate() {
+            if let Some(p) = self.world.get_component::<Pos>(rv) {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                 let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
                 if mx < MAP_W as i32 && d < 24.0 {
@@ -1678,7 +1734,7 @@ impl<'a> Game<'a> {
                     } else {
                         (format!("{}: we don't know you, outsider.", RIVAL_NAMES[i]), "rebuffed")
                     };
-                    self.dialog = Some((*rv, msg, tick + 60));
+                    self.say(rv, &msg, TALK_BUBBLE_SECS);
                     self.log.push(format!("t{}: {} {} your approach.", tick, RIVAL_NAMES[i], tag));
                 }
             }
@@ -1884,6 +1940,68 @@ mod progression_tests {
         }
         assert!(influence(&game) > WIN_INFLUENCE,
             "everyone joined and all gold invested, yet influence is only {:.2} (win at {})", influence(&game), WIN_INFLUENCE);
+    }
+}
+
+#[cfg(test)]
+mod chat_tests {
+    use super::*;
+
+    fn trust(game: &Game, a: Entity, b: Entity) -> f32 {
+        relationships::find_relationship(&game.world, a, b)
+            .and_then(|r| game.world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0)
+    }
+
+    #[test]
+    fn test_talk_puts_their_reply_in_a_speech_bubble() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let v = game.villagers[1];
+        let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 0.5, y: vy };
+        game.selected_target = 1;
+        game.act(0);
+        let (who, said, until) = game.bubbles.iter().find(|b| b.0 == v).expect("no speech bubble over Eliza").clone();
+        assert_eq!(who, v);
+        assert!(game.log.last().unwrap().contains(&said), "the bubble says what the log reports");
+        assert!(until > game.frame_n + FPS, "the bubble stays up for seconds, not a frame");
+    }
+
+    #[test]
+    fn test_passing_someone_gets_a_remark_and_a_little_warmth() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let v = game.villagers[2];
+        let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
+        let before = trust(&game, game.player, v);
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 1.0, y: vy };
+        game.chat_in_passing();
+        assert!(game.bubbles.iter().any(|b| b.0 == v), "Bram should say something as you pass");
+        assert!((trust(&game, game.player, v) - before - 0.01).abs() < 1e-4, "a chat in passing is worth +0.01");
+        // standing about together doesn't keep generating chatter
+        game.bubbles.clear();
+        for _ in 0..10 { game.chat_in_passing(); }
+        assert!(!game.bubbles.iter().any(|b| b.0 == v), "they already said hello");
+    }
+}
+
+#[cfg(test)]
+mod river_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_river_can_only_be_crossed_at_the_bridge() {
+        let art = Art::default();
+        let game = Game::new(&art);
+        let mut river = 0;
+        for y in 0..33 { for x in 0..33 {
+            match game.map.get(x, y) {
+                Some(Tile::River) => { river += 1; assert!(!game.walkable(x as f32, y as f32), "walked onto the river at ({},{})", x, y); }
+                Some(Tile::Bridge) => assert!(game.walkable(x as f32, y as f32), "the bridge is blocked"),
+                _ => {}
+            }
+        }}
+        assert!(river > 10);
     }
 }
 

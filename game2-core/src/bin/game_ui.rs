@@ -541,7 +541,6 @@ struct Art {
     wall_s: Option<Sprite>,
     church_s: Option<Sprite>,
     guildhall_s: Option<Sprite>,
-    smoke_s: Option<Sprite>,
     rival_house: Option<Sprite>,
     rival_woodhouse: Option<Sprite>,
     dog: Option<Sprite>, // hand-drawn: the asset packs have no animals
@@ -668,6 +667,21 @@ const MILL_HUB: (f32, f32) = (24.5, 44.0);
 /// The sails' size against the tower's (the pack draws them about as tall)
 const MILL_SAILS: f32 = 0.7;
 
+/// The puffs of smoke over a home on the tile centred on (sx, sy), at frame
+/// `frame`: (x, y, size, grey) for each, rising from the roof over
+/// SMOKE_SECS, drifting right and shrinking as they go
+fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u8)> {
+    let period = SMOKE_SECS * FPS;
+    (0..3).map(|k| {
+        let t = ((frame + k * period / 3) % period) as f32 / period as f32; // 0 at the chimney, 1 gone
+        let x = sx as f32 + (10.0 + 8.0 * t) * zoom;
+        let y = sy as f32 - (34.0 + 26.0 * t) * zoom;
+        let size = ((4.0 - 2.5 * t) * zoom).round().max(1.0) as i32;
+        (x as i32, y as i32, size, (150.0 + 70.0 * t) as u8)
+    }).collect()
+}
+const SMOKE_SECS: u32 = 2;
+
 /// Draw a tree or boulder standing in the middle of the tile centred on
 /// (sx, sy), at the ground blocks' scale (the pack draws them for its blocks)
 fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
@@ -709,7 +723,6 @@ impl Art {
             wall_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok(),
             church_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok(),
             guildhall_s: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
-            smoke_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/smoke.png")).ok(),
             rival_house: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
             rival_woodhouse: Sprite::load(&assets.path(&assets.building_sprite("woodhouse", "red"))).ok(),
             dog: Some(dog_sprite()),
@@ -1208,12 +1221,15 @@ impl<'a> Game<'a> {
             }
         }
 
-        // chimney smoke rises from houses
-        if let Some(sm) = &art.smoke_s {
+        // chimney smoke: a few small puffs rising off each home's roof,
+        // drifting with the wind and thinning out (the pack's smoke sprite is
+        // a cluster of balls, which just read as circles on the roof)
+        if art.house_s.is_some() {
             for (i, (bx, by, _)) in self.buildings.iter().enumerate().take(3) {
                 let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
-                let drift = ((tick + i as u64 * 7) % 30) as i32;
-                draw_zoomed(&mut buf, sm, sx - (6.0 * zoom) as i32, sy - ((40 + drift) as f32 * zoom) as i32, zoom);
+                for (x, y, size, grey) in smoke_puffs(self.frame_n + i as u32 * 37, sx, sy, zoom) {
+                    buf.rect(x, y, size, size, grey, grey, grey + 6);
+                }
             }
         }
 

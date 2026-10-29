@@ -684,6 +684,14 @@ fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u
 }
 const SMOKE_SECS: u32 = 2;
 
+/// Whether something standing on tile (bx, by) hides someone at (x, y)
+/// behind it: it's nearer the viewer (further down the screen) and they
+/// stand close enough behind it to be covered by it on screen
+fn hides(bx: f32, by: f32, x: f32, y: f32) -> bool {
+    let (ahead, across) = ((bx + by) - (x + y), ((bx - by) - (x - y)).abs());
+    ahead > 0.3 && ahead < 3.0 && across < 1.2
+}
+
 /// Draw a tree or boulder standing in the middle of the tile centred on
 /// (sx, sy), at the ground blocks' scale (the pack draws them for its blocks)
 fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
@@ -1275,18 +1283,19 @@ impl<'a> Game<'a> {
             (x as f32, y as f32, sprite, true, 1.0)
         }));
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-        for (bx, by, sprite, building, up) in standing {
+        let draw_standing = |buf: &mut Buffer, &(bx, by, sprite, building, up): &(f32, f32, &Option<Sprite>, bool, f32)| {
             if let Some(s) = sprite {
                 let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
-                if !building { draw_prop(&mut buf, s, sx, sy, zoom); }
-                else if up >= 1.0 { draw_on_tile(&mut buf, s, sx, sy, zoom); }
+                if !building { draw_prop(buf, s, sx, sy, zoom); }
+                else if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
                 else if up > 0.0 {
                     // going up: the bottom of the house, from the ground up
                     let rows = ((s.height as f32 * up).round() as usize).max(1);
-                    draw_on_tile(&mut buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
+                    draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
                 }
             }
-        }
+        };
+        for st in &standing { draw_standing(&mut buf, st); }
 
         // chimney smoke: a few small puffs rising off each home's roof,
         // drifting with the wind and thinning out (the pack's smoke sprite is
@@ -1408,6 +1417,18 @@ impl<'a> Game<'a> {
         let anchor = art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, py, zoom)).unwrap_or(label_anchor(py, zoom));
         let (lx, ly) = name_label_pos(px, anchor, "YOU");
         labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
+
+        // someone behind a house, a wall or a tree is hidden by it: redraw
+        // what stands just in front of and across each person (their names
+        // still go on top of everything)
+        let mut people: Vec<(f32, f32)> = villagers.iter().chain(&self.rivals).chain([&self.player])
+            .filter_map(|e| world.get_component::<Pos>(*e)).map(|p| (p.x, p.y)).collect();
+        if let Some(p) = world.get_component::<Pet>(self.dog).and_then(|pet| world.get_component::<Pos>(pet.owner.unwrap_or(villagers[0]))) {
+            people.push((p.x + 0.8, p.y + 0.5));
+        }
+        for st in &standing {
+            if people.iter().any(|&(x, y)| hides(st.0, st.1, x, y)) { draw_standing(&mut buf, st); }
+        }
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
@@ -2117,6 +2138,45 @@ mod river_tests {
             }
         }}
         assert!(river > 10);
+    }
+}
+
+#[cfg(test)]
+mod depth_tests {
+    use super::*;
+
+    #[test]
+    fn test_only_what_stands_in_front_hides_someone() {
+        // standing just behind (up-screen of) a house on (10, 10)
+        assert!(hides(10.0, 10.0, 9.5, 9.5));
+        assert!(hides(10.0, 10.0, 9.0, 10.0));
+        // in front of it, beside it, or far behind: not hidden
+        assert!(!hides(10.0, 10.0, 10.5, 10.5));
+        assert!(!hides(10.0, 10.0, 12.0, 9.0));
+        assert!(!hides(10.0, 10.0, 7.0, 7.0));
+    }
+
+    #[test]
+    fn test_walking_behind_a_house_hides_the_player() {
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        let (bx, by, _) = game.buildings[0];
+        // the player's yellow ring is drawn under them: behind the house it's covered
+        let ring_px = |game: &Game| {
+            let buf = game.render((-1, -1));
+            let (px, py) = game.player_pos();
+            let (sx, sy) = iso_to_screen_cam(px, py, game.cam_x, game.cam_y, game.zoom);
+            (sx - 12..sx + 12).flat_map(|x| (sy - 4..sy - 1).map(move |y| (x, y)))
+                .filter(|&(x, y)| x >= 0 && y >= 0 && (x as usize) < W && (y as usize) < H)
+                .filter(|&(x, y)| { let i = (y as usize * W + x as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == (255, 215, 0) })
+                .count()
+        };
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: bx + 1.0, y: by + 1.0 };
+        let in_front = ring_px(&game);
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: bx - 0.6, y: by - 0.6 };
+        let behind = ring_px(&game);
+        assert!(in_front > 20, "the ring shows in front of the house ({} px)", in_front);
+        assert!(behind < in_front / 2, "behind the house the ring should be hidden ({} vs {} px)", behind, in_front);
     }
 }
 

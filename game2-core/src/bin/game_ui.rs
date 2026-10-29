@@ -10,7 +10,7 @@ use game2_core::game::terrain::Terrain;
 use game2_core::game::tilemap::{Layout, Tile, TileMap, WallPiece};
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, Rapport, TALK_RAPPORT_STEP, recruit_influence_needed, RECRUIT_INFLUENCE};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
@@ -892,7 +892,7 @@ struct Game<'a> {
     log: Vec<String>,
     inspector_open: bool,
     help_open: bool,
-    bubbles: Vec<(Entity, String, u32, bool)>, // speech bubbles: (speaker, text, until frame, a thought?)
+    bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     meeting: Option<Meeting>,
     /// Pairs of people standing near each other, and the day each pair last chatted
     near: Vec<(Entity, Entity)>,
@@ -1311,8 +1311,10 @@ impl<'a> Game<'a> {
             self.advance_meeting();
         }
         let frame = self.frame_n;
-        self.bubbles.retain(|(_, _, until, _)| frame < *until);
-        self.chat_in_passing();
+        self.bubbles.retain(|(_, _, until, _, _)| frame < *until);
+        // movement is still processed while paused, but relationships and
+        // last_chat shouldn't change while the day isn't advancing
+        if !self.paused { self.chat_in_passing(); }
     }
 
     /// Draw the whole frame: map, villagers, overlays and the side panel.
@@ -1729,7 +1731,7 @@ impl<'a> Game<'a> {
         }
 
         // speech bubbles over whoever is speaking
-        for (speaker, text, _, thought) in &self.bubbles {
+        for (speaker, text, _, thought, _) in &self.bubbles {
             let (speaker, text, thought) = (*speaker, text.as_str(), *thought);
             {
                 if let Some(p) = world.get_component::<Pos>(speaker) {
@@ -1818,8 +1820,10 @@ impl<'a> Game<'a> {
             match i {
                 0 => {
                     let v = self.villagers[selected_target];
-                    let talks_before = self.world.get_component::<Rapport>(v)
-                        .map(|r| (r.value / TALK_RAPPORT_STEP).round() as usize).unwrap_or(0);
+                    // Uncapped talk count - Rapport caps at 1.0 and would
+                    // freeze the concern/small-talk index after a few talks.
+                    let talks_before = self.world.get_component::<TalkCount>(v)
+                        .map(|c| c.value).unwrap_or(0);
                     let (did, said) = talk_response(&self.world, v, NAMES[selected_target], talks_before);
                     act_talk(&mut self.world, self.player, v);
                     self.say(v, &said, TALK_BUBBLE_SECS);
@@ -1893,14 +1897,26 @@ impl<'a> Game<'a> {
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
     /// they already had)
     fn say(&mut self, who: Entity, text: &str, secs: u32) {
-        self.bubbles.retain(|(w, _, _, _)| *w != who);
-        self.bubbles.push((who, text.to_string(), self.frame_n + secs * FPS, false));
+        self.bubbles.retain(|(w, _, _, _, _)| *w != who);
+        self.bubbles.push((who, text.to_string(), self.frame_n + secs * FPS, false, false));
     }
 
     /// Put a thought bubble over `who` for `frames` frames (at a meeting)
     fn think(&mut self, who: Entity, text: &str, frames: u32) {
-        self.bubbles.retain(|(w, _, _, _)| *w != who);
-        self.bubbles.push((who, text.to_string(), self.frame_n + frames, true));
+        self.bubbles.retain(|(w, _, _, _, _)| *w != who);
+        self.bubbles.push((who, text.to_string(), self.frame_n + frames, true, false));
+    }
+
+    /// Ambient chatter as people pass each other: unlike `say`, this never
+    /// overwrites a bubble that isn't itself passing chatter while that
+    /// bubble is still up (e.g. a Talk reply), so a reply can't be clobbered
+    /// by a passing remark on the very next frame.
+    fn say_in_passing(&mut self, who: Entity, text: &str, secs: u32) {
+        let frame = self.frame_n;
+        let blocked = self.bubbles.iter().any(|(w, _, until, _, passing)| *w == who && !*passing && frame < *until);
+        if blocked { return; }
+        self.bubbles.retain(|(w, _, _, _, _)| *w != who);
+        self.bubbles.push((who, text.to_string(), frame + secs * FPS, false, true));
     }
 
     /// Organize: call a house meeting at the home nearest the player (or
@@ -1955,8 +1971,10 @@ impl<'a> Game<'a> {
     fn advance_meeting(&mut self) {
         let Some(mut m) = self.meeting.take() else { return };
         m.frames += 1;
-        // those who've arrived stand at their spot (no strolling off mid-meeting)
+        // those who've arrived stand at their spot (no strolling off mid-meeting);
+        // a dead invitee's grave stays where they died, it doesn't keep walking
         for (i, v) in m.invited.iter().enumerate() {
+            if villager::is_dead(&self.world, *v) { continue; }
             let Some(p) = self.world.get_component_mut::<Pos>(*v) else { continue };
             match &mut m.paths[i] {
                 Some(path) if !path.is_empty() => {
@@ -1969,17 +1987,25 @@ impl<'a> Game<'a> {
                 None => {}
             }
         }
-        let arrived = |m: &Meeting, i: usize| m.paths[i].as_ref().map(|p| p.is_empty()).unwrap_or(false);
+        // arrived at their spot, and alive - a dead invitee never counts as
+        // having attended even if they got there before dying
+        let arrived = |m: &Meeting, world: &World, i: usize| {
+            !villager::is_dead(world, m.invited[i]) && m.paths[i].as_ref().map(|p| p.is_empty()).unwrap_or(false)
+        };
         match m.talk_from {
             None => {
-                if (0..m.invited.len()).all(|i| arrived(&m, i)) || m.frames >= GATHER_FRAMES {
-                    // whoever didn't get there in time isn't at the meeting
-                    let came: Vec<usize> = (0..m.invited.len()).filter(|&i| arrived(&m, i)).collect();
+                if (0..m.invited.len()).all(|i| arrived(&m, &self.world, i)) || m.frames >= GATHER_FRAMES {
+                    // whoever didn't get there in time (or died on the way) isn't at the meeting
+                    let came: Vec<usize> = (0..m.invited.len()).filter(|&i| arrived(&m, &self.world, i)).collect();
                     m.invited = came.iter().map(|&i| m.invited[i]).collect();
                     m.spots = came.iter().map(|&i| m.spots[i]).collect();
                     m.paths = came.iter().map(|&i| m.paths[i].clone()).collect();
                     m.lines = self.meeting_lines(&m.invited);
                     m.talk_from = Some(m.frames);
+                    // show the opening line right away - otherwise the first
+                    // "since" tick after talk_from is 1, not 0, and the
+                    // player's opening prompt (lines[0]) is skipped
+                    if let Some((who, text)) = m.lines.first().cloned() { self.think(who, &text, LINE_FRAMES); }
                 }
                 self.meeting = Some(m);
             }
@@ -2018,7 +2044,7 @@ impl<'a> Game<'a> {
             if last.map(|t| tick < t + CHAT_COOLDOWN).unwrap_or(false) { continue; }
             // the player is listed last, so a villager always does the talking
             let n = self.last_chat.len() + (a as usize) + tick as usize;
-            self.say(a, passing_remark(n), CHAT_BUBBLE_SECS);
+            self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
             relationships::record_interaction(&mut self.world, if b == self.player { b } else { a }, relationships::Interaction {
                 other: if b == self.player { a } else { b }, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
             });
@@ -2310,7 +2336,7 @@ mod chat_tests {
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 0.5, y: vy };
         game.selected_target = 1;
         game.act(0);
-        let (who, said, until, _) = game.bubbles.iter().find(|b| b.0 == v).expect("no speech bubble over Eliza").clone();
+        let (who, said, until, _, _) = game.bubbles.iter().find(|b| b.0 == v).expect("no speech bubble over Eliza").clone();
         assert_eq!(who, v);
         assert!(game.log.last().unwrap().contains(&said), "the bubble says what the log reports");
         assert!(until > game.frame_n + FPS, "the bubble stays up for seconds, not a frame");

@@ -36,6 +36,13 @@ pub struct ActionResult {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Rapport { pub value: f32 }
 
+/// How many times the player has talked with this villager - uncapped,
+/// unlike `Rapport` (which caps at 1.0 for influence/relationship purposes).
+/// talk_response uses this so the recurring hunger/sickness concern keeps
+/// coming up on schedule even once rapport itself has maxed out.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TalkCount { pub value: usize }
+
 pub const TALK_INFLUENCE: f32 = 0.05;
 pub const TALK_RAPPORT_STEP: f32 = 0.15;
 pub const RECRUIT_INFLUENCE: f32 = 0.1;
@@ -54,6 +61,8 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResu
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });
+    let talks = world.get_component::<TalkCount>(target).map(|c| c.value).unwrap_or(0);
+    world.add_component(target, TalkCount { value: talks + 1 });
     record_interaction(world, player, Interaction {
         other: target, kind: InteractionKind::Conversation, intensity: (1.0 - rapport).max(TALK_MAINTENANCE),
     });

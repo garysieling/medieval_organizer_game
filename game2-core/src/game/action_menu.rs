@@ -70,9 +70,11 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
     match choice {
         MenuActionType::Talk => {
             if let Some(t) = target {
-                // What they actually say: the next thing on their mind
-                let talks_before = world.get_component::<super::player::Rapport>(t)
-                    .map(|r| (r.value / super::player::TALK_RAPPORT_STEP).round() as usize).unwrap_or(0);
+                // What they actually say: the next thing on their mind.
+                // Uses the uncapped talk count, not Rapport (which caps at
+                // 1.0 and would freeze the concern/small-talk index).
+                let talks_before = world.get_component::<super::player::TalkCount>(t)
+                    .map(|c| c.value).unwrap_or(0);
                 let (did, said) = super::organizing::talk_response(world, t, "They", talks_before);
                 act_talk(world, player, t);
                 format!("{}: \"{}\"", did, said)

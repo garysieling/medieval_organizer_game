@@ -93,6 +93,10 @@ pub struct TileMap {
     pub trees: Vec<(i32, i32)>,
     /// The town wall, piece by piece
     pub walls: Vec<((i32, i32), WallPiece)>,
+    /// Gate tiles (GateAlongX/GateAlongY): left un-occupied so roads and
+    /// people can pass through, but still excluded from `buildable` so a
+    /// house never seals one off before (or instead of) a road reaching it
+    gates: Vec<(i32, i32)>,
     /// Where all roads start (Layout::road_hub)
     hub: (i32, i32),
 }
@@ -187,7 +191,7 @@ impl TileMap {
             let v = terrain.heights[i / w][i % w];
             if v < WATER_LEVEL { Tile::Water } else if v < HILL_LEVEL { Tile::Grass } else if v < ROCK_LEVEL { Tile::Hill } else { Tile::Rock }
         }).collect();
-        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], walls: vec![], hub: layout.road_hub };
+        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], walls: vec![], gates: vec![], hub: layout.road_hub };
         map.carve_river(&layout.river);
         map.place_bridge(layout.bridge_near);
         for &(x, y, crop) in &layout.fields {
@@ -258,7 +262,8 @@ impl TileMap {
                 };
                 if self.get(x, y).is_none() { continue; }
                 if matches!(self.get(x, y), Some(Tile::Water) | Some(Tile::River)) { self.set(x, y, Tile::Grass); }
-                if !matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY) { self.occupy(x, y); }
+                if matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY) { self.gates.push((x, y)); }
+                else { self.occupy(x, y); }
                 self.walls.push(((x, y), piece));
             }
         }
@@ -317,16 +322,25 @@ impl TileMap {
         path
     }
 
-    /// Lay one tile of road
+    /// Lay one tile of road. Refuses a tile that's occupied (a building may
+    /// have gone up on a tile a road only had planned), and clears any tree
+    /// recorded there so the road doesn't end up with a tree still drawn on
+    /// top of it.
     pub fn pave(&mut self, x: i32, y: i32) {
-        if !matches!(self.get(x, y), Some(Tile::Bridge) | Some(Tile::Water) | Some(Tile::River) | None) { self.set(x, y, Tile::Road); }
+        if !matches!(self.get(x, y), Some(Tile::Bridge) | Some(Tile::Water) | Some(Tile::River) | None) && !self.is_occupied(x, y) {
+            self.set(x, y, Tile::Road);
+            self.trees.retain(|&t| t != (x, y));
+        }
     }
 
-    /// Whether a building could go here: open dry ground, nothing on it
+    /// Whether a building could go here: open dry ground, nothing on it,
+    /// and not a town gate (gates stay walkable/unoccupied so roads and
+    /// people can pass, but a house must never sit there and seal one shut)
     pub fn buildable(&self, x: i32, y: i32) -> bool {
         matches!(self.get(x, y), Some(Tile::Grass) | Some(Tile::Hill))
             && !self.is_occupied(x, y)
             && !self.trees.contains(&(x, y))
+            && !self.gates.contains(&(x, y))
     }
 
     /// The buildable cell nearest (x, y), searching outward ring by ring
@@ -410,7 +424,10 @@ impl TileMap {
     /// isn't paved)
     fn lay_road(&mut self, from: (i32, i32), to: (i32, i32)) {
         for (x, y) in self.road_path(from, to).unwrap_or_default() {
-            if !self.is_occupied(x, y) && self.get(x, y) != Some(Tile::Bridge) { self.set(x, y, Tile::Road); }
+            if !self.is_occupied(x, y) && self.get(x, y) != Some(Tile::Bridge) {
+                self.set(x, y, Tile::Road);
+                self.trees.retain(|&t| t != (x, y));
+            }
         }
     }
 

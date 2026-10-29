@@ -264,6 +264,45 @@ impl TileMap {
         }
     }
 
+    /// Whether someone can walk on (x, y): on the map, dry (the bridge is
+    /// fine) and not built on
+    pub fn passable(&self, x: i32, y: i32) -> bool {
+        !matches!(self.get(x, y), None | Some(Tile::Water) | Some(Tile::River)) && !self.is_occupied(x, y)
+    }
+
+    /// The shortest walk from `from` to `to`, tile by tile (`from` left
+    /// out, `to` last), round buildings and walls and over the bridge.
+    /// None if there's no way there.
+    pub fn walk_path(&self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
+        let (w, h) = (self.width as i32, self.height as i32);
+        if !self.passable(to.0, to.1) || from.0 < 0 || from.1 < 0 || from.0 >= w || from.1 >= h { return None; }
+        let idx = |p: (i32, i32)| (p.1 * w + p.0) as usize;
+        let mut prev: Vec<Option<(i32, i32)>> = vec![None; (w * h) as usize];
+        let mut seen = vec![false; (w * h) as usize];
+        let mut queue = std::collections::VecDeque::from([from]);
+        seen[idx(from)] = true;
+        while let Some(p) = queue.pop_front() {
+            if p == to {
+                let mut path = vec![];
+                let mut at = Some(p);
+                while let Some(q) = at {
+                    if q != from { path.push(q); }
+                    at = prev[idx(q)];
+                }
+                path.reverse();
+                return Some(path);
+            }
+            for (dx, dy) in NEIGHBOURS {
+                let q = (p.0 + dx, p.1 + dy);
+                if q.0 < 0 || q.1 < 0 || q.0 >= w || q.1 >= h || seen[idx(q)] || !self.passable(q.0, q.1) { continue; }
+                seen[idx(q)] = true;
+                prev[idx(q)] = Some(p);
+                queue.push_back(q);
+            }
+        }
+        None
+    }
+
     /// Run a road from the hub to a new building at `to`
     pub fn connect(&mut self, to: (i32, i32)) {
         self.lay_road(self.hub, to);
@@ -552,6 +591,19 @@ mod tests {
         // the road to the rivals' village leaves through a gate
         assert!(gates.iter().any(|&(x, y)| m.get(x, y) == Some(Tile::Road)
             && NEIGHBOURS.iter().filter(|(dx, dy)| m.get(x + dx, y + dy) == Some(Tile::Road)).count() == 2));
+    }
+
+    #[test]
+    fn test_people_walk_round_walls_and_through_a_gate() {
+        let (_, m) = map();
+        // from inside the walls to outside: the way out is through a gate
+        let path = m.walk_path((15, 15), (15, 27)).expect("there's a way out");
+        assert_eq!(*path.last().unwrap(), (15, 27));
+        assert!(path.iter().all(|&(x, y)| m.passable(x, y)));
+        assert!(path.windows(2).all(|p| (p[0].0 - p[1].0).abs() + (p[0].1 - p[1].1).abs() == 1), "one step at a time");
+        let gates: Vec<(i32, i32)> = m.walls.iter().filter(|(_, w)| matches!(w, WallPiece::GateAlongX | WallPiece::GateAlongY)).map(|(p, _)| *p).collect();
+        assert!(path.iter().any(|p| gates.contains(p)), "left by a gate, not through the wall");
+        assert_eq!(m.walk_path((15, 15), (8, 12)), None, "no walking onto the wall");
     }
 
     #[test]

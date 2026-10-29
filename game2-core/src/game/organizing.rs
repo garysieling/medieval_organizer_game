@@ -204,6 +204,28 @@ fn concern_speech(concern: &str) -> (&'static str, &'static str) {
     }
 }
 
+/// The ways people put a concern when it comes up at a meeting
+fn meeting_sayings(concern: &str) -> [&'static str; 3] {
+    match concern {
+        "the food running short" => ["The store won't last the month.", "My children go to bed hungry.", "We need to share what grain there is."],
+        "the sickness" => ["Half the village is coughing.", "Who'll work the fields if we're all sick?", "We should look after the sick together."],
+        "fair wages" => ["A day's work hardly buys a day's bread.", "The miller takes more every season.", "If we asked together, they'd have to listen."],
+        "safe roads" => ["The roads aren't safe to travel.", "No trader comes this way any more.", "We could watch the roads in turns."],
+        "the faith" => ["We need something to hold on to.", "The church is the only thing that brings us together.", "Let's keep faith with each other."],
+        "lower rents" => ["The rents go up every season.", "I can't pay what the lord asks.", "One of us alone can't argue the rent."],
+        _ => ["If the harvest is good, we'll get through.", "We'll need every hand at harvest.", "Let's bring the harvest in together."],
+    }
+}
+
+/// What `name` says at a house meeting on round `round`: one of their own
+/// concerns, in words of their own (each person puts it differently)
+pub fn meeting_remark(world: &World, person: Entity, name: &str, round: usize) -> String {
+    let concerns = village_concerns(world, &[person]);
+    let concern = &concerns[round % concerns.len()];
+    let voice = name.bytes().map(|b| b as usize).sum::<usize>();
+    meeting_sayings(concern)[(voice + round) % 3].to_string()
+}
+
 /// Small talk, for someone who has already told you what's on their mind
 const SMALL_TALK: [(&str, &str); 5] = [
     ("chatted about the weather", "Looks like rain again, doesn't it?"),
@@ -284,6 +306,17 @@ mod tests {
             let (chat, said) = talk_response(&w, v, "Bram", n);
             assert!(SMALL_TALK.iter().any(|(d, s)| chat == format!("Bram {}", d) && said == *s), "{}", chat);
         }
+    }
+
+    #[test]
+    fn test_people_put_the_same_concern_their_own_way_at_a_meeting() {
+        let mut w = World::new();
+        let (a, b) = (w.create_entity(), w.create_entity());
+        for v in [a, b] { w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() }); }
+        let (ra, rb) = (meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, b, "Bram", 0));
+        assert_ne!(ra, rb, "two laborers shouldn't say the very same thing");
+        assert!(meeting_sayings("fair wages").contains(&ra.as_str()));
+        assert_ne!(meeting_remark(&w, a, "Eliza", 0), meeting_remark(&w, a, "Eliza", 1), "nor repeat themselves");
     }
 
     #[test]

@@ -16,7 +16,7 @@ use game2_core::sim::climate::{self, SeasonSystem, Season};
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, AttachmentStyle, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
-use game2_core::game::organizing::{passing_remark, talk_response};
+use game2_core::game::organizing::{meeting_remark, passing_remark, talk_response};
 use game2_core::game::traits::personality_from_seed;
 use game2_core::game::relationships;
 #[cfg(test)]
@@ -834,6 +834,30 @@ impl Works {
     }
 }
 
+/// A house meeting under way (Organize). The invited walk to the venue,
+/// talk it over in turns in thought bubbles, and only then does it
+/// resolve (Game::resolve_meeting).
+struct Meeting {
+    label: String,                       // where it is: "Bram's house"
+    invited: Vec<Entity>,
+    spots: Vec<(i32, i32)>,              // where each invitee stands, round the venue
+    paths: Vec<Option<Vec<(i32, i32)>>>, // each one's way there, next step first (None: no way)
+    frames: u32,                         // how long since it was called, unpaused
+    talk_from: Option<u32>,              // when the talking began
+    lines: Vec<(Entity, String)>,        // the conversation, in order
+}
+/// How fast people walk to a meeting (tiles a frame), how long the host
+/// waits for them, and how long each turn to speak lasts
+const MEETING_WALK: f32 = 2.5 / FPS as f32;
+const GATHER_FRAMES: u32 = 20 * FPS;
+const LINE_FRAMES: u32 = 2 * FPS;
+/// What the player says to open the meeting, between rounds, and to close it
+const MEETING_PROMPTS: [&str; 3] = [
+    "Thanks for coming. What's on your minds?",
+    "So what would make the most difference?",
+    "Then let's take it on together.",
+];
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see.
@@ -868,7 +892,8 @@ struct Game<'a> {
     log: Vec<String>,
     inspector_open: bool,
     help_open: bool,
-    bubbles: Vec<(Entity, String, u32)>, // speech bubbles: (speaker, text, until frame)
+    bubbles: Vec<(Entity, String, u32, bool)>, // speech bubbles: (speaker, text, until frame, a thought?)
+    meeting: Option<Meeting>,
     /// Pairs of people standing near each other, and the day each pair last chatted
     near: Vec<(Entity, Entity)>,
     last_chat: Vec<((Entity, Entity), u64)>,
@@ -989,6 +1014,7 @@ impl<'a> Game<'a> {
             inspector_open: true,
             help_open: false,
             bubbles: vec![],
+            meeting: None,
             near: vec![],
             last_chat: vec![],
             was_sick: vec![false; NAMES.len()],
@@ -1109,6 +1135,7 @@ impl<'a> Game<'a> {
         else if i == 2 && p.resources < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if (i == 0 || i == 1) && !in_reach.contains(&target) { Some("too far away".into()) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
+        else if i == 3 && self.meeting.is_some() { Some("a meeting is under way".into()) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
         else { None }
     }
@@ -1281,9 +1308,10 @@ impl<'a> Game<'a> {
                 for &(x, y) in &w.road[laid..w.road_laid()] { self.map.pave(x, y); }
             }
             self.works.retain(|w| w.risen() < 1.0);
+            self.advance_meeting();
         }
         let frame = self.frame_n;
-        self.bubbles.retain(|(_, _, until)| frame < *until);
+        self.bubbles.retain(|(_, _, until, _)| frame < *until);
         self.chat_in_passing();
     }
 
@@ -1701,8 +1729,8 @@ impl<'a> Game<'a> {
         }
 
         // speech bubbles over whoever is speaking
-        for (speaker, text, _) in &self.bubbles {
-            let (speaker, text) = (*speaker, text.as_str());
+        for (speaker, text, _, thought) in &self.bubbles {
+            let (speaker, text, thought) = (*speaker, text.as_str(), *thought);
             {
                 if let Some(p) = world.get_component::<Pos>(speaker) {
                     let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
@@ -1713,8 +1741,18 @@ impl<'a> Game<'a> {
                     let label_y = name.and_then(|n| label_ys.iter().find(|(t, _)| *t == n).map(|(_, y)| *y));
                     if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text, label_y) {
                         let tail_x = (sx - 4).clamp(bx + 2, bx + bw - 10);
-                        buf.rect(bx, by, bw, BUBBLE_H, 240, 240, 220);        // cream bubble
-                        buf.rect(tail_x, by + BUBBLE_H - 2, 8, 6, 240, 240, 220); // tail, under the speaker
+                        if thought {
+                            // a thought: pale blue, its corners rounded off, a
+                            // trail of shrinking puffs down to the thinker
+                            let c = (225, 235, 250);
+                            buf.rect(bx + 2, by, bw - 4, BUBBLE_H, c.0, c.1, c.2);
+                            buf.rect(bx, by + 2, bw, BUBBLE_H - 4, c.0, c.1, c.2);
+                            buf.rect(tail_x + 2, by + BUBBLE_H + 1, 4, 4, c.0, c.1, c.2);
+                            buf.rect(tail_x + 4, by + BUBBLE_H + 6, 2, 2, c.0, c.1, c.2);
+                        } else {
+                            buf.rect(bx, by, bw, BUBBLE_H, 240, 240, 220);        // cream bubble
+                            buf.rect(tail_x, by + BUBBLE_H - 2, 8, 6, 240, 240, 220); // tail, under the speaker
+                        }
                         draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
                     }
                 }
@@ -1793,7 +1831,7 @@ impl<'a> Game<'a> {
                     else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
                 }
                 2 => { let r = act_invest(&mut self.world, self.player, INVEST_GOLD); r.description }
-                3 => self.house_meeting(),
+                3 => self.call_meeting(),
                 4 => {
                     // action_blocker checked there's gold and a site
                     let (bx, by) = self.build_site().unwrap();
@@ -1827,14 +1865,12 @@ impl<'a> Game<'a> {
         }).collect()
     }
 
-    /// Organize: hold a house meeting with every living villager within reach.
-    /// Those who already trust you join the org; everyone who comes gets to
+    /// The end of a house meeting, once those who came have talked it over.
+    /// Those who already trust you join the org; everyone who came gets to
     /// know you a little better (organizing::house_meeting).
-    fn house_meeting(&mut self) -> String {
-        let invited = self.villagers_in_reach();
-        if invited.is_empty() { return "No one is near enough to come to your house meeting.".into(); }
+    fn resolve_meeting(&mut self, invited: &[Entity]) -> String {
         let members_before = self.world.get_component::<Organization>(self.org).map(|o| o.members.clone()).unwrap_or_default();
-        let r = game2_core::game::organizing::house_meeting(&mut self.world, self.org, &invited);
+        let r = game2_core::game::organizing::house_meeting(&mut self.world, self.org, invited);
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(v)).unwrap_or(false))
@@ -1857,8 +1893,108 @@ impl<'a> Game<'a> {
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
     /// they already had)
     fn say(&mut self, who: Entity, text: &str, secs: u32) {
-        self.bubbles.retain(|(w, _, _)| *w != who);
-        self.bubbles.push((who, text.to_string(), self.frame_n + secs * FPS));
+        self.bubbles.retain(|(w, _, _, _)| *w != who);
+        self.bubbles.push((who, text.to_string(), self.frame_n + secs * FPS, false));
+    }
+
+    /// Put a thought bubble over `who` for `frames` frames (at a meeting)
+    fn think(&mut self, who: Entity, text: &str, frames: u32) {
+        self.bubbles.retain(|(w, _, _, _)| *w != who);
+        self.bubbles.push((who, text.to_string(), self.frame_n + frames, true));
+    }
+
+    /// Organize: call a house meeting at the home nearest the player (or
+    /// where they stand, if no home is in reach) for every living villager
+    /// within reach. They walk over; see advance_meeting.
+    fn call_meeting(&mut self) -> String {
+        let invited = self.villagers_in_reach();
+        if invited.is_empty() { return "No one is near enough to come to your house meeting.".into(); }
+        let (px, py) = self.player_pos();
+        let dist = |(x, y): (i32, i32)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
+        let home = self.buildings.iter().enumerate()
+            .filter(|(_, (_, _, s))| std::ptr::eq(*s, &self.art.house_s))
+            .map(|(i, (x, y, _))| ((*x as i32, *y as i32), if i < 3 { format!("{}'s house", NAMES[i]) } else { "the new house".to_string() }))
+            .filter(|(at, _)| dist(*at) < MEETING_REACH)
+            .min_by(|a, b| dist(a.0).partial_cmp(&dist(b.0)).unwrap());
+        let (venue, label) = home.unwrap_or(((px.round() as i32, py.round() as i32), "your spot".to_string()));
+        // open ground round the venue, nearest first: one spot each
+        let mut ground: Vec<(i32, i32)> = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (venue.0 + dx, venue.1 + dy)))
+            .filter(|&at| at != venue && self.map.passable(at.0, at.1)).collect();
+        ground.sort_by_key(|&(x, y)| (x - venue.0).abs() + (y - venue.1).abs());
+        let spots: Vec<(i32, i32)> = (0..invited.len()).map(|i| *ground.get(i).unwrap_or(&venue)).collect();
+        let paths = invited.iter().zip(&spots).map(|(v, &spot)| {
+            let p = self.world.get_component::<Pos>(*v).copied()?;
+            let from = (p.x.round() as i32, p.y.round() as i32);
+            if from == spot { Some(vec![spot]) } else { self.map.walk_path(from, spot) }
+        }).collect();
+        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i])).collect();
+        let msg = format!("You call a house meeting at {} - {} {} on the way.", label, names.join(", "), if names.len() == 1 { "is" } else { "are" });
+        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![] });
+        msg
+    }
+
+    /// What's said at a meeting: the player opens, each villager there says
+    /// what's on their mind (organizing::meeting_remark), twice round, with
+    /// the player drawing them on between, and the player closes
+    fn meeting_lines(&self, came: &[Entity]) -> Vec<(Entity, String)> {
+        if came.is_empty() { return vec![]; }
+        let mut lines = vec![(self.player, MEETING_PROMPTS[0].to_string())];
+        for round in 0..2 {
+            for v in came {
+                let Some(i) = self.villagers.iter().position(|x| x == v) else { continue };
+                lines.push((*v, meeting_remark(&self.world, *v, NAMES[i], round)));
+            }
+            lines.push((self.player, MEETING_PROMPTS[round + 1].to_string()));
+        }
+        lines
+    }
+
+    /// One frame of a house meeting: while people gather, each walks a
+    /// step towards their spot; once they're all there (or the host has
+    /// waited GATHER_FRAMES) they talk in turns, then it resolves
+    fn advance_meeting(&mut self) {
+        let Some(mut m) = self.meeting.take() else { return };
+        m.frames += 1;
+        // those who've arrived stand at their spot (no strolling off mid-meeting)
+        for (i, v) in m.invited.iter().enumerate() {
+            let Some(p) = self.world.get_component_mut::<Pos>(*v) else { continue };
+            match &mut m.paths[i] {
+                Some(path) if !path.is_empty() => {
+                    let (nx, ny) = (path[0].0 as f32, path[0].1 as f32);
+                    let (dx, dy) = (nx - p.x, ny - p.y);
+                    let d = (dx * dx + dy * dy).sqrt();
+                    if d <= MEETING_WALK { p.x = nx; p.y = ny; path.remove(0); } else { p.x += dx / d * MEETING_WALK; p.y += dy / d * MEETING_WALK; }
+                }
+                Some(_) => { p.x = m.spots[i].0 as f32; p.y = m.spots[i].1 as f32; }
+                None => {}
+            }
+        }
+        let arrived = |m: &Meeting, i: usize| m.paths[i].as_ref().map(|p| p.is_empty()).unwrap_or(false);
+        match m.talk_from {
+            None => {
+                if (0..m.invited.len()).all(|i| arrived(&m, i)) || m.frames >= GATHER_FRAMES {
+                    // whoever didn't get there in time isn't at the meeting
+                    let came: Vec<usize> = (0..m.invited.len()).filter(|&i| arrived(&m, i)).collect();
+                    m.invited = came.iter().map(|&i| m.invited[i]).collect();
+                    m.spots = came.iter().map(|&i| m.spots[i]).collect();
+                    m.paths = came.iter().map(|&i| m.paths[i].clone()).collect();
+                    m.lines = self.meeting_lines(&m.invited);
+                    m.talk_from = Some(m.frames);
+                }
+                self.meeting = Some(m);
+            }
+            Some(start) => {
+                let (since, k) = (m.frames - start, ((m.frames - start) / LINE_FRAMES) as usize);
+                if since % LINE_FRAMES == 0 && k < m.lines.len() {
+                    let (who, text) = m.lines[k].clone();
+                    self.think(who, &text, LINE_FRAMES); // gone as the next one speaks
+                }
+                if k < m.lines.len() { self.meeting = Some(m); return; }
+                let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
+                    else { self.resolve_meeting(&m.invited) };
+                self.log.push(format!("t{}: {}", self.tick, msg));
+            }
+        }
     }
 
     /// When the player and a villager, or two villagers, come within
@@ -2114,6 +2250,7 @@ mod progression_tests {
             for _ in 0..40 {
                 if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) { break; }
                 game.act(3);
+                finish_meeting(&mut game);
             }
             assert!(game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v),
                 "{} never joined at a meeting", NAMES[i]);
@@ -2173,7 +2310,7 @@ mod chat_tests {
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 0.5, y: vy };
         game.selected_target = 1;
         game.act(0);
-        let (who, said, until) = game.bubbles.iter().find(|b| b.0 == v).expect("no speech bubble over Eliza").clone();
+        let (who, said, until, _) = game.bubbles.iter().find(|b| b.0 == v).expect("no speech bubble over Eliza").clone();
         assert_eq!(who, v);
         assert!(game.log.last().unwrap().contains(&said), "the bubble says what the log reports");
         assert!(until > game.frame_n + FPS, "the bubble stays up for seconds, not a frame");
@@ -3261,6 +3398,7 @@ mod organize_tests {
 
         assert_eq!(game.disabled_reason(3), None, "a house meeting needs someone nearby, not the selected villager");
         game.act(3);
+        finish_meeting(&mut game);
 
         let members = game.world.get_component::<Organization>(game.org).unwrap().members.clone();
         assert_eq!(members, vec![eliza], "the trusted neighbour joins; the stranger and the absent don't");
@@ -3269,6 +3407,56 @@ mod organize_tests {
         assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
         assert!(relationships::find_relationship(&game.world, game.player, corvin).is_none(), "Corvin wasn't there");
     }
+
+    #[test]
+    fn test_a_meeting_takes_time_people_gather_then_talk_then_it_ends() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+        let (eliza, bram) = (game.villagers[1], game.villagers[2]);
+        for (v, x, y) in [(eliza, 18.0, 16.0), (bram, 15.0, 19.0)] { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x, y }; }
+        for (i, v) in game.villagers.clone().into_iter().enumerate() {
+            if i != 1 && i != 2 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
+        }
+        let rel = game.world.create_entity();
+        game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+        game.act(3);
+        assert!(game.log.last().unwrap().contains("You call a house meeting at"), "{}", game.log.last().unwrap());
+        assert!(game.world.get_component::<Organization>(game.org).unwrap().members.is_empty(), "nothing's decided yet");
+        assert_eq!(game.disabled_reason(3).as_deref(), Some("a meeting is under way"));
+        // they walk over...
+        let spots = game.meeting.as_ref().unwrap().spots.clone();
+        let far = |game: &Game| [eliza, bram].iter().zip(&spots).map(|(v, s)| {
+            let p = game.world.get_component::<Pos>(*v).unwrap(); (p.x - s.0 as f32).abs() + (p.y - s.1 as f32).abs()
+        }).sum::<f32>();
+        let start = far(&game);
+        for _ in 0..FPS { game.update(); }
+        assert!(far(&game) < start, "people walk to the meeting");
+        // ...then talk it over in thought bubbles, and only then does it end
+        let mut thoughts = vec![];
+        let mut frames = 0;
+        while game.meeting.is_some() {
+            game.update();
+            frames += 1;
+            for b in &game.bubbles { if b.3 && !thoughts.contains(&(b.0, b.1.clone())) { thoughts.push((b.0, b.1.clone())); } }
+            assert!(frames < 60 * FPS, "the meeting never ended");
+        }
+        assert!(thoughts.iter().any(|t| t.0 == eliza) && thoughts.iter().any(|t| t.0 == bram) && thoughts.iter().any(|t| t.0 == game.player),
+            "everyone had their say: {:?}", thoughts);
+        assert!(frames > 5 * LINE_FRAMES, "a meeting takes a while ({} frames)", frames);
+        assert_eq!(game.world.get_component::<Organization>(game.org).unwrap().members, vec![eliza]);
+        assert!(game.log.last().unwrap().contains("Eliza joined"), "{}", game.log.last().unwrap());
+    }
+}
+
+/// Run the game until the house meeting under way is over
+#[cfg(test)]
+fn finish_meeting(game: &mut Game) {
+    for _ in 0..120 * FPS {
+        if game.meeting.is_none() { return; }
+        game.update();
+    }
+    panic!("the meeting never ended");
 }
 
 #[cfg(test)]

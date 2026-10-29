@@ -3325,6 +3325,8 @@ mod dog_tests {
         let owner = game.world.get_component::<Pet>(game.dog).unwrap().owner.expect("someone should take the dog in");
         assert_ne!(owner, aldric, "the dog should be rehomed");
 
+        // out in the open by the market, so nothing in front hides the dog
+        *game.world.get_component_mut::<Pos>(owner).unwrap() = Pos { x: 16.0, y: 17.0 };
         let buf = game.render((-1, -1));
         let dog_at = |v: Entity| {
             let p = *game.world.get_component::<Pos>(v).unwrap();

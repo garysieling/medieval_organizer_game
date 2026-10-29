@@ -52,6 +52,12 @@ const PIECES: [(u8, u8); 15] = [
 pub const BRIDGE_ALONG_X: u8 = 16;
 pub const BRIDGE_ALONG_Y: u8 = 17;
 
+/// A piece of a town wall, by which way it runs (x: NW-SE on screen, y:
+/// NE-SW). A gate is a gatehouse the road runs through, at right angles
+/// to its wall; towers stand at the corners.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WallPiece { AlongX, AlongY, GateAlongX, GateAlongY, Tower }
+
 /// Where things go on the map. Coordinates are tiles.
 #[derive(Debug, Clone, Default)]
 pub struct Layout {
@@ -69,6 +75,9 @@ pub struct Layout {
     pub road_hub: (i32, i32),
     /// Places a road should reach that aren't buildings (another village's centre)
     pub road_ends: Vec<(i32, i32)>,
+    /// (x0, y0, x1, y1): a wall round the town on this rectangle (corners
+    /// included), with a tower at each corner and a gate midway along each side
+    pub town_wall: Option<(i32, i32, i32, i32)>,
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +91,8 @@ pub struct TileMap {
     occupied: Vec<bool>,
     /// Trees in the woods on the hills, and the odd one on open grass
     pub trees: Vec<(i32, i32)>,
+    /// The town wall, piece by piece
+    pub walls: Vec<((i32, i32), WallPiece)>,
     /// Where all roads start (Layout::road_hub)
     hub: (i32, i32),
 }
@@ -91,6 +102,22 @@ fn noise(x: i32, y: i32, salt: u32) -> f32 {
     let mut h = (x as u32).wrapping_mul(374761393) ^ (y as u32).wrapping_mul(668265263) ^ salt.wrapping_mul(2246822519);
     h = (h ^ (h >> 13)).wrapping_mul(1274126177);
     ((h ^ (h >> 16)) & 0xffff) as f32 / 65535.0
+}
+
+/// How big a patch of woods runs, in tiles
+const WOODS_SCALE: i32 = 6;
+
+/// Noise that varies smoothly over `scale` tiles (noise() at a coarse grid,
+/// blended between its corners), for things that come in patches
+fn smooth_noise(x: i32, y: i32, scale: i32, salt: u32) -> f32 {
+    let (gx, gy) = (x.div_euclid(scale), y.div_euclid(scale));
+    let (fx, fy) = (x.rem_euclid(scale) as f32 / scale as f32, y.rem_euclid(scale) as f32 / scale as f32);
+    let ease = |t: f32| t * t * (3.0 - 2.0 * t);
+    let (ex, ey) = (ease(fx), ease(fy));
+    let n = |dx: i32, dy: i32| noise(gx + dx, gy + dy, salt);
+    let top = n(0, 0) + (n(1, 0) - n(0, 0)) * ex;
+    let bottom = n(0, 1) + (n(1, 1) - n(0, 1)) * ex;
+    top + (bottom - top) * ey
 }
 
 /// Sink every patch of land but the biggest: the height dome leaves odd
@@ -147,17 +174,26 @@ impl TileMap {
                 }
             }
         }
+        if let Some((x0, y0, x1, y1)) = layout.town_wall {
+            for y in y0.max(0)..=y1.min(h as i32 - 1) {
+                for x in x0.max(0)..=x1.min(w as i32 - 1) {
+                    let v = &mut terrain.heights[y as usize][x as usize];
+                    *v = v.clamp(0.25, HILL_LEVEL - 0.05);
+                }
+            }
+        }
         sink_islets(terrain);
         let tiles = (0..w * h).map(|i| {
             let v = terrain.heights[i / w][i % w];
             if v < WATER_LEVEL { Tile::Water } else if v < HILL_LEVEL { Tile::Grass } else if v < ROCK_LEVEL { Tile::Hill } else { Tile::Rock }
         }).collect();
-        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], hub: layout.road_hub };
+        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], walls: vec![], hub: layout.road_hub };
         map.carve_river(&layout.river);
         map.place_bridge(layout.bridge_near);
         for &(x, y, crop) in &layout.fields {
             if map.get(x, y) == Some(Tile::Grass) { map.set(x, y, crop); }
         }
+        if let Some(rect) = layout.town_wall { map.build_wall(rect); }
         for &(x, y) in &layout.buildings {
             let (bx, by) = map.nearest_buildable(x, y).unwrap_or((x, y));
             map.occupy(bx, by);
@@ -170,9 +206,14 @@ impl TileMap {
         for y in 0..h as i32 {
             for x in 0..w as i32 {
                 if map.is_occupied(x, y) { continue; }
-                let wooded = match map.get(x, y) {
-                    Some(Tile::Hill) => noise(x, y, 1) < 0.45,
-                    Some(Tile::Grass) => noise(x, y, 2) < 0.04 && !layout.settlements.iter().any(|&(cx, cy, r)| (x - cx).pow(2) + (y - cy).pow(2) <= r * r),
+                // woods grow in patches (smooth noise), thickest on the hills;
+                // the odd lone tree stands out on open grass. Not in a settlement.
+                let settled = layout.settlements.iter().any(|&(cx, cy, r)| (x - cx).pow(2) + (y - cy).pow(2) <= r * r)
+                    || layout.town_wall.map(|(x0, y0, x1, y1)| (x0..=x1).contains(&x) && (y0..=y1).contains(&y)).unwrap_or(false);
+                let woods = smooth_noise(x, y, WOODS_SCALE, 3);
+                let wooded = !settled && match map.get(x, y) {
+                    Some(Tile::Hill) => woods > 0.35 && noise(x, y, 1) < 0.85,
+                    Some(Tile::Grass) => (woods > 0.68 && noise(x, y, 1) < 0.75) || noise(x, y, 2) < 0.02,
                     _ => false,
                 };
                 if wooded { map.trees.push((x, y)); }
@@ -197,6 +238,30 @@ impl TileMap {
     /// Mark a cell as built on
     pub fn occupy(&mut self, x: i32, y: i32) {
         if self.get(x, y).is_some() { self.occupied[y as usize * self.width + x as usize] = true; }
+    }
+
+    /// Wall in the rectangle (x0, y0)-(x1, y1): towers at the corners, a
+    /// gate midway along each side (left open, so the roads go through them),
+    /// wall everywhere else. Wall and towers can't be built on or walked through.
+    fn build_wall(&mut self, (x0, y0, x1, y1): (i32, i32, i32, i32)) {
+        let (mx, my) = ((x0 + x1) / 2, (y0 + y1) / 2);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let (on_x_side, on_y_side) = (y == y0 || y == y1, x == x0 || x == x1);
+                let piece = match (on_x_side, on_y_side) {
+                    (true, true) => WallPiece::Tower,
+                    (true, false) if x == mx => WallPiece::GateAlongX,
+                    (true, false) => WallPiece::AlongX,
+                    (false, true) if y == my => WallPiece::GateAlongY,
+                    (false, true) => WallPiece::AlongY,
+                    _ => continue,
+                };
+                if self.get(x, y).is_none() { continue; }
+                if matches!(self.get(x, y), Some(Tile::Water) | Some(Tile::River)) { self.set(x, y, Tile::Grass); }
+                if !matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY) { self.occupy(x, y); }
+                self.walls.push(((x, y), piece));
+            }
+        }
     }
 
     /// Run a road from the hub to a new building at `to`
@@ -376,18 +441,19 @@ mod tests {
 
     fn layout() -> Layout {
         Layout {
+            town_wall: Some((8, 8, 21, 23)),
             settlements: vec![(16, 16, 8), (28, 14, 4)],
             river: vec![(23, 0), (24, 10), (24, 22)], // springs inland, past the northern shore
             bridge_near: (24, 15),
             fields: vec![(14, 14, Tile::Wheat), (14, 15, Tile::Corn)],
-            buildings: vec![(13, 12), (19, 12), (28, 13), (2, 2)],
+            buildings: vec![(13, 12), (19, 12), (28, 13), (31, 31)],
             road_hub: (16, 16),
             road_ends: vec![(28, 15)],
         }
     }
 
     fn map() -> (Terrain, TileMap) {
-        let mut t = Terrain::generate(33, 0.7, 42);
+        let mut t = Terrain::generate_country(33, 0.7, 42);
         let m = TileMap::generate(&mut t, &layout());
         (t, m)
     }
@@ -400,8 +466,8 @@ mod tests {
             assert!(matches!(m.get(x, y), Some(Tile::Grass) | Some(Tile::Hill)), "building at ({},{}) on {:?}", x, y, m.get(x, y));
             assert!(t.get(x as usize, y as usize) >= WATER_LEVEL);
         }
-        // (2, 2) is out at sea: that building was moved ashore
-        assert_ne!(m.buildings[3], (2, 2));
+        // (31, 31) is out at sea: that building was moved ashore
+        assert_ne!(m.buildings[3], (31, 31));
     }
 
     #[test]
@@ -468,6 +534,32 @@ mod tests {
         assert!(NEIGHBOURS.iter().any(|(dx, dy)| (last.0 + dx, last.1 + dy) == site), "it ends at the building");
         for &(x, y) in &plan { m.pave(x, y); }
         assert!(m.plan_road(site).is_empty(), "once laid there's nothing left to build");
+    }
+
+    #[test]
+    fn test_the_town_is_walled_with_corner_towers_and_gates_the_roads_use() {
+        let (_, m) = map();
+        let piece = |x: i32, y: i32| m.walls.iter().find(|(p, _)| *p == (x, y)).map(|(_, w)| *w);
+        for corner in [(8, 8), (21, 8), (8, 23), (21, 23)] { assert_eq!(piece(corner.0, corner.1), Some(WallPiece::Tower)); }
+        assert_eq!(piece(12, 8), Some(WallPiece::AlongX));
+        assert_eq!(piece(8, 12), Some(WallPiece::AlongY));
+        let gates: Vec<(i32, i32)> = m.walls.iter().filter(|(_, w)| matches!(w, WallPiece::GateAlongX | WallPiece::GateAlongY)).map(|(p, _)| *p).collect();
+        assert_eq!(gates.len(), 4);
+        for &(x, y) in &m.walls.iter().map(|(p, _)| *p).collect::<Vec<_>>() {
+            let gate = gates.contains(&(x, y));
+            assert_eq!(m.is_occupied(x, y), !gate, "wall at ({},{}) should block, a gate shouldn't", x, y);
+        }
+        // the road to the rivals' village leaves through a gate
+        assert!(gates.iter().any(|&(x, y)| m.get(x, y) == Some(Tile::Road)
+            && NEIGHBOURS.iter().filter(|(dx, dy)| m.get(x + dx, y + dy) == Some(Tile::Road)).count() == 2));
+    }
+
+    #[test]
+    fn test_woods_grow_in_patches() {
+        let (_, m) = map();
+        // most trees have another tree beside them: woods, not a scatter
+        let in_woods = m.trees.iter().filter(|&&(x, y)| NEIGHBOURS.iter().any(|(dx, dy)| m.trees.contains(&(x + dx, y + dy)))).count();
+        assert!(in_woods * 3 >= m.trees.len() * 2, "{} of {} trees stand in woods", in_woods, m.trees.len());
     }
 
     #[test]

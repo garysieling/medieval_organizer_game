@@ -7,7 +7,7 @@ use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
 use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::tilemap::{Layout, Tile, TileMap};
+use game2_core::game::tilemap::{Layout, Tile, TileMap, WallPiece};
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, Rapport, TALK_RAPPORT_STEP, recruit_influence_needed, RECRUIT_INFLUENCE};
@@ -484,6 +484,8 @@ const INVEST_GOLD: f32 = 10.0;
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
 const MILL_TILE: (f32, f32) = (10.0, 9.0);
+/// The town wall, (x0, y0)-(x1, y1): round the village, inside the river
+const TOWN_WALL: (i32, i32, i32, i32) = (8, 8, 23, 24);
 /// Frames drawn per second
 const FPS: u32 = 60;
 /// How long a reply to Talk, and a remark in passing, stay up (seconds)
@@ -538,7 +540,8 @@ struct Art {
     stone_s: Option<Sprite>,
     player_s: Option<Sprite>,
     tower_s: Option<Sprite>,
-    wall_s: Option<Sprite>,
+    /// Town wall blocks: running along x, along y, and the two gatehouses
+    walls: [Option<Sprite>; 4],
     church_s: Option<Sprite>,
     guildhall_s: Option<Sprite>,
     rival_house: Option<Sprite>,
@@ -553,7 +556,6 @@ struct Art {
 #[derive(Default)]
 struct TileSet {
     grass: Option<Sprite>,
-    rock: Option<Sprite>,
     water: Option<Sprite>,
     wheat: Option<Sprite>,
     corn: Option<Sprite>,
@@ -605,7 +607,6 @@ impl TileSet {
         TileSet {
             water: grass.as_ref().map(|g| water_block(g, winter)),
             grass: if winter { snow() } else { grass.map(gold) },
-            rock: load("Enviroument/Spring/ground(1).png"),
             tree: if winter { load("Enviroument/Winter/trees/tree(1).png") } else { load("Enviroument/Spring/trees/tree(1).png").map(gold) },
             wheat: if winter { snow() } else { load("Buildings/wheat/wheat(1).png").map(gold) },
             corn: if winter { snow() } else { load("Buildings/corn/corn(1).png").map(gold) },
@@ -622,8 +623,9 @@ impl TileSet {
     /// The block for map tile (x, y), joined up with its neighbours
     fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
         match map.get(x, y)? {
-            Tile::Grass | Tile::Hill => self.grass.as_ref(),
-            Tile::Rock => self.rock.as_ref(),
+            // bare rock is grass with a boulder on it (the pack's dirt block
+            // is orange and read as a stray bit of road)
+            Tile::Grass | Tile::Hill | Tile::Rock => self.grass.as_ref(),
             Tile::Water => self.water.as_ref(),
             Tile::Wheat => self.wheat.as_ref(),
             Tile::Corn => self.corn.as_ref(),
@@ -720,7 +722,8 @@ impl Art {
             stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(2).png")).ok(),
             player_s: Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok(),
             tower_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok(),
-            wall_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok(),
+            // the pack's castle_wall(2) runs along x, (1) along y; (5) and (6) are gatehouses
+            walls: [2, 1, 5, 6].map(|n| Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall({}).png", n))).ok()),
             church_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok(),
             guildhall_s: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
             rival_house: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
@@ -805,7 +808,7 @@ impl<'a> Game<'a> {
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
 
-        let mut terrain = Terrain::generate(33, 0.7, 42);
+        let mut terrain = Terrain::generate_country(33, 0.7, 42);
         let climate = climate::spawn_climate(&mut world);
         let market_food = villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
@@ -816,18 +819,17 @@ impl<'a> Game<'a> {
             ((19, 19), &art.blacksmith_s),
             // church (religion centre) + guild hall (merchant base)
             ((14, 9), &art.church_s), ((17, 10), &art.guildhall_s),
-            // the ruler's castle on the far bank, overlooking the village
-            ((26, 5), &art.tower_s), ((27, 5), &art.wall_s), ((28, 5), &art.tower_s),
             // rival village across the river (red-roofed foreign houses)
             ((28, 13), &art.rival_house), ((30, 15), &art.rival_woodhouse),
         ];
         let mut layout = Layout {
-            // our village, the rivals' and the castle each stand on dry land
-            settlements: vec![(16, 16, 9), (29, 14, 4), (27, 5, 3)],
-            // a river from the northern hills to the southern shore, between
-            // our village and the rivals'
-            river: vec![(22, 5), (23, 8), (24, 10), (24, 26)],
-            bridge_near: (24, 14),
+            // our village and the rivals' each stand on dry land
+            settlements: vec![(16, 16, 9), (29, 14, 4)],
+            // a river from the northern hills down to the sea, between our
+            // walled town and the rivals'
+            river: vec![(24, 3), (25, 9), (25, 27)],
+            bridge_near: (25, 14),
+            town_wall: Some(TOWN_WALL),
             // fields beside the food store
             fields: vec![
                 (13, 14, Tile::Wheat), (14, 14, Tile::Wheat), (13, 15, Tile::Wheat), (14, 15, Tile::Wheat),
@@ -897,8 +899,9 @@ impl<'a> Game<'a> {
             toasts: vec![],
             last_guild_count: 0,
             tick: 0,
-            cam_x: 0,
-            cam_y: 0,
+            // looking at the market to start
+            cam_x: camera_on(16.0, 16.0).0,
+            cam_y: camera_on(16.0, 16.0).1,
             paused: false,
             speed: 1,
             selected_target: 0,
@@ -1034,6 +1037,9 @@ impl<'a> Game<'a> {
     /// ticks villagers keep strolling
     fn update(&mut self) {
         let ticks_per_frame = self.ticks_per_frame();
+        // where everyone stood, so no one ends the frame inside a wall or a house
+        let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
+        let stood: Vec<Option<Pos>> = people.iter().map(|e| self.world.get_component::<Pos>(*e).copied()).collect();
         let Game { world, villagers, log, toasts, .. } = self;
 
         // sim advance: one tick = one day, throttled by frame count
@@ -1180,6 +1186,14 @@ impl<'a> Game<'a> {
 
         // expire speech bubbles and toasts
         toasts.retain(|(_, until)| tick < *until);
+        for (e, before) in people.iter().zip(stood) {
+            let Some(before) = before else { continue };
+            let blocked = |p: &Pos| self.map.is_occupied(p.x.round() as i32, p.y.round() as i32);
+            let now = self.world.get_component::<Pos>(*e).copied();
+            if now.map(|p| blocked(&p)).unwrap_or(false) && !blocked(&before) {
+                *self.world.get_component_mut::<Pos>(*e).unwrap() = before;
+            }
+        }
         if !self.paused {
             for w in self.works.iter_mut() {
                 let laid = w.road_laid();
@@ -1247,6 +1261,19 @@ impl<'a> Game<'a> {
             .map(|(i, (x, y, s))| (*x, *y, *s, true, risen(i))).collect();
         standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, &set.tree, false, 1.0)));
         standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, &art.stone_s, false, 1.0)));
+        let rocks = (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
+            .filter(|&(x, y)| self.map.get(x, y) == Some(Tile::Rock));
+        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, &art.stone_s, false, 1.0)));
+        standing.extend(self.map.walls.iter().map(|&((x, y), piece)| {
+            let sprite = match piece {
+                WallPiece::AlongX => &art.walls[0],
+                WallPiece::AlongY => &art.walls[1],
+                WallPiece::GateAlongX => &art.walls[2],
+                WallPiece::GateAlongY => &art.walls[3],
+                WallPiece::Tower => &art.tower_s,
+            };
+            (x as f32, y as f32, sprite, true, 1.0)
+        }));
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
         for (bx, by, sprite, building, up) in standing {
             if let Some(s) = sprite {
@@ -1544,6 +1571,8 @@ impl<'a> Game<'a> {
         for my in 0..MM_H { for mx in 0..MM_W {
             if let Some((tx, ty)) = minimap_tile((MM_LEFT + mx) as f32 + 0.5, (MM_TOP + my) as f32 + 0.5, w_t, h_t) {
                 let (r, g, b) = self.map.get(tx as i32, ty as i32).map(|t| tile_colour(t, season)).unwrap_or((20, 20, 30));
+                // the woods show darker
+                let (r, g, b) = if self.map.trees.contains(&(tx as i32, ty as i32)) { blend((r, g, b), (20, 70, 35), 0.5) } else { (r, g, b) };
                 buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
             }
         }}
@@ -2868,8 +2897,8 @@ fn main() {
     // optional --zoom Z for the dump (default 1)
     let zoom: f32 = args.iter().position(|a| a == "--zoom").and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok()).unwrap_or(1.0);
     // optional --cam X,Y to pan the dump
-    let cam: (i32, i32) = args.iter().position(|a| a == "--cam").and_then(|i| args.get(i + 1))
-        .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?))).unwrap_or((0, 0));
+    let cam: Option<(i32, i32)> = args.iter().position(|a| a == "--cam").and_then(|i| args.get(i + 1))
+        .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?)));
     let art = Art::load("assets");
     if let Some(target) = dump_at {
         run_headless(&art, target, out, zoom, cam);
@@ -2961,10 +2990,10 @@ fn main() {
 /// Headless verification: play the game (no input) until tick N, then
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
-fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: (i32, i32)) {
+fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>) {
     let mut game = Game::new(art);
     game.zoom = zoom;
-    (game.cam_x, game.cam_y) = cam;
+    if let Some(cam) = cam { (game.cam_x, game.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));

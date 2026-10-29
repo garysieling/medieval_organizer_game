@@ -204,6 +204,20 @@ impl TileMap {
         self.lay_road(self.hub, to);
     }
 
+    /// The new road a building at `to` needs to join the hub's roads, in
+    /// the order it would be laid - from where it leaves the existing road
+    /// out to the building - without laying it (see pave)
+    pub fn plan_road(&self, to: (i32, i32)) -> Vec<(i32, i32)> {
+        let mut path = self.road_path(self.hub, to).unwrap_or_default();
+        path.retain(|&(x, y)| matches!(self.get(x, y), Some(t) if t != Tile::Road && t != Tile::Bridge) && !self.is_occupied(x, y));
+        path
+    }
+
+    /// Lay one tile of road
+    pub fn pave(&mut self, x: i32, y: i32) {
+        if !matches!(self.get(x, y), Some(Tile::Bridge) | Some(Tile::Water) | Some(Tile::River) | None) { self.set(x, y, Tile::Road); }
+    }
+
     /// Whether a building could go here: open dry ground, nothing on it
     pub fn buildable(&self, x: i32, y: i32) -> bool {
         matches!(self.get(x, y), Some(Tile::Grass) | Some(Tile::Hill))
@@ -289,9 +303,18 @@ impl TileMap {
     }
 
     /// Lay a road from `from` to the front of `to` (the building itself
-    /// isn't paved): the cheapest way over the ground, where new road costs
-    /// more than following road already laid, so roads share a trunk
+    /// isn't paved)
     fn lay_road(&mut self, from: (i32, i32), to: (i32, i32)) {
+        for (x, y) in self.road_path(from, to).unwrap_or_default() {
+            if !self.is_occupied(x, y) && self.get(x, y) != Some(Tile::Bridge) { self.set(x, y, Tile::Road); }
+        }
+    }
+
+    /// The way a road from `from` to `to` would go, `from` first: the
+    /// cheapest way over the ground, where new road costs more than
+    /// following road already laid, so roads share a trunk. None if `to`
+    /// can't be reached.
+    fn road_path(&self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
         let (w, h) = (self.width as i32, self.height as i32);
         let idx = |p: (i32, i32)| (p.1 * w + p.0) as usize;
         let mut cost = vec![u32::MAX; (w * h) as usize];
@@ -313,13 +336,15 @@ impl TileMap {
                 }
             }
         }
-        if cost[idx(to)] == u32::MAX { return; }
+        if cost[idx(to)] == u32::MAX { return None; }
+        let mut path = vec![to];
         let mut at = prev[idx(to)];
-        if !self.is_occupied(to.0, to.1) && self.get(to.0, to.1) != Some(Tile::Bridge) { self.set(to.0, to.1, Tile::Road); }
         while let Some(p) = at {
-            if self.get(p.0, p.1) != Some(Tile::Bridge) { self.set(p.0, p.1, Tile::Road); }
+            path.push(p);
             at = prev[idx(p)];
         }
+        path.reverse();
+        Some(path)
     }
 
     /// Which of the pack's numbered blocks to draw for a road, river or
@@ -427,6 +452,22 @@ mod tests {
         m.occupy(site.0, site.1);
         m.connect(site);
         assert!(NEIGHBOURS.iter().any(|(dx, dy)| m.get(site.0 + dx, site.1 + dy) == Some(Tile::Road)));
+    }
+
+    #[test]
+    fn test_a_planned_road_runs_out_from_the_network_and_is_laid_by_paving() {
+        let (_, mut m) = map();
+        let site = m.nearest_buildable(10, 20).unwrap();
+        m.occupy(site.0, site.1);
+        let plan = m.plan_road(site);
+        assert!(!plan.is_empty());
+        assert!(plan.iter().all(|&(x, y)| m.get(x, y) != Some(Tile::Road)), "only new road is planned");
+        let first = plan[0];
+        assert!(NEIGHBOURS.iter().any(|(dx, dy)| matches!(m.get(first.0 + dx, first.1 + dy), Some(Tile::Road))), "it starts off the existing road");
+        let last = *plan.last().unwrap();
+        assert!(NEIGHBOURS.iter().any(|(dx, dy)| (last.0 + dx, last.1 + dy) == site), "it ends at the building");
+        for &(x, y) in &plan { m.pave(x, y); }
+        assert!(m.plan_road(site).is_empty(), "once laid there's nothing left to build");
     }
 
     #[test]

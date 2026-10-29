@@ -730,6 +730,27 @@ impl Art {
     }
 }
 
+/// A house being built: first its road is laid out from the village's
+/// roads a tile every ROAD_TILE_FRAMES, then the house rises over
+/// RISE_FRAMES. `frames` counts the (unpaused) frames it's been going.
+struct Works {
+    building: usize, // index into Game::buildings
+    road: Vec<(i32, i32)>,
+    frames: u32,
+}
+const ROAD_TILE_FRAMES: u32 = FPS / 2;
+const RISE_FRAMES: u32 = 3 * FPS;
+
+impl Works {
+    /// How many of the road's tiles are laid so far
+    fn road_laid(&self) -> usize { ((self.frames / ROAD_TILE_FRAMES) as usize).min(self.road.len()) }
+    /// How much of the house stands, 0 to 1 (0 until the road is done)
+    fn risen(&self) -> f32 {
+        let start = self.road.len() as u32 * ROAD_TILE_FRAMES;
+        (self.frames.saturating_sub(start) as f32 / RISE_FRAMES as f32).min(1.0)
+    }
+}
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see.
@@ -751,6 +772,7 @@ struct Game<'a> {
     stones: Vec<(i32, i32)>, // boulders out in the fields
     buttons: Vec<Button>,
     built_count: usize,
+    works: Vec<Works>, // houses still being built
     zoom: f32, // 0.5 - 2.0
     toasts: Vec<(String, u64)>,  // (msg, shown until tick)
     last_guild_count: usize,
@@ -869,6 +891,7 @@ impl<'a> Game<'a> {
         Game {
             art, world, sched, map, climate, villagers, rivals, player, org, dog, market_food, buildings, stones, buttons,
             built_count: 0,
+            works: vec![],
             zoom: 1.0,
             rival_homes,
             toasts: vec![],
@@ -1157,6 +1180,14 @@ impl<'a> Game<'a> {
 
         // expire speech bubbles and toasts
         toasts.retain(|(_, until)| tick < *until);
+        if !self.paused {
+            for w in self.works.iter_mut() {
+                let laid = w.road_laid();
+                w.frames += 1;
+                for &(x, y) in &w.road[laid..w.road_laid()] { self.map.pave(x, y); }
+            }
+            self.works.retain(|w| w.risen() < 1.0);
+        }
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until)| frame < *until);
         self.chat_in_passing();
@@ -1210,14 +1241,23 @@ impl<'a> Game<'a> {
         }
 
         // buildings, trees and boulders, back to front
-        let mut standing: Vec<(f32, f32, &Option<Sprite>, bool)> = self.buildings.iter().map(|(x, y, s)| (*x, *y, *s, true)).collect();
-        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, &set.tree, false)));
-        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, &art.stone_s, false)));
+        // (x, y, sprite, is a building, how much of it stands)
+        let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
+        let mut standing: Vec<(f32, f32, &Option<Sprite>, bool, f32)> = self.buildings.iter().enumerate()
+            .map(|(i, (x, y, s))| (*x, *y, *s, true, risen(i))).collect();
+        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, &set.tree, false, 1.0)));
+        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, &art.stone_s, false, 1.0)));
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-        for (bx, by, sprite, building) in standing {
+        for (bx, by, sprite, building, up) in standing {
             if let Some(s) = sprite {
                 let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
-                if building { draw_on_tile(&mut buf, s, sx, sy, zoom); } else { draw_prop(&mut buf, s, sx, sy, zoom); }
+                if !building { draw_prop(&mut buf, s, sx, sy, zoom); }
+                else if up >= 1.0 { draw_on_tile(&mut buf, s, sx, sy, zoom); }
+                else if up > 0.0 {
+                    // going up: the bottom of the house, from the ground up
+                    let rows = ((s.height as f32 * up).round() as usize).max(1);
+                    draw_on_tile(&mut buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
+                }
             }
         }
 
@@ -1634,9 +1674,11 @@ impl<'a> Game<'a> {
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, &self.art.house_s));
                     self.map.occupy(bx as i32, by as i32);
-                    self.map.connect((bx as i32, by as i32));
+                    // the road is laid a tile at a time, then the house goes up
+                    let road = self.map.plan_road((bx as i32, by as i32));
+                    self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
                     self.built_count += 1;
-                    format!("A new house goes up beside you - {:.0} gold", BUILD_COST)
+                    format!("Work starts on a new house beside you - {:.0} gold", BUILD_COST)
                 }
                 _ => unreachable!("no action button {}", i),
             }
@@ -1956,6 +1998,34 @@ mod progression_tests {
         }
         assert!(influence(&game) > WIN_INFLUENCE,
             "everyone joined and all gold invested, yet influence is only {:.2} (win at {})", influence(&game), WIN_INFLUENCE);
+    }
+}
+
+#[cfg(test)]
+mod works_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_new_house_lays_its_road_a_tile_at_a_time_then_rises() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 8.0, y: 20.0 };
+        assert_eq!(game.action_blocker(4), None);
+        game.act(4);
+        let w = game.works.last().expect("building should start works");
+        let road = w.road.clone();
+        assert!(road.len() >= 2, "a house out here needs a road");
+        assert!(road.iter().all(|&(x, y)| game.map.get(x, y) != Some(Tile::Road)), "the road isn't there at once");
+        let mut laid_counts = vec![];
+        for _ in 0..(road.len() as u32 * ROAD_TILE_FRAMES) {
+            game.update();
+            laid_counts.push(road.iter().filter(|&&(x, y)| game.map.get(x, y) == Some(Tile::Road)).count());
+        }
+        assert!(laid_counts.windows(2).all(|p| p[1] >= p[0] && p[1] - p[0] <= 1), "one tile at a time");
+        assert_eq!(*laid_counts.last().unwrap(), road.len(), "the whole road is laid");
+        assert!(!game.works.is_empty(), "the house is still going up");
+        for _ in 0..RISE_FRAMES { game.update(); }
+        assert!(game.works.is_empty(), "the house is finished");
     }
 }
 
@@ -2484,7 +2554,7 @@ mod member_line_tests {
         let mut game = Game::new(&art);
         game.act(4);
         let line = game.log.last().unwrap();
-        assert!(line.contains("house goes up") && !line.contains('('), "{}", line);
+        assert!(line.contains("new house") && !line.contains('('), "{}", line);
     }
 }
 

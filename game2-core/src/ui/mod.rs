@@ -6,3 +6,4 @@ pub mod dialogs;
 pub mod graph;
 pub mod tech_view;
 pub mod font;
+pub mod weather_fx;

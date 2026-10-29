@@ -74,6 +74,23 @@ impl Sprite {
         self.blit(buf, cx - self.width as i32 / 2, bottom_y - self.height as i32);
     }
 
+    /// Blit at a fractional scale (nearest-neighbor), bottom-center anchor
+    pub fn blit_scaled_bottom(&self, buf: &mut Buffer, cx: i32, bottom_y: i32, scale: f32) {
+        let w = (self.width as f32 * scale).round() as i32;
+        let h = (self.height as f32 * scale).round() as i32;
+        let (x0, y0) = (cx - w / 2, bottom_y - h);
+        for dy in 0..h {
+            let sy = ((dy as f32 / scale) as usize).min(self.height - 1);
+            for dx in 0..w {
+                let sx = ((dx as f32 / scale) as usize).min(self.width - 1);
+                let idx = (sy * self.width + sx) * 4;
+                if self.pixels[idx + 3] > 128 {
+                    buf.set(x0 + dx, y0 + dy, self.pixels[idx], self.pixels[idx+1], self.pixels[idx+2]);
+                }
+            }
+        }
+    }
+
     /// Blit scaled (nearest-neighbor)
     pub fn blit_scaled(&self, buf: &mut Buffer, x: i32, y: i32, scale: usize) {
         for sy in 0..self.height {

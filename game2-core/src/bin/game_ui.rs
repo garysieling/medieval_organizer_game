@@ -13,6 +13,8 @@ use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_inves
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::ui::isometric::render_terrain;
 use game2_core::sim::climate::{self, SeasonSystem, Season};
+use game2_core::sim::precipitation::{self, PrecipitationSystem, Precipitation, PrecipKind};
+use game2_core::ui::weather_fx;
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
@@ -39,6 +41,83 @@ fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (i3
     let sx = MAP_W as i32 / 2 + ((tx - ty) * tw) as i32 + cam_x;
     let sy = -60 + ((tx + ty) * th) as i32 + cam_y;
     (sx, sy)
+}
+
+/// Fixed map objects (tile x, tile y, sprite). Shared by the windowed game and
+/// --dump-frame so screenshots show the real village.
+fn village_layout(assets: &Assets) -> Vec<(f32, f32, Option<Sprite>)> {
+    let house_s = Sprite::load(&assets.path(&assets.building_sprite("house", "blue"))).ok();
+    let blacksmith_s = Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok();
+    let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
+    let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
+    let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
+    let stone_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok();
+    let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
+    let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
+    let wall_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok();
+    let road_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Roads/Spring/road(1).png")).ok();
+    let corn2_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(2).png")).ok();
+    let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
+    let guildhall_s = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
+    let rival_house = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
+    let rival_woodhouse = Sprite::load(&assets.path(&assets.building_sprite("woodhouse", "red"))).ok();
+
+    vec![
+        (5.0, 5.0, house_s.clone()), (12.0, 4.0, house_s.clone()), (7.0, 12.0, house_s.clone()),
+        (15.0, 8.0, blacksmith_s.clone()),
+        (3.0, 14.0, tree_s.clone()), (18.0, 5.0, tree_s.clone()), (9.0, 16.0, tree_s.clone()), (20.0, 12.0, tree_s.clone()),
+        // farms: wheat + corn fields near the village
+        (14.0, 14.0, wheat_s.clone()), (15.0, 14.0, wheat_s.clone()), (14.0, 15.0, wheat_s.clone()), (15.0, 15.0, wheat_s.clone()),
+        (16.0, 15.0, corn_s.clone()), (16.0, 16.0, corn_s.clone()), (17.0, 15.0, corn_s.clone()),
+        (4.0, 18.0, stone_s.clone()), (19.0, 16.0, stone_s.clone()),
+        // market plaza (packed dirt tiles around stalls)
+        (7.0, 6.0, road_s.clone()), (8.0, 6.0, road_s.clone()), (9.0, 6.0, road_s.clone()),
+        // food market stalls (dim when food runs low)
+        (7.0, 7.0, corn2_s.clone()), (9.0, 7.0, corn2_s.clone()),
+        // main road through the village center
+        (8.0, 8.0, road_s.clone()), (9.0, 9.0, road_s.clone()), (10.0, 10.0, road_s.clone()), (11.0, 11.0, road_s.clone()),
+        (12.0, 8.0, road_s.clone()), (13.0, 7.0, road_s.clone()), (8.0, 12.0, road_s.clone()), (9.0, 13.0, road_s.clone()),
+        // river along the east edge
+        (24.0, 3.0, river_s.clone()), (26.0, 5.0, river_s.clone()), (28.0, 7.0, river_s.clone()), (30.0, 9.0, river_s.clone()),
+        // castle towers at the far edge (the ruler overlooks the village)
+        (26.0, 6.0, tower_s.clone()), (28.0, 8.0, tower_s.clone()), (27.0, 4.0, tower_s.clone()),
+        // rival village across the river (red-roofed foreign houses)
+        (28.0, 13.0, rival_house.clone()), (30.0, 15.0, rival_woodhouse.clone()),
+        // castle walls connecting the towers
+        (25.0, 5.0, wall_s.clone()), (27.0, 7.0, wall_s.clone()), (29.0, 9.0, wall_s.clone()),
+        // church (religion center) + guild hall (merchant base)
+        (2.0, 8.0, church_s.clone()), (17.0, 10.0, guildhall_s.clone()),
+    ]
+}
+
+/// Asset-pack tile blocks (walls, towers, rivers, roads, fields) are drawn for a
+/// 94px-wide diamond; props (houses, trees, mill, stones) are already ~1 tile wide.
+const ASSET_TILE_W: f32 = 94.0;
+
+/// Scale that makes a sprite's footprint one map tile
+fn tile_sprite_scale(s: &Sprite, zoom: f32) -> f32 {
+    if s.width as f32 >= ASSET_TILE_W - 4.0 { 2.0 * TILE_W as f32 * zoom / ASSET_TILE_W } else { zoom }
+}
+
+/// Something standing on the map
+enum MapObj<'a> {
+    Tile(&'a Sprite),   // asset-pack block filling one tile (building, tree, road...)
+    Figure(&'a Sprite), // 32px character frame, drawn 2x with feet on the point
+}
+
+/// Draw map objects back to front (painter's order by tile depth x + y), so
+/// anything nearer the viewer covers what is behind it.
+fn draw_map_objects(buf: &mut Buffer, objs: &mut [(f32, f32, MapObj)], cam_x: i32, cam_y: i32, zoom: f32) {
+    objs.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap().then(a.0.partial_cmp(&b.0).unwrap()));
+    let th = (TILE_H as f32 * zoom) as i32;
+    for (x, y, o) in objs.iter() {
+        let (sx, sy) = iso_to_screen_cam(*x, *y, cam_x, cam_y, zoom);
+        match o {
+            // sprite's bottom corner sits on the tile's bottom corner
+            MapObj::Tile(s) => s.blit_scaled_bottom(buf, sx, sy + th, tile_sprite_scale(s, zoom)),
+            MapObj::Figure(s) => s.blit_scaled(buf, sx - 32, sy - 60, 2),
+        }
+    }
 }
 
 struct Button {
@@ -68,7 +147,13 @@ fn main() {
     let dump_at: Option<u64> = args.iter().position(|a| a == "--dump-frame")
         .and_then(|i| args.get(i+1)).and_then(|v| v.parse().ok());
     if let Some(target) = dump_at {
-        run_headless(target);
+        // --weather <drizzle|light|showers|rain|heavy|flurries|snow|blizzard|rainbow> forces the sky
+        let weather = args.iter().position(|a| a == "--weather").and_then(|i| args.get(i+1)).cloned();
+        // --cam x,y pans the camera (e.g. --cam -560,-60 shows the castle)
+        let cam = args.iter().position(|a| a == "--cam").and_then(|i| args.get(i+1))
+            .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?)))
+            .unwrap_or((0, 0));
+        run_headless(target, weather.as_deref(), cam);
         return;
     }
 
@@ -81,10 +166,12 @@ fn main() {
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
+    sched.add_system(PrecipitationSystem);
     sched.add_system(GuildFormationSystem);
 
     let terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
+    let precip = precipitation::spawn_precipitation(&mut world, 42);
     villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
     let assets = Assets::new("assets");
@@ -105,50 +192,11 @@ fn main() {
     let mill_frames: Vec<Sprite> = (1..=4).map(|i|
         Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
     ).collect();
-    let blacksmith_s = Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok();
-    let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
-    let wheat_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/wheat/wheat(1).png")).ok();
-    let corn_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(1).png")).ok();
-    let stone_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(1).png")).ok();
     let player_s = Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok();
-    let tower_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok();
-    let river_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Rivers/Spring/river(1).png")).ok();
-    let wall_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall(1).png")).ok();
-    let road_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Roads/Spring/road(1).png")).ok();
-    let corn2_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/corn/corn(2).png")).ok();
-    let church_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok();
-    let guildhall_s = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
     let smoke_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/smoke.png")).ok();
-    let rival_house = Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok();
-    let rival_woodhouse = Sprite::load(&assets.path(&assets.building_sprite("woodhouse", "red"))).ok();
 
     // buildings placed on map
-    let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = vec![
-        (5.0, 5.0, &house_s), (12.0, 4.0, &house_s), (7.0, 12.0, &house_s),
-        (15.0, 8.0, &blacksmith_s),
-        (3.0, 14.0, &tree_s), (18.0, 5.0, &tree_s), (9.0, 16.0, &tree_s), (20.0, 12.0, &tree_s),
-        // farms: wheat + corn fields near the village
-        (14.0, 14.0, &wheat_s), (15.0, 14.0, &wheat_s), (14.0, 15.0, &wheat_s), (15.0, 15.0, &wheat_s),
-        (16.0, 15.0, &corn_s), (16.0, 16.0, &corn_s), (17.0, 15.0, &corn_s),
-        (4.0, 18.0, &stone_s), (19.0, 16.0, &stone_s),
-        // market plaza (packed dirt tiles around stalls)
-        (7.0, 6.0, &road_s), (8.0, 6.0, &road_s), (9.0, 6.0, &road_s),
-        // food market stalls (dim when food runs low)
-        (7.0, 7.0, &corn2_s), (9.0, 7.0, &corn2_s),
-        // main road through the village center
-        (8.0, 8.0, &road_s), (9.0, 9.0, &road_s), (10.0, 10.0, &road_s), (11.0, 11.0, &road_s),
-        (12.0, 8.0, &road_s), (13.0, 7.0, &road_s), (8.0, 12.0, &road_s), (9.0, 13.0, &road_s),
-        // river along the east edge
-        (24.0, 3.0, &river_s), (26.0, 5.0, &river_s), (28.0, 7.0, &river_s), (30.0, 9.0, &river_s),
-        // castle towers at the far edge (the ruler overlooks the village)
-        (26.0, 6.0, &tower_s), (28.0, 8.0, &tower_s), (27.0, 4.0, &tower_s),
-        // rival village across the river (red-roofed foreign houses)
-        (28.0, 13.0, &rival_house), (30.0, 15.0, &rival_woodhouse),
-        // castle walls connecting the towers
-        (25.0, 5.0, &wall_s), (27.0, 7.0, &wall_s), (29.0, 9.0, &wall_s),
-        // church (religion center) + guild hall (merchant base)
-        (2.0, 8.0, &church_s), (17.0, 10.0, &guildhall_s),
-    ];
+    let mut buildings = village_layout(&assets);
     let mut built_count = 0usize;
     let mut zoom = 1.0f32; // 0.5 - 2.0
     let mut toasts: Vec<(String, u64)> = vec![];  // (msg, shown until tick)
@@ -216,6 +264,8 @@ fn main() {
     let mut dialog: Option<(Entity, String, u64)> = None; // (speaker, text, until tick)
     let mut frame_n = 0u32;
     let mut mouse_was_down = false;
+    let mut last_precip: Option<PrecipKind> = None;
+    let mut rainbow_from: Option<u64> = None; // frame the rain stopped
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // TITLE SCREEN until Enter
@@ -351,29 +401,34 @@ fn main() {
             }
         }
 
-        // buildings on map (sorted back-to-front by tile y)
-        let mut b_sorted: Vec<_> = buildings.iter().collect();
-        b_sorted.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-        for (bx, by, sprite) in b_sorted {
-            if let Some(s) = sprite {
-                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
-                s.blit_bottom(&mut buf, sx, sy + (TILE_H as f32 * zoom) as i32);
-            }
+        // map objects: buildings, windmill and characters in one back-to-front pass
+        let mill_frame = &mill_frames[((tick / 10) % 4) as usize];
+        let player_pos = world.get_component::<Pos>(player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0));
+        let mut objs: Vec<(f32, f32, MapObj)> = buildings.iter()
+            .filter_map(|(x, y, s)| s.as_ref().map(|s| (*x, *y, MapObj::Tile(s))))
+            .collect();
+        objs.push((10.0, 9.0, MapObj::Tile(mill_frame)));
+        for (i, v) in villagers.iter().enumerate() {
+            if let Some(p) = world.get_component::<Pos>(*v) { objs.push((p.x, p.y, MapObj::Figure(&villager_sprites[i]))); }
         }
+        if let Some(ps) = &player_s {
+            // rivals reuse the peasant sprite
+            for rv in rivals.iter() {
+                if let Some(p) = world.get_component::<Pos>(*rv) { objs.push((p.x, p.y, MapObj::Figure(ps))); }
+            }
+            objs.push((player_pos.0, player_pos.1, MapObj::Figure(ps)));
+        }
+        draw_map_objects(&mut buf, &mut objs, cam_x, cam_y, zoom);
 
         // chimney smoke rises from houses
         if let Some(sm) = &smoke_s {
+            let k = zoom;
             for (i, (bx, by, _)) in buildings.iter().enumerate().take(3) {
                 let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
                 let drift = ((tick + i as u64 * 7) % 30) as i32;
-                sm.blit(&mut buf, sx - 6, sy - 40 - drift);
+                sm.blit(&mut buf, sx - (6.0 * k) as i32, sy - (40.0 * k) as i32 - drift);
             }
         }
-
-        // windmill: animated blades (frame cycles every 10 ticks)
-        let mill_frame = &mill_frames[((tick / 10) % 4) as usize];
-        let (msx, msy) = iso_to_screen_cam(10.0, 9.0, cam_x, cam_y, zoom);
-        mill_frame.blit_center(&mut buf, msx, msy);
 
         // food stock indicator at market
         let food_stock = world.query::<villager::FoodSource>().first()
@@ -386,21 +441,16 @@ fn main() {
         buf.rect(fsx - 20, fsy + 10, fw, 4, 80, 200, 80);
         draw_text(&mut buf, fsx - 20, fsy + 16, &format!("food: {}", food_stock), 200, 200, 150);
 
-
-        // villagers as sprites (sorted by y for depth)
-        let mut v_sorted: Vec<(usize, f32, f32)> = villagers.iter().enumerate()
-            .filter_map(|(i, v)| world.get_component::<Pos>(*v).map(|p| (i, p.x, p.y)))
-            .collect();
-        v_sorted.sort_by(|a, b| (a.1 + a.2).partial_cmp(&(b.1 + b.2)).unwrap());
-        for (i, wx, wy) in v_sorted {
+        // villager overlays (drawn above everything on the map)
+        for (i, v) in villagers.iter().enumerate() {
+            let Some((wx, wy)) = world.get_component::<Pos>(*v).map(|p| (p.x, p.y)) else { continue };
             let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
-            villager_sprites[i].blit_scaled(&mut buf, sx - 32, sy - 60, 2);
             // selection highlight
             if i == selected_target {
                 draw_rect(&mut buf, sx - 14, sy - 66, 28, 2, 255, 255, 0);
             }
             // grave if dead (no Health component)
-            if world.get_component::<Health>(villagers[i]).is_none() {
+            if world.get_component::<Health>(*v).is_none() {
                 buf.rect(sx - 4, sy - 10, 8, 10, 120, 120, 130); // gravestone
                 draw_text(&mut buf, sx - 6, sy - 20, "RIP", 200, 200, 210);
                 continue;
@@ -408,10 +458,10 @@ fn main() {
             // name label
             draw_text(&mut buf, sx - 14, sy - 76, names[i], 255, 255, 255);
             // hunger indicator
-            if let Some(h) = world.get_component::<Hunger>(villagers[i]) {
+            if let Some(h) = world.get_component::<Hunger>(*v) {
                 if h.value < 40.0 { draw_text(&mut buf, sx - 3, sy - 66, "!", 255, 100, 100); }
             }
-            if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
+            if let Some(vil) = world.get_component::<Villager>(*v) {
                 match vil.activity {
                     Activity::SeekingFood => { draw_text(&mut buf, sx + 8, sy - 60, "o", 255, 200, 100); }
                     Activity::Idle => {},
@@ -432,25 +482,18 @@ fn main() {
             }
         }
 
-        // rival villagers (foreign settlement)
+        // rival villagers (foreign settlement) labels
         for (i, rv) in rivals.iter().enumerate() {
             if let Some(p) = world.get_component::<Pos>(*rv) {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
-                // rival sprite tinted different
-                if let Some(rs) = &player_s {
-                    rs.blit_scaled(&mut buf, sx - 32, sy - 60, 2);
-                }
                 draw_text(&mut buf, sx - 14, sy - 76, rival_names[i], 255, 140, 140);
             }
         }
 
-        // player sprite at their actual position
-        let player_pos = world.get_component::<Pos>(player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0));
+        // player marker
         let (px, py) = iso_to_screen_cam(player_pos.0, player_pos.1, cam_x, cam_y, zoom);
-        if let Some(ps) = &player_s {
-            ps.blit_scaled(&mut buf, px - 32, py - 60, 2);
-            // gold ring under player
-            buf.rect(px - 12, py - 4, 24, 3, 255, 215, 0);
+        if player_s.is_some() {
+            buf.rect(px - 12, py - 4, 24, 3, 255, 215, 0); // gold ring under player
         } else {
             draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
         }
@@ -546,24 +589,22 @@ fn main() {
         }
 
 
-        // weather tint overlay on map region
-        if let Some(cl) = world.get_component::<climate::Climate>(climate) {
-            if cl.rainfall_drift > 0.5 {
-                // rain: dark blue tint bands on map area
-                for y in (0..H).step_by(6) {
-                    for x in 0..MAP_W {
-                        let idx = (y * W + x) * 4;
-                        if idx + 2 < buf.pixels.len() {
-                            buf.set(x as i32, y as i32,
-                                buf.pixels[idx].saturating_sub(10),
-                                buf.pixels[idx+1].saturating_sub(10),
-                                buf.pixels[idx+2].saturating_add(30));
-                        }
-                    }
+        // weather: overcast + falling rain/snow over the map, rainbow after rain
+        let now_precip = world.get_component::<Precipitation>(precip).and_then(|p| p.current);
+        if now_precip != last_precip {
+            match (last_precip, now_precip) {
+                (_, Some(k)) => log.push(format!("t{}: {} begins", tick, k.label().to_lowercase())),
+                (Some(k), None) if !k.is_snow() => {
+                    log.push(format!("t{}: the rain stops - a rainbow!", tick));
+                    rainbow_from = Some(frame_n as u64);
                 }
-                draw_text(&mut buf, 10, 24, "RAINING", 150, 180, 255);
+                (Some(_), None) => log.push(format!("t{}: the snow stops", tick)),
+                (None, None) => {}
             }
+            if now_precip.is_some() { rainbow_from = None; }
+            last_precip = now_precip;
         }
+        draw_weather(&mut buf, now_precip, frame_n as u64, rainbow_from.map(|f| frame_n as u64 - f));
 
         // minimap (top-right of map area) - dots for villagers/player/buildings
         let mm_x = MAP_W as i32 - 90;
@@ -615,18 +656,6 @@ fn main() {
             }
         }
         toasts.retain(|(_, until)| tick < *until);
-
-        // ambient particles only during weather (snow in winter, rain when wet)
-        let is_winter = matches!(season, Season::Winter);
-        let raining = world.get_component::<climate::Climate>(climate).map(|c| c.rainfall_drift > 0.5).unwrap_or(false);
-        if is_winter || raining {
-            let (pr, pg, pb) = if is_winter { (230, 235, 255) } else { (120, 160, 220) };
-            for i in 0..20 {
-                let px = ((tick + i * 37) % MAP_W as u64) as i32;
-                let py = ((tick * 2 + i * 23) % H as u64) as i32;
-                if px < MAP_W as i32 { buf.set(px, py, pr, pg, pb); }
-            }
-        }
 
         // season banner
         draw_text(&mut buf, 10, 8, &format!("{:?}  t{}{}", season, tick,
@@ -699,7 +728,7 @@ fn main() {
                     4 => {
                         let bx = 4.0 + (built_count % 4) as f32 * 5.0;
                         let by = 15.0 + (built_count / 4) as f32 * 4.0;
-                        buildings.push((bx, by, &house_s));
+                        buildings.push((bx, by, house_s.clone()));
                         built_count += 1;
                         format!("A house rises at ({:.0},{:.0})", bx, by)
                     }
@@ -815,19 +844,37 @@ fn main() {
 }
 
 
+/// Overcast, falling rain/snow and the post-rain rainbow over the map viewport.
+/// `since_clear` is frames since rain stopped (drives the rainbow fade).
+fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_clear: Option<u64>) {
+    // the map viewport runs up to the side panel
+    let view_w = UI_X;
+    let mask = weather_fx::background_mask(buf, view_w, (25, 25, 38));
+    if let Some(k) = kind {
+        weather_fx::overcast(buf, view_w, k);
+        weather_fx::draw_precip(buf, view_w, &mask, k, frame);
+        let (r, g, b) = if k.is_snow() { (230, 240, 255) } else { (150, 180, 255) };
+        draw_text(buf, 10, 24, k.label(), r, g, b);
+    } else if let Some(f) = since_clear {
+        weather_fx::draw_rainbow(buf, view_w, &mask, weather_fx::rainbow_alpha(f));
+    }
+}
+
 /// Headless verification: run the sim N ticks, render the real frame, save BMP.
 /// Uses the same render path as the windowed game (single source of truth).
-fn run_headless(target_tick: u64) {
+fn run_headless(target_tick: u64, weather: Option<&str>, cam: (i32, i32)) {
     let mut world = World::new();
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
+    sched.add_system(PrecipitationSystem);
     sched.add_system(GuildFormationSystem);
 
     let terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
+    let precip = precipitation::spawn_precipitation(&mut world, 42);
     villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
     let assets = Assets::new("assets");
 
@@ -855,14 +902,8 @@ fn run_headless(target_tick: u64) {
     let vsprites: Vec<Sprite> = (0..5).map(|i| {
         Sprite::load(&assets.path(&assets.villager_sprite(vroles[i], vgenders[i]))).unwrap().crop(0,0,32,32)
     }).collect();
-    let house_s = Sprite::load(&assets.path(&assets.building_sprite("house","blue"))).ok();
-    let mill_s = Sprite::load(&assets.path(&assets.building_sprite("mill","wood"))).ok();
-    let tree_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/trees/tree(1).png")).ok();
-
-    let buildings: Vec<(f32,f32,&Option<Sprite>)> = vec![
-        (5.0,5.0,&house_s),(12.0,4.0,&house_s),(7.0,12.0,&house_s),
-        (10.0,9.0,&mill_s),(3.0,14.0,&tree_s),(18.0,5.0,&tree_s),
-    ];
+    let buildings = village_layout(&assets);
+    let mill_s = Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill(1).png")).unwrap();
 
     for _ in 0..target_tick { sched.tick(&mut world); }
 
@@ -870,7 +911,7 @@ fn run_headless(target_tick: u64) {
     let mut buf = Buffer::new(W, H);
     buf.rect(0,0,W as i32,H as i32,25,25,38);
     let zoom = 1.0f32;
-    let (cam_x, cam_y) = (0, 0);
+    let (cam_x, cam_y) = cam;
     let season = world.get_component::<climate::Climate>(climate).unwrap().season;
     let tw = (TILE_W as f32 * zoom) as i32;
     let th = (TILE_H as f32 * zoom) as i32;
@@ -880,20 +921,40 @@ fn run_headless(target_tick: u64) {
         let (sx,sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
         buf.diamond(sx, sy, tw, th, r, g, b);
     }}
-    let mut bs: Vec<_> = buildings.iter().collect();
-    bs.sort_by(|a,b| (a.0+a.1).partial_cmp(&(b.0+b.1)).unwrap());
-    for (bx,by,sp) in bs { if let Some(s) = sp { let (sx,sy)=iso_to_screen_cam(*bx,*by,cam_x,cam_y,zoom); s.blit_bottom(&mut buf,sx,sy); } }
+    let mut objs: Vec<(f32, f32, MapObj)> = buildings.iter()
+        .filter_map(|(x, y, s)| s.as_ref().map(|s| (*x, *y, MapObj::Tile(s))))
+        .collect();
+    objs.push((10.0, 9.0, MapObj::Tile(&mill_s)));
+    for (i,v) in villagers.iter().enumerate() {
+        if let Some(p) = world.get_component::<Pos>(*v) { objs.push((p.x, p.y, MapObj::Figure(&vsprites[i]))); }
+    }
+    draw_map_objects(&mut buf, &mut objs, cam_x, cam_y, zoom);
     for (i,v) in villagers.iter().enumerate() {
         if let Some(p) = world.get_component::<Pos>(*v) {
             let (sx,sy) = iso_to_screen_cam(p.x,p.y,cam_x,cam_y,zoom);
-            vsprites[i].blit_scaled(&mut buf, sx-32, sy-60, 2);
             draw_text(&mut buf, sx-14, sy-76, names[i], 255,255,255);
         }
     }
+    let sim_precip = world.get_component::<Precipitation>(precip).and_then(|p| p.current);
+    let (kind, since_clear) = match weather {
+        Some("drizzle") => (Some(PrecipKind::Drizzle), None),
+        Some("light") => (Some(PrecipKind::LightRain), None),
+        Some("showers") => (Some(PrecipKind::Showers), None),
+        Some("rain") => (Some(PrecipKind::Rain), None),
+        Some("heavy") => (Some(PrecipKind::HeavyRain), None),
+        Some("flurries") => (Some(PrecipKind::Flurries), None),
+        Some("snow") => (Some(PrecipKind::Snow), None),
+        Some("blizzard") => (Some(PrecipKind::HeavySnow), None),
+        Some("rainbow") => (None, Some(100)),
+        _ => (sim_precip, None),
+    };
+    draw_weather(&mut buf, kind, target_tick * 5, since_clear);
     // panel skeleton
     buf.rect(UI_X as i32,0,(W as i32-UI_X as i32),H as i32,32,32,48);
     draw_text_scaled(&mut buf, UI_X as i32+10, 8, "THE WANDERER", 2, 255,220,130);
     draw_text(&mut buf, 10,8,&format!("{:?} t{}",season,target_tick),255,255,255);
-    buf.save_bmp(&format!("evidence/frame-check-{}.bmp", target_tick)).unwrap();
+    let mut suffix = weather.map(|w| format!("-{}", w)).unwrap_or_default();
+    if cam != (0, 0) { suffix += &format!("-cam{}_{}", cam.0, cam.1); }
+    buf.save_bmp(&format!("evidence/frame-check-{}{}.bmp", target_tick, suffix)).unwrap();
     println!("frame {} saved", target_tick);
 }

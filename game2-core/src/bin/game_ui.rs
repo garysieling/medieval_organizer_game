@@ -2084,6 +2084,10 @@ impl<'a> Game<'a> {
                             if self.map.passable(sx.round() as i32, sy.round() as i32) { p.x = sx; p.y = sy; }
                             else if self.map.passable(sx.round() as i32, p.y.round() as i32) { p.x = sx; }
                             else if self.map.passable(p.x.round() as i32, sy.round() as i32) { p.y = sy; }
+                            // wedged in a corner where neither axis clears:
+                            // step onto the path tile outright - walk_path
+                            // only lays passable tiles, so it can't strand
+                            else { p.x = qx as f32; p.y = qy as f32; }
                         }
                     }
                 }

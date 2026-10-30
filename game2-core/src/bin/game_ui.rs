@@ -2052,9 +2052,16 @@ impl<'a> Game<'a> {
                 // walks a hungry villager back and forth, never arriving
                 // while our store is stocked, folk come home to eat - a
                 // villager this far east would otherwise yo-yo between the
-                // rivals' nearer granary and the pull home, never arriving
+                // rivals' nearer granary and the pull home, never arriving.
+                // Retarget her target_food too, or SeekFood walks her east
+                // while this pulls her west and she starves in between.
                 let ours_stocked = world.get_component::<villager::FoodSource>(self.market_food)
                     .map(|f| f.servings > 0).unwrap_or(false);
+                if seeking && ours_stocked && target_food != Some(self.market_food) {
+                    if let Some(x) = world.get_component_mut::<Villager>(*v) {
+                        x.target_food = Some(self.market_food);
+                    }
+                }
                 let dest = if seeking && !ours_stocked {
                     target_food.and_then(|f| world.get_component::<Pos>(f)).map(|p| (p.x, p.y))
                         .or(village_home)
@@ -4494,7 +4501,7 @@ mod food_reach_tests {
         // hunger for up to 75 days in a row while it held ~480 servings
         let art = Art::load("../assets");
         let mut game = Game::new(&art);
-        let (mut last, mut run, mut worst) = (0, [0u64; NAMES.len()], 0u64);
+        let (mut last, mut run, mut worst, mut who) = (0, [0u64; NAMES.len()], 0u64, 0usize);
         while game.tick < 720 {
             game.update();
             if game.tick == last { continue; }
@@ -4505,12 +4512,20 @@ mod food_reach_tests {
                 if game.world.get_component::<Health>(v).is_none() { run[k] = 0; continue; }
                 let empty = game.world.get_component::<Hunger>(v).map(|h| h.value <= 0.0).unwrap_or(false);
                 run[k] = if empty { run[k] + 1 } else { 0 };
-                worst = worst.max(run[k]);
+                if run[k] > worst { (worst, who) = (run[k], k); }
             }
         }
         let servings = game.world.get_component::<villager::FoodSource>(game.market_food).unwrap().servings;
         assert!(servings > 0, "the store ran out - this test is about reach, not supply");
-        assert!(worst <= 5, "a villager went {} days at zero hunger with {} servings in the store", worst, servings);
+        let v = game.villagers[who];
+        let sp = *game.world.get_component::<Pos>(v).unwrap();
+        let st = (sp.x.round() as i32, sp.y.round() as i32);
+        let home = game.world.get_component::<Pos>(game.market_food).unwrap();
+        let route = game.map.walk_path(st, (home.x.round() as i32, home.y.round() as i32)).map(|p| p.len());
+        let act = game.world.get_component::<Villager>(v).map(|x| x.activity);
+        let on_job = game.travels.iter().any(|t| t.who == v) || game.world.get_component::<OddJob>(v).is_some();
+        assert!(worst <= 5, "{} went {} days at zero hunger at {:?} (passable {}, route {:?}, act {:?}, job {}) with {} servings in the store",
+            NAMES[who], worst, st, game.map.passable(st.0, st.1), route, act, on_job, servings);
     }
 }
 

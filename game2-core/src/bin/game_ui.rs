@@ -1289,8 +1289,8 @@ struct GroundCache {
     buf: Buffer,
     origin: (i32, i32),
     zoom: f32,
-    tiles: usize, // which seasonal tile set it was drawn with
-    rev: u64,     // map.rev() when it was drawn
+    season: Season, // the season it was drawn in (Spring and Summer share a tile set but not their fallback colours)
+    rev: u64,       // map.rev() when it was drawn
 }
 
 /// The whole game state. The windowed game and `--dump-frame` both drive
@@ -1306,6 +1306,7 @@ struct Game<'a> {
     /// the current zoom: refilled only when stale. In a cell because render()
     /// takes &self
     ground: std::cell::RefCell<Option<GroundCache>>,
+    last_zoom: std::cell::Cell<f32>,
     climate: Entity,
     villagers: Vec<Entity>,
     rivals: Vec<Entity>,
@@ -1410,6 +1411,9 @@ impl<'a> Game<'a> {
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
         let climate = climate::spawn_climate(&mut world);
+        // tell the sim where the tile edge is, or its fixed bound pinches
+        // anyone homed past the old 33-tile map
+        world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
         let market_food = villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
         // the river winds south between the towns to the sea; each waypoint
@@ -1806,6 +1810,7 @@ impl<'a> Game<'a> {
         Game {
             art, world, sched, map, climate, villagers, rivals, player, org, pets, market_food, buildings, stones, buttons,
             ground: std::cell::RefCell::new(None),
+            last_zoom: std::cell::Cell::new(f32::NAN),
             town_wall: wall,
             guards,
             priest,
@@ -2055,8 +2060,8 @@ impl<'a> Game<'a> {
                         let wob = ((tick + *v as u64) % 8) as f32;
                         if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
                         else if wob < 3.0 { p.x -= step; } else if wob < 4.0 { p.y -= step; }
-                        p.x = p.x.clamp(2.0, 30.0);
-                        p.y = p.y.clamp(2.0, 30.0);
+                        p.x = p.x.clamp(2.0, self.map.width as f32 - 2.0);
+                        p.y = p.y.clamp(2.0, self.map.height as f32 - 2.0);
                     }
                 }
             }
@@ -2270,9 +2275,15 @@ impl<'a> Game<'a> {
         // shows; it's redrawn only when the zoom, the season or the map
         // itself has changed since the last pass.
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
-        {
+        if self.last_zoom.get() != zoom {
+            // a held zoom key changes zoom every frame: rebuilding the layer
+            // each frame would draw the whole map per frame, so while it's
+            // moving just paint the visible tiles like the pass always did;
+            // the cache rebuilds once the zoom settles
+            self.draw_ground(&mut buf, cam_x, cam_y, zoom);
+        } else {
             let stale = match *self.ground.borrow() {
-                Some(ref g) => g.zoom != zoom || g.tiles != season_tiles(season) || g.rev != self.map.rev(),
+                Some(ref g) => g.zoom != zoom || g.season != season || g.rev != self.map.rev(),
                 None => true,
             };
             if stale { *self.ground.borrow_mut() = Some(self.render_ground(zoom)); }
@@ -2284,6 +2295,7 @@ impl<'a> Game<'a> {
             let (ox, oy) = ((cam_x as f32 * zoom).round() as i32, (cam_y as f32 * zoom).round() as i32);
             buf.blit_from(&g.buf, g.origin.0 - ox, g.origin.1 - oy, 0, 0, MAP_W as i32, H as i32);
         }
+        self.last_zoom.set(zoom);
 
         // everything standing on the map, people included, drawn back to
         // front in one painter's-order pass: whatever is nearer covers what
@@ -2958,7 +2970,7 @@ impl<'a> Game<'a> {
         let (kx, ky) = ((-x0 as f32 / zoom).round() as i32, (-y0 as f32 / zoom).round() as i32);
         self.draw_ground(&mut buf, kx, ky, zoom);
         let origin = ((kx as f32 * zoom).round() as i32, (ky as f32 * zoom).round() as i32);
-        GroundCache { buf, origin, zoom, tiles: season_tiles(season), rev: self.map.rev() }
+        GroundCache { buf, origin, zoom, season, rev: self.map.rev() }
     }
 
     /// Talk to villager `who`: hear what they say. Returns the log line

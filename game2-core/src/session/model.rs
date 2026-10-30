@@ -155,4 +155,6 @@ pub struct UiModel {
     pub won: bool,
     /// Mill stands at MILL_TILE when the art has a mill
     pub mill: Option<(f32, f32)>,
+    /// Wild herb tufts that are ready to pick
+    pub herbs: Vec<(f32, f32)>,
 }

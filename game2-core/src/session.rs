@@ -33,6 +33,7 @@ use crate::game::vocation::{self, Craft, Kid, Level, SocialClass, TownRole, Voca
 use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
+use crate::game::herbology::{self, Apothecary};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
 
@@ -190,6 +191,18 @@ const NAME_OUT_OF_REACH: (u8, u8, u8) = (150, 150, 165);
 /// Gravestone colours
 const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
+
+/// A ready herb patch: a little spray of flowers low on the meadow tile
+fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+    let k = |v: i32| ((v as f32) * zoom).round() as i32;
+    // green sprigs, then petal dots above them
+    for (dx, dy) in [(-3, 0), (0, -1), (3, 0), (-1, -2), (1, -2)] {
+        buf.rect(sx + k(dx), sy + k(dy), 1.max(k(1)), 1.max(k(1)), 70, 145, 75);
+    }
+    for (dx, dy, c) in [(-3, -3, (240, 225, 245)), (1, -4, (205, 165, 235)), (3, -2, (245, 240, 200))] {
+        buf.rect(sx + k(dx), sy + k(dy), 1.max(k(1)), 1.max(k(1)), c.0, c.1, c.2);
+    }
+}
 
 /// Draw a gravestone standing on screen point (sx, sy) at the current zoom;
 /// returns the y of its top, for the name label
@@ -691,20 +704,22 @@ pub fn ctx_button(act: CtxAct) -> Button {
 /// Keys that move the player
 const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
 
-/// The whole town: adults, the three children (26-28) and the tax
-/// collector (29) last. Tests and seeds lean on this fixed order.
-pub const NAMES: [&str; 30] = [
+/// The whole town: adults, the three children (26-28), the tax collector
+/// (29) and the herb-wife (30) last. Tests and seeds lean on this fixed order.
+pub const NAMES: [&str; 31] = [
     "Aldric","Eliza","Bram","Corvin","Dagny","Hob","Marga","Gisela",
     "Wystan","Aelfric","Tilda","Osric","Fenwick","Hilda","Cedric","Rowena",
     "Godric","Matilda","Leofric","Edith","Anselm","Bertha","Roderick","Winifred",
-    "Osmund","Greta","Pip","Nell","Tom","Reeve",
+    "Osmund","Greta","Pip","Nell","Tom","Reeve","Willa",
 ];
-/// Which villager indices are the children and the tax collector
+/// Which villager indices are the children, the tax collector and the herb-wife
 const KID_IDXS: [usize; 3] = [26, 27, 28];
 const COLLECTOR_IDX: usize = 29;
+const HERB_IDX: usize = 30;
 /// Name labels with the (child) flag, for the map
 fn villager_label(i: usize) -> &'static str {
-    match i { 26 => "Pip (child)", 27 => "Nell (child)", 28 => "Tom (child)", _ => NAMES[i] }
+    match i { 26 => "Pip (child)", 27 => "Nell (child)", 28 => "Tom (child)",
+        30 => "Willa (herb-wife)", _ => NAMES[i] }
 }
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 const TOOLTIPS: [&str; 5] = [
@@ -1251,6 +1266,20 @@ pub enum Goal {
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere
     Wander,
+    /// The herb-wife walks out to pick a herb patch (index into herb_patches)
+    Forage(usize),
+    /// Someone sick walks out to the herb hut for a cure
+    SeekRemedy(Entity),
+}
+
+/// A herb patch on the map: a tuft of `herb` that regrows a season after
+/// it's picked
+#[derive(Clone)]
+pub struct HerbPatch {
+    pub tile: (i32, i32),
+    pub herb: &'static str,
+    /// Pickable from this day
+    pub next_ready: u64,
 }
 
 /// A walk under way: tiles to step along, what for when they run out
@@ -1494,6 +1523,13 @@ pub struct Game {
     /// (who, complaint family) already voiced at the meeting under way -
     /// parallel complaints make the next speaker likelier to share
     pub voiced: Vec<(Entity, desires::IssueTag)>,
+    /// The herb-wife (villagers[HERB_IDX]) and her hut out in the meadow
+    pub herbologist: Option<Entity>,
+    pub herb_hut: Option<Entity>,
+    /// The herb tufts growing wild on the map
+    pub herb_patches: Vec<HerbPatch>,
+    /// (who, the day they last called at the hut) - so the sick don't besiege her
+    pub remedy_visits: Vec<(Entity, u64)>,
 }
 
 /// seat 0 is the local/only player in solo play: `game.selected_target` and
@@ -1577,6 +1613,7 @@ impl Game {
             // rival village across the river (red-roofed foreign houses)
             ((28, 13), BSprite::RivalHouse), ((30, 15), BSprite::RivalWoodhouse),
         ];
+        let mut herb_patches: Vec<HerbPatch> = vec![];
         let mut layout = Layout {
             // our village and the rivals' each stand on dry land, the neck
             // between them never floods, and the farm below the south gate
@@ -1633,6 +1670,14 @@ impl Game {
                 buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
             }
         }
+        // the herb-wife's hut stands apart in the meadow below the west end
+        // of the wall, nearer the wild herbs than the market square
+        let herb_hut_site = map.nearest_buildable(wall.0 + 1, wall.3 + 3);
+        if let Some((bx, by)) = herb_hut_site {
+            map.occupy(bx, by);
+            map.connect((bx, by));
+            buildings.push((bx as f32, by as f32, BSprite::House(5)));
+        }
 
         // ---- the people ----
         // vocations rolled by weight; knights and priests are PMC
@@ -1677,6 +1722,16 @@ impl Game {
             building_entities.push(household::spawn_building(&mut world, kind, name, bx, by, cap));
         }
         let _ = rival_from;
+        // the herb hut: the Home-kind building standing on the site picked
+        // earlier (Pos-matched so shop-seeding order can't mislabel it)
+        let herb_hut = herb_hut_site.and_then(|(hx, hy)| {
+            let e = building_entities.iter().copied().find(|&e| {
+                world.get_component::<Pos>(e)
+                    .map(|p| p.x.round() as i32 == hx && p.y.round() as i32 == hy).unwrap_or(false)
+            })?;
+            if let Some(b) = world.get_component_mut::<Building>(e) { b.name = "the herb hut".into(); }
+            Some(e)
+        });
         // the trader's stall is the guildhall slot (index 5), stocked with imports
         let trader_stall = building_entities[5];
         for g in ["cloth", "paper", "ink", "pigment"] {
@@ -1686,6 +1741,23 @@ impl Game {
         let stones: Vec<(i32, i32)> = [(6, 19), (20, 23), (34, 30), (14, 38), (42, 18)].iter()
             .filter_map(|&(x, y)| map.nearest_buildable(x, y)).collect();
         for &(x, y) in &stones { map.occupy(x, y); }
+
+        // herb patches: wild tufts out in the meadow past the wall, weighted
+        // to what cures - the herb-wife keeps them picked over
+        const PATCH_HERBS: [&str; 12] = ["willow_bark", "yarrow", "sage", "willow_bark",
+            "yarrow", "sage", "chamomile", "lavender", "willow_bark", "yarrow",
+            "peppermint", "mugwort"];
+        let in_wall = |x: i32, y: i32| (wall.0..=wall.2).contains(&x) && (wall.1..=wall.3).contains(&y);
+        let herb_sites: Vec<(i32, i32)> = (0..map.height as i32)
+            .flat_map(|y| (0..map.width as i32).map(move |x| (x, y)))
+            .filter(|&(x, y)| map.get(x, y) == Some(Tile::Grass) && map.passable(x, y) && !in_wall(x, y))
+            .collect();
+        let step = (herb_sites.len() / PATCH_HERBS.len().max(1)).max(1);
+        for (pi, &herb) in PATCH_HERBS.iter().enumerate() {
+            if let Some(&tile) = herb_sites.get(pi * step) {
+                herb_patches.push(HerbPatch { tile, herb, next_ready: (pi * 7 % 45) as u64 });
+            }
+        }
 
         // the watch stands just inside each gate; the priest keeps by the
         // church; a courier rides the road to the rivals' and back; gulls
@@ -1729,8 +1801,14 @@ impl Game {
                 world.add_component(v, TownRole::Trader);
             } else if i < 29 {
                 world.add_component(v, Kid);
-            } else {
+            } else if i == 29 {
                 world.add_component(v, TownRole::TaxCollector);
+            } else {
+                // the herb-wife: wise to the hedgerow cures, out in the meadow
+                world.add_component(v, TownRole::Herbologist);
+                world.add_component(v, Apothecary {
+                    known_herbs: herbology::medicinal_herbs().iter().map(|(n, _, _)| n.to_string()).collect(),
+                    remedies: vec![], skill: 0.55 });
             }
             villagers.push(v);
         }
@@ -1785,9 +1863,17 @@ impl Game {
         // beds: homes hold 1-4; the unlucky have NoHome
         let homes: Vec<Entity> = building_entities.iter().copied().filter(|&b| {
             world.get_component::<Building>(b)
-                .map(|bb| bb.kind == BuildingKind::Home && bb.name != "a foreign house").unwrap_or(false)
+                // the herb hut is hers alone - nobody else takes a bed in it
+                .map(|bb| bb.kind == BuildingKind::Home && bb.name != "a foreign house" && bb.name != "the herb hut").unwrap_or(false)
         }).collect();
         for (i, &v) in villagers.iter().enumerate() {
+            if i == HERB_IDX {
+                // the herb-wife keeps her own roof, out past the wall
+                if let Some(hut) = herb_hut {
+                    world.get_component_mut::<Building>(hut).unwrap().occupants.push(v);
+                }
+                continue;
+            }
             let prefer = if KID_IDXS.contains(&i) {
                 // a child lodges with the adult a few places before him
                 household::home_of(&world, villagers[(i + 20) % 23])
@@ -1899,6 +1985,7 @@ impl Game {
         sync_purse(&mut world, player, true);
         // the collector starts his yearly round in a few weeks
         let collector = villagers[COLLECTOR_IDX];
+        let herbologist = villagers[HERB_IDX];
         {
             let mut roster: Vec<Entity> = villagers.clone();
             roster.push(player);
@@ -1941,6 +2028,10 @@ impl Game {
             next_minstrel: 250 + seed % 200,
             derelict: Default::default(),
             voiced: vec![],
+            herbologist: Some(herbologist),
+            herb_hut,
+            herb_patches,
+            remedy_visits: vec![],
         }
     }
 
@@ -2200,7 +2291,13 @@ impl Game {
                             .or(village_home)
                     }
                 } else {
-                    village_home
+                    // the herb-wife's pull is her own hut in the meadow,
+                    // not the market square
+                    if world.get_component::<TownRole>(*v).map(|r| *r == TownRole::Herbologist).unwrap_or(false) {
+                        self.herb_hut.and_then(|h| world.get_component::<Pos>(h)).map(|p| (p.x, p.y)).or(village_home)
+                    } else {
+                        village_home
+                    }
                 };
                 let food_tile = dest.map(|(hx, hy)| (hx.round() as i32, hy.round() as i32));
                 let Some(p) = world.get_component_mut::<Pos>(*v) else { continue };
@@ -2799,19 +2896,23 @@ impl Game {
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
+            Goal::SeekRemedy(e) => self.world.get_component::<Pos>(*e).copied()
+                .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
             Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(_) => return false, // gathers go through send_gather
+            Goal::Forage(_) => return false, // forages go through send_forage
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
         };
         let Some(to) = to else { return false };
         // nobody hikes halfway to the next village on an errand (the tax
-        // man's round reaches the outskirts - that's his job)
+        // man's round reaches the outskirts - that's his job; so does a
+        // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = if matches!(goal, Goal::CollectTax(_)) { 24 } else { 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) => 30, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -2821,6 +2922,47 @@ impl Game {
             Some(mut path) => { path.push(to); self.travels.push(Travel { who, path, goal }); true }
             None => false,
         }
+    }
+
+    /// A passable tile right next to a building's (occupied) one: where a
+    /// caller at the door actually stands, south side preferred
+    fn at_the_door(&self, x: i32, y: i32) -> Option<(i32, i32)> {
+        if self.map.passable(x, y) { return Some((x, y)); }
+        [(0, 1), (-1, 0), (1, 0), (0, -1), (-1, 1), (1, 1), (-1, -1), (1, -1)]
+            .iter().map(|(dx, dy)| (x + dx, y + dy))
+            .find(|&(qx, qy)| self.map.passable(qx, qy))
+    }
+
+    /// Send `who` out to pick herb patch `pi`
+    pub fn send_forage(&mut self, who: Entity, pi: usize) -> bool {
+        let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        let Some(t) = self.herb_patches.get(pi).map(|p| p.tile) else { return false };
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 16 { return false; }
+        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
+            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Forage(pi) }); true }
+            None => false,
+        }
+    }
+
+    /// The herb-wife's day: brew what the hedge gave into remedies while
+    /// there's stock, or walk out to a ready patch when it runs low
+    pub fn herbologist_tick(&mut self, tick: u64) {
+        let (Some(her), Some(hut)) = (self.herbologist, self.herb_hut) else { return };
+        if villager::is_dead(&self.world, her) || self.travels.iter().any(|t| t.who == her) { return; }
+        // keep a few cures on the shelf while there's a raw herb to brew
+        if herbology::remedies_on_hand(&self.world, her) < 5
+            && herbology::brew_from_stock(&mut self.world, her, hut).is_some() { return; }
+        // shelves and stocks both thin? out to the nearest ready patch
+        let raw: u32 = self.world.get_component::<Building>(hut)
+            .map(|b| herbology::medicinal_herbs().iter()
+                .map(|(n, _, _)| b.stock.get(*n).copied().unwrap_or(0)).sum()).unwrap_or(0);
+        if raw >= 6 { return; }
+        let hp = self.world.get_component::<Pos>(hut).copied();
+        let pick = self.herb_patches.iter().enumerate()
+            .filter(|(_, p)| tick >= p.next_ready)
+            .min_by_key(|(_, p)| hp.map(|h| ((h.x - p.tile.0 as f32).abs() + (h.y - p.tile.1 as f32).abs()) as i32).unwrap_or(0))
+            .map(|(i, _)| i);
+        if let Some(i) = pick { self.send_forage(her, i); }
     }
 
     /// Send `who` to gather `good` at tile `t`
@@ -2904,6 +3046,39 @@ impl Game {
                 self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
             }
             Goal::Wander => {}
+            Goal::Forage(pi) => {
+                // picked clean for a season; two bundles dry on the hut's beams
+                if let Some(p) = self.herb_patches.get_mut(pi) { p.next_ready = tick + 90; }
+                let herb = self.herb_patches.get(pi).map(|p| p.herb);
+                if let (Some(herb), Some(hut)) = (herb, self.herb_hut) {
+                    if let Some(b) = self.world.get_component_mut::<Building>(hut) {
+                        household::add_stock(b, herb, 2);
+                    }
+                }
+            }
+            Goal::SeekRemedy(_) => {
+                if villager::is_dead(&self.world, who) { return; }
+                self.remedy_visits.push((who, tick));
+                let Some(her) = self.herbologist else { return };
+                if villager::is_dead(&self.world, her) { return; }
+                let illness = disease_of(&self.world, who).map(|(n, _)| n);
+                let hut = self.herb_hut.unwrap_or(0);
+                let efficacy = herbology::best_remedy(&mut self.world, her)
+                    .or_else(|| herbology::brew_from_stock(&mut self.world, her, hut));
+                match efficacy {
+                    Some(eff) => {
+                        herbology::apply_efficacy(&mut self.world, who, eff);
+                        let fee = (2.0 + eff * 8.0).min(8.0)
+                            .min(self.world.get_component::<Purse>(who).map(|p| p.gold).unwrap_or(0.0));
+                        if let Some(p) = self.world.get_component_mut::<Purse>(who) { p.gold -= fee; }
+                        if let Some(p) = self.world.get_component_mut::<Purse>(her) { p.gold += fee; }
+                        let patient = self.villagers.iter().position(|v| *v == who).map(|i| NAMES[i]).unwrap_or("someone");
+                        self.say(her, "Steep it and rest - it'll turn.", CHAT_BUBBLE_SECS);
+                        self.log.push(format!("t{}: {} treats {}'s {}.", tick, NAMES[HERB_IDX], patient, illness.unwrap_or_else(|| "illness".into())));
+                    }
+                    None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
+                }
+            }
             Goal::RunOddJob => {
                 let Some(job) = self.world.get_component_mut::<OddJob>(who)
                     .map(|j| OddJob { hirer: j.hirer, good: j.good.clone(), qty: j.qty, from: j.from, to: j.to, pay: j.pay, loaded: j.loaded })
@@ -2974,6 +3149,8 @@ impl Game {
                 }
             }
         }
+        // the herb-wife keeps her shelf brewed and her patches picked
+        self.herbologist_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -2987,6 +3164,14 @@ impl Game {
             // an errand that keeps them from the store
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
             if hungry { continue; }
+            // the sick call on the herb-wife: out to her hut for a remedy,
+            // a call at most every fortnight
+            if is_sick(&self.world, v) {
+                if let (Some(hut), Some(her)) = (self.herb_hut, self.herbologist) {
+                    let seen = self.remedy_visits.iter().find(|(e, _)| *e == v).map(|(_, d)| *d).unwrap_or(0);
+                    if !villager::is_dead(&self.world, her) && tick >= seen + 15 && self.send(v, Goal::SeekRemedy(hut)) { continue; }
+                }
+            }
             // a shopping day, now and then: something they want is for sale
             if rng.below(100) < 12 {
                 if let Some(g) = self.want_shopping(v, tick) { self.send(v, g); continue; }
@@ -3372,6 +3557,8 @@ impl Game {
             },
             won: p.influence > WIN_INFLUENCE,
             mill: Some((MILL_TILE.0, MILL_TILE.1)),
+            herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
+                .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
         }
     }
 
@@ -3438,6 +3625,11 @@ impl Game {
         let occ = desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into());
         lines.push(Line { x: 60, y: 342,
             text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
+        if world.get_component::<TownRole>(v).map(|r| *r == TownRole::Herbologist).unwrap_or(false) {
+            let n = herbology::remedies_on_hand(world, v);
+            lines.push(Line { x: 60, y: 354,
+                text: format!("knows the cures \u{00b7} {} remedies", n), rgb: (150, 210, 150) });
+        }
         if let Some(c) = world.get_component::<Craft>(v) {
             lines.push(Line { x: 60, y: 354,
                 text: format!("\u{1}Craft\u{2}{}{:.0}%", c.skill, c.skill * 100.0), rgb: (0, 0, 0) });
@@ -3754,6 +3946,7 @@ impl View {
             Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
             Prop(Option<&'a Sprite>),          // a tree or boulder in the middle of its tile
             Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
+            Herb,                              // a wild herb tuft, flat on the meadow
         }
         #[derive(Clone, Copy)]
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
@@ -3775,6 +3968,8 @@ impl View {
         let rock_prop = |x: i32, y: i32| if noise(x, y, 14) < 0.5 {
             pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
         standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
+        // wild herb tufts, ready for the picking
+        standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
         standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
@@ -3795,6 +3990,7 @@ impl View {
             let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
             match piece {
                 Piece::Prop(sprite) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom); },
+                Piece::Herb => herb_tuft(buf, sx, sy, zoom),
                 Piece::Castle(sprite) => if let Some(s) = sprite { draw_castle(buf, s, sx, sy, zoom); },
                 Piece::Building(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
@@ -4337,7 +4533,7 @@ mod stay_home_tests {
         }).collect();
         // a stray is being far from the store AND from your own house for
         // days on end - an errand out and back isn't one
-        let mut run = [0u64; 30];
+        let mut run = [0u64; NAMES.len()];
         let (mut worst, mut who_was_it) = (0u64, 0usize);
         let mut last = 0;
         while game.tick < 1500 {
@@ -4401,11 +4597,103 @@ mod illness_tests {
     fn test_flu_arrives_spreads_through_the_log_and_passes() {
         let mut game = Game::new();
         while game.tick < FLU_DAY + 5 { game.update(); }
-        assert!(is_sick(&game.world, game.villagers[2]), "Bram should have the flu just after it arrives");
+        // the herb-wife may already have seen to him - the arrival itself
+        // is the log line, not whether he's still down with it
         assert!(game.log.iter().any(|l| l.contains("Bram has the flu")), "the log should say who fell ill");
         while game.tick < 600 { game.update(); }
         assert!(game.villagers.iter().all(|v| !is_sick(&game.world, *v)), "the flu should have run its course by day 600");
         assert!(game.log.iter().any(|l| l.contains("recovered from the flu")), "the log should say who recovered");
+    }
+}
+
+#[cfg(test)]
+mod herb_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_herb_wife_is_one_and_keeps_her_own_hut() {
+        let game = Game::new();
+        let hers = game.villagers.iter()
+            .filter(|&&v| game.world.get_component::<TownRole>(v) == Some(&TownRole::Herbologist))
+            .count();
+        assert_eq!(hers, 1, "there is exactly one herb-wife");
+        assert_eq!(game.herbologist, Some(game.villagers[HERB_IDX]));
+        let hut = game.herb_hut.expect("the hut should stand");
+        let b = game.world.get_component::<Building>(hut).unwrap();
+        assert_eq!(b.name, "the herb hut");
+        assert_eq!(b.kind, BuildingKind::Home);
+        assert!(b.occupants.contains(&game.villagers[HERB_IDX]), "she lives in it");
+    }
+
+    #[test]
+    fn test_herb_patches_grow_wild_outside_the_wall() {
+        let game = Game::new();
+        assert!(game.herb_patches.len() >= 8, "a dozen or so tufts");
+        let (x0, y0, x1, y1) = game.town_wall;
+        for p in &game.herb_patches {
+            assert!(game.map.passable(p.tile.0, p.tile.1), "patch on a walkable tile");
+            let inside = (x0..=x1).contains(&p.tile.0) && (y0..=y1).contains(&p.tile.1);
+            assert!(!inside, "herbs grow wild, not in the streets");
+        }
+    }
+
+    #[test]
+    fn test_she_brews_what_the_hut_stocks() {
+        let mut game = Game::new();
+        let hut = game.herb_hut.unwrap();
+        game.world.get_component_mut::<Building>(hut).unwrap().stock.insert("willow_bark".into(), 2);
+        game.herbologist_tick(5);
+        let her = game.herbologist.unwrap();
+        assert!(herbology::remedies_on_hand(&game.world, her) >= 1, "a remedy on the shelf");
+        assert_eq!(game.world.get_component::<Building>(hut).unwrap().stock["willow_bark"], 1, "one herb went in");
+    }
+
+    #[test]
+    fn test_a_forage_trip_tops_up_the_hut() {
+        let mut game = Game::new();
+        let her = game.herbologist.unwrap();
+        let pi = (0..game.herb_patches.len())
+            .find(|&i| game.send_forage(her, i)).expect("a patch within her reach");
+        let herb = game.herb_patches[pi].herb;
+        for _ in 0..(16 * FPS) { game.update(); }
+        let hut = game.herb_hut.unwrap();
+        // two bundles picked; she may already have brewed some of them
+        let got = game.world.get_component::<Building>(hut).unwrap().stock.get(herb).copied().unwrap_or(0) as usize
+            + herbology::remedies_on_hand(&game.world, game.herbologist.unwrap());
+        assert!(got >= 2, "the pickings get dried at the hut ({} stocked + brewed)", got);
+        assert!(game.herb_patches[pi].next_ready > game.tick, "the patch needs a season to come back");
+    }
+
+    #[test]
+    fn test_the_sick_walk_out_and_a_cure_turns_the_disease() {
+        let mut game = Game::new();
+        let v = game.villagers[5];
+        let d = game.world.create_entity();
+        game.world.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false });
+        // stock the shelf so a cure's in hand
+        let hut = game.herb_hut.unwrap();
+        game.world.get_component_mut::<Building>(hut).unwrap().stock.insert("yarrow".into(), 2);
+        let before_gold = game.world.get_component::<Purse>(v).unwrap().gold;
+        game.arrive(v, Goal::SeekRemedy(hut));
+        let sev = game.world.query::<Disease>().iter()
+            .filter_map(|d| game.world.get_component::<Disease>(*d))
+            .find(|d| d.patient == v).map(|d| (d.severity, d.stage));
+        let (sev, stage) = sev.unwrap_or((0.0, Stage::Recovering));
+        assert!(sev < 0.45 || stage == Stage::Recovering, "the remedy bit into it");
+        assert!(game.world.get_component::<Purse>(v).unwrap().gold < before_gold, "she doesn't work for free");
+        assert!(game.remedy_visits.iter().any(|(e, _)| *e == v), "the call is remembered");
+    }
+
+    #[test]
+    fn test_nothing_in_the_hedge_says_so() {
+        let mut game = Game::new();
+        let v = game.villagers[5];
+        let d = game.world.create_entity();
+        game.world.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
+        let hut = game.herb_hut.unwrap();
+        game.arrive(v, Goal::SeekRemedy(hut));
+        assert!(game.bubbles.iter().any(|(e, t, _, _, _)| *e == game.herbologist.unwrap() && t.contains("Nothing")),
+            "she says when she can't help");
     }
 }
 

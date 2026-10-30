@@ -28,6 +28,13 @@ pub struct PersonV {
     /// Ring highlights
     pub selected: bool,
     pub in_reach: bool,
+    /// Hunger/illness indicators next to the name
+    pub hungry: bool,
+    pub sick: bool,
+    /// Activity marker: 0 idle, 1 seeking food, 2 busy
+    pub act_mark: u8,
+    /// A pet bonded strongly to its owner (the <3 label)
+    pub bond: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

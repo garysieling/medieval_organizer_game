@@ -66,7 +66,7 @@ fn main() {
         // --- RENDER into Buffer ---
         let (mxf, myf) = window.get_mouse_pos(MouseMode::Clamp).unwrap_or((0.0, 0.0));
         let (mx, my) = (mxf as i32, myf as i32);
-        let mut buf = view.render(&game, (mx, my));
+        let mut buf = view.render(&game.ui_model(), (mx, my));
 
         // blit buffer to framebuffer: this is also what pumps the OS event
         // queue, so input read just after is the freshest there is

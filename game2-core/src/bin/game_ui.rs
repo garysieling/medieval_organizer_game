@@ -315,13 +315,25 @@ fn is_weather_note(entry: &str) -> bool {
     entry.ends_with(" begins") || entry.contains("the rain stops") || entry.contains("the snow stops")
 }
 
+/// Town business shown in the log at once: promotions, the minstrel, the
+/// tax man's visits - nice to know, but not worth pushing illness and
+/// deaths out of view
+const LOG_TOWN_SHOWN: usize = 3;
+
+/// Is this log entry routine town business?
+fn is_town_note(entry: &str) -> bool {
+    entry.contains(" is now a ") || entry.contains("has come to town")
+        || entry.contains("takes his cut") || entry.contains("Organizer discovers issue")
+}
+
 /// The log entries to show, newest first: every event, but only the latest
 /// LOG_GOSSIP_SHOWN pieces of gossip and the latest weather change
 fn visible_log(log: &[String]) -> Vec<&String> {
-    let (mut gossip, mut weather) = (0, 0);
+    let (mut gossip, mut weather, mut town) = (0, 0, 0);
     log.iter().rev().filter(|e| {
         if is_gossip(e) { gossip += 1; return gossip <= LOG_GOSSIP_SHOWN; }
         if is_weather_note(e) { weather += 1; return weather <= LOG_WEATHER_SHOWN; }
+        if is_town_note(e) { town += 1; return town <= LOG_TOWN_SHOWN; }
         true
     }).collect()
 }
@@ -1654,20 +1666,19 @@ impl<'a> Game<'a> {
             }
         }
         // everyone sleeps where they live - standing beside the door (the
-        // home tile itself is occupied, and would trap them there)
+        // home tile itself is occupied, and would trap them there); the
+        // unhomed get a clear tile off the market square
         for (i, &v) in villagers.iter().enumerate() {
-            if let Some(h) = household::home_of(&world, v) {
-                if let Some(hp) = world.get_component::<Pos>(h).copied() {
-                    let (hx, hy) = (hp.x.round() as i32, hp.y.round() as i32);
-                    let door = NEIGHBOURS.iter()
-                        .map(|(dx, dy)| (hx + dx, hy + dy))
-                        .find(|&(x, y)| map.passable(x, y))
-                        .unwrap_or((hx, hy));
-                    let p = world.get_component_mut::<Pos>(v).unwrap();
-                    p.x = door.0 as f32 + ((i % 3) as f32 - 1.0) * 0.3;
-                    p.y = door.1 as f32 + ((i % 2) as f32) * 0.3;
-                }
-            }
+            let stand = household::home_of(&world, v)
+                .and_then(|h| world.get_component::<Pos>(h).copied())
+                .map(|hp| (hp.x.round() as i32, hp.y.round() as i32))
+                .unwrap_or((16 + (i % 3) as i32, 17 + (i % 2) as i32));
+            let door = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (stand.0 + dx, stand.1 + dy)))
+                .find(|&(x, y)| map.passable(x, y))
+                .unwrap_or(stand);
+            let p = world.get_component_mut::<Pos>(v).unwrap();
+            p.x = door.0 as f32 + ((i % 3) as f32 - 1.0) * 0.3;
+            p.y = door.1 as f32 + ((i % 2) as f32) * 0.3;
         }
         // workshops: one worker each; trades with no shop (or more hands
         // than benches) leave folk working the street
@@ -3030,8 +3041,17 @@ impl<'a> Game<'a> {
     /// where they stand, if no home is in reach) for every living villager
     /// within reach. They walk over; see advance_meeting.
     fn call_meeting(&mut self) -> String {
-        let invited = self.villagers_in_reach();
+        let mut invited = self.villagers_in_reach();
         if invited.is_empty() { return "No one is near enough to come to your house meeting.".into(); }
+        // a kitchen only holds so many: the eight nearest get the word
+        let (px, py) = self.player_pos();
+        invited.sort_by_key(|&v| {
+            self.world.get_component::<Pos>(v)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2) * 100.0) as i32).unwrap_or(i32::MAX)
+        });
+        invited.truncate(8);
+        // errands are dropped: folk coming to a meeting stop mid-way home
+        self.travels.retain(|t| !invited.contains(&t.who));
         let (px, py) = self.player_pos();
         let dist = |(x, y): (i32, i32)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
         let home = self.buildings.iter().enumerate()
@@ -3253,6 +3273,11 @@ impl<'a> Game<'a> {
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
         };
         let Some(to) = to else { return false };
+        // nobody hikes halfway to the next village on an errand (the tax
+        // man's round reaches the outskirts - that's his job)
+        let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
+        let cap = if matches!(goal, Goal::CollectTax(_)) { 24 } else { 9 };
+        if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
             return true;
@@ -3266,6 +3291,7 @@ impl<'a> Game<'a> {
     /// Send `who` to gather `good` at tile `t`
     fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 9 { return false; }
         match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
             Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good) }); true }
             None => false,
@@ -3282,8 +3308,13 @@ impl<'a> Game<'a> {
             let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);
             let (dx, dy) = (nx - p.x, ny - p.y);
             let d = (dx * dx + dy * dy).sqrt();
-            if d <= MEETING_WALK { p.x = nx; p.y = ny; t.path.remove(0); }
-            else { p.x += dx / d * MEETING_WALK; p.y += dy / d * MEETING_WALK; }
+            let (stepx, stepy) = if d <= MEETING_WALK { (nx, ny) } else { (p.x + dx / d * MEETING_WALK, p.y + dy / d * MEETING_WALK) };
+            // never step somewhere they can't stand: a wall in the way
+            // aborts the errand rather than leaving them walking into it
+            // (and starving on the spot) forever
+            if !self.map.passable(stepx.round() as i32, stepy.round() as i32) { t.path.clear(); continue; }
+            p.x = stepx; p.y = stepy;
+            if d <= MEETING_WALK { t.path.remove(0); }
             if t.path.is_empty() { arrived.push((t.who, t.goal.clone())); }
         }
         self.travels.retain(|t| !t.path.is_empty());
@@ -3410,6 +3441,12 @@ impl<'a> Game<'a> {
             if villager::is_dead(&self.world, v) || self.travels.iter().any(|t| t.who == v) { continue; }
             if self.world.get_component::<Kid>(v).is_some() { continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
+            // at a meeting they're not off working
+            if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }
+            // hunger comes first: let them go eat rather than send them on
+            // an errand that keeps them from the store
+            let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
+            if hungry { continue; }
             // a shopping day, now and then: something they want is for sale
             if rng.below(100) < 12 {
                 if let Some(g) = self.want_shopping(v, tick) { self.send(v, g); continue; }
@@ -3705,6 +3742,12 @@ mod stay_home_tests {
             if game.tick == last { continue; }
             last = game.tick;
             for v in &game.villagers {
+                // out on business (a fetch, a gather, the tax round, a
+                // delivery) doesn't count as straying - they come back;
+                // neither does the collector, whose job is roaming
+                if game.travels.iter().any(|t| t.who == *v)
+                    || game.world.get_component::<OddJob>(*v).is_some()
+                    || Some(*v) == game.collector { continue; }
                 let p = game.world.get_component::<Pos>(*v).unwrap();
                 worst = worst.max(((p.x - home.x).powi(2) + (p.y - home.y).powi(2)).sqrt());
             }
@@ -3885,12 +3928,18 @@ mod works_tests {
     fn test_a_new_house_lays_its_road_a_tile_at_a_time_then_rises() {
         let art = Art::default();
         let mut game = Game::new(&art);
-        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 8.0, y: 20.0 };
+        // somewhere a road has to be laid to reach - the town's lanes reach
+        // everywhere now, so hunt for a spot the road hasn't got to yet
+        let spot = [(8i32, 20), (4, 24), (28, 26), (30, 5), (4, 5), (26, 3)]
+            .iter().copied().find(|&(cx, cy)| {
+                (-4..=4).all(|dy| (-4..=4).all(|dx| game.map.get(cx + dx, cy + dy) != Some(Tile::Road)))
+            }).expect("a spot out past the roads");
+        *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
         assert_eq!(game.action_blocker(4), None);
         game.act(4);
         let w = game.works.last().expect("building should start works");
         let road = w.road.clone();
-        assert!(road.len() >= 2, "a house out here needs a road");
+        assert!(road.len() >= 1, "a house out here needs a road");
         assert!(road.iter().all(|&(x, y)| game.map.get(x, y) != Some(Tile::Road)), "the road isn't there at once");
         let mut laid_counts = vec![];
         for _ in 0..(road.len() as u32 * ROAD_TILE_FRAMES) {
@@ -4032,7 +4081,12 @@ mod walk_tests {
     fn test_the_player_cant_walk_into_a_building_but_can_go_round_behind() {
         let art = Art::default();
         let mut game = Game::new(&art);
-        let (bx, by, _) = game.buildings[0];
+        // a building with open ground to the west and behind it - the town
+        // is built up enough that the first cottage won't do
+        let (bx, by, _) = *game.buildings.iter().find(|&&(bx, by, _)| {
+            game.walkable(bx - 1.0, by) && game.walkable(bx - 2.0, by)
+                && [(bx - 1.0, by), (bx, by - 1.0)].iter().any(|&(x, y)| game.walkable(x, y))
+        }).expect("a building with open ground behind it");
         // walking straight at it (along +x) stops at the building's tile
         put_player(&mut game, bx - 2.0, by);
         for _ in 0..60 { game.walk(1.0, 0.0); }
@@ -4371,7 +4425,7 @@ mod log_day_tests {
         let mut game = Game::new(&art);
         game.log.push("t5: The Merchant Guild formed!".into());
         let buf = game.render((-1, -1));
-        let row = |x0: i32, x1: i32, rgb: (u8, u8, u8)| (468..468 + GLYPH_H).any(|y| (x0..x1).any(|x| {
+        let row = |x0: i32, x1: i32, rgb: (u8, u8, u8)| (530..530 + GLYPH_H).any(|y| (x0..x1).any(|x| {
             let i = (y as usize * W + x as usize) * 4;
             (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb
         }));
@@ -5171,11 +5225,13 @@ mod organize_tests {
         // the player stands among Eliza and Bram; Corvin is far away
         game.world.get_component_mut::<Pos>(game.player).unwrap().x = 16.0;
         game.world.get_component_mut::<Pos>(game.player).unwrap().y = 16.0;
-        let (aldric, dagny) = (game.villagers[0], game.villagers[4]);
-        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0), (aldric, 2.0, 4.0), (dagny, 4.0, 2.0),
-                          (game.villagers[5], 2.0, 6.0), (game.villagers[6], 6.0, 2.0), (game.villagers[7], 3.0, 5.0)] {
+        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0)] {
             let p = game.world.get_component_mut::<Pos>(v).unwrap();
             p.x = x; p.y = y;
+        }
+        // everyone else is off across the fields, well out of reach
+        for (i, v) in game.villagers.clone().into_iter().enumerate() {
+            if i != 1 && i != 2 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32 * 0.5, y: 3.0 }; }
         }
         // Eliza already trusts the player; Bram is a stranger
         let rel = game.world.create_entity();

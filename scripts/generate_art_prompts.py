@@ -154,13 +154,14 @@ for season, desc in SEASONS:
     ]:
         add(f"tiles/ground-{season}", f"ground-{tile}-{season}",
             f"{ISO}: {subj}, square isometric ground block", w=128,
+            tile_x=True, tile_y=True,
             notes="ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet")
     for water, subj in [
         ("shallow", "shallow clear water ground block, shore edge visible"),
         ("deep", "deep open-sea water ground block, dark blue"),
     ]:
         add(f"tiles/ground-{season}", f"water-{water}-{season}",
-            f"{ISO}: {subj}, square isometric water block", w=128, tile_x=True, tile_y=True)
+            f"{ISO}: {subj}, {desc}, square isometric water block", w=128, tile_x=True, tile_y=True)
 
 # Trees with real variety: species x season (the pack ships 4 spring + 4 winter).
 TREES = [
@@ -197,9 +198,12 @@ for season, desc in SEASONS:
         style="rd_tile__tileset", w=32, h=32, remove_bg=False)
 
 # Bridges across the river, both orientations.
-for axis in ("x", "y"):
+for axis, axis_desc in (
+    ("x", "deck running east-west along the x axis"),
+    ("y", "deck running north-south along the y axis"),
+):
     add("tiles/bridges", f"bridge-{axis}",
-        f"{ISO}: wooden plank bridge crossing a river, arched, viewed isometric",
+        f"{ISO}: wooden plank bridge crossing a river, arched, viewed isometric, {axis_desc}",
         w=128, notes=f"deck running along the {axis} axis")
 
 # Crops at growth stages (wheat and corn are the farmed Tiles).
@@ -767,17 +771,34 @@ def main():
     ap.add_argument("--state", default=STATE,
                     help="JSON file of ids already generated (default %(default)s)")
     ap.add_argument("--record", action="store_true",
-                    help="record emitted ids into the state file")
+                    help="record emitted ids into the state file as pending-generation "
+                         "(use --mark-done once the API calls actually succeed)")
     ap.add_argument("--include-done", action="store_true",
                     help="don't filter by state (list everything)")
+    ap.add_argument("--mark-done", metavar="IDS_OR_FILE",
+                    help="mark ids as successfully generated, without emitting a batch. "
+                         "Accepts a comma-separated list of ids, or a path to a JSON file "
+                         "holding a list of ids (or {\"done\": [...]})")
     args = ap.parse_args()
+
+    if args.mark_done:
+        if os.path.isfile(args.mark_done):
+            newly_done = load_state(args.mark_done)
+        else:
+            newly_done = {i.strip() for i in args.mark_done.split(",") if i.strip()}
+        existing = load_state(args.state)
+        save_state(args.state, existing | newly_done)
+        print(f"marked {len(newly_done)} ids done in {args.state} "
+              f"({len(existing | newly_done)} total done)")
+        return
 
     ids = [e["id"] for e in ENTRIES]
     dupes = {i for i in ids if ids.count(i) > 1}
     if dupes:
         sys.exit(f"internal duplicate ids: {sorted(dupes)}")
 
-    done = set() if args.include_done else load_state(args.state)
+    existing_done = load_state(args.state)
+    done = set() if args.include_done else existing_done
     entries = sorted(ENTRIES, key=sort_key)
 
     tiers = set(args.tier.split(",")) if args.tier else None
@@ -790,16 +811,16 @@ def main():
             continue
         if args.group and args.group not in e["group"]:
             continue
-        if args.limit and len(picked) >= args.limit:
+        if args.limit is not None and len(picked) >= args.limit:
             break
-        if args.budget and spend + e["est_cost_usd"] > args.budget:
+        if args.budget is not None and spend + e["est_cost_usd"] > args.budget:
             continue
         picked.append(e)
         spend += e["est_cost_usd"]
 
     emit(picked, args.out)
     if args.record:
-        save_state(args.state, done | {e["id"] for e in picked})
+        save_state(args.state, existing_done | {e["id"] for e in picked})
 
     by_tier = {}
     for e in picked:

@@ -2118,11 +2118,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "bridge-x-413162cc",
+   "id": "bridge-x-8711bda1",
    "tier": "p0",
    "group": "tiles/bridges",
    "title": "bridge x",
-   "prompt": "single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric",
+   "prompt": "single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric, deck running east-west along the x axis",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2134,11 +2134,11 @@
    "notes": "deck running along the x axis"
   },
   {
-   "id": "bridge-y-97ebb663",
+   "id": "bridge-y-dd273775",
    "tier": "p0",
    "group": "tiles/bridges",
    "title": "bridge y",
-   "prompt": "single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric",
+   "prompt": "single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric, deck running north-south along the y axis",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2406,7 +2406,7 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-autumn-2fc714f3",
+   "id": "ground-grass-autumn-6c4b7b8e",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground grass autumn",
@@ -2416,13 +2416,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-autumn-a5771a3b",
+   "id": "ground-hill-autumn-1aa3d317",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground hill autumn",
@@ -2432,13 +2434,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-autumn-6743dcf0",
+   "id": "ground-rock-autumn-b4749b17",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground rock autumn",
@@ -2448,13 +2452,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-autumn-dedd8dda",
+   "id": "ground-shore-autumn-00d3bc0b",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground shore autumn",
@@ -2464,17 +2470,19 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-autumn-42c3e439",
+   "id": "water-deep-autumn-a0de6907",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "water deep autumn",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, golden autumn, orange and amber foliage, fallen leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2488,11 +2496,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-autumn-8159ebd4",
+   "id": "water-shallow-autumn-08c0e5ce",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "water shallow autumn",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, golden autumn, orange and amber foliage, fallen leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2506,7 +2514,7 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-spring-3e404e93",
+   "id": "ground-grass-spring-ee148db8",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground grass spring",
@@ -2516,13 +2524,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-spring-3fb67452",
+   "id": "ground-hill-spring-fd5a07ad",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground hill spring",
@@ -2532,13 +2542,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-spring-5635e56b",
+   "id": "ground-rock-spring-8f0b6b5c",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground rock spring",
@@ -2548,13 +2560,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-spring-33293d21",
+   "id": "ground-shore-spring-5691597e",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground shore spring",
@@ -2564,17 +2578,19 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-spring-08c31f5a",
+   "id": "water-deep-spring-19c75b9b",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "water deep spring",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, fresh green spring, small flowers, new leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2588,11 +2604,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-spring-a90329c9",
+   "id": "water-shallow-spring-98a074b6",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "water shallow spring",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, fresh green spring, small flowers, new leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2606,7 +2622,7 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-summer-39dbed4f",
+   "id": "ground-grass-summer-c6023073",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground grass summer",
@@ -2616,13 +2632,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-summer-a352e9e5",
+   "id": "ground-hill-summer-7c7ffcd8",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground hill summer",
@@ -2632,13 +2650,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-summer-276e2ad7",
+   "id": "ground-rock-summer-d1a0f884",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground rock summer",
@@ -2648,13 +2668,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-summer-affea983",
+   "id": "ground-shore-summer-f3c4d095",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground shore summer",
@@ -2664,17 +2686,19 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-summer-e9a4ecab",
+   "id": "water-deep-summer-c92242a1",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "water deep summer",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, lush deep-green summer, dense foliage, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2688,11 +2712,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-summer-440cab01",
+   "id": "water-shallow-summer-afae2700",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "water shallow summer",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, lush deep-green summer, dense foliage, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2706,7 +2730,7 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-winter-0a9dfba7",
+   "id": "ground-grass-winter-05652a40",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground grass winter",
@@ -2716,13 +2740,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-winter-85e071b3",
+   "id": "ground-hill-winter-a4a35ee9",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground hill winter",
@@ -2732,13 +2758,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-winter-22639ac8",
+   "id": "ground-rock-winter-8589a971",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground rock winter",
@@ -2748,13 +2776,15 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-winter-43796531",
+   "id": "ground-shore-winter-c738cb11",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground shore winter",
@@ -2764,17 +2794,19 @@
     "width": 128,
     "height": 128,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
    },
    "est_cost_usd": 0.18,
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-winter-be587518",
+   "id": "water-deep-winter-9f3fcb43",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "water deep winter",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, snow-covered winter, bare branches, white drifts, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -2788,11 +2820,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-winter-e1848a81",
+   "id": "water-shallow-winter-0a3321c5",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "water shallow winter",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, snow-covered winter, bare branches, white drifts, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,

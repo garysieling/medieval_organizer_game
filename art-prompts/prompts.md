@@ -205,8 +205,8 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| bridge-x-413162cc | single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric | rd_pro__isometric | 128x128 | 1 | 0.18 | deck running along the x axis |
-| bridge-y-97ebb663 | single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric | rd_pro__isometric | 128x128 | 1 | 0.18 | deck running along the y axis |
+| bridge-x-8711bda1 | single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric, deck running east-west along the x axis | rd_pro__isometric | 128x128 | 1 | 0.18 | deck running along the x axis |
+| bridge-y-dd273775 | single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric, deck running north-south along the y axis | rd_pro__isometric | 128x128 | 1 | 0.18 | deck running along the y axis |
 
 ## P0 - needed now (replaces assets the game already draws) / tiles/crops
 
@@ -253,45 +253,45 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ground-grass-autumn-2fc714f3 | single isometric medieval village asset: flat grassy ground block, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-hill-autumn-a5771a3b | single isometric medieval village asset: raised earthen hill ground block with grass top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-rock-autumn-6743dcf0 | single isometric medieval village asset: bare grey rock ground block, craggy top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-shore-autumn-dedd8dda | single isometric medieval village asset: sandy shoreline ground block where land meets water, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| water-deep-autumn-42c3e439 | single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
-| water-shallow-autumn-8159ebd4 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| ground-grass-autumn-6c4b7b8e | single isometric medieval village asset: flat grassy ground block, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-hill-autumn-1aa3d317 | single isometric medieval village asset: raised earthen hill ground block with grass top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-rock-autumn-b4749b17 | single isometric medieval village asset: bare grey rock ground block, craggy top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-shore-autumn-00d3bc0b | single isometric medieval village asset: sandy shoreline ground block where land meets water, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| water-deep-autumn-a0de6907 | single isometric medieval village asset: deep open-sea water ground block, dark blue, golden autumn, orange and amber foliage, fallen leaves, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| water-shallow-autumn-08c0e5ce | single isometric medieval village asset: shallow clear water ground block, shore edge visible, golden autumn, orange and amber foliage, fallen leaves, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
 
 ## P0 - needed now (replaces assets the game already draws) / tiles/ground-spring
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ground-grass-spring-3e404e93 | single isometric medieval village asset: flat grassy ground block, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-hill-spring-3fb67452 | single isometric medieval village asset: raised earthen hill ground block with grass top, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-rock-spring-5635e56b | single isometric medieval village asset: bare grey rock ground block, craggy top, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-shore-spring-33293d21 | single isometric medieval village asset: sandy shoreline ground block where land meets water, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| water-deep-spring-08c31f5a | single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
-| water-shallow-spring-a90329c9 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| ground-grass-spring-ee148db8 | single isometric medieval village asset: flat grassy ground block, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-hill-spring-fd5a07ad | single isometric medieval village asset: raised earthen hill ground block with grass top, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-rock-spring-8f0b6b5c | single isometric medieval village asset: bare grey rock ground block, craggy top, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-shore-spring-5691597e | single isometric medieval village asset: sandy shoreline ground block where land meets water, fresh green spring, small flowers, new leaves, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| water-deep-spring-19c75b9b | single isometric medieval village asset: deep open-sea water ground block, dark blue, fresh green spring, small flowers, new leaves, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| water-shallow-spring-98a074b6 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, fresh green spring, small flowers, new leaves, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
 
 ## P0 - needed now (replaces assets the game already draws) / tiles/ground-summer
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ground-grass-summer-39dbed4f | single isometric medieval village asset: flat grassy ground block, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-hill-summer-a352e9e5 | single isometric medieval village asset: raised earthen hill ground block with grass top, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-rock-summer-276e2ad7 | single isometric medieval village asset: bare grey rock ground block, craggy top, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-shore-summer-affea983 | single isometric medieval village asset: sandy shoreline ground block where land meets water, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| water-deep-summer-e9a4ecab | single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
-| water-shallow-summer-440cab01 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| ground-grass-summer-c6023073 | single isometric medieval village asset: flat grassy ground block, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-hill-summer-7c7ffcd8 | single isometric medieval village asset: raised earthen hill ground block with grass top, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-rock-summer-d1a0f884 | single isometric medieval village asset: bare grey rock ground block, craggy top, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-shore-summer-f3c4d095 | single isometric medieval village asset: sandy shoreline ground block where land meets water, lush deep-green summer, dense foliage, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| water-deep-summer-c92242a1 | single isometric medieval village asset: deep open-sea water ground block, dark blue, lush deep-green summer, dense foliage, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| water-shallow-summer-afae2700 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, lush deep-green summer, dense foliage, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
 
 ## P0 - needed now (replaces assets the game already draws) / tiles/ground-winter
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ground-grass-winter-0a9dfba7 | single isometric medieval village asset: flat grassy ground block, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-hill-winter-85e071b3 | single isometric medieval village asset: raised earthen hill ground block with grass top, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-rock-winter-22639ac8 | single isometric medieval village asset: bare grey rock ground block, craggy top, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| ground-shore-winter-43796531 | single isometric medieval village asset: sandy shoreline ground block where land meets water, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
-| water-deep-winter-be587518 | single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
-| water-shallow-winter-e1848a81 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| ground-grass-winter-05652a40 | single isometric medieval village asset: flat grassy ground block, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-hill-winter-a4a35ee9 | single isometric medieval village asset: raised earthen hill ground block with grass top, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-rock-winter-8589a971 | single isometric medieval village asset: bare grey rock ground block, craggy top, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| ground-shore-winter-c738cb11 | single isometric medieval village asset: sandy shoreline ground block where land meets water, snow-covered winter, bare branches, white drifts, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet |
+| water-deep-winter-9f3fcb43 | single isometric medieval village asset: deep open-sea water ground block, dark blue, snow-covered winter, bare branches, white drifts, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| water-shallow-winter-0a3321c5 | single isometric medieval village asset: shallow clear water ground block, shore edge visible, snow-covered winter, bare branches, white drifts, square isometric water block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
 
 ## P0 - needed now (replaces assets the game already draws) / tiles/trees-autumn
 

@@ -2054,7 +2054,7 @@ impl<'a> Game<'a> {
                 // villager this far east would otherwise yo-yo between the
                 // rivals' nearer granary and the pull home, never arriving
                 let ours_stocked = world.get_component::<villager::FoodSource>(self.market_food)
-                    .map(|f| f.servings > 0.0).unwrap_or(false);
+                    .map(|f| f.servings > 0).unwrap_or(false);
                 let dest = if seeking && !ours_stocked {
                     target_food.and_then(|f| world.get_component::<Pos>(f)).map(|p| (p.x, p.y))
                         .or(village_home)

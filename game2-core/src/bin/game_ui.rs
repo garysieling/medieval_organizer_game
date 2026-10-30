@@ -7,7 +7,7 @@ use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Sprite, Assets};
 use game2_core::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::tilemap::{Layout, Tile, TileMap, WallPiece};
+use game2_core::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
@@ -87,6 +87,79 @@ fn dog_sprite() -> Sprite {
     for (y, row) in DOG_ART.iter().enumerate() {
         for (x, c) in row.chars().enumerate() {
             let rgb = match c { 'o' => (45, 28, 16), 'b' => DOG, 'n' => (15, 10, 8), _ => continue };
+            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
+        }
+    }
+    Sprite { width: w, height: h, pixels }
+}
+
+/// The cat's coat (a grey tabby)
+const CAT: (u8, u8, u8) = (95, 95, 105);
+
+/// A little cat, facing right, sitting with its tail curled round: o
+/// outline, b coat, n eye/nose, . transparent. Drawn 2x like the dog.
+const CAT_ART: [&str; 7] = [
+    "..o.....o..",
+    ".obo...obo.",
+    ".obbbnbbo..",
+    "oobbbbbbo..",
+    "obbbbbbbo..",
+    "ob..bb..o..",
+    ".o..oo.....",
+];
+
+fn cat_sprite() -> Sprite {
+    let (w, h) = (CAT_ART[0].len(), CAT_ART.len());
+    let mut pixels = vec![0u8; w * h * 4];
+    for (y, row) in CAT_ART.iter().enumerate() {
+        for (x, c) in row.chars().enumerate() {
+            let rgb = match c { 'o' => (40, 38, 45), 'b' => CAT, 'n' => (15, 10, 8), _ => continue };
+            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
+        }
+    }
+    Sprite { width: w, height: h, pixels }
+}
+
+/// A hen scratching round the farmyard, facing left: o outline, w white
+/// feathers, r comb, n eye/beak, l legs, . transparent
+const CHICKEN_ART: [&str; 7] = [
+    "....oo.....",
+    "...orro....",
+    "..owwno....",
+    ".owwwwwo...",
+    ".owwwwoo...",
+    "..l..l.....",
+    "..l..l.....",
+];
+
+fn chicken_sprite() -> Sprite {
+    let (w, h) = (CHICKEN_ART[0].len(), CHICKEN_ART.len());
+    let mut pixels = vec![0u8; w * h * 4];
+    for (y, row) in CHICKEN_ART.iter().enumerate() {
+        for (x, c) in row.chars().enumerate() {
+            let rgb = match c {
+                'o' => (60, 55, 50), 'w' => (235, 230, 220), 'r' => (200, 60, 50),
+                'n' => (15, 10, 8), 'l' => (200, 150, 60), _ => continue,
+            };
+            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
+        }
+    }
+    Sprite { width: w, height: h, pixels }
+}
+
+/// A gull on the wing: just two white strokes and a grey under-shadow
+const GULL_ART: [&str; 3] = [
+    "w.....w",
+    ".w...w.",
+    "..g.g..",
+];
+
+fn gull_sprite() -> Sprite {
+    let (w, h) = (GULL_ART[0].len(), GULL_ART.len());
+    let mut pixels = vec![0u8; w * h * 4];
+    for (y, row) in GULL_ART.iter().enumerate() {
+        for (x, c) in row.chars().enumerate() {
+            let rgb = match c { 'w' => (245, 248, 250), 'g' => (170, 180, 195), _ => continue };
             pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
         }
     }
@@ -494,8 +567,6 @@ const INVEST_GOLD: f32 = 10.0;
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
 const MILL_TILE: (f32, f32) = (10.0, 9.0);
-/// The town wall, (x0, y0)-(x1, y1): round the village, inside the river
-const TOWN_WALL: (i32, i32, i32, i32) = (8, 8, 23, 24);
 /// Frames drawn per second
 const FPS: u32 = 60;
 /// How long a reply to Talk, and a remark in passing, stay up (seconds)
@@ -507,6 +578,9 @@ const TALK_DIST: f32 = 1.5;
 
 /// Frames the player can make no headway before a walk over to talk gives up
 const APPROACH_STUCK_FRAMES: u32 = FPS;
+
+/// The courier's pace along the road (tiles a frame): a day's ride each way
+const TRAVELLER_SPEED: f32 = 4.0 / FPS as f32;
 
 /// Walking over to someone to talk to or recruit them
 struct Approach {
@@ -544,7 +618,7 @@ const ACTION_KEYS: [(Key, char); 5] = [
 /// Keys that move the player
 const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
 
-const NAMES: [&str; 5] = ["Aldric","Eliza","Bram","Corvin","Dagny"];
+const NAMES: [&str; 8] = ["Aldric","Eliza","Bram","Corvin","Dagny","Hob","Marga","Gisela"];
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 const TOOLTIPS: [&str; 5] = [
     "talk to someone nearby",
@@ -558,20 +632,36 @@ const TOOLTIPS: [&str; 5] = [
 #[derive(Default)]
 struct Art {
     villager_sprites: Vec<Sprite>,
-    house_s: Option<Sprite>,
+    /// The rivals' figures: the same pack's outlined look, so they read foreign
+    rival_sprites: Vec<Sprite>,
+    /// The cottages a home can be: colour, timber or plaster, and the door
+    /// and gable in different spots (the pack's numbered variants)
+    houses: Vec<Option<Sprite>>,
     mill_frames: Vec<Sprite>, // the sails only: they turn on mill_tower
     mill_tower: Option<Sprite>,
     blacksmith_s: Option<Sprite>,
-    stone_s: Option<Sprite>,
+    stones: Vec<Sprite>,        // boulders, a few shapes
+    stone_grounds: Vec<Sprite>, // flat rocks
     player_s: Option<Sprite>,
     tower_s: Option<Sprite>,
     /// Town wall blocks: running along x, along y, and the two gatehouses
     walls: [Option<Sprite>; 4],
+    /// The odd wall stretch with a postern door in it: along x, along y
+    wall_posts: [Option<Sprite>; 2],
     church_s: Option<Sprite>,
     guildhall_s: Option<Sprite>,
     rival_house: Option<Sprite>,
     rival_woodhouse: Option<Sprite>,
-    dog: Option<Sprite>, // hand-drawn: the asset packs have no animals
+    /// The watch at the town gates, from the humans pack
+    guards: Vec<Sprite>,
+    priest_s: Option<Sprite>,
+    traveller_s: Option<Sprite>, // a courier riding the road between villages
+    dog: Option<Sprite>,   // hand-drawn: the asset packs have no animals
+    cat: Option<Sprite>,
+    chicken: Option<Sprite>,
+    gull: Option<Sprite>,
+    /// Ground specks scattered on open grass, per season set
+    details: [Vec<Sprite>; 3],
     /// Ground blocks for the green seasons, autumn and winter (season_tiles),
     /// and the same as top faces only, for inland tiles
     tiles: [TileSet; 3],
@@ -583,12 +673,22 @@ struct Art {
 #[derive(Default)]
 struct TileSet {
     grass: Option<Sprite>,
+    /// Sandy grass where the sea meets the land, and drier bare looks up
+    /// on the hills and the bare tops
+    shore: Option<Sprite>,
+    hill: Option<Sprite>,
+    rock: Option<Sprite>,
     water: Option<Sprite>,
-    wheat: Option<Sprite>,
-    corn: Option<Sprite>,
+    /// Pale water round the shore, darker out at sea
+    shallow: Option<Sprite>,
+    deep: Option<Sprite>,
+    wheat: Vec<Sprite>,
+    corn: Vec<Sprite>,
     roads: Vec<Sprite>,
     rivers: Vec<Sprite>,
-    tree: Option<Sprite>,
+    /// Winter only: iced-over river stretches
+    rivers_ice: Vec<Sprite>,
+    trees: Vec<Sprite>,
 }
 
 /// Which TileSet a season draws with
@@ -661,13 +761,32 @@ fn face_only(block: &Sprite) -> Sprite {
 }
 
 /// The sea: the pack has no open-water block, so it's the grass block with
-/// its grass turned to water, colder in winter
-fn water_block(grass: &Sprite, winter: bool) -> Sprite {
+/// its grass turned to water, colder in winter. `shade` scales the blue
+/// per channel: shallow water is paler, the open sea darker.
+fn water_block(grass: &Sprite, winter: bool, shade: (f32, f32, f32)) -> Sprite {
     let k = if winter { 0.8 } else { 1.0 };
     recolour_greens(grass, |(_, g, _)| {
         let l = g as f32 * k;
-        ((l * 0.55) as u8, (l * 0.8) as u8, (l * 1.2).min(255.0) as u8)
+        ((l * shade.0) as u8, (l * shade.1) as u8, (l * shade.2).min(255.0) as u8)
     })
+}
+
+/// Blend every drawn pixel of `block` toward `colour` by `t` (where
+/// recolour_greens only touches the greens - snow has none to take)
+fn tint(block: &Sprite, colour: (u8, u8, u8), t: f32) -> Sprite {
+    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
+    for p in out.pixels.chunks_mut(4) {
+        if p[3] == 0 { continue; }
+        let (r, g, b) = blend((p[0], p[1], p[2]), colour, t);
+        p[0] = r; p[1] = g; p[2] = b;
+    }
+    out
+}
+
+/// A per-tile pick from a sprite list, stable for the tile (`salt` keeps
+/// different lists from lining up on the same tiles)
+fn pick(v: &[Sprite], x: i32, y: i32, salt: u32) -> Option<&Sprite> {
+    if v.is_empty() { None } else { v.get((noise(x, y, salt) * v.len() as f32) as usize % v.len()) }
 }
 
 impl TileSet {
@@ -683,12 +802,32 @@ impl TileSet {
         let grass = load("Enviroument/Spring/grass.png");
         // fields lie under the snow in winter
         let snow = || load("Enviroument/Winter/snow.png");
+        let water = |shade: (f32, f32, f32)| grass.as_ref().map(|g| water_block(g, winter, shade));
+        let (water, shallow, deep) = (water((0.55, 0.8, 1.2)), water((0.8, 1.0, 1.35)), water((0.35, 0.55, 1.0)));
+        let ground = if winter { snow() } else { grass.map(gold) };
+        // the look of bare land this season: a sandy rim where the sea
+        // meets it, parched hills and grey tops (snow has no greens to
+        // recolour, so winter tints the whole block instead)
+        let (shore, hill, rock) = if winter {
+            (ground.as_ref().map(|s| tint(s, (200, 210, 230), 0.3)),
+             ground.as_ref().map(|s| tint(s, (215, 195, 165), 0.3)),
+             ground.as_ref().map(|s| tint(s, (155, 160, 175), 0.35)))
+        } else {
+            (ground.as_ref().map(|s| recolour_greens(s, |c| blend(c, (224, 204, 150), 0.55))),
+             ground.as_ref().map(|s| recolour_greens(s, |c| blend(c, (170, 140, 85), 0.45))),
+             ground.as_ref().map(|s| recolour_greens(s, |c| blend(c, (150, 145, 140), 0.55))))
+        };
+        // both growth stages of each crop, so a field isn't one plant repeated
+        let crop = |name: &str| -> Vec<Sprite> {
+            (1..=2).filter_map(|i| load(&format!("Buildings/{}/{}({}).png", name, name, i))).map(&gold).collect()
+        };
         let set = TileSet {
-            water: grass.as_ref().map(|g| water_block(g, winter)),
-            grass: if winter { snow() } else { grass.map(gold) },
-            tree: if winter { load("Enviroument/Winter/trees/tree(1).png") } else { load("Enviroument/Spring/trees/tree(1).png").map(gold) },
-            wheat: if winter { snow() } else { load("Buildings/wheat/wheat(1).png").map(gold) },
-            corn: if winter { snow() } else { load("Buildings/corn/corn(1).png").map(gold) },
+            shore, hill, rock, water, shallow, deep,
+            grass: ground,
+            trees: (1..=4).filter_map(|i|
+                load(&format!("Enviroument/{}/trees/tree({}).png", if winter { "Winter" } else { "Spring" }, i)).map(&gold)).collect(),
+            wheat: if winter { snow().into_iter().collect() } else { crop("wheat") },
+            corn: if winter { snow().into_iter().collect() } else { crop("corn") },
             roads: if winter {
                 // the winter set numbers its two straight roads the other way round
                 let mut r = pieces("Roads/Winter", "road_winter", 15);
@@ -696,6 +835,7 @@ impl TileSet {
                 r
             } else { pieces("Roads/Spring", "road", 15) },
             rivers: if winter { pieces("Rivers/Winter", "river_winter", 17) } else { pieces("Rivers/Spring", "river", 17) },
+            rivers_ice: if winter { pieces("Rivers/Winter/Ice", "river_ice_winter", 17) } else { vec![] },
         };
         // without the dark outline round their top faces, so the ground
         // reads as one surface rather than a grid of tiles (lines inside a
@@ -703,30 +843,49 @@ impl TileSet {
         set.map_blocks(strip_face_outline)
     }
 
-    /// Every ground block put through `f` (the tree stays as it is)
+    /// Every ground block put through `f` (the trees stay as they are)
     fn map_blocks(&self, f: impl Fn(&Sprite) -> Sprite) -> TileSet {
         TileSet {
             grass: self.grass.as_ref().map(&f),
+            shore: self.shore.as_ref().map(&f),
+            hill: self.hill.as_ref().map(&f),
+            rock: self.rock.as_ref().map(&f),
             water: self.water.as_ref().map(&f),
-            wheat: self.wheat.as_ref().map(&f),
-            corn: self.corn.as_ref().map(&f),
+            shallow: self.shallow.as_ref().map(&f),
+            deep: self.deep.as_ref().map(&f),
+            wheat: self.wheat.iter().map(&f).collect(),
+            corn: self.corn.iter().map(&f).collect(),
             roads: self.roads.iter().map(&f).collect(),
             rivers: self.rivers.iter().map(&f).collect(),
-            tree: self.tree.clone(),
+            rivers_ice: self.rivers_ice.iter().map(&f).collect(),
+            trees: self.trees.clone(),
         }
     }
 
     /// The block for map tile (x, y), joined up with its neighbours
     fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
+        let sea = |dx: i32, dy: i32| map.get(x + dx, y + dy) == Some(Tile::Water);
+        let by_sea = || NEIGHBOURS.iter().any(|&(dx, dy)| sea(dx, dy));
+        let by_land = || NEIGHBOURS.iter().any(|&(dx, dy)| !sea(dx, dy) && map.get(x + dx, y + dy) != Some(Tile::River));
         match map.get(x, y)? {
-            // bare rock is grass with a boulder on it (the pack's dirt block
-            // is orange and read as a stray bit of road)
-            Tile::Grass | Tile::Hill | Tile::Rock => self.grass.as_ref(),
+            // the shore wears sand, the hills go parched, the tops bare (the
+            // pack's dirt block is orange and read as a stray bit of road)
+            Tile::Grass if by_sea() => self.shore.as_ref().or(self.grass.as_ref()),
+            Tile::Grass => self.grass.as_ref(),
+            Tile::Hill => self.hill.as_ref().or(self.grass.as_ref()),
+            Tile::Rock => self.rock.as_ref().or(self.hill.as_ref()).or(self.grass.as_ref()),
+            Tile::Water if by_land() => self.shallow.as_ref().or(self.water.as_ref()),
+            Tile::Water if noise(x, y, 9) < 0.35 => self.deep.as_ref().or(self.water.as_ref()),
             Tile::Water => self.water.as_ref(),
-            Tile::Wheat => self.wheat.as_ref(),
-            Tile::Corn => self.corn.as_ref(),
+            Tile::Wheat => pick(&self.wheat, x, y, 5),
+            Tile::Corn => pick(&self.corn, x, y, 6),
             Tile::Road => self.roads.get(map.piece(x, y)? as usize - 1),
-            Tile::River | Tile::Bridge => self.rivers.get(map.piece(x, y)? as usize - 1),
+            Tile::River => {
+                let p = map.piece(x, y)? as usize - 1;
+                // in winter stretches of the river freeze right over
+                if noise(x, y, 13) < 0.45 { self.rivers_ice.get(p).or(self.rivers.get(p)) } else { self.rivers.get(p) }
+            }
+            Tile::Bridge => self.rivers.get(map.piece(x, y)? as usize - 1),
         }
     }
 }
@@ -799,44 +958,133 @@ fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
 }
 
+/// A villager sprite cropped to its standing frame (each sheet is a grid
+/// of 32x32 cells)
+fn figure(assets: &Assets, rel: &str) -> Sprite {
+
+    let path = assets.path(rel);
+    match Sprite::load(&path) {
+        Ok(s) => s.crop(0, 0, 32, 32),
+        Err(e) => { println!("sprite load {}: {}", path.display(), e); Sprite { width: 1, height: 1, pixels: vec![255, 0, 255, 255] } }
+    }
+}
+
+/// The sprite at `rel`, if it loads
+fn block(assets: &Assets, rel: &str) -> Option<Sprite> {
+    Sprite::load(&assets.path(rel)).ok()
+}
+
+/// The sprite for `houses[i]`, or none where nothing loaded
+static NO_SPRITE: Option<Sprite> = None;
+
 impl Art {
     /// Load every sprite from the asset folder at `root` ("assets" when run
-    /// from the repo root, as the game is)
-    fn load(root: &str) -> Art {
+    /// from the repo root, as the game is), with the classic look
+    #[cfg(test)]
+    fn load(root: &str) -> Art { Self::load_seeded(root, 0) }
+
+    /// The cottage `i` wraps round to (the house list cycles)
+    fn house(&self, i: usize) -> &Option<Sprite> {
+        self.houses.get(i % self.houses.len().max(1)).unwrap_or(&NO_SPRITE)
+    }
+
+    /// Load every sprite, `seed` settling which variant each single-choice
+    /// building wears this map (the mill's colour, the corner towers, the
+    /// church's keep) - the same map seed looks the same every run
+    fn load_seeded(root: &str, seed: u64) -> Art {
         let assets = Assets::new(root);
+        let pack = |rel: &str| block(&assets, &format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/{}", rel));
 
-        // Load villager sprites (crop single 32x32 frame from sheets)
-        let vgenders = ["m", "f", "m", "m", "f"];
-        let vroles = ["peasant", "worker", "noble", "elder", "peasant"]; // Corvin=noble, others vary
-        let villager_sprites: Vec<Sprite> = (0..5).map(|i| {
-            let path = assets.path(&assets.villager_sprite(vroles[i], vgenders[i]));
-            match Sprite::load(&path) {
-                Ok(s) => s.crop(0, 0, 32, 32),
-                Err(e) => { println!("sprite load {}: {}", path.display(), e); Sprite { width: 1, height: 1, pixels: vec![255,0,255,255] } }
-            }
-        }).collect();
+        // one variant out of several, chosen by the seed (None if it won't
+        // load, or the first that did)
+        let chosen = |v: Vec<Option<Sprite>>| -> Option<Sprite> {
+            if v.is_empty() { return None; }
+            v.get(seed as usize % v.len()).and_then(|s| s.clone())
+                .or_else(|| v.into_iter().find_map(|s| s))
+        };
 
-        // Load building sprites
+        // Load villager sprites (every look the villagers pack has, one
+        // each): role and gender as villager_sprite knows them
+        let vpeople: [(&str, &str); 8] = [
+            ("peasant", "m"), ("peasant", "f"), ("elder", "m"), ("noble", "m"),
+            ("princess", "f"), ("worker", "m"), ("elder", "f"), ("noble", "f"),
+        ];
+        let villager_sprites: Vec<Sprite> = vpeople.iter()
+            .map(|&(role, gender)| figure(&assets, &assets.villager_sprite(role, gender))).collect();
+        // the rivals: same figures, the outlined look, and their matriarch
+        // is the pack's queen - every villager sprite ends up in use
+        let rival_sprites: Vec<Sprite> = ["MiniVillagerMan", "MiniWorker", "MiniQueen"].iter()
+            .map(|n| figure(&assets, &format!("MinifolksVillagers/MinifolksVillagers/Outline/{}.png", n))).collect();
+        // the watch at the gates: soldiers from the humans pack
+        let guards: Vec<Sprite> = ["MiniSpearMan", "MiniSwordMan", "MiniShieldMan", "MiniHalberdMan"].iter()
+            .map(|n| figure(&assets, &format!("MinifolksHumans/Without Outline/{}.png", n))).collect();
+
+        // the cottages: plaster and timber fronts in every colour, with the
+        // door and gable in different spots, so no two homes look alike
+        let houses: Vec<Option<Sprite>> = [
+            "Buildings/house/White houses/Blue house/white_blue_house(1).png",
+            "Buildings/house/Wood houses/Blue house/wood_blue_house(1).png",
+            "Buildings/house/White houses/Green house/white_green_house(3).png",
+            "Buildings/house/Wood houses/Red house/wood_red_house(2).png",
+            "Buildings/house/White houses/Wood house/white_wood_house(4).png",
+            "Buildings/house/Wood houses/Green house/wood_green_house(2).png",
+            "Buildings/house/White houses/Red house/white_red_house(3).png",
+            "Buildings/house/Wood houses/Wood house/wood_house(4).png",
+            "Buildings/house/Wood houses/Wood house/wood_house(2).png",
+            "Buildings/house/White houses/Blue house/white_blue_house(4).png",
+        ].iter().map(|rel| pack(rel)).collect();
+
+        // ground specks for open grass: tufts and flowers, snow lumps in
+        // winter, the green set gone gold in autumn
+        let gold = |s: Sprite| recolour_greens(&s, |c| blend(c, (185, 125, 45), 0.45));
+        let detail_set = |dir: &str, name: &str, gild: bool| -> Vec<Sprite> {
+            (1..=9).filter_map(|i| pack(&format!("Enviroument/{}/{}({}).png", dir, name, i)).map(|s| if gild { gold(s) } else { s })).collect()
+        };
+        let details = [
+            detail_set("Spring", "grass_detail", false),
+            detail_set("Spring", "grass_detail", true),
+            detail_set("Winter", "snow_detail", false),
+        ];
+
         Art {
             villager_sprites,
+            rival_sprites,
+            houses,
             tiles: [TileSet::load(&assets, 0), TileSet::load(&assets, 1), TileSet::load(&assets, 2)],
             faces: [0, 1, 2].map(|season| TileSet::load(&assets, season).map_blocks(face_only)),
-            house_s: Sprite::load(&assets.path(&assets.building_sprite("house", "blue"))).ok(),
             mill_frames: (1..=4).map(|i|
                 Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))).unwrap()
             ).collect(),
-            mill_tower: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill_wood.png")).ok(),
+            mill_tower: chosen(["wood", "blue", "green", "red"].iter()
+                .map(|c| pack(&format!("Buildings/mill/mill_{}.png", c))).collect()),
             blacksmith_s: Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "green"))).ok(),
-            stone_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Enviroument/Spring/stones/stone(2).png")).ok(),
+            // stone(1) is a tiny pebble that's nearly all dark outline - on
+            // the map it read as a black hole, so the boulders stand instead
+            stones: (2..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone({}).png", i))).collect(),
+            stone_grounds: (1..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone_ground ({}).png", i))).collect(),
             player_s: Sprite::load(&assets.path("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png")).map(|s| s.crop(0, 0, 32, 32)).ok(),
-            tower_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Wood towers/castle_tower_wood(1).png")).ok(),
+            // the pack's corner towers: flat-top, capped or keeps - the
+            // whole watch matches within a map, but varies between runs
+            tower_s: chosen([("Wood towers", "castle_tower_wood", 1), ("Wood towers", "castle_tower_wood", 4),
+                             ("Wood towers", "castle_tower_wood", 5), ("Blue towers", "castle_tower_blue", 4)]
+                .iter().map(|(d, n, i)| pack(&format!("Towers/{}/{}({}).png", d, n, i))).collect()),
             // the pack's castle_wall(2) runs along x, (1) along y; (5) and (6) are gatehouses
-            walls: [2, 1, 5, 6].map(|n| Sprite::load(&assets.path(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Castle walls/castle_wall({}).png", n))).ok()),
-            church_s: Sprite::load(&assets.path("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Towers/Blue towers/castle_tower_blue(1).png")).ok(),
-            guildhall_s: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
+            walls: [2, 1, 5, 6].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))),
+            // wall(4) and wall(3): the same runs with a postern door in them
+            wall_posts: [4, 3].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))),
+            // the church is one of the pack's tall keeps
+            church_s: chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect()),
+            guildhall_s: Sprite::load(&assets.path(&assets.building_sprite("blacksmith", "wood"))).ok(),
             rival_house: Sprite::load(&assets.path(&assets.building_sprite("house", "red"))).ok(),
             rival_woodhouse: Sprite::load(&assets.path(&assets.building_sprite("woodhouse", "red"))).ok(),
+            priest_s: Some(figure(&assets, "MinifolksHumans/Without Outline/MiniMage.png")),
+            traveller_s: Some(figure(&assets, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
+            guards,
             dog: Some(dog_sprite()),
+            cat: Some(cat_sprite()),
+            chicken: Some(chicken_sprite()),
+            gull: Some(gull_sprite()),
+            details,
         }
     }
 }
@@ -886,6 +1134,66 @@ const MEETING_PROMPTS: [&str; 3] = [
     "Then let's take it on together.",
 ];
 
+/// The map tests and tooling use: Game::new is always this one
+const MAP_SEED: u64 = 42;
+
+/// The map the windowed game plays: GAME2_SEED pins one (for a screenshot
+/// of a particular country); otherwise each launch draws a fresh one
+fn run_seed() -> u64 {
+    std::env::var("GAME2_SEED").ok().and_then(|s| s.trim().parse().ok())
+        .unwrap_or_else(|| std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() % 1_000_000).unwrap_or(MAP_SEED))
+}
+
+/// A tiny seeded generator (splitmix64): one seed settles the whole map
+struct Rng(u64);
+impl Rng {
+    fn next(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9E3779B97F4A7C15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+        z ^ (z >> 31)
+    }
+    /// 0..n
+    fn below(&mut self, n: i32) -> i32 { (self.next() % n.max(1) as u64) as i32 }
+    /// -n..=n
+    fn around(&mut self, n: i32) -> i32 { self.below(2 * n + 1) - n }
+}
+
+/// The buildable tile with water lapping it nearest `to`: where a fishing
+/// hut goes. None when there's no shore within reach.
+fn shore_site(map: &TileMap, to: (i32, i32)) -> Option<(i32, i32)> {
+    let mut best: Option<((i32, i32), i32)> = None;
+    for y in 1..map.height as i32 - 1 {
+        for x in 1..map.width as i32 - 1 {
+            let lapping = NEIGHBOURS.iter()
+                .any(|(dx, dy)| matches!(map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River)));
+            if !lapping || !map.buildable(x, y) { continue; }
+            let d = (x - to.0).abs() + (y - to.1).abs();
+            if best.map(|(_, bd)| d < bd).unwrap_or(true) { best = Some(((x, y), d)); }
+        }
+    }
+    best.map(|(p, _)| p)
+}
+
+/// A buildable tile beside a tree, outside `wall`, nearest `to`: where the
+/// woodcutter's clearing goes. None when the woods aren't near.
+fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) -> Option<(i32, i32)> {
+    let mut best: Option<((i32, i32), i32)> = None;
+    for y in 1..map.height as i32 - 1 {
+        for x in 1..map.width as i32 - 1 {
+            if (wall.0..=wall.2).contains(&x) && (wall.1..=wall.3).contains(&y) { continue; }
+            if !map.buildable(x, y)
+                || !map.trees.iter().any(|&(tx, ty)| (tx - x).abs() + (ty - y).abs() == 1) { continue; }
+            let d = (x - to.0).abs() + (y - to.1).abs();
+            if best.map(|(_, bd)| d < bd).unwrap_or(true) { best = Some(((x, y), d)); }
+        }
+    }
+    best.map(|(p, _)| p)
+}
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see.
@@ -901,10 +1209,27 @@ struct Game<'a> {
     rival_homes: Vec<(f32, f32)>, // where each rival lives, across the river
     player: Entity,
     org: Entity,
-    dog: Entity,
+    /// Each pet and the sprite it draws with, and how it stands off its owner
+    pets: Vec<(Entity, &'a Option<Sprite>, (f32, f32))>,
     market_food: Entity, // our village's food store (the rivals have their own)
     buildings: Vec<(f32, f32, &'a Option<Sprite>)>,
     stones: Vec<(i32, i32)>, // boulders out in the fields
+    /// The town wall's rectangle this map (it breathes with the seed) - for
+    /// keeping the grass specks off the town streets
+    town_wall: (i32, i32, i32, i32),
+    /// The watch standing just inside each gate
+    guards: Vec<(f32, f32)>,
+    /// The priest by the church
+    priest: (f32, f32),
+    /// The courier's road to the rivals' village and back (empty if there is none)
+    traveller_path: Vec<(i32, i32)>,
+    /// Where the gulls hang about (open-sea tiles)
+    gulls: Vec<(f32, f32)>,
+    /// The hen's farmyard
+    chicken_at: (f32, f32),
+    /// The map's own generator: settled at new_seeded, then handing out
+    /// sprites (e.g. which cottage each new build gets)
+    rng: Rng,
     buttons: Vec<Button>,
     built_count: usize,
     works: Vec<Works>, // houses still being built
@@ -938,7 +1263,17 @@ struct Game<'a> {
 }
 
 impl<'a> Game<'a> {
-    fn new(art: &'a Art) -> Game<'a> {
+    /// The classic map (MAP_SEED): tests, dumps and tooling stay put
+    #[cfg(test)]
+    fn new(art: &'a Art) -> Game<'a> { Game::new_seeded(art, MAP_SEED) }
+
+    /// A game on the map `seed` draws. The country is perturbed - the coast
+    /// shifts, the river meanders a tile or two - and the castle suits it:
+    /// the wall's east face keeps clear of the river's west bank. Outside it
+    /// the map's grown a little townage of its own: a farm below the south
+    /// gate, a woodcutter's clearing and a fisher's hut on the shore.
+    fn new_seeded(art: &'a Art, seed: u64) -> Game<'a> {
+        let mut rng = Rng(seed ^ 0x9E3779B9);
         let mut world = World::new();
         let mut sched = Scheduler::new();
         sched.add_system(villager::HungerSystem);
@@ -948,14 +1283,27 @@ impl<'a> Game<'a> {
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
 
-        let mut terrain = Terrain::generate_country(33, 0.7, 42);
+        let mut terrain = Terrain::generate_country(33, 0.7, seed);
         let climate = climate::spawn_climate(&mut world);
         let market_food = villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
+
+        // the river winds south between the towns to the sea; each waypoint
+        // on its course drifts a tile or two, so it meanders differently
+        // every map (kept east of the wall and west of the rivals')
+        let river: Vec<(i32, i32)> = [3, 9, 15, 21, 27].iter()
+            .map(|&y| (24 + rng.below(3), y)).collect();
+        // the castle suits the river: the east face keeps a tile clear of
+        // its west bank and the rest of the rectangle breathes a tile
+        // either way (every building still sits well inside)
+        let wall = (8 + rng.around(1), 7 + rng.around(1),
+            river.iter().map(|w| w.0).min().unwrap() - 1, 24 + rng.around(1));
+        // the walled fields run out of the south gate to a little farm
+        let (gate_x, farm_y) = ((wall.0 + wall.2) / 2, wall.3 + 2);
 
         // where each building wants to stand; the map moves one onto dry land if it must
         let planned: Vec<((i32, i32), &Option<Sprite>)> = vec![
             // homes around the market (the first three have chimney smoke)
-            ((13, 12), &art.house_s), ((19, 12), &art.house_s), ((12, 18), &art.house_s),
+            ((13, 12), art.house(0)), ((19, 12), art.house(1)), ((12, 18), art.house(2)),
             ((19, 19), &art.blacksmith_s),
             // church (religion centre) + guild hall (merchant base)
             ((14, 9), &art.church_s), ((17, 10), &art.guildhall_s),
@@ -963,17 +1311,21 @@ impl<'a> Game<'a> {
             ((28, 13), &art.rival_house), ((30, 15), &art.rival_woodhouse),
         ];
         let mut layout = Layout {
-            // our village and the rivals' each stand on dry land
-            settlements: vec![(16, 16, 9), (29, 14, 4)],
-            // a river from the northern hills down to the sea, between our
-            // walled town and the rivals'
-            river: vec![(24, 3), (25, 9), (25, 27)],
-            bridge_near: (25, 14),
-            town_wall: Some(TOWN_WALL),
-            // fields beside the food store
+            // our village and the rivals' each stand on dry land, the neck
+            // between them never floods, and the farm below the south gate
+            // gets its own pocket of field
+            settlements: vec![(16, 16, 9), (29, 14, 4), (25, 15, 3), (gate_x, farm_y, 3)],
+            river: river.clone(),
+            bridge_near: (river[2].0, 15),
+            town_wall: Some(wall),
+            // fields beside the food store, and the farm's strips outside
+            // the south gate
             fields: vec![
                 (13, 14, Tile::Wheat), (14, 14, Tile::Wheat), (13, 15, Tile::Wheat), (14, 15, Tile::Wheat),
                 (17, 14, Tile::Corn), (18, 14, Tile::Corn), (18, 15, Tile::Corn),
+                (gate_x - 2, wall.3 + 1, Tile::Wheat), (gate_x - 1, wall.3 + 1, Tile::Wheat),
+                (gate_x - 2, wall.3 + 2, Tile::Wheat), (gate_x - 1, wall.3 + 2, Tile::Corn),
+                (gate_x, wall.3 + 2, Tile::Corn), (gate_x + 1, wall.3 + 2, Tile::Wheat),
             ],
             buildings: planned.iter().map(|(p, _)| *p).collect(),
             road_hub: (16, 16),
@@ -981,17 +1333,50 @@ impl<'a> Game<'a> {
         };
         layout.buildings.push((MILL_TILE.0 as i32, MILL_TILE.1 as i32));
         let mut map = TileMap::generate(&mut terrain, &layout);
-        let buildings: Vec<(f32, f32, &Option<Sprite>)> = planned.iter().zip(&map.buildings)
+        let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = planned.iter().zip(&map.buildings)
             .map(|((_, s), (x, y))| (*x as f32, *y as f32, *s)).collect();
+
+        // out-of-town townage: a farmhand's cottage by the south fields, a
+        // woodcutter's clearing at the woods' edge, a fisher's hut on the
+        // shore - each gets its road run out to it
+        for (site, sprite) in [
+            (Some((gate_x + 2, farm_y)), art.house(6)),
+            (shore_site(&map, (26, 30)), art.house(7)),
+            (woods_edge_site(&map, wall, (wall.0, (wall.1 + wall.3) / 2)), art.house(8)),
+        ] {
+            let Some((bx, by)) = site.and_then(|(x, y)| map.nearest_buildable(x, y)) else { continue };
+            map.occupy(bx, by);
+            map.connect((bx, by));
+            buildings.push((bx as f32, by as f32, sprite));
+        }
+
         let stones: Vec<(i32, i32)> = [(6, 19), (20, 23)].iter()
             .filter_map(|&(x, y)| map.nearest_buildable(x, y)).collect();
         for &(x, y) in &stones { map.occupy(x, y); }
 
+        // the watch stands just inside each gate; the priest keeps by the
+        // church; a courier rides the road to the rivals' and back; gulls
+        // hang about the open sea
+        let guards: Vec<(f32, f32)> = map.walls.iter()
+            .filter(|&(_, piece)| matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY))
+            .map(|&((x, y), piece)| match piece {
+                WallPiece::GateAlongX => (x as f32, y as f32 + if y == wall.1 { 0.9 } else { -0.9 }),
+                _ => (x as f32 + if x == wall.0 { 0.9 } else { -0.9 }, y as f32),
+            }).collect();
+        let priest = (14.7, 9.6);
+        let traveller_path = map.walk_path((16, 16), (29, 14)).unwrap_or_default();
+        let mut gulls = vec![];
+        for y in 0..map.height as i32 { for x in 0..map.width as i32 {
+            if map.get(x, y) == Some(Tile::Water) && noise(x, y, 21) > 0.85 { gulls.push((x as f32, y as f32)); }
+        }}
+        gulls.truncate(4);
+
         let mut villagers = vec![];
         for (i, _n) in NAMES.iter().enumerate() {
-            let v = villager::spawn_villager(&mut world, [10.0,16.0,20.0,14.0,22.0][i] as f32, [16.0,20.0,14.0,10.0,18.0][i] as f32);
+            let (vx, vy) = [(10.0,16.0),(16.0,20.0),(20.0,14.0),(14.0,10.0),(22.0,18.0),(15.0,21.0),(21.0,15.0),(17.0,12.0)][i];
+            let v = villager::spawn_villager(&mut world, vx, vy);
             world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
-            world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
+            world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
             world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
             world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
             villagers.push(v);
@@ -1021,6 +1406,9 @@ impl<'a> Game<'a> {
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
         let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
         pets::adopt(&mut world, dog, villagers[0]);
+        let cat = pets::spawn_pet(&mut world, "Mog", Species::Cat, PetRole::Companion);
+        pets::adopt(&mut world, cat, villagers[1]);
+        let pets = vec![(dog, &art.dog, (0.8, 0.5)), (cat, &art.cat, (0.5, 0.3))];
 
         let buttons = vec![
             Button { label: "Talk",     key: ACTION_KEYS[0].1, x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
@@ -1031,7 +1419,14 @@ impl<'a> Game<'a> {
         ];
 
         Game {
-            art, world, sched, map, climate, villagers, rivals, player, org, dog, market_food, buildings, stones, buttons,
+            art, world, sched, map, climate, villagers, rivals, player, org, pets, market_food, buildings, stones, buttons,
+            town_wall: wall,
+            guards,
+            priest,
+            traveller_path,
+            gulls,
+            chicken_at: (gate_x as f32 + 0.4, farm_y as f32 + 0.3),
+            rng,
             built_count: 0,
             works: vec![],
             zoom: 1.0,
@@ -1100,6 +1495,19 @@ impl<'a> Game<'a> {
 
     fn player_pos(&self) -> (f32, f32) {
         self.world.get_component::<Pos>(self.player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0))
+    }
+
+    /// Where the courier is on the road between the villages: there and
+    /// back along `traveller_path`, at a riding pace
+    fn traveller_pos(&self) -> Option<(f32, f32)> {
+        let n = self.traveller_path.len();
+        if n < 2 || self.traveller_path.is_empty() { return None; }
+        let leg = (n - 1) as f32;
+        let mut s = (self.frame_n as f32 * TRAVELLER_SPEED) % (leg * 2.0);
+        if s > leg { s = leg * 2.0 - s; }
+        let (i, f) = (s as usize, s.fract());
+        let (a, b) = (self.traveller_path[i], self.traveller_path[(i + 1).min(n - 1)]);
+        Some((a.0 as f32 + (b.0 - a.0) as f32 * f, a.1 as f32 + (b.1 - a.1) as f32 * f))
     }
 
     /// Why action button `i` can't be used right now, if it can't: Build's
@@ -1278,16 +1686,32 @@ impl<'a> Game<'a> {
         // and lived in their village, off the edge of the view
         if !self.paused {
             let home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
+            let food_tile = home.map(|(hx, hy)| (hx.round() as i32, hy.round() as i32));
             for v in villagers.iter() {
-                let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
-                if !idle || villager::is_dead(world, *v) { continue; }
-                if let (Some((hx, hy)), Some(p)) = (home, world.get_component_mut::<Pos>(*v)) {
-                    let (dx, dy) = (hx - p.x, hy - p.y);
-                    let d = (dx * dx + dy * dy).sqrt();
-                    if d > VILLAGE_RADIUS {
-                        let step = 0.6 / ticks_per_frame as f32;
-                        p.x += dx / d * step;
-                        p.y += dy / d * step;
+                if villager::is_dead(world, *v) { continue; }
+                let seeking = world.get_component::<Villager>(*v)
+                    .map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
+                let Some(p) = world.get_component_mut::<Pos>(*v) else { continue };
+                let Some((hx, hy)) = home else { continue };
+                let (dx, dy) = (hx - p.x, hy - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                // a hungry villager more than eating distance away walks the
+                // road to the store - the sim's straight steps can pen them
+                // against the town wall or a building for good, so take the
+                // way round (an idle stray comes home the same way)
+                let heading_home = seeking && dx.abs() + dy.abs() > 0.5
+                    || !seeking && d > VILLAGE_RADIUS;
+                if heading_home {
+                    let step = 1.0 / ticks_per_frame as f32;
+                    let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
+                    if self.map.passable(nx.round() as i32, ny.round() as i32) {
+                        p.x = nx; p.y = ny;
+                    } else if let Some(path) = food_tile.and_then(|t| self.map.walk_path((p.x.round() as i32, p.y.round() as i32), t)) {
+                        if let Some(&(qx, qy)) = path.first() {
+                            let (ddx, ddy) = (qx as f32 - p.x, qy as f32 - p.y);
+                            let dd = (ddx * ddx + ddy * ddy).sqrt().max(1e-4);
+                            p.x += ddx / dd * step; p.y += ddy / dd * step;
+                        }
                     }
                 }
             }
@@ -1317,8 +1741,8 @@ impl<'a> Game<'a> {
                 "the guild merchants grow bold",
                 "an old wound reopens between families",
             ];
-            let a = (tick as usize / 40) % 5;
-            let b = (tick as usize / 40 + 2) % 5;
+            let a = (tick as usize / 40) % NAMES.len();
+            let b = (tick as usize / 40 + 2) % NAMES.len();
             log.push(format!("t{}: {} tells {} - {}", tick, NAMES[a], NAMES[b], rumors[tick as usize / 40 % 5]));
         }
 
@@ -1347,12 +1771,15 @@ impl<'a> Game<'a> {
         // expire speech bubbles and toasts
         toasts.retain(|(_, until)| tick < *until);
         for (e, before) in people.iter().zip(stood) {
-            let Some(before) = before else { continue };
+            let (Some(before), Some(now)) = (before, self.world.get_component::<Pos>(*e).copied()) else { continue };
             let blocked = |p: &Pos| self.map.is_occupied(p.x.round() as i32, p.y.round() as i32);
-            let now = self.world.get_component::<Pos>(*e).copied();
-            if now.map(|p| blocked(&p)).unwrap_or(false) && !blocked(&before) {
-                *self.world.get_component_mut::<Pos>(*e).unwrap() = before;
-            }
+            if !blocked(&now) || blocked(&before) { continue; }
+            // sliding beats freezing: pressed against a building or a wall,
+            // keep the part of the step that isn't blocked (a seeker frozen
+            // against the town wall used to starve there for good)
+            let slide = [Pos { x: now.x, y: before.y }, Pos { x: before.x, y: now.y }]
+                .into_iter().find(|p| !blocked(p));
+            *self.world.get_component_mut::<Pos>(*e).unwrap() = slide.unwrap_or(before);
         }
         if !self.paused {
             for w in self.works.iter_mut() {
@@ -1419,6 +1846,19 @@ impl<'a> Game<'a> {
                         buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
                     }
                 }
+                // the odd tuft or flower on open grass outside the walls
+                let in_town = (self.town_wall.0..=self.town_wall.2).contains(&tx)
+                    && (self.town_wall.1..=self.town_wall.3).contains(&ty);
+                if tile == Tile::Grass && !in_town && !self.map.is_occupied(tx, ty) && noise(tx, ty, 7) < 0.10 {
+                    if let Some(d) = pick(&art.details[season_tiles(season)], tx, ty, 8) {
+                        let k = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+                        let (dw, dh) = ((d.width as f32 * k).round() as i32, (d.height as f32 * k).round().max(1.0) as i32);
+                        let (jx, jy) = (noise(tx, ty, 10) - 0.5, noise(tx, ty, 11) - 0.5);
+                        draw_zoomed(&mut buf, d,
+                            sx + (jx * TILE_W as f32 * zoom) as i32 - dw / 2,
+                            sy + ((jy - 0.6) * TILE_H as f32 * zoom) as i32 - dh, k);
+                    }
+                }
             }
         }
 
@@ -1429,28 +1869,34 @@ impl<'a> Game<'a> {
         // farther ones - glitched seams, e.g. on the town wall)
         #[derive(Clone, Copy)]
         enum Piece<'a> {
-            Building(&'a Option<Sprite>, f32), // a house, and how much of it stands
-            Prop(&'a Option<Sprite>),          // a tree or boulder in the middle of its tile
-            Castle(&'a Option<Sprite>),        // a town-wall block: wall, gatehouse or tower
+            Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
+            Prop(Option<&'a Sprite>),          // a tree or boulder in the middle of its tile
+            Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
         }
         #[derive(Clone, Copy)]
-        enum Who { Vill(usize), Rival(usize), Player, Pet, Mill, Smoke(usize) }
+        enum Who { Vill(usize), Rival(usize), Player, Pet(usize), Mill, Smoke(usize), Guard(usize), Priest, Traveller, Chicken }
 
         let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
         let mut standing: Vec<(f32, f32, Piece)> = self.buildings.iter().enumerate()
-            .map(|(i, (x, y, s))| (*x, *y, Piece::Building(*s, risen(i)))).collect();
-        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(&set.tree))));
-        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(&art.stone_s))));
+            .map(|(i, (x, y, s))| (*x, *y, Piece::Building(s.as_ref(), risen(i)))).collect();
+        // a wood is a mix of the pack's trees, stable per tile
+        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&set.trees, x, y, 4)))));
+        // boulders and flat rocks, a different one each time
+        let rock_prop = |x: i32, y: i32| if noise(x, y, 14) < 0.5 {
+            pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
+        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
         let rocks = (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| self.map.get(x, y) == Some(Tile::Rock));
-        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(&art.stone_s))));
+        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
         standing.extend(self.map.walls.iter().map(|&((x, y), piece)| {
+            // the odd stretch of wall has a postern door in it
+            let postern = noise(x, y, 15) < 0.15;
             let sprite = match piece {
-                WallPiece::AlongX => &art.walls[0],
-                WallPiece::AlongY => &art.walls[1],
-                WallPiece::GateAlongX => &art.walls[2],
-                WallPiece::GateAlongY => &art.walls[3],
-                WallPiece::Tower => &art.tower_s,
+                WallPiece::AlongX => art.wall_posts[0].as_ref().filter(|_| postern).or(art.walls[0].as_ref()),
+                WallPiece::AlongY => art.wall_posts[1].as_ref().filter(|_| postern).or(art.walls[1].as_ref()),
+                WallPiece::GateAlongX => art.walls[2].as_ref(),
+                WallPiece::GateAlongY => art.walls[3].as_ref(),
+                WallPiece::Tower => art.tower_s.as_ref(),
             };
             (x as f32, y as f32, Piece::Castle(sprite))
         }));
@@ -1475,7 +1921,7 @@ impl<'a> Game<'a> {
         // smoke, which stand where their tower and houses stand
         let mut people: Vec<(f32, f32, Who)> = vec![];
         if art.mill_tower.is_some() { people.push((MILL_TILE.0, MILL_TILE.1, Who::Mill)); }
-        if art.house_s.is_some() {
+        if art.house(0).is_some() {
             for i in 0..self.buildings.len().min(3) {
                 people.push((self.buildings[i].0, self.buildings[i].1, Who::Smoke(i)));
             }
@@ -1486,11 +1932,22 @@ impl<'a> Game<'a> {
             .filter_map(|(i, v)| world.get_component::<Pos>(*v).map(|p| (p.x, p.y, Who::Rival(i)))));
         let player_pos = self.player_pos();
         people.push((player_pos.0, player_pos.1, Who::Player));
-        // the dog keeps by its owner - whoever that is now: PetBondSystem
-        // rehomes it when its owner dies; a stray lingers where it was first
-        // kept, by Aldric
-        if let Some(p) = world.get_component::<Pet>(self.dog).and_then(|pet| world.get_component::<Pos>(pet.owner.unwrap_or(villagers[0]))) {
-            people.push((p.x + 0.8, p.y + 0.5, Who::Pet));
+        // the watch stands its post at the gates; the priest keeps by the
+        // church; the courier rides the road between the villages; the hen
+        // wanders its farmyard
+        people.extend(self.guards.iter().enumerate().map(|(i, &(x, y))| (x, y, Who::Guard(i))));
+        people.push((self.priest.0, self.priest.1, Who::Priest));
+        if let Some((tx, ty)) = self.traveller_pos() { people.push((tx, ty, Who::Traveller)); }
+        let hen_t = self.frame_n as f32 * 0.012;
+        people.push((self.chicken_at.0 + hen_t.cos() * 0.5, self.chicken_at.1 + (hen_t * 1.7).sin() * 0.4, Who::Chicken));
+        // each pet keeps by its owner - whoever that is now: PetBondSystem
+        // rehomes them when their owner dies; a stray lingers where it was
+        // first kept, by Aldric
+        for (i, (pet, _, (ox, oy))) in self.pets.iter().enumerate() {
+            if let Some(p) = world.get_component::<Pet>(*pet)
+                .and_then(|pet| world.get_component::<Pos>(pet.owner.unwrap_or(villagers[0]))) {
+                people.push((p.x + ox, p.y + oy, Who::Pet(i)));
+            }
         }
         people.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
 
@@ -1561,14 +2018,15 @@ impl<'a> Game<'a> {
                         }
                     }
                 },
-                Who::Pet => {
-                    if let Some(pet) = world.get_component::<Pet>(self.dog) {
+                Who::Pet(i) => {
+                    let (pet, sprite, _) = self.pets[i];
+                    if let Some(pet) = world.get_component::<Pet>(pet) {
                         let (dx, dy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                         // standing on its spot, drawn at the villagers' scale
-                        let h = match &art.dog {
-                            Some(dog) => {
-                                let (w, h) = ((dog.width as f32 * 2.0 * zoom) as i32, (dog.height as f32 * 2.0 * zoom) as i32);
-                                draw_zoomed(&mut buf, dog, dx - w / 2, dy - h, 2.0 * zoom);
+                        let h = match sprite {
+                            Some(s) => {
+                                let (w, h) = ((s.width as f32 * 2.0 * zoom) as i32, (s.height as f32 * 2.0 * zoom) as i32);
+                                draw_zoomed(&mut buf, s, dx - w / 2, dy - h, 2.0 * zoom);
                                 h
                             }
                             None => 0,
@@ -1578,11 +2036,32 @@ impl<'a> Game<'a> {
                         }
                     }
                 },
-                // rival villagers (foreign settlement)
+                // the watch: soldiers from the humans pack at the gates
+                Who::Guard(i) => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    if !art.guards.is_empty() {
+                        draw_character(&mut buf, &art.guards[i % art.guards.len()], sx, sy, zoom);
+                    }
+                },
+                Who::Priest => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    if let Some(s) = &art.priest_s { draw_character(&mut buf, s, sx, sy, zoom); }
+                },
+                Who::Traveller => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    if let Some(s) = &art.traveller_s { draw_character(&mut buf, s, sx, sy, zoom); }
+                },
+                Who::Chicken => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    if let Some(c) = &art.chicken {
+                        let (w, h) = ((c.width as f32 * 2.0 * zoom) as i32, (c.height as f32 * 2.0 * zoom) as i32);
+                        draw_zoomed(&mut buf, c, sx - w / 2, sy - h, 2.0 * zoom);
+                    }
+                },
+                // rival villagers (foreign settlement): the outlined figures
                 Who::Rival(i) => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    // rival sprite tinted different
-                    let anchor = match &art.player_s {
+                    let anchor = match art.rival_sprites.get(i) {
                         Some(rs) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
                         None => label_anchor(sy, zoom),
                     };
@@ -1606,6 +2085,15 @@ impl<'a> Game<'a> {
             }
         }
         for st in standing { draw_piece(&mut buf, st); }
+
+        // gulls wheel over the open sea
+        if let Some(gull) = &art.gull {
+            for (i, &(gx, gy)) in self.gulls.iter().enumerate() {
+                let t = self.frame_n as f32 * 0.05 + i as f32 * 2.1;
+                let (sx, sy) = iso_to_screen_cam(gx + t.cos() * 0.6, gy + t.sin() * 0.3, cam_x, cam_y, zoom);
+                draw_zoomed(&mut buf, gull, sx - gull.width as i32, sy - (14.0 * zoom) as i32, 2.0 * zoom);
+            }
+        }
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
@@ -1959,7 +2447,7 @@ impl<'a> Game<'a> {
                     // action_blocker checked there's gold and a site
                     let (bx, by) = self.build_site().unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
-                    self.buildings.push((bx, by, &self.art.house_s));
+                    self.buildings.push((bx, by, self.art.house(self.rng.below(97) as usize)));
                     self.map.occupy(bx as i32, by as i32);
                     // the road is laid a tile at a time, then the house goes up
                     let road = self.map.plan_road((bx as i32, by as i32));
@@ -2047,7 +2535,7 @@ impl<'a> Game<'a> {
         let (px, py) = self.player_pos();
         let dist = |(x, y): (i32, i32)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
         let home = self.buildings.iter().enumerate()
-            .filter(|(_, (_, _, s))| std::ptr::eq(*s, &self.art.house_s))
+            .filter(|(_, (_, _, s))| self.art.houses.iter().any(|h| std::ptr::eq(*s, h)))
             .map(|(i, (x, y, _))| ((*x as i32, *y as i32), if i < 3 { format!("{}'s house", NAMES[i]) } else { "the new house".to_string() }))
             .filter(|(at, _)| dist(*at) < MEETING_REACH)
             .min_by(|a, b| dist(a.0).partial_cmp(&dist(b.0)).unwrap());
@@ -2512,9 +3000,13 @@ mod depth_tests {
         // glitched spot on the wall)
         let art = Art::load("../assets");
         let mut game = Game::new(&art);
-        // a spot where the wall piece at (22,24) and the corner tower at
-        // (23,24) overlap: the tower stands in front, so it owns the seam
-        let (sx, sy) = iso_to_screen_cam(23.0, 24.0, game.cam_x, game.cam_y, game.zoom);
+        // a spot where the last wall piece and the front corner tower
+        // overlap: the tower stands in front, so it owns the seam (the map
+        // is perturbed per seed - find the corner, don't hardcode it)
+        let ((cx, cy), _) = game.map.walls.iter()
+            .filter(|(_, p)| *p == WallPiece::Tower)
+            .max_by_key(|((x, y), _)| x + y).copied().expect("a corner tower");
+        let (sx, sy) = iso_to_screen_cam(cx as f32, cy as f32, game.cam_x, game.cam_y, game.zoom);
         let seam = |buf: &Buffer| { let i = ((sy - 30) as usize * W + (sx - 17) as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
         let render_at = |game: &mut Game, x: f32, y: f32| {
             *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x, y };
@@ -2589,7 +3081,7 @@ mod walk_tests {
         let road = (0..33).flat_map(|y| (0..33).map(move |x| (x, y)))
             .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Road) && game.map.get(x + 1, y) == Some(Tile::Road)).unwrap();
         let grass = (0..33).flat_map(|y| (0..33).map(move |x| (x, y)))
-            .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Grass) && game.walkable(x as f32 + 0.2, y as f32)).unwrap();
+            .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Grass) && !game.map.trees.contains(&(x, y)) && game.walkable(x as f32 + 0.2, y as f32)).unwrap();
         let step = |game: &mut Game, (x, y): (i32, i32)| {
             put_player(game, x as f32 - 0.2, y as f32);
             game.walk(1.0, 0.0);
@@ -2923,12 +3415,15 @@ mod food_reach_tests {
         // hunger for up to 75 days in a row while it held ~480 servings
         let art = Art::load("../assets");
         let mut game = Game::new(&art);
-        let (mut last, mut run, mut worst) = (0, [0u64; 5], 0u64);
+        let (mut last, mut run, mut worst) = (0, [0u64; NAMES.len()], 0u64);
         while game.tick < 720 {
             game.update();
             if game.tick == last { continue; }
             last = game.tick;
             for (k, &v) in game.villagers.iter().enumerate() {
+                // the dead keep their last hunger (zero, if they starved): this
+                // test is about the living being able to reach the store
+                if game.world.get_component::<Health>(v).is_none() { run[k] = 0; continue; }
                 let empty = game.world.get_component::<Hunger>(v).map(|h| h.value <= 0.0).unwrap_or(false);
                 run[k] = if empty { run[k] + 1 } else { 0 };
                 worst = worst.max(run[k]);
@@ -3286,13 +3781,13 @@ fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Opt
 
 /// The panel's standing reminder of the keys - the only on-screen pointer
 /// to the help overlay once the title screen is gone
-const PANEL_HINT: &str = "1-5 select villager   H help";
+const PANEL_HINT: &str = "1-8 select villager   H help";
 
 const HELP_LINES: [&str; 9] = [
     "click button / key: take action",
     "click villager: select + inspect",
     "bright name: close enough to talk",
-    "1-5: select villager",
+    "1-8: select villager",
     "T talk  R recruit  I invest",
     "O organize  B build",
     "WASD: move   arrows: pan   +/-: zoom",
@@ -3312,7 +3807,7 @@ fn draw_help(buf: &mut Buffer) {
     draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
 }
 
-const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-5: select villager"];
+const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-8: select villager"];
 const PAUSE_W: i32 = 260;
 const PAUSE_ROW: i32 = 20;
 
@@ -3450,17 +3945,21 @@ fn main() {
     // optional --cam X,Y to pan the dump
     let cam: Option<(i32, i32)> = args.iter().position(|a| a == "--cam").and_then(|i| args.get(i + 1))
         .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?)));
-    let art = Art::load("assets");
+    // optional --seed N: which perturbed map to draw (default: a fresh one
+    // each run; GAME2_SEED does the same for launches)
+    let seed = args.iter().position(|a| a == "--seed").and_then(|i| args.get(i + 1))
+        .and_then(|v| v.parse().ok()).unwrap_or_else(run_seed);
+    let art = Art::load_seeded("assets", seed);
     if let Some(target) = dump_at {
         // --weather <drizzle|light|showers|rain|heavy|flurries|snow|blizzard|rainbow|clear>
         let weather = args.iter().position(|a| a == "--weather").and_then(|i| args.get(i + 1)).cloned();
-        run_headless(&art, target, out, zoom, cam, weather.as_deref());
+        run_headless(&art, target, out, zoom, cam, weather.as_deref(), seed);
         return;
     }
 
     let mut window = Window::new("The Wanderer - Medieval Village", W, H, WindowOptions::default())
         .expect("window failed");
-    let mut game = Game::new(&art);
+    let mut game = Game::new_seeded(&art, seed);
     let mut started = false; // title screen until Enter
     let mut mouse_was_down = false;
 
@@ -3501,6 +4000,9 @@ fn main() {
         if window.is_key_down(Key::Key3) { game.selected_target = 2; game.picked = true; }
         if window.is_key_down(Key::Key4) { game.selected_target = 3; game.picked = true; }
         if window.is_key_down(Key::Key5) { game.selected_target = 4; game.picked = true; }
+        if window.is_key_down(Key::Key6) { game.selected_target = 5; game.picked = true; }
+        if window.is_key_down(Key::Key7) { game.selected_target = 6; game.picked = true; }
+        if window.is_key_down(Key::Key8) { game.selected_target = 7; game.picked = true; }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { game.paused = !game.paused; }
         if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { game.help_open = !game.help_open; }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { game.zoom = (game.zoom + 0.006).min(2.0); }
@@ -3548,8 +4050,8 @@ fn main() {
 /// Headless verification: play the game (no input) until tick N, then
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
-fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>) {
-    let mut game = Game::new(art);
+fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64) {
+    let mut game = Game::new_seeded(art, seed);
     game.zoom = zoom;
     if let Some(cam) = cam { (game.cam_x, game.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
@@ -3637,12 +4139,14 @@ mod real_frame_tests {
         // the pack's stone(1) is a tiny pebble that's nearly all dark outline:
         // on the map it read as a black hole in the ground
         let art = Art::load("../assets");
-        let stone = art.stone_s.as_ref().expect("stone sprite should load");
-        let opaque: Vec<&[u8]> = stone.pixels.chunks(4).filter(|p| p[3] > 128).collect();
-        // every stone has a thick dark outline; what makes it read as a rock
-        // is a visible light face (stone(1): 10% of its pixels, the boulders 25-33%)
-        let light = opaque.iter().filter(|p| (p[0] as u32 + p[1] as u32 + p[2] as u32) > 300).count();
-        assert!(light * 5 >= opaque.len(), "stone sprite shows almost no rock face ({} of {} px light)", light, opaque.len());
+        assert!(!art.stones.is_empty(), "stone sprites should load");
+        for stone in art.stones.iter() {
+            let opaque: Vec<&[u8]> = stone.pixels.chunks(4).filter(|p| p[3] > 128).collect();
+            // every stone has a thick dark outline; what makes it read as a rock
+            // is a visible light face (stone(1): 10% of its pixels, the boulders 25-33%)
+            let light = opaque.iter().filter(|p| (p[0] as u32 + p[1] as u32 + p[2] as u32) > 300).count();
+            assert!(light * 5 >= opaque.len(), "stone sprite shows almost no rock face ({} of {} px light)", light, opaque.len());
+        }
     }
 
     #[test]
@@ -3684,7 +4188,8 @@ mod organize_tests {
         game.world.get_component_mut::<Pos>(game.player).unwrap().x = 16.0;
         game.world.get_component_mut::<Pos>(game.player).unwrap().y = 16.0;
         let (aldric, dagny) = (game.villagers[0], game.villagers[4]);
-        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0), (aldric, 2.0, 4.0), (dagny, 4.0, 2.0)] {
+        for (v, x, y) in [(eliza, 17.0, 16.0), (bram, 15.0, 17.0), (corvin, 2.0, 2.0), (aldric, 2.0, 4.0), (dagny, 4.0, 2.0),
+                          (game.villagers[5], 2.0, 6.0), (game.villagers[6], 6.0, 2.0), (game.villagers[7], 3.0, 5.0)] {
             let p = game.world.get_component_mut::<Pos>(v).unwrap();
             p.x = x; p.y = y;
         }
@@ -3819,6 +4324,8 @@ mod death_tests {
         let mut game = Game::new(&art);
         while game.tick < 60 { game.update(); }
         let corvin = game.villagers[3];
+        // a quiet spot away from the crowd, so no label or figure overlaps the grave
+        *game.world.get_component_mut::<Pos>(corvin).unwrap() = Pos { x: 21.0, y: 21.5 };
         game.world.get_component_mut::<Health>(corvin).unwrap().condition = 0.0;
         let t = game.tick;
         while game.tick < t + 2 { game.update(); }
@@ -3882,7 +4389,7 @@ mod dog_tests {
         game.world.get_component_mut::<Health>(aldric).unwrap().condition = 0.0;
         let t = game.tick;
         while game.tick < t + 3 { game.update(); }
-        let owner = game.world.get_component::<Pet>(game.dog).unwrap().owner.expect("someone should take the dog in");
+        let owner = game.world.get_component::<Pet>(game.pets[0].0).unwrap().owner.expect("someone should take the dog in");
         assert_ne!(owner, aldric, "the dog should be rehomed");
 
         // out in the open by the market, so nothing in front hides the dog

@@ -102,7 +102,7 @@ pub struct TileMap {
 }
 
 /// A repeatable per-tile random number in 0..1
-fn noise(x: i32, y: i32, salt: u32) -> f32 {
+pub fn noise(x: i32, y: i32, salt: u32) -> f32 {
     let mut h = (x as u32).wrapping_mul(374761393) ^ (y as u32).wrapping_mul(668265263) ^ salt.wrapping_mul(2246822519);
     h = (h ^ (h >> 13)).wrapping_mul(1274126177);
     ((h ^ (h >> 16)) & 0xffff) as f32 / 65535.0
@@ -113,7 +113,7 @@ const WOODS_SCALE: i32 = 6;
 
 /// Noise that varies smoothly over `scale` tiles (noise() at a coarse grid,
 /// blended between its corners), for things that come in patches
-fn smooth_noise(x: i32, y: i32, scale: i32, salt: u32) -> f32 {
+pub fn smooth_noise(x: i32, y: i32, scale: i32, salt: u32) -> f32 {
     let (gx, gy) = (x.div_euclid(scale), y.div_euclid(scale));
     let (fx, fy) = (x.rem_euclid(scale) as f32 / scale as f32, y.rem_euclid(scale) as f32 / scale as f32);
     let ease = |t: f32| t * t * (3.0 - 2.0 * t);

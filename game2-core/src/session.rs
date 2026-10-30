@@ -3,9 +3,11 @@
 
 pub mod model;
 pub mod net;
+pub mod driver;
 
 pub use model::*;
 pub use net::*;
+pub use driver::*;
 
 use crate::engine::ecs::{Entity, Scheduler, World};
 use crate::engine::render::Buffer;
@@ -449,6 +451,12 @@ fn tile_to_minimap(tx: f32, ty: f32, k: f32) -> (f32, f32) {
 
 /// The tile under minimap pixel (mx, my), if it's on the minimap's tiles
 /// (inverse of tile_to_minimap)
+/// Where a minimap click centres the camera, for any map (sim's or a model's)
+pub fn minimap_look_map(map: &TileMap, mx: i32, my: i32) -> Option<(i32, i32)> {
+    minimap_tile(mx as f32, my as f32, map.width as f32, map.height as f32)
+        .map(|(tx, ty)| camera_on(tx, ty))
+}
+
 pub fn minimap_tile(mx: f32, my: f32, w_t: f32, h_t: f32) -> Option<(f32, f32)> {
     let k = mm_k(w_t, h_t);
     let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
@@ -1210,6 +1218,22 @@ const MEETING_PROMPTS: [&str; 3] = [
     "Then let's take it on together.",
 ];
 
+/// The village's vocations and how commonly each is rolled
+const VOCATION_ROLL: [(Vocation, i32); 10] = [
+    (Vocation::Farmer, 22), (Vocation::Baker, 12), (Vocation::Mason, 10),
+    (Vocation::Tailor, 9), (Vocation::Toolmaker, 8), (Vocation::Knight, 8),
+    (Vocation::Priest, 8), (Vocation::Luthier, 6), (Vocation::Printmaker, 5),
+    (Vocation::Glazier, 5),
+];
+
+/// Roll a vocation by its weighted table (shareable by player spawns)
+fn roll_vocation(rng: &mut Rng) -> Vocation {
+    let total: i32 = VOCATION_ROLL.iter().map(|(_, w)| w).sum();
+    let mut pick = rng.below(total);
+    for (v, w) in VOCATION_ROLL { if pick < w { return v; } pick -= w; }
+    Vocation::Farmer
+}
+
 /// What a traveller is walking to do when he gets there
 #[derive(Clone, Debug)]
 pub enum Goal {
@@ -1223,6 +1247,10 @@ pub enum Goal {
     CollectTax(Entity),
     /// A kid runs an OddJob (component has hirer/good/from/to/pay)
     RunOddJob,
+    /// An agent asked their villager to go stand and chat with someone
+    TalkTo(Entity),
+    /// An agent asked their villager to simply stand somewhere
+    Wander,
 }
 
 /// A walk under way: tiles to step along, what for when they run out
@@ -1608,18 +1636,6 @@ impl Game {
 
         // ---- the people ----
         // vocations rolled by weight; knights and priests are PMC
-        const VOCATION_ROLL: [(Vocation, i32); 10] = [
-            (Vocation::Farmer, 22), (Vocation::Baker, 12), (Vocation::Mason, 10),
-            (Vocation::Tailor, 9), (Vocation::Toolmaker, 8), (Vocation::Knight, 8),
-            (Vocation::Priest, 8), (Vocation::Luthier, 6), (Vocation::Printmaker, 5),
-            (Vocation::Glazier, 5),
-        ];
-        let roll_vocation = |rng: &mut Rng| -> Vocation {
-            let total: i32 = VOCATION_ROLL.iter().map(|(_, w)| w).sum();
-            let mut pick = rng.below(total);
-            for (v, w) in VOCATION_ROLL { if pick < w { return v; } pick -= w; }
-            Vocation::Farmer
-        };
         // workshops for the vocations that get rolled (~85% coverage);
         // shops go on buildable tiles inside the wall, farms just outside
         let mut vocs_present: Vec<Vocation> = vec![];
@@ -2725,8 +2741,7 @@ impl Game {
     /// The camera centre for the map tile under minimap point (mx, my),
     /// if (mx, my) is on the minimap
     pub fn minimap_look(&self, mx: i32, my: i32) -> Option<(i32, i32)> {
-        minimap_tile(mx as f32, my as f32, self.map.width as f32, self.map.height as f32)
-            .map(|(tx, ty)| camera_on(tx, ty))
+        minimap_look_map(&self.map, mx, my)
     }
 
     /// A left click on the map at screen point (mx, my), seen through the
@@ -2784,8 +2799,9 @@ impl Game {
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
-            Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) =>
+            Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(_) => return false, // gathers go through send_gather
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
@@ -2880,6 +2896,14 @@ impl Game {
                     self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
                 }
             }
+            Goal::TalkTo(e) => {
+                // stand and chat: a conversation, a step toward a tie
+                relationships::record_interaction(&mut self.world, who, relationships::Interaction {
+                    other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
+                });
+                self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+            }
+            Goal::Wander => {}
             Goal::RunOddJob => {
                 let Some(job) = self.world.get_component_mut::<OddJob>(who)
                     .map(|j| OddJob { hirer: j.hirer, good: j.good.clone(), qty: j.qty, from: j.from, to: j.to, pay: j.pay, loaded: j.loaded })
@@ -3472,6 +3496,149 @@ impl Game {
             Command::CancelApproach => self.seats[seat].approach = None,
         }
     }
+
+    // ---------- multiplayer: seats, claims and the agent surface ----------
+
+    /// A new wanderer joins at the market: the same spawn as the first
+    /// player, with a class, a trade, a purse and an inner life.
+    pub fn add_seat(&mut self) -> usize {
+        let player = self.world.create_entity();
+        let gold = livelihood::seed_gold(SocialClass::Working, false, self.rng.next() as f32 / u64::MAX as f32);
+        self.world.add_component(player, PlayerCharacter {
+            name: "A Wanderer".into(), influence: 0.1, authority: 0.0, resources: gold, standing: 0.0 });
+        let mp = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x + 2.0, p.y + 1.0)).unwrap_or((10.0, 10.0));
+        self.world.add_component(player, Pos { x: mp.0, y: mp.1 });
+        self.world.add_component(player, vocation::craft(roll_vocation(&mut self.rng), 0.2));
+        self.world.add_component(player, Satchel::default());
+        self.world.add_component(player, Purse { gold });
+        self.world.add_component(player, Organizer::default());
+        let org = self.world.create_entity();
+        self.world.add_component(org, Organization {
+            name: "The Free Folk".into(), members: vec![], leader: player,
+            influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() });
+        self.seats.push(Seat { player, org, ..Seat::default() });
+        self.seats.len() - 1
+    }
+
+    /// An API agent takes the reins of a villager: the seat's character is
+    /// the villager entity itself; no PlayerCharacter, no org of their own.
+    pub fn add_agent_seat(&mut self, villager: Entity) -> usize {
+        let org = self.world.create_entity();
+        self.world.add_component(org, Organization {
+            name: "-".into(), members: vec![], leader: villager,
+            influence_pool: 0.0, resources: 0.0, charter: "-".into() });
+        self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
+        self.seats.len() - 1
+    }
+
+    /// The first living villager nobody drives yet
+    pub fn free_villager(&self) -> Option<usize> {
+        self.villagers.iter().position(|v| !villager::is_dead(&self.world, *v)
+            && !self.seats.iter().any(|s| s.player == *v))
+    }
+
+    /// What an agent asks its villager to do. Maps to the same travel/goal
+    /// machinery the village's own errands use, so nothing happens until the
+    /// walking is done - arrival triggers the trade, the chat, the gather.
+    pub fn agent_command(&mut self, seat: usize, cmd: AgentCmd) -> Result<(), String> {
+        let who = self.seats.get(seat).map(|s| s.player).ok_or_else(|| "no such seat".to_string())?;
+        match cmd {
+            AgentCmd::Idle => { self.travels.retain(|t| t.who != who); Ok(()) }
+            AgentCmd::GoTo { x, y } => {
+                let Some(p) = self.world.get_component::<Pos>(who) else { return Err("you aren't in the world".into()) };
+                let from = (p.x.round() as i32, p.y.round() as i32);
+                match self.map.walk_path(from, (x, y)) {
+                    Some(mut path) => {
+                        path.push((x, y));
+                        self.travels.retain(|t| t.who != who);
+                        self.travels.push(Travel { who, path, goal: Goal::Wander });
+                        Ok(())
+                    }
+                    None => Err("no way there".into()),
+                }
+            }
+            AgentCmd::TalkTo { e } => {
+                if self.send(who, Goal::TalkTo(e)) { Ok(()) } else { Err("no way to them".into()) }
+            }
+            AgentCmd::BuyFrom { seller, good, qty } => {
+                let g: &'static str = Box::leak(good.into_boxed_str());
+                if self.send(who, Goal::BuyFrom(seller, g, qty)) { Ok(()) } else { Err("no way to them".into()) }
+            }
+            AgentCmd::BuyAt { shop, good } => {
+                let g: &'static str = Box::leak(good.into_boxed_str());
+                if self.send(who, Goal::BuyAt(shop, g, None)) { Ok(()) } else { Err("no way to that shop".into()) }
+            }
+            AgentCmd::Gather { good, x, y } => {
+                let g: &'static str = Box::leak(good.into_boxed_str());
+                if self.send_gather(who, g, (x, y)) { Ok(()) } else { Err("nothing to gather there".into()) }
+            }
+            AgentCmd::WorkDay => {
+                let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
+                if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }
+            }
+            AgentCmd::Eat => {
+                // step to the market store; the hunger logic does the rest
+                let Some(p) = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
+                    return Err("no store".into()) };
+                match self.map.walk_path(
+                    self.world.get_component::<Pos>(who).map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(p), p)
+                {
+                    Some(path) => { self.travels.retain(|t| t.who != who); self.travels.push(Travel { who, path, goal: Goal::Wander }); Ok(()) }
+                    None => Err("no way to the store".into()),
+                }
+            }
+        }
+    }
+
+    /// What an agent sees: itself, its purse, its belly, who's near and
+    /// what's under way. Compact - the client decides between observations.
+    pub fn agent_obs(&self, seat: usize) -> Option<AgentObs> {
+        let who = self.seats.get(seat)?.player;
+        let p = self.world.get_component::<Pos>(who)?;
+        let gold = self.world.get_component::<Purse>(who).map(|x| x.gold).unwrap_or(0.0);
+        let hunger = self.world.get_component::<Hunger>(who).map(|x| x.value).unwrap_or(100.0);
+        let busy = if self.travels.iter().any(|t| t.who == who) {
+            Some("travelling".to_string())
+        } else {
+            self.world.get_component::<Villager>(who).map(|v| format!("{:?}", v.activity))
+        };
+        let mut near: Vec<ObsPerson> = self.villagers.iter().enumerate()
+            .filter_map(|(i, v)| {
+                if *v == who { return None; }
+                let q = self.world.get_component::<Pos>(*v)?;
+                let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
+                (d < 8.0).then(|| ObsPerson { e: *v, name: NAMES[i].to_string(), dist: d,
+                    dead: villager::is_dead(&self.world, *v) })
+            }).collect();
+        for s in self.seats.iter().filter(|s| !s.agent) {
+            if s.player == who { continue; }
+            if let Some(q) = self.world.get_component::<Pos>(s.player) {
+                let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
+                if d < 8.0 { near.push(ObsPerson { e: s.player, name: "a wanderer".into(), dist: d, dead: false }); }
+            }
+        }
+        let near_buildings: Vec<ObsBuilding> = self.building_entities.iter().filter_map(|be| {
+            let q = self.world.get_component::<Pos>(*be)?;
+            let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
+            if d >= 8.0 { return None; }
+            let b = self.world.get_component::<Building>(*be)?;
+            let kind = match b.kind {
+                BuildingKind::Home => "home", BuildingKind::Shop(_) => "shop",
+                BuildingKind::Church => "church", BuildingKind::WatchPost => "watch",
+                BuildingKind::Mill => "mill", BuildingKind::Granary => "granary",
+                BuildingKind::TraderStall => "stall",
+            };
+            Some(ObsBuilding { e: *be, name: b.name.clone(), kind: kind.into(), dist: d })
+        }).collect();
+        let satchel = self.world.get_component::<Satchel>(who)
+            .map(|s| s.goods.iter().map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
+        Some(AgentObs {
+            tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
+            near, near_buildings, satchel,
+            walking: self.travels.iter().any(|t| t.who == who),
+        })
+    }
+
     // ---- seat-0 conveniences: the solo game and tests drive seat 0 ----
     pub fn act(&mut self, i: usize) { self.act_at(0, i) }
     pub fn ctx_act(&mut self, i: usize) { self.ctx_act_at(0, i) }

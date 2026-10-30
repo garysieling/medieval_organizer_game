@@ -11,7 +11,7 @@ use std::collections::HashMap;
 pub type Entity = u32;
 
 /// Storage for one component type: entity -> component
-type ComponentStorage = HashMap<Entity, Box<dyn Any>>;
+type ComponentStorage = HashMap<Entity, Box<dyn Any + Send>>;
 
 /// The world holds entities and all component storages
 pub struct World {
@@ -36,7 +36,7 @@ impl World {
     }
 
     /// Add a component to an entity
-    pub fn add_component<T: Any>(&mut self, entity: Entity, component: T) {
+    pub fn add_component<T: Any + Send>(&mut self, entity: Entity, component: T) {
         self.storages
             .entry(TypeId::of::<T>())
             .or_default()
@@ -44,7 +44,7 @@ impl World {
     }
 
     /// Get a component for an entity
-    pub fn get_component<T: Any>(&self, entity: Entity) -> Option<&T> {
+    pub fn get_component<T: Any + Send>(&self, entity: Entity) -> Option<&T> {
         self.storages
             .get(&TypeId::of::<T>())?
             .get(&entity)?
@@ -52,7 +52,7 @@ impl World {
     }
 
     /// Get a mutable component for an entity
-    pub fn get_component_mut<T: Any>(&mut self, entity: Entity) -> Option<&mut T> {
+    pub fn get_component_mut<T: Any + Send>(&mut self, entity: Entity) -> Option<&mut T> {
         self.storages
             .get_mut(&TypeId::of::<T>())?
             .get_mut(&entity)?
@@ -60,7 +60,7 @@ impl World {
     }
 
     /// Remove a component from an entity
-    pub fn remove_component<T: Any>(&mut self, entity: Entity) -> bool {
+    pub fn remove_component<T: Any + Send>(&mut self, entity: Entity) -> bool {
         if let Some(storage) = self.storages.get_mut(&TypeId::of::<T>()) {
             return storage.remove(&entity).is_some();
         }
@@ -77,7 +77,7 @@ impl World {
     /// All entities that have component T, in creation (id) order. The
     /// storage is a HashMap whose iteration order is randomized per process,
     /// so sorting keeps systems - and every sim and playtest - reproducible.
-    pub fn query<T: Any>(&self) -> Vec<Entity> {
+    pub fn query<T: Any + Send>(&self) -> Vec<Entity> {
         match self.storages.get(&TypeId::of::<T>()) {
             Some(storage) => {
                 let mut entities: Vec<Entity> = storage.keys().copied().collect();
@@ -95,7 +95,7 @@ impl World {
 }
 
 /// A system processes world state each tick
-pub trait System {
+pub trait System: Send {
     /// Run the system once against the world
     fn run(&mut self, world: &mut World);
 }

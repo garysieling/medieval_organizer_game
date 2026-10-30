@@ -3,6 +3,11 @@ name = "game2-core"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+# The 4x speed key: solo-play only while the flag rides out its deprecation
+speed-timer = []
+
 [dependencies]
 minifb = "0.29.0"
 png = "0.18.1"

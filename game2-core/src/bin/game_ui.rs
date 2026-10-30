@@ -3782,7 +3782,7 @@ mod stay_home_tests {
                 // straying means leaving town: outside the wall (with room
                 // for the fields just past it), not the far corner of the
                 // market square, which is still home
-                let (wx0, wy0, wx1, wy1) = game.town_wall.unwrap();
+                let (wx0, wy0, wx1, wy1) = game.town_wall;
                 let outside = p.x < wx0 as f32 - 4.0 || p.x > wx1 as f32 + 4.0
                     || p.y < wy0 as f32 - 4.0 || p.y > wy1 as f32 + 4.0;
                 let adrift = outside

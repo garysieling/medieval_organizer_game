@@ -3952,17 +3952,28 @@ mod progression_tests {
         let mut game = Game::new(&art);
         for i in 0..game.villagers.len() {
             let v = game.villagers[i];
+            // folk die over the years this takes - a corpse can't come to a
+            // meeting, whatever the player says beside it
+            if villager::is_dead(&game.world, v) { continue; }
             let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
             { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy; }
             game.selected_target = i;
             for _ in 0..8 { game.act(0); } // talk until there's nothing new to hear
             for _ in 0..40 {
                 if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) { break; }
+                // trust decays a little every day - a meeting a fortnight
+                // apart won't climb past it unless the talking keeps up
+                game.act(0);
                 game.act(3);
                 finish_meeting(&mut game);
             }
-            assert!(game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v),
-                "{} never joined at a meeting", NAMES[i]);
+            if !game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) {
+                let rel = relationships::find_relationship(&game.world, game.player, v)
+                    .and_then(|r| game.world.get_component::<Relationship>(r)).map(|r| r.strength);
+                let last: Vec<&String> = game.log.iter().rev().take(4).collect();
+                panic!("{} never joined at a meeting (dead {}, trust {:?}, last log {:?})",
+                    NAMES[i], villager::is_dead(&game.world, v), rel, last);
+            }
         }
         while game.disabled_reason(2).is_none()
             && game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources >= 10.0 {

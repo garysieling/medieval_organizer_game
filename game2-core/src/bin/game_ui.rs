@@ -500,6 +500,20 @@ const TOWN_WALL: (i32, i32, i32, i32) = (8, 8, 23, 24);
 const FPS: u32 = 60;
 /// How long a reply to Talk, and a remark in passing, stay up (seconds)
 const TALK_BUBBLE_SECS: u32 = 5;
+
+/// How close the player stands to someone to talk to them (tiles). Talk on
+/// someone farther off walks the player over first.
+const TALK_DIST: f32 = 1.5;
+
+/// Frames the player can make no headway before a walk over to talk gives up
+const APPROACH_STUCK_FRAMES: u32 = FPS;
+
+/// Walking over to someone to talk to them
+struct Approach {
+    who: usize,              // villager index
+    path: Vec<(i32, i32)>,   // tiles still to walk, their tile last
+    stuck: u32,              // frames without headway
+}
 const CHAT_BUBBLE_SECS: u32 = 3;
 /// How near two people must be to chat in passing (tiles), how many days
 /// before the same pair chat again, and how much a chat counts for (a fifth
@@ -908,6 +922,10 @@ struct Game<'a> {
     near: Vec<(Entity, Entity)>,
     last_chat: Vec<((Entity, Entity), u64)>,
     frame_n: u32,
+    /// The player picked the selected villager themselves (clicked them or
+    /// pressed 1-5) and hasn't walked off since: Talk goes to them, however far
+    picked: bool,
+    approach: Option<Approach>,
     precip: Option<PrecipKind>, // what is falling today
     rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
@@ -1032,6 +1050,8 @@ impl<'a> Game<'a> {
             was_sick: vec![false; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
+            picked: false,
+            approach: None,
             precip: None,
             rainbow_from: None,
         }
@@ -1136,9 +1156,10 @@ impl<'a> Game<'a> {
     fn disabled_reason(&self, i: usize) -> Option<String> {
         // Recruit is pointless on a member and Invest on an empty purse: say
         // so on the button, as Build does, rather than fail in the log
-        // Talk/Recruit need the selected villager alive and within reach; a
+        // Talk needs the selected villager alive (it walks over to them);
+        // Recruit also needs them within reach; a
         // house meeting (Organize) just needs someone nearby to come
-        let target = self.villagers[self.reach_target()];
+        let target = self.villagers[if i == 0 && self.picked { self.selected_target } else { self.reach_target() }];
         let in_reach = self.villagers_in_reach();
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let p = self.world.get_component::<PlayerCharacter>(self.player).unwrap();
@@ -1147,7 +1168,7 @@ impl<'a> Game<'a> {
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 2 && p.resources < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
-        else if (i == 0 || i == 1) && !in_reach.contains(&target) { Some("too far away".into()) }
+        else if i == 1 && !in_reach.contains(&target) { Some("too far away".into()) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 3 && self.meeting.is_some() { Some("a meeting is under way".into()) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
@@ -1339,6 +1360,7 @@ impl<'a> Game<'a> {
             self.works.retain(|w| w.risen() < 1.0);
             self.advance_meeting();
         }
+        self.advance_approach();
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);
         // movement is still processed while paused, but relationships and
@@ -1806,26 +1828,101 @@ impl<'a> Game<'a> {
         buf
     }
 
+    /// Talk to villager `who`: hear what they say. Returns the log line
+    fn talk_to(&mut self, who: usize) -> String {
+        let v = self.villagers[who];
+        // Uncapped talk count - Rapport caps at 1.0 and would
+        // freeze the concern/small-talk index after a few talks.
+        let talks_before = self.world.get_component::<TalkCount>(v)
+            .map(|c| c.value).unwrap_or(0);
+        let (did, said) = talk_response(&self.world, v, NAMES[who], talks_before);
+        act_talk(&mut self.world, self.player, v);
+        self.say(v, &said, TALK_BUBBLE_SECS);
+        format!("{}: \"{}\"", did, said)
+    }
+
+    /// Distance from the player to villager `who`, in tiles
+    fn dist_to(&self, who: usize) -> f32 {
+        let (px, py) = self.player_pos();
+        self.world.get_component::<Pos>(self.villagers[who])
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt()).unwrap_or(f32::MAX)
+    }
+
+    /// The tiles to walk to reach villager `who`, round walls and buildings
+    fn path_to(&self, who: usize) -> Option<Vec<(i32, i32)>> {
+        let (px, py) = self.player_pos();
+        let p = self.world.get_component::<Pos>(self.villagers[who])?;
+        self.map.walk_path((px.round() as i32, py.round() as i32), (p.x.round() as i32, p.y.round() as i32))
+    }
+
+    /// Talk on someone who isn't beside the player: set off to walk over to
+    /// them (the talk happens on arrival; see advance_approach). None when
+    /// they're already close enough to talk to now.
+    fn start_approach(&mut self, who: usize) -> Option<String> {
+        if self.dist_to(who) <= TALK_DIST { return None; }
+        match self.path_to(who) {
+            Some(path) => {
+                self.approach = Some(Approach { who, path, stuck: 0 });
+                Some(format!("You walk over to {}.", NAMES[who]))
+            }
+            None => Some(format!("Can't talk: there's no way to reach {}.", NAMES[who])),
+        }
+    }
+
+    /// One frame of walking over to talk: follow the path (finding a new one
+    /// if they've wandered off), and talk once beside them
+    fn advance_approach(&mut self) {
+        let Some(mut a) = self.approach.take() else { return };
+        let who = a.who;
+        // they died on the way: nothing to say
+        if villager::is_dead(&self.world, self.villagers[who]) { return; }
+        if self.dist_to(who) <= TALK_DIST {
+            let msg = self.talk_to(who);
+            self.log.push(format!("t{}: {}", self.tick, msg));
+            return;
+        }
+        let Some(&Pos { x: vx, y: vy }) = self.world.get_component::<Pos>(self.villagers[who]) else { return };
+        let headed_off = a.path.last()
+            .map(|&(x, y)| ((x as f32 - vx).powi(2) + (y as f32 - vy).powi(2)).sqrt() > TALK_DIST)
+            .unwrap_or(true);
+        if headed_off {
+            match self.path_to(who) {
+                Some(path) => a.path = path,
+                None => { self.log.push(format!("t{}: You can't find a way to {}.", self.tick, NAMES[who])); return; }
+            }
+        }
+        let (px, py) = self.player_pos();
+        // drop tiles already reached; the last one is their tile, so head for them
+        while a.path.len() > 1 {
+            let (x, y) = a.path[0];
+            if (x as f32 - px).abs() < 0.25 && (y as f32 - py).abs() < 0.25 { a.path.remove(0); } else { break; }
+        }
+        let (tx, ty) = match a.path.as_slice() { [(x, y), _, ..] => (*x as f32, *y as f32), _ => (vx, vy) };
+        let (dx, dy) = (tx - px, ty - py);
+        if dx.abs() + dy.abs() > 1e-3 { self.walk(dx, dy); }
+        a.stuck = if self.player_pos() != (px, py) { 0 } else { a.stuck + 1 };
+        if a.stuck > APPROACH_STUCK_FRAMES {
+            self.log.push(format!("t{}: You can't get through to {}.", self.tick, NAMES[who]));
+            return;
+        }
+        self.approach = Some(a);
+    }
+
     /// Take action button `i` (Talk, Recruit, Invest, Organize, Build)
     fn act(&mut self, i: usize) {
         let tick = self.tick;
-        if i == 0 || i == 1 { self.selected_target = self.reach_target(); }
+        // Talk goes to whoever the player picked; otherwise (and for Recruit)
+        // to whoever is in reach
+        if (i == 0 && !self.picked) || i == 1 { self.selected_target = self.reach_target(); }
         let selected_target = self.selected_target;
         let msg = if let Some(reason) = self.action_blocker(i) {
             format!("Can't {}: {}.", self.buttons[i].label.to_lowercase(), reason)
         } else {
             match i {
-                0 => {
-                    let v = self.villagers[selected_target];
-                    // Uncapped talk count - Rapport caps at 1.0 and would
-                    // freeze the concern/small-talk index after a few talks.
-                    let talks_before = self.world.get_component::<TalkCount>(v)
-                        .map(|c| c.value).unwrap_or(0);
-                    let (did, said) = talk_response(&self.world, v, NAMES[selected_target], talks_before);
-                    act_talk(&mut self.world, self.player, v);
-                    self.say(v, &said, TALK_BUBBLE_SECS);
-                    format!("{}: \"{}\"", did, said)
-                }
+                0 => match self.start_approach(selected_target) {
+                    Some(walking) => walking,
+                    None => self.talk_to(selected_target),
+                },
                 1 => {
                     let r = act_recruit(&mut self.world, self.player, self.org, self.villagers[selected_target]);
                     if r.success { format!("{} joined!", NAMES[selected_target]) }
@@ -2093,6 +2190,7 @@ impl<'a> Game<'a> {
                 if on_map && d < 30.0 && d < best_d { best = i; best_d = d; }
             }
         }
+        if best_d < 30.0 { self.picked = true; }
         self.selected_target = best;
     }
 }
@@ -2488,6 +2586,61 @@ mod talk_reach_tests {
         assert_eq!(game.selected_target, 2, "Talk should turn to the villager in reach");
         let line = game.log.last().unwrap();
         assert!(line.contains(NAMES[2]) && !line.contains("Can't"), "{}", line);
+    }
+
+    /// A villager the player can walk to who's well out of talking distance
+    fn far_villager(game: &Game) -> usize {
+        (0..game.villagers.len())
+            .filter(|&i| game.dist_to(i) > 4.0 && game.path_to(i).is_some())
+            .max_by(|&a, &b| game.dist_to(a).partial_cmp(&game.dist_to(b)).unwrap())
+            .expect("someone to walk over to")
+    }
+
+    #[test]
+    fn test_talk_on_a_picked_villager_walks_over_then_talks() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        while game.tick < 3 { game.update(); }
+        let who = far_villager(&game);
+        game.selected_target = who;
+        game.picked = true; // clicked on them
+        let v = game.villagers[who];
+        let talks = |g: &Game| g.world.get_component::<TalkCount>(v).map(|c| c.value).unwrap_or(0);
+        let before = talks(&game);
+        let start = game.dist_to(who);
+
+        game.act(0);
+        assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", NAMES[who])), "{}", game.log.last().unwrap());
+        assert_eq!(talks(&game), before, "no talking from across the village");
+
+        for _ in 0..(30 * FPS) {
+            if game.approach.is_none() { break; }
+            game.update();
+        }
+        assert!(game.approach.is_none(), "still walking to {} ({} tiles off, started {})", NAMES[who], game.dist_to(who), start);
+        assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), NAMES[who]);
+        assert_eq!(talks(&game), before + 1, "talked once on arrival");
+        assert!(game.log.iter().any(|l| l.contains(NAMES[who]) && l.contains(": \"")), "no talk line: {:?}", game.log);
+    }
+
+    #[test]
+    fn test_talk_is_never_too_far_away() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        let (px, py) = game.player_pos();
+        let from = (px.round() as i32, py.round() as i32);
+        // a tile the player can walk to, well out of reach
+        let spot = (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
+            .find(|&(x, y)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt() > MEETING_REACH + 2.0
+                && game.map.walk_path(from, (x, y)).is_some())
+            .expect("somewhere far but reachable");
+        let v = game.villagers[2];
+        *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
+        game.selected_target = 2;
+        game.picked = true;
+        assert_eq!(game.disabled_reason(0), None, "Talk walks over, so distance doesn't grey it out");
+        game.act(0);
+        assert!(game.approach.is_some() && game.log.last().unwrap().contains("You walk over to"), "{}", game.log.last().unwrap());
     }
 }
 
@@ -3282,11 +3435,11 @@ fn main() {
         if let Some(i) = action { game.act(i); }
         // holding the mouse on the minimap moves the view there
         if !(mouse_down && game.look_at_minimap(mx, my)) && clicked { game.click_map(mx, my); }
-        if window.is_key_down(Key::Key1) { game.selected_target = 0; }
-        if window.is_key_down(Key::Key2) { game.selected_target = 1; }
-        if window.is_key_down(Key::Key3) { game.selected_target = 2; }
-        if window.is_key_down(Key::Key4) { game.selected_target = 3; }
-        if window.is_key_down(Key::Key5) { game.selected_target = 4; }
+        if window.is_key_down(Key::Key1) { game.selected_target = 0; game.picked = true; }
+        if window.is_key_down(Key::Key2) { game.selected_target = 1; game.picked = true; }
+        if window.is_key_down(Key::Key3) { game.selected_target = 2; game.picked = true; }
+        if window.is_key_down(Key::Key4) { game.selected_target = 3; game.picked = true; }
+        if window.is_key_down(Key::Key5) { game.selected_target = 4; game.picked = true; }
         if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { game.paused = !game.paused; }
         if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { game.help_open = !game.help_open; }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { game.zoom = (game.zoom + 0.006).min(2.0); }
@@ -3299,7 +3452,12 @@ fn main() {
         if window.is_key_down(Key::S) { dy += 1.0; }
         if window.is_key_down(Key::A) { dx -= 1.0; }
         if window.is_key_down(Key::D) { dx += 1.0; }
-        if dx != 0.0 || dy != 0.0 { game.walk(dx, dy); }
+        if dx != 0.0 || dy != 0.0 {
+            // the player is walking themselves: drop any walk over to talk
+            game.approach = None;
+            game.picked = false;
+            game.walk(dx, dy);
+        }
         // arrows pan the camera
         if window.is_key_down(Key::Left)  { game.cam_x += 2; }
         if window.is_key_down(Key::Right) { game.cam_x -= 2; }

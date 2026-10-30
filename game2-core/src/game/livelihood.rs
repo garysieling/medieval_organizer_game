@@ -36,6 +36,8 @@ pub struct OddJob {
     pub from: Entity,
     pub to: Entity,
     pub pay: f32,
+    /// Whether the goods are picked up already (second leg, to the hirer)
+    pub loaded: bool,
 }
 
 /// Gold everyone starts with, by class (the player rolls one of these too)

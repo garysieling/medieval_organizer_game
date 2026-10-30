@@ -3779,7 +3779,13 @@ mod stay_home_tests {
                     || Some(*v) == game.collector { run[i] = 0; continue; }
                 let p = game.world.get_component::<Pos>(*v).unwrap();
                 let d = |hp: Pos| ((p.x - hp.x).powi(2) + (p.y - hp.y).powi(2)).sqrt();
-                let adrift = d(home) > VILLAGE_RADIUS + 3.0
+                // straying means leaving town: outside the wall (with room
+                // for the fields just past it), not the far corner of the
+                // market square, which is still home
+                let (wx0, wy0, wx1, wy1) = game.town_wall.unwrap();
+                let outside = p.x < wx0 as f32 - 4.0 || p.x > wx1 as f32 + 4.0
+                    || p.y < wy0 as f32 - 4.0 || p.y > wy1 as f32 + 4.0;
+                let adrift = outside
                     && homes[i].map(|hp| d(hp) > 4.0).unwrap_or(true)
                     && posts[i].map(|pp| d(pp) > 4.0).unwrap_or(true);
                 run[i] = if adrift { run[i] + 1 } else { 0 };

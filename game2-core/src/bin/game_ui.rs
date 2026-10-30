@@ -1685,14 +1685,26 @@ impl<'a> Game<'a> {
         // until the rivals' food store was nearer than ours, then ate there
         // and lived in their village, off the edge of the view
         if !self.paused {
-            let home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
-            let food_tile = home.map(|(hx, hy)| (hx.round() as i32, hy.round() as i32));
+            let village_home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
             for v in villagers.iter() {
                 if villager::is_dead(world, *v) { continue; }
-                let seeking = world.get_component::<Villager>(*v)
-                    .map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
+                let vdata = world.get_component::<Villager>(*v);
+                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
+                let target_food = vdata.and_then(|x| x.target_food);
+                // a seeking villager heads for the food source SeekFoodSystem
+                // actually picked (which may be the rival granary once ours
+                // runs dry), not always the village store - otherwise this
+                // wall-avoidance pass fights the daily system's choice and
+                // walks a hungry villager back and forth, never arriving
+                let dest = if seeking {
+                    target_food.and_then(|f| world.get_component::<Pos>(f)).map(|p| (p.x, p.y))
+                        .or(village_home)
+                } else {
+                    village_home
+                };
+                let food_tile = dest.map(|(hx, hy)| (hx.round() as i32, hy.round() as i32));
                 let Some(p) = world.get_component_mut::<Pos>(*v) else { continue };
-                let Some((hx, hy)) = home else { continue };
+                let Some((hx, hy)) = dest else { continue };
                 let (dx, dy) = (hx - p.x, hy - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
                 // a hungry villager more than eating distance away walks the

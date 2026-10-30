@@ -3756,6 +3756,12 @@ mod stay_home_tests {
         let homes: Vec<Option<Pos>> = game.villagers.iter().map(|&v| {
             household::home_of(&game.world, v).and_then(|h| game.world.get_component::<Pos>(h)).map(|p| *p)
         }).collect();
+        // and where they work - a farm or a mason's yard south of the wall
+        // is a day's post, not wandering
+        let posts: Vec<Option<Pos>> = game.villagers.iter().map(|&v| {
+            game.world.get_component::<Craft>(v).and_then(|c| c.workplace)
+                .and_then(|b| game.world.get_component::<Pos>(b)).map(|p| *p)
+        }).collect();
         // a stray is being far from the store AND from your own house for
         // days on end - an errand out and back isn't one
         let mut run = [0u64; 30];
@@ -3774,7 +3780,8 @@ mod stay_home_tests {
                 let p = game.world.get_component::<Pos>(*v).unwrap();
                 let d = |hp: Pos| ((p.x - hp.x).powi(2) + (p.y - hp.y).powi(2)).sqrt();
                 let adrift = d(home) > VILLAGE_RADIUS + 3.0
-                    && homes[i].map(|hp| d(hp) > 4.0).unwrap_or(true);
+                    && homes[i].map(|hp| d(hp) > 4.0).unwrap_or(true)
+                    && posts[i].map(|pp| d(pp) > 4.0).unwrap_or(true);
                 run[i] = if adrift { run[i] + 1 } else { 0 };
                 if run[i] > worst { (worst, who_was_it) = (run[i], i); }
             }

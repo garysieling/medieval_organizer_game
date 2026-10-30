@@ -354,7 +354,8 @@ const LOG_TOWN_SHOWN: usize = 3;
 fn is_town_note(entry: &str) -> bool {
     entry.contains(" is now a ") || entry.contains("has come to town")
         || entry.contains("takes his cut") || entry.contains("Organizer discovers issue")
-        || entry.contains("at the fold") || entry.contains(" treats ")
+        || entry.contains("the fold") || entry.contains("a fox")
+        || entry.contains("brought") || entry.contains(" treats ")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -709,6 +710,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Work => Button { label: "Work".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 90, 140) },
         CtxAct::Errand => Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) },
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
+        CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -1430,6 +1432,8 @@ pub enum CtxAct {
     PairUp,
     /// Send the picked child on a paid errand
     Errand,
+    /// Put a word between two hearts the organizer knows are lonely
+    Matchmake,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -1553,6 +1557,9 @@ pub struct Game {
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,
     pub hen_houses: Vec<Entity>,
+    /// The heart-helper, and the pairings she's already tried this month
+    pub matchmaker: Option<Entity>,
+    pub match_tried: Vec<(Entity, Entity, u64)>,
 }
 
 /// seat 0 is the local/only player in solo play: `game.selected_target` and
@@ -1993,6 +2000,9 @@ impl Game {
             }
         }
         world.get_component_mut::<Building>(trader_stall).unwrap().worker = Some(villagers[25]);
+        // the heart-helper: one elder who keeps an eye on lonely hearts
+        let matchmaker = villagers.get(27).copied();
+        if let Some(mm) = matchmaker { world.add_component(mm, TownRole::Matchmaker); }
         // the shepherd keeps the fold, and a sheepdog keeps him
         let shepherd = villagers.iter().copied().find(|&v|
             world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Shepherd).unwrap_or(false));
@@ -2123,6 +2133,8 @@ impl Game {
             next_graze: 0,
             hens,
             hen_houses,
+            matchmaker,
+            match_tried: vec![],
         }
     }
 
@@ -3157,6 +3169,98 @@ impl Game {
         }
     }
 
+    /// The heart-helper's rounds: she keeps her corner of the market, and
+    /// now and then a lonely heart is nudged to come and sit with her
+    pub fn matchmaker_tick(&mut self, tick: u64) {
+        let Some(mm) = self.matchmaker else { return };
+        if tick % 4 != 0 || villager::is_dead(&self.world, mm) { return; }
+        if let Some(&a) = self.lonely_hearts().iter().find(|&&a| {
+            a != mm && !villager::is_dead(&self.world, a)
+            && self.world.get_component::<Hunger>(a).map(|h| h.value >= 30.0).unwrap_or(true)
+            && !self.travels.iter().any(|t| t.who == a)
+        }) { self.send(a, Goal::TalkTo(mm)); }
+    }
+
+    /// Villagers carrying an unmet Want::Love and no sweetheart yet
+    pub fn lonely_hearts(&self) -> Vec<Entity> {
+        self.villagers.iter().copied().filter(|&v| {
+            !villager::is_dead(&self.world, v)
+            // grown, not a kid: kids have no craft
+            && self.world.get_component::<Craft>(v).is_some()
+            && self.world.get_component::<InnerLife>(v)
+                .map(|l| l.wants.contains(&desires::Want::Love)
+                    && !l.satisfied.iter().any(|(w, u)| *w == desires::Want::Love && *u > self.tick))
+                .unwrap_or(false)
+            && !self.has_rel(relationships::RelKind::Lover, v)
+        }).collect()
+    }
+
+    /// Does `v` stand in any relationship of `kind`?
+    pub fn has_rel(&self, kind: relationships::RelKind, v: Entity) -> bool {
+        self.world.query::<relationships::Relationship>().iter().any(|&r| {
+            let r = self.world.get_component::<relationships::Relationship>(r).unwrap();
+            r.kind == kind && (r.from == v || r.other == v)
+        })
+    }
+
+    /// The relationship standing between `a` and `b`, if any
+    fn rel_kind(&self, a: Entity, b: Entity) -> Option<relationships::RelKind> {
+        self.world.query::<relationships::Relationship>().iter().find_map(|&r| {
+            let r = self.world.get_component::<relationships::Relationship>(r).unwrap();
+            if (r.from == a && r.other == b) || (r.from == b && r.other == a) { Some(r.kind) } else { None }
+        })
+    }
+
+    fn name_of(&self, e: Entity) -> String {
+        self.villagers.iter().position(|&x| x == e).map(|i| NAMES[i].to_string())
+            .unwrap_or_else(|| "someone".into())
+    }
+
+    /// Try to kindle something between `a` and another lonely heart.
+    /// `broker` pockets the fee if a match catches; `who` is who the log
+    /// credits - "the heart-helper", or "you" when the player brokers it
+    pub fn match_attempt(&mut self, a: Entity, tick: u64, broker: Option<Entity>, who: &str) {
+        let tried = |x: Entity, y: Entity| self.match_tried.iter()
+            .any(|&(p, q, until)| ((p == x && q == y) || (p == y && q == x)) && until > tick);
+        let bs: Vec<Entity> = self.lonely_hearts().into_iter()
+            .filter(|&b| b != a && !tried(a, b)
+                && !matches!(self.rel_kind(a, b), Some(relationships::RelKind::Family | relationships::RelKind::Lover)))
+            .collect();
+        let Some(&b) = bs.first() else {
+            self.say(a, "No heart left to mend - not today.", TALK_BUBBLE_SECS);
+            return;
+        };
+        // the roll: shared wants draw folks together; feuded blood works against
+        let shared = self.world.get_component::<InnerLife>(a).map(|la| la.wants.iter()
+            .filter(|w| self.world.get_component::<InnerLife>(b).map(|lb| lb.wants.contains(w)).unwrap_or(false))
+            .count()).unwrap_or(0);
+        let feuded = self.rel_kind(a, b) == Some(relationships::RelKind::Rival);
+        let spark = 0.5 + shared as f32 * 0.1 - if feuded { 0.15 } else { 0.0 };
+        // a deterministic spark per pair and month - no rng spent, so the
+        // same village always courts the same way
+        let roll = ((a as u64).wrapping_mul(73856093) ^ (b as u64).wrapping_mul(19349663)
+            ^ (tick / 30).wrapping_mul(83492791)) % 1000;
+        if (roll as f32) / 1000.0 < spark {
+            for (x, y) in [(a, b), (b, a)] {
+                let rel = self.world.create_entity();
+                self.world.add_component(rel, relationships::Relationship {
+                    from: x, other: y, kind: relationships::RelKind::Lover, strength: 0.6, interactions: 1 });
+            }
+            desires::satisfy(&mut self.world, a, desires::Want::Love, tick + 365);
+            desires::satisfy(&mut self.world, b, desires::Want::Love, tick + 365);
+            if let Some(pe) = broker {
+                if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold += 2.0; }
+            }
+            let (an, bn) = (self.name_of(a), self.name_of(b));
+            self.log.push(format!("t{}: {} brought {} and {} together{}.", tick, who, an, bn,
+                if feuded { " - a match the families won't like" } else { "" }));
+            self.say(a, "Come, I want you to meet someone.", TALK_BUBBLE_SECS);
+        } else {
+            self.match_tried.push((a, b, tick + 30));
+            self.say(a, "Perhaps another heart.", TALK_BUBBLE_SECS);
+        }
+    }
+
     /// A fox in the yard: a hen gone in the night, and the household grieves it
     fn fox_night(&mut self, tick: u64) {
         let hens_at = |h| livestock::flock(&self.world, h).iter()
@@ -3247,11 +3351,16 @@ impl Game {
                 }
             }
             Goal::TalkTo(e) => {
-                // stand and chat: a conversation, a step toward a tie
-                relationships::record_interaction(&mut self.world, who, relationships::Interaction {
-                    other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
-                });
-                self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+                if Some(e) == self.matchmaker && who != e {
+                    // a lonely heart comes to sit with the heart-helper
+                    self.match_attempt(who, tick, Some(e), "the heart-helper");
+                } else {
+                    // stand and chat: a conversation, a step toward a tie
+                    relationships::record_interaction(&mut self.world, who, relationships::Interaction {
+                        other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
+                    });
+                    self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+                }
             }
             Goal::Wander => {}
             Goal::Herd(_) => {}
@@ -3362,6 +3471,8 @@ impl Game {
         self.herbologist_tick(tick);
         // the fold grazes, yields, and now and then howls
         self.livestock_tick(tick);
+        // the heart-helper walks a lonely heart toward someone
+        self.matchmaker_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -3596,6 +3707,16 @@ impl Game {
                     self.seats[seat].ctx_actions.push(CtxAct::PairUp);
                 }
             }
+            // you know two hearts that are looking: put a word between them
+            let pe = self.seats[seat].player;
+            let lonely_known = self.world.get_component::<desires::Organizer>(pe)
+                .map(|o| o.heard.iter()
+                    .filter(|(t, _, u)| *t == "loneliness" && *u > self.tick)
+                    .map(|(_, e, _)| *e).collect::<std::collections::HashSet<_>>().len())
+                .unwrap_or(0);
+            if lonely_known >= 2 {
+                self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
+            }
         }
     }
 
@@ -3632,6 +3753,11 @@ impl Game {
                     }
                     None => "No master of their trade to pair them with.".into(),
                 }
+            }
+            CtxAct::Matchmake => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                self.match_attempt(v, tick, Some(self.seats[seat].player), "You");
+                "You have a word in both their ears.".into()
             }
             CtxAct::Errand => {
                 let k = self.villagers[self.seats[seat].selected_target];
@@ -5048,6 +5174,65 @@ mod hen_tests {
         g.fox_night(75);
         assert!(before - g.hens.len() <= 1, "a fox takes one, not the yard");
         assert!(g.log.iter().any(|l| l.contains("a fox")), "the yard says so");
+    }
+}
+
+#[cfg(test)]
+mod heart_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_heart_helper_is_one() {
+        let g = Game::new();
+        let mm = g.matchmaker.expect("a heart-helper watches the square");
+        assert_eq!(g.world.get_component::<TownRole>(mm), Some(&TownRole::Matchmaker));
+        assert_eq!(g.villagers.iter().filter(|&&v|
+            g.world.get_component::<TownRole>(v) == Some(&TownRole::Matchmaker)).count(), 1);
+    }
+
+    #[test]
+    fn test_lonely_hearts_excludes_the_spoken_for() {
+        let mut g = Game::new();
+        // nobody starts lonely - wants are sparse - so none qualify by default
+        // give two villagers unmet love wants and they join the pool
+        let (a, b) = (g.villagers[0], g.villagers[1]);
+        for v in [a, b] {
+            g.world.get_component_mut::<InnerLife>(v).unwrap().wants.push(desires::Want::Love);
+        }
+        let pool = g.lonely_hearts();
+        assert!(pool.contains(&a) && pool.contains(&b), "the lonely are known");
+        // a kid can't hold a heart to mend (no craft)
+        assert!(!g.lonely_hearts().iter().any(|&v| g.world.get_component::<Craft>(v).is_none()));
+    }
+
+    #[test]
+    fn test_a_match_kindles_a_lover_bond() {
+        let mut g = Game::new();
+        let (a, b) = (g.villagers[0], g.villagers[1]);
+        for v in [a, b] {
+            g.world.get_component_mut::<InnerLife>(v).unwrap().wants.push(desires::Want::Love);
+        }
+        // keep trying across the years until the spark catches
+        for t in (0..900).step_by(31) { g.match_attempt(a, t, g.matchmaker, "the heart-helper"); }
+        assert!(g.has_rel(relationships::RelKind::Lover, a), "a match was kindled");
+        assert!(g.world.get_component::<InnerLife>(a).unwrap().satisfied.iter()
+            .any(|(w, _)| *w == desires::Want::Love), "the ache is mended");
+        assert!(g.log.iter().any(|l| l.contains("together")), "the village hears of it");
+    }
+
+    #[test]
+    fn test_kin_are_not_paired() {
+        let mut g = Game::new();
+        let (a, b) = (g.villagers[0], g.villagers[1]);
+        for v in [a, b] {
+            g.world.get_component_mut::<InnerLife>(v).unwrap().wants.push(desires::Want::Love);
+        }
+        // a and b are kin: no match between them, ever
+        let rel = g.world.create_entity();
+        g.world.add_component(rel, relationships::Relationship {
+            from: a, other: b, kind: relationships::RelKind::Family, strength: 0.8, interactions: 5 });
+        for t in (0..40).step_by(31) { g.match_attempt(a, t, g.matchmaker, "the heart-helper"); }
+        assert_eq!(g.rel_kind(a, b), Some(relationships::RelKind::Family), "kin stay kin");
     }
 }
 

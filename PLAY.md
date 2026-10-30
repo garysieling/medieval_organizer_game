@@ -80,6 +80,8 @@ In the meadow below town a shepherd keeps the fold - sheep for wool at
 shearing, goats for milk, a sheepdog at his heel, and the flock's smell
 on his coat. Now and then a wolf comes in the night. A few yards keep
 hens too; the household eats the eggs, and now and then a fox comes.
+And one elder keeps an eye on lonely hearts - the heart-helper has a
+word in both their ears, and now and then two folk come together.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

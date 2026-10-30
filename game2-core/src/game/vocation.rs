@@ -49,6 +49,9 @@ pub enum TownRole {
     /// The wise woman in the herb hut outside the wall: forages, brews,
     /// and treats the sick who walk out to her
     Herbologist,
+    /// The heart-helper: keeps an eye on lonely hearts and brings them
+    /// together, for a pie and a good word
+    Matchmaker,
 }
 
 /// How far up the trade someone is: journeyman, then apprentice, then master

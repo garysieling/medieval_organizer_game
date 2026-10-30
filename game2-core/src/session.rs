@@ -1,6 +1,12 @@
 //! Game UI v2: real sprites + text. Isometric map, villager sprites,
 //! labeled action buttons, inspector panel, event log.
 
+pub mod model;
+pub mod net;
+
+pub use model::*;
+pub use net::*;
+
 use crate::engine::ecs::{Entity, Scheduler, World};
 use crate::engine::render::Buffer;
 use crate::engine::sprite::{Sprite, Assets};
@@ -1313,7 +1319,7 @@ pub struct GroundCache {
 
 /// Which sprite a building draws with: the sim names the look and the view
 /// resolves it to the art pack's pixels, so the sim itself never holds art.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BSprite {
     /// Index into the cottage set (wraps round)
     House(usize),
@@ -1324,9 +1330,29 @@ pub enum BSprite {
     RivalWoodhouse,
 }
 
+/// What a seat tells the sim: the same actions the window's keys and clicks
+/// map to, so a local loop, a remote client and a test all steer the same way.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum Command {
+    /// One of the five action buttons (Talk, Recruit, Invest, Organize, Build)
+    Act(usize),
+    /// A contextual action (Work, Pair up, Errand)
+    CtxAct(usize),
+    /// Held-direction walk, one frame's step
+    Walk(f32, f32),
+    /// Pick a villager by index (the 1-8 keys)
+    Select(usize),
+    /// Click the map through this camera (select villager or building)
+    ClickMap { mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32 },
+    TogglePause,
+    ToggleSpeed,
+    /// Drop any walk-over-to-talk in progress
+    CancelApproach,
+}
+
 /// A contextual action offered under the main buttons: what the player can
 /// do depends on where they stand and who's picked.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum CtxAct {
     /// Work the player's own craft (at their bench if they have one)
     Work,
@@ -3173,6 +3199,238 @@ impl Game {
         self.log.push(format!("t{}: {}", tick, msg));
     }
 
+    /// The frame a client draws: the authoritative sim's whole view of the
+    /// world this seat should see. One per player seat per broadcast.
+    pub fn ui_model(&self) -> UiModel {
+        let world = &self.world;
+        let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
+        let in_reach = self.villagers_in_reach();
+        let mut people: Vec<PersonV> = vec![];
+        for (i, v) in self.villagers.iter().enumerate() {
+            let Some(p) = world.get_component::<Pos>(*v) else { continue };
+            people.push(PersonV {
+                e: *v, kind: PKind::Villager(i), pos: (p.x, p.y),
+                label: Some(villager_label(i).to_string()),
+                dead: villager::is_dead(world, *v),
+                kid: world.get_component::<Kid>(*v).is_some(),
+                selected: self.selected_target == i && self.picked,
+                in_reach: in_reach.contains(v),
+            });
+        }
+        for (i, v) in self.rivals.iter().enumerate() {
+            if let Some(p) = world.get_component::<Pos>(*v) {
+                people.push(PersonV { e: *v, kind: PKind::Rival(i), pos: (p.x, p.y),
+                    label: Some(RIVAL_NAMES[i].to_string()), dead: false, kid: false,
+                    selected: false, in_reach: false });
+            }
+        }
+        let (px, py) = self.player_pos();
+        people.push(PersonV { e: self.player, kind: PKind::Player, pos: (px, py),
+            label: None, dead: false, kid: false, selected: false, in_reach: false });
+        for (i, &(x, y)) in self.guards.iter().enumerate() {
+            people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
+                label: None, dead: false, kid: false, selected: false, in_reach: false });
+        }
+        people.push(PersonV { e: 0, kind: PKind::Priest, pos: self.priest,
+            label: None, dead: false, kid: false, selected: false, in_reach: false });
+        if let Some((tx, ty)) = self.traveller_pos() {
+            people.push(PersonV { e: 0, kind: PKind::Traveller, pos: (tx, ty),
+                label: None, dead: false, kid: false, selected: false, in_reach: false });
+        }
+        if let Some(m) = &self.minstrel {
+            if let Some(p) = world.get_component::<Pos>(m.e) {
+                people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: None, dead: false, kid: false, selected: false, in_reach: false });
+            }
+        }
+        for &(x, y) in &self.gulls {
+            people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),
+                label: None, dead: false, kid: false, selected: false, in_reach: false });
+        }
+        let hen_t = (self.frame_n / 12) as f32;
+        people.push(PersonV { e: 0, kind: PKind::Chicken,
+            pos: (self.chicken_at.0 + hen_t.cos() * 0.5, self.chicken_at.1 + (hen_t * 1.7).sin() * 0.4),
+            label: None, dead: false, kid: false, selected: false, in_reach: false });
+        for (pet, species, (ox, oy)) in &self.pets {
+            if let Some(p) = world.get_component::<Pet>(*pet)
+                .and_then(|pet| world.get_component::<Pos>(pet.owner.unwrap_or(self.villagers[0]))) {
+                people.push(PersonV { e: *pet, kind: PKind::Pet(*species),
+                    pos: (p.x + ox, p.y + oy), label: None, dead: false, kid: false,
+                    selected: false, in_reach: false });
+            }
+        }
+        people.sort_by(|a, b| (a.pos.0 + a.pos.1).partial_cmp(&(b.pos.0 + b.pos.1)).unwrap());
+
+        let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
+        let buildings: Vec<BldgV> = self.buildings.iter().enumerate()
+            .map(|(i, (x, y, s))| BldgV { x: *x, y: *y, sprite: *s, risen: risen(i),
+                derelict: self.derelict.contains(&i), smoke: i < 3 })
+            .collect();
+        let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {
+            let p = world.get_component::<Pos>(*e)?;
+            let name = self.villagers.iter().position(|v| *v == *e).map(|i| NAMES[i].to_string())
+                .or_else(|| self.rivals.iter().position(|r| *r == *e).map(|i| RIVAL_NAMES[i].to_string()));
+            Some(BubbleV { e: *e, pos: (p.x, p.y), text: text.clone(), thought: *thought, name })
+        }).collect();
+        let org = world.get_component::<Organization>(self.org).unwrap();
+        let members: Vec<String> = org.members.iter()
+            .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| NAMES[i].to_string()))
+            .collect();
+        let issues: Vec<String> = world.get_component::<Organizer>(self.player)
+            .map(|o| o.issues.iter().map(|t| desires::issue_name(t)).collect()).unwrap_or_default();
+        let p = world.get_component::<PlayerCharacter>(self.player).unwrap();
+        let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
+        let guilds = world.query::<Guild>().len();
+        let blocked = [self.action_blocker(0), self.action_blocker(1), self.action_blocker(2),
+                       self.action_blocker(3), self.action_blocker(4)];
+        let inspector = if self.selected_building.filter(|_| !self.picked).is_some() {
+            self.building_inspector()
+        } else {
+            Some(self.villager_inspector())
+        };
+        UiModel {
+            tick: self.tick, frame: self.frame_n,
+            map: self.map.clone(), town_wall: self.town_wall,
+            season, precip: self.precip, rainbow_from: self.rainbow_from,
+            paused: self.paused, speed: self.speed,
+            stones: self.stones.clone(), buildings, people, bubbles,
+            toasts: self.toasts.iter().filter(|(_, until)| self.tick < *until).map(|(m, _)| m.clone()).collect(),
+            log: self.log.clone(),
+            sel: Selection { target: self.selected_target, picked: self.picked, building: self.selected_building },
+            reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
+            reach_target: self.reach_target(),
+            blocked, ctx: self.ctx_actions.clone(), inspector,
+            panel: PanelV {
+                name: p.name.clone(), standing: crate::game::player::standing(p.influence).to_string(),
+                influence: p.influence, gold: p.resources,
+                org: org.name.clone(), members, issues, guilds, food,
+            },
+            won: p.influence > WIN_INFLUENCE,
+            mill: Some((MILL_TILE.0, MILL_TILE.1)),
+        }
+    }
+
+    /// The inspector card for the selected building
+    fn building_inspector(&self) -> Option<InspectorV> {
+        let bi = self.selected_building?;
+        let be = *self.building_entities.get(bi)?;
+        let world = &self.world;
+        let b = world.get_component::<Building>(be)?;
+        let mut lines: Vec<Line> = vec![];
+        let kind_word = match b.kind {
+            BuildingKind::Home => "Home",
+            BuildingKind::Shop(_) => "Workshop",
+            BuildingKind::Church => "Church",
+            BuildingKind::WatchPost => "Watch",
+            BuildingKind::Mill => "Mill",
+            BuildingKind::Granary => "Granary",
+            BuildingKind::TraderStall => "Trader's stall",
+        };
+        lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
+        lines.push(Line { x: 18, y: 340, text: kind_word.into(), rgb: (200, 200, 230) });
+        let worker = b.worker.and_then(|w| self.villagers.iter().position(|v| *v == w))
+            .map(|i| NAMES[i].to_string())
+            .or_else(|| b.worker.map(|_| "you".to_string()));
+        let who = worker.map(|w| format!("worked by {}", w)).unwrap_or_else(|| "stands empty".to_string());
+        let col = if household::derelict(b) { (230, 140, 90) } else { (190, 190, 210) };
+        lines.push(Line { x: 18, y: 354, text: who, rgb: col });
+        if let Some(o) = b.overseer {
+            let on = self.villagers.iter().position(|v| *v == o).map(|i| NAMES[i]).unwrap_or("someone");
+            lines.push(Line { x: 18, y: 368, text: format!("overseer: {}", on), rgb: (200, 160, 120) });
+        }
+        if b.kind == BuildingKind::Home {
+            let names: Vec<&str> = b.occupants.iter()
+                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| NAMES[i]))
+                .collect();
+            lines.push(Line { x: 18, y: 368,
+                text: format!("lives here: {}", if names.is_empty() { "no one".into() } else { names.join(", ") }),
+                rgb: (190, 190, 210) });
+        }
+        let offers = household::on_offer(b);
+        let stock_line = offers.iter().take(3).map(|(g, q, _)| format!("{} {}", g, q))
+            .collect::<Vec<_>>().join(" \u{00b7} ");
+        lines.push(Line { x: 18, y: 390,
+            text: if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
+            rgb: (180, 190, 210) });
+        if let Some((g, q, pr)) = offers.first() {
+            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g", q, g, pr), rgb: (150, 210, 150) });
+        }
+        Some(InspectorV { fig: None, dead: false, died_day: None, lines })
+    }
+
+    /// The inspector card for the selected villager
+    fn villager_inspector(&self) -> InspectorV {
+        let world = &self.world;
+        let i = self.selected_target;
+        let v = self.villagers[i];
+        let mut lines: Vec<Line> = vec![];
+        lines.push(Line { x: 60, y: 330, text: NAMES[i].into(), rgb: (255, 255, 255) });
+        if let Some(day) = self.died_on[i] {
+            lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
+            lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
+            return InspectorV { fig: None, dead: true, died_day: Some(day), lines };
+        }
+        let occ = desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into());
+        lines.push(Line { x: 60, y: 342,
+            text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
+        if let Some(c) = world.get_component::<Craft>(v) {
+            lines.push(Line { x: 60, y: 354,
+                text: format!("\u{1}Craft\u{2}{}{:.0}%", c.skill, c.skill * 100.0), rgb: (0, 0, 0) });
+        }
+        if let Some(p) = world.get_component::<Purse>(v) {
+            lines.push(Line { x: 60, y: 366, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });
+        }
+        if let Some(h) = world.get_component::<Hunger>(v) {
+            lines.push(Line { x: 60, y: 378,
+                text: format!("\u{1}Fed\u{2}{}{}", h.value / 100.0, fullness_word(h.value)), rgb: (0, 0, 0) });
+        }
+        if let Some(he) = world.get_component::<Health>(v) {
+            let note = disease_of(world, v).map(|(name, stage)| format!("{} ({:?})", name, stage))
+                .unwrap_or_else(|| format!("{:.0}%", he.condition * 100.0));
+            lines.push(Line { x: 60, y: 390, text: format!("\u{1}Health\u{2}{}{}", he.condition, note), rgb: (0, 0, 0) });
+        }
+        let home = household::home_of(world, v)
+            .and_then(|h| world.get_component::<Building>(h)).map(|b| b.name.clone());
+        let shop = world.get_component::<Craft>(v).and_then(|c| c.workplace)
+            .and_then(|s| world.get_component::<Building>(s)).map(|b| b.name.clone());
+        let roost = match (&home, &shop) {
+            (Some(h), Some(s)) => format!("{} \u{00b7} {}", h, s),
+            (Some(h), None) => h.clone(),
+            (None, Some(s)) => format!("no home \u{00b7} {}", s),
+            (None, None) => "no home".into(),
+        };
+        lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
+        if let Some(k) = world.get_component::<Known>(v) {
+            for (n, r) in k.revealed.iter().take(2).enumerate() {
+                let text = match r {
+                    desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
+                    desires::Reveal::Problem(p) => desires::problem_label(p),
+                };
+                lines.push(Line { x: 18, y: 416 + n as i32 * 11, text, rgb: (210, 170, 140) });
+            }
+        }
+        if let Some(vil) = world.get_component::<Villager>(v) {
+            let nature = world.get_component::<AttachmentHistory>(v)
+                .map(|a| nature_word(crate::sim::psychology::infer_style(a)))
+                .unwrap_or("just folk");
+            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}", nature, activity_text(vil.activity)), rgb: (200, 160, 160) });
+        }
+        InspectorV { fig: Some(i), dead: false, died_day: None, lines }
+    }
+
+    /// One input from this seat: what a key press or click means to the sim.
+    pub fn command(&mut self, cmd: Command) {
+        match cmd {
+            Command::Act(i) => self.act(i),
+            Command::CtxAct(i) => self.ctx_act(i),
+            Command::Walk(dx, dy) => { self.approach = None; self.picked = false; self.walk(dx, dy); }
+            Command::Select(i) => { self.selected_target = i; self.picked = true; }
+            Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map(mx, my, cam_x, cam_y, zoom),
+            Command::TogglePause => self.paused = !self.paused,
+            Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },
+            Command::CancelApproach => self.approach = None,
+        }
+    }
 }
 
 
@@ -3218,8 +3476,6 @@ impl View {
         }
     }
 
-    /// Draw the whole frame: map, villagers, overlays and the side panel.
-    /// `mouse` is the cursor position, for button hover and tooltips.
     pub fn render(&self, game: &Game, mouse: (i32, i32)) -> Buffer {
         let (mx, my) = mouse;
         let world = &game.world;
@@ -3849,6 +4105,14 @@ impl View {
         buf
     }
 
+    /// The ground pass: every tile's block (or flat diamond where there's no
+    /// art) drawn back to front so nearer blocks cover farther ones, plus the
+    /// odd tuft or flower on open grass. Drawn into `buf` at camera
+    /// (cam_x, cam_y) - called for the world-space cache layer, not per frame.
+    /// The ground pass: every tile's block (or flat diamond where there's no
+    /// art) drawn back to front so nearer blocks cover farther ones, plus the
+    /// odd tuft or flower on open grass. Drawn into `buf` at camera
+    /// (cam_x, cam_y) - called for the world-space cache layer, not per frame.
     /// The ground pass: every tile's block (or flat diamond where there's no
     /// art) drawn back to front so nearer blocks cover farther ones, plus the
     /// odd tuft or flower on open grass. Drawn into `buf` at camera

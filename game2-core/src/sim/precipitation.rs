@@ -5,7 +5,7 @@
 use crate::sim::climate::{Climate, Season, RAIN_THRESHOLD};
 
 /// What is falling from the sky
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum PrecipKind {
     Drizzle,
     LightRain,

@@ -20,7 +20,7 @@ De-dup:
     python scripts/generate_art_prompts.py --limit 100 --record   # next 100
 
 Smoke test first: `--smoke` emits one curated call per rendering mode
-(~$2) to validate the pipeline before any real spend.
+(~$3) to validate the pipeline before any real spend.
 
 Stdlib only. Run from the repo root.
 """
@@ -711,7 +711,7 @@ add("compare/tiers", "compare-cottage-plus",
 
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.
-# ~$2 total - run this first to validate prompts, sizes and outputs before
+# ~$3 total - run this first to validate prompts, sizes and outputs before
 # any real spend. ids get a -smoke suffix so they don't collide with the
 # full-batch entries in the state file.
 
@@ -728,9 +728,14 @@ SMOKE = [
     ("ui-panel", "ui_panel chrome"),
     ("festival-summer-solstice", "wide isometric scene"),
     ("walk4-peasant-m", "prompt-driven 4-angle walk GIF"),
+    ("battle-knight", "battle sprites set (idle/walk/jump/attack)"),
     ("vfx-bonfire", "vfx animation loop"),
+    ("amb-mill-sails", "any_animation ambient loop"),
+    ("amb-festival-dance", "big_animation 128px scene loop"),
     ("rot8-player", "8-direction rotation sheet"),
     ("adv-walking", "two-stage advanced animation - needs a person-* output as input_image"),
+    ("adv-rotate", "advanced rotate - 8 views of an uploaded still"),
+    ("ui-title-keyart", "painterly key art"),
     ("compare-cottage-fast", "rd_fast quality floor"),
     ("compare-cottage-plus", "rd_plus middle tier"),
 ]
@@ -775,6 +780,27 @@ def save_state(path, done):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"done": sorted(done)}, f, indent=1)
+
+
+def pick(entries, args, done):
+    """Apply the selection flags in order: done-state, --tier, --group,
+    --limit, --budget. Returns (picked, est spend)."""
+    tiers = set(args.tier.split(",")) if args.tier else None
+    picked, spend = [], 0.0
+    for e in entries:
+        if e["id"] in done:
+            continue
+        if tiers and e["tier"] not in tiers:
+            continue
+        if args.group and args.group not in e["group"]:
+            continue
+        if args.limit is not None and len(picked) >= args.limit:
+            break
+        if args.budget is not None and spend + e["est_cost_usd"] > args.budget:
+            continue
+        picked.append(e)
+        spend += e["est_cost_usd"]
+    return picked, spend
 
 
 def emit(entries, out):
@@ -840,7 +866,7 @@ def main():
                          "holding a list of ids (or {\"done\": [...]})")
     ap.add_argument("--smoke", action="store_true",
                     help="emit the curated smoke batch: one call per rendering "
-                         "mode, ~$2 total (writes to <out>/smoke unless --out is set)")
+                         "mode, ~$3 total (writes to <out>/smoke unless --out is set)")
     args = ap.parse_args()
 
     if args.mark_done:
@@ -856,13 +882,11 @@ def main():
 
     if args.smoke:
         out = args.out if args.out != OUT_DIR else os.path.join(OUT_DIR, "smoke")
-        entries = smoke_entries()
-        done = load_state(args.state)
-        picked = [e for e in entries if e["id"] not in done]
+        done = set() if args.include_done else load_state(args.state)
+        picked, spend = pick(smoke_entries(), args, done)
         emit(picked, out)
         if args.record:
-            save_state(args.state, done | {e["id"] for e in picked})
-        spend = sum(e["est_cost_usd"] for e in picked)
+            save_state(args.state, load_state(args.state) | {e["id"] for e in picked})
         print(f"wrote {len(picked)} smoke prompts (${spend:.2f} est) to {out}")
         for e in picked:
             print(f"  {e['id']:42s} {e['request']['prompt_style']:42s} ${e['est_cost_usd']:.2f}")
@@ -876,23 +900,7 @@ def main():
     existing_done = load_state(args.state)
     done = set() if args.include_done else existing_done
     entries = sorted(ENTRIES, key=sort_key)
-
-    tiers = set(args.tier.split(",")) if args.tier else None
-    picked = []
-    spend = 0.0
-    for e in entries:
-        if e["id"] in done:
-            continue
-        if tiers and e["tier"] not in tiers:
-            continue
-        if args.group and args.group not in e["group"]:
-            continue
-        if args.limit is not None and len(picked) >= args.limit:
-            break
-        if args.budget is not None and spend + e["est_cost_usd"] > args.budget:
-            continue
-        picked.append(e)
-        spend += e["est_cost_usd"]
+    picked, spend = pick(entries, args, done)
 
     emit(picked, args.out)
     if args.record:

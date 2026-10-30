@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 16,
-  "est_total_usd": 1.98
+  "count": 21,
+  "est_total_usd": 2.83
  },
  "prompts": [
   {
@@ -187,6 +187,22 @@
    "notes": "validates: prompt-driven 4-angle walk GIF | 48px 4-direction walk cycle, transparent GIF"
   },
   {
+   "id": "battle-knight-bba7a199-smoke",
+   "tier": "anim",
+   "group": "anim/battle",
+   "title": "battle knight",
+   "prompt": "knight in mail with sword",
+   "request": {
+    "prompt_style": "rd_animation__battle_sprites",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "validates: battle sprites set (idle/walk/jump/attack) | idle/walk/jump/attack set"
+  },
+  {
    "id": "vfx-bonfire-cd308abf-smoke",
    "tier": "anim",
    "group": "anim/vfx",
@@ -201,6 +217,38 @@
    },
    "est_cost_usd": 0.07,
    "notes": "validates: vfx animation loop"
+  },
+  {
+   "id": "amb-mill-sails-a80df364-smoke",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb mill sails",
+   "prompt": "isometric medieval: windmill sails slowly turning",
+   "request": {
+    "prompt_style": "rd_animation__any_animation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": "validates: any_animation ambient loop"
+  },
+  {
+   "id": "amb-festival-dance-d34c0154-smoke",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb festival dance",
+   "prompt": "isometric medieval: villagers dancing in a ring at festival",
+   "request": {
+    "prompt_style": "rd_animation__big_animation",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": "validates: big_animation 128px scene loop"
   },
   {
    "id": "rot8-player-8c8c63e7-smoke",
@@ -235,6 +283,38 @@
    },
    "est_cost_usd": 0.14,
    "notes": "validates: two-stage advanced animation - needs a person-* output as input_image | two-stage: input_image = the person-* P0 sprite, native res, padded to 64px. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "adv-rotate-4a8ed779-smoke",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv rotate",
+   "prompt": "the uploaded subject",
+   "request": {
+    "prompt_style": "rd_advanced_animation__rotate",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.1,
+   "notes": "validates: advanced rotate - 8 views of an uploaded still | two-stage: input_image = any P0 building/prop still; returns the 8 views. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "ui-title-keyart-8651a36f-smoke",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui title keyart",
+   "prompt": "sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art",
+   "request": {
+    "prompt_style": "rd_pro__painterly",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: painterly key art"
   },
   {
    "id": "compare-cottage-fast-cbcf31b7-smoke",

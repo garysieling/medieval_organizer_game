@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-16 prompts, est. $1.98 USD at list prices.
+21 prompts, est. $2.83 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -65,11 +65,24 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 |---|---|---|---|---|---|---|
 | walk4-peasant-m-35444cad-smoke | male peasant villager, medieval | rd_animation__four_angle_walking | 48x48 | 1 | 0.07 | validates: prompt-driven 4-angle walk GIF \| 48px 4-direction walk cycle, transparent GIF |
 
+## ANIMATED - premium tier, all animation styles / anim/battle
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| battle-knight-bba7a199-smoke | knight in mail with sword | rd_animation__battle_sprites | 64x64 | 1 | 0.07 | validates: battle sprites set (idle/walk/jump/attack) \| idle/walk/jump/attack set |
+
 ## ANIMATED - premium tier, all animation styles / anim/vfx
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | vfx-bonfire-cd308abf-smoke | large bonfire burning, festival night | rd_animation__vfx | 64x64 | 1 | 0.07 | validates: vfx animation loop |
+
+## ANIMATED - premium tier, all animation styles / anim/ambient
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| amb-mill-sails-a80df364-smoke | isometric medieval: windmill sails slowly turning | rd_animation__any_animation | 64x64 | 1 | 0.25 | validates: any_animation ambient loop |
+| amb-festival-dance-d34c0154-smoke | isometric medieval: villagers dancing in a ring at festival | rd_animation__big_animation | 128x128 | 1 | 0.25 | validates: big_animation 128px scene loop |
 
 ## ANIMATED - premium tier, all animation styles / anim/rotate8
 
@@ -82,6 +95,13 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | adv-walking-676c6372-smoke | slow heavy steps | rd_advanced_animation__walking | 64x64 | 1 | 0.14 | validates: two-stage advanced animation - needs a person-* output as input_image \| two-stage: input_image = the person-* P0 sprite, native res, padded to 64px. Send native-res frame, pad to 64px, retry once on provider_busy |
+| adv-rotate-4a8ed779-smoke | the uploaded subject | rd_advanced_animation__rotate | 64x64 | 1 | 0.10 | validates: advanced rotate - 8 views of an uploaded still \| two-stage: input_image = any P0 building/prop still; returns the 8 views. Send native-res frame, pad to 64px, retry once on provider_busy |
+
+## P0 - needed now (replaces assets the game already draws) / icons/ui
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| ui-title-keyart-8651a36f-smoke | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 | validates: painterly key art |
 
 ## P1 - fills gaps in shipped features / compare/tiers
 

@@ -13,6 +13,8 @@ use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::sim::climate::{self, SeasonSystem, Season};
+use game2_core::sim::precipitation::{precip_kind, PrecipKind};
+use game2_core::ui::weather_fx;
 use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, AttachmentStyle, infer_style};
 use game2_core::sim::community::{Citizen, Organization};
@@ -214,14 +216,22 @@ const LOG_GOSSIP_SHOWN: usize = 2;
 /// Is this log entry idle gossip ("X tells Y - ...")?
 fn is_gossip(entry: &str) -> bool { entry.contains(" tells ") }
 
+/// Weather changes shown in the log at once (the HUD names today's weather)
+const LOG_WEATHER_SHOWN: usize = 1;
+
+/// Is this log entry a routine weather change ("drizzle begins", "the rain stops")?
+fn is_weather_note(entry: &str) -> bool {
+    entry.ends_with(" begins") || entry.contains("the rain stops") || entry.contains("the snow stops")
+}
+
 /// The log entries to show, newest first: every event, but only the latest
-/// LOG_GOSSIP_SHOWN pieces of gossip
+/// LOG_GOSSIP_SHOWN pieces of gossip and the latest weather change
 fn visible_log(log: &[String]) -> Vec<&String> {
-    let mut gossip = 0;
+    let (mut gossip, mut weather) = (0, 0);
     log.iter().rev().filter(|e| {
-        if !is_gossip(e) { return true; }
-        gossip += 1;
-        gossip <= LOG_GOSSIP_SHOWN
+        if is_gossip(e) { gossip += 1; return gossip <= LOG_GOSSIP_SHOWN; }
+        if is_weather_note(e) { weather += 1; return weather <= LOG_WEATHER_SHOWN; }
+        true
     }).collect()
 }
 
@@ -244,7 +254,7 @@ fn log_colour(entry: &str) -> (u8, u8, u8) {
     else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
     else if entry.contains("joined") { (120, 255, 120) }
     // whole words only: "influence" contains "flu" and "grain" contains "rain"
-    else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "flu")) { (120, 200, 255) }
+    else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "drizzle" | "showers" | "snow" | "rainbow" | "flu")) { (120, 200, 255) }
     else { (210, 210, 210) }
 }
 
@@ -898,6 +908,8 @@ struct Game<'a> {
     near: Vec<(Entity, Entity)>,
     last_chat: Vec<((Entity, Entity), u64)>,
     frame_n: u32,
+    precip: Option<PrecipKind>, // what is falling today
+    rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
     died_on: Vec<Option<u64>>, // per villager, the day they died
 }
@@ -1020,6 +1032,8 @@ impl<'a> Game<'a> {
             was_sick: vec![false; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
+            precip: None,
+            rainbow_from: None,
         }
     }
 
@@ -1158,6 +1172,21 @@ impl<'a> Game<'a> {
             ticked = true;
         }
         let tick = self.tick;
+        // weather: log when rain or snow starts and stops; a rainbow follows rain
+        let now = world.get_component::<climate::Climate>(self.climate).and_then(precip_kind);
+        if now != self.precip {
+            match (self.precip, now) {
+                (_, Some(k)) => log.push(format!("t{}: {} begins", tick, k.label())),
+                (Some(k), None) if !k.is_snow() => {
+                    log.push(format!("t{}: the rain stops - a rainbow!", tick));
+                    self.rainbow_from = Some(self.frame_n);
+                }
+                (Some(_), None) => log.push(format!("t{}: the snow stops", tick)),
+                (None, None) => {}
+            }
+            if now.is_some() { self.rainbow_from = None; }
+            self.precip = now;
+        }
         // villagers separate if too close (no clustering)
         for i in 0..villagers.len() {
             for j in (i+1)..villagers.len() {
@@ -1675,21 +1704,8 @@ impl<'a> Game<'a> {
         }
 
 
-        // weather tint overlay on map region
-        if let Some(cl) = world.get_component::<climate::Climate>(self.climate) {
-            if cl.rainfall_drift > 0.5 {
-                // rain: an even, cool dimming over the whole map (it used to
-                // darken every 6th row, which read as scanline stripes). The
-                // terrain runs right up to the panel, so wash to UI_X, not MAP_W
-                for y in 0..H {
-                    for x in 0..UI_X {
-                        let idx = (y * W + x) * 4;
-                        let (r, g, b) = rain_wash((buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]));
-                        buf.set(x as i32, y as i32, r, g, b);
-                    }
-                }
-            }
-        }
+        // weather over the map: overcast, falling rain or snow, the rainbow after rain
+        draw_weather(&mut buf, self.precip, self.frame_n as u64, self.rainbow_from.map(|f| (self.frame_n - f) as u64));
 
         // minimap (top-right of map area): the map in miniature, same projection
         // and colours, with villagers, the player and the visible area marked
@@ -1773,27 +1789,8 @@ impl<'a> Game<'a> {
             }
         }
 
-        // ambient particles only during weather (snow in winter, rain when wet)
-        let is_winter = matches!(season, Season::Winter);
-        let raining = world.get_component::<climate::Climate>(self.climate).map(|c| c.rainfall_drift > 0.5).unwrap_or(false);
-        if is_winter {
-            // snow: 2px flakes drifting down
-            for i in 0..90u64 {
-                let px = ((tick * 3 + i * 37 + i * i * 7) % MAP_W as u64) as i32;
-                let py = ((tick * 2 + i * 23 + i * i * 3) % H as u64) as i32;
-                buf.rect(px, py, 2, 2, 230, 235, 255);
-            }
-        } else if raining {
-            // rain: short slanting streaks
-            for i in 0..120u64 {
-                let px = ((tick * 5 + i * 41 + i * i * 7) % MAP_W as u64) as i32;
-                let py = ((tick * 9 + i * 29 + i * i * 3) % H as u64) as i32;
-                for k in 0..4 { buf.set(px - k / 2, py + k, 150, 180, 230); }
-            }
-        }
-
         // season banner
-        let hud = hud_text(season, tick, food_stock, raining && !is_winter, self.paused, self.speed);
+        let hud = hud_text(season, tick, food_stock, self.precip.map(|k| k.label()), self.paused, self.speed);
         // on a dark strip so it reads over any terrain the camera shows
         buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
         draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
@@ -2550,6 +2547,18 @@ mod log_priority_tests {
     }
 
     #[test]
+    fn test_weather_changes_do_not_push_events_out_of_the_log() {
+        let mut log: Vec<String> = vec!["t120: Bram has the flu".into()];
+        for t in (130..=600).step_by(5) {
+            log.push(format!("t{}: drizzle begins", t));
+            log.push(format!("t{}: the rain stops - a rainbow!", t + 2));
+        }
+        let shown = visible_log(&log);
+        assert!(shown.iter().any(|e| e.contains("has the flu")), "the flu should still be in view: {:?}", shown);
+        assert_eq!(shown.iter().filter(|e| is_weather_note(e)).count(), LOG_WEATHER_SHOWN);
+    }
+
+    #[test]
     fn test_flu_from_a_real_game_stays_in_the_log_by_day_600() {
         let art = Art::default();
         let mut game = Game::new(&art);
@@ -3025,10 +3034,39 @@ mod label_tests {
     }
 }
 
+/// Overcast, falling rain/snow and the post-rain rainbow over the map view.
+/// `since_clear` is frames since rain stopped (drives the rainbow fade).
+/// The terrain runs right up to the panel, so this covers to UI_X, not MAP_W.
+fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_clear: Option<u64>) {
+    let mask = weather_fx::background_mask(buf, UI_X, (25, 25, 38));
+    match kind {
+        Some(k) => {
+            if k.is_snow() {
+                weather_fx::overcast(buf, UI_X, k);
+            } else {
+                // rain: an even, cool dimming, deeper the harder it falls
+                let t = 0.4 + 0.6 * k.intensity();
+                for y in 0..H {
+                    for x in 0..UI_X {
+                        let idx = (y * W + x) * 4;
+                        let c = (buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]);
+                        let (r, g, b) = blend(c, rain_wash(c), t);
+                        buf.set(x as i32, y as i32, r, g, b);
+                    }
+                }
+            }
+            weather_fx::draw_precip(buf, UI_X, &mask, k, frame);
+        }
+        None => if let Some(f) = since_clear {
+            weather_fx::draw_rainbow(buf, UI_X, &mask, weather_fx::rainbow_alpha(f));
+        },
+    }
+}
+
 /// The top-left status line: season, day, the village food store, weather, speed
-fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, raining: bool, paused: bool, speed: u32) -> String {
+fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32) -> String {
     format!("{:?} | day {} | food store {}{}{}", season, day, food,
-        if raining { " | raining" } else { "" },
+        weather.map(|w| format!(" | {}", w)).unwrap_or_default(),
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
 }
 
@@ -3200,7 +3238,9 @@ fn main() {
         .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?)));
     let art = Art::load("assets");
     if let Some(target) = dump_at {
-        run_headless(&art, target, out, zoom, cam);
+        // --weather <drizzle|light|showers|rain|heavy|flurries|snow|blizzard|rainbow|clear>
+        let weather = args.iter().position(|a| a == "--weather").and_then(|i| args.get(i + 1)).cloned();
+        run_headless(&art, target, out, zoom, cam, weather.as_deref());
         return;
     }
 
@@ -3289,11 +3329,22 @@ fn main() {
 /// Headless verification: play the game (no input) until tick N, then
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
-fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>) {
+fn run_headless(art: &Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>) {
     let mut game = Game::new(art);
     game.zoom = zoom;
     if let Some(cam) = cam { (game.cam_x, game.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
+    // force the sky for a screenshot of each kind of weather
+    if let Some(w) = weather {
+        game.precip = match w {
+            "drizzle" => Some(PrecipKind::Drizzle), "light" => Some(PrecipKind::LightRain),
+            "showers" => Some(PrecipKind::Showers), "rain" => Some(PrecipKind::Rain),
+            "heavy" => Some(PrecipKind::HeavyRain), "flurries" => Some(PrecipKind::Flurries),
+            "snow" => Some(PrecipKind::Snow), "blizzard" => Some(PrecipKind::HeavySnow),
+            _ => None,
+        };
+        game.rainbow_from = (w == "rainbow").then(|| game.frame_n.saturating_sub(100));
+    }
     let buf = game.render((-1, -1)); // cursor off-screen: no hover
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
     buf.save_bmp(&path).unwrap();
@@ -3733,10 +3784,10 @@ mod hud_tests {
 
     #[test]
     fn test_hud_speaks_in_days_and_names_the_food_store() {
-        let hud = hud_text(Season::Summer, 120, 495, true, false, 1);
-        assert_eq!(hud, "Summer | day 120 | food store 495 | raining");
+        let hud = hud_text(Season::Summer, 120, 495, Some("heavy rain"), false, 1);
+        assert_eq!(hud, "Summer | day 120 | food store 495 | heavy rain");
         assert!(!hud.contains("t120"));
-        assert!(hud_text(Season::Winter, 3, 0, false, true, 1).ends_with("[PAUSED]"));
+        assert!(hud_text(Season::Winter, 3, 0, None, true, 1).ends_with("[PAUSED]"));
     }
 
     #[test]
@@ -3746,7 +3797,7 @@ mod hud_tests {
         while game.tick < 30 { game.update(); }
         let buf = game.render((-1, -1));
         // just past the end of the text, still on the strip
-        let hud = hud_text(Season::Summer, game.tick, 0, false, false, 1);
+        let hud = hud_text(Season::Summer, game.tick, 0, game.precip.map(|k| k.label()), false, 1);
         let x = 10 + text_width(&hud, 1) - 20;
         let i = ((GLYPH_H + 10) as usize * W + x as usize) * 4;
         assert_eq!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), (20, 20, 32), "no backing strip under the HUD");

@@ -1550,6 +1550,9 @@ pub struct Game {
     pub flock: Vec<Entity>,
     pub graze_at: (f32, f32),
     pub next_graze: u64,
+    /// Yard hens and the homes they scratch about
+    pub hens: Vec<Entity>,
+    pub hen_houses: Vec<Entity>,
 }
 
 /// seat 0 is the local/only player in solo play: `game.selected_target` and
@@ -2010,6 +2013,18 @@ impl Game {
             }
         }
         let graze_at = fold.and_then(|f| world.get_component::<Pos>(f).map(|p| (p.x, p.y))).unwrap_or((0.0, 0.0));
+        // hens scratch about a few of the cottages' yards
+        let mut hens = vec![];
+        let mut hen_houses: Vec<Entity> = vec![];
+        for &h in homes.iter().step_by(5).take(4) {
+            let Some(hp) = world.get_component::<Pos>(h).copied() else { continue };
+            hen_houses.push(h);
+            for a in 0..3 {
+                let (ax, ay) = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (hp.x.round() as i32 + dx + a % 2, hp.y.round() as i32 + dy)))
+                    .find(|&(x, y)| map.passable(x, y)).unwrap_or((hp.x.round() as i32 + 1, hp.y.round() as i32 + 1));
+                hens.push(livestock::spawn_animal(&mut world, LivestockKind::Hen, h, ax as f32 + 0.4, ay as f32 + 0.5));
+            }
+        }
         // an overseer drives each farm and mason's yard
         let mut oi = 23usize;
         for &b in &building_entities {
@@ -2106,6 +2121,8 @@ impl Game {
             flock,
             graze_at,
             next_graze: 0,
+            hens,
+            hen_houses,
         }
     }
 
@@ -2509,6 +2526,15 @@ impl Game {
                     p.x += (self.graze_at.0 + ox * 0.5 - p.x) * 0.004;
                     p.y += (self.graze_at.1 + oy * 0.5 - p.y) * 0.004;
                 }
+            }
+            // the yard hens scratch a slow wander round their own door
+            for (hi, &a) in self.hens.iter().enumerate() {
+                let hp = self.world.get_component::<Livestock>(a)
+                    .and_then(|l| self.world.get_component::<Pos>(l.fold).copied());
+                let (Some(hp), Some(p)) = (hp, self.world.get_component_mut::<Pos>(a)) else { continue };
+                let t = self.frame_n as f32 / 50.0 + hi as f32 * 1.7;
+                p.x += (hp.x + t.sin() * 1.4 + (hi % 3) as f32 * 0.4 - p.x) * 0.01;
+                p.y += (hp.y + t.cos() * 1.0 + (hi % 2) as f32 * 0.4 - p.y) * 0.01;
             }
         }
         for seat in 0..self.seats.len() {
@@ -3054,6 +3080,26 @@ impl Game {
     /// The fold's day: the grazing point drifts, shearing comes round
     /// each season, and now and then a wolf comes in the night
     pub fn livestock_tick(&mut self, tick: u64) {
+        // hens lay in their yards; a hungry one at home takes an egg
+        for &h in &self.hen_houses.clone() {
+            let (eggs, occupants) = self.world.get_component::<Building>(h)
+                .map(|b| (b.stock.get("eggs").copied().unwrap_or(0), b.occupants.clone()))
+                .unwrap_or((0, vec![]));
+            if eggs < 6 {
+                if let Some(b) = self.world.get_component_mut::<Building>(h) { household::add_stock(b, "eggs", 1); }
+            }
+            if let Some(occ) = occupants.into_iter()
+                .find(|&o| self.world.get_component::<Hunger>(o).map(|hu| hu.value < 40.0).unwrap_or(false)) {
+                if let Some(b) = self.world.get_component_mut::<Building>(h) {
+                    if household::take_stock(b, "eggs", 1) > 0 {
+                        if let Some(hu) = self.world.get_component_mut::<Hunger>(occ) { hu.value = (hu.value + 25.0).min(100.0); }
+                        self.say(occ, "eggs for breakfast", CHAT_BUBBLE_SECS);
+                    }
+                }
+            }
+        }
+        // a fox in the yard, now and then
+        if tick % 90 == 75 && !self.hens.is_empty() && self.rng.below(100) < 8 { self.fox_night(tick); }
         let Some(fold) = self.fold else { return };
         // move the grazing point every few days; a sheepdog keeps it tight
         if tick >= self.next_graze {
@@ -3108,6 +3154,22 @@ impl Game {
         if let Some(sh) = self.shepherd {
             desires::add_grievance(&mut self.world, sh, desires::Problem::Loss, tick + 90);
             self.say(sh, "The wolf came in the night.", CHAT_BUBBLE_SECS);
+        }
+    }
+
+    /// A fox in the yard: a hen gone in the night, and the household grieves it
+    fn fox_night(&mut self, tick: u64) {
+        let hens_at = |h| livestock::flock(&self.world, h).iter()
+            .any(|&a| self.world.get_component::<Livestock>(a).map(|l| l.kind == LivestockKind::Hen).unwrap_or(false));
+        let Some(&h) = self.hen_houses.iter().find(|&&h| hens_at(h)) else { return };
+        let Some(&a) = livestock::flock(&self.world, h).first() else { return };
+        self.world.destroy_entity(a);
+        self.hens.retain(|&e| e != a);
+        let name = self.world.get_component::<Building>(h).map(|b| b.name.clone()).unwrap_or_else(|| "the yard".into());
+        self.log.push(format!("t{}: a fox got into {} - a hen gone in the night.", tick, name));
+        if let Some(&occ) = self.world.get_component::<Building>(h).and_then(|b| b.occupants.first()) {
+            desires::add_grievance(&mut self.world, occ, desires::Problem::Loss, tick + 90);
+            self.say(occ, "The fox took her. Best hen I had.", CHAT_BUBBLE_SECS);
         }
     }
 
@@ -3664,6 +3726,13 @@ impl Game {
                 people.push(PersonV { e: a, kind: if l.kind == LivestockKind::Sheep { PKind::Sheep } else { PKind::Goat },
                     pos: (p.x, p.y), label: None, dead: false, kid: false, selected: false,
                     in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
+        for &a in &self.hens {
+            if let Some(p) = world.get_component::<Pos>(a) {
+                people.push(PersonV { e: a, kind: PKind::Chicken, pos: (p.x, p.y), label: None,
+                    dead: false, kid: false, selected: false, in_reach: false,
+                    hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
         people.sort_by(|a, b| (a.pos.0 + a.pos.1).partial_cmp(&(b.pos.0 + b.pos.1)).unwrap());
@@ -4931,6 +5000,54 @@ mod flock_tests {
             let d = (p.x - fp.x).abs() + (p.y - fp.y).abs();
             assert!(d < 20.0, "an animal strayed too far ({:.0} tiles)", d);
         }
+    }
+}
+
+#[cfg(test)]
+mod hen_tests {
+    use super::*;
+
+    #[test]
+    fn test_hens_scratch_about_a_few_yards() {
+        let g = Game::new();
+        assert!(g.hen_houses.len() >= 3, "a few yards keep hens");
+        assert!(g.hens.len() >= 8, "a few hens a yard");
+        for &a in &g.hens {
+            assert_eq!(g.world.get_component::<Livestock>(a).unwrap().kind, LivestockKind::Hen);
+            let home = g.world.get_component::<Livestock>(a).unwrap().fold;
+            assert!(g.hen_houses.contains(&home), "each hen belongs to a yard");
+        }
+    }
+
+    #[test]
+    fn test_eggs_lay_and_a_hungry_house_eats_them() {
+        let mut g = Game::new();
+        let h = g.hen_houses[0];
+        g.livestock_tick(1);
+        let eggs = g.world.get_component::<Building>(h).unwrap().stock.get("eggs").copied().unwrap_or(0);
+        assert!(eggs > 0, "a hen lays in the morning");
+        // a hungry occupant takes one off the larder
+        let occ = g.world.get_component::<Building>(h).unwrap().occupants[0];
+        g.world.get_component_mut::<Hunger>(occ).unwrap().value = 20.0;
+        g.livestock_tick(2);
+        assert!(g.world.get_component::<Hunger>(occ).unwrap().value > 20.0, "eggs for breakfast");
+    }
+
+    #[test]
+    fn test_eggs_do_not_pile_past_the_larder() {
+        let mut g = Game::new();
+        let h = g.hen_houses[0];
+        for t in 0..10 { g.livestock_tick(t); }
+        assert!(g.world.get_component::<Building>(h).unwrap().stock.get("eggs").copied().unwrap_or(0) <= 6);
+    }
+
+    #[test]
+    fn test_the_fox_takes_a_hen_and_the_house_grieves() {
+        let mut g = Game::new();
+        let before = g.hens.len();
+        g.fox_night(75);
+        assert!(before - g.hens.len() <= 1, "a fox takes one, not the yard");
+        assert!(g.log.iter().any(|l| l.contains("a fox")), "the yard says so");
     }
 }
 

@@ -11,6 +11,8 @@ use crate::game::villager::Pos;
 pub enum LivestockKind {
     Sheep,
     Goat,
+    /// A yard hen: attached to a Home, lays eggs
+    Hen,
 }
 
 /// One animal belonging to a fold (`BuildingKind::Pasture` entity)
@@ -42,6 +44,7 @@ pub fn counts(world: &World, fold: Entity) -> (usize, usize) {
         match world.get_component::<Livestock>(e).unwrap().kind {
             LivestockKind::Sheep => out.0 += 1,
             LivestockKind::Goat => out.1 += 1,
+            LivestockKind::Hen => {}
         }
     }
     out

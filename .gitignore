@@ -53,3 +53,4 @@ Thumbs.db
 /data/creativity-corpus/
 art-prompts/generated.json
 __pycache__/
+/target-loop/

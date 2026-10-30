@@ -13,7 +13,7 @@ pub struct Pet {
     pub mood_effect: f32,     // how much they improve owner's mood
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Species {
     Dog,
     Cat,

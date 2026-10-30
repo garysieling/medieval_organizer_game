@@ -7,7 +7,7 @@
 use crate::game::terrain::Terrain;
 
 /// What a map cell is. Each has its own ground block in the art pack.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Tile {
     Water,
     Grass,
@@ -55,7 +55,7 @@ pub const BRIDGE_ALONG_Y: u8 = 17;
 /// A piece of a town wall, by which way it runs (x: NW-SE on screen, y:
 /// NE-SW). A gate is a gatehouse the road runs through, at right angles
 /// to its wall; towers stand at the corners.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum WallPiece { AlongX, AlongY, GateAlongX, GateAlongY, Tower }
 
 /// Where things go on the map. Coordinates are tiles.
@@ -80,7 +80,7 @@ pub struct Layout {
     pub town_wall: Option<(i32, i32, i32, i32)>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TileMap {
     pub width: usize,
     pub height: usize,

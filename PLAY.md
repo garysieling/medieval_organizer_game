@@ -150,3 +150,23 @@ cargo run --bin fun_score     # rubric scoring
 - Some exes blocked by Application Control (env issue, code works)
 - Ollama: gemma3:4b for fast agent loops, flint for depth
 - Evidence = software output (BMPs, text streams), not desktop captures
+
+
+## Multiplayer
+
+One server owns the world in real time; clients are windows, browsers or
+API agents. Connecting claims a character - the server hands back a token,
+and presenting it on reconnect resumes the same one (the windowed client
+keeps it in `game2.claim`; the browser will keep it in localStorage).
+
+- `game_server [--port 8787] [--seed N] [--idle-secs 300]` - sim + WebSocket
+- `game_ui --connect ws://host:port` - the same View renders the server's
+  `Scene` (a serialized `UiModel`); input goes back as `Command`s
+- Go quiet past `--idle-secs` and the fallback driver steers your wanderer
+  until you come back; an agent's villager reverts to its own goals
+- `game_bots ws://host:8787 N` - N heuristic villagers (eat, work, gather,
+  talk), acting only when their errand finishes - quiet wire
+- Speed/pause keys are solo-only (`speed-timer` cargo feature); the shared
+  world runs at one pace
+- `Dockerfile` + `k8s/deployment.yaml`: one pod, one world, port 8787
+- `game2-web` (scaffold): wasm client - same core, WS in, canvas out

@@ -1,0 +1,126 @@
+//! The wire protocol between clients (desktop window, browser, API bots)
+//! and the authoritative server. JSON over WebSocket: small, debuggable,
+//! and readable by agents in any language.
+//!
+//! Sessions are claimed, not logged in: the server hands every connection a
+//! character and an opaque claim token; presenting the token on reconnect
+//! resumes the same character. When a seat goes quiet past its idle
+//! timeout, the world's own logic drives the character until they return.
+
+use serde::{Deserialize, Serialize};
+use crate::engine::ecs::Entity;
+use super::{Command, UiModel};
+
+/// Who is connecting: a person behind a UI, or an API agent steering a villager
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ClientKind {
+    Human,
+    Agent,
+}
+
+/// Client -> server
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ClientMsg {
+    /// First message on any connection
+    Hello {
+        /// Previously issued claim token, or None for a fresh character
+        token: Option<String>,
+        kind: ClientKind,
+        /// Display name for the roster
+        name: Option<String>,
+    },
+    /// One input toward the player's character
+    Command(Command),
+    /// Agent steering: what the bot wants its villager to do next
+    AgentCmd(AgentCmd),
+    /// Keepalive / latency probe
+    Ping(u64),
+}
+
+/// Server -> client
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ServerMsg {
+    /// Answer to Hello: who you are, your claim token, and the first frame
+    Welcome {
+        /// The character you're driving
+        you: Entity,
+        /// Present this on reconnect to keep the same character
+        token: String,
+        /// Your seat's first render model
+        model: Box<UiModel>,
+    },
+    /// A frame for your seat (sent at the broadcast cadence)
+    Scene(Box<UiModel>),
+    /// An agent's observation of the world around its villager
+    Obs(Box<AgentObs>),
+    /// A steering command finished (or couldn't)
+    CmdDone { ok: bool, note: String },
+    /// Refusal of the last message
+    Denied { reason: String },
+    /// Answer to Ping
+    Pong(u64),
+}
+
+// ---------------- the agent (bot) surface ----------------
+
+/// What a villager-driving agent sees: itself, its surroundings, and the
+/// little it needs to pick its next move. Compact on purpose - agents act
+/// on day boundaries and on arrival, not every frame.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentObs {
+    pub tick: u64,
+    /// The villager you're driving
+    pub you: Entity,
+    pub pos: (f32, f32),
+    pub gold: f32,
+    pub hunger: f32,
+    /// What the village is up to right now (if the sim tracks it)
+    pub busy: Option<String>,
+    /// Nearby people (villagers, the wanderers): entity, name, distance
+    pub near: Vec<ObsPerson>,
+    /// Nearby buildings worth knowing about: entity, name, kind
+    pub near_buildings: Vec<ObsBuilding>,
+    /// Your satchel's contents
+    pub satchel: Vec<(String, u32)>,
+    /// The walk under way, if any
+    pub walking: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObsPerson {
+    pub e: Entity,
+    pub name: String,
+    pub dist: f32,
+    pub dead: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObsBuilding {
+    pub e: Entity,
+    pub name: String,
+    pub kind: String,
+    pub dist: f32,
+}
+
+/// What an agent can tell its villager to do. Movement and shopping are
+/// walks; the sim does the errand on arrival (like the villagers' own
+/// Goal/errand machinery).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AgentCmd {
+    /// Stand down for a bit (still driven between commands)
+    Idle,
+    /// Walk to a tile
+    GoTo { x: i32, y: i32 },
+    /// Walk to a person or building to talk with them
+    TalkTo { e: Entity },
+    /// Buy `qty` of `good` from a shop's stockpile or a person's satchel
+    BuyFrom { seller: Entity, good: String, qty: u32 },
+    /// Buy `good` at a shop (satisfies a want)
+    BuyAt { shop: Entity, good: String },
+    /// Gather `good` at a tile (wood, stone, sand)
+    Gather { good: String, x: i32, y: i32 },
+    /// Put in a day at the craft (if there's a craft and inputs)
+    WorkDay,
+    /// Eat at the nearest food source (hunger first)
+    Eat,
+}

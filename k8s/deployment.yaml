@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game2-server
+  labels: { app: game2-server }
+spec:
+  replicas: 1                      # one world, one process
+  selector:
+    matchLabels: { app: game2-server }
+  template:
+    metadata:
+      labels: { app: game2-server }
+    spec:
+      containers:
+        - name: game
+          image: game2-server:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8787 }]
+          env:
+            - { name: GAME2_SEED, value: "0" }  # 0/unset: fresh world per boot
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "1",    memory: "512Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game2-server
+spec:
+  selector: { app: game2-server }
+  ports: [{ port: 8787, targetPort: 8787 }]
+  type: ClusterIP                  # or NodePort/LoadBalancer for outside play

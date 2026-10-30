@@ -23,9 +23,12 @@ impl Rng {
     fn new(seed: u64) -> Self {
         Self { state: seed }
     }
+    /// Uniform in [0, 1): the top 31 bits of the LCG state, scaled by 2^31
+    /// (scaling by u32::MAX instead capped every draw below 0.5, so every
+    /// displacement in range(-s, s) pushed terrain downward)
     fn next_f32(&mut self) -> f32 {
         self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1);
-        ((self.state >> 33) as f32) / (u32::MAX as f32)
+        ((self.state >> 33) as f32) / ((1u64 << 31) as f32)
     }
     fn range(&mut self, min: f32, max: f32) -> f32 {
         min + self.next_f32() * (max - min)
@@ -207,5 +210,23 @@ mod tests {
         let t1 = Terrain::generate(9, 0.5, 1);
         let t2 = Terrain::generate(9, 0.5, 2);
         assert_ne!(t1.heights, t2.heights); // different seeds = different terrain
+    }
+
+    #[test]
+    fn test_rng_covers_whole_unit_interval() {
+        let mut rng = Rng::new(42);
+        let draws: Vec<f32> = (0..10_000).map(|_| rng.next_f32()).collect();
+        assert!(draws.iter().all(|&x| (0.0..1.0).contains(&x)));
+        let upper = draws.iter().filter(|&&x| x >= 0.5).count();
+        assert!(upper > 4_000, "about half the draws should land in [0.5, 1), got {}", upper);
+        let mean: f32 = draws.iter().sum::<f32>() / draws.len() as f32;
+        assert!((mean - 0.5).abs() < 0.05, "mean should be ~0.5, got {}", mean);
+    }
+
+    #[test]
+    fn test_displacement_is_symmetric() {
+        let mut rng = Rng::new(7);
+        let ups = (0..10_000).filter(|_| rng.range(-1.0, 1.0) > 0.0).count();
+        assert!(ups > 4_000, "noise should push terrain up as often as down, got {} ups", ups);
     }
 }

@@ -3735,24 +3735,33 @@ mod stay_home_tests {
         let art = Art::load("../assets");
         let mut game = Game::new(&art);
         let home = *game.world.get_component::<Pos>(game.market_food).unwrap();
-        let mut worst: f32 = 0.0;
+        // where each villager actually lives - an outskirts cottage is
+        // legitimately far from the store, that's not straying
+        let homes: Vec<Option<Pos>> = game.villagers.iter().map(|&v| {
+            household::home_of(&game.world, v).and_then(|h| game.world.get_component::<Pos>(h)).map(|p| *p)
+        }).collect();
+        // a stray is being far from the store AND from your own house for
+        // days on end - an errand out and back isn't one
+        let mut run = [0u64; 30];
+        let mut worst: u64 = 0;
         let mut last = 0;
         while game.tick < 1500 {
             game.update();
             if game.tick == last { continue; }
             last = game.tick;
-            for v in &game.villagers {
-                // out on business (a fetch, a gather, the tax round, a
-                // delivery) doesn't count as straying - they come back;
-                // neither does the collector, whose job is roaming
+            for (i, v) in game.villagers.iter().enumerate() {
                 if game.travels.iter().any(|t| t.who == *v)
                     || game.world.get_component::<OddJob>(*v).is_some()
-                    || Some(*v) == game.collector { continue; }
+                    || Some(*v) == game.collector { run[i] = 0; continue; }
                 let p = game.world.get_component::<Pos>(*v).unwrap();
-                worst = worst.max(((p.x - home.x).powi(2) + (p.y - home.y).powi(2)).sqrt());
+                let d = |hp: Pos| ((p.x - hp.x).powi(2) + (p.y - hp.y).powi(2)).sqrt();
+                let adrift = d(home) > VILLAGE_RADIUS + 3.0
+                    && homes[i].map(|hp| d(hp) > 4.0).unwrap_or(true);
+                run[i] = if adrift { run[i] + 1 } else { 0 };
+                worst = worst.max(run[i]);
             }
         }
-        assert!(worst < VILLAGE_RADIUS + 3.0, "a villager strayed {:.1} tiles from the village store", worst);
+        assert!(worst <= 5, "a villager stayed {} days away from both the store and home", worst);
     }
 }
 

@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-410 prompts, est. $71.84 USD at list prices.
+412 prompts, est. $71.93 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -419,6 +419,13 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | prop-palm-3262a285 | single isometric medieval village asset: oasis date palm | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 | prop-snowdrift-1fdc8709 | single isometric medieval village asset: deep smooth snowdrift | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 | prop-standing-stones-78ac08ef | single isometric medieval village asset: small ring of weathered standing stones | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+
+## P1 - fills gaps in shipped features / compare/tiers
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| compare-cottage-fast-cbcf31b7 | isometric medieval cottage, timber-frame and thatch | rd_fast__game_asset | 64x64 | 1 | 0.03 | quality floor check: if Fast looks fine, filler assets get much cheaper |
+| compare-cottage-plus-77832dea | isometric medieval cottage, timber-frame and thatch | rd_plus__default | 128x128 | 1 | 0.06 | middle tier, same subject as the rd_pro cottages-set |
 
 ## P1 - fills gaps in shipped features / festivals
 

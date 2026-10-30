@@ -19,6 +19,9 @@ De-dup:
     # ...generate those 100 on retrodiffusion.ai...
     python scripts/generate_art_prompts.py --limit 100 --record   # next 100
 
+Smoke test first: `--smoke` emits one curated call per rendering mode
+(~$2) to validate the pipeline before any real spend.
+
 Stdlib only. Run from the repo root.
 """
 import argparse
@@ -694,6 +697,62 @@ for slug, style, motion, how in TWO_STAGE:
         notes="two-stage: " + how + ". Send native-res frame, pad to 64px, retry once on provider_busy")
 
 # ---------------------------------------------------------------------------
+# Quality-floor comparison: the manifest leans on rd_pro; a couple of cheap
+# drafts tell you whether Fast/Plus would do for the filler assets.
+
+add("compare/tiers", "compare-cottage-fast",
+    "isometric medieval cottage, timber-frame and thatch",
+    style="rd_fast__game_asset", w=64, h=64, tier="p1",
+    notes="quality floor check: if Fast looks fine, filler assets get much cheaper")
+add("compare/tiers", "compare-cottage-plus",
+    "isometric medieval cottage, timber-frame and thatch",
+    style="rd_plus__default", w=128, h=128, tier="p1",
+    notes="middle tier, same subject as the rd_pro cottages-set")
+
+# ---------------------------------------------------------------------------
+# Smoke batch: one representative call per rendering mode / style family.
+# ~$2 total - run this first to validate prompts, sizes and outputs before
+# any real spend. ids get a -smoke suffix so they don't collide with the
+# full-batch entries in the state file.
+
+SMOKE = [
+    # (slug prefix, what the call validates)
+    ("ground-grass-spring", "isometric ground block + tile_x/tile_y seamless flags"),
+    ("road-wang-spring", "wang tileset mode - the whole road set from one call"),
+    ("tree-oak-spring", "tile_object prop mode"),
+    ("shop-bakery", "rd_pro isometric building"),
+    ("person-minstrel", "rd_pro character sprite - keep the output, it feeds the two-stage animations"),
+    ("icon-talk", "mini icon readability at tiny size"),
+    ("good-bread", "mini item icon"),
+    ("goods-sheet", "inventory_items atlas mode + include_downloadable_data"),
+    ("ui-panel", "ui_panel chrome"),
+    ("festival-summer-solstice", "wide isometric scene"),
+    ("walk4-peasant-m", "prompt-driven 4-angle walk GIF"),
+    ("vfx-bonfire", "vfx animation loop"),
+    ("rot8-player", "8-direction rotation sheet"),
+    ("adv-walking", "two-stage advanced animation - needs a person-* output as input_image"),
+    ("compare-cottage-fast", "rd_fast quality floor"),
+    ("compare-cottage-plus", "rd_plus middle tier"),
+]
+
+
+def smoke_entries():
+    """The curated smoke batch: the real entries, num_images clamped to 1."""
+    out = []
+    for prefix, why in SMOKE:
+        e = next((x for x in ENTRIES if x["id"].startswith(prefix + "-")), None)
+        if e is None:
+            sys.exit(f"smoke slug not found: {prefix}")
+        e = json.loads(json.dumps(e))  # deep copy
+        e["request"]["num_images"] = 1
+        e["est_cost_usd"] = round(cost(e["request"]["prompt_style"], 1), 3)
+        e["id"] += "-smoke"
+        e["notes"] = f"validates: {why}" + (f" | {e['notes']}" if e["notes"] else "")
+        out.append(e)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Assembly: sort, dedup, filter, emit.
 
 def sort_key(e):
@@ -779,6 +838,9 @@ def main():
                     help="mark ids as successfully generated, without emitting a batch. "
                          "Accepts a comma-separated list of ids, or a path to a JSON file "
                          "holding a list of ids (or {\"done\": [...]})")
+    ap.add_argument("--smoke", action="store_true",
+                    help="emit the curated smoke batch: one call per rendering "
+                         "mode, ~$2 total (writes to <out>/smoke unless --out is set)")
     args = ap.parse_args()
 
     if args.mark_done:
@@ -790,6 +852,20 @@ def main():
         save_state(args.state, existing | newly_done)
         print(f"marked {len(newly_done)} ids done in {args.state} "
               f"({len(existing | newly_done)} total done)")
+        return
+
+    if args.smoke:
+        out = args.out if args.out != OUT_DIR else os.path.join(OUT_DIR, "smoke")
+        entries = smoke_entries()
+        done = load_state(args.state)
+        picked = [e for e in entries if e["id"] not in done]
+        emit(picked, out)
+        if args.record:
+            save_state(args.state, done | {e["id"] for e in picked})
+        spend = sum(e["est_cost_usd"] for e in picked)
+        print(f"wrote {len(picked)} smoke prompts (${spend:.2f} est) to {out}")
+        for e in picked:
+            print(f"  {e['id']:42s} {e['request']['prompt_style']:42s} ${e['est_cost_usd']:.2f}")
         return
 
     ids = [e["id"] for e in ENTRIES]

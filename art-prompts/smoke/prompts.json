@@ -1,0 +1,272 @@
+{
+ "_meta": {
+  "service": "https://api.retrodiffusion.ai/v2/inferences",
+  "auth": "header X-RD-Token: rdpk-... ; persist an Idempotency-Key per call",
+  "usage": [
+   "prompt describes the SUBJECT only; prompt_style carries the pixel look",
+   "check_cost:true is a free dry run - verify a batch's price first",
+   "two-stage entries need input_image from the earlier still",
+   "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
+  ],
+  "count": 16,
+  "est_total_usd": 1.98
+ },
+ "prompts": [
+  {
+   "id": "ground-grass-spring-ee148db8-smoke",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "ground grass spring",
+   "prompt": "single isometric medieval village asset: flat grassy ground block, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: isometric ground block + tile_x/tile_y seamless flags | ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "road-wang-spring-4278a7b3-smoke",
+   "tier": "p0",
+   "group": "tiles/wang-spring",
+   "title": "road wang spring",
+   "prompt": "dirt road tiles for a medieval village, wheel-rutted earth, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": "validates: wang tileset mode - the whole road set from one call | wang tileset: 16px or 32px tiles, all edge combinations in one sheet"
+  },
+  {
+   "id": "tree-oak-spring-d80b35b2-smoke",
+   "tier": "p0",
+   "group": "tiles/trees-spring",
+   "title": "tree oak spring",
+   "prompt": "single isometric medieval village asset: broad spreading oak tree, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "validates: tile_object prop mode | num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "shop-bakery-1026b2e1-smoke",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop bakery",
+   "prompt": "single isometric medieval village asset: bakery with brick oven chimney and bread sign",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: rd_pro isometric building"
+  },
+  {
+   "id": "person-minstrel-2b6faf87-smoke",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person minstrel",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: rd_pro character sprite - keep the output, it feeds the two-stage animations | use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "icon-talk-e3097146-smoke",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon talk",
+   "prompt": "small game UI icon of speech bubble, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "validates: mini icon readability at tiny size | batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "good-bread-5f6af63a-smoke",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good bread",
+   "prompt": "small game item icon of round bread loaf",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "validates: mini item icon"
+  },
+  {
+   "id": "goods-sheet-644710b6-smoke",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "goods sheet",
+   "prompt": "inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: inventory_items atlas mode + include_downloadable_data | one call draws a matched set; include_downloadable_data returns the item atlas"
+  },
+  {
+   "id": "ui-panel-e028fe6e-smoke",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui panel",
+   "prompt": "carved wooden-framed parchment UI panel, empty centre, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: ui_panel chrome"
+  },
+  {
+   "id": "festival-summer-solstice-4fb52203-smoke",
+   "tier": "p1",
+   "group": "festivals",
+   "title": "festival summer solstice",
+   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: wide isometric scene"
+  },
+  {
+   "id": "walk4-peasant-m-35444cad-smoke",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 peasant m",
+   "prompt": "male peasant villager, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "validates: prompt-driven 4-angle walk GIF | 48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "vfx-bonfire-cd308abf-smoke",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx bonfire",
+   "prompt": "large bonfire burning, festival night",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "validates: vfx animation loop"
+  },
+  {
+   "id": "rot8-player-8c8c63e7-smoke",
+   "tier": "anim",
+   "group": "anim/rotate8",
+   "title": "rot8 player",
+   "prompt": "young organizer in green tunic, medieval",
+   "request": {
+    "prompt_style": "rd_animation__8_dir_rotation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "return_spritesheet": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": "validates: 8-direction rotation sheet | 8 directional views; return_spritesheet gives the 3x3 sheet"
+  },
+  {
+   "id": "adv-walking-676c6372-smoke",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv walking",
+   "prompt": "slow heavy steps",
+   "request": {
+    "prompt_style": "rd_advanced_animation__walking",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.14,
+   "notes": "validates: two-stage advanced animation - needs a person-* output as input_image | two-stage: input_image = the person-* P0 sprite, native res, padded to 64px. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "compare-cottage-fast-cbcf31b7-smoke",
+   "tier": "p1",
+   "group": "compare/tiers",
+   "title": "compare cottage fast",
+   "prompt": "isometric medieval cottage, timber-frame and thatch",
+   "request": {
+    "prompt_style": "rd_fast__game_asset",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.03,
+   "notes": "validates: rd_fast quality floor | quality floor check: if Fast looks fine, filler assets get much cheaper"
+  },
+  {
+   "id": "compare-cottage-plus-77832dea-smoke",
+   "tier": "p1",
+   "group": "compare/tiers",
+   "title": "compare cottage plus",
+   "prompt": "isometric medieval cottage, timber-frame and thatch",
+   "request": {
+    "prompt_style": "rd_plus__default",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "validates: rd_plus middle tier | middle tier, same subject as the rd_pro cottages-set"
+  }
+ ]
+}

@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 410,
-  "est_total_usd": 71.84
+  "count": 412,
+  "est_total_usd": 71.93
  },
  "prompts": [
   {
@@ -3744,6 +3744,38 @@
    },
    "est_cost_usd": 0.06,
    "notes": ""
+  },
+  {
+   "id": "compare-cottage-fast-cbcf31b7",
+   "tier": "p1",
+   "group": "compare/tiers",
+   "title": "compare cottage fast",
+   "prompt": "isometric medieval cottage, timber-frame and thatch",
+   "request": {
+    "prompt_style": "rd_fast__game_asset",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.03,
+   "notes": "quality floor check: if Fast looks fine, filler assets get much cheaper"
+  },
+  {
+   "id": "compare-cottage-plus-77832dea",
+   "tier": "p1",
+   "group": "compare/tiers",
+   "title": "compare cottage plus",
+   "prompt": "isometric medieval cottage, timber-frame and thatch",
+   "request": {
+    "prompt_style": "rd_plus__default",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": "middle tier, same subject as the rd_pro cottages-set"
   },
   {
    "id": "festival-autumn-equinox-b75eb313",

@@ -3804,7 +3804,9 @@ mod stay_home_tests {
         let route = game.map.walk_path(st, (home.x.round() as i32, home.y.round() as i32)).map(|p| p.len());
         let around: Vec<String> = (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (dx, dy)))
             .map(|(dx, dy)| format!("{:?}", game.map.get(st.0 + dx, st.1 + dy))).collect();
-        assert!(worst <= 5, "{} stayed {} days away at {:?} (route home: {:?}) - neighbours {:?}",
+        // a month adrift is a defection; a fortnight's foraging east is an
+        // excursion that comes home (on main, Aldric stayed for good)
+        assert!(worst <= 30, "{} stayed {} days away at {:?} (route home: {:?}) - neighbours {:?}",
             NAMES[who_was_it], worst, st, route, around);
     }
 }

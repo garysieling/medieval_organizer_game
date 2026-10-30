@@ -17,6 +17,15 @@ impl Sprite {
     pub fn load(path: &Path) -> Result<Self, String> {
         let file = std::fs::File::open(path).map_err(|e| format!("open {}: {}", path.display(), e))?;
         let decoder = png::Decoder::new(std::io::BufReader::new(file));
+        Self::decode_with(decoder)
+    }
+
+    /// Decode a PNG already in memory (e.g. fetched over the wire)
+    pub fn decode(bytes: &[u8]) -> Result<Self, String> {
+        Self::decode_with(png::Decoder::new(std::io::BufReader::new(std::io::Cursor::new(bytes))))
+    }
+
+    fn decode_with<R: std::io::BufRead + std::io::Seek>(decoder: png::Decoder<R>) -> Result<Self, String> {
         let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
         let mut buf = vec![0u8; reader.output_buffer_size().unwrap_or(0)];
         let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;

@@ -51,6 +51,9 @@ pub enum PKind {
     Traveller,
     Chicken,
     Gull,
+    /// An animal of the fold, grazing the meadow
+    Sheep,
+    Goat,
 }
 
 /// A building on the map

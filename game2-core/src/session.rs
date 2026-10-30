@@ -34,6 +34,7 @@ use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
 use crate::game::herbology::{self, Apothecary};
+use crate::game::livestock::{self, Livestock, LivestockKind};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
 
@@ -204,6 +205,15 @@ fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     }
 }
 
+/// A grazing animal: a wool or hair blob low on four legs
+fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
+    let k = |v: i32| ((v as f32) * zoom).round() as i32;
+    let (body, dark) = if sheep { ((235, 230, 212), (205, 198, 180)) } else { ((148, 132, 110), (104, 92, 75)) };
+    buf.rect(sx - k(5), sy - k(8), 2.max(k(10)), 1.max(k(5)), body.0, body.1, body.2);
+    buf.rect(sx + k(4), sy - k(9), 1.max(k(3)), 1.max(k(4)), dark.0, dark.1, dark.2);
+    for lx in [-3, -1, 1, 3] { buf.rect(sx + k(lx), sy - k(3), 1.max(k(1)), 1.max(k(3)), dark.0, dark.1, dark.2); }
+}
+
 /// Draw a gravestone standing on screen point (sx, sy) at the current zoom;
 /// returns the y of its top, for the name label
 fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) -> i32 {
@@ -344,6 +354,7 @@ const LOG_TOWN_SHOWN: usize = 3;
 fn is_town_note(entry: &str) -> bool {
     entry.contains(" is now a ") || entry.contains("has come to town")
         || entry.contains("takes his cut") || entry.contains("Organizer discovers issue")
+        || entry.contains("at the fold") || entry.contains(" treats ")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1270,6 +1281,8 @@ pub enum Goal {
     Forage(usize),
     /// Someone sick walks out to the herb hut for a cure
     SeekRemedy(Entity),
+    /// The shepherd walks out to the flock
+    Herd(Entity),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -1530,6 +1543,13 @@ pub struct Game {
     pub herb_patches: Vec<HerbPatch>,
     /// (who, the day they last called at the hut) - so the sick don't besiege her
     pub remedy_visits: Vec<(Entity, u64)>,
+    /// The fold out in the meadow and the shepherd who keeps it
+    pub fold: Option<Entity>,
+    pub shepherd: Option<Entity>,
+    /// The living animals, and where the day's grazing point sits
+    pub flock: Vec<Entity>,
+    pub graze_at: (f32, f32),
+    pub next_graze: u64,
 }
 
 /// seat 0 is the local/only player in solo play: `game.selected_target` and
@@ -1678,16 +1698,32 @@ impl Game {
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(5)));
         }
+        // the fold: the shepherd's pen in the meadow below the town
+        let fold_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 3, wall.3 + 4);
+        if let Some((bx, by)) = fold_site {
+            map.occupy(bx, by);
+            map.connect((bx, by));
+            buildings.push((bx as f32, by as f32, BSprite::House(7)));
+        }
 
         // ---- the people ----
         // vocations rolled by weight; knights and priests are PMC
         // workshops for the vocations that get rolled (~85% coverage);
         // shops go on buildable tiles inside the wall, farms just outside
         let mut vocs_present: Vec<Vocation> = vec![];
-        let adult_vocs: Vec<Vocation> = (0..23).map(|_| roll_vocation(&mut rng)).collect();
+        let mut adult_vocs: Vec<Vocation> = (0..23).map(|_| roll_vocation(&mut rng)).collect();
+        // the fold always has a keeper: one hand from a trade the village
+        // has twice (never the last farmer) keeps the flock instead - a
+        // later duplicate is taken so the shops roll lands the same
+        let swap = adult_vocs.iter().rposition(|&v| v != Vocation::Farmer
+                && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
+            .unwrap_or_else(|| adult_vocs.iter().rposition(|&v| v != Vocation::Farmer).unwrap_or(5));
+        adult_vocs[swap] = Vocation::Shepherd;
         for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
         let mut shop_kinds: Vec<BuildingKind> = vec![];
         for v in vocs_present {
+            // the fold stands apart, seeded on its own out in the meadow
+            if v == Vocation::Shepherd { continue; }
             if rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
         }
         // the smithy, church and guildhall already stand: shop for the
@@ -1730,6 +1766,19 @@ impl Game {
                     .map(|p| p.x.round() as i32 == hx && p.y.round() as i32 == hy).unwrap_or(false)
             })?;
             if let Some(b) = world.get_component_mut::<Building>(e) { b.name = "the herb hut".into(); }
+            Some(e)
+        });
+        // the fold: the building on the site picked earlier, re-kinded to
+        // a pasture (Pos-matched so shop-seeding order can't mislabel it)
+        let fold = fold_site.and_then(|(hx, hy)| {
+            let e = building_entities.iter().copied().find(|&e| {
+                world.get_component::<Pos>(e)
+                    .map(|p| p.x.round() as i32 == hx && p.y.round() as i32 == hy).unwrap_or(false)
+            })?;
+            if let Some(b) = world.get_component_mut::<Building>(e) {
+                b.kind = household::BuildingKind::Pasture;
+                b.name = "the fold".into();
+            }
             Some(e)
         });
         // the trader's stall is the guildhall slot (index 5), stocked with imports
@@ -1839,7 +1888,7 @@ impl Game {
         pets::adopt(&mut world, dog, villagers[0]);
         let cat = pets::spawn_pet(&mut world, "Mog", Species::Cat, PetRole::Companion);
         pets::adopt(&mut world, cat, villagers[1]);
-        let pets = vec![(dog, Species::Dog, (0.8, 0.5)), (cat, Species::Cat, (0.5, 0.3))];
+        let mut pets = vec![(dog, Species::Dog, (0.8, 0.5)), (cat, Species::Cat, (0.5, 0.3))];
 
         // ---- settle the town ----
         // the player is just another character: a class (never the
@@ -1941,6 +1990,26 @@ impl Game {
             }
         }
         world.get_component_mut::<Building>(trader_stall).unwrap().worker = Some(villagers[25]);
+        // the shepherd keeps the fold, and a sheepdog keeps him
+        let shepherd = villagers.iter().copied().find(|&v|
+            world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Shepherd).unwrap_or(false));
+        if let Some(sh) = shepherd {
+            let d = pets::spawn_pet(&mut world, "the sheepdog", Species::Dog, PetRole::Herding);
+            world.get_component_mut::<Pet>(d).unwrap().owner = Some(sh);
+            pets.push((d, Species::Dog, (0.7, 0.5)));
+        }
+        // the flock: sheep in the main, a few goats, out round the fold
+        let mut flock: Vec<Entity> = vec![];
+        if let (Some(fold), Some((fx, fy))) = (fold, fold_site) {
+            for a in 0..10 {
+                let kind = if a < 7 { LivestockKind::Sheep } else { LivestockKind::Goat };
+                let (dx, dy) = ((a % 4) as i32 - 1, (a / 4) as i32 - 1);
+                let (ax, ay) = (1..=6).map(|r| (fx + dx * r, fy + dy * r))
+                    .find(|&(x, y)| map.passable(x, y)).unwrap_or((fx + 1, fy + 1));
+                flock.push(livestock::spawn_animal(&mut world, kind, fold, ax as f32 + 0.35, ay as f32 + 0.45));
+            }
+        }
+        let graze_at = fold.and_then(|f| world.get_component::<Pos>(f).map(|p| (p.x, p.y))).unwrap_or((0.0, 0.0));
         // an overseer drives each farm and mason's yard
         let mut oi = 23usize;
         for &b in &building_entities {
@@ -2032,6 +2101,11 @@ impl Game {
             herb_hut,
             herb_patches,
             remedy_visits: vec![],
+            fold,
+            shepherd,
+            flock,
+            graze_at,
+            next_graze: 0,
         }
     }
 
@@ -2428,6 +2502,14 @@ impl Game {
             self.advance_meeting();
             self.advance_travels();
             self.advance_minstrel();
+            // the flock grazes: the animals drift about the day's grazing point
+            for (ai, &a) in self.flock.iter().enumerate() {
+                if let Some(p) = self.world.get_component_mut::<Pos>(a) {
+                    let (ox, oy) = (((ai * 37) % 9) as f32 - 4.0, ((ai * 53) % 7) as f32 - 3.0);
+                    p.x += (self.graze_at.0 + ox * 0.5 - p.x) * 0.004;
+                    p.y += (self.graze_at.1 + oy * 0.5 - p.y) * 0.004;
+                }
+            }
         }
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
@@ -2449,7 +2531,9 @@ impl Game {
             .map(|c| c.value).unwrap_or(0);
         // a 1-1 has a small chance of drawing out one of their secrets:
         // a want, or the problem that's in their way
-        let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * 1000.0) as u64 {
+        // the fold's smell: folk hold back a touch with the shepherd
+        let smelly = desires::problems_of(&self.world, v, self.tick).contains(&desires::Problem::Smelly);
+        let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * if smelly { 900.0 } else { 1000.0 }) as u64 {
             let pick = self.rng.next();
             desires::next_reveal(&self.world, v, self.tick, pick)
         } else { None };
@@ -2719,7 +2803,9 @@ impl Game {
                 let mine: std::collections::HashSet<desires::IssueTag> =
                     desires::unrevealed(&self.world, v, self.tick).iter().map(desires::issue_tag).collect();
                 let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
-                let chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
+                let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
+                // the fold's smell hangs on a shepherd: a touch slower to share
+                if desires::problems_of(&self.world, v, self.tick).contains(&desires::Problem::Smelly) { chance *= 0.9; }
                 let roll = (self.rng.next() % 1000) as f32 / 1000.0;
                 let mut shared = false;
                 if roll < chance {
@@ -2896,7 +2982,7 @@ impl Game {
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
-            Goal::SeekRemedy(e) => self.world.get_component::<Pos>(*e).copied()
+            Goal::SeekRemedy(e) | Goal::Herd(e) => self.world.get_component::<Pos>(*e).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
             Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
@@ -2912,7 +2998,7 @@ impl Game {
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) => 30, _ => 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) => 30, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -2963,6 +3049,66 @@ impl Game {
             .min_by_key(|(_, p)| hp.map(|h| ((h.x - p.tile.0 as f32).abs() + (h.y - p.tile.1 as f32).abs()) as i32).unwrap_or(0))
             .map(|(i, _)| i);
         if let Some(i) = pick { self.send_forage(her, i); }
+    }
+
+    /// The fold's day: the grazing point drifts, shearing comes round
+    /// each season, and now and then a wolf comes in the night
+    pub fn livestock_tick(&mut self, tick: u64) {
+        let Some(fold) = self.fold else { return };
+        // move the grazing point every few days; a sheepdog keeps it tight
+        if tick >= self.next_graze {
+            if let Some(fp) = self.world.get_component::<Pos>(fold).copied() {
+                let r = self.shepherd.filter(|&sh| self.pets.iter().any(|(e, s, _)| *s == Species::Dog
+                    && self.world.get_component::<Pet>(*e).map(|p| p.owner == Some(sh)).unwrap_or(false)))
+                    .map(|_| 4).unwrap_or(7);
+                self.graze_at = ((fp.x + self.rng.around(r) as f32).clamp(1.0, self.map.width as f32 - 2.0),
+                                 (fp.y + self.rng.around(r) as f32).clamp(1.0, self.map.height as f32 - 2.0));
+            }
+            self.next_graze = tick + 2 + self.rng.below(3) as u64;
+        }
+        // shearing day, mid-season: wool into the fold's stock
+        if tick % 90 == 45 {
+            let (sheep, _) = livestock::counts(&self.world, fold);
+            if sheep > 0 {
+                if let Some(b) = self.world.get_component_mut::<Building>(fold) {
+                    let got = household::add_stock(b, "wool", (sheep * 2) as u32);
+                    if got > 0 { self.log.push(format!("t{}: shearing day at the fold - {} wool.", tick, got)); }
+                }
+            }
+        }
+        // a dark shape crosses the meadow in the night, now and then
+        if tick % 90 == 60 && self.rng.below(100) < 10 { self.wolf_night(tick); }
+        // the shepherd walks out to the flock most days, but not hungry
+        if let Some(sh) = self.shepherd {
+            let fed = self.world.get_component::<Hunger>(sh).map(|h| h.value >= 30.0).unwrap_or(true);
+            if tick % 3 == 0 && fed && !villager::is_dead(&self.world, sh)
+                && !self.travels.iter().any(|t| t.who == sh) {
+                self.send(sh, Goal::Herd(fold));
+            }
+        }
+    }
+
+    /// A dark shape crosses the meadow: the flock scatters, some are lost
+    fn wolf_night(&mut self, tick: u64) {
+        let Some(fold) = self.fold else { return };
+        let mut animals = livestock::flock(&self.world, fold);
+        let losses = (self.rng.below(3) as usize).min(animals.len());
+        for &a in animals.iter().take(losses) {
+            self.world.destroy_entity(a);
+            self.flock.retain(|&e| e != a);
+        }
+        animals.drain(..losses.min(animals.len()));
+        for a in animals {
+            if let Some(p) = self.world.get_component_mut::<Pos>(a) {
+                p.x = (p.x + self.rng.around(6) as f32).clamp(1.0, self.map.width as f32 - 2.0);
+                p.y = (p.y + self.rng.around(6) as f32).clamp(1.0, self.map.height as f32 - 2.0);
+            }
+        }
+        self.log.push(format!("t{}: a wolf got into the fold in the night - {} lost.", tick, losses));
+        if let Some(sh) = self.shepherd {
+            desires::add_grievance(&mut self.world, sh, desires::Problem::Loss, tick + 90);
+            self.say(sh, "The wolf came in the night.", CHAT_BUBBLE_SECS);
+        }
     }
 
     /// Send `who` to gather `good` at tile `t`
@@ -3046,6 +3192,7 @@ impl Game {
                 self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
             }
             Goal::Wander => {}
+            Goal::Herd(_) => {}
             Goal::Forage(pi) => {
                 // picked clean for a season; two bundles dry on the hut's beams
                 if let Some(p) = self.herb_patches.get_mut(pi) { p.next_ready = tick + 90; }
@@ -3151,6 +3298,8 @@ impl Game {
         }
         // the herb-wife keeps her shelf brewed and her patches picked
         self.herbologist_tick(tick);
+        // the fold grazes, yields, and now and then howls
+        self.livestock_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -3163,7 +3312,8 @@ impl Game {
             // hunger comes first: let them go eat rather than send them on
             // an errand that keeps them from the store
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
-            if hungry { continue; }
+            // a starving person abandons any errand to look for food
+            if hungry { self.travels.retain(|t| t.who != v); continue; }
             // the sick call on the herb-wife: out to her hut for a remedy,
             // a call at most every fortnight
             if is_sick(&self.world, v) {
@@ -3509,6 +3659,13 @@ impl Game {
                 }
             }
         }
+        for &a in &self.flock {
+            if let (Some(l), Some(p)) = (world.get_component::<Livestock>(a), world.get_component::<Pos>(a)) {
+                people.push(PersonV { e: a, kind: if l.kind == LivestockKind::Sheep { PKind::Sheep } else { PKind::Goat },
+                    pos: (p.x, p.y), label: None, dead: false, kid: false, selected: false,
+                    in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
         people.sort_by(|a, b| (a.pos.0 + a.pos.1).partial_cmp(&(b.pos.0 + b.pos.1)).unwrap());
 
         let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
@@ -3577,6 +3734,7 @@ impl Game {
             BuildingKind::Mill => "Mill",
             BuildingKind::Granary => "Granary",
             BuildingKind::TraderStall => "Trader's stall",
+            BuildingKind::Pasture => "Pasture",
         };
         lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
         lines.push(Line { x: 18, y: 340, text: kind_word.into(), rgb: (200, 200, 230) });
@@ -3818,7 +3976,7 @@ impl Game {
                 BuildingKind::Home => "home", BuildingKind::Shop(_) => "shop",
                 BuildingKind::Church => "church", BuildingKind::WatchPost => "watch",
                 BuildingKind::Mill => "mill", BuildingKind::Granary => "granary",
-                BuildingKind::TraderStall => "stall",
+                BuildingKind::TraderStall => "stall", BuildingKind::Pasture => "pasture",
             };
             Some(ObsBuilding { e: *be, name: b.name.clone(), kind: kind.into(), dist: d })
         }).collect();
@@ -4084,6 +4242,10 @@ impl View {
                             draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), mk, r, g, b);
                         }
                     }
+                },
+                Who::P(pv) if matches!(pv.kind, PKind::Sheep | PKind::Goat) => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    draw_beast(&mut buf, sx, sy, zoom, pv.kind == PKind::Sheep);
                 },
                 Who::P(pv) if let PKind::Pet(species) = pv.kind => {
                     let sprite = match species { Species::Dog => &self.art.dog, Species::Cat => &self.art.cat, _ => &NO_SPRITE };
@@ -4694,6 +4856,81 @@ mod herb_tests {
         game.arrive(v, Goal::SeekRemedy(hut));
         assert!(game.bubbles.iter().any(|(e, t, _, _, _)| *e == game.herbologist.unwrap() && t.contains("Nothing")),
             "she says when she can't help");
+    }
+}
+
+#[cfg(test)]
+mod flock_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_shepherd_keeps_the_fold() {
+        let g = Game::new();
+        let sh = g.shepherd.expect("a shepherd keeps the fold");
+        assert_eq!(g.world.get_component::<Craft>(sh).unwrap().vocation, Vocation::Shepherd);
+        let fold = g.fold.unwrap();
+        let b = g.world.get_component::<Building>(fold).unwrap();
+        assert_eq!(b.kind, BuildingKind::Pasture);
+        assert_eq!(b.name, "the fold");
+        assert_eq!(b.worker, Some(sh), "the fold knows its shepherd");
+        assert_eq!(g.world.get_component::<Craft>(sh).unwrap().workplace, Some(fold));
+        assert!(g.flock.len() >= 8, "a decent flock, got {}", g.flock.len());
+    }
+
+    #[test]
+    fn test_the_sheepdog_belongs_to_the_shepherd() {
+        let g = Game::new();
+        let sh = g.shepherd.unwrap();
+        assert!(g.pets.iter().any(|(e, s, _)| *s == Species::Dog
+            && g.world.get_component::<Pet>(*e).map(|p| p.owner == Some(sh)).unwrap_or(false)),
+            "a herding dog at his heel");
+    }
+
+    #[test]
+    fn test_milk_and_wool_come_off_the_fold() {
+        let mut g = Game::new();
+        let fold = g.fold.unwrap();
+        let sh = g.shepherd.unwrap();
+        for t in 0..3 { livelihood::work_day(&mut g.world, sh, t); }
+        assert!(g.world.get_component::<Building>(fold).unwrap().stock.get("milk").copied().unwrap_or(0) > 0,
+            "the goats give milk daily");
+        g.livestock_tick(45); // shearing day, mid-season
+        assert!(g.world.get_component::<Building>(fold).unwrap().stock.get("wool").copied().unwrap_or(0) > 0,
+            "the sheep are shorn in season");
+    }
+
+    #[test]
+    fn test_the_shepherd_smells_of_it() {
+        let g = Game::new();
+        let sh = g.shepherd.unwrap();
+        assert!(desires::problems_of(&g.world, sh, 0).contains(&desires::Problem::Smelly));
+    }
+
+    #[test]
+    fn test_a_wolf_night_losses_and_the_loss_grievance() {
+        let mut g = Game::new();
+        let fold = g.fold.unwrap();
+        let before = livestock::flock(&g.world, fold).len();
+        g.wolf_night(60);
+        let after = livestock::flock(&g.world, fold).len();
+        assert!(before - after <= 2, "wolves take a couple at most");
+        if let Some(sh) = g.shepherd {
+            assert!(desires::problems_of(&g.world, sh, 60).contains(&desires::Problem::Loss),
+                "the loss sticks on him for the season");
+        }
+    }
+
+    #[test]
+    fn test_the_flock_stays_near_the_fold() {
+        let mut g = Game::new();
+        let fold = g.fold.unwrap();
+        let fp = *g.world.get_component::<Pos>(fold).unwrap();
+        for _ in 0..(10 * FPS) { g.update(); }
+        for &a in &g.flock {
+            let p = g.world.get_component::<Pos>(a).unwrap();
+            let d = (p.x - fp.x).abs() + (p.y - fp.y).abs();
+            assert!(d < 20.0, "an animal strayed too far ({:.0} tiles)", d);
+        }
     }
 }
 

@@ -30,54 +30,6 @@ lower-risk, and lay groundwork later items reuse.
 
 ## Wave 1 — The cottage economy (animals, plants, and the people who tend them)
 
-### F1. The Herbologist — one wise woman at the edge of town
-
-*Priority pick. Draws on `game/herbology.rs` (fully built, unwired) +
-`sprint-7-medicinal-plants.md` + `sprint-4-tea-herbology.md`.*
-
-**What.** Exactly one herb-wife lives in a hut outside the wall. She
-forages herbs that grow as visible patches on meadow/forest tiles,
-prepares remedies (`prepare_remedy` already returns a `Treatment`), and
-sick villagers walk to her instead of waiting out the `IllnessSystem`.
-
-**Spec.**
-
-- `TownRole::Herbologist` (not a `Vocation` — she is seeded, never rolled:
-  exactly one per village, `SocialClass::Working`, no `Craft`; she carries
-  `Apothecary { known_herbs, remedies, skill }` from `herbology.rs`).
-- `HerbPatch` component on map tiles: a flower-tinted tuft marker;
-  regrows ~90 days after being picked. Seed 8–15 patches of the 7 herbs
-  in `herb_tree()`, meadow- and forest-biased.
-- `BuildingKind::HerbHut` — a dimmed-cottage tint variant placed just
-  outside the gate near meadow. Her stock is her hut's `stock["remedies"]`.
-- Activity: `Foraging(patch)` — she walks out (walk_path), picks a herb
-  she knows into stock; `Preparing` at the hut turns 2 herb units into 1
-  remedy good via `prepare_remedy`.
-- Sickness loop: when `is_sick(v)` fires, the villager gets `Activity::
-  SeekingRemedy`, walks to her hut, pays 2–5g, receives the remedy as a
-  `Treatment` applied to their `Disease` (efficacy scales her skill ×
-  herb potency). Out of stock or wrong herb → they go home and endure.
-- Discovery game (from the lit review): each herb has `true_effect` and
-  `believed_effect`; she only *believes* some. Remedies from wrongly-
-  believed herbs have hidden near-zero efficacy — sometimes "the cure
-  didn't take," which is a story, not a bug.
-- Reveal: Talk with her can teach the *player* a herb's believed identity
-  (journaled in `Heard`); her card shows a "herb lore" line. She gets
-  her own wants/problems — seed ~30% of villagers with latent
-  `SuspectHer` (fires when an illness kills anyway: "her cures did
-  nothing") — the seed of witch-trial emergence.
-- UI: hut clickable like other buildings ("the herb hut", stock of
-  remedies, for sale list); her card reads "Herb-wife · Working";
-  `Foraging`/`Preparing` get a `✿`/mortar marker; sick walkers show the
-  existing `+` sick mark.
-
-**Verify.** Exactly one herbologist across seeds; sick walker reaches hut
-and recovers faster with remedy vs without; unknown herb ⇒ no remedy;
-believed-vs-true mismatch produces low efficacy; patches regrow; hut
-inspector draws. **Size: M.**
-
----
-
 ### F2. Shepherds, sheep & goats
 
 *Draws on brainstorm "Shepherds/goatherds — implies farming; gives dogs
@@ -855,8 +807,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 
 ## Suggested opening run — in order
 
-1. F1 Herbologist — the asked-for single character; wires a whole
-   finished module into the living game.
+1. ~~F1 Herbologist~~ — **done, PR #141.**
 2. F2 Shepherds/flocks — asked-for; livestock substrate for F3/F8/F9.
 3. F3 Chickens — cheap after F2, proves Livestock generality.
 4. F41 Heart Helper — side-feedback priority; second "important single

@@ -501,16 +501,17 @@ const FPS: u32 = 60;
 /// How long a reply to Talk, and a remark in passing, stay up (seconds)
 const TALK_BUBBLE_SECS: u32 = 5;
 
-/// How close the player stands to someone to talk to them (tiles). Talk on
-/// someone farther off walks the player over first.
+/// How close the player stands to someone to talk to them (tiles). Talk or
+/// Recruit on someone farther off walks the player over first.
 const TALK_DIST: f32 = 1.5;
 
 /// Frames the player can make no headway before a walk over to talk gives up
 const APPROACH_STUCK_FRAMES: u32 = FPS;
 
-/// Walking over to someone to talk to them
+/// Walking over to someone to talk to or recruit them
 struct Approach {
     who: usize,              // villager index
+    action: usize,           // the action button to take on arrival (Talk or Recruit)
     path: Vec<(i32, i32)>,   // tiles still to walk, their tile last
     stuck: u32,              // frames without headway
 }
@@ -923,7 +924,8 @@ struct Game<'a> {
     last_chat: Vec<((Entity, Entity), u64)>,
     frame_n: u32,
     /// The player picked the selected villager themselves (clicked them or
-    /// pressed 1-5) and hasn't walked off since: Talk goes to them, however far
+    /// pressed 1-5) and hasn't walked off since: Talk and Recruit go to them,
+    /// however far
     picked: bool,
     approach: Option<Approach>,
     precip: Option<PrecipKind>, // what is falling today
@@ -1156,10 +1158,9 @@ impl<'a> Game<'a> {
     fn disabled_reason(&self, i: usize) -> Option<String> {
         // Recruit is pointless on a member and Invest on an empty purse: say
         // so on the button, as Build does, rather than fail in the log
-        // Talk needs the selected villager alive (it walks over to them);
-        // Recruit also needs them within reach; a
-        // house meeting (Organize) just needs someone nearby to come
-        let target = self.villagers[if i == 0 && self.picked { self.selected_target } else { self.reach_target() }];
+        // Talk and Recruit need the selected villager alive (they walk over
+        // to them); a house meeting (Organize) just needs someone nearby to come
+        let target = self.villagers[if (i == 0 || i == 1) && self.picked { self.selected_target } else { self.reach_target() }];
         let in_reach = self.villagers_in_reach();
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let p = self.world.get_component::<PlayerCharacter>(self.player).unwrap();
@@ -1168,7 +1169,6 @@ impl<'a> Game<'a> {
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 2 && p.resources < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
-        else if i == 1 && !in_reach.contains(&target) { Some("too far away".into()) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 3 && self.meeting.is_some() { Some("a meeting is under way".into()) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
@@ -1855,30 +1855,35 @@ impl<'a> Game<'a> {
         self.map.walk_path((px.round() as i32, py.round() as i32), (p.x.round() as i32, p.y.round() as i32))
     }
 
-    /// Talk on someone who isn't beside the player: set off to walk over to
-    /// them (the talk happens on arrival; see advance_approach). None when
-    /// they're already close enough to talk to now.
-    fn start_approach(&mut self, who: usize) -> Option<String> {
+    /// Talk or Recruit (action button `action`) on someone who isn't beside
+    /// the player: set off to walk over to them (the action happens on
+    /// arrival; see advance_approach). None when they're already close enough
+    /// to act on now.
+    fn start_approach(&mut self, who: usize, action: usize) -> Option<String> {
         if self.dist_to(who) <= TALK_DIST { return None; }
         match self.path_to(who) {
             Some(path) => {
-                self.approach = Some(Approach { who, path, stuck: 0 });
+                self.approach = Some(Approach { who, action, path, stuck: 0 });
                 Some(format!("You walk over to {}.", NAMES[who]))
             }
-            None => Some(format!("Can't talk: there's no way to reach {}.", NAMES[who])),
+            None => Some(format!("Can't {}: there's no way to reach {}.",
+                self.buttons[action].label.to_lowercase(), NAMES[who])),
         }
     }
 
-    /// One frame of walking over to talk: follow the path (finding a new one
-    /// if they've wandered off), and talk once beside them
+    /// One frame of walking over to someone: follow the path (finding a new
+    /// one if they've wandered off), and talk or recruit once beside them
     fn advance_approach(&mut self) {
         let Some(mut a) = self.approach.take() else { return };
         let who = a.who;
         // they died on the way: nothing to say
         if villager::is_dead(&self.world, self.villagers[who]) { return; }
         if self.dist_to(who) <= TALK_DIST {
-            let msg = self.talk_to(who);
-            self.log.push(format!("t{}: {}", self.tick, msg));
+            // beside them now: take the action on them (act checks it can
+            // still be done - they may have joined, or influence slipped)
+            self.selected_target = who;
+            self.picked = true;
+            self.act(a.action);
             return;
         }
         let Some(&Pos { x: vx, y: vy }) = self.world.get_component::<Pos>(self.villagers[who]) else { return };
@@ -1911,19 +1916,19 @@ impl<'a> Game<'a> {
     /// Take action button `i` (Talk, Recruit, Invest, Organize, Build)
     fn act(&mut self, i: usize) {
         let tick = self.tick;
-        // Talk goes to whoever the player picked; otherwise (and for Recruit)
-        // to whoever is in reach
-        if (i == 0 && !self.picked) || i == 1 { self.selected_target = self.reach_target(); }
+        // Talk and Recruit go to whoever the player picked; otherwise to
+        // whoever is in reach
+        if (i == 0 || i == 1) && !self.picked { self.selected_target = self.reach_target(); }
         let selected_target = self.selected_target;
         let msg = if let Some(reason) = self.action_blocker(i) {
             format!("Can't {}: {}.", self.buttons[i].label.to_lowercase(), reason)
         } else {
             match i {
-                0 => match self.start_approach(selected_target) {
+                0 => match self.start_approach(selected_target, 0) {
                     Some(walking) => walking,
                     None => self.talk_to(selected_target),
                 },
-                1 => {
+                1 => if let Some(walking) = self.start_approach(selected_target, 1) { walking } else {
                     let r = act_recruit(&mut self.world, self.player, self.org, self.villagers[selected_target]);
                     if r.success { format!("{} joined!", NAMES[selected_target]) }
                     else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
@@ -2621,6 +2626,32 @@ mod talk_reach_tests {
         assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), NAMES[who]);
         assert_eq!(talks(&game), before + 1, "talked once on arrival");
         assert!(game.log.iter().any(|l| l.contains(NAMES[who]) && l.contains(": \"")), "no talk line: {:?}", game.log);
+    }
+
+    #[test]
+    fn test_recruit_on_a_picked_villager_walks_over_then_recruits() {
+        let art = Art::default();
+        let mut game = Game::new(&art);
+        while game.tick < 3 { game.update(); }
+        let who = far_villager(&game);
+        game.selected_target = who;
+        game.picked = true;
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().influence = 10.0;
+        assert_eq!(game.disabled_reason(1), None, "Recruit walks over, so distance doesn't grey it out");
+
+        game.act(1);
+        assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", NAMES[who])), "{}", game.log.last().unwrap());
+        assert!(game.approach.as_ref().map(|a| a.action) == Some(1));
+
+        for _ in 0..(30 * FPS) {
+            if game.approach.is_none() { break; }
+            game.update();
+        }
+        assert!(game.approach.is_none(), "still walking to {}", NAMES[who]);
+        assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), NAMES[who]);
+        // the recruit attempt happened on arrival (joined or turned the player down)
+        let line = game.log.last().unwrap();
+        assert!(line.contains(NAMES[who]) && !line.contains("walk over") && !line.contains("Can't"), "{}", line);
     }
 
     #[test]

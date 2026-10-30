@@ -21,6 +21,10 @@ use game2_core::sim::community::{Citizen, Organization};
 use game2_core::game::organizing::{meeting_remark, passing_remark, talk_response};
 use game2_core::game::traits::personality_from_seed;
 use game2_core::game::relationships;
+use game2_core::game::vocation::{self, Craft, Kid, Level, SocialClass, TownRole, Vocation};
+use game2_core::game::desires::{self, InnerLife, Known, Organizer, Problem, Reveal, Want};
+use game2_core::game::household::{self, Building, BuildingKind};
+use game2_core::game::livelihood::{self, OddJob, Purse, Satchel, TaxRound};
 #[cfg(test)]
 use game2_core::game::relationships::Relationship;
 
@@ -618,7 +622,21 @@ const ACTION_KEYS: [(Key, char); 5] = [
 /// Keys that move the player
 const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
 
-const NAMES: [&str; 8] = ["Aldric","Eliza","Bram","Corvin","Dagny","Hob","Marga","Gisela"];
+/// The whole town: adults, the three children (26-28) and the tax
+/// collector (29) last. Tests and seeds lean on this fixed order.
+const NAMES: [&str; 30] = [
+    "Aldric","Eliza","Bram","Corvin","Dagny","Hob","Marga","Gisela",
+    "Wystan","Aelfric","Tilda","Osric","Fenwick","Hilda","Cedric","Rowena",
+    "Godric","Matilda","Leofric","Edith","Anselm","Bertha","Roderick","Winifred",
+    "Osmund","Greta","Pip","Nell","Tom","Reeve",
+];
+/// Which villager indices are the children and the tax collector
+const KID_IDXS: [usize; 3] = [26, 27, 28];
+const COLLECTOR_IDX: usize = 29;
+/// Name labels with the (child) flag, for the map
+fn villager_label(i: usize) -> &'static str {
+    match i { 26 => "Pip (child)", 27 => "Nell (child)", 28 => "Tom (child)", _ => NAMES[i] }
+}
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 const TOOLTIPS: [&str; 5] = [
     "talk to someone nearby",
@@ -1134,6 +1152,38 @@ const MEETING_PROMPTS: [&str; 3] = [
     "Then let's take it on together.",
 ];
 
+/// What a traveller is walking to do when he gets there
+#[derive(Clone, Debug)]
+enum Goal {
+    /// Buy `good` from a person's satchel (inputs)
+    BuyFrom(Entity, &'static str, u32),
+    /// Buy `good` at a shop's stockpile (finished goods; maybe for a want)
+    BuyAt(Entity, &'static str, Option<Want>),
+    /// Gather `good` at a tile (wood, stone, sand)
+    Gather(&'static str),
+    /// The collector walks to collect the year's cut
+    CollectTax(Entity),
+    /// A kid runs an OddJob (component has hirer/good/from/to/pay)
+    RunOddJob,
+}
+
+/// A walk under way: tiles to step along, what for when they run out
+#[derive(Clone)]
+struct Travel {
+    who: Entity,
+    path: Vec<(i32, i32)>,
+    goal: Goal,
+}
+
+/// The travelling minstrel: walks the road in, plays at the market a
+/// while, and leaves
+struct Minstrel {
+    e: Entity,
+    path: Vec<(i32, i32)>,
+    /// Some(day) while he's playing at the market until
+    playing_until: Option<u64>,
+}
+
 /// The map tests and tooling use: Game::new is always this one
 const MAP_SEED: u64 = 42;
 
@@ -1260,6 +1310,28 @@ struct Game<'a> {
     rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
     died_on: Vec<Option<u64>>, // per villager, the day they died
+    /// The Building entity behind each `buildings` entry (parallel)
+    building_entities: Vec<Entity>,
+    /// A building the player clicked, or None while a villager is selected
+    selected_building: Option<usize>,
+    /// Contextual actions that depend on where the player stands and who's
+    /// picked (Work at your shop, Pair up a junior, Send a kid on an errand)
+    ctx_buttons: Vec<Button>,
+    /// The tax collector's entity (villagers[COLLECTOR_IDX])
+    collector: Option<Entity>,
+    /// The trader's stall building at the market
+    trader_stall: Option<Entity>,
+    /// Walks under way (errands, shopping, the tax round, odd jobs)
+    travels: Vec<Travel>,
+    /// The travelling minstrel, when one's about
+    minstrel: Option<Minstrel>,
+    /// Day the next minstrel is due
+    next_minstrel: u64,
+    /// Darkened sprites for derelict buildings, rebuilt when the set changes
+    derelict_tints: std::collections::HashMap<usize, Sprite>,
+    /// Complaint families already voiced at the meeting under way (parallel
+    /// complaints make the next speaker likelier to share)
+    voiced: Vec<desires::IssueTag>,
 }
 
 impl<'a> Game<'a> {
@@ -1350,6 +1422,88 @@ impl<'a> Game<'a> {
             buildings.push((bx as f32, by as f32, sprite));
         }
 
+        // a fuller town: homes on a loose grid inside the wall (so ~30
+        // people have somewhere to live), the odd cottage outside, and a
+        // workshop for most of the vocations that get rolled - the ~85%
+        // coverage leaves the odd trade without a shop to work out of
+        for gy in (wall.1 + 3..wall.3 - 1).step_by(3) {
+            for gx in (wall.0 + 3..wall.2 - 1).step_by(3) {
+                if let Some((bx, by)) = map.nearest_buildable(gx + rng.around(1), gy + rng.around(1)) {
+                    map.occupy(bx, by);
+                    map.connect((bx, by));
+                    buildings.push((bx as f32, by as f32, art.house(rng.below(97) as usize)));
+                }
+            }
+        }
+        for &(x, y) in &[(wall.0 - 3, wall.3 + 3), (wall.2 + 4, wall.3 + 2), (wall.0 - 5, (wall.1 + wall.3) / 2)] {
+            if let Some((bx, by)) = map.nearest_buildable(x, y) {
+                map.occupy(bx, by);
+                map.connect((bx, by));
+                buildings.push((bx as f32, by as f32, art.house(rng.below(97) as usize)));
+            }
+        }
+
+        // ---- the people ----
+        // vocations rolled by weight; knights and priests are PMC
+        const VOCATION_ROLL: [(Vocation, i32); 10] = [
+            (Vocation::Farmer, 22), (Vocation::Baker, 12), (Vocation::Mason, 10),
+            (Vocation::Tailor, 9), (Vocation::Toolmaker, 8), (Vocation::Knight, 8),
+            (Vocation::Priest, 8), (Vocation::Luthier, 6), (Vocation::Printmaker, 5),
+            (Vocation::Glazier, 5),
+        ];
+        let roll_vocation = |rng: &mut Rng| -> Vocation {
+            let total: i32 = VOCATION_ROLL.iter().map(|(_, w)| w).sum();
+            let mut pick = rng.below(total);
+            for (v, w) in VOCATION_ROLL { if pick < w { return v; } pick -= w; }
+            Vocation::Farmer
+        };
+        // workshops for the vocations that get rolled (~85% coverage);
+        // shops go on buildable tiles inside the wall, farms just outside
+        let mut vocs_present: Vec<Vocation> = vec![];
+        let adult_vocs: Vec<Vocation> = (0..23).map(|_| roll_vocation(&mut rng)).collect();
+        for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
+        let mut shop_kinds: Vec<BuildingKind> = vec![];
+        for v in vocs_present {
+            if rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
+        }
+        // the smithy, church and guildhall already stand: shop for the
+        // toolmaker, the priest's church, and the trader's stall
+        for (x, y) in [(19, 19), (14, 9)] { let _ = (x, y); }
+        for kind in shop_kinds {
+            // near the market for shops; farms by the south fields
+            let (cx, cy) = if kind == BuildingKind::Shop(Vocation::Farmer) { (gate_x + 2, farm_y + 1) }
+                else { (16 + rng.around(4), 15 + rng.around(4)) };
+            let Some((bx, by)) = map.nearest_buildable(cx, cy) else { continue };
+            map.occupy(bx, by);
+            map.connect((bx, by));
+            buildings.push((bx as f32, by as f32, art.house(rng.below(97) as usize)));
+        }
+        // every building gets an entity: homes hold occupants, workplaces
+        // hold a worker and a stockpile
+        let mut building_entities: Vec<Entity> = vec![];
+        let rival_from = buildings.len().saturating_sub(buildings.len()); // marker, computed below
+        let n_planned = 8; // the `planned` list
+        for (i, &(bx, by, _)) in buildings.iter().enumerate() {
+            let (kind, name, cap) = if i < 3 { (BuildingKind::Home, "a cottage", 20) }
+                else if i == 3 { (BuildingKind::Shop(Vocation::Toolmaker), "the smithy", 20) }
+                else if i == 4 { (BuildingKind::Church, "the church", 20) }
+                else if i == 5 { (BuildingKind::TraderStall, "the trader's stall", 12) }
+                else if i < n_planned { (BuildingKind::Home, "a foreign house", 20) }
+                else if i >= buildings.len() - shop_kinds.len() {
+                    // the freshly seeded workshops, in shop_kinds order
+                    let k = shop_kinds[i - (buildings.len() - shop_kinds.len())];
+                    (k, match k { BuildingKind::Shop(v) => vocation::trade_name(v), BuildingKind::Church => "the church", BuildingKind::WatchPost => "the watch house", _ => "a workshop" }, 20)
+                }
+                else { (BuildingKind::Home, "a house", 20) };
+            building_entities.push(household::spawn_building(&mut world, kind, name, bx, by, cap));
+        }
+        let _ = rival_from;
+        // the trader's stall is the guildhall slot (index 5), stocked with imports
+        let trader_stall = building_entities[5];
+        for g in ["cloth", "paper", "ink", "pigment"] {
+            world.get_component_mut::<Building>(trader_stall).unwrap().stock.insert(g.to_string(), 4);
+        }
+
         let stones: Vec<(i32, i32)> = [(6, 19), (20, 23)].iter()
             .filter_map(|&(x, y)| map.nearest_buildable(x, y)).collect();
         for &(x, y) in &stones { map.occupy(x, y); }
@@ -1372,13 +1526,33 @@ impl<'a> Game<'a> {
         gulls.truncate(4);
 
         let mut villagers = vec![];
-        for (i, _n) in NAMES.iter().enumerate() {
-            let (vx, vy) = [(10.0,16.0),(16.0,20.0),(20.0,14.0),(14.0,10.0),(22.0,18.0),(15.0,21.0),(21.0,15.0),(17.0,12.0)][i];
-            let v = villager::spawn_villager(&mut world, vx, vy);
+        // 23 vocation adults (0..23), two overseers (23,24), the trader
+        // (25), three children (26..29) and the tax collector (29)
+        for i in 0..NAMES.len() {
+            let v = villager::spawn_villager(&mut world, 14.0 + (i % 6) as f32 * 0.8, 14.0 + (i % 4) as f32 * 0.8);
             world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
-            world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
+            world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
             world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
             world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
+            world.add_component(v, Satchel::default());
+            world.add_component(v, Known::default());
+            if i < 23 {
+                // a working adult: the level roll sets the skill band
+                let skill = match rng.below(100) {
+                    r if r < 55 => 0.05 + rng.below(30) as f32 / 100.0,
+                    r if r < 85 => 0.40 + rng.below(30) as f32 / 100.0,
+                    _ => 0.75 + rng.below(20) as f32 / 100.0,
+                };
+                world.add_component(v, vocation::craft(adult_vocs[i], skill));
+            } else if i < 25 {
+                world.add_component(v, TownRole::Overseer);
+            } else if i == 25 {
+                world.add_component(v, TownRole::Trader);
+            } else if i < 29 {
+                world.add_component(v, Kid);
+            } else {
+                world.add_component(v, TownRole::TaxCollector);
+            }
             villagers.push(v);
         }
         for i in 0..3 {
@@ -1409,6 +1583,140 @@ impl<'a> Game<'a> {
         let cat = pets::spawn_pet(&mut world, "Mog", Species::Cat, PetRole::Companion);
         pets::adopt(&mut world, cat, villagers[1]);
         let pets = vec![(dog, &art.dog, (0.8, 0.5)), (cat, &art.cat, (0.5, 0.3))];
+
+        // ---- settle the town ----
+        // the player is just another character: a class (never the
+        // landowner), a trade, gold to match, and an inner life
+        let pvoc = roll_vocation(&mut rng);
+        let pclass = match rng.below(10) { 0..=6 => SocialClass::Working, 7..=8 => SocialClass::PetitBourgeois, _ => SocialClass::ProfessionalMiddle };
+        let pvoc = if pclass == SocialClass::ProfessionalMiddle && !vocation::is_pmc(pvoc) {
+            if rng.below(2) == 0 { Vocation::Knight } else { Vocation::Priest }
+        } else { pvoc };
+        let pskill = if pclass == SocialClass::PetitBourgeois { 0.8 } else { 0.1 + rng.below(20) as f32 / 100.0 };
+        world.add_component(player, vocation::craft(pvoc, pskill));
+        world.add_component(player, Satchel::default());
+        world.add_component(player, Purse { gold: livelihood::seed_gold(pclass, false, (rng.next() % 1000) as f32 / 1000.0) });
+        world.add_component(player, Organizer::default());
+        {
+            let pwants = desires::sample_wants(pclass, Some(pvoc), false, &mut || rng.next());
+            world.add_component(player, InnerLife { wants: pwants, grievances: vec![], satisfied: vec![] });
+            world.get_component_mut::<PlayerCharacter>(player).unwrap().resources =
+                world.get_component::<Purse>(player).unwrap().gold;
+        }
+        // beds: homes hold 1-4; the unlucky have NoHome
+        let homes: Vec<Entity> = building_entities.iter().copied().filter(|&b| {
+            world.get_component::<Building>(b)
+                .map(|bb| bb.kind == BuildingKind::Home && bb.name != "a foreign house").unwrap_or(false)
+        }).collect();
+        for (i, &v) in villagers.iter().enumerate() {
+            let prefer = if KID_IDXS.contains(&i) {
+                // a child lodges with the adult a few places before him
+                household::home_of(&world, villagers[(i + 20) % 23])
+            } else { None };
+            let mut placed = false;
+            if let Some(h) = prefer {
+                if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
+                    world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
+                    placed = true;
+                }
+            }
+            for k in 0..homes.len().max(1) {
+                if placed { break; }
+                let h = homes[(i * 7 + k) % homes.len()];
+                if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
+                    world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
+                    placed = true;
+                }
+            }
+            let _ = placed;
+        }
+        // the player finds a bed too, like anyone else
+        for k in 0..homes.len().max(1) {
+            let h = homes[(k * 3) % homes.len()];
+            if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
+                world.get_component_mut::<Building>(h).unwrap().occupants.push(player);
+                break;
+            }
+        }
+        // everyone sleeps where they live
+        for (i, &v) in villagers.iter().enumerate() {
+            if let Some(h) = household::home_of(&world, v) {
+                if let Some(hp) = world.get_component::<Pos>(h).copied() {
+                    let p = world.get_component_mut::<Pos>(v).unwrap();
+                    p.x = hp.x + ((i % 3) as f32 - 1.0) * 0.4;
+                    p.y = hp.y + ((i % 2) as f32) * 0.4;
+                }
+            }
+        }
+        // workshops: one worker each; trades with no shop (or more hands
+        // than benches) leave folk working the street
+        for &v in &villagers {
+            let Some(voc) = world.get_component::<Craft>(v).map(|c| c.vocation) else { continue };
+            let want = household::kind_for(voc);
+            if let Some(b) = building_entities.iter().copied().find(|&b| {
+                world.get_component::<Building>(b).map(|bb| bb.kind == want && bb.worker.is_none()).unwrap_or(false)
+            }) {
+                world.get_component_mut::<Building>(b).unwrap().worker = Some(v);
+                world.get_component_mut::<Craft>(v).unwrap().workplace = Some(b);
+            }
+        }
+        // and if the player's trade has a bench free, it's theirs
+        if world.get_component::<Craft>(player).unwrap().workplace.is_none() {
+            let want = household::kind_for(pvoc);
+            if let Some(b) = building_entities.iter().copied().find(|&b| {
+                world.get_component::<Building>(b).map(|bb| bb.kind == want && bb.worker.is_none()).unwrap_or(false)
+            }) {
+                world.get_component_mut::<Building>(b).unwrap().worker = Some(player);
+                world.get_component_mut::<Craft>(player).unwrap().workplace = Some(b);
+            }
+        }
+        world.get_component_mut::<Building>(trader_stall).unwrap().worker = Some(villagers[25]);
+        // an overseer drives each farm and mason's yard
+        let mut oi = 23usize;
+        for &b in &building_entities {
+            if oi >= 25 { break; }
+            let drives = world.get_component::<Building>(b)
+                .map(|bb| matches!(bb.kind, BuildingKind::Shop(Vocation::Farmer | Vocation::Mason))).unwrap_or(false);
+            if drives {
+                world.get_component_mut::<Building>(b).unwrap().overseer = Some(villagers[oi]);
+                oi += 1;
+            }
+        }
+        // masters pair juniors: half the journeymen/apprentices find a
+        // same-vocation master to learn from
+        for i in 0..23 {
+            let v = villagers[i];
+            let (voc, skill) = match world.get_component::<Craft>(v) { Some(c) => (c.vocation, c.skill), None => continue };
+            if vocation::level_of(skill) == Level::Master || rng.below(100) >= 50 { continue; }
+            let master = villagers[..23].iter().copied().find(|&m| {
+                m != v && world.get_component::<Craft>(m)
+                    .map(|c| c.vocation == voc && vocation::level_of(c.skill) == Level::Master).unwrap_or(false)
+            });
+            if let Some(m) = master {
+                world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
+                let rel = world.create_entity();
+                world.add_component(rel, relationships::Relationship {
+                    from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.4, interactions: 3 });
+            }
+        }
+        // purses and inner lives now that classes are settled
+        let mut g = Rng(seed ^ 0xA11CE);
+        for (i, &v) in villagers.iter().enumerate() {
+            let class = desires::class_of(&world, v);
+            let is_kid = KID_IDXS.contains(&i);
+            let gold = livelihood::seed_gold(class, is_kid, (g.next() % 1000) as f32 / 1000.0);
+            world.add_component(v, Purse { gold });
+            let voc = world.get_component::<Craft>(v).map(|c| c.vocation);
+            let wants = desires::sample_wants(class, voc, is_kid, &mut || g.next());
+            world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
+        }
+        // the collector starts his yearly round in a few weeks
+        let collector = villagers[COLLECTOR_IDX];
+        {
+            let mut roster: Vec<Entity> = villagers.clone();
+            roster.push(player);
+            livelihood::tax_round(&mut world, collector, &roster, 25, 11);
+        }
 
         let buttons = vec![
             Button { label: "Talk",     key: ACTION_KEYS[0].1, x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
@@ -1454,6 +1762,16 @@ impl<'a> Game<'a> {
             approach: None,
             precip: None,
             rainbow_from: None,
+            building_entities,
+            selected_building: None,
+            ctx_buttons: vec![],
+            collector: Some(collector),
+            trader_stall: Some(trader_stall),
+            travels: vec![],
+            minstrel: None,
+            next_minstrel: 250 + seed % 200,
+            derelict_tints: Default::default(),
+            voiced: vec![],
         }
     }
 
@@ -1604,6 +1922,7 @@ impl<'a> Game<'a> {
             ticked = true;
         }
         let tick = self.tick;
+        if ticked { self.livelihood_tick(tick); }
         // weather: log when rain or snow starts and stops; a rainbow follows rain
         let now = world.get_component::<climate::Climate>(self.climate).and_then(precip_kind);
         if now != self.precip {
@@ -1801,7 +2120,10 @@ impl<'a> Game<'a> {
             }
             self.works.retain(|w| w.risen() < 1.0);
             self.advance_meeting();
+            self.advance_travels();
+            self.advance_minstrel();
         }
+        self.update_ctx_buttons();
         self.advance_approach();
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);
@@ -2355,7 +2677,23 @@ impl<'a> Game<'a> {
         // freeze the concern/small-talk index after a few talks.
         let talks_before = self.world.get_component::<TalkCount>(v)
             .map(|c| c.value).unwrap_or(0);
-        let (did, said) = talk_response(&self.world, v, NAMES[who], talks_before);
+        // a 1-1 has a small chance of drawing out one of their secrets:
+        // a want, or the problem that's in their way
+        let revealed = if (self.rng.next() % 1000) < (desires::REVEAL_BASE * 1000.0) as u64 {
+            let pick = self.rng.next();
+            desires::next_reveal(&self.world, v, self.tick, pick)
+        } else { None };
+        let (did, said) = match revealed {
+            Some(r) => {
+                let (d, s) = desires::reveal_speech(NAMES[who], &r);
+                if let Some(issue) = desires::hear(&mut self.world, self.player, v, r, self.tick) {
+                    self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                    self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                }
+                (d, s)
+            }
+            None => talk_response(&self.world, v, NAMES[who], talks_before),
+        };
         act_talk(&mut self.world, self.player, v);
         self.say(v, &said, TALK_BUBBLE_SECS);
         format!("{}: \"{}\"", did, said)

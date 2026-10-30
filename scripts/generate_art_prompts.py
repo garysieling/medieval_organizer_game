@@ -121,6 +121,21 @@ def add(group, slug, prompt, style="rd_pro__isometric", w=128, h=128, n=1,
 ISO = "single isometric medieval village asset"
 SPRITE = "small chibi medieval character, front view, full body, on empty background"
 
+# Appearance variety: the cast should read as a real mix of people, not one
+# face pasted everywhere. Every base villager gets 3 looks spread across the
+# list; vocations and town roles cycle through it so the whole set is diverse.
+APPEARANCES = [
+    ("fair", "fair skin and light brown hair"),
+    ("pale", "pale freckled skin and red hair"),
+    ("olive", "olive skin and dark wavy hair"),
+    ("tan", "warm tan skin and dark hair"),
+    ("brown", "brown skin and coiled black hair"),
+    ("deep", "deep dark skin and short black hair"),
+]
+
+# Scenes and festivals draw crowds - say so, or they come out monochrome.
+CROWD = "villagers of varied ages and skin tones"
+
 SEASONS = [
     ("spring", "fresh green spring, small flowers, new leaves"),
     ("summer", "lush deep-green summer, dense foliage"),
@@ -278,6 +293,9 @@ PEOPLE = [
     ("elder-f", "elderly woman with grey bun and shawl"),
     ("child-m", "small boy child in short tunic"),
     ("child-f", "small girl child in short dress"),
+    ("youth-m", "teenage boy in a loose tunic"),
+    ("youth-f", "teenage girl with a long braid"),
+    ("parent-infant", "young parent carrying a swaddled infant"),
     ("noble-m", "male noble in fur-trimmed cloak and fine hose"),
     ("noble-f", "female noble in long gown and headdress"),
     ("princess", "young princess in pale gown with small crown"),
@@ -323,12 +341,18 @@ def person(group):
         style="rd_pro__default", w=48, h=48,
         notes="use a saved reference_image of your base villager for look consistency")
 
-for slug, subj in PEOPLE:
-    person("people/villagers")(slug, subj)
-for slug, subj in VOCATION_PEOPLE:
-    person("people/vocations")(slug, subj)
-for slug, subj in TOWN_ROLES:
-    person("people/roles")(slug, subj)
+# Every base villager in 3 looks, spread across APPEARANCES so the town can
+# mix faces freely; vocations and roles each take one rotating look.
+for i, (slug, subj) in enumerate(PEOPLE):
+    for v in (i, i + 2, i + 4):
+        app_slug, app = APPEARANCES[v % len(APPEARANCES)]
+        person("people/villagers")(f"{slug}-{app_slug}", f"{subj}, {app}")
+for i, (slug, subj) in enumerate(VOCATION_PEOPLE):
+    _, app = APPEARANCES[i % len(APPEARANCES)]
+    person("people/vocations")(slug, f"{subj}, {app}")
+for i, (slug, subj) in enumerate(TOWN_ROLES):
+    _, app = APPEARANCES[(i + 3) % len(APPEARANCES)]
+    person("people/roles")(slug, f"{subj}, {app}")
 
 # Pets (Species enum) - small critters on the map.
 for slug, pet in [
@@ -442,7 +466,7 @@ for slug, subj in [
 # P1: festival modes - the four solstice/equinox occasions.
 
 for slug, f in FESTIVALS:
-    add("festivals", f"festival-{slug}", f"{ISO}, wide festive scene: {f}",
+    add("festivals", f"festival-{slug}", f"{ISO}, wide festive scene: {f}, {CROWD}",
         w=256, h=256, remove_bg=False, tier="p1")
 for slug, deco in [
     ("maypole", "maypole with coloured ribbons"),
@@ -505,7 +529,7 @@ SCENES = [
     ("pilgrims-arrive", "pilgrims with staffs arriving on the road"),
 ]
 for slug, s in SCENES:
-    add("scenes", f"scene-{slug}", f"{ISO}, wide lively scene: {s}",
+    add("scenes", f"scene-{slug}", f"{ISO}, wide lively scene: {s}, {CROWD}",
         w=256, h=256, remove_bg=False, tier="p1",
         notes="cutscene/loading art; also usable as reference for the matching feature")
 
@@ -570,6 +594,8 @@ FUTURE_VOCATIONS = [
     ("herbalist", "herbalist witch by drying herbs"),
     ("fisherman", "fisherman with net and basket"),
     ("potter", "potter at a kick wheel"), ("weaver", "weaver at a loom"),
+    ("matchmaker", "village matchmaker, older woman in worn finery carrying "
+                   "a ledger of eligible names and letters"),
 ]
 for slug, subj in FUTURE_VOCATIONS:
     add("future/vocations", f"future-{slug}", f"{SPRITE}: {subj}",

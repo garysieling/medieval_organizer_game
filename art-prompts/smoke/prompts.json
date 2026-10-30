@@ -78,11 +78,11 @@
    "notes": "validates: rd_pro isometric building"
   },
   {
-   "id": "person-minstrel-2b6faf87-smoke",
+   "id": "person-minstrel-1026f9b4-smoke",
    "tier": "p0",
    "group": "people/roles",
    "title": "person minstrel",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -156,11 +156,11 @@
    "notes": "validates: ui_panel chrome"
   },
   {
-   "id": "festival-summer-solstice-4fb52203-smoke",
+   "id": "festival-summer-solstice-2724705f-smoke",
    "tier": "p1",
    "group": "festivals",
    "title": "festival summer solstice",
-   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration",
+   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,

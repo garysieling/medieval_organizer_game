@@ -34,7 +34,8 @@ cargo run --bin game           # text-mode version
 | Input | Action |
 |-------|--------|
 | **Click button** | Take action on selected villager |
-| **Click villager** | Select/inspect them |
+| **Click villager** | Select/inspect them (class, vocation, skill, gold, home, shop, and any secrets they've let slip) |
+| **Click building** | Inspect it: purpose, who works or lives there, stock and what's for offer |
 | **1-5** | Select villager by number |
 | **T/R/I/O/B/W** | Keyboard: Talk/Recruit/Invest/Organize/Build/Wait |
 | **Arrows** | Pan the camera around the map |
@@ -62,6 +63,22 @@ You are **The Wanderer** - an outsider who arrives in a medieval village with no
 3. **Organize** house meetings, committees, actions
 4. **Invest** resources in your cause
 5. **Build** your influence into actual power
+
+### The Town
+
+Everyone has a **class** (working, petit bourgeois, PMC - knights, priests,
+overseers, the tax collector) and working folk a **vocation** (farmer,
+baker, toolmaker, tailor, glazier, printmaker, mason, luthier...).
+Skill climbs **journeyman -> apprentice -> master** with use - fast under
+a paired master, slow alone. Workshops stockpile goods for sale; a trade
+with no shop works at half rate, and a shop with no worker stands derelict.
+Children (flagged "(child)") run odd jobs for a few gold. The tax
+collector takes his yearly cut from everyone - including you.
+
+Everyone carries secret **wants** and **problems**. Talk and house
+meetings can draw them out; parallel complaints make people likelier to
+share. Three voices on one trouble inside a year and the organizer sees
+the issue - shown on the panel's ISSUES line.
 
 ### What Emerges
 

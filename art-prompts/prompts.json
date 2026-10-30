@@ -1,0 +1,6573 @@
+{
+ "_meta": {
+  "service": "https://api.retrodiffusion.ai/v2/inferences",
+  "auth": "header X-RD-Token: rdpk-... ; persist an Idempotency-Key per call",
+  "usage": [
+   "prompt describes the SUBJECT only; prompt_style carries the pixel look",
+   "check_cost:true is a free dry run - verify a batch's price first",
+   "two-stage entries need input_image from the earlier still",
+   "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
+  ],
+  "count": 410,
+  "est_total_usd": 71.84
+ },
+ "prompts": [
+  {
+   "id": "church-1ec390cd",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "church",
+   "prompt": "single isometric medieval village asset: stone village church with bell tower and graveyard",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "cottages-set-f395312a",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "cottages set",
+   "prompt": "isometric medieval cottages: timber-frame and plastered fronts, thatched and tiled roofs, varied door and gable positions",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 192,
+    "height": 192,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.72,
+   "notes": "batch of 4 distinct cottage variants; repeat calls for more variety"
+  },
+  {
+   "id": "granary-107d49b6",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "granary",
+   "prompt": "single isometric medieval village asset: raised granary barn on staddle stones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "guildhall-da6ed492",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "guildhall",
+   "prompt": "single isometric medieval village asset: grand timber guildhall, two storeys, ornate gables",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "market-stands-f249404f",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "market stands",
+   "prompt": "single isometric medieval village asset: market square stands: crates, barrels, awnings",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "meeting-hall-0354c806",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "meeting hall",
+   "prompt": "single isometric medieval village asset: village meeting hall with bench rows and hearth",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "mill-sails-b652393b",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "mill sails",
+   "prompt": "single isometric medieval village asset: windmill sails, four lattice blades, standalone",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "mill-tower-e800ccd6",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "mill tower",
+   "prompt": "single isometric medieval village asset: windmill tower with cap, sails separate",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "smoke-8c270130",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "smoke",
+   "prompt": "single isometric medieval village asset: wispy chimney smoke puffs, three stages rising",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "trader-stall-78548070",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "trader stall",
+   "prompt": "single isometric medieval village asset: open-air market stall with canvas awning and goods",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "watch-post-85aae5f8",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "watch post",
+   "prompt": "single isometric medieval village asset: watch house, small guard post with bell and spear rack",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "well-7d691ec3",
+   "tier": "p0",
+   "group": "buildings",
+   "title": "well",
+   "prompt": "single isometric medieval village asset: stone village well with little wooden roof and bucket",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-bakery-1026b2e1",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop bakery",
+   "prompt": "single isometric medieval village asset: bakery with brick oven chimney and bread sign",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-farm-60cee6b1",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop farm",
+   "prompt": "single isometric medieval village asset: farmhouse with fenced field and hay cart",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-glazier-e5161177",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop glazier",
+   "prompt": "single isometric medieval village asset: glazier's workshop with glass panes in the window",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-luthier-6d3aeed8",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop luthier",
+   "prompt": "single isometric medieval village asset: luthier's workshop, lutes hanging by the door",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-masons-yard-e00310ea",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop masons yard",
+   "prompt": "single isometric medieval village asset: mason's yard with cut stone blocks and scaffolding",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-printshop-c69c2799",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop printshop",
+   "prompt": "single isometric medieval village asset: print shop with a wooden press and posted bills",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-smithy-844a3d58",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop smithy",
+   "prompt": "single isometric medieval village asset: blacksmith smithy with forge, anvil outside, smoke",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "shop-tailor-df93a827",
+   "tier": "p0",
+   "group": "buildings/shops",
+   "title": "shop tailor",
+   "prompt": "single isometric medieval village asset: tailor's shop with cloth bolts displayed",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "icon-build-66e1be52",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon build",
+   "prompt": "small game UI icon of mallet and wooden beam, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-inspect-41581a0b",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon inspect",
+   "prompt": "small game UI icon of magnifying glass over a face, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-invest-af59bb96",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon invest",
+   "prompt": "small game UI icon of gold coins into a pot, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-organize-4a0fc1fb",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon organize",
+   "prompt": "small game UI icon of raised fist with banner, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-recruit-9d797f6f",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon recruit",
+   "prompt": "small game UI icon of clasped handshake, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-talk-e3097146",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon talk",
+   "prompt": "small game UI icon of speech bubble, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-wait-6063425e",
+   "tier": "p0",
+   "group": "icons/actions",
+   "title": "icon wait",
+   "prompt": "small game UI icon of hourglass, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "good-blocks-92a5620d",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good blocks",
+   "prompt": "small game item icon of dressed stone blocks",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-bread-5f6af63a",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good bread",
+   "prompt": "small game item icon of round bread loaf",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-cloth-b415e4e7",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good cloth",
+   "prompt": "small game item icon of rolled bolt of cloth",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-faith-3f1d9ce8",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good faith",
+   "prompt": "small game item icon of candle flame in holder",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-flour-dccf75d0",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good flour",
+   "prompt": "small game item icon of cloth sack of flour",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-garments-def4fce5",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good garments",
+   "prompt": "small game item icon of folded clothes stack",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-glass-9aca0a72",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good glass",
+   "prompt": "small game item icon of leaded glass pane",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-gold-96ed2295",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good gold",
+   "prompt": "small game item icon of pile of gold coins",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-ink-7360252d",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good ink",
+   "prompt": "small game item icon of ink pot with quill",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-lute-d9a77594",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good lute",
+   "prompt": "small game item icon of wooden lute",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-pamphlets-066f56a9",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good pamphlets",
+   "prompt": "small game item icon of folded printed pamphlet",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-paper-d9ed2a0e",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good paper",
+   "prompt": "small game item icon of stack of paper sheets",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-pigment-0c9d65f9",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good pigment",
+   "prompt": "small game item icon of pots of coloured pigment",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-sand-696ef674",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good sand",
+   "prompt": "small game item icon of small pile of sand",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-security-75140163",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good security",
+   "prompt": "small game item icon of small shield",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-stone-81d68549",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good stone",
+   "prompt": "small game item icon of cut stone block",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-tools-7680fa0e",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good tools",
+   "prompt": "small game item icon of hammer and chisel crossed",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-wheat-bcc296a0",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good wheat",
+   "prompt": "small game item icon of wheat sheaf",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-wood-b7055167",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "good wood",
+   "prompt": "small game item icon of stack of logs",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "goods-sheet-644710b6",
+   "tier": "p0",
+   "group": "icons/goods",
+   "title": "goods sheet",
+   "prompt": "inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call draws a matched set; include_downloadable_data returns the item atlas"
+  },
+  {
+   "id": "icon-faith-85d2ed91",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon faith",
+   "prompt": "small game UI icon of lit candle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-gold-29451986",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon gold",
+   "prompt": "small game UI icon of gold coin stack, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-health-564ed4a3",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon health",
+   "prompt": "small game UI icon of red heart, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-hunger-9508a3bd",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon hunger",
+   "prompt": "small game UI icon of bread loaf, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-mood-c2d13ad6",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon mood",
+   "prompt": "small game UI icon of sun behind small cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-power-c4187156",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon power",
+   "prompt": "small game UI icon of raised banner on pole, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-trust-73e6f253",
+   "tier": "p0",
+   "group": "icons/meters",
+   "title": "icon trust",
+   "prompt": "small game UI icon of two joined hands, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-autumn-3e5e3a91",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon autumn",
+   "prompt": "small game UI icon of orange maple leaf, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-spring-46030de0",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon spring",
+   "prompt": "small game UI icon of sprouting seedling with flower, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-summer-25ecfbcf",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon summer",
+   "prompt": "small game UI icon of golden wheat sheaf and sun, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-winter-4f941d54",
+   "tier": "p0",
+   "group": "icons/seasons",
+   "title": "icon winter",
+   "prompt": "small game UI icon of bare branch with snow, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-busy-fdfcd209",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon busy",
+   "prompt": "small game UI icon of hammer mid-swing, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-cold-621d2a39",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon cold",
+   "prompt": "small game UI icon of blue snowflake, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-dead-f61f5104",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon dead",
+   "prompt": "small game UI icon of small skull, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-finding-food-3b4521be",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon finding food",
+   "prompt": "small game UI icon of basket with bread loaf, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-grieving-e3922e2a",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon grieving",
+   "prompt": "small game UI icon of wilted flower, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-happy-f8d37953",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon happy",
+   "prompt": "small game UI icon of smiling sun face, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-hungry-4ceb9208",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon hungry",
+   "prompt": "small game UI icon of empty bowl with spoon, warning feel, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-injured-4bc46d86",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon injured",
+   "prompt": "small game UI icon of bandaged arm, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-sick-92df90ab",
+   "tier": "p0",
+   "group": "icons/status",
+   "title": "icon sick",
+   "prompt": "small game UI icon of green face with sweat drop, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "ui-button-c5bf7b01",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui button",
+   "prompt": "wooden game button, unpressed, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-end-screen-c3c99989",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui end screen",
+   "prompt": "quiet dusk view of a medieval village, lamps lit, end-of-game mood",
+   "request": {
+    "prompt_style": "rd_pro__painterly",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-log-box-637d32e2",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui log box",
+   "prompt": "long thin parchment scroll log box, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-panel-e028fe6e",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui panel",
+   "prompt": "carved wooden-framed parchment UI panel, empty centre, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-title-keyart-8651a36f",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui title keyart",
+   "prompt": "sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art",
+   "request": {
+    "prompt_style": "rd_pro__painterly",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ui-villager-card-c74542c4",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui villager card",
+   "prompt": "character card panel with portrait frame and stat rows, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "icon-heavy-rain-aa8537ee",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon heavy rain",
+   "prompt": "small game UI icon of dark storm cloud with heavy rain, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-heavy-snow-ee1a9201",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon heavy snow",
+   "prompt": "small game UI icon of blizzard cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-overcast-8e788526",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon overcast",
+   "prompt": "small game UI icon of flat grey cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-rain-2b017fed",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon rain",
+   "prompt": "small game UI icon of grey cloud with rain streaks, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-rainbow-7248914e",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon rainbow",
+   "prompt": "small game UI icon of rainbow arc over small cloud, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-snow-dfa3832b",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon snow",
+   "prompt": "small game UI icon of white cloud with snowflakes, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-storm-1fa52396",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon storm",
+   "prompt": "small game UI icon of cloud with lightning bolt, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-sun-eecfc994",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon sun",
+   "prompt": "small game UI icon of bright sun, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "animal-cat-6e458a94",
+   "tier": "p0",
+   "group": "people/animals",
+   "title": "animal cat",
+   "prompt": "single isometric medieval village asset: small tabby cat curled",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "animal-chicken-a77a7cd8",
+   "tier": "p0",
+   "group": "people/animals",
+   "title": "animal chicken",
+   "prompt": "single isometric medieval village asset: brown hen pecking",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "animal-dog-287138c4",
+   "tier": "p0",
+   "group": "people/animals",
+   "title": "animal dog",
+   "prompt": "single isometric medieval village asset: shaggy village dog sitting",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "person-archer-fe223c0b",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person archer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: archer with bow and quiver",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-cavalier-6a964963",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person cavalier",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: mounted knight on horseback with lance",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-courier-b2f7f8f4",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person courier",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: road courier on horseback, satchel across chest",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-crossbowman-73798b0f",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person crossbowman",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: crossbowman winding his weapon",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-guard-halberd-5f8f56eb",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person guard halberd",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with halberd",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-guard-shield-b835d305",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person guard shield",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with large shield",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-guard-spear-223c1659",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person guard spear",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with spear and open helmet",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-guard-sword-948161e7",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person guard sword",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with sword and buckler",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-king-87f347e4",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person king",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: old king in ermine cloak and crown",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-mage-e4070a39",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person mage",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: village hedge mage in robes with staff",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-minstrel-2b6faf87",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person minstrel",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-overseer-1f8dc2ce",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person overseer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: stern overseer with ledger and short whip, fine coat",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-prince-fe32d197",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person prince",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young prince in doublet",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-tax-collector-d0407236",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person tax collector",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: tax collector in dark robes with coin purse and ledger",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-trader-71d420cd",
+   "tier": "p0",
+   "group": "people/roles",
+   "title": "person trader",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling trader in foreign-looking bright robes at a stall",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-child-f-dfc9b00a",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person child f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small girl child in short dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-child-m-0cd9e8d4",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person child m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-elder-f-0a4cb708",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person elder f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly woman with grey bun and shawl",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-elder-m-a4f55465",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person elder m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly man with white beard and walking stick",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-noble-f-a26753fa",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female noble in long gown and headdress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-noble-m-67c63f77",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male noble in fur-trimmed cloak and fine hose",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-f-324e5751",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female peasant villager in homespun dress and kerchief",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-m-6be8c9ea",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male peasant villager in rough brown tunic",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-player-9aa3a59e",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person player",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: player character, young organizer in green tunic with satchel",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-princess-4a6b9954",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person princess",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young princess in pale gown with small crown",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-queen-c45451ed",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person queen",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: matriarch queen in rich robes and circlet",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-f-66ea972b",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female labourer in work dress and apron",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-m-d5c179b1",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male labourer in rolled sleeves and apron",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-baker-f-835c1127",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person baker f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female baker in flour-dusted apron holding a loaf",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-baker-m-0457b4c0",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person baker m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male baker in flour-dusted apron holding a loaf",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-farmer-f-e1fe6839",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person farmer f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female farmer with straw hat, sickle at belt",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-farmer-m-a6c649ae",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person farmer m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male farmer with straw hat, sickle at belt",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-glazier-f-c1a70844",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person glazier f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female glazier holding a leaded glass pane",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-glazier-m-08aa53a5",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person glazier m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male glazier holding a leaded glass pane",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-knight-f-58c96e1d",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person knight f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female knight-at-arms in mail with sword and surcoat",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-knight-m-97859b96",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person knight m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male knight-at-arms in mail with sword and surcoat",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-luthier-f-181564ae",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person luthier f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female luthier holding an unfinished lute",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-luthier-m-f1bd5485",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person luthier m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male luthier holding an unfinished lute",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-mason-f-c9e2d39d",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person mason f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female stonemason with mallet and chisel, dusty apron",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-mason-m-01bce502",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person mason m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male stonemason with mallet and chisel, dusty apron",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-priest-f-09668b13",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person priest f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female village priest in plain robes with symbol pendant",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-priest-m-03e3c90e",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person priest m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male village priest in plain robes with symbol pendant",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-printmaker-f-0f345e2d",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person printmaker f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female printmaker in ink-stained apron holding a pamphlet",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-printmaker-m-6874ac59",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person printmaker m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male printmaker in ink-stained apron holding a pamphlet",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-tailor-f-22fde347",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person tailor f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female tailor with measuring tape and pins",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-tailor-m-146d2d9b",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person tailor m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male tailor with measuring tape and pins",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-toolmaker-f-bd5f98a1",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person toolmaker f",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female blacksmith toolmaker with leather apron and hammer",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-toolmaker-m-6321d2df",
+   "tier": "p0",
+   "group": "people/vocations",
+   "title": "person toolmaker m",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male blacksmith toolmaker with leather apron and hammer",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "bridge-x-413162cc",
+   "tier": "p0",
+   "group": "tiles/bridges",
+   "title": "bridge x",
+   "prompt": "single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "deck running along the x axis"
+  },
+  {
+   "id": "bridge-y-97ebb663",
+   "tier": "p0",
+   "group": "tiles/bridges",
+   "title": "bridge y",
+   "prompt": "single isometric medieval village asset: wooden plank bridge crossing a river, arched, viewed isometric",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "deck running along the y axis"
+  },
+  {
+   "id": "crop-corn-stage1-001e4912",
+   "tier": "p0",
+   "group": "tiles/crops",
+   "title": "crop corn stage1",
+   "prompt": "single isometric medieval village asset: small field patch of corn, young green stalks",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 96,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "crop-corn-stage2-55c85352",
+   "tier": "p0",
+   "group": "tiles/crops",
+   "title": "crop corn stage2",
+   "prompt": "single isometric medieval village asset: small field patch of corn, tall ripe ears",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 96,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "crop-wheat-stage1-80e7ce74",
+   "tier": "p0",
+   "group": "tiles/crops",
+   "title": "crop wheat stage1",
+   "prompt": "single isometric medieval village asset: small field patch of wheat, green shoots",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 96,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "crop-wheat-stage2-4e06296e",
+   "tier": "p0",
+   "group": "tiles/crops",
+   "title": "crop wheat stage2",
+   "prompt": "single isometric medieval village asset: small field patch of wheat, ripe golden heads",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 96,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "detail-boulder-autumn-caa638e7",
+   "tier": "p0",
+   "group": "tiles/details-autumn",
+   "title": "detail boulder autumn",
+   "prompt": "single isometric medieval village asset: grey boulder, mossy, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-stone-ground-autumn-ae467993",
+   "tier": "p0",
+   "group": "tiles/details-autumn",
+   "title": "detail stone ground autumn",
+   "prompt": "single isometric medieval village asset: flat scatter of small stones on the ground, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-tufts-autumn-13d7613c",
+   "tier": "p0",
+   "group": "tiles/details-autumn",
+   "title": "detail tufts autumn",
+   "prompt": "single isometric medieval village asset: grass tufts and tiny wildflowers, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-boulder-spring-f7dcb6fd",
+   "tier": "p0",
+   "group": "tiles/details-spring",
+   "title": "detail boulder spring",
+   "prompt": "single isometric medieval village asset: grey boulder, mossy, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-stone-ground-spring-f01e8866",
+   "tier": "p0",
+   "group": "tiles/details-spring",
+   "title": "detail stone ground spring",
+   "prompt": "single isometric medieval village asset: flat scatter of small stones on the ground, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-tufts-spring-3efda334",
+   "tier": "p0",
+   "group": "tiles/details-spring",
+   "title": "detail tufts spring",
+   "prompt": "single isometric medieval village asset: grass tufts and tiny wildflowers, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-boulder-summer-c71806f8",
+   "tier": "p0",
+   "group": "tiles/details-summer",
+   "title": "detail boulder summer",
+   "prompt": "single isometric medieval village asset: grey boulder, mossy, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-stone-ground-summer-54a9133c",
+   "tier": "p0",
+   "group": "tiles/details-summer",
+   "title": "detail stone ground summer",
+   "prompt": "single isometric medieval village asset: flat scatter of small stones on the ground, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-tufts-summer-0eeb5377",
+   "tier": "p0",
+   "group": "tiles/details-summer",
+   "title": "detail tufts summer",
+   "prompt": "single isometric medieval village asset: grass tufts and tiny wildflowers, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-boulder-winter-9b899822",
+   "tier": "p0",
+   "group": "tiles/details-winter",
+   "title": "detail boulder winter",
+   "prompt": "single isometric medieval village asset: grey boulder, mossy, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-stone-ground-winter-e25c45dd",
+   "tier": "p0",
+   "group": "tiles/details-winter",
+   "title": "detail stone ground winter",
+   "prompt": "single isometric medieval village asset: flat scatter of small stones on the ground, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "detail-tufts-winter-a8e410c3",
+   "tier": "p0",
+   "group": "tiles/details-winter",
+   "title": "detail tufts winter",
+   "prompt": "single isometric medieval village asset: lumps of snow and frost-covered tufts, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": ""
+  },
+  {
+   "id": "ground-grass-autumn-2fc714f3",
+   "tier": "p0",
+   "group": "tiles/ground-autumn",
+   "title": "ground grass autumn",
+   "prompt": "single isometric medieval village asset: flat grassy ground block, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-hill-autumn-a5771a3b",
+   "tier": "p0",
+   "group": "tiles/ground-autumn",
+   "title": "ground hill autumn",
+   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-rock-autumn-6743dcf0",
+   "tier": "p0",
+   "group": "tiles/ground-autumn",
+   "title": "ground rock autumn",
+   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-shore-autumn-dedd8dda",
+   "tier": "p0",
+   "group": "tiles/ground-autumn",
+   "title": "ground shore autumn",
+   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "water-deep-autumn-42c3e439",
+   "tier": "p0",
+   "group": "tiles/ground-autumn",
+   "title": "water deep autumn",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "water-shallow-autumn-8159ebd4",
+   "tier": "p0",
+   "group": "tiles/ground-autumn",
+   "title": "water shallow autumn",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ground-grass-spring-3e404e93",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "ground grass spring",
+   "prompt": "single isometric medieval village asset: flat grassy ground block, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-hill-spring-3fb67452",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "ground hill spring",
+   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-rock-spring-5635e56b",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "ground rock spring",
+   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-shore-spring-33293d21",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "ground shore spring",
+   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "water-deep-spring-08c31f5a",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "water deep spring",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "water-shallow-spring-a90329c9",
+   "tier": "p0",
+   "group": "tiles/ground-spring",
+   "title": "water shallow spring",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ground-grass-summer-39dbed4f",
+   "tier": "p0",
+   "group": "tiles/ground-summer",
+   "title": "ground grass summer",
+   "prompt": "single isometric medieval village asset: flat grassy ground block, lush deep-green summer, dense foliage, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-hill-summer-a352e9e5",
+   "tier": "p0",
+   "group": "tiles/ground-summer",
+   "title": "ground hill summer",
+   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, lush deep-green summer, dense foliage, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-rock-summer-276e2ad7",
+   "tier": "p0",
+   "group": "tiles/ground-summer",
+   "title": "ground rock summer",
+   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, lush deep-green summer, dense foliage, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-shore-summer-affea983",
+   "tier": "p0",
+   "group": "tiles/ground-summer",
+   "title": "ground shore summer",
+   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, lush deep-green summer, dense foliage, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "water-deep-summer-e9a4ecab",
+   "tier": "p0",
+   "group": "tiles/ground-summer",
+   "title": "water deep summer",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "water-shallow-summer-440cab01",
+   "tier": "p0",
+   "group": "tiles/ground-summer",
+   "title": "water shallow summer",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "ground-grass-winter-0a9dfba7",
+   "tier": "p0",
+   "group": "tiles/ground-winter",
+   "title": "ground grass winter",
+   "prompt": "single isometric medieval village asset: flat grassy ground block, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-hill-winter-85e071b3",
+   "tier": "p0",
+   "group": "tiles/ground-winter",
+   "title": "ground hill winter",
+   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-rock-winter-22639ac8",
+   "tier": "p0",
+   "group": "tiles/ground-winter",
+   "title": "ground rock winter",
+   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "ground-shore-winter-43796531",
+   "tier": "p0",
+   "group": "tiles/ground-winter",
+   "title": "ground shore winter",
+   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
+  },
+  {
+   "id": "water-deep-winter-be587518",
+   "tier": "p0",
+   "group": "tiles/ground-winter",
+   "title": "water deep winter",
+   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "water-shallow-winter-e1848a81",
+   "tier": "p0",
+   "group": "tiles/ground-winter",
+   "title": "water shallow winter",
+   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, square isometric water block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "tree-birch-autumn-44df1e78",
+   "tier": "p0",
+   "group": "tiles/trees-autumn",
+   "title": "tree birch autumn",
+   "prompt": "single isometric medieval village asset: slender white-barked birch tree, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-dead-tree-autumn-73181402",
+   "tier": "p0",
+   "group": "tiles/trees-autumn",
+   "title": "tree dead tree autumn",
+   "prompt": "single isometric medieval village asset: leafless twisted dead tree, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-fruit-tree-autumn-09ec5cf0",
+   "tier": "p0",
+   "group": "tiles/trees-autumn",
+   "title": "tree fruit tree autumn",
+   "prompt": "single isometric medieval village asset: small gnarled fruit tree in blossom, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-oak-autumn-cdb08d17",
+   "tier": "p0",
+   "group": "tiles/trees-autumn",
+   "title": "tree oak autumn",
+   "prompt": "single isometric medieval village asset: broad spreading oak tree, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-pine-autumn-e91b1d45",
+   "tier": "p0",
+   "group": "tiles/trees-autumn",
+   "title": "tree pine autumn",
+   "prompt": "single isometric medieval village asset: tall evergreen pine tree, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-birch-spring-f2421acf",
+   "tier": "p0",
+   "group": "tiles/trees-spring",
+   "title": "tree birch spring",
+   "prompt": "single isometric medieval village asset: slender white-barked birch tree, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-dead-tree-spring-48871983",
+   "tier": "p0",
+   "group": "tiles/trees-spring",
+   "title": "tree dead tree spring",
+   "prompt": "single isometric medieval village asset: leafless twisted dead tree, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-fruit-tree-spring-4faf3d29",
+   "tier": "p0",
+   "group": "tiles/trees-spring",
+   "title": "tree fruit tree spring",
+   "prompt": "single isometric medieval village asset: small gnarled fruit tree in blossom, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-oak-spring-d80b35b2",
+   "tier": "p0",
+   "group": "tiles/trees-spring",
+   "title": "tree oak spring",
+   "prompt": "single isometric medieval village asset: broad spreading oak tree, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-pine-spring-c50df8fb",
+   "tier": "p0",
+   "group": "tiles/trees-spring",
+   "title": "tree pine spring",
+   "prompt": "single isometric medieval village asset: tall evergreen pine tree, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-birch-summer-edfebf95",
+   "tier": "p0",
+   "group": "tiles/trees-summer",
+   "title": "tree birch summer",
+   "prompt": "single isometric medieval village asset: slender white-barked birch tree, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-dead-tree-summer-3eeccb3b",
+   "tier": "p0",
+   "group": "tiles/trees-summer",
+   "title": "tree dead tree summer",
+   "prompt": "single isometric medieval village asset: leafless twisted dead tree, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-fruit-tree-summer-4cc8aa72",
+   "tier": "p0",
+   "group": "tiles/trees-summer",
+   "title": "tree fruit tree summer",
+   "prompt": "single isometric medieval village asset: small gnarled fruit tree in blossom, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-oak-summer-07e3b9ce",
+   "tier": "p0",
+   "group": "tiles/trees-summer",
+   "title": "tree oak summer",
+   "prompt": "single isometric medieval village asset: broad spreading oak tree, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-pine-summer-53a409b5",
+   "tier": "p0",
+   "group": "tiles/trees-summer",
+   "title": "tree pine summer",
+   "prompt": "single isometric medieval village asset: tall evergreen pine tree, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-birch-winter-14ecb675",
+   "tier": "p0",
+   "group": "tiles/trees-winter",
+   "title": "tree birch winter",
+   "prompt": "single isometric medieval village asset: slender white-barked birch tree, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-dead-tree-winter-7d9ef743",
+   "tier": "p0",
+   "group": "tiles/trees-winter",
+   "title": "tree dead tree winter",
+   "prompt": "single isometric medieval village asset: leafless twisted dead tree, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-fruit-tree-winter-a5cc7d41",
+   "tier": "p0",
+   "group": "tiles/trees-winter",
+   "title": "tree fruit tree winter",
+   "prompt": "single isometric medieval village asset: small gnarled fruit tree in blossom, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-oak-winter-e035e666",
+   "tier": "p0",
+   "group": "tiles/trees-winter",
+   "title": "tree oak winter",
+   "prompt": "single isometric medieval village asset: broad spreading oak tree, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "tree-pine-winter-e1e07d4e",
+   "tier": "p0",
+   "group": "tiles/trees-winter",
+   "title": "tree pine winter",
+   "prompt": "single isometric medieval village asset: tall evergreen pine tree, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": "num_images=2 gives two variants of the same species"
+  },
+  {
+   "id": "castle-wall-set-2c4b21d2",
+   "tier": "p0",
+   "group": "tiles/walls",
+   "title": "castle wall set",
+   "prompt": "isometric medieval castle curtain wall pieces: straight runs along both axes, corner joins, crenellated grey stone",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 192,
+    "height": 192,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "request one wall set; slice into per-edge pieces like castle_wall(1..10)"
+  },
+  {
+   "id": "wall-gatehouse-f3c3a1f1",
+   "tier": "p0",
+   "group": "tiles/walls",
+   "title": "wall gatehouse",
+   "prompt": "single isometric medieval village asset: fortified gatehouse with open archway a road passes through",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "wall-postern-2f8bc2d0",
+   "tier": "p0",
+   "group": "tiles/walls",
+   "title": "wall postern",
+   "prompt": "single isometric medieval village asset: wall section with a small postern door",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "wall-tower-capped-8853bc8f",
+   "tier": "p0",
+   "group": "tiles/walls",
+   "title": "wall tower capped",
+   "prompt": "single isometric medieval village asset: stone corner tower with crenellated cap",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "wall-tower-stone-e70a2f68",
+   "tier": "p0",
+   "group": "tiles/walls",
+   "title": "wall tower stone",
+   "prompt": "single isometric medieval village asset: round stone keep tower with conical roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "wall-tower-wood-16989700",
+   "tier": "p0",
+   "group": "tiles/walls",
+   "title": "wall tower wood",
+   "prompt": "single isometric medieval village asset: square timber watchtower, flat top",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "river-wang-autumn-08e17317",
+   "tier": "p0",
+   "group": "tiles/wang-autumn",
+   "title": "river wang autumn",
+   "prompt": "river water tiles with grassy banks, flowing stream, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": ""
+  },
+  {
+   "id": "road-wang-autumn-9f1f0906",
+   "tier": "p0",
+   "group": "tiles/wang-autumn",
+   "title": "road wang autumn",
+   "prompt": "dirt road tiles for a medieval village, wheel-rutted earth, golden autumn, orange and amber foliage, fallen leaves",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": "wang tileset: 16px or 32px tiles, all edge combinations in one sheet"
+  },
+  {
+   "id": "river-wang-spring-326f0539",
+   "tier": "p0",
+   "group": "tiles/wang-spring",
+   "title": "river wang spring",
+   "prompt": "river water tiles with grassy banks, flowing stream, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": ""
+  },
+  {
+   "id": "road-wang-spring-4278a7b3",
+   "tier": "p0",
+   "group": "tiles/wang-spring",
+   "title": "road wang spring",
+   "prompt": "dirt road tiles for a medieval village, wheel-rutted earth, fresh green spring, small flowers, new leaves",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": "wang tileset: 16px or 32px tiles, all edge combinations in one sheet"
+  },
+  {
+   "id": "river-wang-summer-0dd01bd7",
+   "tier": "p0",
+   "group": "tiles/wang-summer",
+   "title": "river wang summer",
+   "prompt": "river water tiles with grassy banks, flowing stream, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": ""
+  },
+  {
+   "id": "road-wang-summer-f0c26544",
+   "tier": "p0",
+   "group": "tiles/wang-summer",
+   "title": "road wang summer",
+   "prompt": "dirt road tiles for a medieval village, wheel-rutted earth, lush deep-green summer, dense foliage",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": "wang tileset: 16px or 32px tiles, all edge combinations in one sheet"
+  },
+  {
+   "id": "river-wang-winter-6c9c03d1",
+   "tier": "p0",
+   "group": "tiles/wang-winter",
+   "title": "river wang winter",
+   "prompt": "river water tiles with grassy banks, flowing stream, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": ""
+  },
+  {
+   "id": "road-wang-winter-63e7bce8",
+   "tier": "p0",
+   "group": "tiles/wang-winter",
+   "title": "road wang winter",
+   "prompt": "dirt road tiles for a medieval village, wheel-rutted earth, snow-covered winter, bare branches, white drifts",
+   "request": {
+    "prompt_style": "rd_tile__tileset",
+    "width": 32,
+    "height": 32,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.1,
+   "notes": "wang tileset: 16px or 32px tiles, all edge combinations in one sheet"
+  },
+  {
+   "id": "boreal-ground-17583cd5",
+   "tier": "p1",
+   "group": "biomes/boreal",
+   "title": "boreal ground",
+   "prompt": "single isometric medieval village asset: ground block, northern pine forest, moss and dark earth",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "boreal-rock-841d169f",
+   "tier": "p1",
+   "group": "biomes/boreal",
+   "title": "boreal rock",
+   "prompt": "single isometric medieval village asset: rock outcrop, northern pine forest, moss and dark earth",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "boreal-vegetation-2469d30b",
+   "tier": "p1",
+   "group": "biomes/boreal",
+   "title": "boreal vegetation",
+   "prompt": "single isometric medieval village asset: vegetation clump native to northern pine forest",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "boreal-village-d0fa8fd3",
+   "tier": "p1",
+   "group": "biomes/boreal",
+   "title": "boreal village",
+   "prompt": "single isometric medieval village asset, wide view: small medieval village in northern pine forest, moss and dark earth",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "desert-ground-86e81955",
+   "tier": "p1",
+   "group": "biomes/desert",
+   "title": "desert ground",
+   "prompt": "single isometric medieval village asset: ground block, desert sand and rock, oasis fringe",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "desert-rock-0a0eee87",
+   "tier": "p1",
+   "group": "biomes/desert",
+   "title": "desert rock",
+   "prompt": "single isometric medieval village asset: rock outcrop, desert sand and rock, oasis fringe",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "desert-vegetation-108e0ba7",
+   "tier": "p1",
+   "group": "biomes/desert",
+   "title": "desert vegetation",
+   "prompt": "single isometric medieval village asset: vegetation clump native to desert sand and rock",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "desert-village-19e68f70",
+   "tier": "p1",
+   "group": "biomes/desert",
+   "title": "desert village",
+   "prompt": "single isometric medieval village asset, wide view: small medieval village in desert sand and rock, oasis fringe",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "highland-ground-6fc5e27c",
+   "tier": "p1",
+   "group": "biomes/highland",
+   "title": "highland ground",
+   "prompt": "single isometric medieval village asset: ground block, rugged grey highland, heather and stone",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "highland-rock-6f877ec8",
+   "tier": "p1",
+   "group": "biomes/highland",
+   "title": "highland rock",
+   "prompt": "single isometric medieval village asset: rock outcrop, rugged grey highland, heather and stone",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "highland-vegetation-53207f1a",
+   "tier": "p1",
+   "group": "biomes/highland",
+   "title": "highland vegetation",
+   "prompt": "single isometric medieval village asset: vegetation clump native to rugged grey highland",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "highland-village-23604171",
+   "tier": "p1",
+   "group": "biomes/highland",
+   "title": "highland village",
+   "prompt": "single isometric medieval village asset, wide view: small medieval village in rugged grey highland, heather and stone",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "mediterranean-ground-80245292",
+   "tier": "p1",
+   "group": "biomes/mediterranean",
+   "title": "mediterranean ground",
+   "prompt": "single isometric medieval village asset: ground block, mediterranean coast, dry grass and cypress",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "mediterranean-rock-ceb07faa",
+   "tier": "p1",
+   "group": "biomes/mediterranean",
+   "title": "mediterranean rock",
+   "prompt": "single isometric medieval village asset: rock outcrop, mediterranean coast, dry grass and cypress",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "mediterranean-vegetation-5a54f587",
+   "tier": "p1",
+   "group": "biomes/mediterranean",
+   "title": "mediterranean vegetation",
+   "prompt": "single isometric medieval village asset: vegetation clump native to mediterranean coast",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "mediterranean-village-df21e59c",
+   "tier": "p1",
+   "group": "biomes/mediterranean",
+   "title": "mediterranean village",
+   "prompt": "single isometric medieval village asset, wide view: small medieval village in mediterranean coast, dry grass and cypress",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "prop-cactus-dc5ea4a8",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop cactus",
+   "prompt": "single isometric medieval village asset: clustered desert cacti",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-cypress-f234e32f",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop cypress",
+   "prompt": "single isometric medieval village asset: tall thin mediterranean cypress",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-dead-pine-e02b2ee2",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop dead pine",
+   "prompt": "single isometric medieval village asset: bleached standing dead pine",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-ice-floe-7366a1f9",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop ice floe",
+   "prompt": "single isometric medieval village asset: cracked ice floe in dark water",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-palm-3262a285",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop palm",
+   "prompt": "single isometric medieval village asset: oasis date palm",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-snowdrift-1fdc8709",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop snowdrift",
+   "prompt": "single isometric medieval village asset: deep smooth snowdrift",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-standing-stones-78ac08ef",
+   "tier": "p1",
+   "group": "biomes/props",
+   "title": "prop standing stones",
+   "prompt": "single isometric medieval village asset: small ring of weathered standing stones",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "festival-autumn-equinox-b75eb313",
+   "tier": "p1",
+   "group": "festivals",
+   "title": "festival autumn equinox",
+   "prompt": "single isometric medieval village asset, wide festive scene: autumn harvest festival, feast tables, wheat sheaves, apple baskets, lanterns",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "festival-spring-equinox-93ac28f9",
+   "tier": "p1",
+   "group": "festivals",
+   "title": "festival spring equinox",
+   "prompt": "single isometric medieval village asset, wide festive scene: spring equinox festival, maypole with ribbons, flower garlands, villagers dancing",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "festival-summer-solstice-4fb52203",
+   "tier": "p1",
+   "group": "festivals",
+   "title": "festival summer solstice",
+   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "festival-winter-solstice-9ed0bc3d",
+   "tier": "p1",
+   "group": "festivals",
+   "title": "festival winter solstice",
+   "prompt": "single isometric medieval village asset, wide festive scene: winter solstice festival, yule log fire, evergreen wreaths, candle lanterns, snow",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "decor-bonfire-67192a51",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor bonfire",
+   "prompt": "single isometric medieval village asset: stacked bonfire, unlit",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-feast-table-a4d0db17",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor feast table",
+   "prompt": "single isometric medieval village asset: long feast table laden with food",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-flower-garland-c3694997",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor flower garland",
+   "prompt": "single isometric medieval village asset: flower garland strung between posts",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-harvest-display-120f6d78",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor harvest display",
+   "prompt": "single isometric medieval village asset: harvest display: wheat sheaves, pumpkins, apples",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-lantern-post-1171ad7b",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor lantern post",
+   "prompt": "single isometric medieval village asset: wooden post with hanging lanterns",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-maypole-398f6b81",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor maypole",
+   "prompt": "single isometric medieval village asset: maypole with coloured ribbons",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-wreath-2455375b",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor wreath",
+   "prompt": "single isometric medieval village asset: evergreen wreath with candles",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "decor-yule-log-0557bc95",
+   "tier": "p1",
+   "group": "festivals/decor",
+   "title": "decor yule log",
+   "prompt": "single isometric medieval village asset: decorated yule log with holly",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "scene-church-service-9079504c",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene church service",
+   "prompt": "single isometric medieval village asset, wide lively scene: villagers entering a stone church for service",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-funeral-5814a8e0",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene funeral",
+   "prompt": "single isometric medieval village asset, wide lively scene: small funeral at the graveyard, villagers heads bowed",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-guild-meeting-c5da0c02",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene guild meeting",
+   "prompt": "single isometric medieval village asset, wide lively scene: craftsmen meeting in a timber guildhall",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-hard-winter-e5512928",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene hard winter",
+   "prompt": "single isometric medieval village asset, wide lively scene: village in deep snow, thin smoke from chimneys, bleak hard winter",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-harvest-in-22e8a140",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene harvest in",
+   "prompt": "single isometric medieval village asset, wide lively scene: villagers bringing in the harvest together, carts of wheat",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-market-day-2ee7a97e",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene market day",
+   "prompt": "single isometric medieval village asset, wide lively scene: busy medieval market day, stalls, crowds, goods baskets",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-minstrel-visit-f2d0a144",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene minstrel visit",
+   "prompt": "single isometric medieval village asset, wide lively scene: travelling minstrel playing lute at the market crossroads, villagers gathered round, dropped coins",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-outbreak-670c0185",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene outbreak",
+   "prompt": "single isometric medieval village asset, wide lively scene: village under quarantine, closed doors, a healer walking alone",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-pilgrims-arrive-230a18d8",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene pilgrims arrive",
+   "prompt": "single isometric medieval village asset, wide lively scene: pilgrims with staffs arriving on the road",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-storm-damage-8f1e1470",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene storm damage",
+   "prompt": "single isometric medieval village asset, wide lively scene: storm-torn village, fallen branch, damaged roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-tax-day-3f0a13b6",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene tax day",
+   "prompt": "single isometric medieval village asset, wide lively scene: tax collector at the market with guards, villagers queueing",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "scene-wedding-f978b435",
+   "tier": "p1",
+   "group": "scenes",
+   "title": "scene wedding",
+   "prompt": "single isometric medieval village asset, wide lively scene: village wedding outside the church, flower petals",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "culture-african-house-0e29aad6",
+   "tier": "p2",
+   "group": "cultures/african",
+   "title": "culture african house",
+   "prompt": "single isometric building asset: west african savanna dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-african-motif-eca836af",
+   "tier": "p2",
+   "group": "cultures/african",
+   "title": "culture african motif",
+   "prompt": "small decorative emblem motif of west african savanna art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-african-villagers-03888b7c",
+   "tier": "p2",
+   "group": "cultures/african",
+   "title": "culture african villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional west african savanna dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-anglo-saxon-house-485fbe32",
+   "tier": "p2",
+   "group": "cultures/anglo-saxon",
+   "title": "culture anglo saxon house",
+   "prompt": "single isometric building asset: early medieval anglo-saxon dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-anglo-saxon-motif-51e1ce1a",
+   "tier": "p2",
+   "group": "cultures/anglo-saxon",
+   "title": "culture anglo saxon motif",
+   "prompt": "small decorative emblem motif of early medieval anglo-saxon art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-anglo-saxon-villagers-f0c19158",
+   "tier": "p2",
+   "group": "cultures/anglo-saxon",
+   "title": "culture anglo saxon villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional early medieval anglo-saxon dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-arthurian-house-00630789",
+   "tier": "p2",
+   "group": "cultures/arthurian",
+   "title": "culture arthurian house",
+   "prompt": "single isometric building asset: arthurian high-medieval dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-arthurian-motif-8395d154",
+   "tier": "p2",
+   "group": "cultures/arthurian",
+   "title": "culture arthurian motif",
+   "prompt": "small decorative emblem motif of arthurian high-medieval art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-arthurian-villagers-28036bf6",
+   "tier": "p2",
+   "group": "cultures/arthurian",
+   "title": "culture arthurian villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional arthurian high-medieval dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-celtic-house-eeb28e3c",
+   "tier": "p2",
+   "group": "cultures/celtic",
+   "title": "culture celtic house",
+   "prompt": "single isometric building asset: celtic iron-age dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-celtic-motif-2060d9d5",
+   "tier": "p2",
+   "group": "cultures/celtic",
+   "title": "culture celtic motif",
+   "prompt": "small decorative emblem motif of celtic iron-age art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-celtic-villagers-5c49addc",
+   "tier": "p2",
+   "group": "cultures/celtic",
+   "title": "culture celtic villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional celtic iron-age dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-classical-house-023fac42",
+   "tier": "p2",
+   "group": "cultures/classical",
+   "title": "culture classical house",
+   "prompt": "single isometric building asset: classical greco-roman dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-classical-motif-ab0b3775",
+   "tier": "p2",
+   "group": "cultures/classical",
+   "title": "culture classical motif",
+   "prompt": "small decorative emblem motif of classical greco-roman art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-classical-villagers-bdf9e4cf",
+   "tier": "p2",
+   "group": "cultures/classical",
+   "title": "culture classical villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional classical greco-roman dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-east-asian-house-2049b972",
+   "tier": "p2",
+   "group": "cultures/east-asian",
+   "title": "culture east asian house",
+   "prompt": "single isometric building asset: east asian dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-east-asian-motif-5db58c85",
+   "tier": "p2",
+   "group": "cultures/east-asian",
+   "title": "culture east asian motif",
+   "prompt": "small decorative emblem motif of east asian art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-east-asian-villagers-81e80d6f",
+   "tier": "p2",
+   "group": "cultures/east-asian",
+   "title": "culture east asian villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional east asian dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-egyptian-house-e695a5a9",
+   "tier": "p2",
+   "group": "cultures/egyptian",
+   "title": "culture egyptian house",
+   "prompt": "single isometric building asset: ancient egyptian dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-egyptian-motif-c1f07cf0",
+   "tier": "p2",
+   "group": "cultures/egyptian",
+   "title": "culture egyptian motif",
+   "prompt": "small decorative emblem motif of ancient egyptian art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-egyptian-villagers-69dc0ce4",
+   "tier": "p2",
+   "group": "cultures/egyptian",
+   "title": "culture egyptian villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional ancient egyptian dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-finnish-house-71a97fb5",
+   "tier": "p2",
+   "group": "cultures/finnish",
+   "title": "culture finnish house",
+   "prompt": "single isometric building asset: finnish forest dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-finnish-motif-2a1a88bc",
+   "tier": "p2",
+   "group": "cultures/finnish",
+   "title": "culture finnish motif",
+   "prompt": "small decorative emblem motif of finnish forest art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-finnish-villagers-e9b74ead",
+   "tier": "p2",
+   "group": "cultures/finnish",
+   "title": "culture finnish villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional finnish forest dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-frankish-house-0268f445",
+   "tier": "p2",
+   "group": "cultures/frankish",
+   "title": "culture frankish house",
+   "prompt": "single isometric building asset: frankish carolingian dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-frankish-motif-9f3b1482",
+   "tier": "p2",
+   "group": "cultures/frankish",
+   "title": "culture frankish motif",
+   "prompt": "small decorative emblem motif of frankish carolingian art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-frankish-villagers-d60000e5",
+   "tier": "p2",
+   "group": "cultures/frankish",
+   "title": "culture frankish villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional frankish carolingian dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-germanic-house-eb5cb2fb",
+   "tier": "p2",
+   "group": "cultures/germanic",
+   "title": "culture germanic house",
+   "prompt": "single isometric building asset: germanic tribal dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-germanic-motif-f5b1ca9e",
+   "tier": "p2",
+   "group": "cultures/germanic",
+   "title": "culture germanic motif",
+   "prompt": "small decorative emblem motif of germanic tribal art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-germanic-villagers-52a7ed80",
+   "tier": "p2",
+   "group": "cultures/germanic",
+   "title": "culture germanic villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional germanic tribal dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-hindu-house-22f89a53",
+   "tier": "p2",
+   "group": "cultures/hindu",
+   "title": "culture hindu house",
+   "prompt": "single isometric building asset: classical indian dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-hindu-motif-923507ad",
+   "tier": "p2",
+   "group": "cultures/hindu",
+   "title": "culture hindu motif",
+   "prompt": "small decorative emblem motif of classical indian art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-hindu-villagers-10be7ddf",
+   "tier": "p2",
+   "group": "cultures/hindu",
+   "title": "culture hindu villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional classical indian dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-medieval-house-f6703299",
+   "tier": "p2",
+   "group": "cultures/medieval",
+   "title": "culture medieval house",
+   "prompt": "single isometric building asset: western medieval dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-medieval-motif-cae8b41d",
+   "tier": "p2",
+   "group": "cultures/medieval",
+   "title": "culture medieval motif",
+   "prompt": "small decorative emblem motif of western medieval art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-medieval-villagers-e30a018a",
+   "tier": "p2",
+   "group": "cultures/medieval",
+   "title": "culture medieval villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional western medieval dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-mesoamerican-house-2fbcb53d",
+   "tier": "p2",
+   "group": "cultures/mesoamerican",
+   "title": "culture mesoamerican house",
+   "prompt": "single isometric building asset: mesoamerican dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-mesoamerican-motif-fd885b44",
+   "tier": "p2",
+   "group": "cultures/mesoamerican",
+   "title": "culture mesoamerican motif",
+   "prompt": "small decorative emblem motif of mesoamerican art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-mesoamerican-villagers-477b6ed4",
+   "tier": "p2",
+   "group": "cultures/mesoamerican",
+   "title": "culture mesoamerican villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional mesoamerican dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-mesopotamian-house-fdc8d6ae",
+   "tier": "p2",
+   "group": "cultures/mesopotamian",
+   "title": "culture mesopotamian house",
+   "prompt": "single isometric building asset: mesopotamian mudbrick dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-mesopotamian-motif-c0b73722",
+   "tier": "p2",
+   "group": "cultures/mesopotamian",
+   "title": "culture mesopotamian motif",
+   "prompt": "small decorative emblem motif of mesopotamian mudbrick art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-mesopotamian-villagers-e16a760b",
+   "tier": "p2",
+   "group": "cultures/mesopotamian",
+   "title": "culture mesopotamian villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional mesopotamian mudbrick dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-norse-house-1f87fe88",
+   "tier": "p2",
+   "group": "cultures/norse",
+   "title": "culture norse house",
+   "prompt": "single isometric building asset: norse viking dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-norse-motif-d5256402",
+   "tier": "p2",
+   "group": "cultures/norse",
+   "title": "culture norse motif",
+   "prompt": "small decorative emblem motif of norse viking art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-norse-villagers-5e467658",
+   "tier": "p2",
+   "group": "cultures/norse",
+   "title": "culture norse villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional norse viking dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-persian-house-977852ec",
+   "tier": "p2",
+   "group": "cultures/persian",
+   "title": "culture persian house",
+   "prompt": "single isometric building asset: persian dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-persian-motif-42a607a2",
+   "tier": "p2",
+   "group": "cultures/persian",
+   "title": "culture persian motif",
+   "prompt": "small decorative emblem motif of persian art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-persian-villagers-c2685913",
+   "tier": "p2",
+   "group": "cultures/persian",
+   "title": "culture persian villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional persian dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-polynesian-house-9983c876",
+   "tier": "p2",
+   "group": "cultures/polynesian",
+   "title": "culture polynesian house",
+   "prompt": "single isometric building asset: polynesian island dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-polynesian-motif-fd58327e",
+   "tier": "p2",
+   "group": "cultures/polynesian",
+   "title": "culture polynesian motif",
+   "prompt": "small decorative emblem motif of polynesian island art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-polynesian-villagers-1e4a463e",
+   "tier": "p2",
+   "group": "cultures/polynesian",
+   "title": "culture polynesian villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional polynesian island dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-scripture-house-f354140f",
+   "tier": "p2",
+   "group": "cultures/scripture",
+   "title": "culture scripture house",
+   "prompt": "single isometric building asset: ancient near-eastern biblical dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-scripture-motif-dfb15da0",
+   "tier": "p2",
+   "group": "cultures/scripture",
+   "title": "culture scripture motif",
+   "prompt": "small decorative emblem motif of ancient near-eastern biblical art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-scripture-villagers-86210080",
+   "tier": "p2",
+   "group": "cultures/scripture",
+   "title": "culture scripture villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional ancient near-eastern biblical dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-spanish-house-54e3be8f",
+   "tier": "p2",
+   "group": "cultures/spanish",
+   "title": "culture spanish house",
+   "prompt": "single isometric building asset: spanish colonial dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-spanish-motif-680208b8",
+   "tier": "p2",
+   "group": "cultures/spanish",
+   "title": "culture spanish motif",
+   "prompt": "small decorative emblem motif of spanish colonial art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-spanish-villagers-3fe274a2",
+   "tier": "p2",
+   "group": "cultures/spanish",
+   "title": "culture spanish villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional spanish colonial dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "culture-tolkien-roots-house-26e5392a",
+   "tier": "p2",
+   "group": "cultures/tolkien-roots",
+   "title": "culture tolkien roots house",
+   "prompt": "single isometric building asset: rustic shire-like fantasy dwelling house, traditional materials and roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "culture-tolkien-roots-motif-0b4c33a4",
+   "tier": "p2",
+   "group": "cultures/tolkien-roots",
+   "title": "culture tolkien roots motif",
+   "prompt": "small decorative emblem motif of rustic shire-like fantasy art, banner/badge",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "culture-tolkien-roots-villagers-231e8b37",
+   "tier": "p2",
+   "group": "cultures/tolkien-roots",
+   "title": "culture tolkien roots villagers",
+   "prompt": "small chibi character pair, front view, full body, on empty background: man and woman in traditional rustic shire-like fantasy dress",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.36,
+   "notes": ""
+  },
+  {
+   "id": "future-bee-skep-765a3688",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future bee skep",
+   "prompt": "single isometric medieval village asset: straw bee skeps in a garden row",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-boat-row-02258b55",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future boat row",
+   "prompt": "single isometric medieval village asset: small wooden rowboat at a jetty",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-castle-0816e034",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future castle",
+   "prompt": "single isometric medieval village asset: fortified stone castle with keep and dungeon tower",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-cave-mouth-d1d7010f",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future cave mouth",
+   "prompt": "single isometric medieval village asset: dark cave entrance in a rock face",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-circus-tent-3c5b6bfc",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future circus tent",
+   "prompt": "single isometric medieval village asset: striped circus tent, small",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-circus-wagon-0767c998",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future circus wagon",
+   "prompt": "single isometric medieval village asset: travelling circus wagon, painted and gaudy",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-cog-2eec1e9d",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future cog",
+   "prompt": "single isometric medieval village asset: medieval trading cog at anchor",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-comet-6dd8ff70",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future comet",
+   "prompt": "single isometric medieval village asset: bright comet with tail in a night sky",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-dog-herding-d96b6a6b",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future dog herding",
+   "prompt": "single isometric medieval village asset: sheepdog herding sheep",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-dungeon-746269af",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future dungeon",
+   "prompt": "single isometric medieval village asset: gloomy castle dungeon cell, torchlit",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-eclipse-78b0e680",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future eclipse",
+   "prompt": "single isometric medieval village asset: solar eclipse corona in dark sky",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-fish-b096ec65",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future fish",
+   "prompt": "single isometric medieval village asset: silver fish hanging in a pair",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-guillotine-3227c7c6",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future guillotine",
+   "prompt": "single isometric medieval village asset: wooden guillotine scaffold",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-harbour-c2118d60",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future harbour",
+   "prompt": "single isometric medieval village asset: tiny stone harbour with jetty and crates",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-herb-garden-ad1b8dd0",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future herb garden",
+   "prompt": "single isometric medieval village asset: walled herb garden with labelled beds",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-labor-strike-26c421e0",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future labor strike",
+   "prompt": "single isometric medieval village asset: villagers blocking a bridge with banners, labor action",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-lobster-0f1cc6f2",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future lobster",
+   "prompt": "single isometric medieval village asset: red lobster on a plate",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-monastery-b16322a1",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future monastery",
+   "prompt": "single isometric medieval village asset: small stone monastery with cloister garden",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-mushroom-ring-0d7d10a8",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future mushroom ring",
+   "prompt": "single isometric medieval village asset: ring of mushrooms in forest shade",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-orchard-b3d98d17",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future orchard",
+   "prompt": "single isometric medieval village asset: small orchard of fruit trees",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-sea-monster-f60cf599",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future sea monster",
+   "prompt": "single isometric medieval village asset: sea monster coils breaking the surface",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-shrine-3220b66a",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future shrine",
+   "prompt": "single isometric medieval village asset: roadside pilgrimage shrine with offerings",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-squid-9e8a294c",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future squid",
+   "prompt": "single isometric medieval village asset: pale squid",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-stocks-cd4ed3cd",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future stocks",
+   "prompt": "single isometric medieval village asset: village punishment stocks",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-tavern-80a2084c",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future tavern",
+   "prompt": "single isometric medieval village asset: village tavern with hanging sign and benches",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-tomato-throw-be78de2c",
+   "tier": "p2",
+   "group": "future/features",
+   "title": "future tomato throw",
+   "prompt": "single isometric medieval village asset: villagers throwing rotten tomatoes at a man in the stocks",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "good-ale-208ec286",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good ale",
+   "prompt": "small game item icon of foaming ale mug",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-cheese-bc48db84",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good cheese",
+   "prompt": "small game item icon of cheese wheel",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-cider-18fa52ea",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good cider",
+   "prompt": "small game item icon of jug of cider",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-eggs-b851e05c",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good eggs",
+   "prompt": "small game item icon of basket of eggs",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-fish-dried-eb6d2974",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good fish dried",
+   "prompt": "small game item icon of dried fish on a line",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-herbs-0e02da39",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good herbs",
+   "prompt": "small game item icon of bundle of dried herbs",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-honey-4e524557",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good honey",
+   "prompt": "small game item icon of honey jar with dipper",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-mead-b54547c0",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good mead",
+   "prompt": "small game item icon of mead bottle",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-milk-56aade95",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good milk",
+   "prompt": "small game item icon of clay jug of milk",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-mushrooms-2e380be3",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good mushrooms",
+   "prompt": "small game item icon of basket of mushrooms",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-pasta-db7378af",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good pasta",
+   "prompt": "small game item icon of dried pasta noodles",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-perfume-51041355",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good perfume",
+   "prompt": "small game item icon of ornate perfume bottle",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-wine-863fe03b",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good wine",
+   "prompt": "small game item icon of wine bottle and cup",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "good-wool-7134e22f",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "good wool",
+   "prompt": "small game item icon of ball of wool",
+   "request": {
+    "prompt_style": "rd_mini__topdown_item",
+    "width": 32,
+    "height": 32,
+    "num_images": 2,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.12,
+   "notes": ""
+  },
+  {
+   "id": "future-beekeeper-ee2aa25d",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future beekeeper",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: beekeeper in veil by straw skeps",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-brewer-fc5d59e7",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future brewer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: brewer by ale barrels",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-cheesemaker-8c9fadf4",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future cheesemaker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: cheesemaker with round cheese wheels",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-cooper-8574f3e0",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future cooper",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: cooper hooping a barrel",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-distiller-19dc85d2",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future distiller",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: distiller by copper still",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-fisherman-d341f7fe",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future fisherman",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: fisherman with net and basket",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-fletcher-3cb99b54",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future fletcher",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: fletcher binding arrow shafts",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-goatherd-ff261cff",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future goatherd",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: goatherd with goats",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-herbalist-a35bbc73",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future herbalist",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: herbalist witch by drying herbs",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-pasta-maker-ef34a7d2",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future pasta maker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: pasta maker hanging noodles to dry",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-peddler-4e5164c2",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future peddler",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: roving pots-and-pans peddler, wares on back",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-perfumer-1b372632",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future perfumer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: perfumer with flower petals and glass bottles",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-pigment-collector-a23bf4b7",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future pigment collector",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: pigment collector grinding minerals",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-potter-4dfda48c",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future potter",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: potter at a kick wheel",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-shepherd-458a8743",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future shepherd",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: shepherd with crook and dog",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-shoemaker-8555ce0b",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future shoemaker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: cobbler at a shoe last",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-tentmaker-b7541fa5",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future tentmaker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: tentmaker stitching canvas",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-translator-83303157",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future translator",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: translator with scrolls of different scripts",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-vintner-7250023d",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future vintner",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: vintner pruning grapevines",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "future-weaver-481018f5",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future weaver",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: weaver at a loom",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "animal-cow-59fabfa3",
+   "tier": "p2",
+   "group": "people/animals",
+   "title": "animal cow",
+   "prompt": "single isometric medieval village asset: brown dairy cow standing",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "animal-goat-7d2ea6cd",
+   "tier": "p2",
+   "group": "people/animals",
+   "title": "animal goat",
+   "prompt": "single isometric medieval village asset: grey goat, bell on collar",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "animal-pig-91bf356e",
+   "tier": "p2",
+   "group": "people/animals",
+   "title": "animal pig",
+   "prompt": "single isometric medieval village asset: pink pig with mud patch",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "animal-sheep-9be27225",
+   "tier": "p2",
+   "group": "people/animals",
+   "title": "animal sheep",
+   "prompt": "single isometric medieval village asset: woolly sheep grazing",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "amb-banner-wave-154e24f5",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb banner wave",
+   "prompt": "isometric medieval: village banner waving on a pole",
+   "request": {
+    "prompt_style": "rd_animation__any_animation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": ""
+  },
+  {
+   "id": "amb-festival-dance-d34c0154",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb festival dance",
+   "prompt": "isometric medieval: villagers dancing in a ring at festival",
+   "request": {
+    "prompt_style": "rd_animation__big_animation",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": ""
+  },
+  {
+   "id": "amb-market-ambient-6ee0b8d4",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb market ambient",
+   "prompt": "isometric medieval: market square ambient bustle, flags and awnings swaying",
+   "request": {
+    "prompt_style": "rd_animation__big_animation",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": ""
+  },
+  {
+   "id": "amb-mill-sails-a80df364",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb mill sails",
+   "prompt": "isometric medieval: windmill sails slowly turning",
+   "request": {
+    "prompt_style": "rd_animation__any_animation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": ""
+  },
+  {
+   "id": "amb-river-flow-5ba5cee0",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb river flow",
+   "prompt": "isometric medieval: river water flowing past reeds",
+   "request": {
+    "prompt_style": "rd_animation__any_animation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": ""
+  },
+  {
+   "id": "amb-sea-waves-95c0f0fd",
+   "tier": "anim",
+   "group": "anim/ambient",
+   "title": "amb sea waves",
+   "prompt": "isometric medieval: waves lapping a sandy shore",
+   "request": {
+    "prompt_style": "rd_animation__any_animation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": ""
+  },
+  {
+   "id": "battle-guard-halberd-eb567a15",
+   "tier": "anim",
+   "group": "anim/battle",
+   "title": "battle guard halberd",
+   "prompt": "guard with halberd",
+   "request": {
+    "prompt_style": "rd_animation__battle_sprites",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "idle/walk/jump/attack set"
+  },
+  {
+   "id": "battle-knight-bba7a199",
+   "tier": "anim",
+   "group": "anim/battle",
+   "title": "battle knight",
+   "prompt": "knight in mail with sword",
+   "request": {
+    "prompt_style": "rd_animation__battle_sprites",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "idle/walk/jump/attack set"
+  },
+  {
+   "id": "rot8-knight-9a1d80a6",
+   "tier": "anim",
+   "group": "anim/rotate8",
+   "title": "rot8 knight",
+   "prompt": "knight in mail, medieval",
+   "request": {
+    "prompt_style": "rd_animation__8_dir_rotation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "return_spritesheet": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": "8 directional views; return_spritesheet gives the 3x3 sheet"
+  },
+  {
+   "id": "rot8-minstrel-8c989fc5",
+   "tier": "anim",
+   "group": "anim/rotate8",
+   "title": "rot8 minstrel",
+   "prompt": "minstrel with lute, medieval",
+   "request": {
+    "prompt_style": "rd_animation__8_dir_rotation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "return_spritesheet": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": "8 directional views; return_spritesheet gives the 3x3 sheet"
+  },
+  {
+   "id": "rot8-player-8c8c63e7",
+   "tier": "anim",
+   "group": "anim/rotate8",
+   "title": "rot8 player",
+   "prompt": "young organizer in green tunic, medieval",
+   "request": {
+    "prompt_style": "rd_animation__8_dir_rotation",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "return_spritesheet": true
+   },
+   "est_cost_usd": 0.25,
+   "notes": "8 directional views; return_spritesheet gives the 3x3 sheet"
+  },
+  {
+   "id": "adv-custom-action-a3c57ae2",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv custom action",
+   "prompt": "playing a lute, fingers plucking",
+   "request": {
+    "prompt_style": "rd_advanced_animation__custom_action",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.25,
+   "notes": "two-stage: input_image = the person-minstrel P0 sprite. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "adv-idle-fbf39d03",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv idle",
+   "prompt": "gentle breathing idle",
+   "request": {
+    "prompt_style": "rd_advanced_animation__idle",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.14,
+   "notes": "two-stage: input_image = the person-* P0 sprite. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "adv-rotate-4a8ed779",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv rotate",
+   "prompt": "the uploaded subject",
+   "request": {
+    "prompt_style": "rd_advanced_animation__rotate",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.1,
+   "notes": "two-stage: input_image = any P0 building/prop still; returns the 8 views. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "adv-subtle-motion-26ff8f52",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv subtle motion",
+   "prompt": "ambient crowd sway and blinking",
+   "request": {
+    "prompt_style": "rd_advanced_animation__subtle_motion",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.25,
+   "notes": "two-stage: input_image = a scene-* P1 festival or market image. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "adv-walking-676c6372",
+   "tier": "anim",
+   "group": "anim/two-stage",
+   "title": "adv walking",
+   "prompt": "slow heavy steps",
+   "request": {
+    "prompt_style": "rd_advanced_animation__walking",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "frames_duration": 8
+   },
+   "est_cost_usd": 0.14,
+   "notes": "two-stage: input_image = the person-* P0 sprite, native res, padded to 64px. Send native-res frame, pad to 64px, retry once on provider_busy"
+  },
+  {
+   "id": "vfx-bonfire-cd308abf",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx bonfire",
+   "prompt": "large bonfire burning, festival night",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-chimney-smoke-1393b2fb",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx chimney smoke",
+   "prompt": "wispy chimney smoke rising",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-leaves-04099121",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx leaves",
+   "prompt": "autumn leaves drifting down",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-snowfall-29963d5d",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx snowfall",
+   "prompt": "snowflakes falling",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-spark-9b300ea5",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx spark",
+   "prompt": "spark burst, small magic effect",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "walk4-child-m-047d48ed",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 child m",
+   "prompt": "small boy child, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-elder-m-6faa1efe",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 elder m",
+   "prompt": "elderly man with stick, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-guard-spear-c02dbe22",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 guard spear",
+   "prompt": "guard with spear, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-minstrel-fab90a72",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 minstrel",
+   "prompt": "minstrel carrying a lute, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-noble-f-10d4b1a6",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 noble f",
+   "prompt": "noblewoman in gown, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-peasant-f-17041b54",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 peasant f",
+   "prompt": "female peasant villager, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-peasant-m-35444cad",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 peasant m",
+   "prompt": "male peasant villager, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-priest-59493604",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 priest",
+   "prompt": "village priest in robes, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-tax-collector-283de18c",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 tax collector",
+   "prompt": "tax collector in dark robes, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  },
+  {
+   "id": "walk4-worker-m-591144ac",
+   "tier": "anim",
+   "group": "anim/walk",
+   "title": "walk4 worker m",
+   "prompt": "male labourer, medieval",
+   "request": {
+    "prompt_style": "rd_animation__four_angle_walking",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": "48px 4-direction walk cycle, transparent GIF"
+  }
+ ]
+}

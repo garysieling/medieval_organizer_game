@@ -74,23 +74,6 @@ impl Sprite {
         self.blit(buf, cx - self.width as i32 / 2, bottom_y - self.height as i32);
     }
 
-    /// Blit at a fractional scale (nearest-neighbor), bottom-center anchor
-    pub fn blit_scaled_bottom(&self, buf: &mut Buffer, cx: i32, bottom_y: i32, scale: f32) {
-        let w = (self.width as f32 * scale).round() as i32;
-        let h = (self.height as f32 * scale).round() as i32;
-        let (x0, y0) = (cx - w / 2, bottom_y - h);
-        for dy in 0..h {
-            let sy = ((dy as f32 / scale) as usize).min(self.height - 1);
-            for dx in 0..w {
-                let sx = ((dx as f32 / scale) as usize).min(self.width - 1);
-                let idx = (sy * self.width + sx) * 4;
-                if self.pixels[idx + 3] > 128 {
-                    buf.set(x0 + dx, y0 + dy, self.pixels[idx], self.pixels[idx+1], self.pixels[idx+2]);
-                }
-            }
-        }
-    }
-
     /// Blit scaled (nearest-neighbor)
     pub fn blit_scaled(&self, buf: &mut Buffer, x: i32, y: i32, scale: usize) {
         for sy in 0..self.height {
@@ -117,6 +100,43 @@ impl Sprite {
             }
         }}
         Sprite { width: w, height: h, pixels }
+    }
+
+    /// Resize to w x h (nearest-neighbor), e.g. to fit a sprite drawn for a
+    /// bigger tile grid onto the map's tiles
+    pub fn scaled(&self, w: usize, h: usize) -> Sprite {
+        let mut pixels = vec![0u8; w * h * 4];
+        if self.width == 0 || self.height == 0 { return Sprite { width: w, height: h, pixels }; }
+        for dy in 0..h { for dx in 0..w {
+            let sx = dx * self.width / w;
+            let sy = dy * self.height / h;
+            let src = (sy * self.width + sx) * 4;
+            let dst = (dy * w + dx) * 4;
+            pixels[dst..dst+4].copy_from_slice(&self.pixels[src..src+4]);
+        }}
+        Sprite { width: w, height: h, pixels }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scaled_resizes_and_keeps_corners() {
+        // 4x2 sprite: left half red, right half blue
+        let mut pixels = vec![];
+        for _ in 0..2 { for x in 0..4 {
+            pixels.extend_from_slice(if x < 2 { &[255, 0, 0, 255] } else { &[0, 0, 255, 255] });
+        }}
+        let s = Sprite { width: 4, height: 2, pixels };
+        let small = s.scaled(2, 1);
+        assert_eq!((small.width, small.height), (2, 1));
+        assert_eq!(&small.pixels[0..4], &[255, 0, 0, 255]);
+        assert_eq!(&small.pixels[4..8], &[0, 0, 255, 255]);
+        let big = s.scaled(8, 4);
+        assert_eq!(big.pixels.len(), 8 * 4 * 4);
+        assert_eq!(&big.pixels[(3 * 8 + 7) * 4..(3 * 8 + 8) * 4], &[0, 0, 255, 255]);
     }
 }
 

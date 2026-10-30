@@ -58,7 +58,7 @@ impl ExploratoryTesterUI {
     }
 
     /// Generate random click sequence
-    pub fn generate_click_sequence(&self, num_actions: usize) -> Vec<UIAction> {
+    pub fn generate_click_sequence(&self, _num_actions: usize) -> Vec<UIAction> {
         // Placeholder: real implementation would actually interact with UI
         // For now, generate sample sequence
         vec![

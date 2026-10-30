@@ -4,19 +4,19 @@
 
 use std::io::{self, Write};
 use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::engine::render::Buffer;
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::player::PlayerCharacter;
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
-use game2_core::game::action_menu::{MenuActionType, show_menu, execute_choice};
+use game2_core::game::action_menu::{MenuActionType, show_menu, execute_choice, parse_command};
 use game2_core::game::tech_tree::extended_printmaking_tree;
 use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::sim::climate::{self, SeasonSystem};
 use game2_core::sim::illness::Health;
 use game2_core::sim::psychology::AttachmentHistory;
 use game2_core::sim::community::{Citizen, Organization};
+use game2_core::sim::organized_power::{OrganizedPower, PowerAtrophySystem};
 
 fn main() {
     println!("=== THE WANDERER ===\n");
@@ -30,21 +30,20 @@ fn main() {
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(GuildFormationSystem);
+    sched.add_system(PowerAtrophySystem); // people power fades if you stop organizing
 
     let terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
     villager::spawn_food_source(&mut world, 8.0, 8.0, 500);
 
     // Villagers
-    let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
+    let mut names: Vec<String> = ["Aldric","Eliza","Bram","Corvin","Dagny"].iter().map(|n| n.to_string()).collect();
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
-        let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
-        world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
-        world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
-        world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-        villagers.push(v);
+    for i in 0..names.len() {
+        villagers.push(settle(&mut world, i));
     }
+    // Pilgrims who may settle here on a pilgrimage, in order of arrival
+    let mut pilgrims = vec!["Wystan", "Hild", "Osric", "Maud"].into_iter();
 
     // Merchants (guild may form)
     for i in 0..3 {
@@ -57,12 +56,14 @@ fn main() {
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
     let org = world.create_entity();
     world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+    world.add_component(org, OrganizedPower::new()); // grows with house meetings
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
     pets::adopt(&mut world, dog, villagers[0]);
 
     let _techs = extended_printmaking_tree();
     std::fs::create_dir_all("evidence").ok();
     let mut tick = 0u64;
+    let mut target_idx = 0usize; // villager the player is dealing with
 
     // Game loop
     loop {
@@ -70,18 +71,20 @@ fn main() {
         sched.tick(&mut world);
 
         // Show state
-        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        let _p = world.get_component::<PlayerCharacter>(player).unwrap();
         let members = world.get_component::<Organization>(org).unwrap().members.len();
         let guilds = world.query::<Guild>().len();
+        let power = world.get_component::<OrganizedPower>(org).map(|p| p.capacity).unwrap_or(0.0);
         let cl = world.get_component::<climate::Climate>(climate).unwrap();
-        println!("--- Tick {} | {:?} | {} org members | {} guilds | hunger affects village ---",
-            tick, cl.season, members, guilds);
+        println!("--- Tick {} | {:?} | {} org members | people power {:.2} | {} guilds ---",
+            tick, cl.season, members, power, guilds);
 
-        // Villager status
+        // Villager status (numbered so the player can pick a target; * = current)
         for (i, v) in villagers.iter().enumerate() {
             if let (Some(h), Some(vil)) = (world.get_component::<Hunger>(*v), world.get_component::<Villager>(*v)) {
                 let status = match vil.activity { Activity::SeekingFood => "seeking food", _ => "idle" };
-                print!("{}:{}({:.0}) ", names[i], status, h.value);
+                let mark = if i == target_idx { "*" } else { "" };
+                print!("{}{}.{}:{}({:.0}) ", mark, i + 1, names[i], status, h.value);
             }
         }
         println!();
@@ -91,11 +94,11 @@ fn main() {
         let colors = [(255,80,80),(80,255,80),(80,80,255),(255,255,80),(255,80,255)];
         for (i, v) in villagers.iter().enumerate() {
             if let Some(p) = world.get_component::<Pos>(*v) {
-                let c = colors[i];
+                let c = colors[i % colors.len()];
                 render_entity(&mut board, p.x, p.y, c.0, c.1, c.2);
             }
         }
-        let p = world.get_component::<PlayerCharacter>(player).unwrap();
+        let _p = world.get_component::<PlayerCharacter>(player).unwrap();
         // Player on map (white)
         render_entity(&mut board, 10.0, 10.0, 255, 255, 255);
         let frame_path = format!("evidence/game-frame-{:03}.bmp", tick);
@@ -103,7 +106,7 @@ fn main() {
         println!("  map: {}", frame_path);
 
         // Show menu
-        let p_ref = world.get_component::<PlayerCharacter>(player).unwrap().clone();
+        let p_ref = world.get_component::<PlayerCharacter>(player).unwrap();
         print!("{}", show_menu(&p_ref, members, tick as u32));
         print!("choose: ");
         io::stdout().flush().unwrap();
@@ -113,10 +116,17 @@ fn main() {
             println!("(end of input)");
             break;
         }
-        let choice = input.trim().chars().next().unwrap_or('w');
+        let (choice, new_target) = parse_command(&input, target_idx, villagers.len());
+        if choice == 'q' {
+            println!("You leave the village.");
+            break;
+        }
+        target_idx = new_target;
 
         // Execute choice
-        let target = villagers[(tick as usize) % 5];
+        let target = villagers[target_idx];
+        // Name the villager for actions aimed at one person (Organize invites everyone)
+        if "trc".contains(choice) { print!("[{}] ", names[target_idx]); }
         let result = match choice {
             't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target)),
             'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target)),
@@ -129,16 +139,62 @@ fn main() {
         println!("{}\n", result);
 
         // Random world events
-        if tick % 50 == 0 { println!("EVENT: {} occurs!", ["harvest","market day","pilgrimage","storm warning"][tick as usize / 50 % 4]); }
+        if tick % 50 == 0 {
+            match ["harvest","market day","pilgrimage","storm warning"][tick as usize / 50 % 4] {
+                "market day" => {
+                    // The Harvesters sell their members' work; the player gets a share
+                    let earned = game2_core::game::player::market_day(&mut world, player, org);
+                    if earned > 0.0 {
+                        println!("EVENT: market day! The Harvesters sell their work and you earn {:.0} gold.", earned);
+                    } else {
+                        println!("EVENT: market day! With no members, the Harvesters have nothing to sell.");
+                    }
+                }
+                "pilgrimage" => match pilgrims.next() {
+                    // A pilgrim stays on: one more villager to hear out and win over
+                    Some(name) => {
+                        villagers.push(settle(&mut world, villagers.len()));
+                        names.push(name.to_string());
+                        println!("EVENT: pilgrimage! {} decides to settle in the village (villager {}).", name, villagers.len());
+                    }
+                    None => println!("EVENT: pilgrims pass through, but none stay."),
+                },
+                "storm warning" => {
+                    if game2_core::game::organizing::storm_strikes_hall(&mut world, org) {
+                        println!("EVENT: a storm batters the village and damages your meeting hall. [b] repairs it.");
+                    } else {
+                        println!("EVENT: a storm passes over the village.");
+                    }
+                }
+                "harvest" => match game2_core::game::organizing::harvest_together(&mut world, org) {
+                    0 => println!("EVENT: harvest! The villagers each bring in their own fields."),
+                    1 => println!("EVENT: harvest! Your one member brings in the harvest for the Harvesters."),
+                    n => println!("EVENT: harvest! {} Harvesters bring it in together, side by side - and the people power grows.", n),
+                },
+                other => println!("EVENT: {} occurs!", other),
+            }
+        }
 
         // Win/lose check
         let p = world.get_component::<PlayerCharacter>(player).unwrap();
-        if p.influence > 2.0 {
+        if p.influence > game2_core::game::player::LEAD_INFLUENCE {
             println!("\n*** You are now the recognized leader of the village! ***");
             println!("The Wanderer became someone who matters.");
             break;
         }
-        if tick > 500 { println!("\n500 turns passed. The game continues..."); break; }
+        if tick > 500 { println!("\n500 turns have passed, and the village never chose you to lead it."); break; }
     }
+    let p = world.get_component::<PlayerCharacter>(player).unwrap();
+    let members = world.get_component::<Organization>(org).map(|o| o.members.len()).unwrap_or(0);
+    println!("{}", game2_core::game::action_menu::end_summary(p, members, villagers.len(), tick));
     println!("\n=== GAME OVER ===");
+}
+
+/// A villager settles at the i-th homestead along the village row
+fn settle(world: &mut World, i: usize) -> game2_core::engine::ecs::Entity {
+    let v = villager::spawn_villager(world, ((i * 4) % 30) as f32, (i % 3) as f32);
+    world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+    world.add_component(v, AttachmentHistory { anxiety_episodes: (i % 5) as u32, warmth_episodes: (4 - i % 5) as u32, episodes: vec![] });
+    world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+    v
 }

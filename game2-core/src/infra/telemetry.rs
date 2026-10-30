@@ -25,21 +25,25 @@ pub struct Span {
 pub struct Telemetry {
     pub metrics: Vec<Metric>,
     pub spans: Vec<Span>,
-    epoch: u64,
+    tick: u64,
 }
 
 impl Telemetry {
     pub fn new() -> Self {
-        Self { metrics: vec![], spans: vec![], epoch: 0 }
+        Self { metrics: vec![], spans: vec![], tick: 0 }
     }
 
-    /// Record a metric value
+    /// Set the simulation tick that subsequent metrics are stamped with
+    pub fn set_tick(&mut self, tick: u64) {
+        self.tick = tick;
+    }
+
+    /// Record a metric value at the current tick
     pub fn gauge(&mut self, name: &str, value: f64) {
         self.metrics.push(Metric {
-            name: name.into(), value, timestamp: self.epoch,
+            name: name.into(), value, timestamp: self.tick,
             labels: vec![],
         });
-        self.epoch += 1;
     }
 
     /// Start a span
@@ -63,5 +67,21 @@ impl Telemetry {
         self.metrics.iter()
             .map(|m| format!("{}={} @{}", m.name, m.value, m.timestamp))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gauges_in_same_tick_share_timestamp() {
+        let mut t = Telemetry::new();
+        t.set_tick(50);
+        t.gauge("a", 1.0);
+        t.gauge("b", 2.0);
+        t.set_tick(100);
+        t.gauge("a", 3.0);
+        assert_eq!(t.export_metrics(), vec!["a=1 @50", "b=2 @50", "a=3 @100"]);
     }
 }

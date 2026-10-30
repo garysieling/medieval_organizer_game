@@ -1,8 +1,8 @@
 //! Lifecycle demo: villagers born, age, die, succession happens.
 //! Emergent: population cycles, elders die, heirs inherit.
 
-use game2_core::engine::ecs::{Scheduler, World};
-use game2_core::game::villager::{self, Pos};
+use game2_core::engine::ecs::World;
+use game2_core::game::villager::Pos;
 use game2_core::game::lifecycle::{Age, Vitality, LifeStage};
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
     let names = ["Young Bram", "Adult Aldric", "Elder Corvin", "Child Dagny"];
     let ages = [18.0, 40.0, 75.0, 8.0];
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = world.create_entity();
         world.add_component(v, Pos { x: (i*3) as f32, y: 0.0 });
         world.add_component(v, Age { years: ages[i], stage: if ages[i] < 13.0 { LifeStage::Child } else if ages[i] < 65.0 { LifeStage::Adult } else { LifeStage::Elder } });

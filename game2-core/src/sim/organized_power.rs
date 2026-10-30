@@ -62,6 +62,29 @@ pub fn apply_action(power: &mut OrganizedPower, params: &PowerParams, quality: A
     }
 }
 
+/// System: every org's organized power atrophies a little each tick; the
+/// actions that rebuild it (house meetings, exerting influence) call
+/// record_action as they happen
+pub struct PowerAtrophySystem;
+impl crate::engine::ecs::System for PowerAtrophySystem {
+    fn run(&mut self, world: &mut crate::engine::ecs::World) {
+        let params = PowerParams::default();
+        for e in world.query::<OrganizedPower>() {
+            if let Some(p) = world.get_component_mut::<OrganizedPower>(e) {
+                step_idle(p, &params);
+            }
+        }
+    }
+}
+
+/// Run an action for an org if it tracks organized power (orgs without the
+/// component are unaffected)
+pub fn record_action(world: &mut crate::engine::ecs::World, org: crate::engine::ecs::Entity, quality: ActionQuality) {
+    if let Some(p) = world.get_component_mut::<OrganizedPower>(org) {
+        apply_action(p, &PowerParams::default(), quality);
+    }
+}
+
 /// Step one tick of idleness: capacity atrophies without use, like an
 /// unused muscle (the same use-it-or-lose-it shape as sim::trails, applied
 /// to people power instead of terrain).
@@ -116,6 +139,18 @@ mod tests {
         assert_eq!(power.capacity, 0.0);
         apply_action(&mut power, &params, ActionQuality::Overreach);
         assert_eq!(power.capacity, 0.0);
+    }
+
+    #[test]
+    fn atrophy_system_decays_every_org() {
+        use crate::engine::ecs::{System, World};
+        let mut w = World::new();
+        let org = w.create_entity();
+        w.add_component(org, OrganizedPower { capacity: 1.0, idle_ticks: 0 });
+        for _ in 0..10 { PowerAtrophySystem.run(&mut w); }
+        let p = w.get_component::<OrganizedPower>(org).unwrap();
+        assert!(p.capacity < 1.0);
+        assert_eq!(p.idle_ticks, 10);
     }
 
     #[test]

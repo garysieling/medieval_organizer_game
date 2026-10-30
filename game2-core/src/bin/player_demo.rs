@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::World;
 use game2_core::game::villager::{self};
-use game2_core::game::player::{PlayerCharacter, PlayerAction, act_talk, act_recruit, act_invest};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
 use game2_core::sim::community::{Citizen, Organization};
 
 fn main() {
@@ -19,7 +19,7 @@ fn main() {
     // Villagers to interact with
     let names = ["Aldric","Eliza","Bram","Corvin"];
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i*4) as f32, 0.0);
         world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         villagers.push(v);

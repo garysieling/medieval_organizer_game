@@ -12,7 +12,7 @@ fn main() {
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let devotions = [0.8, 0.75, 0.2, 0.7, 0.15]; // 3 devout, 2 secular
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = world.create_entity();
         world.add_component(v, Faith {
             religion: "Old Faith".into(),
@@ -47,7 +47,16 @@ fn main() {
     let mut sched = game2_core::engine::ecs::Scheduler::new();
     sched.add_system(GatherSystem);
     sched.add_system(DevotionSystem);
-    for _ in 0..20 { sched.tick(&mut world); }
+    for tick in 0..20 {
+        sched.tick(&mut world);
+        // the circle meets weekly; between meetings faith lapses a little
+        if tick % 7 == 0 {
+            game2_core::sim::religion::perform_service(&mut world, congregation, Service {
+                name: "Harvest Rite".into(), frequency: "weekly".into(),
+                participants: devout.clone(), cohesion_boost: 0.15, charity_output: 0.1,
+            });
+        }
+    }
 
     let c = world.get_component::<Congregation>(congregation).unwrap();
     println!("After 20 ticks:");

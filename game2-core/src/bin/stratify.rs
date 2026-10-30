@@ -1,7 +1,6 @@
 //! Stratification: economic hierarchy emerges from work + surplus extraction.
 //! From lit review: village hierarchy is economic, peasants vs lords over surplus.
 
-use game2_core::engine::ecs::World;
 
 fn main() {
     println!("=== VILLAGE STRATIFICATION (economic) ===\n");

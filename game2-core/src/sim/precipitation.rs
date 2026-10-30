@@ -1,8 +1,8 @@
-//! Precipitation: day-to-day rain and snow on top of the seasonal climate.
-//! Spells start and stop on their own; winter turns rain into snow.
+//! Precipitation: what is falling from the sky today, read from the climate's
+//! wetness (so what the player sees is what the crops feel). Wetter days fall
+//! harder; in winter it falls as snow.
 
-use crate::engine::ecs::{Entity, World};
-use crate::sim::climate::{Climate, Season};
+use crate::sim::climate::{Climate, Season, RAIN_THRESHOLD};
 
 /// What is falling from the sky
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,148 +38,98 @@ impl PrecipKind {
 
     pub fn label(self) -> &'static str {
         match self {
-            PrecipKind::Drizzle => "Drizzle",
-            PrecipKind::LightRain => "Light rain",
-            PrecipKind::Showers => "Showers",
-            PrecipKind::Rain => "Rain",
-            PrecipKind::HeavyRain => "Heavy rain",
-            PrecipKind::Flurries => "Snow flurries",
-            PrecipKind::Snow => "Snow",
-            PrecipKind::HeavySnow => "Heavy snow",
+            PrecipKind::Drizzle => "drizzle",
+            PrecipKind::LightRain => "light rain",
+            PrecipKind::Showers => "showers",
+            PrecipKind::Rain => "rain",
+            PrecipKind::HeavyRain => "heavy rain",
+            PrecipKind::Flurries => "snow flurries",
+            PrecipKind::Snow => "snow",
+            PrecipKind::HeavySnow => "heavy snow",
         }
     }
 }
 
-/// Current precipitation state (one per world, beside the Climate)
-#[derive(Debug)]
-pub struct Precipitation {
-    pub current: Option<PrecipKind>,
-    pub days_left: u32,
-    pub seed: u64,
-}
+/// Winter wetness above which it snows (winter runs drier than the rain
+/// threshold, so snow starts lower or it would hardly ever snow)
+pub const SNOW_THRESHOLD: f32 = 0.35;
 
-impl Precipitation {
-    pub fn is_raining(&self) -> bool {
-        self.current.map(|k| !k.is_snow()).unwrap_or(false)
-    }
-}
-
-fn hash(mut x: u64) -> u64 {
-    // splitmix64
-    x = x.wrapping_add(0x9E3779B97F4A7C15);
-    x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
-    x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
-    x ^ (x >> 31)
-}
-
-fn unit(h: u64) -> f32 { (h % 10_000) as f32 / 10_000.0 }
-
-/// Daily chance a dry day turns wet
-fn start_chance(season: Season, rainfall_drift: f32) -> f32 {
-    let base = match season {
-        Season::Spring => 0.20,
-        Season::Summer => 0.10,
-        Season::Autumn => 0.16,
-        Season::Winter => 0.14,
-    };
-    (base + rainfall_drift * 0.2).clamp(0.0, 0.9)
-}
-
-/// Pick a kind and duration (days) for a new spell
-fn roll_spell(season: Season, roll: f32, dur_roll: u64) -> (PrecipKind, u32) {
-    let kind = if season == Season::Winter {
-        if roll < 0.4 { PrecipKind::Flurries } else if roll < 0.8 { PrecipKind::Snow } else { PrecipKind::HeavySnow }
-    } else if season == Season::Summer {
-        // summer: mostly showers and short downpours
-        if roll < 0.15 { PrecipKind::Drizzle } else if roll < 0.6 { PrecipKind::Showers }
-        else if roll < 0.8 { PrecipKind::Rain } else { PrecipKind::HeavyRain }
-    } else if roll < 0.25 { PrecipKind::Drizzle } else if roll < 0.5 { PrecipKind::LightRain }
-        else if roll < 0.7 { PrecipKind::Showers } else if roll < 0.9 { PrecipKind::Rain } else { PrecipKind::HeavyRain };
-    let (lo, span) = match kind {
-        PrecipKind::Showers | PrecipKind::HeavyRain | PrecipKind::HeavySnow => (1, 2),
-        PrecipKind::Drizzle | PrecipKind::Flurries => (1, 3),
-        _ => (2, 3),
-    };
-    (kind, lo + (dur_roll % span) as u32)
-}
-
-/// Spawn precipitation state (starts dry)
-pub fn spawn_precipitation(world: &mut World, seed: u64) -> Entity {
-    let e = world.create_entity();
-    world.add_component(e, Precipitation { current: None, days_left: 0, seed });
-    e
-}
-
-/// System: one roll per day. Run after SeasonSystem so it sees today's season.
-pub struct PrecipitationSystem;
-impl crate::engine::ecs::System for PrecipitationSystem {
-    fn run(&mut self, world: &mut World) {
-        let Some((season, day, year, drift)) = world.query::<Climate>().first()
-            .and_then(|e| world.get_component::<Climate>(*e))
-            .map(|c| (c.season, c.day, c.year, c.rainfall_drift)) else { return };
-        for e in world.query::<Precipitation>() {
-            if let Some(p) = world.get_component_mut::<Precipitation>(e) {
-                if let Some(k) = p.current {
-                    p.days_left = p.days_left.saturating_sub(1);
-                    // a season change ends the spell (no snow lingering into spring)
-                    if p.days_left == 0 || k.is_snow() != (season == Season::Winter) { p.current = None; }
-                    continue;
-                }
-                let h = hash(p.seed ^ ((year as u64) << 32 | day as u64));
-                if unit(h) < start_chance(season, drift) {
-                    let (kind, days) = roll_spell(season, unit(hash(h)), hash(h ^ 0xABCD));
-                    p.current = Some(kind);
-                    p.days_left = days;
-                }
-            }
-        }
+/// What is falling today, if anything
+pub fn precip_kind(c: &Climate) -> Option<PrecipKind> {
+    let w = c.rainfall_drift;
+    if c.season == Season::Winter {
+        if w <= SNOW_THRESHOLD { None }
+        else if w < SNOW_THRESHOLD + 0.08 { Some(PrecipKind::Flurries) }
+        else if w < SNOW_THRESHOLD + 0.18 { Some(PrecipKind::Snow) }
+        else { Some(PrecipKind::HeavySnow) }
+    } else {
+        // how far past the rain threshold today is
+        let over = w - RAIN_THRESHOLD;
+        if over <= 0.0 { None }
+        else if over < 0.03 { Some(PrecipKind::Drizzle) }
+        else if over < 0.06 { Some(PrecipKind::LightRain) }
+        // summer's wet days come as showers rather than steady rain
+        else if over < 0.1 || c.season == Season::Summer { Some(PrecipKind::Showers) }
+        else if over < 0.16 { Some(PrecipKind::Rain) }
+        else { Some(PrecipKind::HeavyRain) }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::ecs::Scheduler;
-    use crate::sim::climate::{spawn_climate, SeasonSystem};
+    use crate::sim::climate::{is_raining, wetness};
 
-    fn run_year() -> Vec<(Season, Option<PrecipKind>)> {
-        let mut w = World::new();
-        let c = spawn_climate(&mut w);
-        let p = spawn_precipitation(&mut w, 7);
-        let mut s = Scheduler::new();
-        s.add_system(SeasonSystem);
-        s.add_system(PrecipitationSystem);
-        (0..360).map(|_| {
-            s.tick(&mut w);
-            (w.get_component::<Climate>(c).unwrap().season, w.get_component::<Precipitation>(p).unwrap().current)
-        }).collect()
+    fn climate(season: Season, wet: f32) -> Climate {
+        Climate { season, year: 1, day: 0, temperature_drift: 0.0, rainfall_drift: wet, severity: 0.0 }
     }
 
     #[test]
-    fn test_it_rains_and_clears() {
-        let days = run_year();
-        let wet = days.iter().filter(|(_, k)| k.is_some()).count();
-        assert!(wet > 20 && wet < 250, "wet days {}", wet);
-        // spells end: there is a wet day followed by a dry day
-        assert!(days.windows(2).any(|d| d[0].1.is_some() && d[1].1.is_none()));
-    }
-
-    #[test]
-    fn test_snow_only_in_winter() {
-        for (season, kind) in run_year() {
-            if let Some(k) = kind {
-                if k.is_snow() { assert_eq!(season, Season::Winter); }
+    fn test_rain_falls_exactly_when_the_climate_says_raining() {
+        for season in [Season::Spring, Season::Summer, Season::Autumn] {
+            for i in 0..=100 {
+                let c = climate(season, i as f32 / 100.0);
+                assert_eq!(precip_kind(&c).is_some(), is_raining(&c), "{:?} wetness {}", season, c.rainfall_drift);
             }
         }
     }
 
     #[test]
-    fn test_spell_lengths_bounded() {
+    fn test_wetter_days_fall_harder() {
+        let light = precip_kind(&climate(Season::Spring, 0.51)).unwrap();
+        let heavy = precip_kind(&climate(Season::Spring, 0.8)).unwrap();
+        assert_eq!(light, PrecipKind::Drizzle);
+        assert_eq!(heavy, PrecipKind::HeavyRain);
+        assert!(light.intensity() < heavy.intensity());
+    }
+
+    #[test]
+    fn test_snow_only_in_winter_and_it_does_snow() {
+        let mut snow_days = 0;
         for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
-            for i in 0..200u64 {
-                let (_, days) = roll_spell(season, (i % 100) as f32 / 100.0, hash(i));
-                assert!((1..=4).contains(&days));
+            for d in 0..90 {
+                let c = climate(season, wetness(season, d));
+                if let Some(k) = precip_kind(&c) {
+                    assert_eq!(k.is_snow(), season == Season::Winter, "{:?} day {}", season, d);
+                    if k.is_snow() { snow_days += 1; }
+                }
             }
+        }
+        assert!(snow_days > 10, "winter should see some snow, got {} days", snow_days);
+    }
+
+    #[test]
+    fn test_every_rain_kind_happens_in_a_year() {
+        let mut seen = vec![];
+        for season in [Season::Spring, Season::Summer, Season::Autumn, Season::Winter] {
+            for d in 0..90 {
+                if let Some(k) = precip_kind(&climate(season, wetness(season, d))) {
+                    if !seen.contains(&k) { seen.push(k); }
+                }
+            }
+        }
+        for k in [PrecipKind::Drizzle, PrecipKind::LightRain, PrecipKind::Showers, PrecipKind::Rain, PrecipKind::Flurries, PrecipKind::Snow] {
+            assert!(seen.contains(&k), "{:?} never happens: saw {:?}", k, seen);
         }
     }
 }

@@ -23,6 +23,7 @@ pub mod warfare;
 pub mod feuds;
 pub mod music;
 pub mod terrain;
+pub mod tilemap;
 pub mod pets;
 pub mod tea;
 pub mod textiles;

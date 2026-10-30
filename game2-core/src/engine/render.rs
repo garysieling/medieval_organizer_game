@@ -36,6 +36,27 @@ impl Buffer {
         }
     }
 
+    /// Load a BMP written by save_bmp (uncompressed 24-bit, bottom-up)
+    pub fn load_bmp(path: &str) -> std::io::Result<Buffer> {
+        let data = std::fs::read(path)?;
+        let bad = |why: &str| std::io::Error::new(std::io::ErrorKind::InvalidData, why.to_string());
+        if data.len() < 54 || &data[0..2] != b"BM" { return Err(bad("not a BMP")); }
+        let u32_at = |i: usize| u32::from_le_bytes([data[i], data[i + 1], data[i + 2], data[i + 3]]);
+        let (offset, w, h) = (u32_at(10) as usize, u32_at(18) as usize, u32_at(22) as usize);
+        if u16::from_le_bytes([data[28], data[29]]) != 24 { return Err(bad("only 24-bit BMPs are supported")); }
+        let row = (w * 3 + 3) / 4 * 4;
+        if data.len() < offset + row * h { return Err(bad("truncated BMP")); }
+        let mut buf = Buffer::new(w, h);
+        for y in 0..h {
+            let src = offset + (h - 1 - y) * row; // rows are stored bottom-up
+            for x in 0..w {
+                let (b, g, r) = (data[src + x * 3], data[src + x * 3 + 1], data[src + x * 3 + 2]);
+                buf.set(x as i32, y as i32, r, g, b);
+            }
+        }
+        Ok(buf)
+    }
+
     /// Save as BMP (uncompressed 24-bit, no deps)
     pub fn save_bmp(&self, path: &str) -> std::io::Result<()> {
         let w = self.width as u32;
@@ -69,5 +90,27 @@ impl Buffer {
             for _ in 0..row_pad { out.push(0); }
         }
         std::fs::write(path, out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bmp_round_trips() {
+        // odd width exercises the 4-byte row padding
+        let mut buf = Buffer::new(5, 3);
+        buf.set(0, 0, 255, 0, 0);
+        buf.set(4, 2, 10, 20, 30);
+        let path = std::env::temp_dir().join(format!("roundtrip-{}.bmp", std::process::id()));
+        buf.save_bmp(path.to_str().unwrap()).unwrap();
+        let back = Buffer::load_bmp(path.to_str().unwrap()).unwrap();
+        std::fs::remove_file(&path).ok();
+        assert_eq!((back.width, back.height), (5, 3));
+        let px = |b: &Buffer, x: usize, y: usize| { let i = (y * b.width + x) * 4; (b.pixels[i], b.pixels[i + 1], b.pixels[i + 2]) };
+        assert_eq!(px(&back, 0, 0), (255, 0, 0));
+        assert_eq!(px(&back, 4, 2), (10, 20, 30));
+        assert_eq!(px(&back, 2, 1), px(&buf, 2, 1));
     }
 }

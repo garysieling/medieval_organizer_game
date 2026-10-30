@@ -53,7 +53,8 @@ impl Layer<'_> {
 /// Dim/haze the map viewport to match the sky
 pub fn overcast(buf: &mut Buffer, map_w: usize, kind: PrecipKind) {
     let k = kind.intensity();
-    let (tint, a) = if kind.is_snow() { ((205, 210, 225), 0.10 * k) } else { ((40, 50, 75), 0.10 + 0.22 * k) };
+    // snow skies are grey: dimming the (often snow-white) ground lets white flakes show
+    let (tint, a) = if kind.is_snow() { ((110, 115, 135), 0.14 + 0.18 * k) } else { ((40, 50, 75), 0.10 + 0.22 * k) };
     for y in 0..buf.height as i32 {
         for x in 0..map_w as i32 { blend(buf, x, y, tint, a); }
     }
@@ -70,10 +71,10 @@ fn draw_rain(l: &mut Layer, h: i32, kind: PrecipKind, frame: u64) {
     // (count, streak length, speed px/frame, slant dx per dy, color, alpha map, alpha outside)
     let (count, len, speed, slant, c, a_map, a_out) = match kind {
         PrecipKind::Drizzle   => (280, 3, 7, 0.08, (195, 205, 220), 0.32, 0.60),
-        PrecipKind::LightRain => (110, 5, 20, 0.12, (160, 180, 215), 0.28, 0.65),
-        PrecipKind::Showers   => (240, 7, 26, 0.25, (160, 185, 225), 0.30, 0.70),
-        PrecipKind::Rain      => (200, 9, 30, 0.20, (155, 175, 215), 0.30, 0.75),
-        _                     => (380, 14, 38, 0.38, (180, 200, 235), 0.38, 0.90),
+        PrecipKind::LightRain => (110, 5, 20, 0.12, (160, 180, 215), 0.34, 0.65),
+        PrecipKind::Showers   => (240, 7, 26, 0.25, (160, 185, 225), 0.38, 0.70),
+        PrecipKind::Rain      => (200, 9, 30, 0.20, (155, 175, 215), 0.40, 0.75),
+        _                     => (380, 14, 38, 0.38, (180, 200, 235), 0.45, 0.90),
     };
     // showers come in bursts: density swells and fades every few seconds
     let density = if kind == PrecipKind::Showers {
@@ -135,6 +136,11 @@ fn draw_snow(l: &mut Layer, h: i32, kind: PrecipKind, frame: u64) {
         let base = match kind { PrecipKind::Flurries => (r >> 50) % 2, PrecipKind::Snow => 1 + (r >> 50) % 2, _ => 2 + (r >> 50) % 2 };
         let size = if l.outside(x, y) { (base + 1).min(3) } else { base };
         let (am, ao) = (0.7, 1.0);
+        // a faint shadow under each flake so it still shows over snowy ground
+        let shadow = (90, 100, 130);
+        let reach = size.min(2) as i32;
+        l.mark(x + 1, y + reach + 1, shadow, 0.5, 0.0);
+        l.mark(x + reach + 1, y + 1, shadow, 0.35, 0.0);
         match size {
             0 => l.mark(x, y, c, am, ao),
             1 => { for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] { l.mark(x + dx, y + dy, c, am, ao); } }

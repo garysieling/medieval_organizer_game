@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger};
+use game2_core::game::villager::{self};
 use game2_core::game::tech_tree::{extended_printmaking_tree, research};
 use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::ui::graph::{Person, Bond, render_graph};
@@ -24,12 +24,12 @@ fn main() {
     sched.add_system(SeasonSystem);
 
     let terrain = Terrain::generate(33, 0.7, 42);
-    let climate = climate::spawn_climate(&mut world);
+    let _climate = climate::spawn_climate(&mut world);
     villager::spawn_food_source(&mut world, 8.0, 8.0, 200);
 
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny","Wystan"];
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%4) as f32);
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (5-i) as u32, episodes: vec![] });
         villagers.push(v);

@@ -3,14 +3,14 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Hunger, Villager, Activity, Pos};
+use game2_core::game::villager::{self, Hunger};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::game::tech_tree::{extended_printmaking_tree, research};
 use game2_core::game::lifecycle::{Age, Vitality, LifeStage};
-use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::psychology::{AttachmentHistory, infer_style};
+use game2_core::sim::climate::{self, SeasonSystem};
+use game2_core::sim::psychology::AttachmentHistory;
 use game2_core::sim::religion::Faith;
 use game2_core::sim::community::{Citizen, Organization};
 use game2_core::sim::economics::Market;
@@ -20,7 +20,7 @@ fn main() {
     println!("=== GRAND SHOWCASE: the complete game ===\n");
 
     let mut world = World::new();
-    let mut telem = Telemetry::new();
+    let _telem = Telemetry::new();
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
@@ -28,16 +28,16 @@ fn main() {
     sched.add_system(SeasonSystem);
     sched.add_system(GuildFormationSystem);
 
-    let terrain = Terrain::generate(33, 0.7, 42);
+    let _terrain = Terrain::generate(33, 0.7, 42);
     let climate = climate::spawn_climate(&mut world);
     villager::spawn_food_source(&mut world, 8.0, 8.0, 400);
     let market = world.create_entity();
-    world.add_component(market, Market { prices: [("food".into(),10.0)].into_iter().collect(), supply: [("food".into(),100)].into_iter().collect() });
+    world.add_component(market, Market { prices: [("food".into(),10.0)].into_iter().collect(), supply: [("food".into(),100)].into_iter().collect(), ..Default::default() });
 
     // Villagers with full stacks
     let names = ["Aldric","Eliza","Bram","Corvin","Dagny"];
     let mut villagers = vec![];
-    for (i, n) in names.iter().enumerate() {
+    for (i, _n) in names.iter().enumerate() {
         let v = villager::spawn_villager(&mut world, (i*4) as f32, (i%3) as f32);
         world.add_component(v, Hunger { value: 90.0 });
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
@@ -72,7 +72,7 @@ fn main() {
             let target = villagers[(tick/15) as usize % 5];
             match tick % 45 {
                 0 => { act_talk(&mut world, player, target); }
-                15 => { let r = act_recruit(&mut world, player, org, target); }
+                15 => { let _r = act_recruit(&mut world, player, org, target); }
                 30 => { act_invest(&mut world, player, 10.0); }
                 _ => {}
             }

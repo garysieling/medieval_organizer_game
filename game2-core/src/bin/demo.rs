@@ -4,9 +4,9 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
-use game2_core::game::villager::{self, Activity, Hunger};
+use game2_core::game::villager::{self, Hunger};
 use game2_core::sim::economics::Market;
-use game2_core::sim::psychology::{infer_style, AttachmentHistory, AttachmentStyle};
+use game2_core::sim::psychology::{infer_style, AttachmentHistory};
 
 fn main() {
     println!("=== EVIDENCE DEMO ===\n");
@@ -33,7 +33,7 @@ fn main() {
     }
 
     println!("\n--- B1: Economics (price formation) ---");
-    let mut m = Market { prices: Default::default(), supply: Default::default() };
+    let mut m = Market::default();
     m.prices.insert("food".to_string(), 10.0);
     m.add_supply("food", 10);
     for demand in [10, 20, 40, 80] {

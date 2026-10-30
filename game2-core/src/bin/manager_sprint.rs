@@ -21,7 +21,7 @@ fn main() {
     println!("Progress: {:.0}%\n", plan.progress());
 
     // Delegate tasks to agents via capability matching
-    let mut bot = ManagerBot::new("sprint_tasks.txt", "sprint_log.txt");
+    let _bot = ManagerBot::new("sprint_tasks.txt", "sprint_log.txt");
     let agents = ["Implementation Engineer", "Simple Playtester", "Pedantic Engineer", "Docs Agent"];
     for (i, task) in plan.tasks.iter().enumerate() {
         let agent = agents[i % agents.len()];

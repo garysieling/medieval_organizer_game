@@ -65,7 +65,7 @@ impl ExploratoryTesterData {
         let mean = values.iter().sum::<f32>() / values.len() as f32;
 
         for window in data.windows(2) {
-            let (tick1, val1) = window[0];
+            let (_tick1, val1) = window[0];
             let (tick2, val2) = window[1];
             let change = (val2 - val1).abs();
 

@@ -2076,7 +2076,14 @@ impl<'a> Game<'a> {
                         if let Some(&(qx, qy)) = path.first() {
                             let (ddx, ddy) = (qx as f32 - p.x, qy as f32 - p.y);
                             let dd = (ddx * ddx + ddy * ddy).sqrt().max(1e-4);
-                            p.x += ddx / dd * step; p.y += ddy / dd * step;
+                            let (sx, sy) = (p.x + ddx / dd * step, p.y + ddy / dd * step);
+                            // a diagonal step can clip a wall corner: the
+                            // wall-revert then bounces them back every frame
+                            // and they never come home - take one axis at a
+                            // time so the way round actually clears
+                            if self.map.passable(sx.round() as i32, sy.round() as i32) { p.x = sx; p.y = sy; }
+                            else if self.map.passable(sx.round() as i32, p.y.round() as i32) { p.x = sx; }
+                            else if self.map.passable(p.x.round() as i32, sy.round() as i32) { p.y = sy; }
                         }
                     }
                 }
@@ -3743,13 +3750,15 @@ mod stay_home_tests {
         // a stray is being far from the store AND from your own house for
         // days on end - an errand out and back isn't one
         let mut run = [0u64; 30];
-        let mut worst: u64 = 0;
+        let (mut worst, mut who_was_it) = (0u64, 0usize);
         let mut last = 0;
         while game.tick < 1500 {
             game.update();
             if game.tick == last { continue; }
             last = game.tick;
             for (i, v) in game.villagers.iter().enumerate() {
+                // the dead lie where they fell - a grave isn't a stray
+                if villager::is_dead(&game.world, *v) { run[i] = 0; continue; }
                 if game.travels.iter().any(|t| t.who == *v)
                     || game.world.get_component::<OddJob>(*v).is_some()
                     || Some(*v) == game.collector { run[i] = 0; continue; }
@@ -3758,10 +3767,10 @@ mod stay_home_tests {
                 let adrift = d(home) > VILLAGE_RADIUS + 3.0
                     && homes[i].map(|hp| d(hp) > 4.0).unwrap_or(true);
                 run[i] = if adrift { run[i] + 1 } else { 0 };
-                worst = worst.max(run[i]);
+                if run[i] > worst { (worst, who_was_it) = (run[i], i); }
             }
         }
-        assert!(worst <= 5, "a villager stayed {} days away from both the store and home", worst);
+        assert!(worst <= 5, "{} stayed {} days away from both the store and home", NAMES[who_was_it], worst);
     }
 }
 

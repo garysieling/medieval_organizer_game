@@ -2050,7 +2050,12 @@ impl<'a> Game<'a> {
                 // runs dry), not always the village store - otherwise this
                 // wall-avoidance pass fights the daily system's choice and
                 // walks a hungry villager back and forth, never arriving
-                let dest = if seeking {
+                // while our store is stocked, folk come home to eat - a
+                // villager this far east would otherwise yo-yo between the
+                // rivals' nearer granary and the pull home, never arriving
+                let ours_stocked = world.get_component::<villager::FoodSource>(self.market_food)
+                    .map(|f| f.servings > 0.0).unwrap_or(false);
+                let dest = if seeking && !ours_stocked {
                     target_food.and_then(|f| world.get_component::<Pos>(f)).map(|p| (p.x, p.y))
                         .or(village_home)
                 } else {
@@ -3774,7 +3779,13 @@ mod stay_home_tests {
                 if run[i] > worst { (worst, who_was_it) = (run[i], i); }
             }
         }
-        assert!(worst <= 5, "{} stayed {} days away from both the store and home", NAMES[who_was_it], worst);
+        let sp = *game.world.get_component::<Pos>(game.villagers[who_was_it]).unwrap();
+        let st = (sp.x.round() as i32, sp.y.round() as i32);
+        let route = game.map.walk_path(st, (home.x.round() as i32, home.y.round() as i32)).map(|p| p.len());
+        let around: Vec<String> = (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (dx, dy)))
+            .map(|(dx, dy)| format!("{:?}", game.map.get(st.0 + dx, st.1 + dy))).collect();
+        assert!(worst <= 5, "{} stayed {} days away at {:?} (route home: {:?}) - neighbours {:?}",
+            NAMES[who_was_it], worst, st, route, around);
     }
 }
 

@@ -30,44 +30,6 @@ lower-risk, and lay groundwork later items reuse.
 
 ## Wave 1 — The cottage economy (animals, plants, and the people who tend them)
 
-### F2. Shepherds, sheep & goats
-
-*Draws on brainstorm "Shepherds/goatherds — implies farming; gives dogs
-more to do" + `sprint-7-perfume-and-smell.md` (smell).*
-
-**What.** A shepherd vocation keeps a flock of sheep (and a few goats)
-that graze the meadow outside the walls. Wool and milk enter the economy;
-the dog finally earns its keep.
-
-**Spec.**
-
-- `struct Livestock { kind: LivestockKind (Sheep|Goat), flock: Entity,
-  fed: f32 }` — individual animals as entities (8–14 per flock) so they
-  can scatter, sicken, and die. Simple `Graze` wander biased to flock
-  anchor; sprites = scaled-down quadruped blob (four-pixel legs, wool
-  tint) — no pack art needed at first.
-- `Vocation::Shepherd` (Working): inputs none; outputs `"wool"`
-  (seasonal, ~2 units/sheep on shearing day) + `"milk"` (daily from
-  goats, food-priced ~2g). Trade name "the fold"; workplace = a fenced
-  pasture `BuildingKind::Pasture` outside the wall.
-- Activity `Herding`: the shepherd walks to the flock most days, drifts
-  it toward fresh meadow (reuses walk_path). A `PetRole::Herding` dog
-  bonded to the shepherd halves drift scatter radius — dogs visibly
-  orbit the flock.
-- `Problem::Smelly` on shepherds (low social cost on Talk: −10% reveal
-  roll) — hooks the smell system from the perfume review, pays off at F20.
-- Small crisis: rare `WolfNight` event — a dark shape crosses the map at
-  night, flock scatters, 0–2 sheep lost, shepherd gains `Problem::Loss`
-  for the season. Stories, not stats.
-- Wool feeds the tailor/weaver chain (F8); milk feeds F9 cheese.
-
-**Verify.** Flock stays clustered near anchor; shepherd present → milk
-produced daily; shearing yields wool on the season tick; herding dog
-reduces scatter; wolf event scatters and can kill within bounds; smelly
-flag dampens talk reveals. **Size: M.**
-
----
-
 ### F3. Chickens & eggs
 
 *Quick win after F2 reuses Livestock; brainstorm-adjacent.*
@@ -808,7 +770,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 ## Suggested opening run — in order
 
 1. ~~F1 Herbologist~~ — **done, PR #141.**
-2. F2 Shepherds/flocks — asked-for; livestock substrate for F3/F8/F9.
+2. ~~F2 Shepherds/flocks~~ — **done, PR #142.**
 3. F3 Chickens — cheap after F2, proves Livestock generality.
 4. F41 Heart Helper — side-feedback priority; second "important single
    character", mostly reuses want/reveal/pairing machinery already built.

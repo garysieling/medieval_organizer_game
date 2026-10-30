@@ -21,12 +21,15 @@ const TICK_HZ: u64 = 20;
 /// Frames between broadcasts to a client (2 = ~10 scenes a second)
 const SCENE_EVERY: u64 = 2;
 
-/// One connected client
+/// One connected client. The conn thread owns the socket: it polls reads on
+/// a short timeout and drains `outbox`, so a blocking read never stalls the
+/// world loop.
 struct Conn {
-    ws: tungstenite::WebSocket<TcpStream>,
     seat: usize,
     kind: ClientKind,
     last_active: Instant,
+    /// Serialized messages queued for this client
+    outbox: Vec<String>,
 }
 
 struct Server {
@@ -47,11 +50,8 @@ fn token() -> String {
     format!("{:x}", h.finish())
 }
 
-fn send_msg(c: &mut Conn, msg: &ServerMsg) -> bool {
-    match serde_json::to_string(msg) {
-        Ok(s) => c.ws.send(tungstenite::Message::Text(s.into())).is_ok(),
-        Err(_) => false,
-    }
+fn send_msg(c: &mut Conn, msg: &ServerMsg) {
+    if let Ok(s) = serde_json::to_string(msg) { c.outbox.push(s); }
 }
 
 fn main() {
@@ -105,22 +105,19 @@ fn main() {
             for seat in idle_for { driver::drive_player(&mut s.game, seat); }
         }
         if s.frame % SCENE_EVERY == 0 {
-            let mut dead = vec![];
-            for (i, conn) in s.conns.iter().enumerate() {
+            for conn in s.conns.iter() {
                 let mut c = conn.lock().unwrap();
-                let ok = match c.kind {
+                match c.kind {
                     ClientKind::Human => {
                         let model = s.game.ui_model_at(c.seat);
-                        send_msg(&mut c, &ServerMsg::Scene(Box::new(model)))
+                        send_msg(&mut c, &ServerMsg::Scene(Box::new(model)));
                     }
                     ClientKind::Agent => match s.game.agent_obs(c.seat) {
                         Some(obs) => send_msg(&mut c, &ServerMsg::Obs(Box::new(obs))),
                         None => send_msg(&mut c, &ServerMsg::Denied { reason: "seat gone".into() }),
                     },
-                };
-                if !ok { dead.push(i); }
+                }
             }
-            for i in dead.into_iter().rev() { s.conns.remove(i); }
         }
         drop(s);
         let spent = at.elapsed();
@@ -133,7 +130,7 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
         Ok(ws) => ws, Err(_) => return,
     };
     // the first message must be Hello: claim or be assigned a seat
-    let seat = loop {
+    let conn = loop {
         let msg = match ws.read() { Ok(m) => m, Err(_) => return };
         if let tungstenite::Message::Text(t) = msg {
             let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
@@ -157,41 +154,54 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
                         you, token: tok,
                         model: Box::new(s.game.ui_model_at(0)) }, // agents see the world via Obs
                 };
-                let conn = Arc::new(Mutex::new(Conn { ws, seat, kind, last_active: Instant::now() }));
-                if !send_msg(&mut conn.lock().unwrap(), &first) { return; }
+                let conn = Arc::new(Mutex::new(Conn { seat, kind, last_active: Instant::now(), outbox: vec![] }));
+                send_msg(&mut conn.lock().unwrap(), &first);
                 s.conns.push(conn.clone());
                 break conn;
             }
         }
     };
-    // command loop: read messages until disconnect
+    // command loop: poll reads on a short timeout and drain the outbox the
+    // world loop fills, so a quiet client never stalls the broadcast
+    ws.get_ref().set_read_timeout(Some(Duration::from_millis(50))).ok();
     loop {
-        let msg = match seat.lock().unwrap().ws.read() {
-            Ok(m) => m, Err(_) => break,
-        };
-        let tungstenite::Message::Text(t) = msg else { continue };
-        let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
-        let mut s = server.lock().unwrap();
-        let mut c = seat.lock().unwrap();
-        c.last_active = Instant::now();
-        match cm {
-            ClientMsg::Command(cmd) => {
-                // speed and pause are local-only: the shared world runs at one pace
-                if !matches!(cmd, Command::TogglePause | Command::ToggleSpeed) {
-                    s.game.command_at(c.seat, cmd);
+        let out: Vec<String> = { let mut c = conn.lock().unwrap(); c.outbox.drain(..).collect() };
+        let mut alive = true;
+        for s_out in out {
+            if ws.send(tungstenite::Message::Text(s_out.into())).is_err() { alive = false; break; }
+        }
+        if !alive { break; }
+        match ws.read() {
+            Ok(tungstenite::Message::Text(t)) => {
+                let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
+                let mut s = server.lock().unwrap();
+                let (seat, kind) = { let c = conn.lock().unwrap(); (c.seat, c.kind) };
+                conn.lock().unwrap().last_active = Instant::now();
+                match cm {
+                    ClientMsg::Command(cmd) => {
+                        // speed and pause are local-only: the shared world runs at one pace
+                        if !matches!(cmd, Command::TogglePause | Command::ToggleSpeed) {
+                            s.game.command_at(seat, cmd);
+                        }
+                    }
+                    ClientMsg::AgentCmd(ac) => {
+                        let note = match s.game.agent_command(seat, ac) {
+                            Ok(()) => "ok".to_string(), Err(e) => e,
+                        };
+                        send_msg(&mut conn.lock().unwrap(), &ServerMsg::CmdDone { ok: note == "ok", note });
+                    }
+                    ClientMsg::Ping(n) => { send_msg(&mut conn.lock().unwrap(), &ServerMsg::Pong(n)); }
+                    ClientMsg::Hello { .. } => {}
                 }
+                let _ = kind;
             }
-            ClientMsg::AgentCmd(ac) => {
-                let note = match s.game.agent_command(c.seat, ac) {
-                    Ok(()) => "ok".to_string(), Err(e) => e,
-                };
-                send_msg(&mut c, &ServerMsg::CmdDone { ok: note == "ok", note });
-            }
-            ClientMsg::Ping(n) => { send_msg(&mut c, &ServerMsg::Pong(n)); }
-            ClientMsg::Hello { .. } => {}
+            Ok(_) => {}
+            Err(tungstenite::Error::Io(e))
+                if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(_) => break,
         }
     }
     // dropped: the seat keeps its character; claims still map it for reclaim
     let mut s = server.lock().unwrap();
-    s.conns.retain(|c| !Arc::ptr_eq(c, &seat));
+    s.conns.retain(|c| !Arc::ptr_eq(c, &conn));
 }

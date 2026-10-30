@@ -421,6 +421,7 @@ pub fn occupation_of(world: &World, e: Entity) -> Option<String> {
             TownRole::TaxCollector => "Tax Collector",
             TownRole::Trader => "Trader",
             TownRole::Herbologist => "Herb-wife",
+            TownRole::Matchmaker => "Heart-helper",
         };
         return Some(role.into());
     }
@@ -433,7 +434,7 @@ pub fn class_of(world: &World, e: Entity) -> SocialClass {
     if let Some(role) = world.get_component::<TownRole>(e) {
         // the herb-wife works her hedge like any labourer; the rest of the
         // postings carry the lord's or the profession's standing
-        return match role { TownRole::Herbologist => SocialClass::Working, _ => SocialClass::ProfessionalMiddle };
+        return match role { TownRole::Herbologist | TownRole::Matchmaker => SocialClass::Working, _ => SocialClass::ProfessionalMiddle };
     }
     if let Some(c) = world.get_component::<Craft>(e) {
         if vocation::is_pmc(c.vocation) { return SocialClass::ProfessionalMiddle; }

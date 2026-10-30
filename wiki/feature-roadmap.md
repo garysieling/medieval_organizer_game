@@ -266,92 +266,6 @@ problems (the reveal machinery on a party line). Org can sponsor a feast
 
 ---
 
-### F41. The Heart Helper — a matchmaker
-
-*Side-feedback request; numbered F41 to keep earlier references stable —
-position it early, it mostly reuses existing machinery. Pairs with F1 as
-another "important single character".*
-
-**What.** One heart-helper (the village matchmaker — an elder who knows
-everyone's business) watches for lonely hearts and engineers meetings
-between them. The player can do it too: brokering a match is the same
-organizer-brokered pattern as `Pair up`, only for hearts, and it's a
-real trust/power lever.
-
-**Spec.**
-
-- `TownRole::Matchmaker` — exactly one, seeded like the herb-wife
-  (`SocialClass::Working`, no `Craft`). An elder sprite, a bench or
-  market spot she works from ("the heart-helper").
-- `Lonely heart` detection: villagers with an unmet `Want::Love`
-  (machinery exists in `desires.rs`). She keeps a private
-  `MatchNotes { Vec<(Entity, Compatibility)> }` — compatibility sampled
-  from shared wants, complementary problems, attachment style
-  (`sim/psychology.rs`), and *not* being close kin or a `Kid`.
-- `Activity::Matchmaking`: she walks to one heart, then fetches the
-  other ("come, I want you to meet someone") — both are pulled to a
-  meeting spot for a Talk-like exchange. Chemistry roll →
-  `RelKind::Sweetheart` bond (new RelKind between Friend and Spouse) or
-  a polite miss (`Problem::Rejected`, ~30-day cooldown before she tries
-  that pair again).
-- She takes a small fee or gift on success ("a pie from the grateful
-  groom") — 2–4g into her `Purse`, and her own `Joy`/`Esteem` tick up.
-- Player action `Matchmake` (contextual row): enabled when the player's
-  `Heard` ledger holds a `Love` want for *two* different people — you
-  have to know hearts to mend them. Success gives both parties a trust
-  bump with the player (the organizer who mended them) and counts as a
-  visible action for F14 perceived power.
-- Cross-feud pairs (from `feuds.rs`) get flagged "a match the families
-  won't like" — drama, a bigger payoff if it lands, a feud-stoking miss
-  if it doesn't.
-- Her own secret: "the heart-helper who never made a match for herself"
-  — she can carry an unmet `Love` want like anyone.
-- Sweetheart pairs become F16 wedding candidates when that lands; until
-  then a sweetheart bond satisfies `Love`, deepens bonds, and shows on
-  the card ("walking out with Tam").
-- UI: her card reads "Heart-helper · Working"; `Matchmaking` marker
-  `♥`; the `Matchmake` action sits on the contextual row next to
-  `Pair up` with its own disabled-reason line ("you only know one
-  heart that's looking").
-
-**Verify.** Exactly one matchmaker across seeds; no Kid/kin pairings;
-bond forms only on the chemistry pass; rejected pairs respect cooldown;
-player `Matchmake` gated on two heard `Love` wants; fee and trust bump
-land; cross-feud flag sets. **Size: S-M.**
-
----
-
-### F16. Marriage & households
-
-*Brainstorm "marriage/divorce — TBD".*
-
-**What.** Pairs with `RelKind::Spouse` form from courtship (Love want met
-repeatedly with the same person); households merge; kids can arrive.
-
-**Spec.** Courtship = repeated mutual Love-satisfying interactions →
-`Spouse` bond → one moves house (`household.rs` occupant swap) → a
-wedding mini-festival. Children spawn rarely into households with a
-spare bed (feeds F11). Bereavement grief hook (pending branch
-`villagers-grieve-the-dead` — check overlap). Divorce only on feud-level
-relationship collapse. **Size: L.**
-
----
-
-### F17. Inside jokes & shared stories
-
-*Brainstorm "inside jokes"; cheap, high charm.*
-
-**What.** Pairs that share events (both present at a festival, both
-sanctioned, both survived the wolf night) accrue a `shared_bits` list;
-their Talk lines reference it ("still thinking of the goose at the
-fair?"), giving dialogue memory instead of per-line amnesia.
-
-**Spec.** `struct SharedBits { Vec<(Entity, BitKind, tick)> }`; Talk
-draws from it before the generic line table. Purely additive flavor —
-but it's the difference between a cast and *these people*. **Size: S.**
-
----
-
 ### F43. Issues belong to trades — common ground is work
 
 *Side-feedback request; numbered F43 for stable refs. The organizing
@@ -772,8 +686,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 1. ~~F1 Herbologist~~ — **done, PR #141.**
 2. ~~F2 Shepherds/flocks~~ — **done, PR #142.**
 3. F3 Chickens — cheap after F2, proves Livestock generality.
-4. F41 Heart Helper — side-feedback priority; second "important single
-   character", mostly reuses want/reveal/pairing machinery already built.
+4. ~~F41 Heart Helper~~ — **done, PR #144.**
 5. F5 Foraging/mushrooms — deepens the herb-wife's world; first real
    hidden-poison story.
 6. F43 Issues belong to trades — small, and it makes every later

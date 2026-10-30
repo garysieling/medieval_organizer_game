@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-21 prompts, est. $2.83 USD at list prices.
+22 prompts, est. $3.01 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -102,6 +102,12 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | ui-title-keyart-8651a36f-smoke | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 | validates: painterly key art |
+
+## P0 - needed now (replaces assets the game already draws) / colors
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| palette-english-countryside-860d3b3d-smoke | flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky | rd_pro__simple | 128x128 | 1 | 0.18 | validates: flat palette swatch (rd_pro__simple) \| use the output as input_palette on other calls to lock the countryside palette |
 
 ## P1 - fills gaps in shipped features / compare/tiers
 

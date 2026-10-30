@@ -410,6 +410,8 @@ ICONS_WEATHER = [
     ("overcast", "flat grey cloud"),
     ("rainbow", "rainbow arc over small cloud"),
     ("storm", "cloud with lightning bolt"),
+    ("fog", "low fog bank swallowing a rooftop"),
+    ("drizzle", "pale cloud with fine slanting drizzle"),
 ]
 ICONS_SEASONS = [
     ("spring", "sprouting seedling with flower"),
@@ -509,6 +511,96 @@ for slug, p in [
 ]:
     add("biomes/props", f"prop-{slug}", f"{ISO}: {p}",
         style="rd_tile__tile_object", w=96, h=96, tier="p1")
+
+# ---------------------------------------------------------------------------
+# P1: Scotland - Edinburgh and Glasgow reads. Real buildings including the
+# gloriously weird ones; slate skies and sandstone palettes throughout.
+
+SCOTTISH = [
+    # Edinburgh: medieval skyscrapers of the Old Town
+    ("edinburgh-land", "tall narrow old town tenement 'land', six storeys, harled stone, crow-stepped gables, dormer windows"),
+    ("edinburgh-crown-spire", "gothic kirk with a crown-shaped steeple"),
+    ("edinburgh-castle-crag", "castle on a sheer volcanic rock crag above the town"),
+    ("scott-monument", "spindly black victorian gothic rocket-spire monument"),
+    ("calton-folly", "unfinished greek temple columns alone on a hilltop"),
+    ("georgian-crescent", "blonde sandstone georgian terrace, columns and fanlights"),
+    ("camera-obscura", "old outlook tower with a domed camera chamber on top"),
+    ("cannonball-house", "stone merchant house with a cannonball lodged in its gable wall"),
+    ("baronial-turret", "scots baronial corner turret with a conical witch's-hat roof"),
+    ("whitehorse-close", "white-harled courtyard inn with outside forestairs"),
+    ("painted-terrace", "curved terrace of brightly painted shopfronts"),
+    # Glasgow: sandstone, gothic, and one perfect folly
+    ("glasgow-red-tenement", "red sandstone tenement block, four storeys, bay windows"),
+    ("glasgow-blonde-tenement", "honey blonde sandstone tenement with a corner turret"),
+    ("glasgow-cathedral", "dark gothic cathedral, soot-blackened stone"),
+    ("necropolis", "hilltop victorian cemetery, monument spires along the skyline"),
+    ("templeton-factory", "carpet factory dressed as a venetian gothic palace, polychrome glazed brick"),
+    ("tolbooth-steeple", "lone stone steeple standing free at a crossroads"),
+    ("bridge-of-sighs", "single-span stone bridge up to a walled cemetery"),
+    ("finnieston-crane", "giant grey cantilever crane over a river"),
+    ("peoples-palace", "red sandstone museum with a glass winter-gardens dome"),
+    ("saracen-bandstand", "ornate victorian cast-iron bandstand"),
+    ("cone-statue", "equestrian statue with a traffic cone on its head"),
+]
+for slug, b in SCOTTISH:
+    add("regions/scotland", f"scot-{slug}", f"{ISO}: {b}, grey scottish light",
+        w=160, h=160, tier="p1",
+        notes="real building - Edinburgh or Glasgow landmark")
+
+for slug, s in [
+    ("edinburgh-street", "steep old town street of tall tenements and crow-stepped gables under a low grey sky"),
+    ("glasgow-green", "sandstone tenements round a green, a gaudy venetian-gothic factory at one edge"),
+]:
+    add("regions/scotland", f"scot-scene-{slug}", f"{ISO}, wide view: {s}, {CROWD}",
+        w=256, h=256, remove_bg=False, tier="p1")
+
+# ---------------------------------------------------------------------------
+# P1: Scottish weather modes - haar, dreich, smirr, stinging showers, and
+# the famous four seasons in one day. Scene art; the procedural weather_fx
+# system can take these as its look reference.
+
+SCOT_WEATHER = [
+    ("haar", "cold sea fog rolling in over rooftops, buildings dissolving into grey"),
+    ("dreich", "flat grey drizzle, wet stone, dreary light"),
+    ("smirr", "fine misting drizzle settling over fields"),
+    ("stinging-shower", "slanted heavy rain squall driving sideways"),
+    ("four-seasons", "sunlit showers: bright patches and falling rain in the same sky"),
+]
+for slug, w in SCOT_WEATHER:
+    add("weather", f"weather-{slug}", f"wide isometric view: medieval village under {w}",
+        w=256, h=256, remove_bg=False, tier="p1")
+
+# ---------------------------------------------------------------------------
+# P0: palette reference - generate once, then pass as input_palette to pin
+# the english countryside colors on every other call.
+
+add("colors", "palette-english-countryside",
+    "flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky",
+    style="rd_pro__simple", w=128, h=128, remove_bg=False, tier="p0",
+    notes="use the output as input_palette on other calls to lock the countryside palette")
+
+# English countryside biome dressing, in that palette.
+COUNTRYSIDE = "sage greens, honey limestone, drystone grey, drizzle-grey sky"
+for slug, p in [
+    ("hedgerow", "hedgerow of hawthorn and bramble"),
+    ("drystone-wall", "drystone field wall"),
+    ("copse", "small copse of beech and ash"),
+    ("sheep-fold", "stone sheep fold in a field corner"),
+    ("stile", "wooden stile over a field wall"),
+    ("hayrick", "conical hayrick with a loose cover"),
+]:
+    add("biomes/countryside", f"country-{slug}", f"{ISO}: {p}, {COUNTRYSIDE}",
+        style="rd_tile__tile_object", w=96, h=96, tier="p1")
+for tile, subj in [
+    ("meadow", "meadow ground block, long grass"),
+    ("chalk-down", "chalk downland ground block, short turf"),
+    ("barley-field", "barley field ground block, ripe gold"),
+]:
+    add("biomes/countryside", f"country-{tile}", f"{ISO}: {subj}, {COUNTRYSIDE}, square isometric ground block",
+        w=128, h=128, tile_x=True, tile_y=True, tier="p1")
+add("biomes/countryside", "country-village",
+    f"{ISO}, wide view: small english countryside village, honey limestone cottages, hedgerows and barley fields, {CROWD}",
+    w=256, h=256, remove_bg=False, tier="p1")
 
 # ---------------------------------------------------------------------------
 # P1: special features already in the game - minstrel visit, market day,
@@ -688,6 +780,8 @@ for slug, subj in [
     ("leaves", "autumn leaves drifting down"),
     ("snowfall", "snowflakes falling"),
     ("spark", "spark burst, small magic effect"),
+    ("haar", "low sea fog drifting across the ground"),
+    ("drizzle", "fine grey drizzle falling"),
 ]:
     add("anim/vfx", f"vfx-{slug}", subj,
         style="rd_animation__vfx", w=64, h=64)
@@ -762,6 +856,7 @@ SMOKE = [
     ("adv-walking", "two-stage advanced animation - needs a person-* output as input_image"),
     ("adv-rotate", "advanced rotate - 8 views of an uploaded still"),
     ("ui-title-keyart", "painterly key art"),
+    ("palette-english-countryside", "flat palette swatch (rd_pro__simple)"),
     ("compare-cottage-fast", "rd_fast quality floor"),
     ("compare-cottage-plus", "rd_plus middle tier"),
 ]

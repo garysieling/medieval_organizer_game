@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 21,
-  "est_total_usd": 2.83
+  "count": 22,
+  "est_total_usd": 3.01
  },
  "prompts": [
   {
@@ -315,6 +315,21 @@
    },
    "est_cost_usd": 0.18,
    "notes": "validates: painterly key art"
+  },
+  {
+   "id": "palette-english-countryside-860d3b3d-smoke",
+   "tier": "p0",
+   "group": "colors",
+   "title": "palette english countryside",
+   "prompt": "flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_pro__simple",
+    "width": 128,
+    "height": 128,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: flat palette swatch (rd_pro__simple) | use the output as input_palette on other calls to lock the countryside palette"
   },
   {
    "id": "compare-cottage-fast-cbcf31b7-smoke",

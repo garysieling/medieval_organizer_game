@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-448 prompts, est. $78.41 USD at list prices.
+492 prompts, est. $85.51 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -33,6 +33,12 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | shop-printshop-c69c2799 | single isometric medieval village asset: print shop with a wooden press and posted bills | rd_pro__isometric | 160x160 | 1 | 0.18 |  |
 | shop-smithy-844a3d58 | single isometric medieval village asset: blacksmith smithy with forge, anvil outside, smoke | rd_pro__isometric | 160x160 | 1 | 0.18 |  |
 | shop-tailor-df93a827 | single isometric medieval village asset: tailor's shop with cloth bolts displayed | rd_pro__isometric | 160x160 | 1 | 0.18 |  |
+
+## P0 - needed now (replaces assets the game already draws) / colors
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| palette-english-countryside-860d3b3d | flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky | rd_pro__simple | 128x128 | 1 | 0.18 | use the output as input_palette on other calls to lock the countryside palette |
 
 ## P0 - needed now (replaces assets the game already draws) / icons/actions
 
@@ -121,6 +127,8 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
+| icon-drizzle-7e180c5d | small game UI icon of pale cloud with fine slanting drizzle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| icon-fog-6c76f6da | small game UI icon of low fog bank swallowing a rooftop, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
 | icon-heavy-rain-aa8537ee | small game UI icon of dark storm cloud with heavy rain, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
 | icon-heavy-snow-ee1a9201 | small game UI icon of blizzard cloud, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
 | icon-overcast-8e788526 | small game UI icon of flat grey cloud, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
@@ -416,6 +424,21 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | boreal-vegetation-2469d30b | single isometric medieval village asset: vegetation clump native to northern pine forest | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
 | boreal-village-d0fa8fd3 | single isometric medieval village asset, wide view: small medieval village in northern pine forest, moss and dark earth | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
 
+## P1 - fills gaps in shipped features / biomes/countryside
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| country-barley-field-bc87cae6 | single isometric medieval village asset: barley field ground block, ripe gold, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| country-chalk-down-7fa09ca4 | single isometric medieval village asset: chalk downland ground block, short turf, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| country-copse-09626ae7 | single isometric medieval village asset: small copse of beech and ash, sage greens, honey limestone, drystone grey, drizzle-grey sky | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+| country-drystone-wall-de9ccd3d | single isometric medieval village asset: drystone field wall, sage greens, honey limestone, drystone grey, drizzle-grey sky | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+| country-hayrick-3970c6ea | single isometric medieval village asset: conical hayrick with a loose cover, sage greens, honey limestone, drystone grey, drizzle-grey sky | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+| country-hedgerow-f483241a | single isometric medieval village asset: hedgerow of hawthorn and bramble, sage greens, honey limestone, drystone grey, drizzle-grey sky | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+| country-meadow-e27e4113 | single isometric medieval village asset: meadow ground block, long grass, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block | rd_pro__isometric | 128x128 | 1 | 0.18 |  |
+| country-sheep-fold-ace00af9 | single isometric medieval village asset: stone sheep fold in a field corner, sage greens, honey limestone, drystone grey, drizzle-grey sky | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+| country-stile-0eb2a907 | single isometric medieval village asset: wooden stile over a field wall, sage greens, honey limestone, drystone grey, drizzle-grey sky | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+| country-village-f4f9b0f1 | single isometric medieval village asset, wide view: small english countryside village, honey limestone cottages, hedgerows and barley fields, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+
 ## P1 - fills gaps in shipped features / biomes/desert
 
 | id | prompt | style | size | n | est $ | notes |
@@ -484,6 +507,35 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | decor-wreath-2455375b | single isometric medieval village asset: evergreen wreath with candles | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 | decor-yule-log-0557bc95 | single isometric medieval village asset: decorated yule log with holly | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 
+## P1 - fills gaps in shipped features / regions/scotland
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| scot-baronial-turret-010941ac | single isometric medieval village asset: scots baronial corner turret with a conical witch's-hat roof, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-bridge-of-sighs-d7979a23 | single isometric medieval village asset: single-span stone bridge up to a walled cemetery, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-calton-folly-49fb32dd | single isometric medieval village asset: unfinished greek temple columns alone on a hilltop, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-camera-obscura-5014f35d | single isometric medieval village asset: old outlook tower with a domed camera chamber on top, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-cannonball-house-fdffc9e1 | single isometric medieval village asset: stone merchant house with a cannonball lodged in its gable wall, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-cone-statue-7aa650a4 | single isometric medieval village asset: equestrian statue with a traffic cone on its head, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-edinburgh-castle-crag-25ab04c1 | single isometric medieval village asset: castle on a sheer volcanic rock crag above the town, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-edinburgh-crown-spire-3e360d4d | single isometric medieval village asset: gothic kirk with a crown-shaped steeple, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-edinburgh-land-f6be6282 | single isometric medieval village asset: tall narrow old town tenement 'land', six storeys, harled stone, crow-stepped gables, dormer windows, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-finnieston-crane-0d601a96 | single isometric medieval village asset: giant grey cantilever crane over a river, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-georgian-crescent-99ea9db0 | single isometric medieval village asset: blonde sandstone georgian terrace, columns and fanlights, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-glasgow-blonde-tenement-3ff9f2f9 | single isometric medieval village asset: honey blonde sandstone tenement with a corner turret, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-glasgow-cathedral-0f5b67e8 | single isometric medieval village asset: dark gothic cathedral, soot-blackened stone, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-glasgow-red-tenement-5682eaf9 | single isometric medieval village asset: red sandstone tenement block, four storeys, bay windows, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-necropolis-692760bd | single isometric medieval village asset: hilltop victorian cemetery, monument spires along the skyline, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-painted-terrace-5e5e65e8 | single isometric medieval village asset: curved terrace of brightly painted shopfronts, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-peoples-palace-987db61c | single isometric medieval village asset: red sandstone museum with a glass winter-gardens dome, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-saracen-bandstand-6ffa24d8 | single isometric medieval village asset: ornate victorian cast-iron bandstand, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-scene-edinburgh-street-64d33c3f | single isometric medieval village asset, wide view: steep old town street of tall tenements and crow-stepped gables under a low grey sky, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+| scot-scene-glasgow-green-2f8a15ce | single isometric medieval village asset, wide view: sandstone tenements round a green, a gaudy venetian-gothic factory at one edge, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+| scot-scott-monument-2099d9be | single isometric medieval village asset: spindly black victorian gothic rocket-spire monument, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-templeton-factory-d187c4a2 | single isometric medieval village asset: carpet factory dressed as a venetian gothic palace, polychrome glazed brick, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-tolbooth-steeple-13dafcd1 | single isometric medieval village asset: lone stone steeple standing free at a crossroads, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+| scot-whitehorse-close-a6d0b1dd | single isometric medieval village asset: white-harled courtyard inn with outside forestairs, grey scottish light | rd_pro__isometric | 160x160 | 1 | 0.18 | real building - Edinburgh or Glasgow landmark |
+
 ## P1 - fills gaps in shipped features / scenes
 
 | id | prompt | style | size | n | est $ | notes |
@@ -500,6 +552,16 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | scene-storm-damage-c8c81163 | single isometric medieval village asset, wide lively scene: storm-torn village, fallen branch, damaged roof, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
 | scene-tax-day-ca321aaa | single isometric medieval village asset, wide lively scene: tax collector at the market with guards, villagers queueing, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
 | scene-wedding-c95dae1c | single isometric medieval village asset, wide lively scene: village wedding outside the church, flower petals, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
+
+## P1 - fills gaps in shipped features / weather
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| weather-dreich-7c53e1b9 | wide isometric view: medieval village under flat grey drizzle, wet stone, dreary light | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+| weather-four-seasons-6ce07db7 | wide isometric view: medieval village under sunlit showers: bright patches and falling rain in the same sky | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+| weather-haar-35409f75 | wide isometric view: medieval village under cold sea fog rolling in over rooftops, buildings dissolving into grey | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+| weather-smirr-5db2f369 | wide isometric view: medieval village under fine misting drizzle settling over fields | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
+| weather-stinging-shower-250fa79b | wide isometric view: medieval village under slanted heavy rain squall driving sideways | rd_pro__isometric | 256x256 | 1 | 0.18 |  |
 
 ## P2 - future features and cultures / cultures/african
 
@@ -788,6 +850,8 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 |---|---|---|---|---|---|---|
 | vfx-bonfire-cd308abf | large bonfire burning, festival night | rd_animation__vfx | 64x64 | 1 | 0.07 |  |
 | vfx-chimney-smoke-1393b2fb | wispy chimney smoke rising | rd_animation__vfx | 64x64 | 1 | 0.07 |  |
+| vfx-drizzle-bb8c499f | fine grey drizzle falling | rd_animation__vfx | 64x64 | 1 | 0.07 |  |
+| vfx-haar-d72febc6 | low sea fog drifting across the ground | rd_animation__vfx | 64x64 | 1 | 0.07 |  |
 | vfx-leaves-04099121 | autumn leaves drifting down | rd_animation__vfx | 64x64 | 1 | 0.07 |  |
 | vfx-snowfall-29963d5d | snowflakes falling | rd_animation__vfx | 64x64 | 1 | 0.07 |  |
 | vfx-spark-9b300ea5 | spark burst, small magic effect | rd_animation__vfx | 64x64 | 1 | 0.07 |  |

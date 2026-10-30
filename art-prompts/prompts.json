@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 448,
-  "est_total_usd": 78.41
+  "count": 492,
+  "est_total_usd": 85.51
  },
  "prompts": [
   {
@@ -331,6 +331,21 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
+  },
+  {
+   "id": "palette-english-countryside-860d3b3d",
+   "tier": "p0",
+   "group": "colors",
+   "title": "palette english countryside",
+   "prompt": "flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_pro__simple",
+    "width": 128,
+    "height": 128,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use the output as input_palette on other calls to lock the countryside palette"
   },
   {
    "id": "icon-build-66e1be52",
@@ -1172,6 +1187,38 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
+  },
+  {
+   "id": "icon-drizzle-7e180c5d",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon drizzle",
+   "prompt": "small game UI icon of pale cloud with fine slanting drizzle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-fog-6c76f6da",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon fog",
+   "prompt": "small game UI icon of low fog bank swallowing a rooftop, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
   },
   {
    "id": "icon-heavy-rain-aa8537ee",
@@ -3999,6 +4046,171 @@
    "notes": ""
   },
   {
+   "id": "country-barley-field-bc87cae6",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country barley field",
+   "prompt": "single isometric medieval village asset: barley field ground block, ripe gold, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "country-chalk-down-7fa09ca4",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country chalk down",
+   "prompt": "single isometric medieval village asset: chalk downland ground block, short turf, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "country-copse-09626ae7",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country copse",
+   "prompt": "single isometric medieval village asset: small copse of beech and ash, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-drystone-wall-de9ccd3d",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country drystone wall",
+   "prompt": "single isometric medieval village asset: drystone field wall, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-hayrick-3970c6ea",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country hayrick",
+   "prompt": "single isometric medieval village asset: conical hayrick with a loose cover, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-hedgerow-f483241a",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country hedgerow",
+   "prompt": "single isometric medieval village asset: hedgerow of hawthorn and bramble, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-meadow-e27e4113",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country meadow",
+   "prompt": "single isometric medieval village asset: meadow ground block, long grass, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "country-sheep-fold-ace00af9",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country sheep fold",
+   "prompt": "single isometric medieval village asset: stone sheep fold in a field corner, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-stile-0eb2a907",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country stile",
+   "prompt": "single isometric medieval village asset: wooden stile over a field wall, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-village-f4f9b0f1",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country village",
+   "prompt": "single isometric medieval village asset, wide view: small english countryside village, honey limestone cottages, hedgerows and barley fields, villagers of varied ages and skin tones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
    "id": "desert-ground-86e81955",
    "tier": "p1",
    "group": "biomes/desert",
@@ -4526,6 +4738,388 @@
    "notes": ""
   },
   {
+   "id": "scot-baronial-turret-010941ac",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot baronial turret",
+   "prompt": "single isometric medieval village asset: scots baronial corner turret with a conical witch's-hat roof, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-bridge-of-sighs-d7979a23",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot bridge of sighs",
+   "prompt": "single isometric medieval village asset: single-span stone bridge up to a walled cemetery, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-calton-folly-49fb32dd",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot calton folly",
+   "prompt": "single isometric medieval village asset: unfinished greek temple columns alone on a hilltop, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-camera-obscura-5014f35d",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot camera obscura",
+   "prompt": "single isometric medieval village asset: old outlook tower with a domed camera chamber on top, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-cannonball-house-fdffc9e1",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot cannonball house",
+   "prompt": "single isometric medieval village asset: stone merchant house with a cannonball lodged in its gable wall, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-cone-statue-7aa650a4",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot cone statue",
+   "prompt": "single isometric medieval village asset: equestrian statue with a traffic cone on its head, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-edinburgh-castle-crag-25ab04c1",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot edinburgh castle crag",
+   "prompt": "single isometric medieval village asset: castle on a sheer volcanic rock crag above the town, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-edinburgh-crown-spire-3e360d4d",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot edinburgh crown spire",
+   "prompt": "single isometric medieval village asset: gothic kirk with a crown-shaped steeple, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-edinburgh-land-f6be6282",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot edinburgh land",
+   "prompt": "single isometric medieval village asset: tall narrow old town tenement 'land', six storeys, harled stone, crow-stepped gables, dormer windows, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-finnieston-crane-0d601a96",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot finnieston crane",
+   "prompt": "single isometric medieval village asset: giant grey cantilever crane over a river, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-georgian-crescent-99ea9db0",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot georgian crescent",
+   "prompt": "single isometric medieval village asset: blonde sandstone georgian terrace, columns and fanlights, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-glasgow-blonde-tenement-3ff9f2f9",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot glasgow blonde tenement",
+   "prompt": "single isometric medieval village asset: honey blonde sandstone tenement with a corner turret, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-glasgow-cathedral-0f5b67e8",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot glasgow cathedral",
+   "prompt": "single isometric medieval village asset: dark gothic cathedral, soot-blackened stone, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-glasgow-red-tenement-5682eaf9",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot glasgow red tenement",
+   "prompt": "single isometric medieval village asset: red sandstone tenement block, four storeys, bay windows, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-necropolis-692760bd",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot necropolis",
+   "prompt": "single isometric medieval village asset: hilltop victorian cemetery, monument spires along the skyline, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-painted-terrace-5e5e65e8",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot painted terrace",
+   "prompt": "single isometric medieval village asset: curved terrace of brightly painted shopfronts, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-peoples-palace-987db61c",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot peoples palace",
+   "prompt": "single isometric medieval village asset: red sandstone museum with a glass winter-gardens dome, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-saracen-bandstand-6ffa24d8",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot saracen bandstand",
+   "prompt": "single isometric medieval village asset: ornate victorian cast-iron bandstand, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-scene-edinburgh-street-64d33c3f",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot scene edinburgh street",
+   "prompt": "single isometric medieval village asset, wide view: steep old town street of tall tenements and crow-stepped gables under a low grey sky, villagers of varied ages and skin tones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "scot-scene-glasgow-green-2f8a15ce",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot scene glasgow green",
+   "prompt": "single isometric medieval village asset, wide view: sandstone tenements round a green, a gaudy venetian-gothic factory at one edge, villagers of varied ages and skin tones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "scot-scott-monument-2099d9be",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot scott monument",
+   "prompt": "single isometric medieval village asset: spindly black victorian gothic rocket-spire monument, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-templeton-factory-d187c4a2",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot templeton factory",
+   "prompt": "single isometric medieval village asset: carpet factory dressed as a venetian gothic palace, polychrome glazed brick, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-tolbooth-steeple-13dafcd1",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot tolbooth steeple",
+   "prompt": "single isometric medieval village asset: lone stone steeple standing free at a crossroads, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-whitehorse-close-a6d0b1dd",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot whitehorse close",
+   "prompt": "single isometric medieval village asset: white-harled courtyard inn with outside forestairs, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
    "id": "scene-church-service-3bba79cd",
    "tier": "p1",
    "group": "scenes",
@@ -4704,6 +5298,81 @@
    },
    "est_cost_usd": 0.18,
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "weather-dreich-7c53e1b9",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather dreich",
+   "prompt": "wide isometric view: medieval village under flat grey drizzle, wet stone, dreary light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-four-seasons-6ce07db7",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather four seasons",
+   "prompt": "wide isometric view: medieval village under sunlit showers: bright patches and falling rain in the same sky",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-haar-35409f75",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather haar",
+   "prompt": "wide isometric view: medieval village under cold sea fog rolling in over rooftops, buildings dissolving into grey",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-smirr-5db2f369",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather smirr",
+   "prompt": "wide isometric view: medieval village under fine misting drizzle settling over fields",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-stinging-shower-250fa79b",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather stinging shower",
+   "prompt": "wide isometric view: medieval village under slanted heavy rain squall driving sideways",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
   },
   {
    "id": "culture-african-house-0e29aad6",
@@ -6991,6 +7660,38 @@
    "group": "anim/vfx",
    "title": "vfx chimney smoke",
    "prompt": "wispy chimney smoke rising",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-drizzle-bb8c499f",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx drizzle",
+   "prompt": "fine grey drizzle falling",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-haar-d72febc6",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx haar",
+   "prompt": "low sea fog drifting across the ground",
    "request": {
     "prompt_style": "rd_animation__vfx",
     "width": 64,

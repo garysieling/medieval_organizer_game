@@ -1329,9 +1329,9 @@ struct Game<'a> {
     next_minstrel: u64,
     /// Darkened sprites for derelict buildings, rebuilt when the set changes
     derelict_tints: std::collections::HashMap<usize, Sprite>,
-    /// Complaint families already voiced at the meeting under way (parallel
-    /// complaints make the next speaker likelier to share)
-    voiced: Vec<desires::IssueTag>,
+    /// (who, complaint family) already voiced at the meeting under way -
+    /// parallel complaints make the next speaker likelier to share
+    voiced: Vec<(Entity, desires::IssueTag)>,
 }
 
 impl<'a> Game<'a> {
@@ -3053,8 +3053,458 @@ impl<'a> Game<'a> {
                 if on_map && d < 30.0 && d < best_d { best = i; best_d = d; }
             }
         }
+        // click on a building: the inspector shows what it's for, who
+        // works or lives there, and what it has for offer
+        let mut best_b: Option<usize> = None;
+        let mut best_bd = 9999.0f32;
+        for (i, (bx, by, _)) in self.buildings.iter().enumerate() {
+            let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
+            let d = ((sx as f32 - mx as f32).powi(2) + ((sy - 14.0 * zoom as i32 as f32) - my as f32).powi(2)).sqrt();
+            if on_map && d < 42.0 && d < best_bd { best_b = Some(i); best_bd = d; }
+        }
+        // a villager wins the click only if clearly nearer
+        self.selected_building = if best_d + 8.0 < best_bd { None } else { best_b };
+        if self.selected_building.is_some() { self.picked = false; return; }
         if best_d < 30.0 { self.picked = true; }
         self.selected_target = best;
+    }
+
+    /// Send `who` walking toward `goal` (a person, a shop or a tile).
+    /// Returns whether a way was found - otherwise nothing happens
+    fn send(&mut self, who: Entity, goal: Goal) -> bool {
+        let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        let to = match &goal {
+            Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) =>
+                self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::Gather(_) => None, // the path is set on the Travel directly
+            Goal::RunOddJob => self.world.get_component::<OddJob>(who)
+                .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
+                .map(|p| (p.x.round() as i32, p.y.round() as i32)),
+        };
+        if let Goal::Gather(_) = goal {
+            // gather goals carry their tile in the path already
+            return true;
+        }
+        let Some(to) = to else { return false };
+        if to == (from.x.round() as i32, from.y.round() as i32) {
+            self.travels.push(Travel { who, path: vec![to], goal });
+            return true;
+        }
+        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), to) {
+            Some(mut path) => { path.push(to); self.travels.push(Travel { who, path, goal }); true }
+            None => false,
+        }
+    }
+
+    /// Send `who` to gather `good` at tile `t`
+    fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
+        let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
+            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good) }); true }
+            None => false,
+        }
+    }
+
+    /// One frame of every walk under way: step along the path, and do the
+    /// errand when it runs out
+    fn advance_travels(&mut self) {
+        let mut arrived: Vec<(Entity, Goal)> = vec![];
+        for t in self.travels.iter_mut() {
+            if t.path.is_empty() { continue; }
+            let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
+            let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);
+            let (dx, dy) = (nx - p.x, ny - p.y);
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= MEETING_WALK { p.x = nx; p.y = ny; t.path.remove(0); }
+            else { p.x += dx / d * MEETING_WALK; p.y += dy / d * MEETING_WALK; }
+            if t.path.is_empty() { arrived.push((t.who, t.goal.clone())); }
+        }
+        self.travels.retain(|t| !t.path.is_empty());
+        for (who, goal) in arrived { self.arrive(who, goal); }
+    }
+
+    /// What happens when a walk reaches its end: the trade, the
+    /// collection, the gather, the delivery
+    fn arrive(&mut self, who: Entity, goal: Goal) {
+        let tick = self.tick;
+        match goal {
+            Goal::BuyFrom(seller, good, qty) => {
+                // seller may be a person (satchel) or a building (the stall)
+                if self.world.get_component::<Building>(seller).is_some() {
+                    let _ = household::buy_at_shop(&mut self.world, seller, who, good, qty);
+                } else {
+                    let _ = livelihood::trade_person(&mut self.world, who, seller, good, qty);
+                }
+            }
+            Goal::BuyAt(shop, good, want) => {
+                if household::buy_at_shop(&mut self.world, shop, who, good, 1).is_some() {
+                    if let Some(w) = want {
+                        desires::satisfy(&mut self.world, who, w, tick + 60);
+                        // consumable goods are enjoyed, not kept
+                        if matches!(good, "bread" | "faith" | "security" | "pamphlets" | "garments") {
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                                if let Some(q) = s.goods.get_mut(good) { *q = q.saturating_sub(1); }
+                            }
+                        }
+                    }
+                }
+            }
+            Goal::Gather(good) => {
+                if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                    *s.goods.entry(good.to_string()).or_insert(0) += 2;
+                }
+            }
+            Goal::CollectTax(target) => {
+                let Some(c) = self.collector else { return };
+                if villager::is_dead(&self.world, target) { return; }
+                let taken = livelihood::collect_tax(&mut self.world, c, target, tick);
+                self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
+                if target == self.player {
+                    self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
+                }
+            }
+            Goal::RunOddJob => {
+                let Some(job) = self.world.get_component_mut::<OddJob>(who)
+                    .map(|j| OddJob { hirer: j.hirer, good: j.good.clone(), qty: j.qty, from: j.from, to: j.to, pay: j.pay, loaded: j.loaded })
+                else { return };
+                if !job.loaded {
+                    // at the source: the hirer already paid for it - goods
+                    // into the kid's satchel, then walk them to the hirer
+                    let took = if let Some(b) = self.world.get_component_mut::<Building>(job.from) {
+                        household::take_stock(b, &job.good, job.qty)
+                    } else {
+                        self.world.get_component_mut::<Satchel>(job.from)
+                            .and_then(|s| s.goods.get_mut(&job.good).map(|q| { let n = (*q).min(job.qty); *q -= n; n }))
+                            .unwrap_or(0)
+                    };
+                    if took == 0 { self.world.remove_component::<OddJob>(who); return; }
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                        *s.goods.entry(job.good.clone()).or_insert(0) += took;
+                    }
+                    if let Some(j) = self.world.get_component_mut::<OddJob>(who) { j.loaded = true; }
+                    // walk the second leg to the hirer
+                    if let (Some(from_p), Some(to_p)) = (
+                        self.world.get_component::<Pos>(who).copied(),
+                        self.world.get_component::<Pos>(job.to).copied()) {
+                        let to = (to_p.x.round() as i32, to_p.y.round() as i32);
+                        if let Some(mut path) = self.map.walk_path((from_p.x.round() as i32, from_p.y.round() as i32), to) {
+                            path.push(to);
+                            self.travels.push(Travel { who, path, goal: Goal::RunOddJob });
+                        }
+                    }
+                } else {
+                    // delivered: goods to the hirer, pay to the kid
+                    let qty = self.world.get_component_mut::<Satchel>(who)
+                        .and_then(|s| s.goods.get_mut(&job.good).map(|q| { let n = (*q).min(job.qty); *q -= n; n }))
+                        .unwrap_or(0);
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(job.hirer) {
+                        *s.goods.entry(job.good).or_insert(0) += qty;
+                    }
+                    if let Some(h) = self.world.get_component_mut::<Purse>(job.hirer) { h.gold -= job.pay.min(h.gold); }
+                    if let Some(k) = self.world.get_component_mut::<Purse>(who) { k.gold += job.pay; }
+                    self.say(who, "All delivered!", CHAT_BUBBLE_SECS);
+                    self.world.remove_component::<OddJob>(who);
+                }
+            }
+        }
+    }
+
+    /// The town's business each day: work, errands, the tax round, the
+    /// trader's restock, the odd minstrel, a tune in the street
+    fn livelihood_tick(&mut self, tick: u64) {
+        // the trader's stall restocks an exotic every couple of days
+        if tick % livelihood::TRADER_RESTOCK_DAYS == 0 {
+            if let Some(s) = self.trader_stall { livelihood::restock_trader(&mut self.world, s, tick); }
+        }
+        // a minstrel rides in every so often
+        if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
+        // the collector walks his round
+        if let Some(c) = self.collector {
+            if !self.travels.iter().any(|t| t.who == c) {
+                if let Some(target) = livelihood::tax_due(&self.world, c, tick) {
+                    self.send(c, Goal::CollectTax(target));
+                }
+            }
+        }
+        let mut rng = Rng(self.rng.next());
+        for i in 0..self.villagers.len() {
+            let v = self.villagers[i];
+            if villager::is_dead(&self.world, v) || self.travels.iter().any(|t| t.who == v) { continue; }
+            if self.world.get_component::<Kid>(v).is_some() { continue; }
+            if self.world.get_component::<TownRole>(v).is_some() { continue; }
+            // a shopping day, now and then: something they want is for sale
+            if rng.below(100) < 12 {
+                if let Some(g) = self.want_shopping(v, tick) { self.send(v, g); continue; }
+            }
+            // out of raw goods: send a kid, or go get it, or sit with the problem
+            if let Some(input) = livelihood::needs_input(&self.world, v) {
+                if !self.errand_for_input(v, input, i) {
+                    desires::add_grievance(&mut self.world, v, Problem::NoInput(input), tick + 3);
+                }
+                continue;
+            }
+            // a day at the craft
+            let (made, up) = livelihood::work_day(&mut self.world, v, tick);
+            let _ = made;
+            if let Some(level) = up {
+                let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
+                self.toasts.push((format!("{} is now a {}!", NAMES[i], vocation::level_name(level)), tick + 30));
+                self.log.push(format!("t{}: {} is now a {} {}.", tick, NAMES[i], vocation::level_name(level).to_lowercase(), voc));
+            }
+        }
+        // a tune in the street: anyone with a lute plays, and it lifts the
+        // want for music and for joy around them
+        for (i, &v) in self.villagers.iter().enumerate() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let has_lute = self.world.get_component::<Satchel>(v)
+                .map(|s| s.goods.get("lute").copied().unwrap_or(0) > 0).unwrap_or(false);
+            if has_lute && rng.below(8) == 0 {
+                self.say(v, "\u{266a}", CHAT_BUBBLE_SECS);
+                if let Some(p) = self.world.get_component::<Pos>(v).copied() {
+                    for &l in self.villagers.iter().chain(std::iter::once(&self.player)) {
+                        let near = self.world.get_component::<Pos>(l)
+                            .map(|lp| (lp.x - p.x).abs() + (lp.y - p.y).abs() < 3.0).unwrap_or(false);
+                        if near {
+                            desires::satisfy(&mut self.world, l, Want::Music, tick + 60);
+                            desires::satisfy(&mut self.world, l, Want::Joy, tick + 30);
+                        }
+                    }
+                }
+                let _ = i;
+            }
+        }
+    }
+
+    /// What this person might walk out to buy today: a good that feeds an
+    /// unsatisfied want, stocked by some working shop
+    fn want_shopping(&mut self, v: Entity, tick: u64) -> Option<Goal> {
+        const WANT_GOODS: [(Want, &str); 6] = [
+            (Want::GoodFood, "bread"), (Want::Finery, "garments"), (Want::Faith, "faith"),
+            (Want::Security, "security"), (Want::Instrument, "lute"), (Want::BetterTools, "tools"),
+        ];
+        let life = self.world.get_component::<InnerLife>(v)?;
+        let wants = life.wants.clone();
+        let pos = *self.world.get_component::<Pos>(v)?;
+        let gold = self.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0);
+        for (w, good) in WANT_GOODS {
+            if !wants.contains(&w) || desires::is_satisfied(&self.world, v, w, tick) { continue; }
+            if gold < vocation::price(good) { continue; }
+            if let Some(shop) = livelihood::shop_for(&self.world, good, pos) {
+                return Some(Goal::BuyAt(shop, good, Some(w)));
+            }
+        }
+        None
+    }
+
+    /// Find `input` for worker `v`: send a nearby idle kid to fetch it for
+    /// pay when one's about, else walk for it - a seller's satchel, or a
+    /// gather site when the land provides
+    fn errand_for_input(&mut self, v: Entity, input: &'static str, _i: usize) -> bool {
+        let pos = match self.world.get_component::<Pos>(v) { Some(p) => *p, None => return false };
+        // a kid can run it: nearby, idle, not already on a job
+        if self.rng.below(100) < 40 {
+            for &ki in &KID_IDXS {
+                let k = self.villagers[ki];
+                if villager::is_dead(&self.world, k) || self.travels.iter().any(|t| t.who == k)
+                    || self.world.get_component::<OddJob>(k).is_some() { continue; }
+                let near = self.world.get_component::<Pos>(k)
+                    .map(|p| (p.x - pos.x).abs() + (p.y - pos.y).abs() < 7.0).unwrap_or(false);
+                if !near { continue; }
+                if let Some(from) = livelihood::seller_for(&self.world, input, pos) {
+                    let pay = livelihood::ODD_JOB_MIN + self.rng.below(4) as f32;
+                    self.world.add_component(k, OddJob {
+                        hirer: v, good: input.to_string(), qty: 2, from, to: v, pay, loaded: false });
+                    self.send(k, Goal::RunOddJob);
+                    return true;
+                }
+            }
+        }
+        // go themselves: a seller's satchel, the stall, or gather it
+        if let Some(s) = livelihood::seller_for(&self.world, input, pos) {
+            return self.send(v, Goal::BuyFrom(s, input, 2));
+        }
+        if vocation::gatherable(input) {
+            if let Some(t) = self.gather_site(input, pos) {
+                return self.send_gather(v, input, t);
+            }
+        }
+        false
+    }
+
+    /// Where to gather `good` nearest `at`: wood off a tree tile, stone
+    /// off a rock or boulder, sand off a tile lapping water
+    fn gather_site(&self, good: &str, at: Pos) -> Option<(i32, i32)> {
+        let dist = |x: i32, y: i32| ((x as f32 - at.x).abs() + (y as f32 - at.y).abs()) as i32;
+        match good {
+            "wood" => self.map.trees.iter().copied()
+                .min_by_key(|&(x, y)| dist(x, y)),
+            "stone" => self.stones.iter().copied()
+                .chain((0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
+                    .filter(|&(x, y)| self.map.get(x, y) == Some(Tile::Rock)))
+                .min_by_key(|&(x, y)| dist(x, y)),
+            "sand" => (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
+                .filter(|&(x, y)| self.map.passable(x, y)
+                    && NEIGHBOURS.iter().any(|(dx, dy)| matches!(self.map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River))))
+                .min_by_key(|&(x, y)| dist(x, y)),
+            _ => None,
+        }
+    }
+
+    /// The travelling minstrel rides in
+    fn spawn_minstrel(&mut self) {
+        let e = self.world.create_entity();
+        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        let path = self.map.walk_path(start, (16, 16)).unwrap_or_default();
+        self.minstrel = Some(Minstrel { e, path, playing_until: None });
+        self.log.push(format!("t{}: a travelling minstrel has come to town.", self.tick));
+    }
+
+    /// One frame of the minstrel's visit: ride to the market, play a
+    /// while, then ride off - and the town wants music again next season
+    fn advance_minstrel(&mut self) {
+        let Some(mut m) = self.minstrel.take() else { return };
+        if m.playing_until.is_none() {
+            // riding to the market
+            let Some(p) = self.world.get_component_mut::<Pos>(m.e) else { return };
+            if m.path.is_empty() {
+                m.playing_until = Some(self.tick + 2);
+            } else {
+                let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.minstrel = Some(m);
+        } else if self.tick <= m.playing_until.unwrap() {
+            // playing at the market: everyone nearby gets their fill of it
+            if let Some(p) = self.world.get_component::<Pos>(m.e).copied() {
+                for &l in self.villagers.iter().chain(std::iter::once(&self.player)) {
+                    let near = self.world.get_component::<Pos>(l)
+                        .map(|lp| (lp.x - p.x).abs() + (lp.y - p.y).abs() < 5.0).unwrap_or(false);
+                    if near {
+                        desires::satisfy(&mut self.world, l, Want::Music, self.tick + 90);
+                        desires::satisfy(&mut self.world, l, Want::Joy, self.tick + 45);
+                    }
+                }
+            }
+            self.minstrel = Some(m);
+        } else {
+            // the road calls: ride off, and another comes by one day
+            if let Some(p) = self.world.get_component_mut::<Pos>(m.e).copied() {
+                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                if m.path.is_empty() {
+                    m.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                }
+                if m.path.is_empty() {
+                    self.world.destroy_entity(m.e);
+                    self.next_minstrel = self.tick + 250 + self.rng.next() % 150;
+                    return; // he's gone
+                }
+                let p = self.world.get_component_mut::<Pos>(m.e).unwrap();
+                let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.minstrel = Some(m);
+        }
+    }
+
+    /// The contextual actions that apply right now: work at the player's
+    /// shop, pair a picked junior with a master, send a kid on an errand
+    fn update_ctx_buttons(&mut self) {
+        self.ctx_buttons.clear();
+        let (px, py) = self.player_pos();
+        // Work: the player's own craft, at the bench if they have one
+        if let Some(c) = self.world.get_component::<Craft>(self.player) {
+            let near = c.workplace
+                .and_then(|b| self.world.get_component::<Pos>(b))
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0)
+                .unwrap_or(true);
+            if near {
+                self.ctx_buttons.push(Button { label: "Work".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 90, 140) });
+            }
+        }
+        if self.selected_building.is_none() {
+            let v = self.villagers[self.selected_target];
+            if self.world.get_component::<Kid>(v).is_some() {
+                self.ctx_buttons.push(Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) });
+            } else if let Some(c) = self.world.get_component::<Craft>(v) {
+                let junior = vocation::level_of(c.skill) < Level::Master && c.master.is_none();
+                let has_master = junior && self.villagers.iter().any(|&m| {
+                    m != v && self.world.get_component::<Craft>(m)
+                        .map(|mc| mc.vocation == c.vocation && vocation::level_of(mc.skill) == Level::Master).unwrap_or(false)
+                });
+                if has_master {
+                    self.ctx_buttons.push(Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) });
+                }
+            }
+        }
+    }
+
+    /// Take a contextual action (button `i` of ctx_buttons)
+    fn ctx_act(&mut self, i: usize) {
+        let Some(b) = self.ctx_buttons.get(i) else { return };
+        let tick = self.tick;
+        let msg = match b.label.as_str() {
+            "Work" => {
+                let (made, up) = livelihood::work_day(&mut self.world, self.player, tick);
+                let what = self.world.get_component::<Craft>(self.player)
+                    .and_then(|c| vocation::output(c.vocation)).unwrap_or("goods");
+                match up {
+                    Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
+                    None if made > 0.0 => format!("You work - {:.0} {} made.", made, what),
+                    None => "You put in the day, but make nothing yet.".into(),
+                }
+            }
+            "Pair up" => {
+                let v = self.villagers[self.selected_target];
+                let voc = self.world.get_component::<Craft>(v).map(|c| c.vocation);
+                let master = voc.and_then(|voc| self.villagers.iter().copied().find(|&m| {
+                    m != v && self.world.get_component::<Craft>(m)
+                        .map(|mc| mc.vocation == voc && vocation::level_of(mc.skill) == Level::Master).unwrap_or(false)
+                }));
+                match master {
+                    Some(m) => {
+                        self.world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
+                        let rel = self.world.create_entity();
+                        self.world.add_component(rel, relationships::Relationship {
+                            from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
+                        let mi = self.villagers.iter().position(|x| *x == m).unwrap();
+                        format!("You pair {} with {} - he'll learn faster now.", NAMES[self.selected_target], NAMES[mi])
+                    }
+                    None => "No master of their trade to pair them with.".into(),
+                }
+            }
+            "Errand" => {
+                let k = self.villagers[self.selected_target];
+                let need = livelihood::needs_input(&self.world, self.player);
+                let pos = *self.world.get_component::<Pos>(self.player).unwrap();
+                let job = need.and_then(|g| livelihood::seller_for(&self.world, g, pos)
+                    .map(|from| (g, from)));
+                match job {
+                    Some((g, from)) => {
+                        self.world.add_component(k, OddJob {
+                            hirer: self.player, good: g.to_string(), qty: 2, from, to: self.player,
+                            pay: 3.0, loaded: false });
+                        self.send(k, Goal::RunOddJob);
+                        format!("You send {} to fetch {}.", NAMES[self.selected_target], g)
+                    }
+                    None => "Nothing you need fetched right now.".into(),
+                }
+            }
+            _ => "Hm.".into(),
+        };
+        self.log.push(format!("t{}: {}", tick, msg));
+    }
+
+    /// Draw a child's figure - the pack has none, so they're a scaled-down
+    /// villager flagged "(child)" on the label
+    fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
+        draw_zoomed(buf, sprite, sx - (19.0 * zoom).round() as i32, sy - (36.0 * zoom).round() as i32, 1.2 * zoom);
     }
 }
 

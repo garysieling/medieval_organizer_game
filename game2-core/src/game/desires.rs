@@ -55,6 +55,10 @@ pub enum Problem {
     Taxed,
     /// Under three gold to their name
     Broke,
+    /// Works the fold: the flock's smell hangs on them
+    Smelly,
+    /// Wolves got into the fold - stock lost in the night
+    Loss,
 }
 
 /// One secret a person can share: a want or a problem
@@ -137,6 +141,8 @@ pub fn issue_tag(r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::OverseerCut) => "the overseers' cut",
         Reveal::Problem(Problem::Taxed) => "the taxes",
         Reveal::Problem(Problem::Broke) => "poverty",
+        Reveal::Problem(Problem::Smelly) => "the fold's stink",
+        Reveal::Problem(Problem::Loss) => "the wolves",
     }
 }
 
@@ -161,6 +167,8 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the overseers' cut" => "the overseers' cut".into(),
         "the taxes" => "the tax collector's cut".into(),
         "poverty" => "folk without a coin".into(),
+        "the fold's stink" => "the stinking fold".into(),
+        "the wolves" => "wolves at the fold".into(),
         _ => tag.into(),
     }
 }
@@ -194,6 +202,8 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::OverseerCut => "the overseer takes a cut".into(),
         Problem::Taxed => "paid the tax collector".into(),
         Problem::Broke => "is nearly broke".into(),
+        Problem::Smelly => "smells of the flock".into(),
+        Problem::Loss => "lost stock to wolves".into(),
     }
 }
 
@@ -221,6 +231,8 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::OverseerCut) => (format!("{} resents the overseer's cut", name), "I sweat and he takes his share for watching.".into()),
         Reveal::Problem(Problem::Taxed) => (format!("{} curses the tax collector", name), "The collector took his cut again. The lord eats well.".into()),
         Reveal::Problem(Problem::Broke) => (format!("{} is nearly broke", name), "Two coins left. Two.".into()),
+        Reveal::Problem(Problem::Smelly) => (format!("{} smells of the fold", name), "Aye, I've been with the flock all day - mind the smell.".into()),
+        Reveal::Problem(Problem::Loss) => (format!("{} lost stock to wolves", name), "The wolf came in the night. I found what's left of her.".into()),
     }
 }
 
@@ -312,6 +324,8 @@ pub fn problems_of(world: &World, e: Entity, tick: u64) -> Vec<Problem> {
         if c.master.is_none() && vocation::level_of(c.skill) < vocation::Level::Master {
             out.push(Problem::NoMaster);
         }
+        // the fold's smell hangs on a shepherd; folk notice
+        if c.vocation == vocation::Vocation::Shepherd { out.push(Problem::Smelly); }
     }
     // a derelict shop (workplace kind with no worker) within a stroll of home
     if let Some(p) = world.get_component::<Pos>(e).copied() {

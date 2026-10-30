@@ -76,6 +76,9 @@ Children (flagged "(child)") run odd jobs for a few gold. The tax
 collector takes his yearly cut from everyone - including you. Out past
 the wall lives Willa the herb-wife: she keeps wild patches picked, brews
 the pickings into remedies, and the sick walk out to her hut for a cure.
+In the meadow below town a shepherd keeps the fold - sheep for wool at
+shearing, goats for milk, a sheepdog at his heel, and the flock's smell
+on his coat. Now and then a wolf comes in the night.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

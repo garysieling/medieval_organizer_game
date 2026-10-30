@@ -23,6 +23,9 @@ pub enum BuildingKind {
     Granary,
     /// The road trader's stall at the market (imported goods)
     TraderStall,
+    /// The shepherd's pen out in the meadow: a workplace, not a shop -
+    /// the flock grazes round it
+    Pasture,
 }
 
 /// A building on the map (entity; its Pos is where it stands)
@@ -47,6 +50,7 @@ pub fn kind_for(v: Vocation) -> BuildingKind {
     match v {
         Vocation::Priest => BuildingKind::Church,
         Vocation::Knight => BuildingKind::WatchPost,
+        Vocation::Shepherd => BuildingKind::Pasture,
         other => BuildingKind::Shop(other),
     }
 }

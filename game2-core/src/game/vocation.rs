@@ -32,6 +32,9 @@ pub enum Vocation {
     Mason,
     Priest,
     Luthier,
+    /// Keeps the fold out in the meadow: milk from the goats daily, wool
+    /// off the sheep at shearing
+    Shepherd,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -129,6 +132,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Mason => Some("blocks"),
         Vocation::Priest => Some("faith"),
         Vocation::Luthier => Some("lute"),
+        Vocation::Shepherd => Some("milk"),
     }
 }
 
@@ -185,6 +189,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Mason => "the mason's yard",
         Vocation::Priest => "the church",
         Vocation::Luthier => "the luthier's",
+        Vocation::Shepherd => "the fold",
     }
 }
 
@@ -201,6 +206,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Mason => "Mason",
         Vocation::Priest => "Priest",
         Vocation::Luthier => "Luthier",
+        Vocation::Shepherd => "Shepherd",
     }
 }
 
@@ -285,6 +291,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("build lutes", "make instruments"),
             a("repair", "fix a worn instrument"),
             a("masterwork", "an instrument to be treasured"),
+        ],
+        Vocation::Shepherd => vec![
+            a("walk the flock", "drive the animals to fresh grazing"),
+            a("milk the goats", "a pail a day from the fold"),
+            a("shear the flock", "wool off their backs at the season"),
         ],
     }
 }

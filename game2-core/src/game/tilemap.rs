@@ -99,6 +99,9 @@ pub struct TileMap {
     gates: Vec<(i32, i32)>,
     /// Where all roads start (Layout::road_hub)
     hub: (i32, i32),
+    /// Bumped every time the map's tiles or occupancy change, so a cached
+    /// rendering of the ground can tell it's stale
+    rev: u64,
 }
 
 /// A repeatable per-tile random number in 0..1
@@ -191,7 +194,7 @@ impl TileMap {
             let v = terrain.heights[i / w][i % w];
             if v < WATER_LEVEL { Tile::Water } else if v < HILL_LEVEL { Tile::Grass } else if v < ROCK_LEVEL { Tile::Hill } else { Tile::Rock }
         }).collect();
-        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], walls: vec![], gates: vec![], hub: layout.road_hub };
+        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], walls: vec![], gates: vec![], hub: layout.road_hub, rev: 0 };
         map.carve_river(&layout.river);
         map.place_bridge(layout.bridge_near);
         for &(x, y, crop) in &layout.fields {
@@ -226,13 +229,19 @@ impl TileMap {
         map
     }
 
+    /// How many times the map has been changed since it was made
+    pub fn rev(&self) -> u64 { self.rev }
+
     pub fn get(&self, x: i32, y: i32) -> Option<Tile> {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height { return None; }
         Some(self.tiles[y as usize * self.width + x as usize])
     }
 
     fn set(&mut self, x: i32, y: i32, t: Tile) {
-        if self.get(x, y).is_some() { self.tiles[y as usize * self.width + x as usize] = t; }
+        if self.get(x, y).is_some() {
+            self.tiles[y as usize * self.width + x as usize] = t;
+            self.rev += 1;
+        }
     }
 
     pub fn is_occupied(&self, x: i32, y: i32) -> bool {
@@ -241,7 +250,10 @@ impl TileMap {
 
     /// Mark a cell as built on
     pub fn occupy(&mut self, x: i32, y: i32) {
-        if self.get(x, y).is_some() { self.occupied[y as usize * self.width + x as usize] = true; }
+        if self.get(x, y).is_some() {
+            self.occupied[y as usize * self.width + x as usize] = true;
+            self.rev += 1;
+        }
     }
 
     /// Wall in the rectangle (x0, y0)-(x1, y1): towers at the corners, a

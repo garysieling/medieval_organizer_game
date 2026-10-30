@@ -425,24 +425,31 @@ const MM_W: i32 = 320;
 const MM_H: i32 = 160;
 const MM_LEFT: i32 = UI_X as i32 + 10;
 const MM_TOP: i32 = 660;
-const MM_K: f32 = 4.7; // minimap px per tile step along the x/y diagonal
+
+/// Minimap px per tile step along the x/y diagonal: as small as the box
+/// needs so the whole map fits whatever its size
+fn mm_k(w_t: f32, h_t: f32) -> f32 {
+    let span = (w_t + h_t - 2.0).max(1.0);
+    ((MM_W - 24) as f32 / span).min((MM_H - 16) as f32 * 2.0 / span)
+}
 
 /// Minimap dot colours: living villagers, and the graves of the dead
 const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
 const MM_GRAVE: (u8, u8, u8) = (150, 150, 160);
 
 /// Minimap position of a world tile
-fn tile_to_minimap(tx: f32, ty: f32) -> (f32, f32) {
-    (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * MM_K, MM_TOP as f32 + 2.0 + (tx + ty) * MM_K / 2.0)
+fn tile_to_minimap(tx: f32, ty: f32, k: f32) -> (f32, f32) {
+    (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * k, MM_TOP as f32 + 2.0 + (tx + ty) * k / 2.0)
 }
 
 /// The tile under minimap pixel (mx, my), if it's on the minimap's tiles
 /// (inverse of tile_to_minimap)
 fn minimap_tile(mx: f32, my: f32, w_t: f32, h_t: f32) -> Option<(f32, f32)> {
+    let k = mm_k(w_t, h_t);
     let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
     let diff = mx - cx;
     let sum = (my - top) * 2.0;
-    let (tx, ty) = ((sum / MM_K + diff / MM_K) / 2.0, (sum / MM_K - diff / MM_K) / 2.0);
+    let (tx, ty) = ((sum / k + diff / k) / 2.0, (sum / k - diff / k) / 2.0);
     let inside = mx >= MM_LEFT as f32 && mx < (MM_LEFT + MM_W) as f32 && my >= MM_TOP as f32 && my < (MM_TOP + MM_H) as f32;
     (inside && tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t).then_some((tx, ty))
 }
@@ -455,13 +462,13 @@ fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
 
 /// Minimap position of a point on screen (inverse of iso_to_screen_cam,
 /// then tile_to_minimap) - used to outline what the screen is showing
-fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (f32, f32) {
+fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32, w_t: f32, h_t: f32) -> (f32, f32) {
     // undo the zoom about the view centre, then the zoom-1 projection
     let bx = ZOOM_PIVOT.0 + (sx - ZOOM_PIVOT.0) / zoom;
     let by = ZOOM_PIVOT.1 + (sy - ZOOM_PIVOT.1) / zoom;
     let diff = (bx - MAP_W as f32 / 2.0 - cam_x as f32) / TILE_W as f32; // tx - ty
     let sum = (by + 60.0 - cam_y as f32) / TILE_H as f32;                 // tx + ty
-    tile_to_minimap((sum + diff) / 2.0, (sum - diff) / 2.0)
+    tile_to_minimap((sum + diff) / 2.0, (sum - diff) / 2.0, mm_k(w_t, h_t))
 }
 
 /// Nudge name labels so none overlap: each label (x, y, width) keeps its x
@@ -620,12 +627,12 @@ struct Approach {
     path: Vec<(i32, i32)>,   // tiles still to walk, their tile last
     stuck: u32,              // frames without headway
 }
-const CHAT_BUBBLE_SECS: u32 = 3;
+const CHAT_BUBBLE_SECS: u32 = 2;
 /// How near two people must be to chat in passing (tiles), how many days
 /// before the same pair chat again, and how much a chat counts for (a fifth
 /// of a conversation: +0.01 to the relationship)
 const CHAT_RANGE: f32 = 1.5;
-const CHAT_COOLDOWN: u64 = 10;
+const CHAT_COOLDOWN: u64 = 20;
 const CHAT_INTENSITY: f32 = 0.2;
 /// How far the player walks each frame, in tiles (7 tiles a second)
 const WALK_SPEED: f32 = 7.0 / FPS as f32;
@@ -1214,6 +1221,10 @@ struct Minstrel {
 /// The map tests and tooling use: Game::new is always this one
 const MAP_SEED: u64 = 42;
 
+/// Tiles a side of the map: the town keeps its size, the country around it
+/// grew half again so the farmland and wilds have room
+const MAP_TILES: usize = 49;
+
 /// The map the windowed game plays: GAME2_SEED pins one (for a screenshot
 /// of a particular country); otherwise each launch draws a fresh one
 fn run_seed() -> u64 {
@@ -1271,6 +1282,17 @@ fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) ->
     best.map(|(p, _)| p)
 }
 
+/// The ground layer in world space at one zoom, drawn once then blitted
+/// each frame: `origin` is the cache pixel that lands on screen (0,0) when
+/// the camera is at (0,0)
+struct GroundCache {
+    buf: Buffer,
+    origin: (i32, i32),
+    zoom: f32,
+    season: Season, // the season it was drawn in (Spring and Summer share a tile set but not their fallback colours)
+    rev: u64,       // map.rev() when it was drawn
+}
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see.
@@ -1280,6 +1302,11 @@ struct Game<'a> {
     sched: Scheduler,
     /// What each tile is (water, grass, road, river...), laid out on the terrain
     map: TileMap,
+    /// The ground layer (tiles and grass specks) painted into world space at
+    /// the current zoom: refilled only when stale. In a cell because render()
+    /// takes &self
+    ground: std::cell::RefCell<Option<GroundCache>>,
+    last_zoom: std::cell::Cell<f32>,
     climate: Entity,
     villagers: Vec<Entity>,
     rivals: Vec<Entity>,
@@ -1382,22 +1409,45 @@ impl<'a> Game<'a> {
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
 
-        let mut terrain = Terrain::generate_country(33, 0.7, seed);
+        let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
         let climate = climate::spawn_climate(&mut world);
+        // tell the sim where the tile edge is, or its fixed bound pinches
+        // anyone homed past the old 33-tile map
+        world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
         let market_food = villager::spawn_food_source(&mut world, 16.0, 16.0, 500);
 
         // the river winds south between the towns to the sea; each waypoint
         // on its course drifts a tile or two, so it meanders differently
         // every map (kept east of the wall and west of the rivals')
-        let river: Vec<(i32, i32)> = [3, 9, 15, 21, 27].iter()
+        let river: Vec<(i32, i32)> = [3, 9, 15, 21, 27, 33, 39, 45].iter()
             .map(|&y| (24 + rng.below(3), y)).collect();
         // the castle suits the river: the east face keeps a tile clear of
         // its west bank and the rest of the rectangle breathes a tile
-        // either way (every building still sits well inside)
+        // either way (every building still sits well inside). Only the
+        // waypoints level with the wall set it - the castle doesn't grow
+        // just because the river now runs further south
         let wall = (8 + rng.around(1), 7 + rng.around(1),
-            river.iter().map(|w| w.0).min().unwrap() - 1, 24 + rng.around(1));
+            river.iter().filter(|w| w.1 <= 30).map(|w| w.0).min().unwrap() - 1, 24 + rng.around(1));
         // the walled fields run out of the south gate to a little farm
         let (gate_x, farm_y) = ((wall.0 + wall.2) / 2, wall.3 + 2);
+
+        // fields beside the food store, and strips either side of the lane
+        // that runs out of the south gate, down through the farm - most of
+        // the land the map grew is worked
+        let mut fields: Vec<(i32, i32, Tile)> = vec![
+            (13, 14, Tile::Wheat), (14, 14, Tile::Wheat), (13, 15, Tile::Wheat), (14, 15, Tile::Wheat),
+            (17, 14, Tile::Corn), (18, 14, Tile::Corn), (18, 15, Tile::Corn),
+            (gate_x - 2, wall.3 + 1, Tile::Wheat), (gate_x - 1, wall.3 + 1, Tile::Wheat),
+            (gate_x - 2, wall.3 + 2, Tile::Wheat), (gate_x - 1, wall.3 + 2, Tile::Corn),
+            (gate_x, wall.3 + 2, Tile::Corn), (gate_x + 1, wall.3 + 2, Tile::Wheat),
+        ];
+        for dy in 2..10 {
+            for &dx in &[-6i32, -5, -4, -3, 3, 4, 5, 6] {
+                let (fx, fy) = (gate_x + dx, farm_y + dy);
+                if noise(fx, fy, 17) < 0.15 { continue; } // a ragged field edge
+                fields.push((fx, fy, if dy % 3 == 1 { Tile::Corn } else { Tile::Wheat }));
+            }
+        }
 
         // where each building wants to stand; the map moves one onto dry land if it must
         let planned: Vec<((i32, i32), &Option<Sprite>)> = vec![
@@ -1412,34 +1462,30 @@ impl<'a> Game<'a> {
         let mut layout = Layout {
             // our village and the rivals' each stand on dry land, the neck
             // between them never floods, and the farm below the south gate
-            // gets its own pocket of field
-            settlements: vec![(16, 16, 9), (29, 14, 4), (25, 15, 3), (gate_x, farm_y, 3)],
+            // gets a broad pocket of level field
+            settlements: vec![(16, 16, 9), (29, 14, 4), (25, 15, 3), (gate_x, farm_y + 4, 6)],
             river: river.clone(),
             bridge_near: (river[2].0, 15),
             town_wall: Some(wall),
-            // fields beside the food store, and the farm's strips outside
-            // the south gate
-            fields: vec![
-                (13, 14, Tile::Wheat), (14, 14, Tile::Wheat), (13, 15, Tile::Wheat), (14, 15, Tile::Wheat),
-                (17, 14, Tile::Corn), (18, 14, Tile::Corn), (18, 15, Tile::Corn),
-                (gate_x - 2, wall.3 + 1, Tile::Wheat), (gate_x - 1, wall.3 + 1, Tile::Wheat),
-                (gate_x - 2, wall.3 + 2, Tile::Wheat), (gate_x - 1, wall.3 + 2, Tile::Corn),
-                (gate_x, wall.3 + 2, Tile::Corn), (gate_x + 1, wall.3 + 2, Tile::Wheat),
-            ],
+            fields,
             buildings: planned.iter().map(|(p, _)| *p).collect(),
             road_hub: (16, 16),
-            road_ends: vec![(29, 14)],
+            // the lane out of the south gate runs down through the strips
+            // to the farmstead, beside the road to the rivals' village
+            road_ends: vec![(29, 14), (gate_x, farm_y + 8)],
         };
         layout.buildings.push((MILL_TILE.0 as i32, MILL_TILE.1 as i32));
         let mut map = TileMap::generate(&mut terrain, &layout);
         let mut buildings: Vec<(f32, f32, &Option<Sprite>)> = planned.iter().zip(&map.buildings)
             .map(|((_, s), (x, y))| (*x as f32, *y as f32, *s)).collect();
 
-        // out-of-town townage: a farmhand's cottage by the south fields, a
-        // woodcutter's clearing at the woods' edge, a fisher's hut on the
-        // shore - each gets its road run out to it
+        // out-of-town townage: a farmhand's cottage by the south fields and
+        // a smallholder's at the far end of the strips, a woodcutter's
+        // clearing at the woods' edge, a fisher's hut on the shore - each
+        // gets its road run out to it
         for (site, sprite) in [
             (Some((gate_x + 2, farm_y)), art.house(6)),
+            (Some((gate_x - 3, farm_y + 9)), art.house(9)),
             (shore_site(&map, (26, 30)), art.house(7)),
             (woods_edge_site(&map, wall, (wall.0, (wall.1 + wall.3) / 2)), art.house(8)),
         ] {
@@ -1531,7 +1577,7 @@ impl<'a> Game<'a> {
             world.get_component_mut::<Building>(trader_stall).unwrap().stock.insert(g.to_string(), 4);
         }
 
-        let stones: Vec<(i32, i32)> = [(6, 19), (20, 23)].iter()
+        let stones: Vec<(i32, i32)> = [(6, 19), (20, 23), (34, 30), (14, 38), (42, 18)].iter()
             .filter_map(|&(x, y)| map.nearest_buildable(x, y)).collect();
         for &(x, y) in &stones { map.occupy(x, y); }
 
@@ -1763,6 +1809,8 @@ impl<'a> Game<'a> {
 
         Game {
             art, world, sched, map, climate, villagers, rivals, player, org, pets, market_food, buildings, stones, buttons,
+            ground: std::cell::RefCell::new(None),
+            last_zoom: std::cell::Cell::new(f32::NAN),
             town_wall: wall,
             guards,
             priest,
@@ -2012,8 +2060,8 @@ impl<'a> Game<'a> {
                         let wob = ((tick + *v as u64) % 8) as f32;
                         if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
                         else if wob < 3.0 { p.x -= step; } else if wob < 4.0 { p.y -= step; }
-                        p.x = p.x.clamp(2.0, 30.0);
-                        p.y = p.y.clamp(2.0, 30.0);
+                        p.x = p.x.clamp(2.0, self.map.width as f32 - 2.0);
+                        p.y = p.y.clamp(2.0, self.map.height as f32 - 2.0);
                     }
                 }
             }
@@ -2040,31 +2088,31 @@ impl<'a> Game<'a> {
         // and lived in their village, off the edge of the view
         if !self.paused {
             let village_home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
+            // our own store keeps them home: while it still serves, no one
+            // should be setting off for the rivals' granary just because
+            // wandering took them far enough east that it was the nearer one
+            let market_has = world.get_component::<villager::FoodSource>(self.market_food)
+                .map(|f| f.servings > 0).unwrap_or(false);
             for v in villagers.iter() {
                 if villager::is_dead(world, *v) { continue; }
                 let vdata = world.get_component::<Villager>(*v);
                 let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
                 let target_food = vdata.and_then(|x| x.target_food);
+                if seeking && market_has && target_food != Some(self.market_food) {
+                    if let Some(vill) = world.get_component_mut::<Villager>(*v) {
+                        vill.target_food = Some(self.market_food);
+                    }
+                }
                 // a seeking villager heads for the food source SeekFoodSystem
                 // actually picked (which may be the rival granary once ours
                 // runs dry), not always the village store - otherwise this
                 // wall-avoidance pass fights the daily system's choice and
                 // walks a hungry villager back and forth, never arriving
-                // while our store is stocked, folk come home to eat - a
-                // villager this far east would otherwise yo-yo between the
-                // rivals' nearer granary and the pull home, never arriving.
-                // Retarget her target_food too, or SeekFood walks her east
-                // while this pulls her west and she starves in between.
-                let ours_stocked = world.get_component::<villager::FoodSource>(self.market_food)
-                    .map(|f| f.servings > 0).unwrap_or(false);
-                if seeking && ours_stocked && target_food != Some(self.market_food) {
-                    if let Some(x) = world.get_component_mut::<Villager>(*v) {
-                        x.target_food = Some(self.market_food);
+                let dest = if seeking {
+                    if market_has { village_home } else {
+                        target_food.and_then(|f| world.get_component::<Pos>(f)).map(|p| (p.x, p.y))
+                            .or(village_home)
                     }
-                }
-                let dest = if seeking && !ours_stocked {
-                    target_food.and_then(|f| world.get_component::<Pos>(f)).map(|p| (p.x, p.y))
-                        .or(village_home)
                 } else {
                     village_home
                 };
@@ -2100,6 +2148,23 @@ impl<'a> Game<'a> {
                             // step onto the path tile outright - walk_path
                             // only lays passable tiles, so it can't strand
                             else { p.x = qx as f32; p.y = qy as f32; }
+                        }
+                    } else {
+                        // no way home from here at all (they ate somewhere
+                        // hemmed in): step onto the passable tile nearest
+                        // home if there is one; if not, keep walking anyway
+                        // (they got in, they can get out the same way)
+                        let (cx, cy) = (p.x.round() as i32, p.y.round() as i32);
+                        let escape = (-1..=1).flat_map(|dy| (-1..=1).map(move |dx| (cx + dx, cy + dy)))
+                            .filter(|&q| q != (cx, cy) && self.map.passable(q.0, q.1))
+                            .min_by_key(|&q| (q.0 - hx.round() as i32).abs() + (q.1 - hy.round() as i32).abs());
+                        match escape {
+                            Some((qx, qy)) => {
+                                let (ddx, ddy) = (qx as f32 - p.x, qy as f32 - p.y);
+                                let dd = (ddx * ddx + ddy * ddy).sqrt().max(1e-4);
+                                p.x += ddx / dd * step; p.y += ddy / dd * step;
+                            }
+                            None => { p.x = nx; p.y = ny; }
                         }
                     }
                 }
@@ -2204,55 +2269,33 @@ impl<'a> Game<'a> {
         let mut buf = Buffer::new(W, H);
         buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
 
-        // terrain rendered in the SAME projection as entities (unified map)
+        // terrain rendered in the SAME projection as entities (unified map).
+        // The ground is thousands of tile blits, so it's painted once into a
+        // world-space layer and each frame just blits the window the camera
+        // shows; it's redrawn only when the zoom, the season or the map
+        // itself has changed since the last pass.
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
-        let tw = (TILE_W as f32 * zoom) as i32;
-        let th = (TILE_H as f32 * zoom) as i32;
-        // each tile is its block from the pack, drawn back to front so nearer
-        // blocks overlap farther ones (the sea is level with the land, or the
-        // shore blocks' sides showed over it like a strip of grass).
-        // Blocks are scaled once per frame, not once per tile.
-        let set = &art.tiles[season_tiles(season)];
-        let faces = &art.faces[season_tiles(season)];
-        let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
-        let (w_t, h_t) = (self.map.width as i32, self.map.height as i32);
-        for d in 0..(w_t + h_t - 1) {
-            for tx in (d - h_t + 1).max(0)..=d.min(w_t - 1) {
-                let ty = d - tx;
-                let Some(tile) = self.map.get(tx, ty) else { continue };
-                let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
-                if sx < -2 * tw || sx > MAP_W as i32 + 2 * tw || sy < -4 * th || sy > H as i32 + 4 * th { continue; }
-                // inland the blocks in front cover a tile's sides: just its face
-                let inland = tx + 1 < w_t && ty + 1 < h_t;
-                let set = if inland { faces } else { set };
-                match set.block(&self.map, tx, ty) {
-                    Some(block) => {
-                        let (w, h, x, y) = block_rect(block, sx, sy, zoom);
-                        let key = block as *const Sprite;
-                        if !scaled.iter().any(|(k, _)| *k == key) { scaled.push((key, block.scaled(w, h))); }
-                        scaled.iter().find(|(k, _)| *k == key).unwrap().1.blit(&mut buf, x, y);
-                    }
-                    None => {
-                        let (r, g, b) = tile_colour(tile, season);
-                        buf.diamond(sx, sy, tw, th, r, g, b);
-                        buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
-                    }
-                }
-                // the odd tuft or flower on open grass outside the walls
-                let in_town = (self.town_wall.0..=self.town_wall.2).contains(&tx)
-                    && (self.town_wall.1..=self.town_wall.3).contains(&ty);
-                if tile == Tile::Grass && !in_town && !self.map.is_occupied(tx, ty) && noise(tx, ty, 7) < 0.10 {
-                    if let Some(d) = pick(&art.details[season_tiles(season)], tx, ty, 8) {
-                        let k = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
-                        let (dw, dh) = ((d.width as f32 * k).round() as i32, (d.height as f32 * k).round().max(1.0) as i32);
-                        let (jx, jy) = (noise(tx, ty, 10) - 0.5, noise(tx, ty, 11) - 0.5);
-                        draw_zoomed(&mut buf, d,
-                            sx + (jx * TILE_W as f32 * zoom) as i32 - dw / 2,
-                            sy + ((jy - 0.6) * TILE_H as f32 * zoom) as i32 - dh, k);
-                    }
-                }
-            }
+        if self.last_zoom.get() != zoom {
+            // a held zoom key changes zoom every frame: rebuilding the layer
+            // each frame would draw the whole map per frame, so while it's
+            // moving just paint the visible tiles like the pass always did;
+            // the cache rebuilds once the zoom settles
+            self.draw_ground(&mut buf, cam_x, cam_y, zoom);
+        } else {
+            let stale = match *self.ground.borrow() {
+                Some(ref g) => g.zoom != zoom || g.season != season || g.rev != self.map.rev(),
+                None => true,
+            };
+            if stale { *self.ground.borrow_mut() = Some(self.render_ground(zoom)); }
+            let g = self.ground.borrow();
+            let g = g.as_ref().unwrap();
+            // the cache pixel under screen (x, y): the layer's world-space
+            // origin shifted by the camera pan (cam offsets are unzoomed,
+            // so on screen they move cam * zoom px)
+            let (ox, oy) = ((cam_x as f32 * zoom).round() as i32, (cam_y as f32 * zoom).round() as i32);
+            buf.blit_from(&g.buf, g.origin.0 - ox, g.origin.1 - oy, 0, 0, MAP_W as i32, H as i32);
         }
+        self.last_zoom.set(zoom);
 
         // everything standing on the map, people included, drawn back to
         // front in one painter's-order pass: whatever is nearer covers what
@@ -2279,7 +2322,7 @@ impl<'a> Game<'a> {
                 (*x, *y, Piece::Building(sprite, risen(i)))
             }).collect();
         // a wood is a mix of the pack's trees, stable per tile
-        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&set.trees, x, y, 4)))));
+        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4)))));
         // boulders and flat rocks, a different one each time
         let rock_prop = |x: i32, y: i32| if noise(x, y, 14) < 0.5 {
             pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
@@ -2741,16 +2784,21 @@ impl<'a> Game<'a> {
         // and colours, with villagers, the player and the visible area marked
         buf.rect(MM_LEFT - 2, MM_TOP - 2, MM_W + 4, MM_H + 4, 20, 20, 30);
         let (w_t, h_t) = (self.map.width as f32, self.map.height as f32);
+        let k = mm_k(w_t, h_t);
+        // the woods as a flat grid for the per-pixel lookup below (a
+        // contains() on the Vec walked the whole woods for every pixel)
+        let mut tree_at = vec![false; self.map.width * self.map.height];
+        for &(tx, ty) in &self.map.trees { tree_at[ty as usize * self.map.width + tx as usize] = true; }
         for my in 0..MM_H { for mx in 0..MM_W {
             if let Some((tx, ty)) = minimap_tile((MM_LEFT + mx) as f32 + 0.5, (MM_TOP + my) as f32 + 0.5, w_t, h_t) {
                 let (r, g, b) = self.map.get(tx as i32, ty as i32).map(|t| tile_colour(t, season)).unwrap_or((20, 20, 30));
                 // the woods show darker
-                let (r, g, b) = if self.map.trees.contains(&(tx as i32, ty as i32)) { blend((r, g, b), (20, 70, 35), 0.5) } else { (r, g, b) };
+                let (r, g, b) = if tree_at[ty as usize * self.map.width + tx as usize] { blend((r, g, b), (20, 70, 35), 0.5) } else { (r, g, b) };
                 buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
             }
         }}
         let mm_dot = |buf: &mut Buffer, tx: f32, ty: f32, r: u8, g: u8, b: u8| {
-            let (x, y) = tile_to_minimap(tx, ty);
+            let (x, y) = tile_to_minimap(tx, ty, k);
             buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
         };
         for v in villagers.iter() {
@@ -2765,8 +2813,8 @@ impl<'a> Game<'a> {
         }
         mm_dot(&mut buf, player_pos.0, player_pos.1, 255, 255, 0);
         // outline of what the map view is showing, clipped to the minimap box
-        let (vx0, vy0) = screen_to_minimap(0.0, 0.0, cam_x, cam_y, zoom);
-        let (vx1, vy1) = screen_to_minimap(MAP_W as f32, H as f32, cam_x, cam_y, zoom);
+        let (vx0, vy0) = screen_to_minimap(0.0, 0.0, cam_x, cam_y, zoom, w_t, h_t);
+        let (vx1, vy1) = screen_to_minimap(MAP_W as f32, H as f32, cam_x, cam_y, zoom, w_t, h_t);
         let (x0, x1) = ((vx0 as i32).max(MM_LEFT), (vx1 as i32).min(MM_LEFT + MM_W - 1));
         let (y0, y1) = ((vy0 as i32).max(MM_TOP), (vy1 as i32).min(MM_TOP + MM_H - 1));
         if x0 < x1 && y0 < y1 {
@@ -2834,6 +2882,95 @@ impl<'a> Game<'a> {
         }
 
         buf
+    }
+
+    /// The ground pass: every tile's block (or flat diamond where there's no
+    /// art) drawn back to front so nearer blocks cover farther ones, plus the
+    /// odd tuft or flower on open grass. Drawn into `buf` at camera
+    /// (cam_x, cam_y) - called for the world-space cache layer, not per frame.
+    fn draw_ground(&self, buf: &mut Buffer, cam_x: i32, cam_y: i32, zoom: f32) {
+        let season = self.world.get_component::<climate::Climate>(self.climate).unwrap().season;
+        let tw = (TILE_W as f32 * zoom) as i32;
+        let th = (TILE_H as f32 * zoom) as i32;
+        // the sea is level with the land, or the shore blocks' sides showed
+        // over it like a strip of grass. Blocks are scaled once per pass,
+        // not once per tile.
+        let set = &self.art.tiles[season_tiles(season)];
+        let faces = &self.art.faces[season_tiles(season)];
+        let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
+        let (w_t, h_t) = (self.map.width as i32, self.map.height as i32);
+        for d in 0..(w_t + h_t - 1) {
+            for tx in (d - h_t + 1).max(0)..=d.min(w_t - 1) {
+                let ty = d - tx;
+                let Some(tile) = self.map.get(tx, ty) else { continue };
+                let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
+                if sx < -2 * tw || sx > buf.width as i32 + 2 * tw || sy < -4 * th || sy > buf.height as i32 + 4 * th { continue; }
+                // inland the blocks in front cover a tile's sides: just its face
+                let inland = tx + 1 < w_t && ty + 1 < h_t;
+                let set = if inland { faces } else { set };
+                match set.block(&self.map, tx, ty) {
+                    Some(block) => {
+                        let (w, h, x, y) = block_rect(block, sx, sy, zoom);
+                        let key = block as *const Sprite;
+                        if !scaled.iter().any(|(k, _)| *k == key) { scaled.push((key, block.scaled(w, h))); }
+                        scaled.iter().find(|(k, _)| *k == key).unwrap().1.blit(buf, x, y);
+                    }
+                    None => {
+                        let (r, g, b) = tile_colour(tile, season);
+                        buf.diamond(sx, sy, tw, th, r, g, b);
+                        buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
+                    }
+                }
+                // the odd tuft or flower on open grass outside the walls
+                let in_town = (self.town_wall.0..=self.town_wall.2).contains(&tx)
+                    && (self.town_wall.1..=self.town_wall.3).contains(&ty);
+                if tile == Tile::Grass && !in_town && !self.map.is_occupied(tx, ty) && noise(tx, ty, 7) < 0.10 {
+                    if let Some(d) = pick(&self.art.details[season_tiles(season)], tx, ty, 8) {
+                        let k = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+                        let (dw, dh) = ((d.width as f32 * k).round() as i32, (d.height as f32 * k).round().max(1.0) as i32);
+                        let (jx, jy) = (noise(tx, ty, 10) - 0.5, noise(tx, ty, 11) - 0.5);
+                        draw_zoomed(buf, d,
+                            sx + (jx * TILE_W as f32 * zoom) as i32 - dw / 2,
+                            sy + ((jy - 0.6) * TILE_H as f32 * zoom) as i32 - dh, k);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The ground layer drawn once into world space (camera at 0,0): a
+    /// buffer covering every tile's block so the frame pass can blit the
+    /// window of it the camera actually shows
+    fn render_ground(&self, zoom: f32) -> GroundCache {
+        let (w_t, h_t) = (self.map.width as i32, self.map.height as i32);
+        let tw = (TILE_W as f32 * zoom) as i32;
+        let th = (TILE_H as f32 * zoom) as i32;
+        let season = self.world.get_component::<climate::Climate>(self.climate).unwrap().season;
+        let set = &self.art.tiles[season_tiles(season)];
+        // the rectangle of world screen space the ground covers: the fullest
+        // (edge-style) block each tile could draw, plus room for the specks
+        // a tile may wear and a margin
+        let (mut x0, mut y0, mut x1, mut y1) = (i32::MAX, i32::MAX, i32::MIN, i32::MIN);
+        for ty in 0..h_t { for tx in 0..w_t {
+            let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, 0, 0, zoom);
+            let (bx0, by0, bx1, by1) = match set.block(&self.map, tx, ty) {
+                Some(block) => { let (w, h, x, y) = block_rect(block, sx, sy, zoom); (x, y, x + w as i32, y + h as i32) }
+                None => (sx - tw, sy - th, sx + tw, sy + 2 * th),
+            };
+            x0 = x0.min(bx0); y0 = y0.min(by0); x1 = x1.max(bx1); y1 = y1.max(by1);
+        }}
+        let pad = (40.0 * zoom).round() as i32 + 8;
+        x0 -= tw + pad; x1 += tw + pad; y0 -= pad; y1 += 2 * th + pad;
+        let mut buf = Buffer::new((x1 - x0).max(1) as usize, (y1 - y0).max(1) as usize);
+        // the same dark the frame clears to, so the layer's edges blend away
+        buf.rect(0, 0, buf.width as i32, buf.height as i32, 25, 25, 38);
+        // the camera offsets draw_ground applies are in unzoomed space (the
+        // projection scales them by zoom), so to shift content by -x0
+        // screen px the cam to pass is -x0 / zoom
+        let (kx, ky) = ((-x0 as f32 / zoom).round() as i32, (-y0 as f32 / zoom).round() as i32);
+        self.draw_ground(&mut buf, kx, ky, zoom);
+        let origin = ((kx as f32 * zoom).round() as i32, (ky as f32 * zoom).round() as i32);
+        GroundCache { buf, origin, zoom, season, rev: self.map.rev() }
     }
 
     /// Talk to villager `who`: hear what they say. Returns the log line
@@ -3213,9 +3350,11 @@ impl<'a> Game<'a> {
             if self.near.contains(&(a, b)) { continue; } // already together: they've said hello
             let last = self.last_chat.iter().find(|(p, _)| *p == (a, b)).map(|(_, t)| *t);
             if last.map(|t| tick < t + CHAT_COOLDOWN).unwrap_or(false) { continue; }
-            // the player is listed last, so a villager always does the talking
+            // the player is listed last, so a villager always does the talking.
+            // Only some meetings get a bubble - every pair passing a remark was
+            // a constant stream of chatter (the chat still counts either way)
             let n = self.last_chat.len() + (a as usize) + tick as usize;
-            self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
+            if n % 3 == 0 { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
             relationships::record_interaction(&mut self.world, if b == self.player { b } else { a }, relationships::Interaction {
                 other: if b == self.player { a } else { b }, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
             });
@@ -4001,6 +4140,9 @@ mod works_tests {
                 (-4..=4).all(|dy| (-4..=4).all(|dx| game.map.get(cx + dx, cy + dy) != Some(Tile::Road)))
             }).expect("a spot out past the roads");
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
+        // the Wanderer's starting gold is rolled by class and can come up
+        // short - this test is about the works, not the purse
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 100.0;
         assert_eq!(game.action_blocker(4), None);
         game.act(4);
         let w = game.works.last().expect("building should start works");
@@ -4071,7 +4213,7 @@ mod river_tests {
         let art = Art::default();
         let game = Game::new(&art);
         let mut river = 0;
-        for y in 0..33 { for x in 0..33 {
+        for y in 0..game.map.height as i32 { for x in 0..game.map.width as i32 {
             match game.map.get(x, y) {
                 Some(Tile::River) => { river += 1; assert!(!game.walkable(x as f32, y as f32), "walked onto the river at ({},{})", x, y); }
                 Some(Tile::Bridge) => assert!(game.walkable(x as f32, y as f32), "the bridge is blocked"),
@@ -4079,6 +4221,51 @@ mod river_tests {
             }
         }}
         assert!(river > 10);
+    }
+}
+
+#[cfg(test)]
+mod ground_cache_tests {
+    use super::*;
+
+    #[test]
+    fn test_cached_ground_matches_drawing_it_straight() {
+        // the world-space layer blitted each frame must be exactly what the
+        // tile pass would have drawn - any tile dropped or shifted shows up
+        // as bare background or a seam
+        let art = Art::load("../assets");
+        let game = Game::new(&art);
+        // exact comparison at integer zooms, where the layer's draw shift is
+        // a whole number of pixels so it lands exactly where the culled pass
+        // put it (at fractional zooms the layer can sit a sub-pixel off and
+        // still be right)
+        for &zoom in &[1.0f32, 2.0] {
+            let mut direct = Buffer::new(W, H);
+            direct.rect(0, 0, W as i32, H as i32, 25, 25, 38);
+            game.draw_ground(&mut direct, 0, 0, zoom);
+            let g = game.render_ground(zoom);
+            let mut cached = Buffer::new(W, H);
+            cached.rect(0, 0, W as i32, H as i32, 25, 25, 38);
+            cached.blit_from(&g.buf, g.origin.0, g.origin.1, 0, 0, MAP_W as i32, H as i32);
+            if std::env::var("DUMP_GROUND").is_ok() {
+                direct.save_bmp(&format!("../evidence/ground-direct-{}.bmp", (zoom * 100.0) as i32)).ok();
+                cached.save_bmp(&format!("../evidence/ground-cache-{}.bmp", (zoom * 100.0) as i32)).ok();
+                g.buf.save_bmp(&format!("../evidence/ground-layer-{}.bmp", (zoom * 100.0) as i32)).ok();
+            }
+            // the layer can legitimately show MORE than the old culled pass
+            // (edge blocks that used to pop in), but nothing it drew may be
+            // missing or misplaced inside the map viewport
+            let bg = [25u8, 25, 38, 255];
+            let (mut missing, mut bounds) = (0, [i32::MAX, i32::MAX, i32::MIN, i32::MIN]);
+            for y in 0..H { for x in 0..MAP_W {
+                let i = (y * W + x) * 4;
+                if direct.pixels[i..i + 4] != bg && direct.pixels[i..i + 4] != cached.pixels[i..i + 4] {
+                    missing += 1;
+                    bounds = [bounds[0].min(x as i32), bounds[1].min(y as i32), bounds[2].max(x as i32), bounds[3].max(y as i32)];
+                }
+            }}
+            assert_eq!(missing, 0, "zoom {}: ground pixels dropped by the cache in {:?}", zoom, bounds);
+        }
     }
 }
 
@@ -4177,9 +4364,9 @@ mod walk_tests {
     fn test_roads_are_quicker() {
         let art = Art::default();
         let mut game = Game::new(&art);
-        let road = (0..33).flat_map(|y| (0..33).map(move |x| (x, y)))
+        let road = (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
             .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Road) && game.map.get(x + 1, y) == Some(Tile::Road)).unwrap();
-        let grass = (0..33).flat_map(|y| (0..33).map(move |x| (x, y)))
+        let grass = (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
             .find(|&(x, y)| game.map.get(x, y) == Some(Tile::Grass) && !game.map.trees.contains(&(x, y)) && game.walkable(x as f32 + 0.2, y as f32)).unwrap();
         let step = |game: &mut Game, (x, y): (i32, i32)| {
             put_player(game, x as f32 - 0.2, y as f32);
@@ -4705,6 +4892,9 @@ mod member_line_tests {
     fn test_build_log_doesnt_quote_tile_coordinates() {
         let art = Art::load("../assets");
         let mut game = Game::new(&art);
+        // the Wanderer's starting gold is rolled by class and can come up
+        // short - this test is about the log line, not the purse
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 100.0;
         game.act(4);
         let line = game.log.last().unwrap();
         assert!(line.contains("new house") && !line.contains('('), "{}", line);
@@ -4797,18 +4987,20 @@ mod minimap_tests {
     #[test]
     fn test_screen_and_tile_projections_agree_on_the_minimap() {
         // a tile drawn on screen lands at the same minimap spot as the tile itself
+        let (w_t, h_t) = (MAP_TILES as f32, MAP_TILES as f32);
         for &(tx, ty, cam_x, cam_y, zoom) in &[(10.0f32, 16.0f32, 0, 0, 1.0f32), (28.0, 13.0, -120, 40, 1.0), (5.0, 2.0, 30, -10, 1.5)] {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let a = screen_to_minimap(sx as f32, sy as f32, cam_x, cam_y, zoom);
-            let b = tile_to_minimap(tx, ty);
+            let a = screen_to_minimap(sx as f32, sy as f32, cam_x, cam_y, zoom, w_t, h_t);
+            let b = tile_to_minimap(tx, ty, mm_k(w_t, h_t));
             assert!((a.0 - b.0).abs() < 1.0 && (a.1 - b.1).abs() < 1.0, "{:?} vs {:?}", a, b);
         }
     }
 
     #[test]
     fn test_whole_map_fits_in_the_minimap_box() {
-        for &(tx, ty) in &[(0.0, 0.0), (33.0, 0.0), (0.0, 33.0), (33.0, 33.0)] {
-            let (x, y) = tile_to_minimap(tx, ty);
+        let (w_t, h_t, n) = (MAP_TILES as f32, MAP_TILES as f32, MAP_TILES as f32 - 1.0);
+        for &(tx, ty) in &[(0.0, 0.0), (n, 0.0), (0.0, n), (n, n)] {
+            let (x, y) = tile_to_minimap(tx, ty, mm_k(w_t, h_t));
             assert!(x >= MM_LEFT as f32 && x <= (MM_LEFT + MM_W) as f32, "x {} for ({},{})", x, tx, ty);
             assert!(y >= MM_TOP as f32 && y <= (MM_TOP + MM_H) as f32, "y {} for ({},{})", y, tx, ty);
         }
@@ -4854,6 +5046,9 @@ mod label_tests {
 /// `since_clear` is frames since rain stopped (drives the rainbow fade).
 /// The terrain runs right up to the panel, so this covers to UI_X, not MAP_W.
 fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_clear: Option<u64>) {
+    // a clear sky draws nothing: don't scan a million pixels for a mask
+    // only rain, snow and the rainbow ever use
+    if kind.is_none() && since_clear.is_none() { return; }
     let mask = weather_fx::background_mask(buf, UI_X, (25, 25, 38));
     match kind {
         Some(k) => {
@@ -4867,7 +5062,7 @@ fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_cl
                         let idx = (y * W + x) * 4;
                         let c = (buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]);
                         let (r, g, b) = blend(c, rain_wash(c), t);
-                        buf.set(x as i32, y as i32, r, g, b);
+                        buf.pixels[idx] = r; buf.pixels[idx + 1] = g; buf.pixels[idx + 2] = b;
                     }
                 }
             }
@@ -5069,8 +5264,10 @@ fn main() {
     let mut game = Game::new_seeded(&art, seed);
     let mut started = false; // title screen until Enter
     let mut mouse_was_down = false;
+    let frame_len = std::time::Duration::from_millis(1000 / FPS as u64);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        let frame_at = std::time::Instant::now();
         // TITLE SCREEN until Enter
         if !started {
             present(&mut window, &render_title());
@@ -5085,8 +5282,18 @@ fn main() {
         let (mx, my) = (mxf as i32, myf as i32);
         let mut buf = game.render((mx, my));
 
+        // blit buffer to framebuffer: this is also what pumps the OS event
+        // queue, so input read just after is the freshest there is
+        present(&mut window, &buf);
+
         // --- INPUT ---
-        // actions fire once per click / key press, not every frame the input is held
+        // Polled once per frame right behind the event pump (the window and
+        // its events can only live on the main thread, so the fix for
+        // dropped input is fast frames + fresh state, not a second thread).
+        // Actions fire once per click / key press, not every frame the
+        // input is held
+        let (mxf, myf) = window.get_mouse_pos(MouseMode::Clamp).unwrap_or((0.0, 0.0));
+        let (mx, my) = (mxf as i32, myf as i32);
         let mouse_down = window.get_mouse_down(minifb::MouseButton::Left);
         let clicked = mouse_down && !mouse_was_down;
         mouse_was_down = mouse_down;
@@ -5141,9 +5348,6 @@ fn main() {
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", game.frame_n)).ok(); }
 
-        // blit buffer to framebuffer
-        present(&mut window, &buf);
-
         let p = game.world.get_component::<PlayerCharacter>(game.player).unwrap();
         if p.influence > WIN_INFLUENCE {
             // win banner over the village, then the summary screen
@@ -5154,7 +5358,11 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_secs(5));
             break;
         }
-        std::thread::sleep(std::time::Duration::from_millis(1000 / FPS as u64));
+        // pace the frame: idle out whatever's left of the frame budget
+        // rather than a flat sleep on top of the work (which dropped real
+        // fps well under the target whenever a frame ran long)
+        let spent = frame_at.elapsed();
+        if spent < frame_len { std::thread::sleep(frame_len - spent); }
     }
 }
 
@@ -5476,7 +5684,7 @@ mod minimap_dead_tests {
         let buf = game.render((-1, -1));
         let px = |v: Entity| {
             let p = *game.world.get_component::<Pos>(v).unwrap();
-            let (x, y) = tile_to_minimap(p.x, p.y);
+            let (x, y) = tile_to_minimap(p.x, p.y, mm_k(game.map.width as f32, game.map.height as f32));
             let i = ((y as i32 - 1) as usize * W + (x as i32 - 1) as usize) * 4;
             (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2])
         };

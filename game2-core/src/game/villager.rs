@@ -67,11 +67,22 @@ impl System for HungerSystem {
 }
 
 /// Hungry villagers seek and eat food; the dead lie still and eat nothing
+/// The tile edge a sim runs on: idle drifting keeps villagers inside it
+/// (a fixed edge pinches anyone homed on a bigger map)
+pub struct WorldBounds {
+    pub w: f32,
+    pub h: f32,
+}
+
 pub struct SeekFoodSystem;
 impl System for SeekFoodSystem {
     fn run(&mut self, world: &mut World) {
         let hunger_threshold = 30.0;
         let eat_distance = 1.0;
+        let bound = world.query::<WorldBounds>().first()
+            .and_then(|&e| world.get_component::<WorldBounds>(e))
+            .map(|b| (b.w - 2.0, b.h - 2.0))
+            .unwrap_or((31.0, 31.0));
 
         // Find villagers and their state
         let villagers: Vec<Entity> = world.query::<Villager>();
@@ -171,8 +182,8 @@ impl System for SeekFoodSystem {
                     }
                 }
                 if let Some(p) = world.get_component_mut::<Pos>(v) {
-                    p.x = (p.x + dx).clamp(0.0, 31.0);
-                    p.y = (p.y + dy).clamp(0.0, 31.0);
+                    p.x = (p.x + dx).clamp(0.0, bound.0);
+                    p.y = (p.y + dy).clamp(0.0, bound.1);
                 }
             }
 

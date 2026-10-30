@@ -1362,6 +1362,36 @@ pub enum CtxAct {
     Errand,
 }
 
+/// One player's hold on the game: which character they steer, what they've
+/// picked, the walk-over-to-talk under way, their contextual buttons. A solo
+/// game has exactly one seat; a server keeps one per claimed connection.
+pub struct Seat {
+    /// The seat's character entity (a wanderer for people, a villager for agents)
+    pub player: Entity,
+    /// The seat's organization entity
+    pub org: Entity,
+    /// They picked the selected villager themselves and haven't walked off
+    /// since: Talk and Recruit go to them, however far
+    pub picked: bool,
+    /// A walk-over-to-act under way
+    pub approach: Option<Approach>,
+    /// Index into villagers[] of the villager currently selected
+    pub selected_target: usize,
+    /// A building the seat clicked, or None while a villager is selected
+    pub selected_building: Option<usize>,
+    /// Contextual actions that depend on where the player stands and who's picked
+    pub ctx_actions: Vec<CtxAct>,
+    /// An API-driven seat steers a villager, not a wanderer
+    pub agent: bool,
+}
+
+impl Default for Seat {
+    fn default() -> Seat {
+        Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
+               selected_building: None, ctx_actions: vec![], agent: false }
+    }
+}
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see. This is the authoritative simulation: it owns
@@ -1375,8 +1405,8 @@ pub struct Game {
     pub villagers: Vec<Entity>,
     pub rivals: Vec<Entity>,
     pub rival_homes: Vec<(f32, f32)>, // where each rival lives, across the river
-    pub player: Entity,
-    pub org: Entity,
+    /// One seat per claimed connection (seat 0 in solo play)
+    pub seats: Vec<Seat>,
     /// Each pet, its species (the view picks the sprite), and how it stands off its owner
     pub pets: Vec<(Entity, Species, (f32, f32))>,
     pub market_food: Entity, // our village's food store (the rivals have their own)
@@ -1405,7 +1435,6 @@ pub struct Game {
     pub tick: u64,
     pub paused: bool,
     pub speed: u32,   // 1=normal 2=fast 4=turbo
-    pub selected_target: usize,
     pub log: Vec<String>,
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
@@ -1414,22 +1443,14 @@ pub struct Game {
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
     pub frame_n: u32,
-    /// The player picked the selected villager themselves (clicked them or
-    /// pressed 1-5) and hasn't walked off since: Talk and Recruit go to them,
-    /// however far
-    pub picked: bool,
-    pub approach: Option<Approach>,
+
     pub precip: Option<PrecipKind>, // what is falling today
     pub rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     pub was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,
-    /// A building the player clicked, or None while a villager is selected
-    pub selected_building: Option<usize>,
-    /// Contextual actions that depend on where the player stands and who's
-    /// picked (Work at your shop, Pair up a junior, Send a kid on an errand)
-    pub ctx_actions: Vec<CtxAct>,
+
     /// The tax collector's entity (villagers[COLLECTOR_IDX])
     pub collector: Option<Entity>,
     /// The trader's stall building at the market
@@ -1445,6 +1466,16 @@ pub struct Game {
     /// (who, complaint family) already voiced at the meeting under way -
     /// parallel complaints make the next speaker likelier to share
     pub voiced: Vec<(Entity, desires::IssueTag)>,
+}
+
+/// seat 0 is the local/only player in solo play: `game.selected_target` and
+/// friends resolve through here so single-seat code needs no seat index.
+impl std::ops::Deref for Game {
+    type Target = Seat;
+    fn deref(&self) -> &Seat { &self.seats[0] }
+}
+impl std::ops::DerefMut for Game {
+    fn deref_mut(&mut self) -> &mut Seat { &mut self.seats[0] }
 }
 
 impl Game {
@@ -1859,7 +1890,8 @@ impl Game {
         }
 
         Game {
-            world, sched, map, climate, villagers, rivals, player, org, pets, market_food, buildings, stones,
+            world, sched, map, climate, villagers, rivals,
+            seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             guards,
             priest,
@@ -1875,7 +1907,6 @@ impl Game {
             tick: 0,
             paused: false,
             speed: 1,
-            selected_target: 0,
             log: vec!["Welcome to the village.".into()],
             bubbles: vec![],
             meeting: None,
@@ -1884,13 +1915,9 @@ impl Game {
             was_sick: vec![false; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
-            picked: false,
-            approach: None,
             precip: None,
             rainbow_from: None,
             building_entities,
-            selected_building: None,
-            ctx_actions: vec![],
             collector: Some(collector),
             trader_stall: Some(trader_stall),
             travels: vec![],
@@ -1919,8 +1946,8 @@ impl Game {
     /// One frame's step of the player in direction (dx, dy) (tile axes),
     /// quicker along a road and slower through the woods. Blocked straight on, they slide along whatever
     /// is in the way where they can.
-    pub fn walk(&mut self, dx: f32, dy: f32) {
-        let (px, py) = self.player_pos();
+    pub fn walk_at(&mut self, seat: usize, dx: f32, dy: f32) {
+        let (px, py) = self.player_pos_at(seat);
         let at = (px.round() as i32, py.round() as i32);
         let spd = WALK_SPEED * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
@@ -1931,14 +1958,14 @@ impl Game {
         let len = (dx * dx + dy * dy).sqrt();
         let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
         let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
-        if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.player)) {
+        if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {
             p.x = x;
             p.y = y;
         }
     }
 
-    pub fn player_pos(&self) -> (f32, f32) {
-        self.world.get_component::<Pos>(self.player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0))
+    pub fn player_pos_at(&self, seat: usize) -> (f32, f32) {
+        self.world.get_component::<Pos>(self.seats[seat].player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0))
     }
 
     /// Where the courier is on the road between the villages: there and
@@ -1956,11 +1983,11 @@ impl Game {
 
     /// Why action button `i` can't be used right now, if it can't: Build's
     /// own rules (gold, a free site), otherwise disabled_reason
-    pub fn action_blocker(&self, i: usize) -> Option<String> {
+    pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
         if i == 4 {
-            let gold = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.resources).unwrap_or(0.0);
+            let gold = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).map(|p| p.resources).unwrap_or(0.0);
             if gold < BUILD_COST { return Some(format!("need {:.0} gold", BUILD_COST)); }
-            if self.build_site().is_none() { return Some("no room nearby".into()); }
+            if self.build_site_at(seat).is_none() { return Some("no room nearby".into()); }
             return None;
         }
         self.disabled_reason(i)
@@ -1970,8 +1997,8 @@ impl Game {
     /// buildable land (not water or peaks), with no building (or the
     /// windmill) on it or next to it - a house sprite is ~2 tiles wide - not
     /// on a road, field or food store, and not right on top of the player
-    pub fn build_site(&self) -> Option<(f32, f32)> {
-        let (px, py) = self.player_pos();
+    pub fn build_site_at(&self, seat: usize) -> Option<(f32, f32)> {
+        let (px, py) = self.player_pos_at(seat);
         let (cx, cy) = (px.round() as i32, py.round() as i32);
         let taken = |x: i32, y: i32| {
             let on = |bx: f32, by: f32| bx.round() as i32 == x && by.round() as i32 == y;
@@ -1998,15 +2025,15 @@ impl Game {
     /// and in reach, otherwise the nearest living villager who is - the
     /// player who walks up to someone means them, not whoever was clicked
     /// last. With no one in reach it stays the selected villager.
-    pub fn reach_target(&self) -> usize {
-        let in_reach = self.villagers_in_reach();
-        if in_reach.contains(&self.villagers[self.selected_target]) { return self.selected_target; }
-        let (px, py) = self.player_pos();
+    pub fn reach_target_at(&self, seat: usize) -> usize {
+        let in_reach = self.villagers_in_reach_at(seat);
+        if in_reach.contains(&self.villagers[self.seats[seat].selected_target]) { return self.seats[seat].selected_target; }
+        let (px, py) = self.player_pos_at(seat);
         let dist = |v: &Entity| self.world.get_component::<Pos>(*v).map(|p| (p.x - px).powi(2) + (p.y - py).powi(2)).unwrap_or(f32::MAX);
         in_reach.iter()
             .min_by(|a, b| dist(a).partial_cmp(&dist(b)).unwrap())
             .and_then(|v| self.villagers.iter().position(|x| x == v))
-            .unwrap_or(self.selected_target)
+            .unwrap_or(self.seats[seat].selected_target)
     }
 
     /// Why action button `i` can't be used right now, if it can't
@@ -2289,8 +2316,10 @@ impl Game {
             self.advance_travels();
             self.advance_minstrel();
         }
-        self.update_ctx_actions();
-        self.advance_approach();
+        for seat in 0..self.seats.len() {
+            self.update_ctx_actions_at(seat);
+            self.advance_approach_at(seat);
+        }
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);
         // movement is still processed while paused, but relationships and
@@ -2299,7 +2328,7 @@ impl Game {
     }
 
     /// Talk to villager `who`: hear what they say. Returns the log line
-    pub fn talk_to(&mut self, who: usize) -> String {
+    pub fn talk_to_at(&mut self, seat: usize, who: usize) -> String {
         let v = self.villagers[who];
         // Uncapped talk count - Rapport caps at 1.0 and would
         // freeze the concern/small-talk index after a few talks.
@@ -2314,7 +2343,8 @@ impl Game {
         let (did, said) = match revealed {
             Some(r) => {
                 let (d, s) = desires::reveal_speech(NAMES[who], &r);
-                if let Some(issue) = desires::hear(&mut self.world, self.player, v, r, self.tick) {
+                let pe = self.seats[seat].player;
+                if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                     self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
                 }
@@ -2322,21 +2352,21 @@ impl Game {
             }
             None => talk_response(&self.world, v, NAMES[who], talks_before),
         };
-        act_talk(&mut self.world, self.player, v);
+        let pe = self.seats[seat].player; act_talk(&mut self.world, pe, v);
         self.say(v, &said, TALK_BUBBLE_SECS);
         format!("{}: \"{}\"", did, said)
     }
 
     /// Distance from the player to villager `who`, in tiles
-    pub fn dist_to(&self, who: usize) -> f32 {
-        let (px, py) = self.player_pos();
+    pub fn dist_to_at(&self, seat: usize, who: usize) -> f32 {
+        let (px, py) = self.player_pos_at(seat);
         self.world.get_component::<Pos>(self.villagers[who])
             .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt()).unwrap_or(f32::MAX)
     }
 
     /// The tiles to walk to reach villager `who`, round walls and buildings
-    pub fn path_to(&self, who: usize) -> Option<Vec<(i32, i32)>> {
-        let (px, py) = self.player_pos();
+    pub fn path_to_at(&self, seat: usize, who: usize) -> Option<Vec<(i32, i32)>> {
+        let (px, py) = self.player_pos_at(seat);
         let p = self.world.get_component::<Pos>(self.villagers[who])?;
         self.map.walk_path((px.round() as i32, py.round() as i32), (p.x.round() as i32, p.y.round() as i32))
     }
@@ -2345,11 +2375,11 @@ impl Game {
     /// the player: set off to walk over to them (the action happens on
     /// arrival; see advance_approach). None when they're already close enough
     /// to act on now.
-    pub fn start_approach(&mut self, who: usize, action: usize) -> Option<String> {
-        if self.dist_to(who) <= TALK_DIST { return None; }
-        match self.path_to(who) {
+    pub fn start_approach_at(&mut self, seat: usize, who: usize, action: usize) -> Option<String> {
+        if self.dist_to_at(seat, who) <= TALK_DIST { return None; }
+        match self.path_to_at(seat, who) {
             Some(path) => {
-                self.approach = Some(Approach { who, action, path, stuck: 0 });
+                self.seats[seat].approach = Some(Approach { who, action, path, stuck: 0 });
                 Some(format!("You walk over to {}.", NAMES[who]))
             }
             None => Some(format!("Can't {}: there's no way to reach {}.",
@@ -2359,17 +2389,17 @@ impl Game {
 
     /// One frame of walking over to someone: follow the path (finding a new
     /// one if they've wandered off), and talk or recruit once beside them
-    pub fn advance_approach(&mut self) {
-        let Some(mut a) = self.approach.take() else { return };
+    pub fn advance_approach_at(&mut self, seat: usize) {
+        let Some(mut a) = self.seats[seat].approach.take() else { return };
         let who = a.who;
         // they died on the way: nothing to say
         if villager::is_dead(&self.world, self.villagers[who]) { return; }
-        if self.dist_to(who) <= TALK_DIST {
+        if self.dist_to_at(seat, who) <= TALK_DIST {
             // beside them now: take the action on them (act checks it can
             // still be done - they may have joined, or influence slipped)
-            self.selected_target = who;
-            self.picked = true;
-            self.act(a.action);
+            self.seats[seat].selected_target = who;
+            self.seats[seat].picked = true;
+            self.act_at(seat, a.action);
             return;
         }
         let Some(&Pos { x: vx, y: vy }) = self.world.get_component::<Pos>(self.villagers[who]) else { return };
@@ -2377,12 +2407,12 @@ impl Game {
             .map(|&(x, y)| ((x as f32 - vx).powi(2) + (y as f32 - vy).powi(2)).sqrt() > TALK_DIST)
             .unwrap_or(true);
         if headed_off {
-            match self.path_to(who) {
+            match self.path_to_at(seat, who) {
                 Some(path) => a.path = path,
                 None => { self.log.push(format!("t{}: You can't find a way to {}.", self.tick, NAMES[who])); return; }
             }
         }
-        let (px, py) = self.player_pos();
+        let (px, py) = self.player_pos_at(seat);
         // drop tiles already reached; the last one is their tile, so head for them
         while a.path.len() > 1 {
             let (x, y) = a.path[0];
@@ -2390,41 +2420,42 @@ impl Game {
         }
         let (tx, ty) = match a.path.as_slice() { [(x, y), _, ..] => (*x as f32, *y as f32), _ => (vx, vy) };
         let (dx, dy) = (tx - px, ty - py);
-        if dx.abs() + dy.abs() > 1e-3 { self.walk(dx, dy); }
-        a.stuck = if self.player_pos() != (px, py) { 0 } else { a.stuck + 1 };
+        if dx.abs() + dy.abs() > 1e-3 { self.walk_at(seat, dx, dy); }
+        a.stuck = if self.player_pos_at(seat) != (px, py) { 0 } else { a.stuck + 1 };
         if a.stuck > APPROACH_STUCK_FRAMES {
             self.log.push(format!("t{}: You can't get through to {}.", self.tick, NAMES[who]));
             return;
         }
-        self.approach = Some(a);
+        self.seats[seat].approach = Some(a);
     }
 
     /// Take action button `i` (Talk, Recruit, Invest, Organize, Build)
-    pub fn act(&mut self, i: usize) {
+    pub fn act_at(&mut self, seat: usize, i: usize) {
         let tick = self.tick;
         // Talk and Recruit go to whoever the player picked; otherwise to
         // whoever is in reach
-        if (i == 0 || i == 1) && !self.picked { self.selected_target = self.reach_target(); }
-        let selected_target = self.selected_target;
-        let msg = if let Some(reason) = self.action_blocker(i) {
+        if (i == 0 || i == 1) && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
+        let selected_target = self.seats[seat].selected_target;
+        let msg = if let Some(reason) = self.action_blocker_at(seat, i) {
             format!("Can't {}: {}.", ACTION_LABELS[i].to_lowercase(), reason)
         } else {
             match i {
-                0 => match self.start_approach(selected_target, 0) {
+                0 => match self.start_approach_at(seat, selected_target, 0) {
                     Some(walking) => walking,
-                    None => self.talk_to(selected_target),
+                    None => self.talk_to_at(seat, selected_target),
                 },
-                1 => if let Some(walking) = self.start_approach(selected_target, 1) { walking } else {
-                    let r = act_recruit(&mut self.world, self.player, self.org, self.villagers[selected_target]);
+                1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
+                    let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);
+                    let r = act_recruit(&mut self.world, pe, oe, te);
                     if r.success { format!("{} joined!", NAMES[selected_target]) }
                     else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
                 }
-                2 => { let r = act_invest(&mut self.world, self.player, INVEST_GOLD); r.description }
-                3 => self.call_meeting(),
+                2 => { let pe = self.seats[seat].player; let r = act_invest(&mut self.world, pe, INVEST_GOLD); r.description }
+                3 => self.call_meeting_at(seat),
                 4 => {
                     // action_blocker checked there's gold and a site
-                    let (bx, by) = self.build_site().unwrap();
-                    if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) { p.resources -= BUILD_COST; }
+                    let (bx, by) = self.build_site_at(seat).unwrap();
+                    if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, BSprite::House(self.rng.below(97) as usize)));
                     self.map.occupy(bx as i32, by as i32);
                     // the road is laid a tile at a time, then the house goes up
@@ -2441,12 +2472,12 @@ impl Game {
         // the village, not a score sheet (the panel's bar shows standing)
         self.log.push(format!("t{}: {}", tick, msg));
         // gold spent here is the same purse the day's trading counts
-        sync_purse(&mut self.world, self.player, true);
+        let pe = self.seats[seat].player; sync_purse(&mut self.world, pe, true);
     }
 
     /// Living villagers within MEETING_REACH of the player
-    pub fn villagers_in_reach(&self) -> Vec<Entity> {
-        let (px, py) = self.player_pos();
+    pub fn villagers_in_reach_at(&self, seat: usize) -> Vec<Entity> {
+        let (px, py) = self.player_pos_at(seat);
         self.villagers.iter().copied().filter(|v| {
             let alive = self.world.get_component::<Health>(*v).is_some();
             let near = self.world.get_component::<Pos>(*v)
@@ -2461,7 +2492,7 @@ impl Game {
     /// know you a little better (organizing::house_meeting).
     pub fn resolve_meeting(&mut self, invited: &[Entity]) -> String {
         let members_before = self.world.get_component::<Organization>(self.org).map(|o| o.members.clone()).unwrap_or_default();
-        let r = crate::game::organizing::house_meeting(&mut self.world, self.org, invited);
+        let oe = self.org; let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(v)).unwrap_or(false))
@@ -2487,7 +2518,7 @@ impl Game {
             voices.sort_unstable();
             voices.dedup();
             if voices.len() >= 3 {
-                if let Some(issue) = desires::found_issue(&mut self.world, self.player, tag) {
+                if let Some(issue) = { let pe = self.player; desires::found_issue(&mut self.world, pe, tag) } {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                     self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
                     found = format!(" Organizer discovers issue {}.", issue);
@@ -2525,11 +2556,11 @@ impl Game {
     /// Organize: call a house meeting at the home nearest the player (or
     /// where they stand, if no home is in reach) for every living villager
     /// within reach. They walk over; see advance_meeting.
-    pub fn call_meeting(&mut self) -> String {
-        let mut invited = self.villagers_in_reach();
+    pub fn call_meeting_at(&mut self, seat: usize) -> String {
+        let mut invited = self.villagers_in_reach_at(seat);
         if invited.is_empty() { return "No one is near enough to come to your house meeting.".into(); }
         // a kitchen only holds so many: the eight nearest get the word
-        let (px, py) = self.player_pos();
+        let (px, py) = self.player_pos_at(seat);
         invited.sort_by_key(|&v| {
             self.world.get_component::<Pos>(v)
                 .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2) * 100.0) as i32).unwrap_or(i32::MAX)
@@ -2537,7 +2568,7 @@ impl Game {
         invited.truncate(8);
         // errands are dropped: folk coming to a meeting stop mid-way home
         self.travels.retain(|t| !invited.contains(&t.who));
-        let (px, py) = self.player_pos();
+        let (px, py) = self.player_pos_at(seat);
         let dist = |(x, y): (i32, i32)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
         let home = self.buildings.iter().enumerate()
             .filter(|(_, (_, _, s))| matches!(s, BSprite::House(_)))
@@ -2583,7 +2614,8 @@ impl Game {
                     if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
                         let (_, said) = desires::reveal_speech(NAMES[i], &r);
                         self.voiced.push((v, desires::issue_tag(&r)));
-                        if let Some(issue) = desires::hear(&mut self.world, self.player, v, r, self.tick) {
+                        let pe = self.player;
+                if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                             self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                             self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
                         }
@@ -2680,8 +2712,9 @@ impl Game {
             // a constant stream of chatter (the chat still counts either way)
             let n = self.last_chat.len() + (a as usize) + tick as usize;
             if n % 3 == 0 { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
-            relationships::record_interaction(&mut self.world, if b == self.player { b } else { a }, relationships::Interaction {
-                other: if b == self.player { a } else { b }, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
+            let (pe, other) = (self.player, if b == self.player { a } else { b });
+            relationships::record_interaction(&mut self.world, if b == pe { b } else { a }, relationships::Interaction {
+                other, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
             });
             self.last_chat.retain(|(p, _)| *p != (a, b));
             self.last_chat.push(((a, b), tick));
@@ -2698,7 +2731,7 @@ impl Game {
 
     /// A left click on the map at screen point (mx, my), seen through the
     /// caller's camera: rivals rebuff or greet you, villagers get selected
-    pub fn click_map(&mut self, mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32) {
+    pub fn click_map_at(&mut self, seat: usize, mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32) {
         let tick = self.tick;
         // click on a rival villager -> they rebuff you (foreign village is wary)
         for (i, rv) in self.rivals.clone().into_iter().enumerate() {
@@ -2706,7 +2739,7 @@ impl Game {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                 let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
                 if mx < MAP_W as i32 && d < 24.0 {
-                    let p_inf = self.world.get_component::<PlayerCharacter>(self.player).unwrap().influence;
+                    let p_inf = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap().influence;
                     let (msg, tag) = if p_inf > 1.5 {
                         (format!("{}: we've heard of you - the organizer.", RIVAL_NAMES[i]), "opened")
                     } else if p_inf > 0.8 {
@@ -2721,7 +2754,7 @@ impl Game {
         }
         // click on map selects nearest villager
         let on_map = mx < MAP_W as i32;
-        let mut best = self.selected_target;
+        let mut best = self.seats[seat].selected_target;
         let mut best_d = 9999.0f32;
         for (i, v) in self.villagers.iter().enumerate() {
             if let Some(p) = self.world.get_component::<Pos>(*v) {
@@ -2740,10 +2773,10 @@ impl Game {
             if on_map && d < 42.0 && d < best_bd { best_b = Some(i); best_bd = d; }
         }
         // a villager wins the click only if clearly nearer
-        self.selected_building = if best_d + 8.0 < best_bd { None } else { best_b };
-        if self.selected_building.is_some() { self.picked = false; return; }
-        if best_d < 30.0 { self.picked = true; }
-        self.selected_target = best;
+        self.seats[seat].selected_building = if best_d + 8.0 < best_bd { None } else { best_b };
+        if self.seats[seat].selected_building.is_some() { self.seats[seat].picked = false; return; }
+        if best_d < 30.0 { self.seats[seat].picked = true; }
+        self.seats[seat].selected_target = best;
     }
 
     /// Send `who` walking toward `goal` (a person, a shop or a tile).
@@ -2959,7 +2992,8 @@ impl Game {
             if has_lute && rng.below(8) == 0 {
                 self.say(v, "\u{266a}", CHAT_BUBBLE_SECS);
                 if let Some(p) = self.world.get_component::<Pos>(v).copied() {
-                    for &l in self.villagers.iter().chain(std::iter::once(&self.player)) {
+                    let pe = self.player;
+                   for &l in self.villagers.iter().chain(std::iter::once(&pe)) {
                         let near = self.world.get_component::<Pos>(l)
                             .map(|lp| (lp.x - p.x).abs() + (lp.y - p.y).abs() < 3.0).unwrap_or(false);
                         if near {
@@ -2971,7 +3005,7 @@ impl Game {
                 let _ = i;
             }
         }
-        sync_purse(&mut self.world, self.player, false);
+        let pe = self.player; sync_purse(&mut self.world, pe, false);
     }
 
     /// What this person might walk out to buy today: a good that feeds an
@@ -3079,7 +3113,7 @@ impl Game {
         } else if self.tick <= m.playing_until.unwrap() {
             // playing at the market: everyone nearby gets their fill of it
             if let Some(p) = self.world.get_component::<Pos>(m.e).copied() {
-                for &l in self.villagers.iter().chain(std::iter::once(&self.player)) {
+                for &l in self.villagers.iter().chain(std::iter::once(&self.seats[0].player)) {
                     let near = self.world.get_component::<Pos>(l)
                         .map(|lp| (lp.x - p.x).abs() + (lp.y - p.y).abs() < 5.0).unwrap_or(false);
                     if near {
@@ -3114,23 +3148,23 @@ impl Game {
 
     /// The contextual actions that apply right now: work at the player's
     /// shop, pair a picked junior with a master, send a kid on an errand
-    pub fn update_ctx_actions(&mut self) {
-        self.ctx_actions.clear();
-        let (px, py) = self.player_pos();
+    pub fn update_ctx_actions_at(&mut self, seat: usize) {
+        self.seats[seat].ctx_actions.clear();
+        let (px, py) = self.player_pos_at(seat);
         // Work: the player's own craft, at the bench if they have one
-        if let Some(c) = self.world.get_component::<Craft>(self.player) {
+        if let Some(c) = self.world.get_component::<Craft>(self.seats[seat].player) {
             let near = c.workplace
                 .and_then(|b| self.world.get_component::<Pos>(b))
                 .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0)
                 .unwrap_or(true);
             if near {
-                self.ctx_actions.push(CtxAct::Work);
+                self.seats[seat].ctx_actions.push(CtxAct::Work);
             }
         }
-        if self.selected_building.is_none() {
-            let v = self.villagers[self.selected_target];
+        if self.seats[seat].selected_building.is_none() {
+            let v = self.villagers[self.seats[seat].selected_target];
             if self.world.get_component::<Kid>(v).is_some() {
-                self.ctx_actions.push(CtxAct::Errand);
+                self.seats[seat].ctx_actions.push(CtxAct::Errand);
             } else if let Some(c) = self.world.get_component::<Craft>(v) {
                 let junior = vocation::level_of(c.skill) < Level::Master && c.master.is_none();
                 let has_master = junior && self.villagers.iter().any(|&m| {
@@ -3138,20 +3172,20 @@ impl Game {
                         .map(|mc| mc.vocation == c.vocation && vocation::level_of(mc.skill) == Level::Master).unwrap_or(false)
                 });
                 if has_master {
-                    self.ctx_actions.push(CtxAct::PairUp);
+                    self.seats[seat].ctx_actions.push(CtxAct::PairUp);
                 }
             }
         }
     }
 
     /// Take a contextual action (entry `i` of ctx_actions)
-    pub fn ctx_act(&mut self, i: usize) {
-        let Some(&act) = self.ctx_actions.get(i) else { return };
+    pub fn ctx_act_at(&mut self, seat: usize, i: usize) {
+        let Some(&act) = self.seats[seat].ctx_actions.get(i) else { return };
         let tick = self.tick;
         let msg = match act {
             CtxAct::Work => {
-                let (made, up) = livelihood::work_day(&mut self.world, self.player, tick);
-                let what = self.world.get_component::<Craft>(self.player)
+                let (made, up) = { let pe = self.seats[seat].player; livelihood::work_day(&mut self.world, pe, tick) };
+                let what = self.world.get_component::<Craft>(self.seats[seat].player)
                     .and_then(|c| vocation::output(c.vocation)).unwrap_or("goods");
                 match up {
                     Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
@@ -3160,7 +3194,7 @@ impl Game {
                 }
             }
             CtxAct::PairUp => {
-                let v = self.villagers[self.selected_target];
+                let v = self.villagers[self.seats[seat].selected_target];
                 let voc = self.world.get_component::<Craft>(v).map(|c| c.vocation);
                 let master = voc.and_then(|voc| self.villagers.iter().copied().find(|&m| {
                     m != v && self.world.get_component::<Craft>(m)
@@ -3173,24 +3207,24 @@ impl Game {
                         self.world.add_component(rel, relationships::Relationship {
                             from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
                         let mi = self.villagers.iter().position(|x| *x == m).unwrap();
-                        format!("You pair {} with {} - he'll learn faster now.", NAMES[self.selected_target], NAMES[mi])
+                        format!("You pair {} with {} - he'll learn faster now.", NAMES[self.seats[seat].selected_target], NAMES[mi])
                     }
                     None => "No master of their trade to pair them with.".into(),
                 }
             }
             CtxAct::Errand => {
-                let k = self.villagers[self.selected_target];
-                let need = livelihood::needs_input(&self.world, self.player);
-                let pos = *self.world.get_component::<Pos>(self.player).unwrap();
+                let k = self.villagers[self.seats[seat].selected_target];
+                let need = livelihood::needs_input(&self.world, self.seats[seat].player);
+                let pos = *self.world.get_component::<Pos>(self.seats[seat].player).unwrap();
                 let job = need.and_then(|g| livelihood::seller_for(&self.world, g, pos)
                     .map(|from| (g, from)));
                 match job {
                     Some((g, from)) => {
                         self.world.add_component(k, OddJob {
-                            hirer: self.player, good: g.to_string(), qty: 2, from, to: self.player,
+                            hirer: self.seats[seat].player, good: g.to_string(), qty: 2, from, to: self.seats[seat].player,
                             pay: 3.0, loaded: false });
                         self.send(k, Goal::RunOddJob);
-                        format!("You send {} to fetch {}.", NAMES[self.selected_target], g)
+                        format!("You send {} to fetch {}.", NAMES[self.seats[seat].selected_target], g)
                     }
                     None => "Nothing you need fetched right now.".into(),
                 }
@@ -3201,10 +3235,10 @@ impl Game {
 
     /// The frame a client draws: the authoritative sim's whole view of the
     /// world this seat should see. One per player seat per broadcast.
-    pub fn ui_model(&self) -> UiModel {
+    pub fn ui_model_at(&self, seat: usize) -> UiModel {
         let world = &self.world;
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
-        let in_reach = self.villagers_in_reach();
+        let in_reach = self.villagers_in_reach_at(seat);
         let mut people: Vec<PersonV> = vec![];
         for (i, v) in self.villagers.iter().enumerate() {
             let Some(p) = world.get_component::<Pos>(*v) else { continue };
@@ -3213,7 +3247,7 @@ impl Game {
                 label: Some(villager_label(i).to_string()),
                 dead: villager::is_dead(world, *v),
                 kid: world.get_component::<Kid>(*v).is_some(),
-                selected: self.selected_target == i && self.picked,
+                selected: self.seats[seat].selected_target == i && self.seats[seat].picked,
                 in_reach: in_reach.contains(v),
                 hungry: world.get_component::<Hunger>(*v).map(|h| h.value < 40.0).unwrap_or(false),
                 sick: is_sick(world, *v),
@@ -3229,8 +3263,8 @@ impl Game {
                     selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
-        let (px, py) = self.player_pos();
-        people.push(PersonV { e: self.player, kind: PKind::Player, pos: (px, py),
+        let (px, py) = self.player_pos_at(seat);
+        people.push(PersonV { e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         for (i, &(x, y)) in self.guards.iter().enumerate() {
             people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
@@ -3279,21 +3313,21 @@ impl Game {
                 .or_else(|| self.rivals.iter().position(|r| *r == *e).map(|i| RIVAL_NAMES[i].to_string()));
             Some(BubbleV { e: *e, pos: (p.x, p.y), text: text.clone(), thought: *thought, name })
         }).collect();
-        let org = world.get_component::<Organization>(self.org).unwrap();
+        let org = world.get_component::<Organization>(self.seats[seat].org).unwrap();
         let members: Vec<String> = org.members.iter()
             .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| NAMES[i].to_string()))
             .collect();
-        let issues: Vec<String> = world.get_component::<Organizer>(self.player)
+        let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
             .map(|o| o.issues.iter().map(|t| desires::issue_name(t)).collect()).unwrap_or_default();
-        let p = world.get_component::<PlayerCharacter>(self.player).unwrap();
+        let p = world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap();
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
         let guilds = world.query::<Guild>().len();
-        let blocked = [self.action_blocker(0), self.action_blocker(1), self.action_blocker(2),
-                       self.action_blocker(3), self.action_blocker(4)];
-        let inspector = if self.selected_building.filter(|_| !self.picked).is_some() {
+        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
+                       self.action_blocker_at(seat, 3), self.action_blocker_at(seat, 4)];
+        let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector()
         } else {
-            Some(self.villager_inspector())
+            Some(self.villager_inspector_at(seat))
         };
         UiModel {
             tick: self.tick, frame: self.frame_n,
@@ -3303,10 +3337,10 @@ impl Game {
             stones: self.stones.clone(), buildings, people, bubbles,
             toasts: self.toasts.iter().filter(|(_, until)| self.tick < *until).map(|(m, _)| m.clone()).collect(),
             log: self.log.clone(),
-            sel: Selection { target: self.selected_target, picked: self.picked, building: self.selected_building },
+            sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
-            reach_target: self.reach_target(),
-            blocked, ctx: self.ctx_actions.clone(), inspector,
+            reach_target: self.reach_target_at(seat),
+            blocked, ctx: self.seats[seat].ctx_actions.clone(), inspector,
             panel: PanelV {
                 name: p.name.clone(), standing: crate::game::player::standing(p.influence).to_string(),
                 influence: p.influence, gold: p.resources,
@@ -3366,9 +3400,9 @@ impl Game {
     }
 
     /// The inspector card for the selected villager
-    fn villager_inspector(&self) -> InspectorV {
+    fn villager_inspector_at(&self, seat: usize) -> InspectorV {
         let world = &self.world;
-        let i = self.selected_target;
+        let i = self.seats[seat].selected_target;
         let v = self.villagers[i];
         let mut lines: Vec<Line> = vec![];
         lines.push(Line { x: 60, y: 330, text: NAMES[i].into(), rgb: (255, 255, 255) });
@@ -3426,18 +3460,39 @@ impl Game {
     }
 
     /// One input from this seat: what a key press or click means to the sim.
-    pub fn command(&mut self, cmd: Command) {
+    pub fn command_at(&mut self, seat: usize, cmd: Command) {
         match cmd {
-            Command::Act(i) => self.act(i),
-            Command::CtxAct(i) => self.ctx_act(i),
-            Command::Walk(dx, dy) => { self.approach = None; self.picked = false; self.walk(dx, dy); }
-            Command::Select(i) => { self.selected_target = i; self.picked = true; }
-            Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map(mx, my, cam_x, cam_y, zoom),
+            Command::Act(i) => self.act_at(seat, i),
+            Command::CtxAct(i) => self.ctx_act_at(seat, i),
+            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].picked = false; self.walk_at(seat, dx, dy); }
+            Command::Select(i) => { self.seats[seat].selected_target = i; self.seats[seat].picked = true; }
+            Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
             Command::TogglePause => self.paused = !self.paused,
             Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },
-            Command::CancelApproach => self.approach = None,
+            Command::CancelApproach => self.seats[seat].approach = None,
         }
     }
+    // ---- seat-0 conveniences: the solo game and tests drive seat 0 ----
+    pub fn act(&mut self, i: usize) { self.act_at(0, i) }
+    pub fn ctx_act(&mut self, i: usize) { self.ctx_act_at(0, i) }
+    pub fn walk(&mut self, dx: f32, dy: f32) { self.walk_at(0, dx, dy) }
+    pub fn click_map(&mut self, mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32) { self.click_map_at(0, mx, my, cam_x, cam_y, zoom) }
+    pub fn command(&mut self, cmd: Command) { self.command_at(0, cmd) }
+    pub fn ui_model(&self) -> UiModel { self.ui_model_at(0) }
+    pub fn action_blocker(&self, i: usize) -> Option<String> { self.action_blocker_at(0, i) }
+    pub fn villagers_in_reach(&self) -> Vec<Entity> { self.villagers_in_reach_at(0) }
+    pub fn reach_target(&self) -> usize { self.reach_target_at(0) }
+    pub fn player_pos(&self) -> (f32, f32) { self.player_pos_at(0) }
+    pub fn update_ctx_actions(&mut self) { self.update_ctx_actions_at(0) }
+    pub fn advance_approach(&mut self) { self.advance_approach_at(0) }
+    pub fn call_meeting(&mut self) -> String { self.call_meeting_at(0) }
+    pub fn talk_to(&mut self, i: usize) -> String { self.talk_to_at(0, i) }
+    pub fn dist_to(&self, who: usize) -> f32 { self.dist_to_at(0, who) }
+    pub fn path_to(&self, who: usize) -> Option<Vec<(i32, i32)>> { self.path_to_at(0, who) }
+    pub fn start_approach(&mut self, who: usize, action: usize) -> Option<String> { self.start_approach_at(0, who, action) }
+    pub fn build_site(&self) -> Option<(f32, f32)> { self.build_site_at(0) }
+
+
 }
 
 
@@ -5897,3 +5952,4 @@ mod hud_tests {
         assert_eq!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), (20, 20, 32), "no backing strip under the HUD");
     }
 }
+

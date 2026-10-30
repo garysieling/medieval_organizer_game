@@ -162,6 +162,8 @@ impl Assets {
             ("elder", "f") => "MinifolksVillagers/MinifolksVillagers/Without Outline/MiniOldWoman.png".into(),
             ("noble", "m") => "MinifolksVillagers/MinifolksVillagers/Without Outline/MiniNobleMan.png".into(),
             ("noble", "f") => "MinifolksVillagers/MinifolksVillagers/Without Outline/MiniNobleWoman.png".into(),
+            ("princess", _) => "MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPrincess.png".into(),
+            ("queen", _) => "MinifolksVillagers/MinifolksVillagers/Without Outline/MiniQueen.png".into(),
             _ => "MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png".into(),
         }
     }

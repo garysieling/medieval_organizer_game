@@ -23,7 +23,38 @@ impl Buffer {
 
     /// Fill rectangle
     pub fn rect(&mut self, x: i32, y: i32, w: i32, h: i32, r: u8, g: u8, b: u8) {
-        for dy in 0..h { for dx in 0..w { self.set(x+dx, y+dy, r, g, b); } }
+        // clip once, then fill whole rows at a time (this used to call set()
+        // per pixel - fine for small boxes, but the full-screen clears and
+        // panel fills made it the hottest line in the frame)
+        let (x0, y0) = (x.max(0), y.max(0));
+        let (x1, y1) = ((x + w).min(self.width as i32), (y + h).min(self.height as i32));
+        if x0 >= x1 || y0 >= y1 { return; }
+        let px = [r, g, b, 255];
+        for dy in y0..y1 {
+            let row = &mut self.pixels[(dy as usize * self.width + x0 as usize) * 4..(dy as usize * self.width + x1 as usize) * 4];
+            for p in row.chunks_exact_mut(4) { p.copy_from_slice(&px); }
+        }
+    }
+
+    /// Copy a w x h region of `src` (its top-left at src_x, src_y) onto this
+    /// buffer at (dst_x, dst_y), clipped to both buffers
+    pub fn blit_from(&mut self, src: &Buffer, src_x: i32, src_y: i32, dst_x: i32, dst_y: i32, w: i32, h: i32) {
+        // clip to the destination: shift the source window to match
+        let (mut sx, mut sy, mut dx, mut dy, mut w, mut h) = (src_x, src_y, dst_x, dst_y, w, h);
+        if dx < 0 { sx -= dx; w += dx; dx = 0; }
+        if dy < 0 { sy -= dy; h += dy; dy = 0; }
+        // clip to the source: shift the destination to match
+        if sx < 0 { dx -= sx; w += sx; sx = 0; }
+        if sy < 0 { dy -= sy; h += sy; sy = 0; }
+        w = w.min(self.width as i32 - dx).min(src.width as i32 - sx);
+        h = h.min(self.height as i32 - dy).min(src.height as i32 - sy);
+        if w <= 0 || h <= 0 { return; }
+        let bytes = w as usize * 4;
+        for row in 0..h as usize {
+            let s = ((sy as usize + row) * src.width + sx as usize) * 4;
+            let d = ((dy as usize + row) * self.width + dx as usize) * 4;
+            self.pixels[d..d + bytes].copy_from_slice(&src.pixels[s..s + bytes]);
+        }
     }
 
     /// Draw diamond (isometric tile)

@@ -41,6 +41,7 @@ impl Terrain {
     fn fractal(size: usize, roughness: f32, seed: u64) -> (usize, Vec<Vec<f32>>) {
         let mut rng = Rng::new(seed);
         // size must be 2^n + 1 for diamond-square; round up to nearest valid
+        let want = size;
         let n = ((size - 1) as f32).log2().ceil() as u32;
         let size = (1usize << n) + 1;
 
@@ -101,7 +102,26 @@ impl Terrain {
             }
         }
 
-        (size, heights)
+        // diamond-square only makes 2^n + 1 grids: when the caller asked for
+        // a size that isn't one, resample the (bigger) grid down to it
+        if size != want && want > 1 {
+            let mut out = vec![vec![0.0f32; want]; want];
+            for y in 0..want {
+                let sy = y as f32 * (size - 1) as f32 / (want - 1) as f32;
+                let (y0, fy) = (sy as usize, sy.fract());
+                for x in 0..want {
+                    let sx = x as f32 * (size - 1) as f32 / (want - 1) as f32;
+                    let (x0, fx) = (sx as usize, sx.fract());
+                    let (x1, y1) = ((x0 + 1).min(size - 1), (y0 + 1).min(size - 1));
+                    let top = heights[y0][x0] + (heights[y0][x1] - heights[y0][x0]) * fx;
+                    let bot = heights[y1][x0] + (heights[y1][x1] - heights[y1][x0]) * fx;
+                    out[y][x] = top + (bot - top) * fy;
+                }
+            }
+            heights = out;
+        }
+
+        (want, heights)
     }
 
     /// Generate terrain using midpoint displacement (diamond-square), on a

@@ -4,5 +4,12 @@ members = [
 ]
 resolver = "2"
 
+# The game is a software renderer - it repaints a 1440x960 buffer every
+# frame, which is unusably slow unoptimized. Optimize our own crate in dev
+# builds (PLAY.md runs `cargo run --bin game_ui`, a dev-profile binary) while
+# keeping debug info and assertions.
+[profile.dev.package.game2-core]
+opt-level = 2
+
 [workspace.dependencies]
 # Add shared dependencies here as needed

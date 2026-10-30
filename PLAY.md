@@ -73,7 +73,9 @@ Skill climbs **journeyman -> apprentice -> master** with use - fast under
 a paired master, slow alone. Workshops stockpile goods for sale; a trade
 with no shop works at half rate, and a shop with no worker stands derelict.
 Children (flagged "(child)") run odd jobs for a few gold. The tax
-collector takes his yearly cut from everyone - including you.
+collector takes his yearly cut from everyone - including you. Out past
+the wall lives Willa the herb-wife: she keeps wild patches picked, brews
+the pickings into remedies, and the sick walk out to her hut for a cure.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

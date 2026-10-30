@@ -43,6 +43,9 @@ pub enum TownRole {
     TaxCollector,
     /// Sells the imported goods no one makes here from a stall at the market
     Trader,
+    /// The wise woman in the herb hut outside the wall: forages, brews,
+    /// and treats the sick who walk out to her
+    Herbologist,
 }
 
 /// How far up the trade someone is: journeyman, then apprentice, then master

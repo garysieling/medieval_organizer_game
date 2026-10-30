@@ -3,7 +3,8 @@
 //! Plants/natural stuff that is pseudo-medical.
 
 use crate::engine::ecs::{Entity, World};
-use crate::sim::illness::Treatment;
+use crate::game::household::{self, Building};
+use crate::sim::illness::{Disease, Stage, Treatment};
 
 /// A medicinal herb/plant
 #[derive(Debug)]
@@ -80,6 +81,89 @@ pub const PRACTICE_GAIN: f32 = 0.02;
 /// Whether an herb's effect treats illness (vs. mood/energy/visions)
 pub fn treats_illness(effect: HerbEffect) -> bool {
     matches!(effect, HerbEffect::Healing | HerbEffect::PainRelief | HerbEffect::Purifying)
+}
+
+/// The herbs that heal rather than soothe or stir visions: what the
+/// herb-wife stocks her hut with and what a forage trip is for
+pub fn medicinal_herbs() -> Vec<(&'static str, PrepMethod, f32)> {
+    herb_tree().into_iter()
+        .filter(|(_, effect, _, _)| treats_illness(*effect))
+        .map(|(name, _, prep, potency)| {
+            let name: &'static str = match name.as_str() {
+                "willow_bark" => "willow_bark",
+                "yarrow" => "yarrow",
+                "sage" => "sage",
+                _ => "sage",
+            };
+            (name, prep, potency)
+        })
+        .collect()
+}
+
+/// Whether an apothecary knows a medicinal cure for this herb
+pub fn knows_cure(world: &World, apothecary: Entity, herb: &str) -> bool {
+    let known = world.get_component::<Apothecary>(apothecary)
+        .map(|a| a.known_herbs.contains(&herb.to_string())).unwrap_or(false);
+    known && medicinal_herbs().iter().any(|(n, _, _)| *n == herb)
+}
+
+/// Brew one of the hut's raw herbs into a remedy on the apothecary's
+/// shelf: one stock unit out, one Remedy recorded. Returns the remedy's
+/// efficacy (potency x skill x traditional-prep fit), or None when the
+/// hut has no herb she knows a cure for
+pub fn brew_from_stock(world: &mut World, apothecary: Entity, hut: Entity) -> Option<f32> {
+    // the stock keys she has a known cure for, tree order (strongest first)
+    let pick = medicinal_herbs().iter().copied()
+        .filter(|(name, _, _)| knows_cure(world, apothecary, name))
+        .find(|(name, _, _)| {
+            world.get_component::<Building>(hut)
+                .map(|b| b.stock.get(*name).copied().unwrap_or(0) > 0).unwrap_or(false)
+        })?;
+    let (name, prep, potency) = pick;
+    {
+        let mut b = world.get_component_mut::<Building>(hut)?;
+        if household::take_stock(&mut b, name, 1) < 1 { return None; }
+    }
+    let herb = spawn_herb(world, name, potency, herb_tree().into_iter()
+        .find(|(n, _, _, _)| n == name).map(|(_, e, _, _)| e).unwrap_or(HerbEffect::Healing), prep);
+    let treatment = prepare_remedy(world, apothecary, herb, prep)?;
+    Some(treatment.efficacy)
+}
+
+/// The strongest remedy she has on the shelf: take it off and hand its
+/// efficacy over (None when the shelf is empty)
+pub fn best_remedy(world: &mut World, apothecary: Entity) -> Option<f32> {
+    let ap = world.get_component_mut::<Apothecary>(apothecary)?;
+    let best = ap.remedies.iter().enumerate()
+        .max_by(|(_, a), (_, b)| a.efficacy.partial_cmp(&b.efficacy).unwrap())?
+        .0;
+    Some(ap.remedies.remove(best).efficacy)
+}
+
+/// How many remedies sit on her shelf
+pub fn remedies_on_hand(world: &World, apothecary: Entity) -> usize {
+    world.get_component::<Apothecary>(apothecary).map(|a| a.remedies.len()).unwrap_or(0)
+}
+
+/// Apply a remedy to a patient: each disease they're fighting loses
+/// `efficacy` severity; a disease beaten outright moves to Recovering,
+/// and a little of the treatment's strength goes into the body's own
+/// condition. Returns whether there was anything to treat
+pub fn apply_efficacy(world: &mut World, patient: Entity, efficacy: f32) -> bool {
+    let mut treated = false;
+    for d in world.query::<Disease>() {
+        let Some(dis) = world.get_component_mut::<Disease>(d) else { continue };
+        if dis.patient != patient || dis.stage == Stage::Recovering { continue; }
+        dis.severity -= efficacy;
+        treated = true;
+        if dis.severity <= 0.0 { dis.stage = Stage::Recovering; }
+    }
+    if treated {
+        if let Some(h) = world.get_component_mut::<crate::sim::illness::Health>(patient) {
+            h.condition = (h.condition + efficacy * 0.2).min(1.0);
+        }
+    }
+    treated
 }
 
 /// An apothecary prepares `herb` by `method` into a treatment for the sick.

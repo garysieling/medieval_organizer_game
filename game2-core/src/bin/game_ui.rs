@@ -752,6 +752,17 @@ fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     s.scaled(w, h).blit(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32);
 }
 
+/// Draw a piece of the town wall standing on the tile centred on (sx, sy):
+/// scaled like the ground blocks (the pack draws its castle pieces for the
+/// same 91x50 block face), so the piece's footprint is exactly the tile face
+/// and its base lands on the tile's edges instead of overhanging them
+fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+    let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+    let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
+    let (w, h) = ((s.width as f32 * kx).round() as usize, (s.height as f32 * ky).round().max(1.0) as usize);
+    s.scaled(w, h).blit(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32);
+}
+
 /// Where a windmill's sails turn: on the front of its tower, just below the
 /// roof (MILL_HUB, in the tower sprite's pixels), for a tower drawn with
 /// draw_on_tile on the tile centred on (sx, sy)
@@ -779,14 +790,6 @@ fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u
     }).collect()
 }
 const SMOKE_SECS: u32 = 2;
-
-/// Whether something standing on tile (bx, by) hides someone at (x, y)
-/// behind it: it's nearer the viewer (further down the screen) and they
-/// stand close enough behind it to be covered by it on screen
-fn hides(bx: f32, by: f32, x: f32, y: f32) -> bool {
-    let (ahead, across) = ((bx + by) - (x + y), ((bx - by) - (x - y)).abs());
-    ahead > 0.3 && ahead < 3.0 && across < 1.2
-}
 
 /// Draw a tree or boulder standing in the middle of the tile centred on
 /// (sx, sy), at the ground blocks' scale (the pack draws them for its blocks)
@@ -1419,16 +1422,28 @@ impl<'a> Game<'a> {
             }
         }
 
-        // buildings, trees and boulders, back to front
-        // (x, y, sprite, is a building, how much of it stands)
+        // everything standing on the map, people included, drawn back to
+        // front in one painter's-order pass: whatever is nearer covers what
+        // is behind it (people used to be painted over the lot and the
+        // occluders re-drawn on top, which flipped nearer pieces back behind
+        // farther ones - glitched seams, e.g. on the town wall)
+        #[derive(Clone, Copy)]
+        enum Piece<'a> {
+            Building(&'a Option<Sprite>, f32), // a house, and how much of it stands
+            Prop(&'a Option<Sprite>),          // a tree or boulder in the middle of its tile
+            Castle(&'a Option<Sprite>),        // a town-wall block: wall, gatehouse or tower
+        }
+        #[derive(Clone, Copy)]
+        enum Who { Vill(usize), Rival(usize), Player, Pet, Mill, Smoke(usize) }
+
         let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
-        let mut standing: Vec<(f32, f32, &Option<Sprite>, bool, f32)> = self.buildings.iter().enumerate()
-            .map(|(i, (x, y, s))| (*x, *y, *s, true, risen(i))).collect();
-        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, &set.tree, false, 1.0)));
-        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, &art.stone_s, false, 1.0)));
+        let mut standing: Vec<(f32, f32, Piece)> = self.buildings.iter().enumerate()
+            .map(|(i, (x, y, s))| (*x, *y, Piece::Building(*s, risen(i)))).collect();
+        standing.extend(self.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(&set.tree))));
+        standing.extend(self.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(&art.stone_s))));
         let rocks = (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| self.map.get(x, y) == Some(Tile::Rock));
-        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, &art.stone_s, false, 1.0)));
+        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(&art.stone_s))));
         standing.extend(self.map.walls.iter().map(|&((x, y), piece)| {
             let sprite = match piece {
                 WallPiece::AlongX => &art.walls[0],
@@ -1437,155 +1452,160 @@ impl<'a> Game<'a> {
                 WallPiece::GateAlongY => &art.walls[3],
                 WallPiece::Tower => &art.tower_s,
             };
-            (x as f32, y as f32, sprite, true, 1.0)
+            (x as f32, y as f32, Piece::Castle(sprite))
         }));
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-        let draw_standing = |buf: &mut Buffer, &(bx, by, sprite, building, up): &(f32, f32, &Option<Sprite>, bool, f32)| {
-            if let Some(s) = sprite {
-                let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
-                if !building { draw_prop(buf, s, sx, sy, zoom); }
-                else if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
-                else if up > 0.0 {
-                    // going up: the bottom of the house, from the ground up
-                    let rows = ((s.height as f32 * up).round() as usize).max(1);
-                    draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
-                }
+        let draw_piece = |buf: &mut Buffer, &(bx, by, piece): &(f32, f32, Piece)| {
+            let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
+            match piece {
+                Piece::Prop(sprite) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom); },
+                Piece::Castle(sprite) => if let Some(s) = sprite { draw_castle(buf, s, sx, sy, zoom); },
+                Piece::Building(sprite, up) => if let Some(s) = sprite {
+                    if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
+                    else if up > 0.0 {
+                        // going up: the bottom of the house, from the ground up
+                        let rows = ((s.height as f32 * up).round() as usize).max(1);
+                        draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
+                    }
+                },
             }
         };
-        for st in &standing { draw_standing(&mut buf, st); }
 
-        // chimney smoke: a few small puffs rising off each home's roof,
-        // drifting with the wind and thinning out (the pack's smoke sprite is
-        // a cluster of balls, which just read as circles on the roof)
+        // people share the pass, along with the windmill and the chimney
+        // smoke, which stand where their tower and houses stand
+        let mut people: Vec<(f32, f32, Who)> = vec![];
+        if art.mill_tower.is_some() { people.push((MILL_TILE.0, MILL_TILE.1, Who::Mill)); }
         if art.house_s.is_some() {
-            for (i, (bx, by, _)) in self.buildings.iter().enumerate().take(3) {
-                let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
-                for (x, y, size, grey) in smoke_puffs(self.frame_n + i as u32 * 37, sx, sy, zoom) {
-                    buf.rect(x, y, size, size, grey, grey, grey + 6);
-                }
+            for i in 0..self.buildings.len().min(3) {
+                people.push((self.buildings[i].0, self.buildings[i].1, Who::Smoke(i)));
             }
         }
-
-        // windmill: the tower on its tile, its sails turning on the tower's
-        // face (frame cycles every 10 ticks)
-        let (msx, msy) = iso_to_screen_cam(MILL_TILE.0, MILL_TILE.1, cam_x, cam_y, zoom);
-        if let Some(tower) = &art.mill_tower {
-            draw_on_tile(&mut buf, tower, msx, msy, zoom);
-            if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
-                let (hx, hy) = mill_hub(tower, msx, msy, zoom);
-                let k = MILL_SAILS * 2.0 * TILE_W as f32 * zoom / tower.width as f32;
-                let (w, h) = ((sails.width as f32 * k).round() as i32, (sails.height as f32 * k).round() as i32);
-                draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, k);
-            }
+        people.extend(villagers.iter().enumerate()
+            .filter_map(|(i, v)| world.get_component::<Pos>(*v).map(|p| (p.x, p.y, Who::Vill(i)))));
+        people.extend(self.rivals.iter().enumerate()
+            .filter_map(|(i, v)| world.get_component::<Pos>(*v).map(|p| (p.x, p.y, Who::Rival(i)))));
+        let player_pos = self.player_pos();
+        people.push((player_pos.0, player_pos.1, Who::Player));
+        // the dog keeps by its owner - whoever that is now: PetBondSystem
+        // rehomes it when its owner dies; a stray lingers where it was first
+        // kept, by Aldric
+        if let Some(p) = world.get_component::<Pet>(self.dog).and_then(|pet| world.get_component::<Pos>(pet.owner.unwrap_or(villagers[0]))) {
+            people.push((p.x + 0.8, p.y + 0.5, Who::Pet));
         }
+        people.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
 
         // market food stock: shown in the HUD (top-left), not on the market
         // tile, where villagers always gather to eat and covered it up
         let food_stock = world.get_component::<villager::FoodSource>(self.market_food)
             .map(|f| f.servings).unwrap_or(0);
 
-
-        // villagers as sprites (sorted by y for depth)
-        let mut v_sorted: Vec<(usize, f32, f32)> = villagers.iter().enumerate()
-            .filter_map(|(i, v)| world.get_component::<Pos>(*v).map(|p| (i, p.x, p.y)))
-            .collect();
-        v_sorted.sort_by(|a, b| (a.1 + a.2).partial_cmp(&(b.1 + b.2)).unwrap());
         // name labels are drawn after every sprite (so no sprite covers one)
         // and de-overlapped: (text, x, y, colour, hungry, selected)
         let mut labels: Vec<(&str, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
-        for (i, wx, wy) in v_sorted {
-            let (sx, sy) = iso_to_screen_cam(wx, wy, cam_x, cam_y, zoom);
-            // the dead get a gravestone where they fell, not their standing figure
-            if world.get_component::<Health>(villagers[i]).is_none() {
-                let top = draw_grave(&mut buf, sx, sy, zoom);
-                let (lx, _) = name_label_pos(sx, sy, NAMES[i]);
-                labels.push((NAMES[i], lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, i == selected_target));
-                continue;
-            }
-            draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
-            let (lx, ly) = name_label_pos(sx, sprite_label_anchor(&art.villager_sprites[i], sy, zoom), NAMES[i]);
-            let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
-            // bright when close enough to talk, recruit or meet; dim otherwise
-            let rgb = if in_reach.contains(&villagers[i]) { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
-            labels.push((NAMES[i], lx, ly, rgb, hungry, i == selected_target));
-            // sick: a green cross on the other side of the head
-            if is_sick(world, villagers[i]) {
-                let (m, (r, g, b), _) = MARK_SICK;
-                draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), m, r, g, b);
-            }
-            // activity marker beside the head
-            if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
-                match vil.activity {
-                    Activity::Idle => {},
-                    a => {
-                        let (m, (r, g, b), _) = if a == Activity::SeekingFood { MARK_FOOD } else { MARK_BUSY };
-                        draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), m, r, g, b);
+        let mut standing = standing.iter().peekable();
+        for &(px, py, who) in &people {
+            while let Some(st) = standing.next_if(|st| st.0 + st.1 <= px + py) { draw_piece(&mut buf, st); }
+            match who {
+                // windmill: the tower on its tile, its sails turning on the
+                // tower's face (frame cycles every 10 ticks)
+                Who::Mill => {
+                    if let Some(tower) = &art.mill_tower {
+                        let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                        draw_on_tile(&mut buf, tower, msx, msy, zoom);
+                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                            let (hx, hy) = mill_hub(tower, msx, msy, zoom);
+                            let k = MILL_SAILS * 2.0 * TILE_W as f32 * zoom / tower.width as f32;
+                            let (w, h) = ((sails.width as f32 * k).round() as i32, (sails.height as f32 * k).round() as i32);
+                            draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, k);
+                        }
                     }
-                }
-            }
-        }
-
-        // the dog keeps by its owner - whoever that is now: PetBondSystem
-        // rehomes it when its owner dies; a stray lingers where it was first
-        // kept, by Aldric
-        if let Some(pet) = world.get_component::<Pet>(self.dog) {
-            let keeper = pet.owner.unwrap_or(villagers[0]);
-            if let Some(owner_p) = world.get_component::<Pos>(keeper) {
-                let (dx, dy) = iso_to_screen_cam(owner_p.x + 0.8, owner_p.y + 0.5, cam_x, cam_y, zoom);
-                // standing on its spot, drawn at the villagers' scale
-                let h = match &art.dog {
-                    Some(dog) => {
-                        let (w, h) = ((dog.width as f32 * 2.0 * zoom) as i32, (dog.height as f32 * 2.0 * zoom) as i32);
-                        draw_zoomed(&mut buf, dog, dx - w / 2, dy - h, 2.0 * zoom);
-                        h
+                },
+                // chimney smoke: a few small puffs rising off each home's
+                // roof, drifting with the wind and thinning out (the pack's
+                // smoke sprite is a cluster of balls, which just read as
+                // circles on the roof)
+                Who::Smoke(i) => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    for (x, y, size, grey) in smoke_puffs(self.frame_n + i as u32 * 37, sx, sy, zoom) {
+                        buf.rect(x, y, size, size, grey, grey, grey + 6);
                     }
-                    None => 0,
-                };
-                if pet.bond_strength > 0.5 {
-                    labels.push(("<3", dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
-                }
+                },
+                Who::Vill(i) => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    // the dead get a gravestone where they fell, not their standing figure
+                    if world.get_component::<Health>(villagers[i]).is_none() {
+                        let top = draw_grave(&mut buf, sx, sy, zoom);
+                        let (lx, _) = name_label_pos(sx, sy, NAMES[i]);
+                        labels.push((NAMES[i], lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, i == selected_target));
+                    } else {
+                        draw_character(&mut buf, &art.villager_sprites[i], sx, sy, zoom);
+                        let (lx, ly) = name_label_pos(sx, sprite_label_anchor(&art.villager_sprites[i], sy, zoom), NAMES[i]);
+                        let hungry = world.get_component::<Hunger>(villagers[i]).map(|h| h.value < 40.0).unwrap_or(false);
+                        // bright when close enough to talk, recruit or meet; dim otherwise
+                        let rgb = if in_reach.contains(&villagers[i]) { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
+                        labels.push((NAMES[i], lx, ly, rgb, hungry, i == selected_target));
+                        // sick: a green cross on the other side of the head
+                        if is_sick(world, villagers[i]) {
+                            let (m, (r, g, b), _) = MARK_SICK;
+                            draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), m, r, g, b);
+                        }
+                        // activity marker beside the head
+                        if let Some(vil) = world.get_component::<Villager>(villagers[i]) {
+                            match vil.activity {
+                                Activity::Idle => {},
+                                a => {
+                                    let (m, (r, g, b), _) = if a == Activity::SeekingFood { MARK_FOOD } else { MARK_BUSY };
+                                    draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), m, r, g, b);
+                                }
+                            }
+                        }
+                    }
+                },
+                Who::Pet => {
+                    if let Some(pet) = world.get_component::<Pet>(self.dog) {
+                        let (dx, dy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                        // standing on its spot, drawn at the villagers' scale
+                        let h = match &art.dog {
+                            Some(dog) => {
+                                let (w, h) = ((dog.width as f32 * 2.0 * zoom) as i32, (dog.height as f32 * 2.0 * zoom) as i32);
+                                draw_zoomed(&mut buf, dog, dx - w / 2, dy - h, 2.0 * zoom);
+                                h
+                            }
+                            None => 0,
+                        };
+                        if pet.bond_strength > 0.5 {
+                            labels.push(("<3", dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
+                        }
+                    }
+                },
+                // rival villagers (foreign settlement)
+                Who::Rival(i) => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    // rival sprite tinted different
+                    let anchor = match &art.player_s {
+                        Some(rs) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
+                        None => label_anchor(sy, zoom),
+                    };
+                    let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
+                    labels.push((RIVAL_NAMES[i], lx, ly, (255, 140, 140), false, false));
+                },
+                // player sprite at their actual position
+                Who::Player => {
+                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                    if let Some(ps) = &art.player_s {
+                        draw_character(&mut buf, ps, sx, sy, zoom);
+                        // gold ring under player
+                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                    } else {
+                        draw_rect(&mut buf, sx - 4, sy - 8, 8, 8, 255, 255, 255);
+                    }
+                    let anchor = art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom));
+                    let (lx, ly) = name_label_pos(sx, anchor, "YOU");
+                    labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
+                },
             }
         }
-
-        // rival villagers (foreign settlement)
-        for (i, rv) in self.rivals.iter().enumerate() {
-            if let Some(p) = world.get_component::<Pos>(*rv) {
-                let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
-                // rival sprite tinted different
-                let anchor = match &art.player_s {
-                    Some(rs) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
-                    None => label_anchor(sy, zoom),
-                };
-                let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
-                labels.push((RIVAL_NAMES[i], lx, ly, (255, 140, 140), false, false));
-            }
-        }
-
-        // player sprite at their actual position
-        let player_pos = self.player_pos();
-        let (px, py) = iso_to_screen_cam(player_pos.0, player_pos.1, cam_x, cam_y, zoom);
-        if let Some(ps) = &art.player_s {
-            draw_character(&mut buf, ps, px, py, zoom);
-            // gold ring under player
-            buf.rect(px - 12, py - 4, 24, 3, 255, 215, 0);
-        } else {
-            draw_rect(&mut buf, px - 4, py - 8, 8, 8, 255, 255, 255);
-        }
-        let anchor = art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, py, zoom)).unwrap_or(label_anchor(py, zoom));
-        let (lx, ly) = name_label_pos(px, anchor, "YOU");
-        labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
-
-        // someone behind a house, a wall or a tree is hidden by it: redraw
-        // what stands just in front of and across each person (their names
-        // still go on top of everything)
-        let mut people: Vec<(f32, f32)> = villagers.iter().chain(&self.rivals).chain([&self.player])
-            .filter_map(|e| world.get_component::<Pos>(*e)).map(|p| (p.x, p.y)).collect();
-        if let Some(p) = world.get_component::<Pet>(self.dog).and_then(|pet| world.get_component::<Pos>(pet.owner.unwrap_or(villagers[0]))) {
-            people.push((p.x + 0.8, p.y + 0.5));
-        }
-        for st in &standing {
-            if people.iter().any(|&(x, y)| hides(st.0, st.1, x, y)) { draw_standing(&mut buf, st); }
-        }
+        for st in standing { draw_piece(&mut buf, st); }
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
@@ -2485,14 +2505,24 @@ mod depth_tests {
     use super::*;
 
     #[test]
-    fn test_only_what_stands_in_front_hides_someone() {
-        // standing just behind (up-screen of) a house on (10, 10)
-        assert!(hides(10.0, 10.0, 9.5, 9.5));
-        assert!(hides(10.0, 10.0, 9.0, 10.0));
-        // in front of it, beside it, or far behind: not hidden
-        assert!(!hides(10.0, 10.0, 10.5, 10.5));
-        assert!(!hides(10.0, 10.0, 12.0, 9.0));
-        assert!(!hides(10.0, 10.0, 7.0, 7.0));
+    fn test_hiding_someone_doesnt_flip_the_wall_piece_in_front() {
+        // someone standing just inside the town wall is hidden by it - but the
+        // piece hiding them must not paint over the piece in FRONT of it (the
+        // occluder re-draw used to flip the seam back to front, leaving a
+        // glitched spot on the wall)
+        let art = Art::load("../assets");
+        let mut game = Game::new(&art);
+        // a spot where the wall piece at (22,24) and the corner tower at
+        // (23,24) overlap: the tower stands in front, so it owns the seam
+        let (sx, sy) = iso_to_screen_cam(23.0, 24.0, game.cam_x, game.cam_y, game.zoom);
+        let seam = |buf: &Buffer| { let i = ((sy - 30) as usize * W + (sx - 17) as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
+        let render_at = |game: &mut Game, x: f32, y: f32| {
+            *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x, y };
+            game.render((-1, -1))
+        };
+        let clear = render_at(&mut game, 16.0, 16.0);
+        let hidden = render_at(&mut game, 21.0, 23.0);
+        assert_eq!(seam(&clear), seam(&hidden), "hiding the player flipped the tower in front of the wall piece");
     }
 
     #[test]

@@ -249,10 +249,28 @@ pub fn initial_due(seed: u64) -> Vec<(EventId, u64)> {
     EVENTS.iter().map(|s| (s.id, s.gap + rng.next() % s.span)).collect()
 }
 
+/// The events that tell on themselves: what the village notices a few
+/// days out. Ill luck gives warning where foresight is natural - the
+/// pack leaves tracks, the hens feel the fox before it comes
+const OMENS: &[(EventId, &str)] = &[
+    (WolfAtFold, "wolf tracks in the mud by the fold - the dogs won't settle"),
+    (FoxInYard, "the hens won't settle at dusk - something prowls the hedges"),
+];
+/// Days ahead an omen lands
+const OMEN_LEAD: u64 = 5;
+
 impl Game {
     /// The day's rare-event business: what's due comes on, what's here
     /// works its day, what's done walks out or fades
     pub fn events_tick(&mut self, tick: u64) {
+        // what's booked speaks of its coming, a few days out - due is
+        // fixed until it fires, so the day hits once per booking
+        for (id, omen) in OMENS {
+            if self.next_rare.iter().any(|(i, d)| *i == *id && *d == tick + OMEN_LEAD)
+                && self.rare.iter().all(|r| r.id != *id) {
+                self.log.push(format!("t{}: {}.", tick, omen));
+            }
+        }
         // what's due comes on (unless it's already afoot)
         let due: Vec<EventId> = self.next_rare.iter()
             .filter(|(id, d)| tick >= *d && self.rare.iter().all(|r| r.id != *id))

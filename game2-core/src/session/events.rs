@@ -799,6 +799,40 @@ impl Game {
                     f.servings = f.servings.saturating_sub(1);
                 }
             }
+            EventId::LeperBand => {
+                // crusts go out at arm's length: a serving a day off the
+                // store, and the faithful who carry them are counted.
+                // Now and then the camp's cough brushes a near hand.
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    f.servings = f.servings.saturating_sub(1);
+                }
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 6)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Faith, tick) { continue; }
+                    let faithful = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
+                    if !faithful { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, tick + 20);
+                }
+                if self.rare_roll(id) % 8 == 0 {
+                    let nearest = self.villagers.iter().copied()
+                        .filter(|&v| !villager::is_dead(&self.world, v)
+                            && !crate::game::dungeon::unavailable(&self.world, v))
+                        .filter_map(|v| self.world.get_component::<Pos>(v)
+                            .map(|p| ((p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs(), v)))
+                        .filter(|(d, _)| *d < 6).min_by_key(|(d, _)| *d).map(|(_, v)| v);
+                    if let Some(v) = nearest {
+                        if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                            h.condition = (h.condition - 0.04).max(0.01);
+                        }
+                        self.say(v, "The cough brushed me.", CHAT_BUBBLE_SECS);
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1788,6 +1822,36 @@ mod tests {
             assert!(stayed || moved, "their fate was told on {:?}", st);
             assert_eq!(stayed, g.villagers.len() == before + 2, "the roster matches on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::RefugeeFamily), "their camp's gone from {:?}", st);
+        }
+    }
+
+    /// Crusts go out at arm's length: the store thins, the carriers'
+    /// faith is fed - and the frame showed the band first
+    #[test]
+    fn test_the_crusts_and_the_faithful() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let food0 = g.probe().food_servings;
+            g.force_event(EventId::LeperBand);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::LeperBand && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::LeperBand).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a leper band")),
+                "the frame shows the band on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.probe().food_servings < food0, "the crusts went out on {:?}", st);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick),
+                "the charity counted on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::LeperBand), "the bells faded from {:?}", st);
         }
     }
 

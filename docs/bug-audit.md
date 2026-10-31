@@ -31,8 +31,6 @@ Items are removed from this list as their PRs land.
 
 ## P2 — whole subsystems implemented but never invoked
 
-- [ ] **W-041** `sim::epidemic` `spawn_epidemic`/`step_epidemic` never wired — no epidemic loop despite the illness system.
-- [ ] **W-042** `sim::gossip` `spawn_rumor`/`spread_rumor` never wired — rumours can't start or travel.
 - [ ] **W-043** `sim::stratification` `infer_class`/`spawn_position`/`update_status` never wired — class never updates.
 - [ ] **W-044** `sim::world_events` `spawn_event`/`should_fire`/`event_effect` never wired — no world events ever fire.
 - [x] ~~**W-045** `sim::economics` `base_price`/`set_base_price` never consulted — market prices are hardcoded elsewhere (verify which wins).~~ (verified — `vocation::price()` wins in the session; `Market::base_price` runs in the village_sim market)

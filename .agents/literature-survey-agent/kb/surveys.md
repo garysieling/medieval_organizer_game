@@ -599,6 +599,7 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** information-infrastructure, petition-machinery, gag-rule, movement-press, samizdat, church-pulpits, broadcast-networks, brand-symbols, silence-death, indymedia, tactical-freeze, tufekci, suppression-backfire, streisand
 
 ---
+
 ### ROUND 2: Movement Internal Structure — Decisions, Meetings, Training (USER-REQUESTED)
 **Date Completed:** 2026-10-31
 **Domain:** Social Movement Sociology / Participatory Democracy / Movement Pedagogy

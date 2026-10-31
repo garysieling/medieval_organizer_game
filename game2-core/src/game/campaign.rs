@@ -263,7 +263,7 @@ pub fn delegate_role(world: &mut World, campaign: Entity, role: Role, holder: En
     let eligible = world.get_component::<Campaign>(campaign).map(|c| {
         let org = world.get_component::<Organization>(c.org);
         org.map(|o| o.leader == holder || o.members.contains(&holder)).unwrap_or(false)
-    }).unwrap_or(false) && !is_dead(world, holder);
+    }).unwrap_or(false) && !crate::game::dungeon::unavailable(world, holder);
     if !eligible { return false; }
     let Some(c) = world.get_component_mut::<Campaign>(campaign) else { return false };
     c.seats.retain(|s| s.role != role && s.holder != holder);
@@ -296,7 +296,7 @@ pub fn shadow_elite(world: &World, campaign: Entity) -> Option<Entity> {
     let c = world.get_component::<Campaign>(campaign)?;
     let (leader, members) = world.get_component::<Organization>(c.org)
         .map(|o| (o.leader, o.members.clone()))?;
-    let living: Vec<Entity> = members.iter().copied().filter(|&m| !is_dead(world, m)).collect();
+    let living: Vec<Entity> = members.iter().copied().filter(|&m| !crate::game::dungeon::unavailable(world, m)).collect();
     let leader_mass = tie_mass(world, leader, &living);
     living.iter().copied().filter(|&m| m != leader)
         .map(|m| (m, tie_mass(world, m, &living)))
@@ -350,10 +350,11 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     let in_org = |h: Entity| h == leader || members.contains(&h);
 
     let coordinator = seat_holder(world, campaign, Role::TurnoutCoordinator)
-        .filter(|&h| !is_dead(world, h) && in_org(h));
+        .filter(|&h| !crate::game::dungeon::unavailable(world, h) && in_org(h));
     let driver = coordinator
         .or_else(|| shadow_elite(world, campaign))
-        .unwrap_or(leader);
+        .or(Some(leader))
+        .filter(|&d| !crate::game::dungeon::unavailable(world, d))?;
     let drifted = coordinator.is_none() && driver != leader;
 
     use crate::game::relationships::{find_relationship, Relationship};
@@ -361,9 +362,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
         .and_then(|r| w.get_component::<Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
     let mut attendees: Vec<Entity> = vec![];
-    if !is_dead(world, driver) { attendees.push(driver); }
+    attendees.push(driver);
     for m in &members {
-        if *m == driver || is_dead(world, *m) { continue; }
+        if *m == driver || crate::game::dungeon::unavailable(world, *m) { continue; }
         if strength_to(world, *m) >= ATTEND_MIN_TIE { attendees.push(*m); }
     }
 

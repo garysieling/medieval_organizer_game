@@ -39,3 +39,4 @@ pub mod fire;
 pub mod campaign;
 pub mod org_skills;
 pub mod actions;
+pub mod reactions;

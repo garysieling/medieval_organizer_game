@@ -6922,7 +6922,14 @@ impl Game {
             Command::Act(i) => self.act_at(seat, i),
             Command::CtxAct(i) => self.ctx_act_at(seat, i),
             Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].picked = false; self.walk_at(seat, dx, dy); }
-            Command::Select(i) => { self.seats[seat].selected_target = i; self.seats[seat].picked = true; }
+            Command::Select(i) => {
+                // an index off the list is refused, not stored - a client
+                // that sends one can't crash the next scene
+                if i < self.villagers.len() {
+                    self.seats[seat].selected_target = i;
+                    self.seats[seat].picked = true;
+                }
+            }
             Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
             Command::TogglePause => self.paused = !self.paused,
             Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },

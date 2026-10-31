@@ -97,10 +97,13 @@ pub fn vote_for(world: &World, member: Entity, candidates: &[IssueTag], tick: u6
             .filter(|&&w| !desires::is_satisfied(world, member, w, tick))
             .map(|&w| desires::issue_tag(world, member, &Reveal::Want(w))));
     }
-    candidates.iter()
-        .filter(|c| tags.contains(*c))
-        .max_by_key(|c| tags.iter().filter(|t| *t == *c).count())
-        .cloned()
+    // Most matching stakes wins; an equal match keeps the recommended order
+    let mut best: Option<(usize, &IssueTag)> = None;
+    for c in candidates {
+        let n = tags.iter().filter(|t| *t == c).count();
+        if n > 0 && best.map(|(b, _)| n > b).unwrap_or(true) { best = Some((n, c)); }
+    }
+    best.map(|(_, c)| c.clone())
 }
 
 /// Does a grievance have someone to point at? These suit CommonFoe.
@@ -290,6 +293,18 @@ mod tests {
         let vote = hold_issue_vote(&w, o, &candidates, Framing::SharedGrievance, 10).unwrap();
         assert_eq!(vote.winner, "the taxes", "the dead cast no ballot");
         assert_eq!(vote.ballots.len(), 1);
+    }
+
+    #[test]
+    fn test_a_voter_torn_between_issues_takes_the_recommendation() {
+        // taxed AND broke: either fight is theirs, so they back the one
+        // the organizer put first
+        let mut w = World::new();
+        let m = member(&mut w);
+        add_grievance(&mut w, m, Problem::Taxed, 100);
+        add_grievance(&mut w, m, Problem::Broke, 100);
+        let candidates = vec!["poverty".to_string(), "the taxes".to_string()];
+        assert_eq!(vote_for(&w, m, &candidates, 10).as_deref(), Some("poverty"));
     }
 
     #[test]

@@ -4,6 +4,7 @@
 pub mod model;
 pub mod net;
 pub mod driver;
+pub mod record;
 pub mod events;
 pub mod probe;
 pub mod stage;
@@ -11,6 +12,7 @@ pub mod stage;
 pub use model::*;
 pub use net::*;
 pub use driver::*;
+pub use record::*;
 
 use crate::engine::ecs::{Entity, Scheduler, World};
 use crate::engine::render::Buffer;
@@ -511,10 +513,10 @@ fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
 
 // Minimap: the same isometric projection as the map, shrunk to fit a box at
 // the bottom of the side panel (so up on the minimap is up on screen)
-const MM_W: i32 = 320;
-const MM_H: i32 = 160;
-const MM_LEFT: i32 = UI_X as i32 + 10;
-const MM_TOP: i32 = 660;
+pub const MM_W: i32 = 320;
+pub const MM_H: i32 = 160;
+pub const MM_LEFT: i32 = UI_X as i32 + 10;
+pub const MM_TOP: i32 = 660;
 
 /// Minimap px per tile step along the x/y diagonal: as small as the box
 /// needs so the whole map fits whatever its size
@@ -2779,6 +2781,8 @@ impl Game {
         };
         // the same pace whichever way they go, diagonals included
         let len = (dx * dx + dy * dy).sqrt();
+        // a still stick or noise on the wire: no step, and never a NaN position
+        if !(len.is_finite() && len > 0.0) { return; }
         let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
         let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
         if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {
@@ -3764,15 +3768,33 @@ impl Game {
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
-            Goal::Eat => self.world.get_component::<Pos>(self.market_food)
-                .map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::Eat => {
+                // the village table while it's laid: folk eat at their
+                // own market, and only a bare shelf sends them hunting
+                // for the next source
+                let market_laid = self.world.get_component::<villager::FoodSource>(self.market_food)
+                    .map(|f| f.servings > 0).unwrap_or(false);
+                if market_laid {
+                    self.world.get_component::<Pos>(self.market_food)
+                        .map(|p| (p.x.round() as i32, p.y.round() as i32))
+                } else {
+                    self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter_map(|f| self.world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x.round() as i32, fp.y.round() as i32),
+                                (fp.x - from.x).abs() + (fp.y - from.y).abs())))
+                        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                        .map(|(p, _)| p)
+                }
+            }
         };
         let Some(to) = to else { return false };
         // nobody hikes halfway to the next village on an errand (the tax
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -4444,6 +4466,12 @@ impl Game {
     /// worth the name bargains it down; a strong one may stand against
     /// a summons - and pay for it when the next writ comes double.
     pub fn edict_tick(&mut self, tick: u64) {
+        // word rides ahead of the bailiff: the village hears the writ's
+        // coming a few days before it lands - time to gather, to bargain,
+        // or to hide the grain
+        if tick % 120 == 76 {
+            self.log.push(format!("t{}: word on the road - the bailiff rides this way. A writ comes down in a few days.", tick));
+        }
         if tick % 120 != 80 { return; }
         let kind = (tick / 120) % 3;
         // the debt counts the defiances - a summons reads it before the
@@ -5417,6 +5445,8 @@ impl Game {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
         for t in self.travels.iter_mut() {
             if t.path.is_empty() { continue; }
+            // the dead finish no errands - the errand ends where they fell
+            if villager::is_dead(&self.world, t.who) { t.path.clear(); continue; }
             // a well-worn path is quicker underfoot - trails::movement_cost
             // is the one place the worn-way discount is worked out
             let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
@@ -5572,7 +5602,11 @@ impl Game {
                 }
             }
             Goal::TalkTo(e) => {
-                if Some(e) == self.matchmaker && who != e {
+                if crate::game::dungeon::unavailable(&self.world, e) {
+                    // whoever they meant to greet is gone or behind bars -
+                    // a grave isn't a conversation, and neither is a cell
+                    self.say(who, "Oh.", TALK_BUBBLE_SECS);
+                } else if Some(e) == self.matchmaker && who != e {
                     // a lonely heart comes to sit with the heart-helper
                     self.match_attempt(who, tick, Some(e), "the heart-helper");
                 } else if self.ink_boiler.as_ref().map(|b| b.e) == Some(e) && who != e {
@@ -5589,15 +5623,25 @@ impl Game {
             }
             Goal::Wander => {}
             Goal::Eat => {
-                // a real meal off the store - if the day's hunger system
-                // already fed them mid-errand, no second helping goes down
+                // a real meal off the nearest table - if the day's hunger
+                // system already fed them mid-errand, no second helping
                 let still_hungry = self.world.get_component::<Hunger>(who)
                     .map(|h| h.value < 100.0).unwrap_or(false);
-                let served = still_hungry && self.world.get_component_mut::<villager::FoodSource>(self.market_food)
-                    .map(|f| { if f.servings > 0 { f.servings -= 1; true } else { false } })
-                    .unwrap_or(false);
-                if served {
-                    if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                let table = self.world.get_component::<Pos>(who).copied()
+                    .map(|p| self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter(|&f| self.world.get_component::<Pos>(f)
+                            .map(|fp| (fp.x - p.x).abs() + (fp.y - p.y).abs() < 3.0).unwrap_or(false))
+                        .next());
+                if still_hungry {
+                    if let Some(Some(t)) = table {
+                        let served = self.world.get_component_mut::<villager::FoodSource>(t)
+                            .map(|f| { f.servings -= 1; true }).unwrap_or(false);
+                        if served {
+                            if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                        }
+                    }
                 }
             }
             Goal::Herd(_) => {}
@@ -5718,10 +5762,25 @@ impl Game {
                         }
                     }
                 } else {
-                    // delivered: goods to the hirer, pay to the kid
+                    // delivered: goods to the hirer, pay to the kid. A hirer
+                    // who died waiting gets no satchel and pays no coin - the
+                    // goods land in the place's stock if there is one
                     let qty = self.world.get_component_mut::<Satchel>(who)
                         .and_then(|s| s.goods.get_mut(&job.good).map(|q| { let n = (*q).min(job.qty); *q -= n; n }))
                         .unwrap_or(0);
+                    if villager::is_dead(&self.world, job.hirer) {
+                        if let Some(b) = self.world.get_component_mut::<Building>(job.to) {
+                            *b.stock.entry(job.good.clone()).or_insert(0) += qty;
+                        } else {
+                            // no place to leave them: the kid keeps what they carried
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                                *s.goods.entry(job.good.clone()).or_insert(0) += qty;
+                            }
+                        }
+                        self.say(who, "...he's gone.", CHAT_BUBBLE_SECS);
+                        self.world.remove_component::<OddJob>(who);
+                        return;
+                    }
                     if let Some(s) = self.world.get_component_mut::<Satchel>(job.hirer) {
                         *s.goods.entry(job.good).or_insert(0) += qty;
                     }
@@ -5861,9 +5920,19 @@ impl Game {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
             // hunger comes first: a starving person abandons any errand
-            // to look for food - even one already under way
+            // to look for food - even one already under way. And looking
+            // means walking: the store has the day's meal
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
-            if hungry { self.travels.retain(|t| t.who != v); continue; }
+            if hungry {
+                self.travels.retain(|t| t.who != v);
+                let at_store = self.world.get_component::<Pos>(self.market_food)
+                    .zip(self.world.get_component::<Pos>(v))
+                    .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
+                    .unwrap_or(false);
+                if at_store { self.arrive(v, Goal::Eat); }
+                else { self.send(v, Goal::Eat); }
+                continue;
+            }
             if self.travels.iter().any(|t| t.who == v) { continue; }
             if self.world.get_component::<Kid>(v).is_some() { continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
@@ -5963,10 +6032,13 @@ impl Game {
     /// gather site when the land provides
     pub fn errand_for_input(&mut self, v: Entity, input: &'static str, _i: usize) -> bool {
         let pos = match self.world.get_component::<Pos>(v) { Some(p) => *p, None => return false };
-        // a kid can run it: nearby, idle, not already on a job
+        // a kid can run it: any child about - nearby, idle, not already
+        // on a job. The village grows, so it's the Kid mark that counts,
+        // not whichever three were born first
         if self.rng.below(100) < 40 {
-            for &ki in &KID_IDXS {
-                let k = self.villagers[ki];
+            let kids: Vec<Entity> = self.villagers.iter().copied()
+                .filter(|&k| self.world.get_component::<Kid>(k).is_some()).collect();
+            for k in kids {
                 if villager::is_dead(&self.world, k) || self.travels.iter().any(|t| t.who == k)
                     || self.world.get_component::<OddJob>(k).is_some() { continue; }
                 let near = self.world.get_component::<Pos>(k)
@@ -10520,6 +10592,18 @@ mod walk_tests {
     }
 
     #[test]
+    fn test_a_still_walk_stick_leaves_the_player_where_they_stood() {
+        // a zero Walk command (a held key let go, or noise on the wire)
+        // used to divide by zero and NaN the player's position away
+        let mut game = Game::new();
+        let (x, y) = game.player_pos();
+        game.walk(0.0, 0.0);
+        let (nx, ny) = game.player_pos();
+        assert!(nx.is_finite() && ny.is_finite(), "the player fell off the world ({},{})", nx, ny);
+        assert_eq!((nx, ny), (x, y));
+    }
+
+    #[test]
     fn test_roads_are_quicker() {
         let mut game = Game::new();
         let road = (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
@@ -12357,11 +12441,87 @@ mod agent_tests {
         g.seats.push(Seat { player: who, ..Seat::default() });
         g.agent_command(1, AgentCmd::Eat).unwrap();
         assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)));
-        // and on arrival a serving goes down and the belly fills
+        // and on arrival - the walk done, standing at the table - a
+        // serving goes down and the belly fills
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(who).unwrap() = sp;
         g.arrive(who, Goal::Eat);
         assert_eq!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0);
         assert_eq!(g.world.get_component::<villager::FoodSource>(g.market_food).unwrap().servings,
             servings - 1, "a real serving went down");
+    }
+
+    #[test]
+    fn test_the_hungry_walk_to_the_store_not_just_stand_about() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        // low enough that a stray egg breakfast still leaves them hungry
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 2.0;
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(who).unwrap() = Pos { x: sp.x + 6.0, y: sp.y };
+        g.livelihood_tick(1);
+        assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)),
+            "a hungry villager is sent for the meal, not left standing");
+    }
+
+    #[test]
+    fn test_a_dead_hirer_pays_no_coin() {
+        let mut g = Game::new();
+        let kid = g.villagers[26];
+        let hirer = g.villagers[0];
+        let to = g.building_entities[0];
+        g.world.get_component_mut::<Satchel>(kid).unwrap().goods.insert("wheat".into(), 2);
+        if g.world.get_component::<Purse>(kid).is_none() {
+            g.world.add_component(kid, Purse { gold: 0.0 });
+        }
+        g.world.add_component(kid, OddJob {
+            hirer, good: "wheat".into(), qty: 2, from: hirer, to, pay: 5.0, loaded: true });
+        g.world.add_component(hirer, villager::Dead);
+        let stock_before = g.world.get_component::<Building>(to).unwrap().stock.get("wheat").copied().unwrap_or(0);
+        let kid_gold = g.world.get_component::<Purse>(kid).unwrap().gold;
+        g.arrive(kid, Goal::RunOddJob);
+        assert_eq!(g.world.get_component::<Purse>(kid).unwrap().gold, kid_gold,
+            "a corpse pays no coin");
+        assert_eq!(g.world.get_component::<Building>(to).unwrap().stock.get("wheat").copied().unwrap_or(0),
+            stock_before + 2, "the goods land in the place's stock");
+        assert!(g.world.get_component::<OddJob>(kid).is_none(), "the errand ends there");
+    }
+
+    #[test]
+    fn test_the_dead_finish_no_errands() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 20.0;
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        g.travels.push(Travel { who, path: vec![(sp.x.round() as i32, sp.y.round() as i32)], goal: Goal::Eat });
+        g.world.add_component(who, villager::Dead);
+        g.advance_travels();
+        assert!(!g.travels.iter().any(|t| t.who == who), "the errand ends where they fell");
+        assert_ne!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0, "a corpse eats nothing");
+    }
+
+    #[test]
+    fn test_no_conversation_is_had_with_the_dead() {
+        let mut g = Game::new();
+        let (who, e) = (g.villagers[0], g.villagers[1]);
+        g.world.add_component(e, villager::Dead);
+        g.arrive(who, Goal::TalkTo(e));
+        assert!(g.world.query::<relationships::Relationship>().iter()
+            .filter(|&&r| g.world.get_component::<relationships::Relationship>(r)
+                .map(|rr| rr.from == who && rr.other == e).unwrap_or(false))
+            .count() == 0, "a grave isn't a conversation");
+    }
+
+    #[test]
+    fn test_the_hungry_at_the_store_eat_where_they_stand() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 2.0;
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(who).unwrap() = Pos { x: sp.x, y: sp.y };
+        g.livelihood_tick(1);
+        assert_eq!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0,
+            "already at the store: the meal goes down now");
     }
 
     #[test]

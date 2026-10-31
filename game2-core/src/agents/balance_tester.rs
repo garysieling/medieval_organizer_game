@@ -73,6 +73,11 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
     if has(&[" died", "hanged", "driven out", "turns ", "run off"]) {
         return (Valence::Negative, Thread::Lifecycle);
     }
+    // word of the law riding in is neither a writ nor a defiance: the
+    // warning beat itself is neutral news on the Law thread
+    if has(&["rides this way", "rides out this way"]) {
+        return (Valence::Neutral, Thread::Law);
+    }
     if has(&["stocks", "summons", "taken for questioning", "held at the castle", "bailiff", "writ", "reckoning"]) {
         let v = if has(&["stands against", "rides home empty", "walks free"]) { Valence::Positive } else { Valence::Negative };
         return (v, Thread::Law);

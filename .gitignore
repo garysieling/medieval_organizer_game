@@ -54,3 +54,6 @@ Thumbs.db
 art-prompts/generated.json
 __pycache__/
 /target-loop/
+
+# Recorded gameplay videos - review artifacts, too big for git
+/evidence/videos/

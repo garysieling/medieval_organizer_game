@@ -1401,6 +1401,8 @@ pub struct Pedlar {
     pub selling_until: Option<u64>,
     /// His pitch while he's here
     pub stall: Option<Entity>,
+    /// The river tale's told once per visit
+    pub rumor_sold: bool,
 }
 
 /// The map tests and tooling use: Game::new is always this one
@@ -5606,7 +5608,7 @@ impl Game {
         let start = self.traveller_path.last().copied().unwrap_or((29, 14));
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
         let path = self.map.walk_path(start, (16, 16)).unwrap_or_default();
-        self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None });
+        self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None, rumor_sold: false });
         self.log.push(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick));
     }
 
@@ -5659,6 +5661,17 @@ impl Game {
             }
             self.pedlar = Some(m);
         } else if self.tick <= m.selling_until.unwrap() {
+            // the river tale: he sells it once, and it gets around -
+            // true or not is a world parameter
+            if !m.rumor_sold {
+                m.rumor_sold = true;
+                self.say(m.e, "They say a thing glows under the river - a pale stone, older than the walls.", TALK_BUBBLE_SECS * 2);
+                // someone who hears it carries it on
+                if let Some(&v) = self.villagers.iter().find(|&&v|
+                    !villager::is_dead(&self.world, v)) {
+                    self.say(v, "The pedlar swears he saw it glow.", CHAT_BUBBLE_SECS);
+                }
+            }
             self.pedlar = Some(m); // selling at the market
         } else {
             // the road calls: pack up and walk off

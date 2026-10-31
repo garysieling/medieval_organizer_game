@@ -35,8 +35,6 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-048** `sim::illness::apply_treatment` never called — no illness is ever treated in the live sim.~~ (partially stale — live curing runs via `herbology::apply_efficacy`; dead `apply_treatment` deleted)
 - [x] ~~**W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.~~ (stale — all wired transitively: `knows_cure`←`brew_from_stock`, `treats_illness`/`herb_tree`←`medicinal_herbs`, used by the SeekRemedy path)
 - [x] ~~**W-050** `jobs` `work_tick`/`sells_goods` never called — the jobs system never ticks (verify whether vocation/livelihood replaced it and jobs.rs should go).~~ (stale — both run inside `JobSystem`, scheduled by the `game_loop` driver)
-- [ ] **W-051** `lifecycle::spawn_person` never called — nobody is ever born; `KidGrowth` only ages existing kids, so the village can only shrink.
-- [ ] **W-052** `migration` `spawn_migrants`/`integrate`/`migration_effects` never called — no newcomers ever arrive (pilgrim-settling is text-game only).
 - [ ] **W-053** `succession` `spawn_lineage`/`succession_crisis` never called — a succession crisis can never trigger.
 - [ ] **W-054** `trade_routes` `route_should_form`/`spawn_route`/`spawn_caravan`/`trade_tick` never called — no caravans or routes ever form.
 - [ ] **W-055** `warfare` `spawn_conflict`/`conflict_effects` never called — conflicts can't start or resolve.

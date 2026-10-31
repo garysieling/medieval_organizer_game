@@ -4620,6 +4620,58 @@ impl Game {
         }
     }
 
+    /// A child born to a full house: a Kid like the ones the village
+    /// started with, bedded where they were born
+    fn spawn_kid(&mut self, home: Entity, tick: u64) {
+        let (x, y) = self.world.get_component::<Pos>(home).map(|p| (p.x, p.y)).unwrap_or((14.0, 14.0));
+        let v = villager::spawn_villager(&mut self.world, x + 0.5, y + 0.5);
+        self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+        self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        self.world.add_component(v, personality_from_seed(self.rng.next()));
+        self.world.add_component(v, Satchel::default());
+        self.world.add_component(v, Known::default());
+        self.world.add_component(v, Kid);
+        self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
+        self.world.add_component(v, Purse { gold: 0.0 });
+        self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
+        self.villagers.push(v);
+        self.log.push(format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
+    }
+
+    /// A full house gets a child every so often - two grown folk under
+    /// one roof, and the roof fills out from there
+    fn maybe_birth(&mut self, tick: u64) {
+        for &b in &self.building_entities.clone() {
+            let full = self.world.get_component::<Building>(b)
+                .map(|bb| bb.kind == BuildingKind::Home
+                    && bb.occupants.iter().filter(|&&o|
+                        self.world.get_component::<Kid>(o).is_none()
+                        && !villager::is_dead(&self.world, o)).count() >= 2)
+                .unwrap_or(false);
+            if full && self.rng.next() % 3 == 0 { self.spawn_kid(b, tick); return; }
+        }
+    }
+
+    /// A stranger settles: trade in hand and no roof over them yet -
+    /// the first thing on their mind is a bed
+    fn maybe_migrant(&mut self, tick: u64) {
+        let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
+        let v = villager::spawn_villager(&mut self.world, x, y);
+        self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+        self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+        self.world.add_component(v, personality_from_seed(self.rng.next()));
+        self.world.add_component(v, Satchel::default());
+        self.world.add_component(v, Known::default());
+        self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),
+            0.1 + (self.rng.next() % 40) as f32 / 100.0));
+        self.world.add_component(v, Purse { gold: 8.0 });
+        self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        desires::add_grievance(&mut self.world, v, desires::Problem::NoHome, tick + 60);
+        self.villagers.push(v);
+        self.log.push(format!("t{}: a stranger settles - {} has come to town.", tick, vill_name(self.villagers.len() - 1)));
+    }
+
     /// What a cause leaves on people fades on its own clock: a season
     /// cools a moral shock (reactions::cool_off), a month dulls a
     /// blow-off (actions::lifts_with_time). Coaching is still the fast
@@ -5677,6 +5729,10 @@ impl Game {
         if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
         // and the pedlar comes by every few weeks - the game's newspaper
         if self.pedlar.is_none() && tick >= self.next_pedlar { self.spawn_pedlar(); }
+        // and the village grows the way it shrinks - one at a time: a
+        // child in a full house, a stranger at the gate
+        if tick > 0 && tick % 40 == 0 { self.maybe_birth(tick); }
+        if tick > 0 && tick % 60 == 30 { self.maybe_migrant(tick); }
         // and a circus camps outside the walls every year or so
         if self.circus.is_none() && tick >= self.next_circus { self.spawn_circus(); }
         // and the ink-maker boils his oil where the law wants it: outside
@@ -12212,5 +12268,41 @@ mod agent_tests {
         assert_eq!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0);
         assert_eq!(g.world.get_component::<villager::FoodSource>(g.market_food).unwrap().servings,
             servings - 1, "a real serving went down");
+    }
+}
+
+#[cfg(test)]
+mod growth_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_full_house_gets_a_child() {
+        let mut g = Game::new();
+        // a house with two grown folk: room fills out from there
+        let home = g.building_entities.iter().copied().find(|&b|
+            g.world.get_component::<Building>(b).map(|bb| bb.kind == BuildingKind::Home).unwrap_or(false)).unwrap();
+        let two: Vec<Entity> = g.villagers[..2].to_vec();
+        g.world.get_component_mut::<Building>(home).unwrap().occupants = two;
+        let n = g.villagers.len();
+        g.maybe_birth(40); // may or may not, it's a roll - keep calling until the roll lands
+        for t in (40..400).step_by(40) { if g.villagers.len() > n { break; } g.maybe_birth(t); }
+        assert!(g.villagers.len() > n, "a full house gets a child");
+        let baby = *g.villagers.last().unwrap();
+        assert!(g.world.get_component::<Kid>(baby).is_some());
+        assert!(g.world.get_component::<KidGrowth>(baby).is_some());
+        assert!(g.log.iter().any(|l| l.contains("born")), "{:?}", g.log.last());
+    }
+
+    #[test]
+    fn test_a_stranger_settles_at_the_gate() {
+        let mut g = Game::new();
+        let n = g.villagers.len();
+        g.maybe_migrant(30);
+        assert_eq!(g.villagers.len(), n + 1);
+        let m = *g.villagers.last().unwrap();
+        // trade in hand, and the first thing on their mind is a bed
+        assert!(g.world.get_component::<Craft>(m).is_some());
+        assert!(desires::problems_of(&g.world, m, g.tick).contains(&desires::Problem::NoHome));
+        assert!(g.log.iter().any(|l| l.contains("settles")), "{:?}", g.log.last());
     }
 }

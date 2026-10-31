@@ -92,7 +92,9 @@ fn next_keeper(world: &World, dead_owner: Entity) -> Option<Entity> {
         .filter_map(|r| world.get_component::<Relationship>(r))
         .filter_map(|r| {
             let other = if r.from == dead_owner { r.other } else if r.other == dead_owner { r.from } else { return None };
-            (r.strength > 0.0 && !is_dead(world, other)).then_some((other, r.strength))
+            // a pet goes to the closest who can still keep it - no
+            // hound goes begging to the lock-up
+            (r.strength > 0.0 && !crate::game::dungeon::unavailable(world, other)).then_some((other, r.strength))
         })
         .max_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(e, _)| e)

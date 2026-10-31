@@ -32,25 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F10. Smell as a system
-
-*`sprint-7-perfume-and-smell.md`; unifies F2 `Smelly`, F7 rot, F20 perfume.*
-
-**What.** A `smell` field per entity/zone (stables, tanner, herb-hut,
-person after work); it shows in talk ("she smells of the fold") and
-damps/boosts social rolls; washed off at rain/well; perfume counters it.
-
-**Spec.** `Smell { intensity, kind }` recomputed daily from vocation +
-conditions. Talk/meeting lines render it; reveal-roll modifiers. Kept
-deliberately thin — it's texture that other features hook, not a sim.
-**Size: S.**
-
----
-
-## Wave 2 — The social economy (people, power, and time)
-
-
-
 ### F14. Perceived-power matrix — power recognizes power
 
 *`sprint-7-organizing-power.md`; `sim/organized_power.rs` exists.*

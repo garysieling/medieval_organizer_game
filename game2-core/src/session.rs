@@ -15,7 +15,7 @@ use crate::engine::sprite::{Sprite, Assets};
 use crate::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
-use crate::game::villager::{self, Hunger, Villager, Activity, Pos};
+use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
 use crate::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
 use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
@@ -3860,6 +3860,46 @@ impl Game {
         }
     }
 
+    /// The day's work leaves its smell: the fold, the smoke, the cut.
+    /// The rain washes everyone clean.
+    pub fn smell_tick(&mut self, tick: u64) {
+        let _ = tick;
+        let raining = self.precip.map(|p| matches!(p,
+            crate::sim::precipitation::PrecipKind::Rain
+            | crate::sim::precipitation::PrecipKind::HeavyRain
+            | crate::sim::precipitation::PrecipKind::Showers)).unwrap_or(false);
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if raining {
+                if let Some(s) = self.world.get_component_mut::<Smell>(v) { s.intensity = 0.0; }
+                continue;
+            }
+            let kind = self.world.get_component::<Craft>(v).and_then(|c| match c.vocation {
+                Vocation::Shepherd => Some("the fold"),
+                Vocation::Beekeeper => Some("smoke and wax"),
+                Vocation::Mason => Some("the cut"),
+                Vocation::Weaver => Some("the dye"),
+                _ => None,
+            });
+            // and the herb-wife always carries her bitter herbs
+            let kind = kind.or_else(|| if Some(v) == self.herbologist { Some("bitter herbs") } else { None });
+            if let Some(kind) = kind {
+                if let Some(s) = self.world.get_component_mut::<Smell>(v) {
+                    s.intensity = (s.intensity + 0.15).min(1.0);
+                    s.kind = kind;
+                } else {
+                    self.world.add_component(v, Smell { intensity: 0.15, kind });
+                }
+            }
+        }
+    }
+
+    /// What they smell of, if anything worth mentioning
+    pub fn smells_of(&self, v: Entity) -> Option<&'static str> {
+        self.world.get_component::<Smell>(v)
+            .filter(|s| s.intensity > 0.6).map(|s| s.kind)
+    }
+
     /// The year's feast days: one mid-season each quarter, the village
     /// gathers at the market, the good stock comes out, and for a day
     /// the wants that never quite get fed are fed
@@ -4024,7 +4064,11 @@ impl Game {
             .filter(|w| self.world.get_component::<InnerLife>(b).map(|lb| lb.wants.contains(w)).unwrap_or(false))
             .count()).unwrap_or(0);
         let feuded = self.rel_kind(a, b) == Some(relationships::RelKind::Rival);
-        let spark = 0.5 + shared as f32 * 0.1 - if feuded { 0.15 } else { 0.0 };
+        // and smell tells on a suitor: "she smells of the fold"
+        let smelly = self.smells_of(a).is_some() || self.smells_of(b).is_some();
+        if smelly { self.say(a, "...you smell of the work, friend.", CHAT_BUBBLE_SECS); }
+        let spark = 0.5 + shared as f32 * 0.1 - if feuded { 0.15 } else { 0.0 }
+            - if smelly { 0.15 } else { 0.0 };
         // a deterministic spark per pair and month - no rng spent, so the
         // same village always courts the same way
         let roll = ((a as u64).wrapping_mul(73856093) ^ (b as u64).wrapping_mul(19349663)
@@ -4366,6 +4410,8 @@ impl Game {
         self.garden_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
         self.cheese_tick(tick);
+        // the day's work leaves its smell - unless the rain washes it off
+        self.smell_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -6821,6 +6867,35 @@ mod cheese_tests {
         assert!(gold > vocation::price("cheese") * 2.0, "aged cheese pays triple");
         assert!(g.log.iter().any(|l| l.contains("stone-cellar")),
             "the village's cheese has a name");
+    }
+}
+
+#[cfg(test)]
+mod smell_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_fold_smells_of_the_fold() {
+        let mut g = Game::new();
+        let sh = g.shepherd.unwrap();
+        for _ in 0..5 { g.smell_tick(1); }
+        assert_eq!(g.smells_of(sh), Some("the fold"), "a week of the fold tells on a body");
+        // the rain washes everyone clean
+        g.precip = Some(crate::sim::precipitation::PrecipKind::Rain);
+        g.smell_tick(2);
+        assert!(g.smells_of(sh).is_none(), "a good rain settles it");
+    }
+
+    #[test]
+    fn test_the_herb_wife_carries_bitter_herbs() {
+        let mut g = Game::new();
+        let w = g.herbologist.unwrap();
+        for _ in 0..5 { g.smell_tick(1); }
+        assert_eq!(g.smells_of(w), Some("bitter herbs"));
+        // the tanner's clean by comparison - a farmer smells of nothing much
+        let farmer = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Farmer).unwrap_or(false)).unwrap();
+        assert!(g.smells_of(farmer).is_none(), "a farmer smells of nothing much");
     }
 }
 

@@ -3838,7 +3838,12 @@ impl Game {
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
+        // urgent errands get the long reach: the sick, the hungry, the
+        // flock, home - and a worker's inputs, or the craft starves
+        let cap = match &goal { Goal::CollectTax(_) => 24,
+            Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat
+            | Goal::BuyFrom(..) | Goal::BuyAt(..) => 30,
+            Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -5596,7 +5601,9 @@ impl Game {
     /// Send `who` to gather `good` at tile `t`
     pub fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
-        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 9 { return false; }
+        // gathers get the forage-errand reach: wood and stone have no
+        // other source, and the craft can't wait on a near tree
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 16 { return false; }
         match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
             Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good, t) }); true }
             None => false,

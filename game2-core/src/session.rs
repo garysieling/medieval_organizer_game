@@ -1335,6 +1335,10 @@ const MEETING_PROMPTS: [&str; 3] = [
 /// The village's vocations and how commonly each is rolled
 /// How fast feet wear the ground in, and how fast it greens over
 const TRAIL_PARAMS: TrailParams = TrailParams { reinforce_rate: 0.06, decay_rate: 0.02, saturation: 0.85 };
+/// How much a fully-worn trail cuts the cost of crossing it (the
+/// trails::movement_cost dial): ~1.5x at saturation, matching what the
+/// old ad-hoc speedup gave
+const TRAIL_K: f32 = 0.375;
 
 const VOCATION_ROLL: [(Vocation, i32); 10] = [
     (Vocation::Farmer, 22), (Vocation::Baker, 12), (Vocation::Mason, 10),
@@ -2744,7 +2748,9 @@ impl Game {
     pub fn walk_at(&mut self, seat: usize, dx: f32, dy: f32) {
         let (px, py) = self.player_pos_at(seat);
         let at = (px.round() as i32, py.round() as i32);
-        let spd = WALK_SPEED * match self.map.get(at.0, at.1) {
+        // a well-worn path is quicker underfoot, whoever's feet wear it
+        let worn = self.trails.get(&at).map(|t| t.strength).unwrap_or(0.0);
+        let spd = WALK_SPEED / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
             _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
             _ => 1.0,
@@ -2754,8 +2760,15 @@ impl Game {
         let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
         let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
         if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {
+            let ot = (p.x.round() as i32, p.y.round() as i32);
             p.x = x;
             p.y = y;
+            // feet wear the ground the player walks, same as any villager's
+            let nt = (p.x.round() as i32, p.y.round() as i32);
+            if nt != ot {
+                let tr = self.trails.entry(nt).or_insert(Trail::wild());
+                trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
+            }
         }
     }
 
@@ -5200,12 +5213,13 @@ impl Game {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
         for t in self.travels.iter_mut() {
             if t.path.is_empty() { continue; }
-            // a well-worn path is quicker underfoot
+            // a well-worn path is quicker underfoot - trails::movement_cost
+            // is the one place the worn-way discount is worked out
             let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
             // a lame leg covers less ground in a day
             let slow = self.world.get_component::<villager::Condition>(t.who)
                 .map(|c| if c.kind == "a lame leg" { 0.6 } else { 1.0 }).unwrap_or(1.0);
-            let stride = MEETING_WALK * (1.0 + 0.6 * worn) * slow;
+            let stride = MEETING_WALK / trails::movement_cost(1.0, worn, TRAIL_K) * slow;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
             let ot = (p.x.round() as i32, p.y.round() as i32);
             let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);

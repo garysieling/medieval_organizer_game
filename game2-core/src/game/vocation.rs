@@ -90,6 +90,18 @@ pub struct Craft {
 #[derive(Debug)]
 pub struct Kid;
 
+/// How a kid is growing: the days they've seen, and who keeps giving
+/// them errands (the hirer they run for most often is their likeliest
+/// master when they come of age)
+#[derive(Debug)]
+pub struct KidGrowth {
+    pub age_days: u64,
+    pub errands: Vec<(Entity, u32)>,
+}
+
+/// The day a kid comes of age: a couple of winters' errands makes a hand
+pub const COMING_OF_AGE: u64 = 730;
+
 /// The level a skill puts someone at
 pub fn level_of(skill: f32) -> Level {
     if skill >= 0.75 { Level::Master } else if skill >= 0.4 { Level::Apprentice } else { Level::Journeyman }

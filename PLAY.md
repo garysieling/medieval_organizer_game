@@ -93,7 +93,9 @@ a mason's grief isn't a baker's, so a mixed room only converges on the
 troubles everyone shares - the taxes, the dark, the cursed bread. When a
 master dies the bench passes - to the senior apprentice, else kin under
 the roof, else a journeyman with no shop - and the lord takes his fifth
-of what was left.
+of what was left. And the kids grow up: errands run become bonds, and on
+the day they come of age they take up the trade of whoever kept them
+busiest.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

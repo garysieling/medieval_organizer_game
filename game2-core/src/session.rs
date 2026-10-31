@@ -392,18 +392,36 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("rides over the walls") || entry.contains("circus")
         || entry.contains("bailiff's writ") || entry.contains("a summons")
         || entry.contains("winter") || entry.contains("thin tempers")
+        || entry.contains("gets its colors")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
-/// LOG_GOSSIP_SHOWN pieces of gossip and the latest weather change
+/// LOG_GOSSIP_SHOWN pieces of gossip and the latest weather change.
+/// The moments that matter - sickness, death, an exile - pin to the top:
+/// routine village business scrolls below them no matter how busy it gets.
 fn visible_log(log: &[String]) -> Vec<&String> {
     let (mut gossip, mut weather, mut town) = (0, 0, 0);
-    log.iter().rev().filter(|e| {
+    let filtered: Vec<&String> = log.iter().rev().filter(|e| {
         if is_gossip(e) { gossip += 1; return gossip <= LOG_GOSSIP_SHOWN; }
         if is_weather_note(e) { weather += 1; return weather <= LOG_WEATHER_SHOWN; }
         if is_town_note(e) { town += 1; return town <= LOG_TOWN_SHOWN; }
         true
-    }).collect()
+    }).collect();
+    // stable partition: important entries first (already newest-first),
+    // then the rest - a quiet death still outranks a busy skep-day
+    let (important, rest): (Vec<_>, Vec<_>) = filtered.into_iter()
+        .partition(|e| is_important(e));
+    important.into_iter().chain(rest).collect()
+}
+
+/// An entry the player should still see rows later: illness and loss,
+/// the exile's road, the discovery told
+fn is_important(entry: &str) -> bool {
+    entry.contains("flu") || entry.contains("recovered") || entry.contains("died")
+        || entry.contains("driven out") || entry.contains("run off")
+        || entry.contains("whispers it about") || entry.contains("stocks")
+        || entry.contains("born") || entry.contains("dead")
+        || entry.contains("taken for questioning")
 }
 
 /// Split a log entry stored as "t120: message" into the day the player
@@ -1691,6 +1709,8 @@ pub struct Game {
     /// Whether the winter's running long this year - every other winter
     /// is a harsh one, and the village either pulls together or apart
     pub harsh_winter: bool,
+    /// (building, the day it was painted) - color is clout that fades
+    pub painted: Vec<(Entity, u64)>,
 }
 
 /// How a village keeps its accounts
@@ -1903,12 +1923,20 @@ impl Game {
                 && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
             .unwrap_or(swap3);
         adult_vocs[swap4] = Vocation::Perfumer;
+        // and the paint shop: pigment to clout
+        let swap5 = adult_vocs.iter().rposition(|&v| v != Vocation::Farmer && v != Vocation::Shepherd
+                && v != Vocation::Beekeeper && v != Vocation::Weaver && v != Vocation::Perfumer
+                && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
+            .unwrap_or(swap4);
+        adult_vocs[swap5] = Vocation::Painter;
         for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
         let mut shop_kinds: Vec<BuildingKind> = vec![];
         for v in vocs_present {
             // the fold and the apiary stand apart, seeded on their own
             if v == Vocation::Shepherd || v == Vocation::Beekeeper { continue; }
-            if rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
+            // the trades a feature hangs on always keep their house
+            let must = matches!(v, Vocation::Weaver | Vocation::Perfumer | Vocation::Painter);
+            if must || rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
         }
         // the smithy, church and guildhall already stand: shop for the
         // toolmaker, the priest's church, and the trader's stall
@@ -2421,6 +2449,7 @@ impl Game {
             cured: 0,
             repression_debt: 0,
             harsh_winter: false,
+            painted: vec![],
         }
     }
 
@@ -4064,6 +4093,38 @@ impl Game {
         }
     }
 
+    /// The painter's trade: a pot of paint becomes a bright hall -
+    /// color that fades with the seasons, so the work comes round again.
+    /// The org's hall painted is a power claim the street can see.
+    pub fn painter_tick(&mut self, tick: u64) {
+        // the seasons take the color back - a commission's never done
+        self.painted.retain(|(_, day)| tick < *day + 365);
+        if tick % 14 != 7 { return; }
+        let Some(painter) = self.villagers.iter().copied().find(|&v|
+            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Painter).unwrap_or(false))
+        else { return };
+        let Some(shop) = self.world.get_component::<Craft>(painter).and_then(|c| c.workplace) else { return };
+        let took = self.world.get_component_mut::<Building>(shop)
+            .map(|b| household::take_stock(b, "paint", 1)).unwrap_or(0);
+        if took == 0 { return; }
+        // the org's hall first - a painted hall is a power claim - then
+        // whatever's gone gray
+        let org_hall = household::home_of(&self.world, self.player);
+        let target = org_hall.filter(|h| !self.painted.iter().any(|(b, _)| b == h))
+            .or_else(|| self.building_entities.iter().copied().find(|&b|
+                !self.painted.iter().any(|(pb, _)| *pb == b)
+                && self.world.get_component::<Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)));
+        if let Some(b) = target {
+            self.painted.push((b, tick));
+            let name = self.world.get_component::<Building>(b).map(|bb| bb.name.clone()).unwrap_or_default();
+            self.log.push(format!("t{}: {} gets its colors - the paint shop's work shows.", tick, name));
+            if Some(b) == org_hall {
+                self.record_power(crate::sim::organized_power::ActionQuality::Transactional);
+            }
+        }
+    }
+
     /// Every other winter runs long: the snow keeps falling, the store
     /// thins, and the village either pulls together - an org worth the
     /// name shares what it has - or pulls apart, and looks for who to
@@ -4815,6 +4876,8 @@ impl Game {
         self.edict_tick(tick);
         // and every other winter runs long and tests the village
         self.winter_tick(tick);
+        // and the painter lays color on the village's halls
+        self.painter_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -5468,6 +5531,8 @@ impl Game {
             gardens: self.gardens.iter()
                 .map(|&(_, (x, y), g)| (x as f32, y as f32, g.min(1.0))).collect(),
             sky: self.sky.map(|(k, _)| k.to_string()),
+            painted: self.painted.iter()
+                .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
         }
     }
 
@@ -5920,6 +5985,14 @@ impl View {
                 if x >= 0 && y >= 0 { buf.rect(x - 2, y - 1, 4, 3, r, g, b); }
             }
             buf.rect(hx - 3, hy - 3, 6, 6, 255, 250, 230);
+        }
+        // the painted halls: a bright trim above the door
+        for &(tx, ty) in &m.painted {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(4.0), sy - k(9.0), k(8.0), k(2.0), 200, 160, 40);
+            buf.rect(sx - k(4.0), sy - k(9.0), k(2.0), k(5.0), 160, 60, 140);
+            buf.rect(sx + k(2.0), sy - k(9.0), k(2.0), k(5.0), 60, 100, 160);
         }
         // the garden beds: soil strip, greener as it fills in
         for &(tx, ty, g) in &m.gardens {
@@ -7849,6 +7922,33 @@ mod winter_tests {
 }
 
 #[cfg(test)]
+mod painter_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_hall_gets_its_colors() {
+        let mut g = Game::new();
+        let painter = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Painter).unwrap_or(false));
+        let Some(p) = painter else { panic!("no painter") };
+        let shop = g.world.get_component::<Craft>(p).unwrap().workplace.unwrap();
+        g.world.get_component_mut::<Building>(shop).unwrap()
+            .stock.insert("paint".to_string(), 2);
+        g.painter_tick(7);
+        assert!(!g.painted.is_empty(), "a hall gets its colors");
+        assert!(g.log.iter().any(|l| l.contains("gets its colors")));
+    }
+
+    #[test]
+    fn test_the_color_fades() {
+        let mut g = Game::new();
+        g.painted.push((g.building_entities[0], 10));
+        g.painter_tick(400);
+        assert!(g.painted.is_empty(), "the seasons take the color back");
+    }
+}
+
+#[cfg(test)]
 mod season_tests {
     use super::*;
 
@@ -8390,7 +8490,10 @@ mod log_priority_tests {
         assert!(shown.iter().any(|e| e.contains("has the flu")), "the flu should still be in view: {:?}", shown);
         assert!(shown.iter().any(|e| e.contains("Guild formed")), "the guild should still be in view");
         assert_eq!(shown.iter().filter(|e| is_gossip(e)).count(), LOG_GOSSIP_SHOWN);
-        assert_eq!(shown[0], "t600: Aldric tells Bram - word spreads", "newest first");
+        // the important pin rides above the newest gossip - the flu's
+        // still first; the word-of-mouth line's just under it
+        assert!(shown[0].contains("has the flu"), "important pins top");
+        assert_eq!(shown[1], &"t600: Aldric tells Bram - word spreads".to_string(), "newest of the rest next");
     }
 
     #[test]

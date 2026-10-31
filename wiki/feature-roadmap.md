@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F27. Pigments & painters — color as clout
-
-*Brainstorm "pigment collector / paint maker"; `sprint-4-printmaking`,
-art-history review.*
-
-**What.** A pigment-gatherer (shades of ore, madder, woad from the
-garden) supplies the glazier and a painter trade; orgs and the wealthy
-commission painted signs, murals, and heraldry — visible clout.
-
-**Spec.** `Vocation::Painter` (inputs `["pigment","wood"]`, output =
-applied `Painted` tag on buildings — a persistent bright tint + name).
-Buildings wear off over seasons (re-commission = repeat business). An
-org's painted hall is a visible power claim (F14 sees it). **Size: M.**
-
----
-
 ### F28. Heirloom objects — things with history
 
 *`sprint-7-luthiery-and-minstrels.md` (instruments as items w/ maker,

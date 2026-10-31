@@ -149,7 +149,10 @@ double. And every other winter runs long: the snow keeps falling, the
 stores thin, and the village either pulls together or pulls apart - an
 org worth the name shares what it has, and a weak one goes looking for
 who to blame. The herb-wife's hut looks very different in a hard
-winter.
+winter. The painter keeps the paint shop too - pigment and wood in,
+color on the halls - and a painted hall is a power claim the street
+can see, bright for a season until it fades and the work comes round
+again.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -54,6 +54,14 @@ pub struct Smell {
     pub kind: &'static str,
 }
 
+/// A difference a villager carries: a lame leg, failing sight, a mind
+/// that needs quiet. It's texture, not punchline - the village walks a
+/// little slower for them, and theirs check on them.
+#[derive(Debug, Clone, Copy)]
+pub struct Condition {
+    pub kind: &'static str,
+}
+
 /// A thing made to outlast its maker: a lute, a window, a fine toolset -
 /// named, owned, and passed down. It gathers stories the way a person does.
 #[derive(Debug)]

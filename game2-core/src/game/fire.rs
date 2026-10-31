@@ -39,12 +39,15 @@ impl Fire {
 
     /// Whether a tile can catch: grass and standing crops burn, a hill
     /// burns where it carries a tree, and a building catches whatever it
-    /// sits on; water, rock, road and bridge are the firebreaks
+    /// sits on; water, rock, road, bridge - and the stone of the wall -
+    /// are the firebreaks
     pub fn flammable(map: &TileMap, x: i32, y: i32) -> bool {
+        // the wall's stone doesn't burn, whatever ground it stands on
+        if map.walls.iter().any(|&(p, _)| p == (x, y)) { return false; }
         match map.get(x, y) {
             Some(Tile::Grass) | Some(Tile::Wheat) | Some(Tile::Corn) => true,
-            Some(Tile::Hill) => map.trees.contains(&(x, y)) || map.is_occupied(x, y),
-            Some(_) => map.is_occupied(x, y),
+            Some(Tile::Hill) => map.trees.contains(&(x, y)) || map.buildings.contains(&(x, y)),
+            Some(_) => map.buildings.contains(&(x, y)),
             None => false,
         }
     }
@@ -197,6 +200,28 @@ mod tests {
     }
 
     #[test]
+    fn test_the_wall_is_a_firebreak() {
+        let mut m = map();
+        let mut f = Fire::new();
+        let wall_cells: Vec<(i32, i32)> = m.walls.iter().map(|&(p, _)| p).collect();
+        assert!(!wall_cells.is_empty());
+        for &(x, y) in &wall_cells {
+            assert!(!f.ignite(&m, x, y), "stone doesn't catch at ({},{})", x, y);
+        }
+        // fire on the meadow laps at the wall but never comes through it
+        let (x, y) = (8..=21).flat_map(|x| (24..=27).map(move |y| (x, y)))
+            .find(|&(x, y)| Fire::flammable(&m, x, y))
+            .expect("there's meadow below the south wall");
+        f.ignite(&m, x, y);
+        for t in 1..80 {
+            f.tick_rolled(&mut m, t, |_, _, _| 0.0);
+            if !f.active() { break; }
+        }
+        assert!(f.scorched.keys().all(|c| !wall_cells.contains(c)),
+            "the fire never took the wall");
+    }
+
+    #[test]
     fn test_burning_takes_the_tree_with_it() {
         let mut m = map();
         let mut f = Fire::new();
@@ -208,5 +233,21 @@ mod tests {
         for t in 1..=BURN_TICKS as u64 { f.tick_rolled(&mut m, t, |_, _, _| 1.0); }
         assert!(!m.trees.contains(&(tx, ty)), "the tree is gone");
         assert!(!Fire::flammable(&m, tx, ty), "a bare hill doesn't catch");
+    }
+
+    #[test]
+    fn test_a_house_built_on_a_bare_hill_can_catch() {
+        let mut m = map();
+        let Some(&(hx, hy)) = (0..m.height as i32).flat_map(|y| (0..m.width as i32).map(move |x| (x, y)))
+            .collect::<Vec<_>>().iter()
+            .find(|&&(x, y)| m.get(x, y) == Some(Tile::Hill) && !m.trees.contains(&(x, y)) && !m.is_occupied(x, y))
+        else {
+            panic!("the test map should have a bare, buildable hill");
+        };
+        assert!(!Fire::flammable(&m, hx, hy), "a bare hill carries nothing to burn yet");
+        m.build_at(hx, hy);
+        assert!(Fire::flammable(&m, hx, hy), "a house on the hill is fuel, tree or no tree");
+        let mut f = Fire::new();
+        assert!(f.ignite(&m, hx, hy), "the new house catches");
     }
 }

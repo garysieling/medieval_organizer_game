@@ -1898,7 +1898,7 @@ impl Game {
             (woods_edge_site(&map, wall, (wall.0, (wall.1 + wall.3) / 2)), BSprite::House(8)),
         ] {
             let Some((bx, by)) = site.and_then(|(x, y)| map.nearest_buildable(x, y)) else { continue };
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, sprite));
         }
@@ -1910,7 +1910,7 @@ impl Game {
         for gy in (wall.1 + 3..wall.3 - 1).step_by(3) {
             for gx in (wall.0 + 3..wall.2 - 1).step_by(3) {
                 if let Some((bx, by)) = map.nearest_buildable(gx + rng.around(1), gy + rng.around(1)) {
-                    map.occupy(bx, by);
+                    map.build_at(bx, by);
                     map.connect((bx, by));
                     buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
                 }
@@ -1918,7 +1918,7 @@ impl Game {
         }
         for &(x, y) in &[(wall.0 - 3, wall.3 + 3), (wall.2 + 4, wall.3 + 2), (wall.0 - 5, (wall.1 + wall.3) / 2)] {
             if let Some((bx, by)) = map.nearest_buildable(x, y) {
-                map.occupy(bx, by);
+                map.build_at(bx, by);
                 map.connect((bx, by));
                 buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
             }
@@ -1927,21 +1927,21 @@ impl Game {
         // of the wall, nearer the wild herbs than the market square
         let herb_hut_site = map.nearest_buildable(wall.0 + 1, wall.3 + 3);
         if let Some((bx, by)) = herb_hut_site {
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(5)));
         }
         // the apiary: the beekeeper's yard at the meadow's edge, east of the fold
         let apiary_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 8, wall.3 + 5);
         if let Some((bx, by)) = apiary_site {
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(9)));
         }
         // the fold: the shepherd's pen in the meadow below the town
         let fold_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 3, wall.3 + 4);
         if let Some((bx, by)) = fold_site {
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(7)));
         }
@@ -2007,7 +2007,7 @@ impl Game {
                 else if kind == BuildingKind::Shop(Vocation::Fisher) { (35, 18) }
                 else { (16 + rng.around(4), 15 + rng.around(4)) };
             let Some((bx, by)) = map.nearest_buildable(cx, cy) else { continue };
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
         }
@@ -3188,7 +3188,7 @@ impl Game {
                     let (bx, by) = self.build_site_at(seat).unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, BSprite::House(self.rng.below(97) as usize)));
-                    self.map.occupy(bx as i32, by as i32);
+                    self.map.build_at(bx as i32, by as i32);
                     // the road is laid a tile at a time, then the house goes up
                     let road = self.map.plan_road((bx as i32, by as i32));
                     self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });

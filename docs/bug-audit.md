@@ -42,12 +42,12 @@ Items are removed from this list as their PRs land.
 - [ ] **W-055** `warfare` `spawn_conflict`/`conflict_effects` never called — conflicts can't start or resolve.
 - [ ] **W-056** `military::army_power` never called (`resolve_battle` has a single caller) — battles can't be fought or lost.
 - [ ] **W-057** `tech_tree::can_research` never called — research is never gated; `next_researchable` has one caller, verify it's live.
-- [ ] **W-058** `world::spawn_world` never called — an alternate world-gen path abandoned in place.
-- [ ] **W-059** `terrain::spawn_terrain` never called — `Terrain::generate_country` won; remove or wire.
-- [ ] **W-060** `factions::spawn_faction` never called — factions can never spawn.
-- [ ] **W-061** `traits::spawn_personality` never called — `personality_from_seed` is used instead; two personality paths coexist.
-- [ ] **W-062** `tea` `spawn_tea`/`drink_tea` never called — tea exists only in its module.
-- [ ] **W-063** `textiles` `spawn_textile`/`comfort_level` never called.
+- [x] ~~**W-058** `world::spawn_world` never called — an alternate world-gen path abandoned in place.~~ (fixed — deleted the abandoned `spawn_world` path)
+- [x] ~~**W-059** `terrain::spawn_terrain` never called — `Terrain::generate_country` won; remove or wire.~~ (fixed — `spawn_terrain` deleted; `Terrain::generate_country` is the one path)
+- [x] ~~**W-060** `factions::spawn_faction` never called — factions can never spawn.~~ (fixed — orphaned `factions` module deleted; nothing ever constructed a Faction)
+- [x] ~~**W-061** `traits::spawn_personality` never called — `personality_from_seed` is used instead; two personality paths coexist.~~ (fixed — `spawn_personality` deleted; `personality_from_seed` is the one path)
+- [x] ~~**W-062** `tea` `spawn_tea`/`drink_tea` never called — tea exists only in its module.~~ (fixed — orphaned `tea` module deleted; nothing consumed it)
+- [x] ~~**W-063** `textiles` `spawn_textile`/`comfort_level` never called.~~ (fixed — orphaned `textiles` module deleted; nothing consumed it)
 - [x] ~~**W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.~~ (fixed — the graze point centres on the flock)
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)

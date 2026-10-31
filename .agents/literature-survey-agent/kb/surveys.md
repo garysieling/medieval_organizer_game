@@ -806,3 +806,21 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** ink-making, oil-boiling, linseed-oil, varnish, lampblack, sac-a-noir, printing-ink, Gutenberg, Cennini, Encyclopedie, fire-hazard, urban-zoning, stench-crafts, outside-the-walls, bread-crusts
 
 ---
+
+### SYNTHESIS: The Organizing/Power Architecture (all 12 surveys unified)
+**Date Completed:** 2026-10-31
+**Domain:** Cross-domain synthesis / System Architecture
+**Output:** wiki/literature-reviews/organizing-synthesis-architecture.md
+**Yield:**
+- Unified model: 3 coupled systems (mobilization modes / subject-production / counter-playbook) across a 6-phase lifecycle (build→mobilize→campaign→win→enforce→defend)
+- Core finding: "win" is phase 3 of 5 — movements disband, losers reorganize
+- Org-form spectrum table (open/secret/prophetic/parallel-institution/anchored/crowd) with growth-strength-weakness-counter mappings
+- Subject-production layer (Foucault×Freire): both sides build institutions that manufacture citizen dispositions
+- Unified stats model: organized_power, perceived_power, discipline, paranoia, logistics, brand_saturation, win_integrity, penetration (org) + internalized_domination, critical_agency, courage, dignity, broker_duality (citizen) + legitimacy, repression_debt, perceived_threat (power-holder)
+- Actor taxonomy (organizer, organic leader, prophet, broker, watchdog, marshal, canvasser, infiltrator, informer class)
+- Doc-to-mechanic map + 5-phase implementation path (loop→enemy→depth→forms→long game) + design flags (ethics layer, prophet play, broker play, medieval theming)
+
+**Confidence:** High (synthesis of documented material)
+**Tags:** synthesis, architecture, organizing-systems, mobilization-modes, subject-production, counter-playbook, campaign-lifecycle, stats-model, actor-taxonomy, implementation-path
+
+---

@@ -36,7 +36,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-042** `sim::gossip` `spawn_rumor`/`spread_rumor` never wired — rumours can't start or travel.
 - [ ] **W-043** `sim::stratification` `infer_class`/`spawn_position`/`update_status` never wired — class never updates.
 - [ ] **W-044** `sim::world_events` `spawn_event`/`should_fire`/`event_effect` never wired — no world events ever fire.
-- [ ] **W-045** `sim::economics` `base_price`/`set_base_price` never consulted — market prices are hardcoded elsewhere (verify which wins).
+- [x] ~~**W-045** `sim::economics` `base_price`/`set_base_price` never consulted — market prices are hardcoded elsewhere (verify which wins).~~ (verified — `vocation::price()` wins in the session; `Market::base_price` runs in the village_sim market)
 - [ ] **W-046** `sim::reputation_qsp` `spawn_reputation`/`transition_tick` never stepped — reputation QSP is dormant.
 - [ ] **W-047** `sim::fundamentalism` `fundamentalism_risk`/`is_fundamentalist`/`fundamentalist_effects` never wired.
 - [x] ~~**W-048** `sim::illness::apply_treatment` never called — no illness is ever treated in the live sim.~~ (partially stale — live curing runs via `herbology::apply_efficacy`; dead `apply_treatment` deleted)
@@ -62,13 +62,13 @@ Items are removed from this list as their PRs land.
 - [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
 - [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
 - [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).
-- [ ] **W-071** `economy::run_cycle` never called — the production-chain cycle never runs in a live session.
+- [x] ~~**W-071** `economy::run_cycle` never called — the production-chain cycle never runs in a live session.~~ (stale — runs inside `ProductionSystem`, scheduled by the `village_sim` driver; the session's own livelihood model supersedes it)
 - [x] ~~**W-072** `sanctions::blame_worthy` never called.~~ (fixed — deleted; the blame path adds `Problem::Blamed` directly)
 - [x] ~~**W-073** `relationships::infer_kind` never called — relationship kinds are never re-inferred from interactions.~~ (stale — `record_interaction` re-infers on every interaction; only the decay part of RelationshipSystem is unscheduled)
 - [x] ~~**W-074** `pets::pet_mood_boost` never called — a bonded pet gives its owner nothing.~~ (fixed — `comforting_pet` now comforts in `care_tick`)
 - [x] ~~**W-075** `tilemap::smooth_noise` never called.~~ (stale — called by terrain gen at tilemap.rs:220)
 - [x] ~~**W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.~~ (fixed)
-- [ ] **W-077** `community::exert_influence` never called — org influence is never spent through the community module.
+- [x] ~~**W-077** `community::exert_influence` never called — org influence is never spent through the community module.~~ (stale — the session spends through `OrganizedPower`; `InfluenceSystem`/`exert_influence` is the bin-scoped community API)
 - [ ] **W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.
 - [ ] **W-079** `weather::health_effect` never called — weather doesn't touch health.
 - [ ] **W-080** `contracts` `run`/`setup` never called — the contract engine never runs; `seal_aid_pact`/`breach` are text-game-only paths.

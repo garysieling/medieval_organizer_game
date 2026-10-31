@@ -111,7 +111,12 @@ comes out in the toasts, and the tax collector is never invited but
 always shows. Some of the cottages keep a garden bed beside the door -
 the soil strip fills in over the weeks with marigold and feverfew, and
 when the herb-wife's own shelves run thin she tends the beds of folk
-who don't begrudge her.
+who don't begrudge her. A weaver keeps the loom house now - the
+shepherd's wool in, village cloth out - and the tailor cuts local
+cloth before he'd pay the trader's price for it. Down in the cheese
+cellar by the fold the milk becomes wheels in the dark - this village's
+is the stone-cellar cheese - and now and then a noble rides in and pays
+triple for a wheel well past its year.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -387,7 +387,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("takes up") || entry.contains("shuttered")
         || entry.contains("the talk turns") || entry.contains("cold shoulder")
         || entry.contains("boycott") || entry.contains("a crowd at")
-        || entry.contains("the village gathers")
+        || entry.contains("the village gathers") || entry.contains("pays triple")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1627,6 +1627,10 @@ pub struct Game {
     pub sanctioned: Vec<(Entity, Sanction, u64)>,
     /// (home, bed tile, growth) - kitchen gardens beside the cottages
     pub gardens: Vec<(Entity, (i32, i32), f32)>,
+    /// The cheese cellar, the wheels aging in it (start ticks), its character
+    pub cellar: Option<Entity>,
+    pub cheeses: Vec<u64>,
+    pub cellar_trait: &'static str,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -1885,6 +1889,22 @@ impl Game {
                 b.name = "the apiary".into();
             }
             Some(e)
+        });
+        // the cheese cellar: a dark room where wheels age - this
+        // village's is a stone one, every village's cheese is its own
+        let cellar_trait = "stone-cellar";
+        let cellar = fold_site.and_then(|(fx, _)| {
+            let b = building_entities.iter().copied().find(|&e| {
+                world.get_component::<Building>(e).map(|bb|
+                    bb.kind == household::BuildingKind::Home).unwrap_or(false)
+                    && world.get_component::<Pos>(e)
+                        .map(|p| (p.x.round() as i32 - fx).abs() < 6).unwrap_or(false)
+            })?;
+            if let Some(bb) = world.get_component_mut::<Building>(b) {
+                bb.kind = household::BuildingKind::Cellar;
+                bb.name = "the cheese cellar".into();
+            }
+            Some(b)
         });
         // the fold: the building on the site picked earlier, re-kinded to
         // a pasture (Pos-matched so shop-seeding order can't mislabel it)
@@ -2309,6 +2329,9 @@ impl Game {
             reach,
             sanctioned: vec![],
             gardens,
+            cellar,
+            cheeses: vec![],
+            cellar_trait,
         }
     }
 
@@ -3809,6 +3832,34 @@ impl Game {
         }
     }
 
+    /// The cellar's clock: milk down becomes wheels, the wheels age in
+    /// the dark, and now and then a noble rides in and pays triple for a
+    /// well-aged one - this village's cheese is the stone-cellar cheese
+    pub fn cheese_tick(&mut self, tick: u64) {
+        if self.cellar.is_none() { return; }
+        let Some(fold) = self.fold else { return };
+        // milk down: two pails make a wheel, up to a full rack
+        if tick % 7 == 6 && self.cheeses.len() < 8 {
+            let took = self.world.get_component_mut::<Building>(fold)
+                .map(|b| household::take_stock(b, "milk", 2)).unwrap_or(0);
+            if took >= 2 { self.cheeses.push(tick); }
+        }
+        // a noble buyer: the oldest wheel well past its year goes for triple
+        if tick % 90 == 75 && !self.cheeses.is_empty() {
+            let age = tick - self.cheeses[0];
+            if age > 60 {
+                self.cheeses.remove(0);
+                let worth = vocation::price("cheese") * 3.0 * (1.0 + age as f32 / 60.0);
+                if let Some(sh) = self.shepherd {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(sh) { p.gold += worth; }
+                }
+                self.log.push(format!(
+                    "t{}: a noble pays triple for the {} cheese - a wheel {} days aged.",
+                    tick, self.cellar_trait, age));
+            }
+        }
+    }
+
     /// The year's feast days: one mid-season each quarter, the village
     /// gathers at the market, the good stock comes out, and for a day
     /// the wants that never quite get fed are fed
@@ -4313,6 +4364,8 @@ impl Game {
         self.festival_tick(tick);
         // the gardens fill in a little more each week
         self.garden_tick(tick);
+        // milk becomes wheels in the dark, and a noble buys the old ones
+        self.cheese_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -4801,6 +4854,7 @@ impl Game {
             BuildingKind::TraderStall => "Trader's stall",
             BuildingKind::Pasture => "Pasture",
             BuildingKind::Apiary => "Apiary",
+            BuildingKind::Cellar => "Cheese cellar",
         };
         lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
         lines.push(Line { x: 18, y: 340, text: kind_word.into(), rgb: (200, 200, 230) });
@@ -5044,6 +5098,7 @@ impl Game {
                 BuildingKind::Mill => "mill", BuildingKind::Granary => "granary",
                 BuildingKind::TraderStall => "stall", BuildingKind::Pasture => "pasture",
             BuildingKind::Apiary => "apiary",
+            BuildingKind::Cellar => "cellar",
             };
             Some(ObsBuilding { e: *be, name: b.name.clone(), kind: kind.into(), dist: d })
         }).collect();
@@ -6734,6 +6789,38 @@ mod weaver_tests {
                 .and_then(|b| g.world.get_component::<Building>(b))
                 .map(|b| b.stock.get("cloth").copied().unwrap_or(0)).unwrap_or(0);
         assert!(cloth > 0, "wool in, cloth out");
+    }
+}
+
+#[cfg(test)]
+mod cheese_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_cellar_ages_wheels() {
+        let mut g = Game::new();
+        assert!(g.cellar.is_some(), "a cellar stands by the fold");
+        assert_eq!(g.world.get_component::<Building>(g.cellar.unwrap()).unwrap().kind,
+            household::BuildingKind::Cellar);
+        // milk in the fold makes wheels in the dark
+        if let Some(b) = g.world.get_component_mut::<Building>(g.fold.unwrap()) {
+            household::add_stock(b, "milk", 6);
+        }
+        for t in [6u64, 13, 20] { g.cheese_tick(t); }
+        assert!(!g.cheeses.is_empty(), "milk down becomes wheels");
+    }
+
+    #[test]
+    fn test_a_noble_pays_triple_for_an_aged_wheel() {
+        let mut g = Game::new();
+        g.cheeses = vec![0]; // a wheel laid down at the start of time
+        let sh = g.shepherd.unwrap();
+        g.world.get_component_mut::<Purse>(sh).unwrap().gold = 0.0;
+        g.cheese_tick(75);
+        let gold = g.world.get_component::<Purse>(sh).unwrap().gold;
+        assert!(gold > vocation::price("cheese") * 2.0, "aged cheese pays triple");
+        assert!(g.log.iter().any(|l| l.contains("stone-cellar")),
+            "the village's cheese has a name");
     }
 }
 

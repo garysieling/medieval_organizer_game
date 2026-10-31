@@ -28,6 +28,8 @@ pub enum BuildingKind {
     Pasture,
     /// The beekeeper's yard at the meadow's edge: the skeps stand round it
     Apiary,
+    /// The cheese cellar by the fold: wheels age in the dark down there
+    Cellar,
 }
 
 /// A building on the map (entity; its Pos is where it stands)

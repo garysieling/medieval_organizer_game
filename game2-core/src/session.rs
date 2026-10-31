@@ -1600,6 +1600,8 @@ pub struct Game {
     pub church: Option<Entity>,
     /// (who, the day the swarm leaves) - a swarm takes a liking to someone
     pub swarm: Option<(Entity, u64)>,
+    /// The dead whose affairs are settled - succession runs once per soul
+    pub succeeded: Vec<Entity>,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -2238,6 +2240,7 @@ impl Game {
             hives,
             church,
             swarm: None,
+            succeeded: vec![],
         }
     }
 
@@ -3457,6 +3460,69 @@ impl Game {
         }))
     }
 
+    /// The dead hand on: a master's bench goes to the senior apprentice,
+    /// else to kin under their roof, else to a journeyman of the trade -
+    /// else it stands shuttered. Four parts of the purse go with the
+    /// bench; the lord's fifth is the death-duty
+    pub fn succession_tick(&mut self, tick: u64) {
+        let dead_new: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| villager::is_dead(&self.world, v) && !self.succeeded.contains(&v))
+            .collect();
+        for dead in dead_new {
+            self.succeeded.push(dead);
+            self.inherit_shop(dead, tick);
+        }
+    }
+
+    /// One villager's affairs settled
+    fn inherit_shop(&mut self, dead: Entity, tick: u64) {
+        let (Some(shop), voc) = self.world.get_component::<Craft>(dead)
+            .map(|c| (c.workplace, c.vocation)).unwrap_or((None, Vocation::Farmer))
+        else { return };
+        if self.world.get_component::<Building>(shop).is_none() { return }
+        let heir = self.villagers.iter().copied()
+            .find(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Craft>(v).map(|c| c.master == Some(dead)).unwrap_or(false))
+            .or_else(|| {
+                let home = household::home_of(&self.world, dead)?;
+                self.world.get_component::<Building>(home)?.occupants.iter().copied()
+                    .find(|&o| o != dead && !villager::is_dead(&self.world, o)
+                        && self.world.get_component::<Kid>(o).is_none())
+            })
+            .or_else(|| self.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&self.world, v)
+                    && self.world.get_component::<Craft>(v)
+                        .map(|c| c.vocation == voc && c.workplace.is_none()).unwrap_or(false)));
+        let dname = self.villagers.iter().position(|v| *v == dead).map(|i| NAMES[i]).unwrap_or("the dead");
+        match heir {
+            Some(h) => {
+                // a shop only has the one master - give up any other bench
+                let old = self.world.get_component::<Craft>(h).and_then(|c| c.workplace);
+                if let Some(old) = old {
+                    if old != shop {
+                        if let Some(b) = self.world.get_component_mut::<Building>(old) { b.worker = None; }
+                    }
+                }
+                if let Some(c) = self.world.get_component_mut::<Craft>(h) {
+                    c.workplace = Some(shop); c.master = None;
+                }
+                if let Some(b) = self.world.get_component_mut::<Building>(shop) { b.worker = Some(h); }
+                // four parts pass on; the fifth is the lord's
+                let gold = self.world.get_component::<Purse>(dead).map(|p| p.gold).unwrap_or(0.0);
+                if let Some(p) = self.world.get_component_mut::<Purse>(dead) { p.gold = 0.0; }
+                if let Some(p) = self.world.get_component_mut::<Purse>(h) { p.gold += gold * 0.8; }
+                desires::add_grievance(&mut self.world, h, desires::Problem::DeathDuty, tick + 60);
+                let hname = self.villagers.iter().position(|v| *v == h).map(|i| NAMES[i]).unwrap_or("the heir");
+                self.log.push(format!("t{}: {} takes up {}'s bench; the lord takes his fifth.", tick, hname, dname));
+            }
+            None => {
+                if let Some(b) = self.world.get_component_mut::<Building>(shop) { b.worker = None; }
+                let bname = self.world.get_component::<Building>(shop).map(|b| b.name.clone()).unwrap_or_else(|| "the shop".into());
+                self.log.push(format!("t{}: {} stands shuttered - no heir for {}'s bench.", tick, bname, dname));
+            }
+        }
+    }
+
     /// The heart-helper's rounds: she keeps her corner of the market, and
     /// now and then a lonely heart is nudged to come and sit with her
     pub fn matchmaker_tick(&mut self, tick: u64) {
@@ -3792,6 +3858,8 @@ impl Game {
         self.apiary_tick(tick);
         // the larder keeps its own score: spoilage, vermin, the cat's job
         self.spoilage_tick(tick);
+        // the dead hand on: benches, purses, and the lord's fifth
+        self.succession_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -5782,6 +5850,66 @@ mod trade_issue_tests {
         let issue = desires::hear(&mut g.world, pe, c, r(), 10);
         assert_eq!(issue.as_deref(), Some("the tax collector's cut"),
             "the commons converge whatever the room's mix");
+    }
+}
+
+#[cfg(test)]
+mod succession_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_bench_passes_to_the_apprentice() {
+        let mut g = Game::new();
+        // a shop master and a junior bound to them
+        let master = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v)
+                .map(|c| c.workplace.is_some() && c.vocation != Vocation::Farmer).unwrap_or(false)).unwrap();
+        let shop = g.world.get_component::<Craft>(master).unwrap().workplace.unwrap();
+        let junior = g.villagers.iter().copied().find(|&v|
+            v != master && g.world.get_component::<Kid>(v).is_none()
+            && g.world.get_component::<Craft>(v).is_some()).unwrap();
+        g.world.get_component_mut::<Craft>(junior).unwrap().master = Some(master);
+        g.world.get_component_mut::<Craft>(junior).unwrap().workplace = None;
+        g.world.get_component_mut::<Purse>(master).unwrap().gold = 10.0;
+        let before = g.world.get_component::<Purse>(junior).unwrap().gold;
+        g.world.add_component(master, villager::Dead);
+        g.succession_tick(1);
+        assert_eq!(g.world.get_component::<Craft>(junior).unwrap().workplace, Some(shop),
+            "the apprentice takes the bench");
+        assert_eq!(g.world.get_component::<Building>(shop).unwrap().worker, Some(junior));
+        let after = g.world.get_component::<Purse>(junior).unwrap().gold;
+        assert!((after - before - 8.0).abs() < 0.01, "four parts pass, the fifth is the lord's");
+        assert!(desires::problems_of(&g.world, junior, 1).contains(&desires::Problem::DeathDuty),
+            "the death-duty is grievance");
+    }
+
+    #[test]
+    fn test_a_shop_with_no_heir_stands_shuttered() {
+        let mut g = Game::new();
+        // a master with no apprentice, no kin at home, and no journeyman
+        let master = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v)
+                .map(|c| c.workplace.is_some() && c.vocation != Vocation::Farmer).unwrap_or(false)).unwrap();
+        let shop = g.world.get_component::<Craft>(master).unwrap().workplace.unwrap();
+        // clear every possible heir path
+        let mvoc = g.world.get_component::<Craft>(master).unwrap().vocation;
+        for &v in g.villagers.clone().iter() {
+            if let Some(c) = g.world.get_component_mut::<Craft>(v) {
+                if c.master == Some(master) { c.master = None; }
+                if c.vocation == mvoc && v != master { c.vocation = Vocation::Farmer; }
+            }
+        }
+        if let Some(home) = household::home_of(&g.world, master) {
+            for &o in g.world.get_component::<Building>(home).unwrap().occupants.clone().iter() {
+                if o != master && g.world.get_component::<Kid>(o).is_none() {
+                    g.world.add_component(o, villager::Dead);
+                }
+            }
+        }
+        g.world.add_component(master, villager::Dead);
+        g.succession_tick(1);
+        assert_eq!(g.world.get_component::<Building>(shop).unwrap().worker, None,
+            "no heir - the bench stands empty");
     }
 }
 

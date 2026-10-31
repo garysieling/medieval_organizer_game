@@ -508,10 +508,10 @@ fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
 
 // Minimap: the same isometric projection as the map, shrunk to fit a box at
 // the bottom of the side panel (so up on the minimap is up on screen)
-const MM_W: i32 = 320;
-const MM_H: i32 = 160;
-const MM_LEFT: i32 = UI_X as i32 + 10;
-const MM_TOP: i32 = 660;
+pub const MM_W: i32 = 320;
+pub const MM_H: i32 = 160;
+pub const MM_LEFT: i32 = UI_X as i32 + 10;
+pub const MM_TOP: i32 = 660;
 
 /// Minimap px per tile step along the x/y diagonal: as small as the box
 /// needs so the whole map fits whatever its size

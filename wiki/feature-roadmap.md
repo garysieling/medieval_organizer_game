@@ -37,10 +37,6 @@ lower-risk, and lay groundwork later items reuse.
 - **F36. Perf/batch pass** — flock + villagers > 40 entities: batch
   separation pass, sprite cache, path memo (planned in
   skills-vocations-plan's phase 5).
-- **F37. Debug/telemetry overlay** — trails heatmap, power matrix,
-  economy prices over time; the tuning panel lit reviews ask for.
-- **F40. Sound** — ambient loop + event chimes; last per backlog priority.
-
 ---
 
 ## Suggested opening run — in order

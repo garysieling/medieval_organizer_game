@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F29. Letters & the written word
-
-*`writing-materials-bookmaking.md` review; printmaker synergy.*
-
-**What.** Literate characters (priest, printmaker, clerk, some PB) can
-send letters — durable, non-proximity communication that seeds bonds,
-warnings (a comet seen elsewhere), and evidence (a contract breach in
-writing is actionable).
-
-**Spec.** `Letter { from, to, kind, payload }` travels by errand/trade
-routes (F19 pedlar carries post). Literacy is a trait; the illiterate
-pay the priest a penny to read — a service economy line and a cozy card
-detail. **Size: M.**
-
----
-
 ### F30. Disabilities & care
 
 *Brainstorm "disabilities — consider modelling some".*

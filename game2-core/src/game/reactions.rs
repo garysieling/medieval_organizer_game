@@ -12,13 +12,12 @@ use crate::game::relationships::{find_relationship, Relationship};
 use crate::game::villager::is_dead;
 use crate::sim::community::Organization;
 
-/// A bystander woken to a cause they never organized into: the issue
-/// they watched is now theirs (moral-shock recruitment - the channel
-/// beside the network)
-#[derive(Debug)]
+/// A bystander woken to causes they never organized into: the issues
+/// they've watched become theirs (moral-shock recruitment - the channel
+/// beside the network). One person can carry more than one sympathy.
+#[derive(Debug, Default)]
 pub struct Sympathized {
-    pub issue: IssueTag,
-    pub since: u64,
+    pub issues: Vec<(IssueTag, u64)>,
 }
 
 /// A tie strong enough that watching a friend in the street moves you
@@ -28,13 +27,19 @@ pub const WITNESS_TIE: f32 = 0.3;
 /// the issue is already their stake, or someone they care for stood
 /// in the street. Returns the sympathetic mark, if it lands.
 pub fn witness(world: &mut World, observer: Entity, issue: &IssueTag, participants: &[Entity], tick: u64) -> bool {
-    if is_dead(world, observer) || participants.contains(&observer) { return false; }
+    if participants.is_empty() || is_dead(world, observer) || participants.contains(&observer) { return false; }
     let own_stake = campaign::stake_for(world, observer, issue, tick).is_some();
     let saw_a_friend = participants.iter().any(|&p| find_relationship(world, observer, p)
         .and_then(|r| world.get_component::<Relationship>(r))
         .map(|r| r.strength >= WITNESS_TIE).unwrap_or(false));
     if !own_stake && !saw_a_friend { return false; }
-    world.add_component(observer, Sympathized { issue: issue.clone(), since: tick });
+    if world.get_component::<Sympathized>(observer).is_none() {
+        world.add_component(observer, Sympathized::default());
+    }
+    if let Some(s) = world.get_component_mut::<Sympathized>(observer) {
+        s.issues.retain(|(i, _)| i != issue);
+        s.issues.push((issue.clone(), tick));
+    }
     true
 }
 

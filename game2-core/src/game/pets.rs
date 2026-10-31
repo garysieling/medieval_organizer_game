@@ -54,6 +54,7 @@ pub fn spawn_pet(world: &mut World, name: &str, species: Species, role: PetRole)
             PetRole::Labor => 0.0,
         },
     });
+    world.add_component(e, role);
     e
 }
 

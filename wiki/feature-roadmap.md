@@ -31,23 +31,6 @@ lower-risk, and lay groundwork later items reuse.
 ## Wave 1 — The cottage economy (animals, plants, and the people who tend them)
 
 
-### F8. Wool → cloth: the weaver and the tailor's local supply
-
-*`sprint-4-textiles.md`; completes F2's chain.*
-
-**What.** A weaver vocation turns the shepherd's wool into `"cloth"` at a
-loom house; the tailor buys local wool-cloth instead of only imported
-cloth.
-
-**Spec.** `Vocation::Weaver` (inputs `["wool"]`, output `"cloth"`,
-workplace "the loom house"). Tailor inputs become `wool→cloth` preferred,
-`imported cloth` fallback (flexible-recipe style from
-`flexible-recipe-system.md`: same output, substitutable inputs at
-different prices). Trader's imported cloth price rises → the village
-making its own cloth is a visible economic event worth an issues-list
-line. **Size: S-M.**
-
----
 
 ### F9. Milk → cheese: cellars and the maturity clock
 

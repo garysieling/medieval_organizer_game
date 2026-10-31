@@ -120,6 +120,6 @@ Items are removed from this list as their PRs land.
 
 ## P5 — repo hygiene
 
-- [ ] **W-098** `stash@{0}` ("WIP on fix/visual-flags") is already-merged work — drop the stash.
-- [ ] **W-099** ~140 merged remote branches never pruned — `git remote prune origin` + delete stale local branches.
-- [ ] **W-100** `docs/multiplayer-round2.md` lists already-fixed gaps (sync_purse seats, building inspector seat) as open — stale doc; `tasks/todo.txt` + `tasks/manager.log` are stale committed artifacts.
+- [x] ~~**W-098** `stash@{0}` ("WIP on fix/visual-flags") is already-merged work — drop the stash.~~ (fixed — both stashes dropped; their content is in main)
+- [x] ~~**W-099** ~140 merged remote branches never pruned — `git remote prune origin` + delete stale local branches.~~ (fixed — 162 merged remote branches deleted, ~60 stale worktrees removed, locals pruned)
+- [x] ~~**W-100** `docs/multiplayer-round2.md` lists already-fixed gaps (sync_purse seats, building inspector seat) as open — stale doc; `tasks/todo.txt` + `tasks/manager.log` are stale committed artifacts.~~ (fixed)

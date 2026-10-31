@@ -645,6 +645,28 @@ impl Game {
                     sold += 1;
                 }
             }
+            EventId::Pardoner => {
+                // a grievance off the heart for two gold: the paper's
+                // real enough, though the seal's his own carving
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut sold = 0;
+                for &v in &self.villagers.clone() {
+                    if sold >= 2 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    let burdened = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| !l.grievances.is_empty()).unwrap_or(false);
+                    if !near || !burdened { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !pays { continue; }
+                    if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) { l.grievances.pop(); }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
+                    self.say(v, "Your sins made light!", CHAT_BUBBLE_SECS);
+                    sold += 1;
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1108,6 +1130,35 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold <= 8.0, "two gold went for it");
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::RelicSeller), "he moved on from {:?}", st);
+        }
+    }
+
+    /// A grievance off the heart for two gold: the burdened pay, the
+    /// paper takes the weight - and the frame shows him first
+    #[test]
+    fn test_the_pardons_paper_takes_the_weight() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Pardoner);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Pardoner && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Pardoner).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 30);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the pardoner")),
+                "the frame shows the pardoner on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.is_empty(),
+                "the pardon lifted her on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Pardoner), "he moved on from {:?}", st);
         }
     }
 

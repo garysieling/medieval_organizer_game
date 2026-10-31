@@ -78,3 +78,19 @@ Completed task task_16: Add a comment to main.rs
 **Patterns Used:** visitor spawn/advance/tick pattern; injectable roll for deterministic tests; build_at vs occupy distinction (buildings vs walls/stones)
 
 ---
+
+### Task: Headless video recording (record_video)
+**Date:** 2026-10-31
+**Type:** feature
+**Files Changed:**
+- game2-core/src/session/record.rs (new: run_recording, RecordOpts, Format, parse_script, Sink trait)
+- game2-core/src/bin/record_video.rs (new: CLI front-end)
+- game2-core/src/engine/render.rs (Buffer::scaled nearest-neighbour downscale)
+- game2-core/src/session.rs (pub mod record; walk_at non-finite/zero guard + regression test)
+- game2-core/Cargo.toml (+gif 0.13), scripts/record-walkabout.txt, PLAY.md, .gitignore
+
+**Outcome:** Success - PR #280 merged (squash d1f7df9)
+**Notes:** `Game::update()` is one 60fps game frame; run it headless and capture every Nth `View::render` per `capture_every(speedup, fps)` - play-time compresses to watch-time. APNG comes free from the existing png dep (`set_animated` + per-frame `set_frame_delay` + one `write_image_data` per frame); gif crate quantizes RGBA in place via `Frame::from_rgba_speed`. Ffmpeg sink pipes raw RGBA to a child's stdin - same shape can point at rtmp for real streaming later. Script ops reuse `Command`; `look` is a View op via `camera_on` (tile -> camera offset, not raw pixels). Windows-gnu gotcha: getrandom's build needs dlltool; it's in rustup's self-contained dir, add to PATH. Zero-length `Walk` used to NaN the player's Pos into a ui_model sort panic - `walk_at` now rejects non-finite/zero steps.
+**Patterns Used:** Sink trait over encoders (gif/apng/frames/ffmpeg); probe frame to size sinks pre-run; BTreeMap script schedule; mirror --dump-frame CLI conventions
+
+---

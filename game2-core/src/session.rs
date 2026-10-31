@@ -4639,7 +4639,13 @@ impl Game {
         // the pet needs no Pos, it lives at its owner's side by definition
         for &v in &self.villagers.clone() {
             if villager::is_dead(&self.world, v) { continue; }
-            if desires::problems_of(&self.world, v, tick).is_empty() { continue; }
+            // distressed = carrying a live problem, or wanting Joy unmet
+            let distressed = !desires::problems_of(&self.world, v, tick).is_empty()
+                || self.world.get_component::<desires::InnerLife>(v)
+                    .map(|l| l.wants.contains(&Want::Joy)
+                        && !desires::is_satisfied(&self.world, v, Want::Joy, tick))
+                    .unwrap_or(false);
+            if !distressed { continue; }
             if pets::comforting_pet(&self.world, v).is_some() {
                 desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
             }

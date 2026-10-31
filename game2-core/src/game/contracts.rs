@@ -107,6 +107,15 @@ pub fn has_pact(world: &World, a: Entity, b: Entity) -> bool {
 /// makes only one. Returns the contract, or None if they already have a
 /// pact or the giver can't afford it (nothing changes then).
 pub fn seal_aid_pact(world: &mut World, giver: Entity, receiver: Entity, gold: &mut f32) -> Option<Entity> {
+    // a seal takes wax when there's wax to be had - the beekeeper's
+    // season matters to more than the table
+    if let Some(pos) = world.get_component::<crate::game::villager::Pos>(giver).map(|p| *p) {
+        if let Some(shop) = crate::game::livelihood::seller_for(world, "wax", pos) {
+            if let Some(b) = world.get_component_mut::<crate::game::household::Building>(shop) {
+                crate::game::household::take_stock(b, "wax", 1);
+            }
+        }
+    }
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     if giver == receiver || *gold < PACT_AID || has_pact(world, giver, receiver) { return None; }
     *gold -= PACT_AID;

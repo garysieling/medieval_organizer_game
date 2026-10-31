@@ -29,6 +29,7 @@ pub mod tea;
 pub mod textiles;
 pub mod herbology;
 pub mod livestock;
+pub mod apiary;
 pub mod vocation;
 pub mod desires;
 pub mod household;

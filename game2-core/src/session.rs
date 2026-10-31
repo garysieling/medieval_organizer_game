@@ -35,6 +35,7 @@ use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
 use crate::game::herbology::{self, Apothecary};
 use crate::game::livestock::{self, Livestock, LivestockKind};
+use crate::game::apiary::{self, HiveKind};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
 
@@ -212,6 +213,22 @@ fn shroom_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     buf.rect(sx - k(1), sy - k(1), 1.max(k(3)), 1.max(k(2)), 235, 225, 200);
 }
 
+/// A woven skep: a small domed hive with banding
+fn draw_skep(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+    let k = |v: i32| ((v as f32) * zoom).round() as i32;
+    buf.rect(sx - k(4), sy - k(7), 1.max(k(8)), 1.max(k(6)), 210, 185, 120);
+    buf.rect(sx - k(3), sy - k(9), 1.max(k(6)), 1.max(k(2)), 220, 198, 140);
+    for row in [4, 6] { buf.rect(sx - k(4), sy - k(row), 1.max(k(8)), 1.max(k(1)), 160, 135, 85); }
+}
+
+/// A swarm on the wing: a knot of dark specks
+fn draw_swarm(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+    let k = |v: i32| ((v as f32) * zoom).round() as i32;
+    for (dx, dy) in [(-3, -8), (0, -10), (3, -8), (-1, -6), (2, -11), (-4, -10)] {
+        buf.rect(sx + k(dx), sy + k(dy), 1.max(k(2)), 1.max(k(1)), 45, 35, 20);
+    }
+}
+
 /// A grazing animal: a wool or hair blob low on four legs
 fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
@@ -363,6 +380,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("takes his cut") || entry.contains("Organizer discovers issue")
         || entry.contains("the fold") || entry.contains("a fox")
         || entry.contains("brought") || entry.contains(" treats ")
+        || entry.contains("skeps") || entry.contains("swarm")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1575,6 +1593,13 @@ pub struct Game {
     pub mush_patches: Vec<MushPatch>,
     /// (who, the day they last gathered) - so the wood isn't stripped by one soul
     pub shroom_breaks: Vec<(Entity, u64)>,
+    /// The apiary, its keeper, its skeps, and the church it keeps in candles
+    pub apiary: Option<Entity>,
+    pub beekeeper: Option<Entity>,
+    pub hives: Vec<Entity>,
+    pub church: Option<Entity>,
+    /// (who, the day the swarm leaves) - a swarm takes a liking to someone
+    pub swarm: Option<(Entity, u64)>,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -1734,6 +1759,13 @@ impl Game {
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(5)));
         }
+        // the apiary: the beekeeper's yard at the meadow's edge, east of the fold
+        let apiary_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 8, wall.3 + 5);
+        if let Some((bx, by)) = apiary_site {
+            map.occupy(bx, by);
+            map.connect((bx, by));
+            buildings.push((bx as f32, by as f32, BSprite::House(9)));
+        }
         // the fold: the shepherd's pen in the meadow below the town
         let fold_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 3, wall.3 + 4);
         if let Some((bx, by)) = fold_site {
@@ -1755,11 +1787,16 @@ impl Game {
                 && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
             .unwrap_or_else(|| adult_vocs.iter().rposition(|&v| v != Vocation::Farmer).unwrap_or(5));
         adult_vocs[swap] = Vocation::Shepherd;
+        // and the apiary: another doubled trade hands the bees over
+        let swap2 = adult_vocs.iter().rposition(|&v| v != Vocation::Farmer && v != Vocation::Shepherd
+                && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
+            .unwrap_or(swap);
+        adult_vocs[swap2] = Vocation::Beekeeper;
         for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
         let mut shop_kinds: Vec<BuildingKind> = vec![];
         for v in vocs_present {
-            // the fold stands apart, seeded on its own out in the meadow
-            if v == Vocation::Shepherd { continue; }
+            // the fold and the apiary stand apart, seeded on their own
+            if v == Vocation::Shepherd || v == Vocation::Beekeeper { continue; }
             if rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
         }
         // the smithy, church and guildhall already stand: shop for the
@@ -1802,6 +1839,18 @@ impl Game {
                     .map(|p| p.x.round() as i32 == hx && p.y.round() as i32 == hy).unwrap_or(false)
             })?;
             if let Some(b) = world.get_component_mut::<Building>(e) { b.name = "the herb hut".into(); }
+            Some(e)
+        });
+        // the apiary: the building on the site picked earlier, re-kinded
+        let apiary = apiary_site.and_then(|(hx, hy)| {
+            let e = building_entities.iter().copied().find(|&e| {
+                world.get_component::<Pos>(e)
+                    .map(|p| p.x.round() as i32 == hx && p.y.round() as i32 == hy).unwrap_or(false)
+            })?;
+            if let Some(b) = world.get_component_mut::<Building>(e) {
+                b.kind = household::BuildingKind::Apiary;
+                b.name = "the apiary".into();
+            }
             Some(e)
         });
         // the fold: the building on the site picked earlier, re-kinded to
@@ -2032,6 +2081,19 @@ impl Game {
         // the shepherd keeps the fold, and a sheepdog keeps him
         let shepherd = villagers.iter().copied().find(|&v|
             world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Shepherd).unwrap_or(false));
+        // the beekeeper keeps the apiary, and the skeps stand round it
+        let beekeeper = villagers.iter().copied().find(|&v|
+            world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Beekeeper).unwrap_or(false));
+        let church = Some(building_entities[4]);
+        let mut hives = vec![];
+        if let (Some(ay), Some((ax, ay2))) = (apiary, apiary_site) {
+            for i in 0..4 {
+                let (dx, dy) = ((i % 2) as i32 * 2 - 1, (i / 2) as i32 * 2 - 1);
+                let (hx, hy) = (1..=4).map(|r| (ax + dx * r, ay2 + dy * r))
+                    .find(|&(x, y)| map.passable(x, y)).unwrap_or((ax + 1, ay2 + 1));
+                hives.push(apiary::spawn_hive(&mut world, if i % 2 == 0 { HiveKind::Skep } else { HiveKind::Log }, ay, hx as f32 + 0.5, hy as f32 + 0.5));
+            }
+        }
         if let Some(sh) = shepherd {
             let d = pets::spawn_pet(&mut world, "the sheepdog", Species::Dog, PetRole::Herding);
             world.get_component_mut::<Pet>(d).unwrap().owner = Some(sh);
@@ -2171,6 +2233,11 @@ impl Game {
             match_tried: vec![],
             mush_patches,
             shroom_breaks: vec![],
+            apiary,
+            beekeeper,
+            hives,
+            church,
+            swarm: None,
         }
     }
 
@@ -3267,6 +3334,59 @@ impl Game {
         }
     }
 
+    /// The apiary's year: honey and wax at midsummer, candles down at the
+    /// church, and now and then a swarm takes a liking to someone
+    pub fn apiary_tick(&mut self, tick: u64) {
+        let Some(ay) = self.apiary else { return };
+        // the yield, in season: honey for the table, wax for the seals
+        if tick % 90 == 50 {
+            let n = apiary::hives_of(&self.world, ay).len() as u32;
+            if let Some(b) = self.world.get_component_mut::<Building>(ay) {
+                household::add_stock(b, "honey", n * 2);
+                household::add_stock(b, "wax", n);
+            }
+            if n > 0 { self.log.push(format!("t{}: the skeps yield - {} honey, {} wax.", tick, n * 2, n)); }
+            // a season's candles for the church, from the season's wax
+            if let (Some(church), Some(b)) = (self.church, self.world.get_component_mut::<Building>(ay)) {
+                let wax = household::take_stock(b, "wax", n);
+                if let Some(cb) = self.world.get_component_mut::<Building>(church) {
+                    household::add_stock(cb, "candle", wax);
+                }
+            }
+        }
+        // the church burns a candle a season; when it runs out it goes dark
+        if tick % 90 == 20 {
+            if let Some(church) = self.church {
+                let burnt = self.world.get_component_mut::<Building>(church)
+                    .map(|b| household::take_stock(b, "candle", 1)).unwrap_or(0);
+                if burnt == 0 {
+                    if let Some(pr) = self.villagers.iter().copied().find(|&v|
+                        self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false)) {
+                        desires::add_grievance(&mut self.world, pr, desires::Problem::NoInput("wax"), tick + 90);
+                        self.say(pr, "The candles are done - the church is dark.", CHAT_BUBBLE_SECS);
+                    }
+                }
+            }
+        }
+        // a swarm takes a liking to someone - harmless, memorable
+        if tick % 90 == 70 && self.rng.below(100) < 8 {
+            let i = self.rng.below(self.villagers.len() as i32).max(0) as usize;
+            let who = self.villagers[i];
+            self.swarm = Some((who, tick + 1));
+            let name = self.villagers.iter().position(|x| *x == who).map(|x| NAMES[x]).unwrap_or("someone");
+            self.log.push(format!("t{}: a swarm took a liking to {} - it follows them about.", tick, name));
+        }
+        if let Some((_, until)) = self.swarm { if tick >= until { self.swarm = None; } }
+        // the beekeeper walks out to the skeps most days, but not hungry
+        if let Some(bk) = self.beekeeper {
+            let fed = self.world.get_component::<Hunger>(bk).map(|h| h.value >= 30.0).unwrap_or(true);
+            if tick % 3 == 1 && fed && !villager::is_dead(&self.world, bk)
+                && !self.travels.iter().any(|t| t.who == bk) {
+                self.send(bk, Goal::Herd(ay));
+            }
+        }
+    }
+
     /// The heart-helper's rounds: she keeps her corner of the market, and
     /// now and then a lonely heart is nudged to come and sit with her
     pub fn matchmaker_tick(&mut self, tick: u64) {
@@ -3598,6 +3718,8 @@ impl Game {
         self.matchmaker_tick(tick);
         // a poor soul gathers in the wood, and damp years bring the fire
         self.mushroom_tick(tick);
+        // the skeps yield, the church burns wax, a swarm wanders off
+        self.apiary_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -3623,6 +3745,17 @@ impl Game {
             // a shopping day, now and then: something they want is for sale
             if rng.below(100) < 12 {
                 if let Some(g) = self.want_shopping(v, tick) { self.send(v, g); continue; }
+            }
+            // far from home and far from your work? the day's done - walk back
+            if let Some(home) = household::home_of(&self.world, v) {
+                let hp = self.world.get_component::<Pos>(home).copied();
+                let post = self.world.get_component::<Craft>(v).and_then(|c| c.workplace)
+                    .and_then(|b| self.world.get_component::<Pos>(b).copied());
+                if let (Some(hp), Some(p)) = (hp, self.world.get_component::<Pos>(v).copied()) {
+                    let far_home = (p.x - hp.x).abs() + (p.y - hp.y).abs() > 6.0;
+                    let far_post = post.map(|pp| (p.x - pp.x).abs() + (p.y - pp.y).abs() > 6.0).unwrap_or(true);
+                    if far_home && far_post && self.send(v, Goal::HeadHome(home)) { continue; }
+                }
             }
             // out of raw goods: send a kid, or go get it, or sit with the problem
             if let Some(input) = livelihood::needs_input(&self.world, v) {
@@ -4038,6 +4171,9 @@ impl Game {
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
             mush: self.mush_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
+            skeps: self.hives.iter().filter_map(|&h| world.get_component::<Pos>(h)
+                .map(|p| (p.x, p.y))).collect(),
+            swarm: self.swarm.and_then(|(w, _)| world.get_component::<Pos>(w).map(|p| (p.x, p.y))),
         }
     }
 
@@ -4057,6 +4193,7 @@ impl Game {
             BuildingKind::Granary => "Granary",
             BuildingKind::TraderStall => "Trader's stall",
             BuildingKind::Pasture => "Pasture",
+            BuildingKind::Apiary => "Apiary",
         };
         lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
         lines.push(Line { x: 18, y: 340, text: kind_word.into(), rgb: (200, 200, 230) });
@@ -4299,6 +4436,7 @@ impl Game {
                 BuildingKind::Church => "church", BuildingKind::WatchPost => "watch",
                 BuildingKind::Mill => "mill", BuildingKind::Granary => "granary",
                 BuildingKind::TraderStall => "stall", BuildingKind::Pasture => "pasture",
+            BuildingKind::Apiary => "apiary",
             };
             Some(ObsBuilding { e: *be, name: b.name.clone(), kind: kind.into(), dist: d })
         }).collect();
@@ -4428,6 +4566,8 @@ impl View {
             Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
             Herb,                              // a wild herb tuft, flat on the meadow
             Shroom,                            // a wild mushroom in the shade
+            Skep,                              // a woven beehive in the apiary's yard
+            Swarm,                             // a swarm of bees on the wing
         }
         #[derive(Clone, Copy)]
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
@@ -4452,6 +4592,8 @@ impl View {
         // wild herb tufts, ready for the picking
         standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
+        standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, Piece::Skep)));
+        if let Some((wx, wy)) = m.swarm { standing.push((wx, wy, Piece::Swarm)); }
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
         standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
@@ -4474,6 +4616,8 @@ impl View {
                 Piece::Prop(sprite) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom); },
                 Piece::Herb => herb_tuft(buf, sx, sy, zoom),
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
+                Piece::Skep => draw_skep(buf, sx, sy, zoom),
+                Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
                 Piece::Castle(sprite) => if let Some(s) = sprite { draw_castle(buf, s, sx, sy, zoom); },
                 Piece::Building(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
@@ -5393,8 +5537,9 @@ mod shroom_tests {
         let mut g = Game::new();
         let who = g.villagers[4];
         // keep eating the poisoned patch until the eye fails
+        g.world.get_component_mut::<Craft>(who).unwrap().skill = 0.05;
         let mut sickened = false;
-        for t in 0..60 {
+        for t in (0..3000).step_by(37) {
             let skilled = g.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
             let right = (who as u64).wrapping_mul(2654435761).wrapping_add(t) % 1000
                 < (200.0 + skilled * 700.0) as u64;
@@ -5421,6 +5566,49 @@ mod shroom_tests {
         assert!(g.log.iter().any(|l| l.contains("in the bread")));
         assert!(g.world.query::<Disease>().iter().any(|&d|
             g.world.get_component::<Disease>(d).map(|dd| dd.name == "saint anthony's fire").unwrap_or(false)));
+    }
+}
+
+#[cfg(test)]
+mod apiary_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_beekeeper_keeps_the_skeps() {
+        let g = Game::new();
+        let bk = g.beekeeper.expect("a beekeeper keeps the yard");
+        assert_eq!(g.world.get_component::<Craft>(bk).unwrap().vocation, Vocation::Beekeeper);
+        let ay = g.apiary.unwrap();
+        let b = g.world.get_component::<Building>(ay).unwrap();
+        assert_eq!(b.kind, BuildingKind::Apiary);
+        assert_eq!(b.name, "the apiary");
+        assert_eq!(b.worker, Some(bk));
+        assert!(apiary::hives_of(&g.world, ay).len() >= 3, "a few skeps stand round it");
+    }
+
+    #[test]
+    fn test_the_skeps_yield_in_season() {
+        let mut g = Game::new();
+        let ay = g.apiary.unwrap();
+        g.apiary_tick(50); // midsummer
+        let b = g.world.get_component::<Building>(ay).unwrap();
+        assert!(b.stock.get("honey").copied().unwrap_or(0) > 0, "honey for the table");
+        // the wax went straight to the church's candles
+        let cb = g.world.get_component::<Building>(g.church.unwrap()).unwrap();
+        assert!(cb.stock.get("candle").copied().unwrap_or(0) > 0, "wax for the candles");
+    }
+
+    #[test]
+    fn test_a_dark_church_troubles_the_priest() {
+        let mut g = Game::new();
+        // burn day with no candles on the shelf
+        g.apiary_tick(20);
+        let priest = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false));
+        if let Some(pr) = priest {
+            assert!(desires::problems_of(&g.world, pr, 20).iter()
+                .any(|p| matches!(p, desires::Problem::NoInput("wax"))), "no wax, dark church");
+        }
     }
 }
 

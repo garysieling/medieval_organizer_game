@@ -66,23 +66,6 @@ tending. **Size: S-M.**
 ---
 
 
-### F6. Beekeeping — honey, wax, and why the church is dark
-
-*`sprint-7-beekeeping.md`.*
-
-**What.** A beekeeper tends skeps at the meadow edge. Honey is a good;
-wax supplies church candles and contract seals.
-
-**Spec.** `Vocation::Beekeeper` or a second `TownRole`; 3–6 `Hive`
-entities (`Skep|Log|Box` kinds as regional variants). Honey seasonally;
-wax per harvest. Two consumptions make it matter: (a) the church burns
-`"candle"` stock — at zero, services draw fewer attendees (piety dip);
-(b) `contracts.rs` signings consume `"wax"` — no wax, no seals, contracts
-stall. Skep harvest = kill-the-bees yield ×2 / sustainable = ×1 (the
-short-term/long-term tension from the review). Bees swarm event: a
-swarm follows a villager for a day (harmless, funny, memorable). **Size: M.**
-
----
 
 ### F7. Vermin, spoilage & the granary cat
 

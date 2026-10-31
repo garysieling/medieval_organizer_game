@@ -26,6 +26,8 @@ pub enum BuildingKind {
     /// The shepherd's pen out in the meadow: a workplace, not a shop -
     /// the flock grazes round it
     Pasture,
+    /// The beekeeper's yard at the meadow's edge: the skeps stand round it
+    Apiary,
 }
 
 /// A building on the map (entity; its Pos is where it stands)
@@ -51,6 +53,7 @@ pub fn kind_for(v: Vocation) -> BuildingKind {
         Vocation::Priest => BuildingKind::Church,
         Vocation::Knight => BuildingKind::WatchPost,
         Vocation::Shepherd => BuildingKind::Pasture,
+        Vocation::Beekeeper => BuildingKind::Apiary,
         other => BuildingKind::Shop(other),
     }
 }

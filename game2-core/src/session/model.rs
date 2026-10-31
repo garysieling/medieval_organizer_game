@@ -162,4 +162,7 @@ pub struct UiModel {
     pub herbs: Vec<(f32, f32)>,
     /// Ready mushroom patches in the shade
     pub mush: Vec<(f32, f32)>,
+    /// The skeps of the apiary, and a swarm out following someone
+    pub skeps: Vec<(f32, f32)>,
+    pub swarm: Option<(f32, f32)>,
 }

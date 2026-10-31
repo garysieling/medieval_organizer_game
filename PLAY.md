@@ -84,7 +84,9 @@ And one elder keeps an eye on lonely hearts - the heart-helper has a
 word in both their ears, and now and then two folk come together.
 Hungry folk gather mushrooms in the shade of the wood - some caps are
 chanterelles, some are death, and a damp year brings Saint Anthony's
-fire and blame for the baker.
+fire and blame for the baker. A beekeeper keeps skeps at the meadow's
+edge - honey for the table, wax for the church's candles and the seals -
+and when the candles run out the church goes dark.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

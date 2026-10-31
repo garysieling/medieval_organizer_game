@@ -884,8 +884,8 @@ impl Game {
                             .unwrap_or(true))
                     };
                     if let Some(w) = want {
-                        let org = self.seats[0].org;
-                        desires::hear(&mut self.world, org, v, desires::Reveal::Want(w), tick);
+                        let player = self.player;
+                        desires::hear(&mut self.world, player, v, desires::Reveal::Want(w), tick);
                     }
                     self.say(v, "Go and carry it lighter.", CHAT_BUBBLE_SECS);
                     heard += 1;
@@ -1238,7 +1238,9 @@ impl Game {
                         .unwrap_or(false);
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
                     if !near || !pays { continue; }
-                    // the lines surface a want the ear didn't know
+                    // the lines surface a want the ear didn't know - if
+                    // there's no line she can't already read, she won't
+                    // take the penny for it
                     let want = {
                         let wants: Vec<Want> = self.world.get_component::<desires::InnerLife>(v)
                             .map(|l| l.wants.clone()).unwrap_or_default();
@@ -1247,13 +1249,15 @@ impl Game {
                             .map(|k| !k.revealed.contains(&desires::Reveal::Want(*w)))
                             .unwrap_or(true))
                     };
-                    if let Some(w) = want {
-                        let org = self.seats[0].org;
-                        desires::hear(&mut self.world, org, v, desires::Reveal::Want(w), tick);
-                    }
+                    let Some(w) = want else { continue };
+                    // the organizer's own ledger hears it - the person,
+                    // not the body politic
+                    let player = self.player;
+                    desires::hear(&mut self.world, player, v, desires::Reveal::Want(w), tick);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
-                    // most palms read kind - a dark line's still the truth
-                    if self.rare_roll(id) % 4 != 0 {
+                    // most palms read kind - a dark line's still the
+                    // truth, and every palm reads its own lines
+                    if (self.rare_roll(id) ^ (v as u64).wrapping_mul(0x9E3779B9)) % 4 != 0 {
                         desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
                         self.say(v, "The lines don't lie, love.", CHAT_BUBBLE_SECS);
                     } else {

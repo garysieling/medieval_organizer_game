@@ -14,13 +14,10 @@ use game2_core::game::villager::{self, Pos, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::sim::climate::{self, SeasonSystem};
+use game2_core::session::{W, H, MAP_W, UI_X, MM_LEFT, MM_TOP, MM_W, MM_H};
 
-const W: usize = 960;
-const H: usize = 640;
-const MAP_W: usize = 640;
 const TILE_W: i32 = 28;
 const TILE_H: i32 = 14;
-const UI_X: usize = 660;
 
 fn iso(tx: f32, ty: f32) -> (i32, i32) {
     (MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32,
@@ -65,20 +62,20 @@ fn real_frame_checks() -> Vec<Check> {
         n
     };
     // the game's layout: panel from UI_X, event log box at y 466-618,
-    // minimap box 84x46 in the map's top-right corner
+    // minimap box at the panel's foot (MM_LEFT x MM_TOP, MM_W x MM_H)
     let panel = drawn(UI_X, 0, W, H, (32, 32, 48));
     let log = drawn(UI_X + 12, 466, UI_X + 278, 618, (25, 25, 40));
     // the key to the marks over villagers' heads, under the log box
     let legend = drawn(UI_X + 10, 625, UI_X + 280, 636, (32, 32, 48));
-    let (mm_x, mm_y) = (MAP_W - 84 - 6, 6);
-    let minimap = drawn(mm_x, mm_y, mm_x + 84, mm_y + 46, (20, 20, 30));
+    let (mm_x, mm_y) = (MM_LEFT as usize, MM_TOP as usize);
+    let minimap = drawn(mm_x, mm_y, mm_x + MM_W as usize, mm_y + MM_H as usize, (20, 20, 30));
     let hud = (0..120).flat_map(|x| (6..16).map(move |y| (x, y)))
         .filter(|&(x, y)| { let i = (y * W + x) * 4; frame.pixels[i] > 230 && frame.pixels[i + 1] > 230 && frame.pixels[i + 2] > 230 })
         .count();
     vec![
-        Check { name: "real frame: side panel drawn", pass: panel > (W - UI_X) * H / 6, detail: format!("{panel} px drawn") },
+        Check { name: "side panel drawn", pass: panel > (W - UI_X) * H / 6, detail: format!("{panel} px drawn") },
         Check { name: "real frame: event log has text", pass: log > 300, detail: format!("{log} px") },
-        Check { name: "real frame: minimap shows terrain", pass: minimap > 84 * 46 / 3, detail: format!("{minimap} px") },
+        Check { name: "real frame: minimap shows terrain", pass: minimap > MM_W as usize * MM_H as usize / 6, detail: format!("{minimap} px") },
         Check { name: "real frame: map-marks legend shown", pass: legend > 80, detail: format!("{legend} px") },
         Check { name: "real frame: HUD line present", pass: hud > 40, detail: format!("{hud} px") },
     ]

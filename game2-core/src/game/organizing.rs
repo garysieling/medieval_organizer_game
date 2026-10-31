@@ -28,6 +28,8 @@ pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneO
         other: citizen, kind: InteractionKind::Conversation, intensity: 1.0,
     });
     let after = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(before);
+    // running a real 1-1 is practice at the craft
+    crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, crate::game::org_skills::ONE_ON_ONE_PRACTICE);
 
     // Their network: the people they know, by kind of tie (not counting the organizer)
     let mut kinds: Vec<(RelKind, usize)> = vec![];
@@ -147,6 +149,12 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         }
         if world.get_component::<Organization>(org).map(|o| o.members.contains(&a)).unwrap_or(false) {
             members_present += 1;
+        }
+    }
+    // everyone who came learns meeting craft a little
+    for &a in attendees {
+        if a != leader && !is_dead(world, a) {
+            crate::game::org_skills::practice(world, a, crate::game::org_skills::OrgSkill::HouseMeeting, crate::game::org_skills::MEETING_PRACTICE);
         }
     }
     let quality = if members_present >= 2 { ActionQuality::Transformational } else { ActionQuality::Transactional };

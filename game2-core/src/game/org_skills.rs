@@ -142,10 +142,15 @@ pub fn teach(world: &mut World, campaign: Option<Entity>, trainer: Entity, stude
         .map(|issue| campaign::stake_for(world, student, &issue, tick).is_some())
         .unwrap_or(false);
     let gain = if motivated { LEARN_PER_LESSON * MOTIVATED_BONUS } else { LEARN_PER_LESSON };
+    // a lesson can't lift the student past the teacher's own craft
+    let gain = gain.min(trainer_at - student_at);
     practice(world, student, skill, gain);
     practice(world, trainer, OrgSkill::Training, TEACH_PRACTICE);
     true
 }
+
+/// What running a 1-1 teaches (a conversation, not a seat)
+pub const ONE_ON_ONE_PRACTICE: f32 = 0.02;
 
 #[cfg(test)]
 mod tests {
@@ -195,6 +200,17 @@ mod tests {
         assert!(!teach(&mut w, None, apprentice, student, OrgSkill::Turnout, 1));
         // teaching grows the teaching craft
         assert!(w.get_component::<Organizing>(apprentice).unwrap().training > 0.0);
+    }
+
+    #[test]
+    fn test_a_lesson_cant_lift_the_student_past_the_teacher() {
+        let mut w = World::new();
+        let (teacher, student) = (person(&mut w), person(&mut w));
+        practice(&mut w, teacher, OrgSkill::Agitation, 0.4);
+        practice(&mut w, student, OrgSkill::Agitation, 0.39);
+        assert!(teach(&mut w, None, teacher, student, OrgSkill::Agitation, 1));
+        let s = w.get_component::<Organizing>(student).unwrap().agitation;
+        assert!(s <= 0.4 + 1e-6, "the lesson tops out at the teacher's craft, got {}", s);
     }
 
     #[test]

@@ -50,3 +50,6 @@ explicitly call for calibration over a baseline ensemble; expect movement.
   seed 42, so the band moved 2-6 -> 2-8 to fit the livelier village
   (births, migrants, festivals, rare events landed after the band was
   set). Evidence: seed 42/400d healthy run at 6.58.
+
+### shaping_slope recalibrated 0.5-3.0 -> 0.5-5.0
+Gauge now weights negatives per-capita (1/villagers.alive that day) - a growing village makes more negatives honestly. Evidence: seed 13 raw 5.14 -> per-capita 4.42; seed 7 3.30 -> ~2.4. The remaining ramp is org escalation + winter + aging - the game is meant hard, so a 5x per-head ceiling is the honest line.

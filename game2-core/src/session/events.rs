@@ -1115,6 +1115,14 @@ impl Game {
                     }
                 }
             }
+            EventId::LimeBurner => {
+                // lime for the fields: folk carry it out to the beds
+                // while he stands - the soil grows the sweeter for it
+                for g in self.gardens.iter_mut() {
+                    // no cap - a bed past ripe stays past ripe
+                    g.2 += 0.02;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2555,6 +2563,30 @@ mod tests {
                 .sum();
             assert!(coal > 0, "he left a heap on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::CharcoalBurner), "he packed out from {:?}", st);
+        }
+    }
+
+    /// Lime for the fields: while he stands the beds grow sweeter -
+    /// the frame shows the lime-cart first
+    #[test]
+    fn test_the_lime_sweetens_the_beds() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::LimeBurner);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::LimeBurner && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let growth0: f32 = g.gardens.iter().map(|g| g.2).sum();
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the lime-burner")),
+                "the frame shows the lime-cart on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let growth1: f32 = g.gardens.iter().map(|g| g.2).sum();
+            assert!(growth1 > growth0 || g.gardens.is_empty() && growth1 == growth0,
+                "the beds grew on {:?}", st);
+            stage::run_days(&mut g, 7);
+            assert!(g.rare.iter().all(|r| r.id != EventId::LimeBurner), "his kiln cooled from {:?}", st);
         }
     }
 

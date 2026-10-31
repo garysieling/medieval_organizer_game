@@ -24,6 +24,9 @@ fn main() {
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
+    // the weather bites here too: nourishment applies the frost and the
+    // heat, same path the session's health runs through
+    sched.add_system(villager::NourishmentSystem);
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(WeatherSystem);

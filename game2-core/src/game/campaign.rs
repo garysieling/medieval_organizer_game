@@ -144,7 +144,7 @@ pub fn stake_for(world: &World, member: Entity, tag: &IssueTag, tick: u64) -> Op
 /// stake, else the one matching the most of their live problems.
 /// `candidates` is the organizer's recommended order - a tie goes to the
 /// issue the organizer put first. None if they have no dog in the fight.
-pub fn vote_for(world: &World, member: Entity, candidates: &[IssueTag], tick: u64) -> Option<IssueTag> {
+fn vote_for(world: &World, member: Entity, candidates: &[IssueTag], tick: u64) -> Option<IssueTag> {
     let mut tags: Vec<IssueTag> = desires::problems_of(world, member, tick)
         .iter().map(|&p| desires::issue_tag(world, member, &Reveal::Problem(p))).collect();
     if let Some(life) = world.get_component::<desires::InnerLife>(member) {

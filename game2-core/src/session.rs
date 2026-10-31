@@ -6964,10 +6964,18 @@ impl Game {
         self.seats.len() - 1
     }
 
-    /// The first living villager nobody drives yet
+    /// The first living villager nobody drives yet. A posting isn't up
+    /// for the taking - a bot can claim a free hand, not the collector,
+    /// the herb-wife, the knight or the priest (postings ride either
+    /// TownRole or a PMC Craft); and a child is nobody's worker. The
+    /// town's duties stay the town's.
     pub fn free_villager(&self) -> Option<usize> {
         self.villagers.iter().position(|v| !villager::is_dead(&self.world, *v)
-            && !self.seats.iter().any(|s| s.player == *v))
+            && !self.seats.iter().any(|s| s.player == *v)
+            && self.world.get_component::<TownRole>(*v).is_none()
+            && self.world.get_component::<Kid>(*v).is_none()
+            && !self.world.get_component::<Craft>(*v)
+                .map(|c| vocation::is_pmc(c.vocation)).unwrap_or(false))
     }
 
     /// What an agent asks its villager to do. Maps to the same travel/goal
@@ -7075,10 +7083,31 @@ impl Game {
         }).collect();
         let satchel = self.world.get_component::<Satchel>(who)
             .map(|s| s.goods.iter().map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some();
+        // the political layer: every banner you march under (membership
+        // or leadership - a villager can hold more than one), and what
+        // each fights for. "-" marks a seat's placeholder org, not a cause
+        let mut orgs: Vec<String> = vec![];
+        let mut campaigns: Vec<String> = vec![];
+        for e in self.world.query::<Organization>().iter() {
+            let Some(o) = self.world.get_component::<Organization>(*e) else { continue };
+            if o.name == "-" || !(o.members.contains(&who) || o.leader == who) { continue; }
+            orgs.push(o.name.clone());
+            if let Some(issue) = crate::game::campaign::campaign_of(&self.world, *e)
+                .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                .map(|c| c.issue.clone()) {
+                campaigns.push(issue);
+            }
+        }
+        // the fire on the wind: burning tiles close enough to matter
+        let burning: Vec<(f32, f32)> = self.fire.burning.keys()
+            .filter(|&&(x, y)| ((x as f32 - p.x).powi(2) + (y as f32 - p.y).powi(2)).sqrt() < 12.0)
+            .map(|&(x, y)| (x as f32, y as f32)).collect();
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
             near, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
+            held, orgs, campaigns, burning,
         })
     }
 
@@ -11848,6 +11877,33 @@ mod campaign_ban_tests {
         // and under the ban even a handful is broken up on sight
         g.ctx_act_at(0, 0);
         assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
+    }
+}
+
+#[cfg(test)]
+mod free_villager_tests {
+    use super::*;
+
+    #[test]
+    fn test_knights_and_priests_stay_off_the_claim_list() {
+        let mut g = Game::new();
+        // villagers[0] is always a working adult with a Craft vocation
+        let knight = g.villagers[0];
+        g.world.get_component_mut::<Craft>(knight).unwrap().vocation = Vocation::Knight;
+        let claimed = g.free_villager().map(|i| g.villagers[i]);
+        assert_ne!(claimed, Some(knight), "a knight keeps their post");
+    }
+
+    #[test]
+    fn test_kids_stay_off_the_claim_list() {
+        let g = Game::new();
+        // villagers[26..29] are the three seeded children
+        let kids: Vec<Entity> = g.villagers[26..29].to_vec();
+        for &k in &kids {
+            assert!(g.world.get_component::<Kid>(k).is_some(), "setup: expected a child here");
+        }
+        let claimed = g.free_villager().map(|i| g.villagers[i]);
+        assert!(claimed.map(|c| !kids.contains(&c)).unwrap_or(true), "a child can't take agent commands");
     }
 }
 

@@ -36,6 +36,8 @@ use crate::game::livelihood::{self, OddJob, Purse, Satchel};
 use crate::game::herbology::{self, Apothecary};
 use crate::game::livestock::{self, Livestock, LivestockKind};
 use crate::game::apiary::{self, HiveKind};
+use crate::game::sanctions::{self, Sanction};
+use crate::sim::reputation_qsp::{ReputationState, RepAction, RepStage};
 use crate::sim::trails::{self, Trail, TrailParams};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
@@ -383,6 +385,8 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("brought") || entry.contains(" treats ")
         || entry.contains("skeps") || entry.contains("swarm")
         || entry.contains("takes up") || entry.contains("shuttered")
+        || entry.contains("the talk turns") || entry.contains("cold shoulder")
+        || entry.contains("boycott") || entry.contains("a crowd at")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1319,6 +1323,8 @@ pub enum Goal {
     ForageShroom(usize),
     /// Walk home at the end of the day (target: the building entity)
     HeadHome(Entity),
+    /// Driven out: walk to the map's edge and don't come back
+    Exile,
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -1614,6 +1620,8 @@ pub struct Game {
     /// The worked pit's tile, and the reach below town that takes the leavings
     pub pit: Option<(i32, i32)>,
     pub reach: Vec<(i32, i32)>,
+    /// (who, the rung they're on, the day it ends) - the ladder of shame
+    pub sanctioned: Vec<(Entity, Sanction, u64)>,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -2271,6 +2279,7 @@ impl Game {
             land,
             pit,
             reach,
+            sanctioned: vec![],
         }
     }
 
@@ -2854,7 +2863,8 @@ impl Game {
             let near = self.world.get_component::<Pos>(*v)
                 .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < MEETING_REACH)
                 .unwrap_or(false);
-            alive && near
+            // the shunned aren't asked to sit
+            alive && near && !self.shunned(*v)
         }).collect()
     }
 
@@ -3173,6 +3183,17 @@ impl Game {
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
+            Goal::Exile => {
+                // the nearest edge of the world
+                self.world.get_component::<Pos>(who).copied().and_then(|from| {
+                    let (w, h) = (self.map.width as i32, self.map.height as i32);
+                    [(2, from.y.round() as i32), (w - 3, from.y.round() as i32),
+                     (from.x.round() as i32, 2), (from.x.round() as i32, h - 3)]
+                        .iter().copied()
+                        .filter(|&(x, y)| self.map.passable(x, y))
+                        .min_by_key(|&(x, y)| ((x as f32 - from.x).abs() + (y as f32 - from.y).abs()) as i32)
+                })
+            }
             Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
@@ -3187,7 +3208,7 @@ impl Game {
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, _ => 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, Goal::Exile => 80, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -3623,6 +3644,108 @@ impl Game {
         }
     }
 
+    /// The ladder of shame: when a villager's grievances pile past a
+    /// rung, the village acts - one rung at a time, and the crowd's
+    /// answer decides whether it lands
+    pub fn sanction_tick(&mut self, tick: u64) {
+        if tick % 7 != 4 { return; }
+        // drop lapsed sanctions; the cold shoulder doesn't last forever
+        self.sanctioned.retain(|(_, _, until)| tick < *until);
+        // the most-grieved soul in the village
+        let target = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<TownRole>(v).is_none())
+            .map(|v| (v, self.world.get_component::<InnerLife>(v)
+                .map(|l| l.grievances.iter().filter(|(_, u)| tick < *u).count()).unwrap_or(0)))
+            .filter(|(_, n)| *n >= 3)
+            .max_by_key(|(_, n)| *n);
+        let Some((v, n)) = target else { return };
+        let current = self.sanctioned.iter().filter(|(e, _, _)| *e == v)
+            .map(|(_, s, _)| *s).max();
+        let next = sanctions::rung_for(n);
+        // one rung at a time, and only upward
+        let step = match (current, next) {
+            // blame earns a bad word first; the ladder is climbed
+            (None, Some(_)) => Some(Sanction::Gossip),
+            (Some(cur), Some(want)) if want > cur => {
+                let i = sanctions::LADDER.iter().position(|s| *s == cur).unwrap_or(0);
+                Some(sanctions::LADDER[(i + 1).min(5)])
+            }
+            _ => None,
+        };
+        if let Some(s) = step { self.apply_sanction(v, s, tick); }
+    }
+
+    /// A rung lands: what the village does to its own
+    fn apply_sanction(&mut self, v: Entity, s: Sanction, tick: u64) {
+        let name = self.villagers.iter().position(|x| *x == v).map(|i| NAMES[i]).unwrap_or("someone");
+        // a bad word travels ahead of every rung
+        self.rep_apply(v, RepAction::BadDeed);
+        self.sanctioned.push((v, s, tick + 60));
+        match s {
+            Sanction::Gossip => {
+                self.log.push(format!("t{}: the talk turns on {}.", tick, name));
+                self.say(v, "I hear what they say of me.", TALK_BUBBLE_SECS);
+            }
+            Sanction::Shun => {
+                self.log.push(format!("t{}: {} gets the cold shoulder - no one sits with them.", tick, name));
+            }
+            Sanction::Boycott => {
+                self.log.push(format!("t{}: nobody buys from {} - the boycott bites.", tick, name));
+            }
+            Sanction::Picket => {
+                self.log.push(format!("t{}: a crowd at {}'s door - they can't work for the press.", tick, name));
+                self.say(v, "Let me through - I've work to do!", TALK_BUBBLE_SECS);
+            }
+            Sanction::Stocks => {
+                // the crowd's answer decides: a respected soul shamed is a
+                // scandal, a disliked one shamed is a lesson
+                if self.rep_of(v) > 0.5 {
+                    self.rep_apply(v, RepAction::GreatDeed); // sympathy lifts them
+                    self.log.push(format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
+                    self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
+                } else {
+                    self.rep_apply(v, RepAction::Betrayal);
+                    self.log.push(format!("t{}: {} sits in the stocks by the store.", tick, name));
+                    if let Some(store) = Some(self.market_food) { self.send(v, Goal::HeadHome(store)); }
+                    self.say(v, "...all right. All right.", TALK_BUBBLE_SECS);
+                }
+            }
+            Sanction::Exile => {
+                self.log.push(format!("t{}: the village turns {} out - nothing left for them here.", tick, name));
+                self.send(v, Goal::Exile);
+            }
+        }
+    }
+
+    /// Their standing with the crowd (seeded mid if never tracked)
+    fn rep_of(&mut self, v: Entity) -> f32 {
+        if self.world.get_component::<ReputationState>(v).is_none() {
+            self.world.add_component(v, ReputationState {
+                stage: RepStage::Known, score: 0.45, transition_rates: vec![],
+            });
+        }
+        self.world.get_component::<ReputationState>(v).map(|r| r.score).unwrap_or(0.45)
+    }
+
+    fn rep_apply(&mut self, v: Entity, a: RepAction) {
+        let _ = self.rep_of(v);
+        if let Some(r) = self.world.get_component_mut::<ReputationState>(v) {
+            crate::sim::reputation_qsp::apply_action(r, a);
+        }
+    }
+
+    /// Is this shop's worker under boycott or worse? Their trade dries up
+    pub fn boycotted(&self, shop: Entity) -> bool {
+        let Some(worker) = self.world.get_component::<Building>(shop).and_then(|b| b.worker) else { return false };
+        self.sanctioned.iter().any(|(e, s, _)| *e == worker && *s >= Sanction::Boycott)
+    }
+
+    /// Is this villager under the cold shoulder or worse?
+    pub fn shunned(&self, v: Entity) -> bool {
+        self.sanctioned.iter().any(|(e, s, _)| *e == v && *s >= Sanction::Shun)
+    }
+
     /// The young grow: each day the kids age, and on the day they come of
     /// age they take up a trade - the master they ran the most errands
     /// for, else whatever trade the village can use
@@ -3671,6 +3794,8 @@ impl Game {
             // the roles keep their own rounds; a heart called to market
             // would never wander home again
             && self.world.get_component::<TownRole>(v).is_none()
+            // and no one courts the shunned
+            && !self.shunned(v)
             // grown, not a kid: kids have no craft
             && self.world.get_component::<Craft>(v).is_some()
             && self.world.get_component::<InnerLife>(v)
@@ -3879,6 +4004,13 @@ impl Game {
             Goal::Wander => {}
             Goal::Herd(_) => {}
             Goal::HeadHome(_) => {}
+            Goal::Exile => {
+                // at the world's edge they don't come back: dead to the
+                // village, their grave the road itself
+                self.world.add_component(who, villager::Dead);
+                let name = self.villagers.iter().position(|v| *v == who).map(|i| NAMES[i]).unwrap_or("someone");
+                self.log.push(format!("t{}: {} is driven out - the road takes them.", tick, name));
+            }
             Goal::ForageShroom(pi) => {
                 self.shroom_breaks.push((who, tick));
                 if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = tick + 60; }
@@ -4029,6 +4161,8 @@ impl Game {
         self.trail_tick();
         // the land keeps score: canopy, pit water, the reach
         self.land_tick(tick);
+        // the ladder of shame climbs one rung at a time
+        self.sanction_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -4142,7 +4276,8 @@ impl Game {
                 let near = self.world.get_component::<Pos>(k)
                     .map(|p| (p.x - pos.x).abs() + (p.y - pos.y).abs() < 7.0).unwrap_or(false);
                 if !near { continue; }
-                if let Some(from) = livelihood::seller_for(&self.world, input, pos) {
+                if let Some(from) = livelihood::seller_for(&self.world, input, pos)
+                    .filter(|&s| !self.boycotted(s)) {
                     let pay = livelihood::ODD_JOB_MIN + self.rng.below(4) as f32;
                     self.world.add_component(k, OddJob {
                         hirer: v, good: input.to_string(), qty: 2, from, to: v, pay, loaded: false });
@@ -4152,7 +4287,8 @@ impl Game {
             }
         }
         // go themselves: a seller's satchel, the stall, or gather it
-        if let Some(s) = livelihood::seller_for(&self.world, input, pos) {
+        if let Some(s) = livelihood::seller_for(&self.world, input, pos)
+            .filter(|&s| !self.boycotted(s)) {
             return self.send(v, Goal::BuyFrom(s, input, 2));
         }
         if vocation::gatherable(input) {
@@ -4331,6 +4467,7 @@ impl Game {
                 let need = livelihood::needs_input(&self.world, self.seats[seat].player);
                 let pos = *self.world.get_component::<Pos>(self.seats[seat].player).unwrap();
                 let job = need.and_then(|g| livelihood::seller_for(&self.world, g, pos)
+                    .filter(|&s| !self.boycotted(s))
                     .map(|from| (g, from)));
                 match job {
                     Some((g, from)) => {
@@ -6253,6 +6390,74 @@ mod land_tests {
             assert!(desires::problems_of(&g.world, t, 2).contains(&desires::Problem::ThinWood),
                 "the shrinking wood lands on the wood trade");
         }
+    }
+}
+
+#[cfg(test)]
+mod sanction_tests {
+    use super::*;
+
+    fn grieve(g: &mut Game, v: Entity, n: usize, tick: u64) {
+        let kinds = [desires::Problem::Blamed, desires::Problem::Broke,
+            desires::Problem::Smelly, desires::Problem::SourGut,
+            desires::Problem::NoHome, desires::Problem::Taxed];
+        for i in 0..n {
+            desires::add_grievance(&mut g.world, v, kinds[i % kinds.len()], tick + 60);
+        }
+    }
+
+    #[test]
+    fn test_the_ladder_climbs_one_rung_at_a_time() {
+        let mut g = Game::new();
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        grieve(&mut g, v, 13, 4);
+        g.sanction_tick(4);
+        // thirteen grievances earn the stocks, but the ladder is climbed -
+        // the first landing is only the talk
+        assert!(g.sanctioned.iter().any(|(e, s, _)| *e == v && *s == Sanction::Gossip),
+            "it starts with a bad word");
+        assert!(!g.sanctioned.iter().any(|(e, s, _)| *e == v && *s > Sanction::Gossip),
+            "nobody goes straight to the stocks");
+    }
+
+    #[test]
+    fn test_the_boycott_dries_up_the_shop() {
+        let mut g = Game::new();
+        let shop = g.building_entities.iter().copied().find(|&b|
+            g.world.get_component::<Building>(b).map(|b| b.worker.is_some()).unwrap_or(false)).unwrap();
+        let worker = g.world.get_component::<Building>(shop).unwrap().worker.unwrap();
+        assert!(!g.boycotted(shop));
+        g.sanctioned.push((worker, Sanction::Boycott, 100));
+        assert!(g.boycotted(shop), "a boycotted shop's trade dries up");
+        assert!(g.shunned(worker), "the boycott is worse than the cold shoulder");
+    }
+
+    #[test]
+    fn test_a_respected_soul_walks_free_of_the_stocks() {
+        let mut g = Game::new();
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        g.world.add_component(v, ReputationState {
+            stage: RepStage::Esteemed, score: 0.8, transition_rates: vec![] });
+        let before = g.world.get_component::<ReputationState>(v).unwrap().score;
+        g.apply_sanction(v, Sanction::Stocks, 10);
+        let after = g.world.get_component::<ReputationState>(v).unwrap().score;
+        assert!(after > before, "the crowd's sympathy lifts the wrongly shamed");
+        assert!(g.log.iter().any(|l| l.contains("would have none of it")));
+    }
+
+    #[test]
+    fn test_the_worst_walk_out() {
+        let mut g = Game::new();
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        g.apply_sanction(v, Sanction::Exile, 10);
+        assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile)),
+            "the exiled take the road");
+        // and at the world's edge they're dead to the village
+        g.arrive(v, Goal::Exile);
+        assert!(villager::is_dead(&g.world, v), "gone is gone");
     }
 }
 

@@ -101,7 +101,10 @@ herb-wife's hut shows where the sick keep going. The land keeps score:
 the wood thins and isn't replanted where feet and hooves keep it bare,
 the worked pit fills with water until it's a pond, and the reach below
 town carries the stink of everything dumped in it - and all three become
-troubles the whole village can agree on.
+troubles the whole village can agree on. And when blame piles up the
+village climbs the ladder of shame: a bad word, the cold shoulder, a
+boycott, a crowd at the door, the stocks - or the road out. A respected
+soul in the stocks is a scandal, not a lesson.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

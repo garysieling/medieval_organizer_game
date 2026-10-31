@@ -121,24 +121,6 @@ deliberately thin — it's texture that other features hook, not a sim.
 ## Wave 2 — The social economy (people, power, and time)
 
 
-### F13. The sanction ladder — shame before violence
-
-*`sprint-7-non-violent-deposition.md`; uses `sim/reputation_qsp.rs`,
-`game/organizing.rs` votes, `game/feuds.rs`.*
-
-**What.** Orgs (and the lord) can impose escalating non-violent sanctions
-on a person: gossip → shun → boycott → picket → stocks → exile. Crowd
-reaction decides whether it lands or backfires.
-
-**Spec.** `enum Sanction { Gossip, Shun, Boycott, Picket, Stocks, Exile }`
-with the review's ladder table. Org vote (existing meeting machinery,
-success = ≥3 voices same category) picks a target + level; `reputation_qsp`
-runs the crowd reaction — a failed stocks attempt *raises* the target's
-standing. Exile walks them off the map edge. This is the mechanic F5's
-ergot-blame and F1's `SuspectHer` escalate into — the witch-trial path
-is emergent, not scripted. **Size: L.**
-
----
 
 ### F14. Perceived-power matrix — power recognizes power
 
@@ -498,7 +480,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 11. ~~F42 The land keeps score~~ — **done, PR #152.**
     issues F43 makes matter; needs a few features' worth of economy to
     bite.
-12. F13 Sanction ladder — the emergent-stories engine; witch-trial and
+12. ~~F13 Sanction ladder~~ — **done, PR #153.**
     ergot paths converge here.
 13. F15 Festivals — ties music, food, bonds, and the calendar together;
     the first thing that feels like a *village*, not a sim.

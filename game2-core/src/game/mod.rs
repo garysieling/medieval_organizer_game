@@ -15,6 +15,7 @@ pub mod player;
 pub mod ai_player;
 pub mod action_menu;
 pub mod succession;
+pub mod sanctions;
 pub mod jobs;
 pub mod traits;
 pub mod migration;

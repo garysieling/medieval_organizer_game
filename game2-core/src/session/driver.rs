@@ -4,7 +4,7 @@
 //! useful: eat, work, talk, invest. `drive_agent` is the same instinct for
 //! a bot's villager. Both bias toward things that keep the village running.
 
-use super::{AgentCmd, AgentObs, Command, Game, ObsPerson};
+use super::{AgentCmd, AgentObs, Command, Game};
 use crate::game::vocation::Craft;
 use crate::game::villager::Pos;
 use crate::game::player::PlayerCharacter;

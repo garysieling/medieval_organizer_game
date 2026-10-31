@@ -872,6 +872,33 @@ impl Game {
                     heard += 1;
                 }
             }
+            EventId::Heretic => {
+                // a strange doctrine by the gate: every other soul who
+                // hears it is shaken out of comfort; the others are
+                // drawn to hear more - faith doesn't sit still for him
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for (i, &v) in self.villagers.clone().iter().enumerate() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    if i % 2 == 0 {
+                        // shaken: the comfort lifts off the faithful
+                        if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
+                            l.satisfied.retain(|(w, _)| *w != Want::Faith);
+                        }
+                    } else {
+                        // drawn: the strange doctrine pulls the curious -
+                        // the already-fed hear it again, and it lengthens
+                        let curious = self.world.get_component::<desires::InnerLife>(v)
+                            .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
+                        if curious {
+                            desires::satisfy(&mut self.world, v, Want::Faith, tick + 20);
+                        }
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1923,6 +1950,43 @@ mod tests {
                 "the ear learned the want on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Friar), "he wandered on from {:?}", st);
+        }
+    }
+
+    /// The strange doctrine doesn't leave faith where it found it:
+    /// somebody's comfort moved, one way or the other
+    #[test]
+    fn test_the_doctrine_moves_the_streets_faith() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Heretic);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Heretic && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Heretic).and_then(|r| r.at).unwrap();
+            // two ears for his doctrine, one on each side of the line:
+            // an even-indexed soul gets shaken, an odd one gets drawn
+            let even = g.villagers.iter().enumerate()
+                .find(|(i, v)| i % 2 == 0 && !villager::is_dead(&g.world, **v)).map(|(_, v)| *v).unwrap();
+            let odd = g.villagers.iter().enumerate()
+                .find(|(i, v)| i % 2 == 1 && !villager::is_dead(&g.world, **v)).map(|(_, v)| *v).unwrap();
+            for v in [even, odd] {
+                g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+                g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+                g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
+            }
+            desires::satisfy(&mut g.world, even, Want::Faith, g.tick + 60);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a quiet preacher")),
+                "the frame shows him on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let faith_of = |g: &Game, v| g.world.get_component::<desires::InnerLife>(v)
+                .and_then(|l| l.satisfied.iter().find(|(w, _)| *w == Want::Faith).map(|(_, u)| *u));
+            assert!(faith_of(&g, even).is_none(), "the shaken lost comfort on {:?}", st);
+            assert!(faith_of(&g, odd).is_some(), "the drawn were fed on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Heretic), "he preached elsewhere from {:?}", st);
         }
     }
 

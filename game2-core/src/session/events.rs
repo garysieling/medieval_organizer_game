@@ -1277,7 +1277,8 @@ impl Game {
                     .map(|(i, d)| (*i, *d));
                 if let Some((i, d)) = next {
                     let name = EVENTS.iter().find(|s| s.id == i).map(|s| s.name).unwrap_or("something");
-                    let days = d.saturating_sub(tick) / 80;
+                    // the due's already in days - no conversion
+                    let days = d.saturating_sub(tick);
                     self.log.push(format!("t{}: the astrologer reads the sky - {} comes in about {} days.", tick, name, days.max(1)));
                 }
                 // forearmed: a day's warning's a kind of security for near folk

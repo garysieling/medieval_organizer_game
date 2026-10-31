@@ -10062,13 +10062,17 @@ mod progression_tests {
             game.selected_target = i;
             for _ in 0..8 { game.act(0); } // talk until there's nothing new to hear
             for _ in 0..40 {
-                if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) { break; }
+                if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v)
+                    || villager::is_dead(&game.world, v) { break; }
                 // trust decays a little every day - a meeting a fortnight
                 // apart won't climb past it unless the talking keeps up
                 game.act(0);
                 game.act(3);
                 finish_meeting(&mut game);
             }
+            // he may have died mid-courtship - the years this takes carry
+            // folk off, and a corpse can't come to a meeting
+            if villager::is_dead(&game.world, v) { continue; }
             if !game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v) {
                 let rel = relationships::find_relationship(&game.world, game.player, v)
                     .and_then(|r| game.world.get_component::<Relationship>(r)).map(|r| r.strength);

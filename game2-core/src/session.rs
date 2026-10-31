@@ -3746,16 +3746,24 @@ impl Game {
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Eat => {
-                // the nearest table with a meal on it - a bare shelf
-                // sends them to the next one
-                self.world.query::<villager::FoodSource>().iter().copied()
-                    .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
-                        .map(|fs| fs.servings > 0).unwrap_or(false))
-                    .filter_map(|f| self.world.get_component::<Pos>(f)
-                        .map(|fp| ((fp.x.round() as i32, fp.y.round() as i32),
-                            (fp.x - from.x).abs() + (fp.y - from.y).abs())))
-                    .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-                    .map(|(p, _)| p)
+                // the village table while it's laid: folk eat at their
+                // own market, and only a bare shelf sends them hunting
+                // for the next source
+                let market_laid = self.world.get_component::<villager::FoodSource>(self.market_food)
+                    .map(|f| f.servings > 0).unwrap_or(false);
+                if market_laid {
+                    self.world.get_component::<Pos>(self.market_food)
+                        .map(|p| (p.x.round() as i32, p.y.round() as i32))
+                } else {
+                    self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter_map(|f| self.world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x.round() as i32, fp.y.round() as i32),
+                                (fp.x - from.x).abs() + (fp.y - from.y).abs())))
+                        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                        .map(|(p, _)| p)
+                }
             }
         };
         let Some(to) = to else { return false };

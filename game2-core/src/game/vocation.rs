@@ -45,6 +45,9 @@ pub enum Vocation {
     Perfumer,
     /// Mixes pigment and lays it on wood: painted signs, murals, heraldry
     Painter,
+    /// Works the river's edge: fish, eels, and the strange things the
+    /// water brings up
+    Fisher,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -138,6 +141,7 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
         Vocation::Weaver => &["wool"],
         Vocation::Perfumer => &["marigold", "lavender"],
         Vocation::Painter => &["pigment", "wood"],
+        Vocation::Fisher => &[],
         Vocation::Glazier => &["sand", "pigment"],
         Vocation::Printmaker => &["paper", "ink"],
         Vocation::Mason => &["stone"],
@@ -165,6 +169,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Weaver => Some("cloth"),
         Vocation::Perfumer => Some("perfume"),
         Vocation::Painter => Some("paint"),
+        Vocation::Fisher => Some("fish"),
     }
 }
 
@@ -201,6 +206,7 @@ pub fn price(good: &str) -> f32 {
         "cloth" => 6.0,
         "perfume" => 20.0,
         "paint" => 8.0,
+        "fish" => 3.0,
         "marigold" | "lavender" => 1.0,
         "security" => 8.0,
         "glass" => 10.0,
@@ -229,6 +235,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Weaver => "the loom house",
         Vocation::Perfumer => "the perfumery",
         Vocation::Painter => "the paint shop",
+        Vocation::Fisher => "the fish-smoke house",
     }
 }
 
@@ -250,6 +257,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Weaver => "Weaver",
         Vocation::Perfumer => "Perfumer",
         Vocation::Painter => "Painter",
+        Vocation::Fisher => "Fisher",
     }
 }
 
@@ -359,6 +367,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("mix pigment", "madder red, woad blue, a ground of chalk"),
             a("lay it on wood", "a painted sign is work that shows"),
             a("take commissions", "the lord's hall wants its colors"),
+        ],
+        Vocation::Fisher => vec![
+            a("set the eel-pots", "the river runs full of dark water"),
+            a("smoke the catch", "the day's take hung over embers"),
+            a("mend the nets", "the river takes its share of line"),
         ],
     }
 }

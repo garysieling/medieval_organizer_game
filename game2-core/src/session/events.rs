@@ -854,15 +854,19 @@ impl Game {
                             l.grievances.remove(i);
                         }
                     }
-                    // the telling surfaces a want for the ear to know
-                    let want = self.world.get_component::<desires::InnerLife>(v)
-                        .and_then(|l| l.wants.first().copied());
+                    // the telling surfaces a want the ear didn't know
+                    // yet - the hear() path keeps the ledger's voice
+                    let want = {
+                        let wants: Vec<Want> = self.world.get_component::<desires::InnerLife>(v)
+                            .map(|l| l.wants.clone()).unwrap_or_default();
+                        let kn = self.world.get_component::<desires::Known>(v);
+                        wants.into_iter().find(|w| kn
+                            .map(|k| !k.revealed.contains(&desires::Reveal::Want(*w)))
+                            .unwrap_or(true))
+                    };
                     if let Some(w) = want {
-                        if let Some(kn) = self.world.get_component_mut::<desires::Known>(v) {
-                            if !kn.revealed.contains(&desires::Reveal::Want(w)) {
-                                kn.revealed.push(desires::Reveal::Want(w));
-                            }
-                        }
+                        let org = self.seats[0].org;
+                        desires::hear(&mut self.world, org, v, desires::Reveal::Want(w), tick);
                     }
                     self.say(v, "Go and carry it lighter.", CHAT_BUBBLE_SECS);
                     heard += 1;

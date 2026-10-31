@@ -82,7 +82,7 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
         let v = if has(&["stands against", "rides home empty", "walks free"]) { Valence::Positive } else { Valence::Negative };
         return (v, Thread::Law);
     }
-    if has(&["flu", "fever", "illness", "recovered", "treats", "cure"]) {
+    if has(&["flu", "fever", "illness", "recovered", "treats", "cure", "taken with", "grippe", "scarlatina", "gripes", "sweats", "consumption", "ague"]) {
         let v = if has(&["recovered", "treats", "cure"]) { Valence::Positive } else { Valence::Negative };
         return (v, Thread::Illness);
     }
@@ -658,7 +658,7 @@ mod tests {
     #[test]
     fn test_extinction_drought_flags() {
         let mut events: Vec<(u64, &str)> = vec![(5, "the pedlar comes up the road.")];
-        for t in (10..200).step_by(7) { events.push((t, "Bram has the flu")); }
+        for t in (10..200).step_by(7) { events.push((t, "Bram is taken with la grippe")); }
         let t = BalanceTester::new();
         let report = t.score(&run(200, &events));
         assert!(report.results.iter().any(|r| r.name == "reward_drought_max" && r.status == Status::Fail));

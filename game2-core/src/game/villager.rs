@@ -447,12 +447,12 @@ mod tests {
 
     #[test]
     fn test_the_sick_do_not_mend_from_food_alone() {
-        use crate::sim::illness::{Disease, Health, Stage};
+        use crate::sim::illness::{Disease, DiseaseKind, Health, Stage};
         let mut w = World::new();
         let v = spawn_villager(&mut w, 0.0, 0.0);
         w.add_component(v, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0 });
         for _ in 0..50 { NourishmentSystem.run(&mut w); }
         assert_eq!(w.get_component::<Health>(v).unwrap().condition, 0.5);
     }

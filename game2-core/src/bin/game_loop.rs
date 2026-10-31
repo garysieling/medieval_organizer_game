@@ -7,7 +7,7 @@ use game2_core::game::villager::{self, Hunger, Villager, Activity};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
 use game2_core::game::jobs::{self, Job, JobHolder, JobSystem};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
+use game2_core::sim::illness::{Health, Disease, DiseaseKind, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
 use game2_core::sim::religion::{self, Faith, Congregation, Service, DevotionSystem};
 use game2_core::sim::economics::Market;
@@ -112,7 +112,7 @@ fn main() {
         if tick == 300 {
             for v in &villagers {
                 let d = world.create_entity();
-                world.add_component(d, Disease { name: "flu".into(), patient: *v, stage: Stage::Mild, severity: 0.3, contagious: true });
+                world.add_component(d, Disease::new(DiseaseKind::Influenza, *v, 0.3));
                 if let Some(h) = world.get_component_mut::<Health>(*v) { h.condition -= 0.15; }
             }
             println!("EVENT: flu outbreak at tick 300");
@@ -133,7 +133,7 @@ fn main() {
         }
 
         // Attachment episodes: going hungry alone is distressing, though a
-        // well-bonded pet is a comfort through it; during the flu Aldric
+        // well-bonded pet is a comfort through it; during la grippe Aldric
         // nurses the sick every few days, a warm moment for both
         if tick % 10 == 0 {
             let carer = villagers[0];

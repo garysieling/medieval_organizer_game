@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::villager::{self};
-use game2_core::sim::illness::{Health, Disease, Stage, treat_health};
+use game2_core::sim::illness::{Health, Disease, DiseaseKind, treat_health};
 use game2_core::game::herbology::{self, Apothecary, HerbEffect, PrepMethod};
 
 fn main() {
@@ -30,7 +30,7 @@ fn main() {
 
     // Patient zero gets flu at tick 0
     let flu = world.create_entity();
-    world.add_component(flu, Disease { name: "flu".into(), patient: villagers[0], stage: Stage::Mild, severity: 0.3, contagious: true });
+    world.add_component(flu, Disease::new(DiseaseKind::Influenza, villagers[0], 0.3));
     world.get_component_mut::<Health>(villagers[0]).unwrap().condition -= 0.2;
 
     println!("Patient zero ({}) infected. Watching spread...\n", names[0]);

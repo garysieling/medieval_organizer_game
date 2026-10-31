@@ -56,10 +56,8 @@ pub fn stage(g: &mut Game, s: Stage) {
         Stage::Fever => {
             for (i, &v) in g.villagers.iter().take(3).enumerate() {
                 let d = g.world.create_entity();
-                g.world.add_component(d, Disease {
-                    patient: v, name: "the fever".into(),
-                    stage: illness::Stage::Moderate,
-                    severity: 0.6 - i as f32 * 0.1, contagious: true });
+                g.world.add_component(d,
+                    Disease::new(illness::DiseaseKind::ScarletFever, v, 0.6 - i as f32 * 0.1));
             }
         }
         Stage::Famine => {
@@ -155,7 +153,7 @@ mod tests {
         assert!(hungry_famine > hungry_ordinary, "the famine's bellies are empty");
 
         let fever = staged(Stage::Fever).probe();
-        assert!(fever.diseases.len() >= 3, "the fever's in the beds");
+        assert!(fever.diseases.len() >= 3, "the scarlatina's in the beds");
 
         let winter = staged(Stage::HardWinter).probe();
         assert!(winter.harsh_winter, "the winter's running long");

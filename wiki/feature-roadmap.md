@@ -209,46 +209,6 @@ problems (the reveal machinery on a party line). Org can sponsor a feast
 
 ---
 
-### F43. Issues belong to trades — common ground is work
-
-*Side-feedback request; numbered F43 for stable refs. The organizing
-game gets its real friction: a baker's grievance isn't a mason's, and a
-room full of different trades doesn't converge.*
-
-**What.** Issues carry a vocation scope. A complaint only "counts"
-toward discovery among people of the same trade — so a mixed meeting
-splinters by trade unless it finds a *bridge issue* everyone shares.
-
-**Spec.**
-
-- `IssueKind` gains `vocation: Option<Vocation>` (None = the shared
-  grievances — `Taxed`, `Broke`, the stinking reach from F42 — that
-  count for everyone). Meeting convergence (the ≥3-same-category rule)
-  requires an exact `(kind, vocation)` match; a mason's `NoMaster`
-  doesn't join the shepherd's `WolfAtFold`.
-- Each vocation gets 1–2 signature problems in `desires.rs` on top of the
-  commons: farmer → `RentOnTheField`; baker → `GrainShort`;
-  mason/toolmaker → `WornTools`; shepherd → `WolfAtFold`; tailor →
-  `ClothPrice`; luthier → `GreenWood` (unseasoned); kids stay on
-  `Joy`/chores.
-- A meeting that fails to converge now logs why: "the talk splinters by
-  trade" — teaching that homogeneous meetings converge easily, while
-  cross-trade organizing needs the rare common issues. Discovery names
-  carry the scope: "masons with no master" vs "the tax collector's cut"
-  (everybody's).
-- Design intent, per Gary: **bridge issues are the organizer's real
-  game.** You can farm one trade for quick wins, but village-scale power
-  (F14) needs the issues that cross trades — tax, stink, bread. The
-  environmental pressures from F42 are deliberately seeded as common
-  issues for this reason.
-- UI: issues list shows the tag ("the masons' …", "everyone's …");
-  meeting log names which trade's voices echoed.
-
-**Verify.** Mixed-trade meeting with only signature complaints never
-converges; same-trade meeting does; a common issue converges in a mixed
-room; discovered issue names carry the vocation tag. **Size: S-M.**
-
----
 
 ## Wave 3 — The world outside (roads, travelers, and the far powers)
 
@@ -631,7 +591,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 3. F3 Chickens — cheap after F2, proves Livestock generality.
 4. ~~F41 Heart Helper~~ — **done, PR #144.**
 5. ~~F5 Foraging/mushrooms~~ — **done, PR #145.**
-6. F43 Issues belong to trades — small, and it makes every later
+6. ~~F43 Issues belong to trades~~ — **done, PR #148.**
    grievance richer; do it before the roster of scoped problems grows.
 7. ~~F7 Vermin/cats~~ — **done, PR #147.**
    now cats do too.

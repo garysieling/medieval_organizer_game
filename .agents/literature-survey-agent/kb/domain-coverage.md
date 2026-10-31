@@ -1,7 +1,7 @@
 # Domain Coverage
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.1.0
 
 ## Summary
@@ -40,11 +40,32 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Community Organizing & Sociology
-**Coverage:** Medium
-**Surveys:** Sprint 3 (Community Organizing)
+**Coverage:** High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure, Pre-Modern Resistance Organizations, Secret Societies & Oath Networks
 **Mechanics Implemented:** 1-1 conversations, house meetings (community.rs)
-**Sources:** Community organizing literature (needs specific citations)
-**Next Steps:** Coalition building, direct action tactics, movement scaling
+**Mechanics Proposed:**
+- Campaign structure (target, demand, escalation ladder, settlement) - historical-campaigns review
+- Pillars of support (defection-based power model) - historical-campaigns review
+- Repression backfire / political jiu-jitsu - historical-campaigns review
+- Institutional anchoring (durable vs ephemeral orgs) - historical-campaigns review
+- Leadership pipeline vs charismatic bottleneck - historical-campaigns review
+- Ask specificity (winnable vs transformational campaigns) - historical-campaigns review
+- Coalition breadth vs coordination friction - historical-campaigns review
+- Repression tech tree (surveillance → infiltration → legal harassment → provocation → violence) - countertactics review
+- Trust/paranoia stat (COINTELPRO's real mechanism) - countertactics review
+- Controlled-opposition events (binding vs performative seats) - countertactics review
+- Provocateur events + marshal/discipline counters - countertactics review
+- Manufactured crisis + refutation window - countertactics review
+- Mohawk Valley Formula as counter-AI playbook - countertactics review
+- Counter-intel abilities (documentation, vetting, surveillance exploitation) - countertactics review
+- Win-decay + enforcement tiers + counter-movement timer - enforcement review
+- Campaign design stack (6 layers) + decision-tree rule + playbook export/counter-adaptation - campaign-masters review
+- Repression-as-market + legalization track + lawfare events - modern-playbook review
+- Channel ownership + petition artifacts + suppression backfire + brand propagation - info-infrastructure review
+- Hidden-institution form + inquisition counter-cycle + relapse/penitent mechanic + negotiate-and-decapitate event + moderate-split exploitation - premodern-resistance review
+- Oath intensity tech + cover function + penetration timer + counter-ritual enemy action + dual-org architecture - secret-societies review
+**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure); Le Roy Ladurie/Montaillou, Bernard Gui, Biller (pre-modern resistance); Rath, Kershaw/Rice, ter Haar, Le Caron (secret societies)
+**Next Steps:** Deep-dives done: 504, ACT UP, abolition petitions (round 2). Remaining: UK spycops inquiry, NGO-ization/co-option literature, platform-manipulation research
 
 ---
 
@@ -58,10 +79,13 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Religion & Fundamentalism
-**Coverage:** Medium
-**Surveys:** Sprint 3 (Religion & Emergence)
+**Coverage:** Medium-High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (Religion & Emergence), Messianic & Prophetic Movements, The Faith-Power Interface
 **Mechanics Implemented:** Congregations, fundamentalism (religion.rs, fundamentalism.rs)
-**Sources:** Sociology of religion (needs specific citations)
+**Mechanics Proposed:**
+- Prophetic mobilization growth mode + millenarian timer + martyrdom roll + prophetic capture events + institutional-cover dependency - messianic-prophetic review
+- Broker class + incorporation offers + redacted canon + paternalism bargain + disciplinary institutions layer + broker dilemmas - faith-and-power review
+**Sources:** Sociology of religion (needs specific citations); Cohn *Pursuit of the Millennium* (messianic movements); Niebuhr, Weber/Troeltsch, Foucault, Genovese (faith-power)
 **User Note - Religion-Economics Feedback Loop (Bonhoeffer, Niebuhr):**
 - Economic scarcity → Religious coping (simplicity/hard work as values, celebration of pain, apocalyptic hope)
 - New technology → Removes need → Tension between faith and reality → Schism (new organizations form)
@@ -73,10 +97,12 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Political Theory & Liberation
-**Coverage:** Medium-Low
-**Surveys:** Sprint 4 (Anti-Colonialist/Liberation)
+**Coverage:** Medium (deepened 2026-10-31)
+**Surveys:** Sprint 4 (Anti-Colonialist/Liberation), Anti-Colonial Campaign History
 **Mechanics Implemented:** Player role progression (Outsider → Leader)
-**Sources:** Liberation theory (needs specific citations)
+**Mechanics Proposed:**
+- Sacred binding infrastructure + ostracism as insider discipline + succession redundancy + COIN doctrine choice + deferred radicalization debt - anticolonial-campaigns review
+**Sources:** Liberation theory (needs specific citations); Geggus (Haiti), Land League/Parnell, DTIC/RAND Battle of Algiers studies, CLR James
 **Next Steps:** Specific organizing tactics, oppression mechanics, revolution dynamics
 
 ---
@@ -228,10 +254,10 @@ Domains with no research yet but relevant to game vision.
 ---
 
 #### Education & Pedagogy
-**Coverage:** High
-**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy)
+**Coverage:** High (deepened 2026-10-31)
+**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy), Critical Pedagogy & Movement Education
 **Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/education-pedagogy.md)
-**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory
+**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory; Freire, Boal, Horton/Highlander, Illich, Bourdieu & Passeron, Gramsci (critical pedagogy)
 **Mechanics Proposed:**
 - Medieval education structures (monastery schools, cathedral schools, universities with four faculties)
 - Seven liberal arts curriculum (trivium + quadrivium progression)
@@ -239,6 +265,7 @@ Domains with no research yet but relevant to game vision.
 - Deliberate practice skill system (quality over quantity, 3x multiplier for focused practice)
 - Literacy teaching (wax tablets, hornbooks, oral recitation, reading vs writing as separate skills)
 - Tacit vs explicit knowledge transfer (books for theory, apprenticeship for embodied skills)
+- Internalized_domination stat + praxis loop skill growth + community-teacher requirement + spect-actor rehearsal + movement schools building + oppressor-within flip risk - critical-pedagogy review
 **Next Steps:** Implement education.rs and skills.rs modules, test deliberate practice mechanics, balance apprenticeship timescales
 
 ---
@@ -362,12 +389,12 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 21 (20 scheduled + 1 hot-pursuit)
+**Total Surveys Completed:** 33 (+12 on 2026-10-31 across 4 user-requested rounds: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)
-**Mechanics Implemented from Research:** ~72 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed)
-**Sources Requiring Better Citation:** ~5
+**Mechanics Implemented from Research:** ~138 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 + 20 round-3 organizing mechanics)
+**Sources Requiring Better Citation:** ~4 (Community Organizing citation gap FILLED 2026-10-31)
 
 **Coverage Score:** 100% (20/20 well-covered domains!)
 **Cycle 1: COMPLETE** (7/7 surveys finished)

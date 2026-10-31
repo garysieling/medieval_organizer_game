@@ -36,7 +36,7 @@ Executes headless runs of the real game, samples the day's gauges and log lines,
    - A FAIL is a red flag - something out-of-band enough to flag the whole run.
    - A WARN is a miss against the target band - note it, compare across seeds.
    - Bands are research-anchored *priors*. If every seed fails the same KPI in the same way, suspect calibration or instrumentation before suspecting the game - check whether the gauge can even move (e.g. a static price always fails `price_cv`; that is a real finding about instrumentation, not gameplay).
-   - Distinguish "the sim is unbalanced" from "the idle driver doesn't play" — the Wanderer seat is driven by the fallback idler, so org-growth KPIs measure what a passive player would feel.
+   - Distinguish "the sim is unbalanced" from "the idle driver doesn't play" — the Wanderer seat runs a light organizing policy (talk -> influence -> recruit -> meetings), so org-growth and reward KPIs measure an actual player. Distinguish "the sim is unbalanced" from "the driver can't reach that system yet".
 
 4. **Save the report** to `evidence/balance-{days}d-seed{seed}.md` with the full output plus a short interpretation: top flags, likely cause (game vs gauge vs driver), suggested next probe.
 

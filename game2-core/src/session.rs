@@ -2651,8 +2651,13 @@ impl Game {
     /// this tick - trail heat, people power, the economy's pulse
     pub fn telemetry(&self) -> Vec<(&'static str, f64)> {
         let alive = self.villagers.iter().filter(|&&v| !villager::is_dead(&self.world, v)).count();
+        // hungry = below the sim's own seek-food line (30); a villager between
+        // 30-40 is just low on the eat cycle, not in trouble
         let hungry = self.villagers.iter().filter(|&&v|
-            self.world.get_component::<Hunger>(v).map(|h| h.value < 40.0).unwrap_or(false)).count();
+            self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false)).count();
+        // starving = the hard line: a real food crisis, not the bottom of a meal cycle
+        let starving = self.villagers.iter().filter(|&&v|
+            self.world.get_component::<Hunger>(v).map(|h| h.value <= 10.0).unwrap_or(false)).count();
         let trail_heat: f32 = self.trails.values().map(|t| t.strength).sum();
         let trail_max = self.trails.values().map(|t| t.strength).fold(0.0f32, f32::max);
         let power = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
@@ -2663,6 +2668,14 @@ impl Game {
             .map(|b| b.stock.get("bread").copied().unwrap_or(0)).unwrap_or(0) as f64;
         let food = self.world.get_component::<villager::FoodSource>(self.market_food)
             .map(|f| f.servings).unwrap_or(0) as f64;
+        // the village's gold: mean purse and the top/mean spread - the
+        // economy's pulse while prices sit on a fixed table
+        let purses: Vec<f32> = self.villagers.iter()
+            .filter(|&&v| !villager::is_dead(&self.world, v))
+            .filter_map(|&v| self.world.get_component::<Purse>(v).map(|p| p.gold))
+            .collect();
+        let gold_mean = if purses.is_empty() { 0.0 } else { purses.iter().sum::<f32>() / purses.len() as f32 };
+        let gold_top = purses.iter().copied().fold(0.0f32, f32::max);
         let org_members = self.world.get_component::<Organization>(self.org)
             .map(|o| o.members.len()).unwrap_or(0);
         let sanctioned = self.sanctioned.len();
@@ -2670,6 +2683,9 @@ impl Game {
         vec![
             ("villagers.alive", alive as f64),
             ("villagers.hungry", hungry as f64),
+            ("villagers.starving", starving as f64),
+            ("econ.gold_mean", gold_mean as f64),
+            ("econ.gold_spread", (gold_top / gold_mean.max(1.0)) as f64),
             ("org.members", org_members as f64),
             ("org.power", power as f64),
             ("org.lord_esteem", self.lord_esteem as f64),

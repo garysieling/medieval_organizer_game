@@ -2,17 +2,90 @@
 //!
 //! `cargo run --release --bin balance_test [days] [seed]`
 //!
-//! The Wanderer's seat is left to the idle driver (the same fallback the
-//! server uses when a human goes quiet), so the run measures what a
-//! passive player would feel: the world doing its work around them.
-//! Each day's gauges and log lines feed the BalanceTester's KPI table
-//! (see wiki/literature-reviews/ for where the bands come from).
+//! The Wanderer's seat is driven by a light organizing policy - talk to
+//! whoever's in reach, recruit once the bond's strong enough, call a
+//! meeting when a few are ready - so org-growth and reward KPIs measure
+//! an actual player, not just the village running on its own. Each day's
+//! gauges and log lines feed the BalanceTester's KPI table (see
+//! wiki/literature-reviews/ for where the bands come from).
 //!
 //! Exits 1 when any KPI red-flags, so it can gate a schedule like the
 //! playtest gate does.
 
-use game2_core::session::{driver, Game};
+use game2_core::session::{driver, Command, Game};
 use game2_core::agents::balance_tester::{BalanceTester, DaySample, RunRecord};
+use game2_core::sim::community::{Organization, RECRUIT_MIN_TRUST};
+use game2_core::game::relationships::{self, Relationship};
+use game2_core::game::villager::{self, Hunger};
+use game2_core::game::livelihood::Purse;
+
+/// The seat's bond with a villager, as the sim reads it.
+fn bond(game: &Game, seat: usize, v: game2_core::engine::ecs::Entity) -> f32 {
+    relationships::find_relationship(&game.world, game.seats[seat].player, v)
+        .and_then(|r| game.world.get_component::<Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0)
+}
+
+/// A light organizing policy for the Wanderer seat: keep body and gold
+/// together via the idle driver, and spend the rest of the attention on
+/// the work the game is about - talk, recruit, the odd meeting.
+fn drive_organizer(game: &mut Game, seat: usize) {
+    // eating comes first, same as any player: if the purse is thin put in
+    // a day of work, and let the sim's own hunger logic do the walking
+    let who = game.seats[seat].player;
+    let gold = game.world.get_component::<Purse>(who).map(|p| p.gold).unwrap_or(0.0);
+    let hungry = game.world.get_component::<Hunger>(who).map(|h| h.value < 30.0).unwrap_or(false);
+    if hungry || gold < 10.0 { driver::drive_player(game, seat); return; }
+
+    let org = game.seats[seat].org;
+    let members: Vec<_> = game.world.get_component::<Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default();
+    // the best-prospected non-member in reach: deepest bond first
+    let mut cands: Vec<(usize, f32)> = game.villagers_in_reach_at(seat).iter()
+        .filter(|v| !members.contains(v) && !villager::is_dead(&game.world, **v))
+        .filter_map(|v| game.villagers.iter().position(|x| *x == *v)
+            .map(|i| (i, bond(game, seat, *v))))
+        .collect();
+    cands.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // only press buttons that aren't greyed out - a blocked action just
+    // writes "Can't X" to the log, spam that isn't the village talking
+    let can_recruit = game.action_blocker_at(seat, 1).is_none();
+    if !can_recruit {
+        // influence comes from fresh conversation (+0.05 while rapport is
+        // new) - work the room, don't chat up your best friend forever
+        cands.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        if let Some(&(i, _)) = cands.first() {
+            game.seats[seat].selected_target = i;
+            game.seats[seat].picked = true;
+            game.command_at(seat, Command::Act(0));
+            return;
+        }
+        driver::drive_player(game, seat);
+        return;
+    }
+    let ready: Vec<usize> = cands.iter().filter(|(_, s)| *s >= RECRUIT_MIN_TRUST).map(|(i, _)| *i).collect();
+    if ready.len() >= 2 && game.action_blocker_at(seat, 3).is_none() {
+        // a house meeting joins everyone who already trusts you - better
+        // value than recruiting them one by one
+        game.command_at(seat, Command::Act(3));
+        return;
+    }
+    if let Some(&i) = ready.first() {
+        game.seats[seat].selected_target = i;
+        game.seats[seat].picked = true;
+        game.command_at(seat, Command::Act(1));
+        return;
+    }
+    if let Some(&(i, _)) = cands.first() {
+        game.seats[seat].selected_target = i;
+        game.seats[seat].picked = true;
+        game.command_at(seat, Command::Act(0));
+        return;
+    }
+    // nobody near to work on: drift to where the village gathers
+    driver::drive_player(game, seat);
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -31,7 +104,7 @@ fn main() {
     for _ in 0..budget {
         if game.tick >= days { break; }
         game.update();
-        if game.frame_n % driver::DRIVE_EVERY as u32 == 0 { driver::drive_player(&mut game, 0); }
+        if game.frame_n % driver::DRIVE_EVERY as u32 == 0 { drive_organizer(&mut game, 0); }
         if game.tick != last_tick {
             last_tick = game.tick;
             let events: Vec<String> = game.log[log_read.min(game.log.len())..]

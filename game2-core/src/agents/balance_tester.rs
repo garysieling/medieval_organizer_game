@@ -63,6 +63,12 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
     let e = entry.to_lowercase();
     let has = |w: &[&str]| w.iter().any(|k| e.contains(k));
 
+    // command feedback isn't a village event: "Can't recruit: need
+    // influence 0.40" is the game answering a button press, not news
+    if e.starts_with("can't ") || e.starts_with("you can't") || e.starts_with("no one is near") {
+        return (Valence::Neutral, Thread::Player);
+    }
+
     // grief first: a death or a hanging outweighs anything else in the line
     if has(&[" died", "hanged", "driven out", "turns ", "run off"]) {
         return (Valence::Negative, Thread::Lifecycle);
@@ -233,23 +239,32 @@ fn m_flatline(r: &RunRecord) -> f64 {
     }) as f64
 }
 
-/// Days till the org gains its second member (first real growth signal).
+/// Days till the org wins its first member (the first real growth signal).
 fn m_first_growth(r: &RunRecord) -> f64 {
-    r.series("org.members").iter().find(|(_, v)| *v >= 2.0)
+    r.series("org.members").iter().find(|(_, v)| *v >= 1.0)
         .map(|(t, _)| *t).unwrap_or(r.days) as f64
 }
 
-/// Price volatility: coefficient of variation of the grain price.
-fn m_price_cv(r: &RunRecord) -> f64 {
-    cv(&r.series("price.grain").iter().map(|(_, v)| *v).collect::<Vec<_>>())
-}
-
-/// Worst hungry share of the village on any day.
-fn m_hunger_peak(r: &RunRecord) -> f64 {
+/// Mean share of the village below the sim's own seek-food line -
+/// sustained pressure, not a single winter wave's peak.
+fn m_hunger_pressure(r: &RunRecord) -> f64 {
     let alive = r.series("villagers.alive");
     let hungry: HashMap<u64, f64> = r.series("villagers.hungry").into_iter().collect();
-    alive.iter().map(|(t, a)| if *a <= 0.0 { 0.0 } else { hungry.get(t).copied().unwrap_or(0.0) / a })
+    mean(&alive.iter().map(|(t, a)| if *a <= 0.0 { 0.0 } else { hungry.get(t).copied().unwrap_or(0.0) / a })
+        .collect::<Vec<_>>())
+}
+
+/// Worst starving share on any day (Hunger <= 10) - the hard red line.
+fn m_starving_peak(r: &RunRecord) -> f64 {
+    let alive = r.series("villagers.alive");
+    let st: HashMap<u64, f64> = r.series("villagers.starving").into_iter().collect();
+    alive.iter().map(|(t, a)| if *a <= 0.0 { 0.0 } else { st.get(t).copied().unwrap_or(0.0) / a })
         .fold(0.0f64, f64::max)
+}
+
+/// Peak wealth concentration: richest purse over the village mean.
+fn m_gold_spread(r: &RunRecord) -> f64 {
+    r.series("econ.gold_spread").iter().map(|(_, v)| *v).fold(0.0f64, f64::max)
 }
 
 /// Share of days the village food store stood empty.
@@ -404,14 +419,18 @@ pub fn default_kpis() -> Vec<Kpi> {
             why: "org_growth_shape S-curve: first member by ~day 80-150; no growth at 250 reads as stalled",
             measure: m_first_growth },
         // -- balance methodology (balance-testing-methodology) --
-        Kpi { name: "price_cv", domain: Domain::Balance, unit: "cv",
-            target: (0.05, 0.35), flag_below: Some(0.02), flag_above: Some(0.6),
-            why: "per-season price CV 0.05-0.35: dead prices (<0.02) mean dead price discovery, >0.6 is whipsaw",
-            measure: m_price_cv },
-        Kpi { name: "hunger_peak", domain: Domain::Balance, unit: "share",
-            target: (0.0, 0.4), flag_below: None, flag_above: Some(0.6),
-            why: "hunger pressure band: >0.40 of the village hungry is the review's famine line",
-            measure: m_hunger_peak },
+        Kpi { name: "econ_gold_spread", domain: Domain::Balance, unit: "top/mean",
+            target: (0.5, 8.0), flag_below: None, flag_above: Some(15.0),
+            why: "wealth concentration: some spread is natural; >8x the mean is a sealed economy (prices sit on a fixed table, so the purse is the pulse)",
+            measure: m_gold_spread },
+        Kpi { name: "hunger_pressure", domain: Domain::Balance, unit: "share",
+            target: (0.05, 0.30), flag_below: None, flag_above: Some(0.6),
+            why: "the review's pressure band: 0.05-0.30 of the village seeking food on a mean day; ~0 reads as a food system that never bites, >0.6 sustained is famine",
+            measure: m_hunger_pressure },
+        Kpi { name: "starving_peak", domain: Domain::Balance, unit: "share",
+            target: (0.0, 0.05), flag_below: None, flag_above: Some(0.15),
+            why: "the hard red line: anyone at <=10 hunger is in real trouble; >15% of the village there is a crisis",
+            measure: m_starving_peak },
         Kpi { name: "stockout_share", domain: Domain::Balance, unit: "share",
             target: (0.0, 0.2), flag_below: None, flag_above: Some(0.5),
             why: "empty store most days is a food-chain softlock; scarcity is pressure, absence is a wall",
@@ -477,7 +496,7 @@ pub fn default_okrs() -> Vec<Okr> {
             key_results: &["time_to_first_reward", "beat_density", "flatline_max", "time_to_first_growth"] },
         Okr { domain: Domain::Balance,
             objective: "hard but legible - scarcity without softlock, prices that breathe, losses that attribute",
-            key_results: &["price_cv", "hunger_peak", "stockout_share", "food_cover_days", "mortality_per_100d", "world_liveliness"] },
+            key_results: &["econ_gold_spread", "hunger_pressure", "starving_peak", "stockout_share", "food_cover_days", "mortality_per_100d", "world_liveliness"] },
         Okr { domain: Domain::Narrative,
             objective: "the village tells stories - braided threads on an irregular rhythm that resolve",
             key_results: &["beat_interval_cv", "live_threads", "resolution_rate", "dead_air_max"] },

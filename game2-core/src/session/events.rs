@@ -918,6 +918,30 @@ impl Game {
                     }
                 }
             }
+            EventId::Drover => {
+                // sheep to market: a head a day off his drove into the
+                // fold for three gold, bought by the nearest soul with coin
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let fold = self.world.query::<household::Building>().iter().copied()
+                    .find(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+                let buyer = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<Purse>(v).map(|p| p.gold >= 3.0).unwrap_or(false))
+                    .filter_map(|v| self.world.get_component::<Pos>(v)
+                        .map(|p| ((p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs(), v)))
+                    .filter(|(d, _)| *d < 8).min_by_key(|(d, _)| *d).map(|(_, v)| v);
+                if let (Some(f), Some(b)) = (fold, buyer) {
+                    let (fx, fy) = self.world.get_component::<Pos>(f).map(|p| (p.x, p.y)).unwrap_or((at.0 as f32, at.1 as f32));
+                    let e = crate::game::livestock::spawn_animal(&mut self.world,
+                        crate::game::livestock::LivestockKind::Sheep, f, fx + 1.0, fy + 1.0);
+                    // onto the flock's roll too - a sheep you can't see is no sheep
+                    self.flock.push(e);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(b) { p.gold -= 3.0; }
+                    self.say(b, "Good ewe, that one.", CHAT_BUBBLE_SECS);
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2062,6 +2086,49 @@ mod tests {
             assert!(faith_of(&g, odd).is_some(), "the drawn were fed on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Heretic), "he preached elsewhere from {:?}", st);
+        }
+    }
+
+    /// A head a day off the drove: the fold takes a sheep, the coin
+    /// changes hands - and the frame shows the drove first
+    #[test]
+    fn test_the_drove_fills_the_fold() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            // a fold for the sheep if the stage lacks one
+            let has_fold = g.world.query::<household::Building>().iter()
+                .any(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+            if !has_fold {
+                let f = g.world.create_entity();
+                g.world.add_component(f, Pos { x: 20.0, y: 20.0 });
+                g.world.add_component(f, household::Building {
+                    kind: household::BuildingKind::Pasture, name: "the fold".into(),
+                    occupants: vec![], worker: None, overseer: None,
+                    stock: Default::default(), capacity: 0 });
+            }
+            let sheep0 = g.world.query::<crate::game::livestock::Livestock>().len();
+            g.force_event(EventId::Drover);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Drover && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Drover).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a drover")),
+                "the frame shows the drove on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.query::<crate::game::livestock::Livestock>().len() > sheep0,
+                "the fold grew on {:?}", st);
+            // and she's on the flock's roll - the frame and the grazing know her
+            assert!(g.flock.len() > 0, "she's on the roll on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Drover), "the drove moved on from {:?}", st);
         }
     }
 

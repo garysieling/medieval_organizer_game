@@ -23,6 +23,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-023** `campaign::stake_of` is never called — `stake_for` is used, the `stake_of` variant is dead.~~ (fixed — deleted; nothing needed the top stake)
 - [x] ~~**W-028** `fire::on_fire`/`is_scorched` are never called — `session.rs` reads `fire.burning`/`fire.scorched` maps directly; two sources of truth for fire state.~~ (fixed — `fire.burns_near` added; session asks the fire)
 - [x] ~~**W-032** `Sympathized` entries never decay — a moral shock marks a villager woke forever.~~ (fixed)
+- [x] ~~**W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.~~ (fixed — pressure gathers a little every day; a prisoner walks alone in ~50 days)
 - [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
 - [ ] **W-035** `NAMES[i]` indexing assumes `villagers.len() <= 31` — any spawn path that pushes past 31 villagers (migrants, births) panics on name lookup.
 - [ ] **W-036** `action_menu` (text game) has none of the new ctx verbs — no Meet/March/Strike/Townhall/Petition/Delegate/Matchmake/PairUp/Errand; text UI and GUI have drifted apart.

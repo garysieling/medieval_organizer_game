@@ -189,8 +189,9 @@ pub fn seller_for(world: &World, good: &str, at: Pos) -> Option<Entity> {
     }
     world.query::<Satchel>().into_iter()
         .filter(|&s| {
-            world.get_component::<Satchel>(s)
-                .map(|t| t.goods.get(good).copied().unwrap_or(0) > 0).unwrap_or(false)
+            !crate::game::villager::is_dead(world, s)
+                && world.get_component::<Satchel>(s)
+                    .map(|t| t.goods.get(good).copied().unwrap_or(0) > 0).unwrap_or(false)
         })
         .min_by_key(|&s| {
             world.get_component::<Pos>(s)

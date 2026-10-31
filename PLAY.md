@@ -145,7 +145,11 @@ loneliest may go with them. And every season a bailiff's writ comes
 down - a levy of grain, a fee in gold, or a summons for one of the
 village's own. An org worth the name bargains it down; a strong one
 stands against a summons - and pays for it when the next writ comes
-double.
+double. And every other winter runs long: the snow keeps falling, the
+stores thin, and the village either pulls together or pulls apart - an
+org worth the name shares what it has, and a weak one goes looking for
+who to blame. The herb-wife's hut looks very different in a hard
+winter.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

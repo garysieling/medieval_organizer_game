@@ -80,6 +80,8 @@ pub enum Problem {
     Tempted,
     /// The bailiff's writ: a levy, a fee, a summons from the castle
     WritBorne,
+    /// The winter runs long and the stores run thin
+    LongWinter,
 }
 
 /// One secret a person can share: a want or a problem
@@ -173,6 +175,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::ShortChanged) => "the reckoning that didn't add up",
         Reveal::Problem(Problem::Tempted) => "the road's pull",
         Reveal::Problem(Problem::WritBorne) => "the bailiff's writ",
+        Reveal::Problem(Problem::LongWinter) => "the long winter",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -227,6 +230,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the reckoning that didn't add up" => "the reckoning that didn't add up".into(),
         "the road's pull" => "the road's pull".into(),
         "the bailiff's writ" => "the bailiff's writ".into(),
+        "the long winter" => "the long winter".into(),
         _ => tag,
     }
 }
@@ -271,6 +275,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::ShortChanged => "shorted in a foreign count".into(),
         Problem::Tempted => "the road's calling".into(),
         Problem::WritBorne => "a writ came down from the castle".into(),
+        Problem::LongWinter => "the winter runs long and the stores run thin".into(),
     }
 }
 
@@ -309,6 +314,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's off", name), "He counted it his way. My way it's short.".into()),
         Reveal::Problem(Problem::Tempted) => (format!("{}'s feet itch", name), "The road looks shorter from the gate than the days look here.".into()),
         Reveal::Problem(Problem::WritBorne) => (format!("{} bore the writ", name), "Sealed by the castle. No arguing with wax.".into()),
+        Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are thin", name), "Second winter running. The barrel knows it.".into()),
     }
 }
 

@@ -30,20 +30,6 @@ lower-risk, and lay groundwork later items reuse.
 
 ## Wave 1 — The cottage economy (animals, plants, and the people who tend them)
 
-### F3. Chickens & eggs
-
-*Quick win after F2 reuses Livestock; brainstorm-adjacent.*
-
-**What.** Hens scratch around 3–5 of the homes; children can be sent to
-gather eggs as an odd job.
-
-**Spec.** `LivestockKind::Hen` attached to a `Home` building instead of a
-flock — wanders a few tiles of the yard. Produces `"eggs"` into the
-house stock daily (cap 6). A `Kid` can be hired (existing `Send errand`
-machinery) to collect → house gains eggs, kid gains 1–2g. Rare fox event
-carries off a hen — the household mourns it in gossip. **Size: S.**
-
----
 
 ### F4. Physic garden & cottage gardens
 

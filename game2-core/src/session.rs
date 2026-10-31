@@ -387,6 +387,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("takes up") || entry.contains("shuttered")
         || entry.contains("the talk turns") || entry.contains("cold shoulder")
         || entry.contains("boycott") || entry.contains("a crowd at")
+        || entry.contains("the village gathers")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1325,6 +1326,8 @@ pub enum Goal {
     HeadHome(Entity),
     /// Driven out: walk to the map's edge and don't come back
     Exile,
+    /// Weed and pick a garden bed (index into gardens)
+    TendGarden(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -1622,6 +1625,8 @@ pub struct Game {
     pub reach: Vec<(i32, i32)>,
     /// (who, the rung they're on, the day it ends) - the ladder of shame
     pub sanctioned: Vec<(Entity, Sanction, u64)>,
+    /// (home, bed tile, growth) - kitchen gardens beside the cottages
+    pub gardens: Vec<(Entity, (i32, i32), f32)>,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -1909,6 +1914,23 @@ impl Game {
         let reach: Vec<(i32, i32)> = (0..map.height as i32).flat_map(|y| (0..map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| map.get(x, y) == Some(Tile::River) && y > wall.3).collect();
         for &t in &reach { land.effluent.insert(t, 0.15); }
+
+        // kitchen gardens: a soil bed beside some of the homes
+        let homes_for_gardens: Vec<Entity> = building_entities.iter().copied()
+            .filter(|&b| world.get_component::<Building>(b)
+                .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false))
+            .take(6).collect();
+        let mut gardens: Vec<(Entity, (i32, i32), f32)> = vec![];
+        for home in homes_for_gardens {
+            if let Some(hp) = world.get_component::<Pos>(home).copied() {
+                let (hx, hy) = (hp.x.round() as i32, hp.y.round() as i32);
+                if let Some(bed) = [(hx + 2, hy), (hx - 2, hy), (hx, hy + 2), (hx, hy - 2),
+                                    (hx + 2, hy + 1), (hx - 2, hy - 1)]
+                    .iter().copied().find(|&(x, y)| map.passable(x, y)) {
+                    gardens.push((home, bed, (gardens.len() as f32 * 0.3) % 0.9));
+                }
+            }
+        }
 
         // herb patches: wild tufts out in the meadow past the wall, weighted
         // to what cures - the herb-wife keeps them picked over
@@ -2280,6 +2302,7 @@ impl Game {
             pit,
             reach,
             sanctioned: vec![],
+            gardens,
         }
     }
 
@@ -3183,6 +3206,7 @@ impl Game {
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
+            Goal::TendGarden(i) => self.gardens.get(*i).map(|(_, t, _)| *t),
             Goal::Exile => {
                 // the nearest edge of the world
                 self.world.get_component::<Pos>(who).copied().and_then(|from| {
@@ -3208,7 +3232,7 @@ impl Game {
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, Goal::Exile => 80, _ => 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -3746,6 +3770,39 @@ impl Game {
         self.sanctioned.iter().any(|(e, s, _)| *e == v && *s >= Sanction::Shun)
     }
 
+    /// The gardens grow: a bed fills in over the weeks, and when the
+    /// herb-wife's shelves are thin she tends the gardens whose folk
+    /// don't begrudge her - her flowers, not the commons
+    pub fn garden_tick(&mut self, tick: u64) {
+        if tick % 7 != 5 { return; }
+        for (_, _, g) in self.gardens.iter_mut() { *g = (*g + 0.2).min(1.2); }
+        // the herb-wife tends a full garden her folk don't begrudge her -
+        // the pickings go on her shelf rather than the house's
+        if let Some(her) = self.herbologist {
+            let thin = self.herb_hut.map(|hut| {
+                self.world.get_component::<Building>(hut)
+                    .map(|b| herbology::medicinal_herbs().iter()
+                        .map(|(n, _, _)| b.stock.get(*n).copied().unwrap_or(0)).sum::<u32>() < 6)
+                    .unwrap_or(false)
+            }).unwrap_or(false);
+            if thin && !villager::is_dead(&self.world, her)
+                && !self.travels.iter().any(|t| t.who == her) {
+                let pick = self.gardens.iter().enumerate()
+                    .filter(|(_, (home, _, g))| *g >= 1.0 && self.world.get_component::<Building>(*home)
+                        .map(|b| b.occupants.iter().all(|&o| {
+                            self.world.get_component::<InnerLife>(o)
+                                .map(|l| l.grievances.is_empty()).unwrap_or(true)
+                        })).unwrap_or(false))
+                    .map(|(i, _)| i).next();
+                if let Some(gi) = pick {
+                    if let Some((_, t, _)) = self.gardens.get(gi).copied() {
+                        self.send_tile_walk(her, t, Goal::TendGarden(gi), 16);
+                    }
+                }
+            }
+        }
+    }
+
     /// The year's feast days: one mid-season each quarter, the village
     /// gathers at the market, the good stock comes out, and for a day
     /// the wants that never quite get fed are fed
@@ -4068,6 +4125,25 @@ impl Game {
             Goal::Wander => {}
             Goal::Herd(_) => {}
             Goal::HeadHome(_) => {}
+            Goal::TendGarden(gi) => {
+                // weeding and picking: the bed yields into the house's
+                // stock, and the tending itself is a small joy
+                if let Some((home, _, g)) = self.gardens.get_mut(gi) {
+                    if *g >= 1.0 {
+                        *g = 0.0;
+                        let good = if tick % 2 == 0 { "marigold" } else { "feverfew" };
+                        if let Some(b) = self.world.get_component_mut::<Building>(*home) {
+                            household::add_stock(b, good, 1);
+                        }
+                        let home = *home;
+                        if let Some(b) = self.world.get_component::<Building>(home) {
+                            for &o in &b.occupants.clone() {
+                                desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
+                            }
+                        }
+                    }
+                }
+            }
             Goal::Exile => {
                 // at the world's edge they don't come back: dead to the
                 // village, their grave the road itself
@@ -4229,6 +4305,8 @@ impl Game {
         self.sanction_tick(tick);
         // and the year has its feast days
         self.festival_tick(tick);
+        // the gardens fill in a little more each week
+        self.garden_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -4695,6 +4773,8 @@ impl Game {
             pond: if self.land.pit_water >= 0.7 {
                 self.pit.map(|(x, y)| (x as f32, y as f32))
             } else { None },
+            gardens: self.gardens.iter()
+                .map(|&(_, (x, y), g)| (x as f32, y as f32, g.min(1.0))).collect(),
         }
     }
 
@@ -5132,6 +5212,18 @@ impl View {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 60, 90, 120);
+        }
+        // the garden beds: soil strip, greener as it fills in
+        for &(tx, ty, g) in &m.gardens {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(3.0), sy - k(1.0), k(6.0), k(3.0), 110, 85, 55);
+            if g > 0.4 {
+                buf.rect(sx - k(2.0), sy - k(2.0), k(4.0), k(1.0), 80, (120.0 + 60.0 * g) as u8, 60);
+            }
+            if g >= 1.0 {
+                buf.rect(sx - k(1.0), sy - k(3.0), k(2.0), k(1.0), 220, 180, 80);
+            }
         }
         // the desire-lines: where feet keep wearing, the ground shows it
         for &(tx, ty, s) in &m.trails {
@@ -6560,6 +6652,43 @@ mod festival_tests {
             g.world.get_component::<Hunger>(v).map(|h| h.value > 30.0).unwrap_or(false)
         }).count();
         assert!(fed > 10, "the good stock feeds the crowd");
+    }
+}
+
+#[cfg(test)]
+mod garden_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_cottages_have_gardens() {
+        let g = Game::new();
+        assert!(g.gardens.len() >= 4, "some homes keep a bed");
+        for (home, _, _) in &g.gardens {
+            assert_eq!(g.world.get_component::<Building>(*home).unwrap().kind,
+                household::BuildingKind::Home);
+        }
+    }
+
+    #[test]
+    fn test_a_full_bed_yields_into_the_house() {
+        let mut g = Game::new();
+        let gi = 0;
+        g.gardens[gi].2 = 1.0;
+        let home = g.gardens[gi].0;
+        g.arrive(g.villagers[0], Goal::TendGarden(gi));
+        let b = g.world.get_component::<Building>(home).unwrap();
+        let picked = b.stock.get("marigold").copied().unwrap_or(0)
+            + b.stock.get("feverfew").copied().unwrap_or(0);
+        assert_eq!(picked, 1, "a full bed gives a bunch");
+        assert_eq!(g.gardens[gi].2, 0.0, "the bed's picked clean");
+    }
+
+    #[test]
+    fn test_the_bed_fills_in_over_the_weeks() {
+        let mut g = Game::new();
+        let g0 = g.gardens[0].2;
+        g.garden_tick(5);
+        assert!(g.gardens[0].2 > g0, "it grows between pickings");
     }
 }
 

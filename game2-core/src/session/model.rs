@@ -171,4 +171,6 @@ pub struct UiModel {
     pub stumps: Vec<(f32, f32)>,
     pub murk: Vec<(f32, f32)>,
     pub pond: Option<(f32, f32)>,
+    /// Kitchen-garden beds and how full they've grown (x, y, growth)
+    pub gardens: Vec<(f32, f32, f32)>,
 }

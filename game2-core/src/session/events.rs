@@ -1305,8 +1305,11 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near { continue; }
+                    // something, actually - a zero-count entry's a story,
+                    // not a strange thing to sell
                     let good = self.world.get_component::<crate::game::livelihood::Satchel>(v)
-                        .and_then(|s| s.goods.keys().next().cloned());
+                        .and_then(|s| s.goods.iter().find(|(_, &n)| n > 0)
+                            .map(|(k, _)| k.clone()));
                     let Some(g) = good else { continue };
                     if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
                         if let Some(n) = s.goods.get_mut(&g) {

@@ -5832,8 +5832,9 @@ impl Game {
     fn fire_tick(&mut self, tick: u64) {
         if !self.fire.active() && self.fire.scorched.is_empty() { return; }
         let (lit, out) = self.fire.tick(&mut self.map, tick);
-        // a building the fire reaches loses what it held
-        for &(x, y) in &lit {
+        // a building the fire holds loses what it holds - it burns while
+        // it stands alight, restocking only once it's cold
+        for &(x, y) in self.fire.burning.keys() {
             if let Some(&be) = self.building_entities.iter().find(|&&be| {
                 self.world.get_component::<Pos>(be)
                     .map(|p| p.x.round() as i32 == x && p.y.round() as i32 == y).unwrap_or(false)
@@ -5842,6 +5843,10 @@ impl Game {
                     b.stock.clear();
                 }
             }
+        }
+        // and the canopy score forgets the trees the fire took
+        for &t in &out {
+            if let Some(c) = self.land.tree_cover.get_mut(&t) { *c = 0.0; }
         }
         if !lit.is_empty() || !out.is_empty() {
             self.log.push(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()));
@@ -6263,6 +6268,8 @@ impl Game {
             pond: if self.land.pit_water >= 0.7 {
                 self.pit.map(|(x, y)| (x as f32, y as f32))
             } else { None },
+            burning: self.fire.burning.keys().map(|&(x, y)| (x as f32, y as f32)).collect(),
+            scorched: self.fire.scorched.keys().map(|&(x, y)| (x as f32, y as f32)).collect(),
             gardens: self.gardens.iter()
                 .map(|&(_, (x, y), g)| (x as f32, y as f32, g.min(1.0))).collect(),
             sky: self.sky.map(|(k, _)| k.to_string()),
@@ -6752,6 +6759,20 @@ impl View {
             if g >= 1.0 {
                 buf.rect(sx - k(1.0), sy - k(3.0), k(2.0), k(1.0), 220, 180, 80);
             }
+        }
+        // the scorched ground: dark scars where the fire's been
+        for &(tx, ty) in &m.scorched {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 30, 26, 24);
+        }
+        // and what's alight: a flame's worth of colour over the tile
+        for &(tx, ty) in &m.burning {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            let lick = (m.frame % 9 < 5) as i32; // it gutters
+            buf.rect(sx - k(4.0), sy - k(2.0 + lick as f32), k(8.0), k(5.0 + lick as f32), 160, 45, 20);
+            buf.rect(sx - k(2.0), sy - k(3.0 + lick as f32), k(4.0), k(4.0), 235, 150, 40);
         }
         // the desire-lines: where feet keep wearing, the ground shows it
         for &(tx, ty, s) in &m.trails {

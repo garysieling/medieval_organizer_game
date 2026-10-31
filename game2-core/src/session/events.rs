@@ -1175,6 +1175,38 @@ impl Game {
                     glazed += 1;
                 }
             }
+            EventId::Thatcher => {
+                // roofs patched before the rain finds you: one home a
+                // day - fresh thatch on the stock roll, dry heads under
+                // it, and the leak's due pushed down the road
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let Some(h) = household::home_of(&self.world, v) else { continue };
+                    let near = self.world.get_component::<Pos>(h)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    let done = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.stock.get("thatch").copied()).unwrap_or(0) > 0;
+                    if done { continue; }
+                    if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::add_stock(b, "thatch", 1);
+                    }
+                    let occ: Vec<Entity> = self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default();
+                    for o in occ {
+                        if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }
+                        if let Some(hl) = self.world.get_component_mut::<Health>(o) {
+                            hl.condition = (hl.condition + 0.02).min(1.0);
+                        }
+                    }
+                    if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::GranaryLeak) {
+                        *due = tick + 400;
+                    }
+                    break;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2695,6 +2727,37 @@ mod tests {
             assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick), "the light came in on {:?}", st);
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::Glazier), "his ladder came down on {:?}", st);
+        }
+    }
+
+    /// Roofs patched before the rain finds you: fresh thatch on the
+    /// stock roll and the leak's due pushed off - the frame shows
+    /// his ladder first
+    #[test]
+    fn test_the_thatch_holds_the_rain_off() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Thatcher);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Thatcher && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Thatcher).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)
+                    && household::home_of(&g.world, v).is_some()).unwrap();
+            let h = household::home_of(&g.world, v).unwrap();
+            g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the thatcher")),
+                "the frame shows his ladder on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let thatch = g.world.get_component::<household::Building>(h)
+                .and_then(|b| b.stock.get("thatch").copied()).unwrap_or(0);
+            assert!(thatch > 0, "fresh thatch on the roll on {:?}", st);
+            stage::run_days(&mut g, 6);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Thatcher), "his ladder came down on {:?}", st);
         }
     }
 

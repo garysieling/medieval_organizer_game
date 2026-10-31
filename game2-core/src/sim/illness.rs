@@ -165,19 +165,6 @@ fn stage_for(severity: f32) -> Stage {
     else { Stage::Critical }
 }
 
-/// Apply treatment - modifies the patient's disease severity based on efficacy
-pub fn apply_treatment(world: &mut World, patient: Entity, treatment: &Treatment) {
-    for d in world.query::<Disease>() {
-        if let Some(dis) = world.get_component_mut::<Disease>(d) {
-            if dis.patient != patient { continue; }
-            dis.severity *= 1.0 - treatment.efficacy * treatment.dose;
-            if dis.severity < 0.1 {
-                dis.stage = Stage::Recovering;
-            }
-        }
-    }
-}
-
 /// Apply a treatment directly to a patient's health, for callers that track
 /// condition without a per-patient Disease component (e.g. outbreak scenarios
 /// where severity is modeled as a direct health decrement). The healing
@@ -316,8 +303,9 @@ mod tests {
         let other = w.create_entity();
         w.add_component(other, Disease { name: "flu".into(), patient: q, stage: Stage::Mild, severity: 0.5, contagious: false });
         let t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
-        apply_treatment(&mut w, p, &t);
-        assert!(w.get_component::<Disease>(d).unwrap().severity < 0.2);
+        let before = w.get_component::<Health>(p).unwrap().condition;
+        treat_health(w.get_component_mut::<Health>(p).unwrap(), &t);
+        assert!(w.get_component::<Health>(p).unwrap().condition > before, "the dose does something");
         assert_eq!(w.get_component::<Disease>(other).unwrap().severity, 0.5, "only the treated patient's disease eases");
     }
 

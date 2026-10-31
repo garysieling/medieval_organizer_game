@@ -141,7 +141,11 @@ threatens answers: a strong org stands with its own, a weak one leaves
 the discoverer to the ladder. And every year or so a circus camps on
 the meadow by the gate - wonders and light fingers in the crowd - and
 the bored and the unbelonging feel the pull; when the tents fold the
-loneliest may go with them.
+loneliest may go with them. And every season a bailiff's writ comes
+down - a levy of grain, a fee in gold, or a summons for one of the
+village's own. An org worth the name bargains it down; a strong one
+stands against a summons - and pays for it when the next writ comes
+double.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -390,6 +390,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("the village gathers") || entry.contains("pays triple")
         || entry.contains("a pedlar") || entry.contains("pedlar's moved on")
         || entry.contains("rides over the walls") || entry.contains("circus")
+        || entry.contains("bailiff's writ") || entry.contains("a summons")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1684,6 +1685,8 @@ pub struct Game {
     pub disclosure_made: bool,
     /// How many the herb-wife's turned - proof the old cures work
     pub cured: u32,
+    /// What the castle's owed after a defied writ - the next one lands double
+    pub repression_debt: u32,
 }
 
 /// How a village keeps its accounts
@@ -2412,6 +2415,7 @@ impl Game {
             pending_discovery: None,
             disclosure_made: false,
             cured: 0,
+            repression_debt: 0,
         }
     }
 
@@ -3987,6 +3991,74 @@ impl Game {
         }
     }
 
+    /// The lord's arm: every season a writ comes down - a levy of grain,
+    /// a fee in gold, a summons for one of the village's own. An org
+    /// worth the name bargains it down; a strong one may stand against
+    /// a summons - and pay for it when the next writ comes double.
+    pub fn edict_tick(&mut self, tick: u64) {
+        if tick % 120 != 80 { return; }
+        let kind = (tick / 120) % 3;
+        let mult = if self.repression_debt > 0 { let m = 1 + self.repression_debt; self.repression_debt = 0; m } else { 1 };
+        // the org's answer rides its standing with the lord
+        let bargained = self.lord_esteem > 0.5;
+        match kind {
+            0 => {
+                // a levy: grain off the store
+                let want = (8 * mult) as f32;
+                let take = if bargained { want / 2.0 } else { want } as u32;
+                if let Some(b) = self.world.get_component_mut::<Building>(self.market_food) {
+                    let _ = household::take_stock(b, "grain", take);
+                }
+                self.log.push(format!("t{}: a bailiff's writ - the castle levies {} grain{}.{}",
+                    tick, take,
+                    if bargained { " - the org talks him down" } else { "" },
+                    if mult > 1 { " Double, for the last defiance." } else { "" }));
+            }
+            1 => {
+                // a fee: gold off every purse that has it
+                let want = (12 * mult) as f32;
+                let each = if bargained { want / 2.0 } else { want };
+                let mut taken = 0.0f32;
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) { continue; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                        let cut = (each / self.villagers.len() as f32).min(p.gold);
+                        p.gold -= cut; taken += cut;
+                    }
+                }
+                self.log.push(format!("t{}: a bailiff's writ - a fee of {:.0} gold off the village.{}",
+                    tick, taken, if bargained { " Halved - the org's word counts." } else { "" }));
+            }
+            _ => {
+                // a summons: one of the village's own for 'questioning' -
+                // a strong org can stand against it
+                let mark = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<TownRole>(v).is_none())
+                    .max_by_key(|&v| self.world.get_component::<InnerLife>(v)
+                        .map(|l| l.grievances.len()).unwrap_or(0));
+                if let Some(m) = mark {
+                    let member = self.world.get_component::<Organization>(self.org)
+                        .map(|o| o.members.contains(&m)).unwrap_or(false);
+                    if member && self.lord_esteem > 0.7 {
+                        self.repression_debt += 1;
+                        self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty.", tick, self.name_of(m)));
+                    } else {
+                        self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
+                        for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
+                        self.send(m, Goal::Exile);
+                    }
+                }
+            }
+        }
+        // and the writ itself is a thing to organize about
+        for v in self.villagers.iter().take(3).copied().collect::<Vec<_>>() {
+            if !villager::is_dead(&self.world, v) {
+                desires::add_grievance(&mut self.world, v, desires::Problem::WritBorne, tick + 30);
+            }
+        }
+    }
+
     /// The disclosure: a truth sits unsaid until it ripens, then it
     /// comes out - and the power it threatens answers. A strong org
     /// shields the discoverer; a weak one leaves him to the ladder.
@@ -4670,6 +4742,8 @@ impl Game {
         self.sky_tick(tick);
         // and a truth sits unsaid somewhere, ripening
         self.discovery_tick(tick);
+        // and the castle sends its writs on a season's turn
+        self.edict_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -7615,6 +7689,44 @@ mod circus_tests {
             assert!(g.log.iter().any(|l| l.contains("run off with the circus")),
                 "the road takes the one it tempted");
         }
+    }
+}
+
+#[cfg(test)]
+mod edict_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_writ_levies_the_store() {
+        let mut g = Game::new();
+        if let Some(b) = g.world.get_component_mut::<Building>(g.market_food) {
+            household::add_stock(b, "grain", 20);
+        }
+        g.edict_tick(80);
+        assert!(g.log.iter().any(|l| l.contains("bailiff's writ")), "a writ comes down");
+        let grain = g.world.get_component::<Building>(g.market_food)
+            .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0);
+        assert!(grain < 20, "the levy takes its share");
+        let grieved = g.villagers.iter().filter(|&&v|
+            desires::problems_of(&g.world, v, 80).contains(&desires::Problem::WritBorne)).count();
+        assert!(grieved > 0, "the writ's a thing to organize about");
+    }
+
+    #[test]
+    fn test_a_strong_org_stands_against_the_summons() {
+        let mut g = Game::new();
+        g.lord_esteem = 0.8;
+        let m = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        for _ in 0..4 { desires::add_grievance(&mut g.world, m, desires::Problem::Broke, 100); }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
+        // summons day: tick 320 -> (320/120)%3 == 2
+        g.edict_tick(320);
+        assert!(g.log.iter().any(|l| l.contains("stands against")),
+            "a strong org says no");
+        assert!(g.repression_debt > 0, "the defiance will be paid for");
+        assert!(!g.travels.iter().any(|t| t.who == m && matches!(t.goal, Goal::Exile)),
+            "he stays - for now");
     }
 }
 

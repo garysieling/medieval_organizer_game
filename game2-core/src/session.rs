@@ -5081,9 +5081,12 @@ impl Game {
                     self.say(to, "The Father read it out - word from home.", CHAT_BUBBLE_SECS);
                 }
             }
-            // a letter is a bond kept warm across distance
-            relationships::record_interaction(&mut self.world, from, relationships::Interaction {
-                other: to, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
+            // a letter is a bond kept warm across distance - but the
+            // grave writes nothing; the bond only warms for the living
+            if !villager::is_dead(&self.world, from) {
+                relationships::record_interaction(&mut self.world, from, relationships::Interaction {
+                    other: to, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
+            }
             desires::satisfy(&mut self.world, to, Want::Joy, tick + 15);
             self.log.push(format!("t{}: a letter comes for {}.", tick, self.name_of(to)));
         }

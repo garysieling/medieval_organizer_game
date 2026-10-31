@@ -5816,11 +5816,21 @@ impl Game {
                 self.log.push(format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD));
             }
             // days one and two: the oil just boils, watched and smoking -
-            // and now and then the vapours take fire, as they will
+            // and now and then the vapours take fire, as they will; and
+            // the acrolein reaches whoever's downwind - sharp on the eyes
             0 | 1 => {
                 if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1) {
                     self.say(be, "She's caught - keep back!", TALK_BUBBLE_SECS);
                     self.log.push(format!("t{}: the oil takes fire on the meadow.", tick));
+                }
+                let near: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
+                    !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - camp.0).abs() + (p.y.round() as i32 - camp.1).abs() <= 6)
+                            .unwrap_or(false)
+                }).collect();
+                for v in near {
+                    desires::add_grievance(&mut self.world, v, desires::Problem::Smelly, tick + 30);
                 }
             }
             _ => {}
@@ -5847,6 +5857,33 @@ impl Game {
         // and the canopy score forgets the trees the fire took
         for &t in &out {
             if let Some(c) = self.land.tree_cover.get_mut(&t) { *c = 0.0; }
+        }
+        // folk beside the flames run for home - errands and all
+        if self.fire.active() {
+            let fleeing: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
+                !villager::is_dead(&self.world, v)
+                    && self.world.get_component::<Pos>(v)
+                        .map(|p| self.fire.burning.keys().any(|&(fx, fy)|
+                            (p.x.round() as i32 - fx).abs() + (p.y.round() as i32 - fy).abs() <= 2))
+                        .unwrap_or(false)
+            }).collect();
+            for v in fleeing {
+                // but not toward the flames: home if it stands clear,
+                // else the market store
+                let safe = |e: Entity| self.world.get_component::<Pos>(e)
+                    .map(|p| !self.fire.burning.keys().any(|&(fx, fy)|
+                        (p.x.round() as i32 - fx).abs() + (p.y.round() as i32 - fy).abs() <= 4))
+                    .unwrap_or(false);
+                let home = household::home_of(&self.world, v).filter(|&h| safe(h))
+                    .or(Some(self.market_food).filter(|&h| safe(h)));
+                if let Some(h) = home {
+                    if self.send(v, Goal::HeadHome(h)) {
+                        self.say(v, "Fire! Fire on the meadow!", CHAT_BUBBLE_SECS);
+                        // the errand's off: the homeward way's the one that stays
+                        self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::HeadHome(_)));
+                    }
+                }
+            }
         }
         if !lit.is_empty() || !out.is_empty() {
             self.log.push(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()));
@@ -8719,6 +8756,51 @@ mod ink_boiler_tests {
             if !g.fire.scorched.is_empty() { scorched_any = true; break; }
         }
         assert!(scorched_any, "it burned out to scorched ground");
+    }
+
+    #[test]
+    fn test_the_smoke_reaches_the_downwind() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let camp = g.ink_boiler.as_ref().unwrap().camp;
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 - 3) as f32 };
+        let pitched = g.ink_boiler.as_ref().unwrap().working_until.unwrap() - INK_BOIL_DAYS;
+        g.tick = pitched;
+        g.ink_boiler_tick(g.tick);
+        assert!(desires::problems_of(&g.world, v, g.tick).contains(&desires::Problem::Smelly),
+            "the acrolein's sharp on the eyes");
+    }
+
+    #[test]
+    fn test_folk_beside_the_flames_run_for_home() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let camp = g.ink_boiler.as_ref().unwrap().camp;
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 + 1) as f32 };
+        g.fire.ignite(&g.map, camp.0, camp.1);
+        g.fire_tick(1);
+        assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::HeadHome(_))),
+            "she runs for home");
+        // and mid-errand is no excuse to walk through flames
+        let v2 = g.villagers.iter().copied().find(|&x| x != v
+            && g.world.get_component::<TownRole>(x).is_none()).unwrap();
+        *g.world.get_component_mut::<Pos>(v2).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 + 1) as f32 };
+        g.travels.push(Travel { who: v2, path: vec![(5, 5)], goal: Goal::Wander });
+        g.fire_tick(2);
+        assert!(g.travels.iter().all(|t| t.who != v2 || matches!(t.goal, Goal::HeadHome(_))),
+            "the errand's dropped for the run home");
     }
 }
 

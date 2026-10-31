@@ -1202,7 +1202,9 @@ impl Game {
                         }
                     }
                     if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::GranaryLeak) {
-                        *due = tick + 400;
+                        // push it off, never pull it in - a sound roof
+                        // postpones the leak, it doesn't summon it
+                        *due = (*due).max(tick + 400);
                     }
                     break;
                 }

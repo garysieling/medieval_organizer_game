@@ -138,7 +138,10 @@ it burn for them. And a truth sits unsaid somewhere until it ripens -
 the clerk's tallies show the lord's fifth is really a quarter, the old
 cures work doctrine or no - and when it comes out, the power it
 threatens answers: a strong org stands with its own, a weak one leaves
-the discoverer to the ladder.
+the discoverer to the ladder. And every year or so a circus camps on
+the meadow by the gate - wonders and light fingers in the crowd - and
+the bored and the unbelonging feel the pull; when the tents fold the
+loneliest may go with them.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

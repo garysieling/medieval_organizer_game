@@ -76,6 +76,8 @@ pub enum Problem {
     StinkingReach,
     /// The reckoning didn't add up - shorted in a foreign count
     ShortChanged,
+    /// The circus's pull: the road's calling and the days here are gray
+    Tempted,
 }
 
 /// One secret a person can share: a want or a problem
@@ -167,6 +169,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::DryPit) => "the drowned pit",
         Reveal::Problem(Problem::StinkingReach) => "the stinking reach",
         Reveal::Problem(Problem::ShortChanged) => "the reckoning that didn't add up",
+        Reveal::Problem(Problem::Tempted) => "the road's pull",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -219,6 +222,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the drowned pit" => "the drowned pit".into(),
         "the stinking reach" => "the stinking reach".into(),
         "the reckoning that didn't add up" => "the reckoning that didn't add up".into(),
+        "the road's pull" => "the road's pull".into(),
         _ => tag,
     }
 }
@@ -261,6 +265,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::DryPit => "the pit's drowned - no stone to be had".into(),
         Problem::StinkingReach => "the reach below town stinks".into(),
         Problem::ShortChanged => "shorted in a foreign count".into(),
+        Problem::Tempted => "the road's calling".into(),
     }
 }
 
@@ -297,6 +302,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::DryPit) => (format!("{}: the pit's drowned", name), "Water in the cut. No stone comes out of a pond.".into()),
         Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach stinks", name), "You can smell it on a still night. That wasn't always so.".into()),
         Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's off", name), "He counted it his way. My way it's short.".into()),
+        Reveal::Problem(Problem::Tempted) => (format!("{}'s feet itch", name), "The road looks shorter from the gate than the days look here.".into()),
     }
 }
 

@@ -78,6 +78,8 @@ pub enum Problem {
     ShortChanged,
     /// The circus's pull: the road's calling and the days here are gray
     Tempted,
+    /// The bailiff's writ: a levy, a fee, a summons from the castle
+    WritBorne,
 }
 
 /// One secret a person can share: a want or a problem
@@ -170,6 +172,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::StinkingReach) => "the stinking reach",
         Reveal::Problem(Problem::ShortChanged) => "the reckoning that didn't add up",
         Reveal::Problem(Problem::Tempted) => "the road's pull",
+        Reveal::Problem(Problem::WritBorne) => "the bailiff's writ",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -223,6 +226,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the stinking reach" => "the stinking reach".into(),
         "the reckoning that didn't add up" => "the reckoning that didn't add up".into(),
         "the road's pull" => "the road's pull".into(),
+        "the bailiff's writ" => "the bailiff's writ".into(),
         _ => tag,
     }
 }
@@ -266,6 +270,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::StinkingReach => "the reach below town stinks".into(),
         Problem::ShortChanged => "shorted in a foreign count".into(),
         Problem::Tempted => "the road's calling".into(),
+        Problem::WritBorne => "a writ came down from the castle".into(),
     }
 }
 
@@ -303,6 +308,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach stinks", name), "You can smell it on a still night. That wasn't always so.".into()),
         Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's off", name), "He counted it his way. My way it's short.".into()),
         Reveal::Problem(Problem::Tempted) => (format!("{}'s feet itch", name), "The road looks shorter from the gate than the days look here.".into()),
+        Reveal::Problem(Problem::WritBorne) => (format!("{} bore the writ", name), "Sealed by the castle. No arguing with wax.".into()),
     }
 }
 

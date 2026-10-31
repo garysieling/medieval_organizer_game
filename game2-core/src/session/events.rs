@@ -1135,6 +1135,11 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 6)
                         .unwrap_or(false);
                     if !near { continue; }
+                    // the fold's smell already hangs on a shepherd - a
+                    // tanner's reek can't tell him anything new
+                    let already = self.world.get_component::<crate::game::vocation::Craft>(v)
+                        .map(|c| c.vocation == crate::game::vocation::Vocation::Shepherd).unwrap_or(false);
+                    if already { continue; }
                     desires::add_grievance(&mut self.world, v, desires::Problem::Smelly, tick + 15);
                     self.say(v, "Mind the smell - it's honest work!", CHAT_BUBBLE_SECS);
                     nipped += 1;

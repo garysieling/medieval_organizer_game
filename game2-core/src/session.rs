@@ -6885,10 +6885,13 @@ impl Game {
         self.seats.len() - 1
     }
 
-    /// The first living villager nobody drives yet
+    /// The first living villager nobody drives yet. A posting isn't up
+    /// for the taking - a bot can claim a free hand, not the collector
+    /// or the herb-wife; the town's duties stay the town's.
     pub fn free_villager(&self) -> Option<usize> {
         self.villagers.iter().position(|v| !villager::is_dead(&self.world, *v)
-            && !self.seats.iter().any(|s| s.player == *v))
+            && !self.seats.iter().any(|s| s.player == *v)
+            && self.world.get_component::<TownRole>(*v).is_none())
     }
 
     /// What an agent asks its villager to do. Maps to the same travel/goal

@@ -1,7 +1,7 @@
 # Completed Surveys
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.2.0
 
 ## Summary
@@ -457,5 +457,56 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High
 **Tags:** art-history, medieval-art, Byzantine, Romanesque, Gothic, aesthetics, Kant, beautiful-vs-sublime, color-symbolism, gold-leaf, lapis-lazuli, atmosphere-design, visual-direction, illuminated-manuscripts, religious-art, Hume, aesthetic-theory
+
+---
+
+### Historical Campaigns of Community Organizing (USER-REQUESTED DEEP DIVE)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement History / Community Organizing Case Studies
+**Output:** wiki/literature-reviews/organizing-historical-campaigns.md
+**Yield:**
+- Wide-net case survey: apartheid, civil rights, farmworkers, Stonewall/gay liberation, women's property rights & suffrage, women in ministry, IAF/broad-based organizing, labor, abolition, climate organizing + quick-list (Gandhi, Otpor, ACT UP, disability rights, tenant organizing)
+- Cross-case synthesis: 7 "what worked" patterns (political jiu-jitsu, specific demands, institutional anchoring, coalition breadth, pillar defection, nonviolent discipline, parallel institutions) + 7 "what failed" patterns (diffuse asks, spontaneity w/o org, charismatic bottlenecks, victory-then-disband, infiltration vulnerability, purity spirals, tactical stagnation)
+- 7 mechanics: campaign structure, pillars of support, repression backfire/jiu-jitsu, institutional anchoring, leadership pipeline, ask specificity, coalition breadth
+
+**Key Sources:**
+- Chenoweth & Stephan, *Why Civil Resistance Works* + NAVCO dataset - A+
+- Chenoweth 3.5% rule updates - A
+- King Institute (Stanford) Birmingham materials - A
+- Swarthmore Global Nonviolent Action Database - A
+- Zumes on non-violent action vs apartheid (SAHO) - A
+- NPS / Library of Congress / SA History Online movement histories - B+/A
+- Hobson, Stonewall NPS Scholars' Workshop - A
+- Fossil-fuel divestment systematic review (WIREs 2024) - A
+
+**Confidence:** High
+**Tags:** social-movements, organizing-history, campaigns, apartheid, civil-rights, farmworkers, stonewall, suffrage, ordination, IAF, labor, abolition, climate-organizing, nonviolent-resistance, pillars-of-support, political-jiu-jitsu, NAVCO, Chenoweth
+
+---
+
+### Counter-Organizing: Repression, Infiltration, Controlled Opposition, False Flags (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement Repression / State & Corporate Counter-Intelligence History
+**Output:** wiki/literature-reviews/organizing-countertactics.md
+**Yield:**
+- COINTELPRO tactic taxonomy (snitch-jacketing, provocateurs, fomenting rival-group violence, personal attacks, decapitation, reputation poisoning, counterfeit literature, media manipulation, police coordination) — 2,370 documented actions
+- Corporate counter-organizing history: Pinkerton→FBI continuity, American Plan, Mohawk Valley Formula (9-step strikebreaking playbook), company unions/ERPs banned 1935
+- Controlled opposition patterns: company unions, bantustan leaders + Inkathagate, colonial indirect rule, co-option of moderates, astroturf
+- Documented false flags (Mukden, Gleiwitz, Mainila, Tonkin) + crisis exploitation pattern
+- Soft repression (reform absorption, NGO-ization, bureaucratization, selective enforcement, zone-flooding)
+- 10 counter-countertactics (assume-infiltration design, relational vetting, marshals/discipline, verify-don't-accuse, exploiting surveillance, distributed leadership, counter-intel, solidarity armor, independent press, legal infrastructure)
+- 7 mechanics: repression tech tree, trust/paranoia stat, controlled-opposition events, provocateur events, manufactured crisis, Mohawk Valley counter-AI, counter-intel abilities
+
+**Key Sources:**
+- Church Committee Reports (US Senate 1976), Books II-III - A+
+- Garrow on FBI informants (Public Historian 1988) - A
+- Pinkerton-to-G-Man transition research - A-
+- Smith & Tennent (ERPs), Kaufman (company unions) - A
+- UK Undercover Policing Inquiry / Mark Kennedy case - A
+- Nuremberg (Gleiwitz), declassified NSA (Tonkin), Soviet archives (Mainila) - A+
+- Inkathagate / TRC record - A
+
+**Confidence:** High
+**Tags:** countertactics, COINTELPRO, infiltration, agent-provocateur, snitch-jacketing, controlled-opposition, company-unions, astroturf, false-flag, pinkerton, mohawk-valley-formula, divide-and-rule, repression, church-committee, counter-countertactics, paranoia
 
 ---

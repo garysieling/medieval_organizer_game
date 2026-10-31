@@ -1,7 +1,7 @@
 # Source Log
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.1.0
 
 ## Summary
@@ -130,10 +130,130 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### Social Movements & Counter-Organizing (added 2026-10-31)
+
+#### Chenoweth & Stephan - *Why Civil Resistance Works* + NAVCO dataset (2011)
+**Type:** Academic Book + Dataset
+**Domain:** Political Science, Social Movements
+**Rating:** A+
+**Year:** 2011
+**Relevance:** Quantitative basis for nonviolent-vs-violent campaign outcomes (53% vs 26% success); pillars-of-support mechanism; 3.5% participation heuristic (descriptive, not prescriptive — see author's 2020 caveat paper)
+**Used In:** organizing-historical-campaigns.md
+**Notes:** Largest dataset of its kind (323 campaigns 1900-2006). Bahrain 2011 is documented exception to 3.5%.
+
+#### Church Committee Reports, Books II-III (US Senate, 1976)
+**Type:** Primary Government Investigation
+**Domain:** Intelligence History, Repression
+**Rating:** A+
+**Year:** 1976
+**Relevance:** Definitive documented record of COINTELPRO tactics (2,370 actions): snitch-jacketing, provocateurs, forged letters, fomented BPP-US violence, MLK suicide letter, Hampton raid floor plan, Jean Seberg op
+**Used In:** organizing-countertactics.md
+**Notes:** Exposed by the Citizens' Commission Media PA break-in (1971). The gold standard — everything else on FBI repression gets checked against it.
+
+#### King Institute (Stanford) - Birmingham Campaign primary materials
+**Type:** University archive, primary documents
+**Domain:** Civil Rights History
+**Rating:** A
+**Year:** 1963 materials, curated
+**Relevance:** Project C design (focus downtown business, engineered confrontation, exploited tapped phones for disinformation), Albany→Birmingham learning loop
+**Used In:** organizing-historical-campaigns.md, organizing-countertactics.md
+
+#### Global Nonviolent Action Database (Swarthmore)
+**Type:** Peer-reviewed case database
+**Domain:** Social Movements
+**Rating:** A
+**Year:** Ongoing
+**Relevance:** Structured case records of campaigns incl. Delano grape strike (Schenley targeting logic)
+**Used In:** organizing-historical-campaigns.md
+
+#### Garrow - "FBI Political Harassment and FBI Historiography" (Public Historian, 1988)
+**Type:** Peer-reviewed article
+**Domain:** Intelligence History
+**Rating:** A
+**Year:** 1988
+**Relevance:** Effects of informants/provocateurs; Albertson snitch-jacket detail, Seberg case
+**Used In:** organizing-countertactics.md
+
+#### Smith & Tennent - ERP movement 1913-1935 (Labor History, 2025); Kaufman - company unions (Industrial Relations, 2016)
+**Type:** Peer-reviewed articles
+**Domain:** Labor History
+**Rating:** A / B+
+**Year:** 2016, 2025
+**Relevance:** Company unions/ERPs as controlled opposition; Wagner Act ban; legitimation strategy
+**Used In:** organizing-countertactics.md
+**Notes:** Kaufman argues ban was overbroad (revisionist) — useful for the performative-vs-binding seat mechanic
+
+#### "Union Avoidance: Rationale, Strategies, and Practices" (Southeastern Oklahoma State U working paper)
+**Type:** Working paper
+**Domain:** Labor Relations
+**Rating:** B+
+**Year:** undated
+**Relevance:** Documents Mohawk Valley Formula 9-step strikebreaking playbook, American Plan
+**Used In:** organizing-countertactics.md
+**Notes:** MVF also documented in NLRB v. Remington Rand record — verify against primary for final citation
+
+#### Zumes - "Non-violent action against apartheid" (SA History Online)
+**Type:** Historical analysis
+**Domain:** Anti-Apartheid History
+**Rating:** A
+**Year:** undated
+**Relevance:** Nonviolent resistance arc: Defiance Campaign → exile → UDF → sanctions+strikes forcing negotiation
+**Used In:** organizing-historical-campaigns.md
+
+#### Hobson - Stonewall NPS Scholars' Workshop essay
+**Type:** Academic historical context report
+**Domain:** LGBTQ+ History
+**Rating:** A
+**Year:** 2016
+**Relevance:** Stonewall complexity (multi-day uprising, contested narratives, GLF/STAR/GAA differentiation)
+**Used In:** organizing-historical-campaigns.md
+
+#### Fossil-Fuel Divestment Effectiveness Systematic Review (WIREs Climate Change, 2024)
+**Type:** Peer-reviewed systematic review (69 articles)
+**Domain:** Climate Policy / Social Movements
+**Rating:** A
+**Year:** 2024
+**Relevance:** Divestment real effects = social-license erosion + agenda-setting, contested on capital effects; 3-order impact framework
+**Used In:** organizing-historical-campaigns.md
+
+#### Married Women's Property Acts scholarship (Mississippi Encyclopedia; Emerald enactment study; LoC guides)
+**Type:** Institutional/academic histories
+**Domain:** Legal History, Women's Rights
+**Rating:** A
+**Year:** various
+**Relevance:** MS 1839 first MWPA driven by debt-shielding (elite interest) not feminism; Betsy Love Allen Chickasaw precedent; NY 1848 as template
+**Used In:** organizing-historical-campaigns.md
+
+#### Women's ordination timeline sources (Encyclopedia.com, Andrews U, LoC)
+**Type:** Academic/institutional histories
+**Domain:** Religious History, Women's Rights
+**Rating:** B+/A
+**Year:** various
+**Relevance:** Women preached first in marginal/revival movements (Quakers, Holiness, Pentecostal), absorbed by mainlines 1956-1980
+**Used In:** organizing-historical-campaigns.md
+
+#### UK Undercover Policing Inquiry + Mark Kennedy case reporting
+**Type:** Public inquiry / investigative journalism
+**Domain:** Policing, Infiltration
+**Rating:** A
+**Year:** 2010-ongoing
+**Relevance:** Modern provocateur infiltration (7+ yr deep cover, relationship deception, protest provocation)
+**Used In:** organizing-countertactics.md
+
+#### False-flag primary record (Nuremberg/Gleiwitz, declassified NSA/Tonkin, Soviet archives/Mainila, Inkathagate/TRC)
+**Type:** Declassified primary documents
+**Domain:** Intelligence/False Flag History
+**Rating:** A+
+**Year:** various
+**Relevance:** Confirmed manufactured-pretext cases + crisis exploitation pattern; Inkatha covert funding as controlled opposition
+**Used In:** organizing-countertactics.md
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority
-1. **Community Organizing** - Need specific foundational texts (Alinsky, etc.)
+1. **Community Organizing** - FILLED 2026-10-31 (Alinsky/Ganz/McAlevey/Han from sprint reviews; Chenoweth, Church Committee, case histories added)
 2. **Sociology of Religion** - Need key papers on fundamentalism emergence
 3. **Medieval Economics** - Need historical sources on market structures
 4. **QSP** - Need foundational QSP papers for proper citation

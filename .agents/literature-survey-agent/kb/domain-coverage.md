@@ -1,7 +1,7 @@
 # Domain Coverage
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.1.0
 
 ## Summary
@@ -40,11 +40,26 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Community Organizing & Sociology
-**Coverage:** Medium
-**Surveys:** Sprint 3 (Community Organizing)
+**Coverage:** High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration
 **Mechanics Implemented:** 1-1 conversations, house meetings (community.rs)
-**Sources:** Community organizing literature (needs specific citations)
-**Next Steps:** Coalition building, direct action tactics, movement scaling
+**Mechanics Proposed:**
+- Campaign structure (target, demand, escalation ladder, settlement) - historical-campaigns review
+- Pillars of support (defection-based power model) - historical-campaigns review
+- Repression backfire / political jiu-jitsu - historical-campaigns review
+- Institutional anchoring (durable vs ephemeral orgs) - historical-campaigns review
+- Leadership pipeline vs charismatic bottleneck - historical-campaigns review
+- Ask specificity (winnable vs transformational campaigns) - historical-campaigns review
+- Coalition breadth vs coordination friction - historical-campaigns review
+- Repression tech tree (surveillance → infiltration → legal harassment → provocation → violence) - countertactics review
+- Trust/paranoia stat (COINTELPRO's real mechanism) - countertactics review
+- Controlled-opposition events (binding vs performative seats) - countertactics review
+- Provocateur events + marshal/discipline counters - countertactics review
+- Manufactured crisis + refutation window - countertactics review
+- Mohawk Valley Formula as counter-AI playbook - countertactics review
+- Counter-intel abilities (documentation, vetting, surveillance exploitation) - countertactics review
+**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate)
+**Next Steps:** Deep-dives: disability rights (504 sit-in), ACT UP, abolition petition machinery, UK spycops inquiry, NGO-ization/co-option literature
 
 ---
 
@@ -362,12 +377,12 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 20
+**Total Surveys Completed:** 22 (+2 on 2026-10-31: Historical Campaigns of Community Organizing; Counter-Organizing/Countertactics — user-requested deep dive)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)
-**Mechanics Implemented from Research:** ~72 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed)
-**Sources Requiring Better Citation:** ~5
+**Mechanics Implemented from Research:** ~86 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics proposed)
+**Sources Requiring Better Citation:** ~4 (Community Organizing citation gap FILLED 2026-10-31)
 
 **Coverage Score:** 100% (20/20 well-covered domains!)
 **Cycle 1: COMPLETE** (7/7 surveys finished)

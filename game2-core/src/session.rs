@@ -5831,8 +5831,10 @@ impl Game {
     pub fn matchmaker_tick(&mut self, tick: u64) {
         let Some(mm) = self.matchmaker else { return };
         if tick % 4 != 0 || villager::is_dead(&self.world, mm) { return; }
+        // a heart behind bars can't answer the heart-helper - skip it
+        // for one that can, or the lock-up wastes the day's match
         if let Some(&a) = self.lonely_hearts().iter().find(|&&a| {
-            a != mm && !villager::is_dead(&self.world, a)
+            a != mm && !crate::game::dungeon::unavailable(&self.world, a)
             && self.world.get_component::<Hunger>(a).map(|h| h.value >= 30.0).unwrap_or(true)
             && !self.travels.iter().any(|t| t.who == a)
         }) { self.send(a, Goal::TalkTo(mm)); }

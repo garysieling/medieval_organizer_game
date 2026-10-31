@@ -5934,10 +5934,25 @@ impl Game {
         self.log.push(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick));
     }
 
+    /// Flames at a traveller's feet or on the road just ahead - reason
+    /// enough for any of them to turn for home
+    fn fire_at_feet(&self, e: Entity, path: &[(i32, i32)]) -> bool {
+        if !self.fire.active() { return false; }
+        let near = self.world.get_component::<Pos>(e)
+            .map(|p| self.fire.burns_near(p.x.round() as i32, p.y.round() as i32, 2))
+            .unwrap_or(false);
+        near || path.first().map(|&(x, y)| self.fire.on_fire(x, y)).unwrap_or(false)
+    }
+
     /// One frame of the circus: walk in, camp a fortnight of wonder and
     /// light fingers, then leave - and maybe not alone
     pub fn advance_circus(&mut self) {
         let Some(mut c) = self.circus.take() else { return };
+        // the meadow's burning or the road in is: the tents fold early
+        if self.fire_at_feet(c.e, &c.path) {
+            c.camped_until = Some(self.tick.saturating_sub(1));
+            c.path.clear();
+        }
         if c.camped_until.is_none() {
             let Some(p) = self.world.get_component_mut::<Pos>(c.e) else { return };
             if c.path.is_empty() {
@@ -6026,6 +6041,11 @@ impl Game {
     /// the cauldron a few days, then the road takes him back
     pub fn advance_ink_boiler(&mut self) {
         let Some(mut b) = self.ink_boiler.take() else { return };
+        // flames come for a pot of boiling oil too: he packs and goes
+        if self.fire_at_feet(b.e, &b.path) {
+            b.working_until = Some(self.tick.saturating_sub(1));
+            b.path.clear();
+        }
         if b.working_until.is_none() {
             let Some(p) = self.world.get_component_mut::<Pos>(b.e) else { return };
             if b.path.is_empty() {
@@ -6203,6 +6223,11 @@ impl Game {
     /// gossip and oddities a few days, then the road takes him
     pub fn advance_pedlar(&mut self) {
         let Some(mut m) = self.pedlar.take() else { return };
+        // no stall is worth a burning pitch: he shoulders his pack
+        if self.fire_at_feet(m.e, &m.path) {
+            m.selling_until = Some(self.tick.saturating_sub(1));
+            m.path.clear();
+        }
         if m.selling_until.is_none() {
             // walking to the market
             let Some(p) = self.world.get_component_mut::<Pos>(m.e) else { return };
@@ -6289,6 +6314,12 @@ impl Game {
     /// while, then ride off - and the town wants music again next season
     pub fn advance_minstrel(&mut self) {
         let Some(mut m) = self.minstrel.take() else { return };
+        // the song's no good to anyone with the thatch alight: he turns
+        // his horse for the road home
+        if self.fire_at_feet(m.e, &m.path) {
+            m.playing_until = Some(self.tick.saturating_sub(1));
+            m.path.clear();
+        }
         if m.playing_until.is_none() {
             // riding to the market
             let Some(p) = self.world.get_component_mut::<Pos>(m.e) else { return };

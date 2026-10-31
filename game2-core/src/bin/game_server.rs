@@ -30,6 +30,8 @@ struct Conn {
     last_active: Instant,
     /// Serialized messages queued for this client
     outbox: Vec<String>,
+    /// Another connection reclaimed this seat: the read loop ends
+    dead: bool,
 }
 
 struct Server {
@@ -154,8 +156,15 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
                         you, token: tok,
                         model: Box::new(s.game.ui_model_at(0)) }, // agents see the world via Obs
                 };
-                let conn = Arc::new(Mutex::new(Conn { seat, kind, last_active: Instant::now(), outbox: vec![] }));
+                let conn = Arc::new(Mutex::new(Conn { seat, kind, last_active: Instant::now(), outbox: vec![], dead: false }));
                 send_msg(&mut conn.lock().unwrap(), &first);
+                // a claim takes the seat back: any earlier connection
+                // steering it is stale, so one character has one driver
+                for c in s.conns.iter() {
+                    let mut c = c.lock().unwrap();
+                    if c.seat == seat { c.dead = true; }
+                }
+                s.conns.retain(|c| c.lock().unwrap().seat != seat);
                 s.conns.push(conn.clone());
                 break conn;
             }
@@ -165,6 +174,7 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
     // world loop fills, so a quiet client never stalls the broadcast
     ws.get_ref().set_read_timeout(Some(Duration::from_millis(50))).ok();
     loop {
+        if conn.lock().unwrap().dead { break; }
         let out: Vec<String> = { let mut c = conn.lock().unwrap(); c.outbox.drain(..).collect() };
         let mut alive = true;
         for s_out in out {
@@ -175,6 +185,9 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
             Ok(tungstenite::Message::Text(t)) => {
                 let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
                 let mut s = server.lock().unwrap();
+                // reclaimed while the message waited: the seat has a new
+                // driver - don't run this conn's stale command on it
+                if conn.lock().unwrap().dead { break; }
                 let (seat, kind) = { let c = conn.lock().unwrap(); (c.seat, c.kind) };
                 conn.lock().unwrap().last_active = Instant::now();
                 match cm {

@@ -115,8 +115,8 @@ Items are removed from this list as their PRs land.
 - [ ] **W-091** `AgentObs` carries no fire/burning field — driven agents can walk into flames.
 - [ ] **W-092** `AgentObs` carries no org/campaign/membership fields — bots can't see the political layer at all.
 - [ ] **W-093** `AgentCmd` has no organizing verbs — a bot can never found an org, join, meet, march, or petition; agents can't reach the win state.
-- [ ] **W-094** `free_villager` assigns by index, not role — bots can claim the priest or the tax collector (documented in `docs/multiplayer-round2.md`).
-- [ ] **W-095** `game_bots` sends `token: None` every run — bots can't reclaim their villager across restarts (documented).
+- [x] ~~**W-094** `free_villager` assigns by index, not role — bots can claim the priest or the tax collector (documented in `docs/multiplayer-round2.md`).~~ (fixed)
+- [x] ~~**W-095** `game_bots` sends `token: None` every run — bots can't reclaim their villager across restarts (documented).~~ (fixed)
 - [ ] **W-096** Scene bandwidth: the whole `UiModel` (incl. `TileMap`) serializes per broadcast per seat (documented).
 - [ ] **W-097** No scripted multiplayer regression test — server + human + bot round-trip is unverified in CI (documented).
 

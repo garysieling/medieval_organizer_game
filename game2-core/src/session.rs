@@ -6947,10 +6947,18 @@ impl Game {
         self.seats.len() - 1
     }
 
-    /// The first living villager nobody drives yet
+    /// The first living villager nobody drives yet. A posting isn't up
+    /// for the taking - a bot can claim a free hand, not the collector,
+    /// the herb-wife, the knight or the priest (postings ride either
+    /// TownRole or a PMC Craft); and a child is nobody's worker. The
+    /// town's duties stay the town's.
     pub fn free_villager(&self) -> Option<usize> {
         self.villagers.iter().position(|v| !villager::is_dead(&self.world, *v)
-            && !self.seats.iter().any(|s| s.player == *v))
+            && !self.seats.iter().any(|s| s.player == *v)
+            && self.world.get_component::<TownRole>(*v).is_none()
+            && self.world.get_component::<Kid>(*v).is_none()
+            && !self.world.get_component::<Craft>(*v)
+                .map(|c| vocation::is_pmc(c.vocation)).unwrap_or(false))
     }
 
     /// What an agent asks its villager to do. Maps to the same travel/goal
@@ -11829,5 +11837,32 @@ mod campaign_ban_tests {
         // and under the ban even a handful is broken up on sight
         g.ctx_act_at(0, 0);
         assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
+    }
+}
+
+#[cfg(test)]
+mod free_villager_tests {
+    use super::*;
+
+    #[test]
+    fn test_knights_and_priests_stay_off_the_claim_list() {
+        let mut g = Game::new();
+        // villagers[0] is always a working adult with a Craft vocation
+        let knight = g.villagers[0];
+        g.world.get_component_mut::<Craft>(knight).unwrap().vocation = Vocation::Knight;
+        let claimed = g.free_villager().map(|i| g.villagers[i]);
+        assert_ne!(claimed, Some(knight), "a knight keeps their post");
+    }
+
+    #[test]
+    fn test_kids_stay_off_the_claim_list() {
+        let g = Game::new();
+        // villagers[26..29] are the three seeded children
+        let kids: Vec<Entity> = g.villagers[26..29].to_vec();
+        for &k in &kids {
+            assert!(g.world.get_component::<Kid>(k).is_some(), "setup: expected a child here");
+        }
+        let claimed = g.free_villager().map(|i| g.villagers[i]);
+        assert!(claimed.map(|c| !kids.contains(&c)).unwrap_or(true), "a child can't take agent commands");
     }
 }

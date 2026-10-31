@@ -717,8 +717,11 @@ const APPROACH_STUCK_FRAMES: u32 = FPS;
 const TRAVELLER_SPEED: f32 = 4.0 / FPS as f32;
 
 /// Days the ink-maker's cauldron smokes on the meadow: the boil, the
-/// crusts, the drip test, and the grinding, all rolled into one stay for now
+/// crusts, the drip test, and the grinding
 const INK_BOIL_DAYS: u64 = 5;
+
+/// Ink he sells off before the road takes him
+const INK_YIELD: u32 = 6;
 
 /// Walking over to someone to talk to or recruit them
 pub struct Approach {
@@ -5192,6 +5195,10 @@ impl Game {
                 if Some(e) == self.matchmaker && who != e {
                     // a lonely heart comes to sit with the heart-helper
                     self.match_attempt(who, tick, Some(e), "the heart-helper");
+                } else if self.ink_boiler.as_ref().map(|b| b.e) == Some(e) && who != e {
+                    // crusts for the pot, and a fried taste for carrying them
+                    desires::satisfy(&mut self.world, who, Want::GoodFood, tick + 30);
+                    self.say(who, "The crusts come back fried.", CHAT_BUBBLE_SECS);
                 } else {
                     // stand and chat: a conversation, a step toward a tie
                     relationships::record_interaction(&mut self.world, who, relationships::Interaction {
@@ -5399,6 +5406,8 @@ impl Game {
         self.garden_tick(tick);
         // and the circus, while it camps, works its pull
         self.circus_tick(tick);
+        // the oil boils, the crusts fry, and the black goes in
+        self.ink_boiler_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
         self.cheese_tick(tick);
         // the day's work leaves its smell - unless the rain washes it off
@@ -5741,6 +5750,60 @@ impl Game {
                 else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
             }
             self.ink_boiler = Some(b);
+        }
+    }
+
+    /// Each day the cauldron's on, the recipe walks its stages: two days
+    /// of boil, the crusts and onions that take the grease out, the slate
+    /// drip that says it's varnish, and the black going in - then the
+    /// print shop's stocked with ink the road used to have to bring
+    pub fn ink_boiler_tick(&mut self, tick: u64) {
+        let Some(b) = &self.ink_boiler else { return };
+        let Some(until) = b.working_until else { return };
+        let (camp, be) = (b.camp, b.e);
+        match tick - (until - INK_BOIL_DAYS) {
+            2 => {
+                // day three: a pound of crusts and a dozen onions go in
+                // to degrease - someone carries them out and comes back
+                // smelling of frying oil
+                self.say(be, "A pound of crusts and an onion or two - they take the grease out.", TALK_BUBBLE_SECS);
+                let bringer = self.villagers.iter().copied().find(|&v| {
+                    !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<TownRole>(v).is_none()
+                        && !self.travels.iter().any(|t| t.who == v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - camp.0).abs() + (p.y.round() as i32 - camp.1).abs() <= 8)
+                            .unwrap_or(false)
+                });
+                if let Some(v) = bringer {
+                    if self.send(v, Goal::TalkTo(be)) {
+                        self.log.push(format!("t{}: a villager carries the day's crusts out to the cauldron.", tick));
+                    }
+                }
+            }
+            3 => {
+                // day four: dripped on the slate it hangs like thin glue
+                self.say(be, "See it hang off the slate? That's varnish now.", TALK_BUBBLE_SECS);
+                self.log.push(format!("t{}: the oil's boiled down to varnish - sticky as thin glue off the slate.", tick));
+            }
+            4 => {
+                // day five: the lampblack goes in - soot, not ash - and
+                // it's ink; the print shop's stocked till he comes again
+                let shop = self.building_entities.iter().copied().find(|&e| {
+                    self.world.get_component::<Building>(e)
+                        .map(|b| matches!(b.kind, household::BuildingKind::Shop(Vocation::Printmaker)))
+                        .unwrap_or(false)
+                }).or(self.trader_stall);
+                if let Some(shop) = shop {
+                    if let Some(b) = self.world.get_component_mut::<Building>(shop) {
+                        household::add_stock(b, "ink", INK_YIELD);
+                    }
+                }
+                self.say(be, "The black goes in - there's your ink.", TALK_BUBBLE_SECS);
+                self.log.push(format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD));
+            }
+            // days one and two: the oil just boils, watched and smoking
+            _ => {}
         }
     }
 
@@ -8526,6 +8589,55 @@ mod ink_boiler_tests {
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.e == e && matches!(p.kind, PKind::Traveller)),
             "the ink-maker is on the map the moment he's spawned, not just his speech bubble");
+    }
+
+    #[test]
+    fn test_the_recipe_walks_its_days() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let pitched = g.ink_boiler.as_ref().unwrap().working_until.unwrap() - INK_BOIL_DAYS;
+        for d in 0..INK_BOIL_DAYS { g.ink_boiler_tick(pitched + d); }
+        assert!(g.log.iter().any(|l| l.contains("varnish")), "the slate says varnish");
+        // the print shop - or the trader if there's no printer - is stocked
+        let stocked = g.building_entities.iter().copied().find(|&e| {
+            g.world.get_component::<Building>(e)
+                .map(|b| matches!(b.kind, household::BuildingKind::Shop(Vocation::Printmaker)))
+                .unwrap_or(false)
+        }).or(g.trader_stall).unwrap();
+        let ink = g.world.get_component::<Building>(stocked)
+            .and_then(|b| b.stock.get("ink").copied()).unwrap_or(0);
+        assert!(ink >= INK_YIELD, "there's ink where the road used to bring it");
+    }
+
+    #[test]
+    fn test_the_crusts_come_back_fried() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let (camp, be) = {
+            let b = g.ink_boiler.as_ref().unwrap();
+            (b.camp, b.e)
+        };
+        // someone walks out with the day's crusts
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 - 2) as f32 };
+        let pitched = g.ink_boiler.as_ref().unwrap().working_until.unwrap() - INK_BOIL_DAYS;
+        g.tick = pitched + 2;
+        g.ink_boiler_tick(g.tick);
+        assert!(g.travels.iter().any(|t| matches!(t.goal, Goal::TalkTo(e) if e == be)),
+            "the crusts get carried out to the pot");
+        // and the bearer gets the taste of them
+        g.arrive(v, Goal::TalkTo(be));
+        assert!(desires::is_satisfied(&g.world, v, Want::GoodFood, g.tick),
+            "they come back fried");
     }
 }
 

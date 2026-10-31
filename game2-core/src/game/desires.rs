@@ -58,7 +58,8 @@ pub enum Problem {
     Taxed,
     /// Under three gold to their name
     Broke,
-    /// Works the fold: the flock's smell hangs on them
+    /// Carries a smell: the flock's, the cauldron's smoke - honest work
+    /// hangs on them
     Smelly,
     /// Wolves got into the fold - stock lost in the night
     Loss,
@@ -168,7 +169,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::OverseerCut) => "the overseers' cut",
         Reveal::Problem(Problem::Taxed) => "the taxes",
         Reveal::Problem(Problem::Broke) => "poverty",
-        Reveal::Problem(Problem::Smelly) => "the fold's stink",
+        Reveal::Problem(Problem::Smelly) => "honest work's stink",
         Reveal::Problem(Problem::Loss) => "the wolves",
         Reveal::Problem(Problem::Blamed) => "the bad bread",
         Reveal::Problem(Problem::SourGut) => "the sour gut",
@@ -225,7 +226,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the overseers' cut" => "the overseers' cut".into(),
         "the taxes" => "the tax collector's cut".into(),
         "poverty" => "folk without a coin".into(),
-        "the fold's stink" => "the stinking fold".into(),
+        "honest work's stink" => "the stink of honest work".into(),
         "the wolves" => "wolves at the fold".into(),
         "the bad bread" => "the cursed bread".into(),
         "the sour gut" => "spoiled stock in the larder".into(),
@@ -272,7 +273,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::OverseerCut => "the overseer takes a cut".into(),
         Problem::Taxed => "paid the tax collector".into(),
         Problem::Broke => "is nearly broke".into(),
-        Problem::Smelly => "smells of the flock".into(),
+        Problem::Smelly => "smells of honest work".into(),
         Problem::Loss => "lost stock to wolves".into(),
         Problem::Blamed => "is blamed for the sickness".into(),
         Problem::SourGut => "ate spoiled stock".into(),
@@ -313,7 +314,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::OverseerCut) => (format!("{} resents the overseer's cut", name), "I sweat and he takes his share for watching.".into()),
         Reveal::Problem(Problem::Taxed) => (format!("{} curses the tax collector", name), "The collector took his cut again. The lord eats well.".into()),
         Reveal::Problem(Problem::Broke) => (format!("{} is nearly broke", name), "Two coins left. Two.".into()),
-        Reveal::Problem(Problem::Smelly) => (format!("{} smells of the fold", name), "Aye, I've been with the flock all day - mind the smell.".into()),
+        Reveal::Problem(Problem::Smelly) => (format!("{} stinks of honest work", name), "Aye, honest work hangs on - it'll wash off.".into()),
         Reveal::Problem(Problem::Loss) => (format!("{} lost stock to wolves", name), "The wolf came in the night. I found what's left of her.".into()),
         Reveal::Problem(Problem::Blamed) => (format!("{} is blamed for the sickness", name), "They say my bread did it. My bread.".into()),
         Reveal::Problem(Problem::SourGut) => (format!("{} ate spoiled stock", name), "It was all there was. Still smells.".into()),

@@ -5858,21 +5858,29 @@ impl Game {
         for &t in &out {
             if let Some(c) = self.land.tree_cover.get_mut(&t) { *c = 0.0; }
         }
-        // folk beside the flames run for home
+        // folk beside the flames run for home - errands and all
         if self.fire.active() {
             let fleeing: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                 !villager::is_dead(&self.world, v)
-                    && !self.travels.iter().any(|t| t.who == v)
                     && self.world.get_component::<Pos>(v)
                         .map(|p| self.fire.burning.keys().any(|&(fx, fy)|
                             (p.x.round() as i32 - fx).abs() + (p.y.round() as i32 - fy).abs() <= 2))
                         .unwrap_or(false)
             }).collect();
             for v in fleeing {
-                let home = household::home_of(&self.world, v).or(Some(self.market_food));
+                // but not toward the flames: home if it stands clear,
+                // else the market store
+                let safe = |e: Entity| self.world.get_component::<Pos>(e)
+                    .map(|p| !self.fire.burning.keys().any(|&(fx, fy)|
+                        (p.x.round() as i32 - fx).abs() + (p.y.round() as i32 - fy).abs() <= 4))
+                    .unwrap_or(false);
+                let home = household::home_of(&self.world, v).filter(|&h| safe(h))
+                    .or(Some(self.market_food).filter(|&h| safe(h)));
                 if let Some(h) = home {
                     if self.send(v, Goal::HeadHome(h)) {
                         self.say(v, "Fire! Fire on the meadow!", CHAT_BUBBLE_SECS);
+                        // the errand's off: the homeward way's the one that stays
+                        self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::HeadHome(_)));
                     }
                 }
             }
@@ -8785,6 +8793,14 @@ mod ink_boiler_tests {
         g.fire_tick(1);
         assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::HeadHome(_))),
             "she runs for home");
+        // and mid-errand is no excuse to walk through flames
+        let v2 = g.villagers.iter().copied().find(|&x| x != v
+            && g.world.get_component::<TownRole>(x).is_none()).unwrap();
+        *g.world.get_component_mut::<Pos>(v2).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 + 1) as f32 };
+        g.travels.push(Travel { who: v2, path: vec![(5, 5)], goal: Goal::Wander });
+        g.fire_tick(2);
+        assert!(g.travels.iter().all(|t| t.who != v2 || matches!(t.goal, Goal::HeadHome(_))),
+            "the errand's dropped for the run home");
     }
 }
 

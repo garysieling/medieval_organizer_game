@@ -38,6 +38,8 @@ pub enum Vocation {
     /// Keeps the skeps at the meadow's edge: honey in season, wax for
     /// the candles and the seals
     Beekeeper,
+    /// Works the loom: the shepherd's wool in, village cloth out
+    Weaver,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -128,6 +130,7 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
         Vocation::Baker => &["wheat"],
         Vocation::Toolmaker => &["wood", "stone"],
         Vocation::Tailor => &["cloth"],
+        Vocation::Weaver => &["wool"],
         Vocation::Glazier => &["sand", "pigment"],
         Vocation::Printmaker => &["paper", "ink"],
         Vocation::Mason => &["stone"],
@@ -152,6 +155,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Luthier => Some("lute"),
         Vocation::Shepherd => Some("milk"),
         Vocation::Beekeeper => Some("honey"),
+        Vocation::Weaver => Some("cloth"),
     }
 }
 
@@ -210,6 +214,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Luthier => "the luthier's",
         Vocation::Shepherd => "the fold",
         Vocation::Beekeeper => "the apiary",
+        Vocation::Weaver => "the loom house",
     }
 }
 
@@ -228,6 +233,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Luthier => "Luthier",
         Vocation::Shepherd => "Shepherd",
         Vocation::Beekeeper => "Beekeeper",
+        Vocation::Weaver => "Weaver",
     }
 }
 
@@ -322,6 +328,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("tend the skeps", "smoke the hives and check the queens"),
             a("draw honey", "a comb a season from each skep"),
             a("render wax", "for the candles and the seals"),
+        ],
+        Vocation::Weaver => vec![
+            a("work the loom", "wool in, cloth out"),
+            a("buy wool at the fold", "the shepherd keeps them supplied"),
+            a("sell cloth", "a bolt for the tailor when it's cut"),
         ],
     }
 }

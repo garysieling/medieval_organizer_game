@@ -567,13 +567,15 @@ impl Game {
                 self.log.push(format!("t{}: a sack of rats for the road - the larder breathes easier.", tick));
             }
             EventId::Dowser => {
-                // the forked stick dips or it doesn't - when it does, the
-                // pit's water table rises on the mark he left
+                // the forked stick dips or it doesn't - when it does, a
+                // spring in the water table feeds the gardens on the mark
+                // he left (it feeds them, mind: a drowned pit yields no
+                // stone, so the mark's never on the pit itself)
                 if self.rare_roll(id) % 4 == 0 {
                     self.log.push(format!("t{}: the stick never dipped - dry ground all round, says the diviner.", tick));
                 } else {
-                    self.land.pit_water = (self.land.pit_water + 0.5).min(1.0);
-                    self.log.push(format!("t{}: water sings under the meadow - the diviner marked the spot.", tick));
+                    for g in self.gardens.iter_mut() { g.2 = (g.2 + 0.3).min(1.0); }
+                    self.log.push(format!("t{}: water sings under the meadow - the gardens drink it in.", tick));
                 }
             }
             EventId::StrayDog => {
@@ -797,7 +799,11 @@ mod tests {
     fn test_the_dowsers_stick_speaks() {
         for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
             let mut g = stage::staged(st);
-            let water0 = g.land.pit_water;
+            if g.gardens.is_empty() {
+                let home = g.building_entities[0];
+                g.gardens.push((home, (15, 20), 0.5));
+            }
+            let growth0: f32 = g.gardens.iter().map(|g| g.2).sum();
             g.force_event(EventId::Dowser);
             for _ in 0..2000 {
                 if g.rare.iter().any(|r| r.id == EventId::Dowser && r.until.is_some()) { break; }
@@ -810,7 +816,12 @@ mod tests {
             let found = g.log.iter().any(|l| l.contains("water sings"));
             let dry = g.log.iter().any(|l| l.contains("never dipped"));
             assert!(found || dry, "the stick said something on {:?}", st);
-            assert_eq!(found, g.land.pit_water > water0, "the spring answered on {:?}", st);
+            // a spring feeds the gardens; the pit's stone yield is untouched
+            if found {
+                let growth1: f32 = g.gardens.iter().map(|g| g.2).sum();
+                assert!(growth1 > growth0, "the gardens drank on {:?}", st);
+            }
+            assert!(g.land.pit_water <= 0.6, "the pit's not drowned on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::Dowser), "he moved on from {:?}", st);
         }
     }

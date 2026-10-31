@@ -29,7 +29,7 @@ use crate::sim::community::{Citizen, Organization};
 use crate::game::organizing::{meeting_remark, passing_remark, talk_response};
 use crate::game::traits::personality_from_seed;
 use crate::game::relationships;
-use crate::game::vocation::{self, Craft, Kid, Level, SocialClass, TownRole, Vocation};
+use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, TownRole, Vocation};
 use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
@@ -1937,6 +1937,8 @@ impl Game {
                 world.add_component(v, TownRole::Trader);
             } else if i < 29 {
                 world.add_component(v, Kid);
+                // staggered ages - they come of age one by one, not in a wave
+                world.add_component(v, KidGrowth { age_days: (i as u64 * 180) % 700, errands: vec![] });
             } else if i == 29 {
                 world.add_component(v, TownRole::TaxCollector);
             } else {
@@ -3523,6 +3525,35 @@ impl Game {
         }
     }
 
+    /// The young grow: each day the kids age, and on the day they come of
+    /// age they take up a trade - the master they ran the most errands
+    /// for, else whatever trade the village can use
+    pub fn lifecycle_tick(&mut self, tick: u64) {
+        for &v in self.villagers.clone().iter() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(g) = self.world.get_component_mut::<KidGrowth>(v) else { continue };
+            g.age_days += 1;
+            if g.age_days < vocation::COMING_OF_AGE { continue; }
+            let errands = g.errands.clone();
+            self.world.remove_component::<Kid>(v);
+            self.world.remove_component::<KidGrowth>(v);
+            // the hirer they ran for most is their likeliest master
+            let master = errands.iter().max_by_key(|(_, n)| *n).map(|(e, _)| *e)
+                .filter(|&m| !villager::is_dead(&self.world, m)
+                    && self.world.get_component::<Craft>(m).is_some());
+            let voc = master.and_then(|m| self.world.get_component::<Craft>(m).map(|c| c.vocation))
+                .unwrap_or_else(|| roll_vocation(&mut self.rng));
+            let mut c = vocation::craft(voc, 0.15);
+            c.master = master;
+            c.tasked_by = master;
+            self.world.add_component(v, c);
+            let name = self.villagers.iter().position(|x| *x == v).map(|i| NAMES[i]).unwrap_or("a youngster");
+            let trade = vocation::vocation_name(voc).to_lowercase();
+            self.log.push(format!("t{}: {} takes up the {}.", tick, name, trade));
+            self.toasts.push((format!("{} comes of age - a {}!", name, trade), tick + 30));
+        }
+    }
+
     /// The heart-helper's rounds: she keeps her corner of the market, and
     /// now and then a lonely heart is nudged to come and sit with her
     pub fn matchmaker_tick(&mut self, tick: u64) {
@@ -3815,6 +3846,12 @@ impl Game {
                     }
                     if let Some(h) = self.world.get_component_mut::<Purse>(job.hirer) { h.gold -= job.pay.min(h.gold); }
                     if let Some(k) = self.world.get_component_mut::<Purse>(who) { k.gold += job.pay; }
+                    // an errand run is a bond: the hirer they run for
+                    // most is their likeliest master
+                    if let Some(g) = self.world.get_component_mut::<KidGrowth>(who) {
+                        if let Some((_, n)) = g.errands.iter_mut().find(|(e, _)| *e == job.hirer) { *n += 1; }
+                        else { g.errands.push((job.hirer, 1)); }
+                    }
                     self.say(who, "All delivered!", CHAT_BUBBLE_SECS);
                     self.world.remove_component::<OddJob>(who);
                 }
@@ -3860,6 +3897,8 @@ impl Game {
         self.spoilage_tick(tick);
         // the dead hand on: benches, purses, and the lord's fifth
         self.succession_tick(tick);
+        // and the young grow into their trades
+        self.lifecycle_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -5910,6 +5949,41 @@ mod succession_tests {
         g.succession_tick(1);
         assert_eq!(g.world.get_component::<Building>(shop).unwrap().worker, None,
             "no heir - the bench stands empty");
+    }
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_kid_comes_of_age_and_takes_a_trade() {
+        let mut g = Game::new();
+        let kid = g.villagers[26];
+        assert!(g.world.get_component::<Kid>(kid).is_some());
+        g.world.get_component_mut::<KidGrowth>(kid).unwrap().age_days = vocation::COMING_OF_AGE - 1;
+        g.lifecycle_tick(100);
+        assert!(g.world.get_component::<Kid>(kid).is_none(), "they've grown");
+        assert!(g.world.get_component::<Craft>(kid).is_some(), "they take a trade");
+    }
+
+    #[test]
+    fn test_the_errand_hirer_becomes_the_master() {
+        let mut g = Game::new();
+        let kid = g.villagers[27];
+        let master = g.villagers.iter().copied().find(|&v|
+            v != kid && g.world.get_component::<Craft>(v).is_some()).unwrap();
+        let mvoc = g.world.get_component::<Craft>(master).unwrap().vocation;
+        {
+            let grw = g.world.get_component_mut::<KidGrowth>(kid).unwrap();
+            grw.age_days = vocation::COMING_OF_AGE - 1;
+            grw.errands = vec![(master, 5)];
+        }
+        g.lifecycle_tick(100);
+        let c = g.world.get_component::<Craft>(kid).unwrap();
+        assert_eq!(c.vocation, mvoc, "they follow the trade they ran for");
+        assert_eq!(c.master, Some(master), "the hirer stands as master");
+        assert_eq!(c.tasked_by, Some(master));
     }
 }
 

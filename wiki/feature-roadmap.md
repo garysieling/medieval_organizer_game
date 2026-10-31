@@ -120,22 +120,6 @@ deliberately thin — it's texture that other features hook, not a sim.
 
 ## Wave 2 — The social economy (people, power, and time)
 
-### F11. Children grow up — errands become apprenticeships
-
-*Extends `Kid`; uses `lifecycle.rs` (unwired aging) + RelKind::Apprentice.*
-
-**What.** At age ~12 a `Kid` graduates: if a master paired them (repeated
-errand-givers count), they take that `Craft` at Journeyman; else a
-random open vocation. The village visibly replenishes itself.
-
-**Spec.** `Kid` gains `age_days`; on threshold, remove `Kid`, add `Craft`
-(preferred master = most-frequent `tasked_by` within trust band). Log
-line "Tam takes up the awl." Without this, every death is net loss —
-with it, the roster breathes. Requires wiring `lifecycle.rs` age ticks.
-**Size: M.** *Depends on F12 for what happens when there's no open shop.*
-
----
-
 
 ### F13. The sanction ladder — shame before violence
 
@@ -578,7 +562,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 7. ~~F7 Vermin/cats~~ — **done, PR #147.**
    now cats do too.
 8. ~~F12 Shop succession~~ — **done, PR #149.**
-9. F11 Children grow up — the roster breathes; pairs with F12.
+9. ~~F11 Children grow up~~ — **done, PR #150.**
 10. F18 Footfall trails — visual payoff for all this walking; module
     already written.
 11. F42 The land keeps score — the land's grievances are the bridge

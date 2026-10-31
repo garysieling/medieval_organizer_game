@@ -84,7 +84,9 @@ fn main() {
         if bite != 0.0 {
             for v in world.query::<game2_core::sim::illness::Health>() {
                 if let Some(h) = world.get_component_mut::<game2_core::sim::illness::Health>(v) {
-                    h.condition = (h.condition + bite).clamp(0.0, 1.0);
+                    // the weather wears them down but never finishes the job -
+                    // illness and hunger are for that
+                    h.condition = (h.condition + bite).clamp(0.1, 1.0);
                 }
             }
         }

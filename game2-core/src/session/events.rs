@@ -1035,6 +1035,46 @@ impl Game {
                     self.say(v, "None goes bad who buys it!", CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::WoolMerchant => {
+                // fleece bought by the stone: the fold's wool stock sells
+                // first, then the fresh clip off the sheep - a head clips
+                // once a visit, goats don't shear, four stone a day at most
+                let fold = self.world.query::<household::Building>().iter().copied()
+                    .find(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+                if let Some(f) = fold {
+                    let sheep = self.flock.iter().copied()
+                        .filter(|&a| self.world.get_component::<crate::game::livestock::Livestock>(a)
+                            .map(|l| l.kind == crate::game::livestock::LivestockKind::Sheep).unwrap_or(false))
+                        .count();
+                    let already = self.rare.iter().find(|r| r.id == id).map(|r| r.aux as usize).unwrap_or(0);
+                    // what's in the stockroom goes first, then the backs
+                    let stock_wool = self.world.get_component::<household::Building>(f)
+                        .and_then(|b| b.stock.get("wool").copied()).unwrap_or(0).min(4) as usize;
+                    let fresh = sheep.saturating_sub(already).min(4usize.saturating_sub(stock_wool));
+                    let clip = stock_wool + fresh;
+                    if clip > 0 {
+                        if let Some(b) = self.world.get_component_mut::<household::Building>(f) {
+                            let w = b.stock.entry("wool".into()).or_insert(0);
+                            let taken = (*w).min(stock_wool as u32);
+                            *w -= taken;
+                        }
+                        if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) {
+                            r.aux += fresh as u64;
+                        }
+                        let shepherd = self.world.get_component::<household::Building>(f)
+                            .and_then(|b| b.worker.or(b.overseer))
+                            .filter(|&w| !villager::is_dead(&self.world, w)
+                                && !crate::game::dungeon::unavailable(&self.world, w));
+                        if let Some(s) = shepherd {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(s) {
+                                p.gold += clip as f32;
+                            }
+                            self.say(s, "Top price, by the stone!", CHAT_BUBBLE_SECS);
+                        }
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2345,6 +2385,56 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her gold went for the salt");
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::SaltSeller), "the cart moved on from {:?}", st);
+        }
+    }
+
+    /// The clip off the fold pays its shepherd a gold the head - the
+    /// frame shows the wool-cart first
+    #[test]
+    fn test_the_clip_pays_the_shepherd() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            // a fold with a shepherd and a sheep, if the stage lacks one
+            let shepherd = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            if g.world.query::<household::Building>().iter()
+                .all(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind != household::BuildingKind::Pasture).unwrap_or(false)) {
+                let f = g.world.create_entity();
+                g.world.add_component(f, Pos { x: 20.0, y: 20.0 });
+                g.world.add_component(f, household::Building {
+                    kind: household::BuildingKind::Pasture, name: "the fold".into(),
+                    occupants: vec![], worker: Some(shepherd), overseer: None,
+                    stock: Default::default(), capacity: 0 });
+            } else {
+                g.world.get_component_mut::<household::Building>(
+                    g.world.query::<household::Building>().iter().copied()
+                        .find(|&b| g.world.get_component::<household::Building>(b)
+                            .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false)).unwrap())
+                    .unwrap().worker = Some(shepherd);
+            }
+            let fold = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false)).unwrap();
+            if g.flock.is_empty() {
+                let e = crate::game::livestock::spawn_animal(&mut g.world,
+                    crate::game::livestock::LivestockKind::Sheep, fold, 21.0, 21.0);
+                g.flock.push(e);
+            }
+            let gold0 = g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0);
+            g.force_event(EventId::WoolMerchant);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::WoolMerchant && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the wool merchant")),
+                "the frame shows the wool-cart on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0) > gold0,
+                "the clip paid him on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::WoolMerchant), "the cart moved on from {:?}", st);
         }
     }
 

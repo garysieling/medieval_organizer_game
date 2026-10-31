@@ -778,6 +778,19 @@ impl Game {
                     self.say(v, "Did you hear?", CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::Deserter => {
+                // hiding in the green: anyone who comes near knows his
+                // face now - and knowing's sheltering, the law counts it
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let sheltered = self.villagers.iter().copied()
+                    .any(|v| !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 6)
+                            .unwrap_or(false));
+                if sheltered {
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1039,6 +1052,16 @@ impl Game {
                         self.log.push(format!("t{}: the levy took the youngest - they marched off at dawn.", tick));
                     }
                     _ => self.log.push(format!("t{}: the drum got no one - the village kept its young.", tick)),
+                }
+            }
+            EventId::Deserter => {
+                // sheltered, the law counts the knowing: a writ rides
+                // hard behind him - the next one lands double
+                if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 {
+                    self.repression_debt += 1;
+                    self.log.push(format!("t{}: riders asking after a deserter - a writ for harboring comes hard behind.", tick));
+                } else {
+                    self.log.push(format!("t{}: the deserter melted off at dawn - no one saw anything.", tick));
                 }
             }
             EventId::StrayDog => {
@@ -1655,6 +1678,35 @@ mod tests {
             assert!(took || kept, "the drum said something on {:?}", st);
             assert_eq!(took, g.villagers.len() < before, "the roll matched the roster on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::Recruiter), "he marched off from {:?}", st);
+        }
+    }
+
+    /// Hide him and the writ follows: whoever knows his face bought the
+    /// debt - and the frame showed him in the green first
+    #[test]
+    fn test_the_shelter_buy_the_debt() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            let debt0 = g.repression_debt;
+            g.force_event(EventId::Deserter);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Deserter && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Deserter).and_then(|r| r.at).unwrap();
+            // someone knows his face
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a deserter")),
+                "the frame shows him on {:?}", st);
+            stage::run_days(&mut g, 1);
+            stage::run_days(&mut g, 5);
+            assert!(g.repression_debt > debt0, "the writ's debt landed on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("writ for harboring")), "the riders came on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Deserter), "he melted off from {:?}", st);
         }
     }
 

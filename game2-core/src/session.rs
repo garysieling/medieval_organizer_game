@@ -1768,6 +1768,10 @@ pub struct Game {
     pub reach: Vec<(i32, i32)>,
     /// (who, the rung they're on, the day it ends) - the ladder of shame
     pub sanctioned: Vec<(Entity, Sanction, u64)>,
+    /// The pack's been seen: a wolf night is coming once the roll lands
+    pub wolf_coming: bool,
+    /// The hens are restless: a fox night is coming once the roll lands
+    pub fox_coming: bool,
     /// (home, bed tile, growth) - kitchen gardens beside the cottages
     pub gardens: Vec<(Entity, (i32, i32), f32)>,
     /// The cheese cellar, the wheels aging in it (start ticks), its character
@@ -2618,6 +2622,8 @@ impl Game {
             pit,
             reach,
             sanctioned: vec![],
+            wolf_coming: false,
+            fox_coming: false,
             gardens,
             cellar,
             cheeses: vec![],
@@ -3911,8 +3917,12 @@ impl Game {
                 }
             }
         }
-        // a fox in the yard, now and then
-        if tick % 90 == 75 && !self.hens.is_empty() && self.rng.below(100) < 8 { self.fox_night(tick); }
+        // a fox in the yard, now and then - the hens give its coming away
+        if tick % 90 == 65 && !self.hens.is_empty() && self.rng.below(100) < 8 {
+            self.fox_coming = true;
+            self.log.push(format!("t{}: the hens won't settle at dusk - something prowls the hedges.", tick));
+        }
+        if tick % 90 == 75 && self.fox_coming { self.fox_coming = false; self.fox_night(tick); }
         let Some(fold) = self.fold else { return };
         // move the grazing point every few days; a sheepdog keeps it tight
         if tick >= self.next_graze {
@@ -3943,8 +3953,13 @@ impl Game {
                 }
             }
         }
-        // a dark shape crosses the meadow in the night, now and then
-        if tick % 90 == 60 && self.rng.below(100) < 10 { self.wolf_night(tick); }
+        // a dark shape crosses the meadow in the night, now and then -
+        // the mud tells on it a few days out
+        if tick % 90 == 50 && self.rng.below(100) < 10 {
+            self.wolf_coming = true;
+            self.log.push(format!("t{}: wolf tracks in the mud by the fold - the dogs won't settle.", tick));
+        }
+        if tick % 90 == 60 && self.wolf_coming { self.wolf_coming = false; self.wolf_night(tick); }
         // the shepherd walks out to the flock most days, but not hungry
         if let Some(sh) = self.shepherd {
             let fed = self.world.get_component::<Hunger>(sh).map(|h| h.value >= 30.0).unwrap_or(true);

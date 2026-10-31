@@ -86,13 +86,24 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
         let v = if has(&["recovered", "treats", "cure"]) { Valence::Positive } else { Valence::Negative };
         return (v, Thread::Illness);
     }
+    // word of the beast riding ahead of it is forewarning, not the blow:
+    // tracks and restless hens are neutral news on the Beast thread
+    if has(&["wolf tracks", "won't settle", "prowls the hedges"]) {
+        return (Valence::Neutral, Thread::Beast);
+    }
     if has(&["wolf", "fox"]) { return (Valence::Negative, Thread::Beast); }
     if has(&["fire", "alight", "burnt", "burning"]) { return (Valence::Negative, Thread::Fire); }
     if has(&["tax", "collector takes", "levy", "levies"]) { return (Valence::Negative, Thread::Law); }
     if has(&["rainbow", "festival", "gathers at the market", "circus comes", "minstrel", "pedlar comes",
-             "ink-maker comes", "skeps yield", "shearing day", "swarm took a liking", "pale stone",
+             "ink-maker comes", "shearing day", "swarm took a liking", "pale stone",
              "letter comes", "brought", "together"]) {
         return (Valence::Positive, Thread::Visitor);
+    }
+    if has(&["skeps yield", "market day", "grant covers"]) {
+        // a yield, a selling day, a rebate: the economy's own good news,
+        // and the context a shortage lands in - before the Org branch,
+        // whose "member" would otherwise claim market day's pay line
+        return (Valence::Positive, Thread::Economy);
     }
     if has(&["guild formed", "stands with", "pulls together", "shares out", "ransom", "walks home",
              "takes up the organizing", "tread lightly", "passes you by", "vigil"]) {

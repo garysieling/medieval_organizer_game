@@ -1639,9 +1639,10 @@ pub struct Game {
     pub town_wall: (i32, i32, i32, i32),
     /// The watch standing just inside each gate
     pub guards: Vec<(f32, f32)>,
-    /// Knights posted to the streets after a crackdown - gone when the
-    /// tour is done, unlike the gate watch that stands all year
-    pub posted: Vec<(f32, f32)>,
+    /// Knights posted to the streets after a crackdown, tagged with the
+    /// org they stand over - gone when that org's tour is done, unlike
+    /// the gate watch that stands all year
+    pub posted: Vec<(Entity, f32, f32)>,
     /// The priest by the church
     pub priest: (f32, f32),
     /// The courier's road to the rivals' village and back (empty if there is none)
@@ -4512,9 +4513,10 @@ impl Game {
                 .map(|g| tick >= g.since + GUARD_TOUR).unwrap_or(false);
             if !stood_down { continue; }
             self.world.remove_component::<crate::game::reactions::GuardsPosted>(org);
-            // they stand where they were posted no more: the street clears
-            // (the gate watch is the watch's, not the crackdown's)
-            self.posted.clear();
+            // they stand where they were posted no more: this org's
+            // knights ride home (another's may still be on their tour;
+            // the gate watch is a different corps entirely)
+            self.posted.retain(|&(o, _, _)| o != org);
             self.log.push(format!("t{}: the knights ride home - the tour is done.", tick));
         }
     }
@@ -6396,8 +6398,9 @@ impl Game {
                             // can see them - once; posted guards stay posted
                             if !posted_before {
                                 let (px, py) = self.player_pos_at(seat);
-                                self.posted.push((px + 1.5, py));
-                                self.posted.push((px - 1.5, py));
+                                let o = self.seats[seat].org;
+                                self.posted.push((o, px + 1.5, py));
+                                self.posted.push((o, px - 1.5, py));
                             }
                             // a campaign that keeps drawing the knights gets
                             // a rule written against it - the movement
@@ -6546,7 +6549,8 @@ impl Game {
         let (px, py) = self.player_pos_at(seat);
         people.push(PersonV { e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
-        for (i, &(x, y)) in self.guards.iter().chain(&self.posted).enumerate() {
+        for (i, (x, y)) in self.guards.iter().copied()
+            .chain(self.posted.iter().map(|p| (p.1, p.2))).enumerate() {
             people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         }
@@ -11583,16 +11587,21 @@ mod campaign_dungeon_tests {
     fn test_the_knights_ride_home_when_the_tour_is_done() {
         let mut g = Game::new();
         g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 10 });
-        g.posted.push((15.0, 16.0));
-        g.posted.push((14.0, 16.0));
+        g.posted.push((g.org, 15.0, 16.0));
+        g.posted.push((g.org, 14.0, 16.0));
+        // another org's knights still stand their own tour
+        let other = g.world.create_entity();
+        g.posted.push((other, 20.0, 20.0));
         // mid-tour they stand their ground
         g.guards_tick(20);
         assert!(g.world.get_component::<crate::game::reactions::GuardsPosted>(g.org).is_some());
-        assert_eq!(g.posted.len(), 2);
-        // the tour done, they ride out - the posting and the street both clear
+        assert_eq!(g.posted.len(), 3);
+        // the tour done, they ride out - the posting and the street both
+        // clear, but only theirs: another org's knights keep their own tour
         g.guards_tick(40);
         assert!(g.world.get_component::<crate::game::reactions::GuardsPosted>(g.org).is_none());
-        assert!(g.posted.is_empty());
+        assert_eq!(g.posted.len(), 1);
+        assert_eq!(g.posted[0].0, other);
         // the gate watch, though, stands all year
         assert!(!g.guards.is_empty());
         assert!(g.log.iter().any(|l| l.contains("knights ride home")), "{:?}", g.log);

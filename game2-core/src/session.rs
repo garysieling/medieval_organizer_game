@@ -4,10 +4,12 @@
 pub mod model;
 pub mod net;
 pub mod driver;
+pub mod record;
 
 pub use model::*;
 pub use net::*;
 pub use driver::*;
+pub use record::*;
 
 use crate::engine::ecs::{Entity, Scheduler, World};
 use crate::engine::render::Buffer;
@@ -2762,6 +2764,7 @@ impl Game {
         };
         // the same pace whichever way they go, diagonals included
         let len = (dx * dx + dy * dy).sqrt();
+        if len == 0.0 { return; } // a still stick: the window never sends one, the wire could
         let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
         let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
         if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {
@@ -10482,6 +10485,18 @@ mod walk_tests {
         let (px, py) = game.player_pos();
         assert!(!matches!(game.map.get(px.round() as i32, py.round() as i32), Some(Tile::Water) | Some(Tile::River) | None),
             "the player walked into the water at ({:.1},{:.1})", px, py);
+    }
+
+    #[test]
+    fn test_a_still_walk_stick_leaves_the_player_where_they_stood() {
+        // a zero Walk command (a held key let go, or noise on the wire)
+        // used to divide by zero and NaN the player's position away
+        let mut game = Game::new();
+        let (x, y) = game.player_pos();
+        game.walk(0.0, 0.0);
+        let (nx, ny) = game.player_pos();
+        assert!(nx.is_finite() && ny.is_finite(), "the player fell off the world ({},{})", nx, ny);
+        assert_eq!((nx, ny), (x, y));
     }
 
     #[test]

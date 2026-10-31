@@ -2642,6 +2642,8 @@ impl Game {
             .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0) as f64;
         let bread = self.world.get_component::<Building>(self.market_food)
             .map(|b| b.stock.get("bread").copied().unwrap_or(0)).unwrap_or(0) as f64;
+        let food = self.world.get_component::<villager::FoodSource>(self.market_food)
+            .map(|f| f.servings).unwrap_or(0) as f64;
         let org_members = self.world.get_component::<Organization>(self.org)
             .map(|o| o.members.len()).unwrap_or(0);
         let sanctioned = self.sanctioned.len();
@@ -2657,6 +2659,7 @@ impl Game {
             ("trails.max", trail_max as f64),
             ("stock.grain", grain),
             ("stock.bread", bread),
+            ("stock.food", food),
             ("env.tree_cover", tree_cover as f64),
             ("price.grain", vocation::price("grain") as f64),
             ("price.wood", vocation::price("wood") as f64),

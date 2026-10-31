@@ -4589,6 +4589,19 @@ impl Game {
         for v in self.villagers.clone() {
             crate::game::reactions::cool_off(&mut self.world, v, tick);
             crate::game::actions::lifts_with_time(&mut self.world, v, tick);
+            // folk don't forget the man inside: a little pressure gathers
+            // every day even when nobody's pressing - a cell can't hold
+            // a name forever on suspicion alone
+            if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
+                crate::game::dungeon::press(&mut self.world, v, 0.02);
+                if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
+                    let name = self.name_of(v);
+                    self.log.push(format!("t{}: the village never stopped asking - {} walks free.", tick, name));
+                    if let Some(home) = household::home_of(&self.world, v).or(Some(self.market_food)) {
+                        self.send(v, Goal::HeadHome(home));
+                    }
+                }
+            }
         }
     }
 
@@ -11812,6 +11825,19 @@ mod campaign_dungeon_tests {
         assert_eq!((at.x, at.y), (now.x, now.y), "the held stand where the guards left them");
         assert_eq!(g.world.get_component::<Hunger>(v).unwrap().value, hunger,
             "the castle feeds its prisoners - no starving where they stand");
+    }
+
+    #[test]
+    fn test_the_held_walk_free_when_the_village_never_stops_asking() {
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        // no campaign, no petition - just the days passing and the
+        // remembering that gathers a little every one of them
+        for t in 1..55 { g.marks_tick(g.tick + t); }
+        assert!(g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none(),
+            "fifty days of asking is a sentence served");
+        assert!(g.log.iter().any(|l| l.contains("walks free")), "{:?}", g.log);
     }
 
     #[test]

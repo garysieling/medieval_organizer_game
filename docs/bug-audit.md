@@ -28,7 +28,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-030** Posted-guard positions come from `player_pos_at`, not the demo site — and `self.guards` is per-Game not per-org, so two seats' crackdowns draw knights at the wrong places (MP).
 - [x] ~~**W-031** `CtxAct::Petition` is gated behind `campaign_of().is_some()` — you can't petition for a prisoner when the org's campaign has lapsed or been spent.~~ (fixed — petition offers whenever a prisoner is picked)
 - [x] ~~**W-032** `Sympathized` entries never decay — a moral shock marks a villager woke forever.~~ (fixed)
-- [ ] **W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.
+- [x] ~~**W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.~~ (fixed — pressure gathers a little every day; a prisoner walks alone in ~50 days)
 - [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
 - [ ] **W-035** `NAMES[i]` indexing assumes `villagers.len() <= 31` — any spawn path that pushes past 31 villagers (migrants, births) panics on name lookup.
 - [ ] **W-036** `action_menu` (text game) has none of the new ctx verbs — no Meet/March/Strike/Townhall/Petition/Delegate/Matchmake/PairUp/Errand; text UI and GUI have drifted apart.

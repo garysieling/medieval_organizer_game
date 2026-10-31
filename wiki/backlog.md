@@ -1116,8 +1116,9 @@ Tell me which mode you want to enter, and I'll guide you through the process.
 - **Notes:** 14 mechanics proposed from the historical organizing research. Player-side: campaign structure (target/demand/escalation/settlement), pillars-of-support defection model, institutional anchoring, leadership pipeline, ask specificity, coalition breadth, repression backfire (political jiu-jitsu). Counter-side: repression tech tree, paranoia stat, controlled-opposition seats, provocateur events, manufactured crisis + refutation window, Mohawk Valley counter-AI, counter-intel abilities. Design question flagged: AI power-holders should run countertactics; players get counter-countertactics (ethics layer needs thought if players run them).
 
 ### [ ] Deep-Dive Follow-Ups: Movement History
-- **Status:** Pending
+- **Status:** Partially Completed (round 2, 2026-10-31)
 - **Priority:** Medium
 - **Category:** books/articles
 - **Added:** 2026-10-31
-- **Notes:** Candidates flagged in the organizing reviews for dedicated surveys: disability rights (1977 Section 504 sit-in - near-perfect campaign arc case), ACT UP (most effective policy movement), abolition petition machinery (Congressional gag-rule fights), UK spycops inquiry (richest modern infiltration record), INCITE! "The Revolution Will Not Be Funded" (NGO-ization/co-option critique), Gandhi campaign engineering (Salt March), Otpor/CANVAS export model.
+- **Done:** 504 sit-in, ACT UP, Salt March, Otpor/CANVAS (campaign-masters doc); abolition petition machinery (info-infrastructure doc); enforcement/defense dynamics (enforcement doc); foreign-agent laws, TigerSwan, spyware, lawfare (modern-playbook doc)
+- **Remaining:** UK spycops inquiry (richest modern infiltration record), INCITE! "The Revolution Will Not Be Funded" (NGO-ization/co-option critique), platform-manipulation research (DFRLab), Color Revolution rollback scholarship (authoritarian learning)

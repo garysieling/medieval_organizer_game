@@ -510,3 +510,92 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** countertactics, COINTELPRO, infiltration, agent-provocateur, snitch-jacketing, controlled-opposition, company-unions, astroturf, false-flag, pinkerton, mohawk-valley-formula, divide-and-rule, repression, church-committee, counter-countertactics, paranoia
 
 ---
+
+### ROUND 2: The Enforcement Problem - How Wins Are Defended (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement History / Post-Victory Dynamics
+**Output:** wiki/literature-reviews/organizing-enforcement-and-defense.md
+**Yield:**
+- Core asymmetry: movements disband after winning, losers reorganize — counter-movements play 50-year games
+- Cases: Reconstruction→Redemption (catastrophic loss), VRA→Shelby County, UFW→ALRB capture, suffrage→service-org conversion, labor→Taft-Hartley erosion, Roe→49-year counter-movement win, Keystone→ISDS counter-suit, disability 504→ADA (positive case)
+- 7 post-victory failure modes; enforcement-form strength tiers (norm < litigation < agency < self-executing mechanism < beneficiary-owned institution)
+- 5 mechanics: win-decay + maintenance, enforcement tiers, counter-movement timer, demobilization temptation events, watchdog role
+
+**Key Sources:**
+- Foner Reconstruction historiography - A+
+- Shelby County v. Holder + documented aftermath - A+
+- ALRB capture / UFW collapse records - A
+- Anti-abortion 49-year infrastructure scholarship - A
+- TC Energy ISDS claim - A
+
+**Confidence:** High
+**Tags:** enforcement, post-victory, counter-movement, demobilization, reconstruction, shelby-county, agency-capture, win-decay, watchdog, roe-backlash, institutionalization
+
+---
+
+### ROUND 2: Campaign Engineering Masters (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement History / Campaign Craft
+**Output:** wiki/literature-reviews/organizing-campaign-masters.md
+**Yield:**
+- 4 master-campaign dissections: Salt March 1930 (ungrantable-or-undefendable demand, narrative arc, Chauri Chaura discipline precedent), Otpor (branding, laughtivism, arrest-training, pillar outreach, CANVAS export + its limits vs full-repression regimes), ACT UP (spectacle-outside/expertise-inside double structure, pipeline chokepoint targeting), 504 sit-in (coalition matrix, Panther logistics, unspinnable optics, sequel designed)
+- Meta-pattern: master campaigns architect situations where every opponent response advances the movement (decision-tree rule)
+- 6-layer design stack: demand, participation cost, media arc, discipline, pillar work, logistics
+- 5 mechanics: campaign design phases, decision-tree evaluation, exportable playbooks + counter-adaptation, logistics resource, discipline stat
+
+**Key Sources:**
+- Salt March historiography (Dalton) - A+
+- Otpor/CANVAS documentation + Color Revolution scholarship - A/B+
+- ACT UP FDA/NIH reform record - A
+- 504 sit-in (Smithsonian, NPS, Longmore oral histories, DSQ) - A/A+
+
+**Confidence:** High
+**Tags:** campaign-engineering, salt-march, gandhi, otpor, canvas, act-up, section-504, disability-rights, laughtivism, political-ju-jitsu, logistics, nonviolent-discipline, export-playbooks
+
+---
+
+### ROUND 2: The Modern Counter-Playbook (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Contemporary Authoritarian Practice / Civil Society Repression
+**Output:** wiki/literature-reviews/organizing-modern-counter-playbook.md
+**Yield:**
+- 3 structural shifts vs COINTELPRO era: privatization (TigerSwan), legalization (foreign-agent laws, anti-protest statutes, RICO), digitalization (Pegasus, facial recognition, data brokers)
+- TigerSwan @ Standing Rock as fullest documented private counter-insurgency (leaked docs: infiltration, jihadist framing, fake reporters, police liaison, $175k fine as cost-of-business)
+- Foreign-agent law proliferation (Russia 2012 archetype → Georgia, Hungary, Kyrgyzstan, Slovakia)
+- Lawfare inventory: critical-infrastructure statutes, Cop City RICO/domestic-terror charges, Energy Transfer v. Greenpeace $660M verdict
+- 7 counter-adaptations; 5 mechanics: repression-as-market, legalization track, administrative attrition, surveillance asymmetry, lawfare events
+
+**Key Sources:**
+- Intercept/Grist TigerSwan leaks - A
+- HRW foreign-agent playbook + CSCE briefing - A
+- Citizen Lab Pegasus forensics - A+
+- Energy Transfer v. Greenpeace (court record) - A
+- ICNL anti-protest tracker, UK statutes - A
+
+**Confidence:** High
+**Tags:** modern-repression, foreign-agent-laws, tigerswan, standing-rock, privatized-surveillance, pegasus, nso, lawfare, slapp, cop-city, rico, greenpeace-verdict, spyware, legalized-repression
+
+---
+
+### ROUND 2: Movement Information Infrastructure (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Media History / Movement Communications
+**Output:** wiki/literature-reviews/organizing-information-infrastructure.md
+**Yield:**
+- Petition machinery as structure-test-with-artifact (130k+ petitions 1837-38; gag-rule backfire as deliberate Streisand-effect prototype; women canvassers 50%+ more effective → suffrage leadership pipeline)
+- Movement press ownership (Freedom's Journal, Liberator, El Malcriado, samizdat, Radio Freedom)
+- Meeting infrastructure (church pulpit = pre-installed broadcast; house meetings; taverns/mutual-aid halls)
+- Brand/symbol systems (raised fist lineage, UFW eagle, Silence=Death, Otpor stencil - replication cost vs recognition depth)
+- Digital era + Tufekci's tactical freeze (networked mobilization outpaces org capacity)
+- 3-channel properties (ownership, replication cost, suppression asymmetry); 5 mechanics: channel stats, petition artifacts, suppression backfire roll, venue assets, brand propagation
+
+**Key Sources:**
+- APSR antislavery petition dataset study (2014) - A+
+- House History/National Archives gag-rule records - A+
+- Tufekci *Twitter and Tear Gas* - A
+- Movement press/samizdat/clandestine radio histories - A/B+
+
+**Confidence:** High
+**Tags:** information-infrastructure, petition-machinery, gag-rule, movement-press, samizdat, church-pulpits, broadcast-networks, brand-symbols, silence-death, indymedia, tactical-freeze, tufekci, suppression-backfire, streisand
+
+---

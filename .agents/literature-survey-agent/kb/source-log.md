@@ -250,6 +250,90 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### Round 2: Enforcement, Campaign Masters, Modern Playbook, Info Infrastructure (added 2026-10-31)
+
+#### The Intercept/Grist - TigerSwan Standing Rock document leaks (2017, 2023)
+**Type:** Investigative journalism on leaked primary documents (100+ leaked + 1,000+ public-records docs)
+**Domain:** Private Security, Counter-Insurgency
+**Rating:** A
+**Year:** 2017-2023
+**Relevance:** Fullest documented private counter-organizing operation: camp infiltration, "jihadist insurgency" framing, fake reporters, police liaison/fusion, social-media monitoring, $175k fine as cost-of-business
+**Used In:** organizing-modern-counter-playbook.md
+
+#### HRW "Foreign Agent Laws in the Authoritarian Playbook" (2024) + CSCE/ICNL trackers
+**Type:** NGO research + government briefing
+**Domain:** Authoritarianism, Civil Society Law
+**Rating:** A
+**Year:** 2024
+**Relevance:** Russia 2012 archetype → proliferation (Georgia, Kyrgyzstan, Hungary, Slovakia); stigmatize + administrative-death + funding-cut mechanism
+**Used In:** organizing-modern-counter-playbook.md
+
+#### Citizen Lab Pegasus investigations + Pegasus Project (Forbidden Stories)
+**Type:** Forensic research lab + journalism consortium
+**Domain:** Digital Surveillance
+**Rating:** A+
+**Year:** 2021-2024
+**Relevance:** Forensically confirmed spyware infections of activists/journalists; zero-click era of surveillance = subscription, not field agent
+**Used In:** organizing-modern-counter-playbook.md
+
+#### APSR antislavery petition dataset study (2014) - "When Canvassers Became Activists"
+**Type:** Peer-reviewed empirical study (8,500+ petitions, 1833-1845)
+**Domain:** Political Science, Movement History
+**Rating:** A+
+**Year:** 2014
+**Relevance:** Petition canvassing = leadership pipeline (women 50%+ more effective; Seneca Falls signers were canvassers; 4x female overrepresentation among later activists)
+**Used In:** organizing-information-infrastructure.md
+
+#### House History / National Archives - Gag Rule records
+**Type:** Primary government records
+**Domain:** Abolition, Congressional History
+**Rating:** A+
+**Year:** 1836-1844 materials
+**Relevance:** 130k+ petitions; gag-rule suppression backfired into the movement's best story (deliberate proto-Streisand)
+**Used In:** organizing-information-infrastructure.md
+
+#### Tufekci - *Twitter and Tear Gas* (2017)
+**Type:** Academic book
+**Domain:** Digital Movements, Sociology
+**Rating:** A
+**Year:** 2017
+**Relevance:** "Tactical freeze" — networked movements scale attention faster than org capacity; mobilization≠organizing
+**Used In:** organizing-information-infrastructure.md
+
+#### Popovic - *Blueprint for Revolution* + Otpor/CANVAS documentation + Color Revolution scholarship
+**Type:** Practitioner memoir + academic scholarship
+**Domain:** Nonviolent Resistance, Movement Export
+**Rating:** B+/A
+**Year:** 2000-2015
+**Relevance:** Laughtivism, arrest-training, brand-based participation, CANVAS export model and its failure modes vs unrestrained regimes (Belarus, Iran)
+**Used In:** organizing-campaign-masters.md
+
+#### 504 sit-in documentation (Smithsonian, NPS, Longmore Institute oral histories, DSQ "Lomax's Matrix")
+**Type:** Institutional history + oral history + peer-reviewed
+**Domain:** Disability Rights
+**Rating:** A/A+
+**Year:** 1977 event, documented 2000s+
+**Relevance:** Coalition matrix logistics (Panther food line), HEW phone-cut workaround, unspinnable optics, signed-unchanged win, 504→ADA continuity
+**Used In:** organizing-campaign-masters.md, organizing-enforcement-and-defense.md
+
+#### Energy Transfer v. Greenpeace verdict (2025) + Cop City RICO indictments (2023-)
+**Type:** Court records
+**Domain:** Lawfare, Counter-Organizing
+**Rating:** A
+**Year:** 2023-2025
+**Relevance:** Civil damages + terrorism charges as counter-movement weapons; bail funds/infra as targets (Greenpeace appeal pending — contested)
+**Used In:** organizing-modern-counter-playbook.md, organizing-enforcement-and-defense.md
+
+#### Enforcement-phase historiography (Foner Reconstruction; Shelby County record; ALRB capture; anti-abortion infrastructure scholarship)
+**Type:** Academic histories + court records
+**Domain:** Post-Victory Movement Dynamics
+**Rating:** A/A+
+**Year:** various
+**Relevance:** Movements disband, losers reorganize; enforcement-form tiers; agency capture; 49-year counter-movement win
+**Used In:** organizing-enforcement-and-defense.md
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

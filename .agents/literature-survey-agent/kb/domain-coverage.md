@@ -41,7 +41,7 @@ Domains with completed surveys and implemented mechanics.
 
 #### Community Organizing & Sociology
 **Coverage:** High (deepened 2026-10-31)
-**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration
+**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure
 **Mechanics Implemented:** 1-1 conversations, house meetings (community.rs)
 **Mechanics Proposed:**
 - Campaign structure (target, demand, escalation ladder, settlement) - historical-campaigns review
@@ -58,8 +58,12 @@ Domains with completed surveys and implemented mechanics.
 - Manufactured crisis + refutation window - countertactics review
 - Mohawk Valley Formula as counter-AI playbook - countertactics review
 - Counter-intel abilities (documentation, vetting, surveillance exploitation) - countertactics review
-**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate)
-**Next Steps:** Deep-dives: disability rights (504 sit-in), ACT UP, abolition petition machinery, UK spycops inquiry, NGO-ization/co-option literature
+- Win-decay + enforcement tiers + counter-movement timer - enforcement review
+- Campaign design stack (6 layers) + decision-tree rule + playbook export/counter-adaptation - campaign-masters review
+- Repression-as-market + legalization track + lawfare events - modern-playbook review
+- Channel ownership + petition artifacts + suppression backfire + brand propagation - info-infrastructure review
+**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure)
+**Next Steps:** Deep-dives done: 504, ACT UP, abolition petitions (round 2). Remaining: UK spycops inquiry, NGO-ization/co-option literature, platform-manipulation research
 
 ---
 
@@ -377,11 +381,11 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 22 (+2 on 2026-10-31: Historical Campaigns of Community Organizing; Counter-Organizing/Countertactics — user-requested deep dive)
+**Total Surveys Completed:** 26 (+6 on 2026-10-31: Historical Campaigns; Counter-Organizing; Enforcement/Defense; Campaign Masters; Modern Counter-Playbook; Information Infrastructure — user-requested two-round deep dive)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)
-**Mechanics Implemented from Research:** ~86 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics proposed)
+**Mechanics Implemented from Research:** ~106 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 organizing mechanics)
 **Sources Requiring Better Citation:** ~4 (Community Organizing citation gap FILLED 2026-10-31)
 
 **Coverage Score:** 100% (20/20 well-covered domains!)

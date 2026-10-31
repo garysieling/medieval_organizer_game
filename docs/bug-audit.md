@@ -26,7 +26,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-028** `fire::on_fire`/`is_scorched` are never called — `session.rs` reads `fire.burning`/`fire.scorched` maps directly; two sources of truth for fire state.~~ (fixed — `fire.burns_near` added; session asks the fire)
 - [ ] **W-029** `organizing::one_on_one`/`harvest_together` are only reachable from the text game/`sim::community` — the GUI Talk path never builds ties through them (verify intended).
 - [ ] **W-030** Posted-guard positions come from `player_pos_at`, not the demo site — and `self.guards` is per-Game not per-org, so two seats' crackdowns draw knights at the wrong places (MP).
-- [ ] **W-031** `CtxAct::Petition` is gated behind `campaign_of().is_some()` — you can't petition for a prisoner when the org's campaign has lapsed or been spent.
+- [x] ~~**W-031** `CtxAct::Petition` is gated behind `campaign_of().is_some()` — you can't petition for a prisoner when the org's campaign has lapsed or been spent.~~ (fixed — petition offers whenever a prisoner is picked)
 - [x] ~~**W-032** `Sympathized` entries never decay — a moral shock marks a villager woke forever.~~ (fixed)
 - [ ] **W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.
 - [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
@@ -47,7 +47,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-046** `sim::reputation_qsp` `spawn_reputation`/`transition_tick` never stepped — reputation QSP is dormant.
 - [ ] **W-047** `sim::fundamentalism` `fundamentalism_risk`/`is_fundamentalist`/`fundamentalist_effects` never wired.
 - [ ] **W-048** `sim::illness::apply_treatment` never called — no illness is ever treated in the live sim.
-- [ ] **W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.
+- [x] ~~**W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.~~ (stale — all wired transitively: `knows_cure`←`brew_from_stock`, `treats_illness`/`herb_tree`←`medicinal_herbs`, used by the SeekRemedy path)
 - [ ] **W-050** `jobs` `work_tick`/`sells_goods` never called — the jobs system never ticks (verify whether vocation/livelihood replaced it and jobs.rs should go).
 - [ ] **W-051** `lifecycle::spawn_person` never called — nobody is ever born; `KidGrowth` only ages existing kids, so the village can only shrink.
 - [ ] **W-052** `migration` `spawn_migrants`/`integrate`/`migration_effects` never called — no newcomers ever arrive (pilgrim-settling is text-game only).

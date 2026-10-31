@@ -86,7 +86,9 @@ Hungry folk gather mushrooms in the shade of the wood - some caps are
 chanterelles, some are death, and a damp year brings Saint Anthony's
 fire and blame for the baker. A beekeeper keeps skeps at the meadow's
 edge - honey for the table, wax for the church's candles and the seals -
-and when the candles run out the church goes dark.
+and when the candles run out the church goes dark. The larder keeps its
+own score too: bread spoils, grain draws mice where no cat walks, and a
+poor soul eats what shouldn't be eaten.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

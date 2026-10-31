@@ -1971,7 +1971,7 @@ impl Game {
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
         let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
         pets::adopt(&mut world, dog, villagers[0]);
-        let cat = pets::spawn_pet(&mut world, "Mog", Species::Cat, PetRole::Companion);
+        let cat = pets::spawn_pet(&mut world, "Mog", Species::Cat, PetRole::Hunting);
         pets::adopt(&mut world, cat, villagers[1]);
         let mut pets = vec![(dog, Species::Dog, (0.8, 0.5)), (cat, Species::Cat, (0.5, 0.3))];
 
@@ -3387,6 +3387,61 @@ impl Game {
         }
     }
 
+    /// The larder keeps its own score: stock spoils by its half-life,
+    /// vermin get at the grain where no cat walks, and a poor soul eats
+    /// what shouldn't be eaten
+    pub fn spoilage_tick(&mut self, tick: u64) {
+        // weekly rot: bread and dairy go fast, grain holds a while
+        if tick % 7 == 3 {
+            let week_of = |good: &str| match good {
+                "bread" | "milk" | "eggs" => 1u64,
+                "wheat" => 4,
+                _ => 0,
+            };
+            for &be in &self.building_entities.clone() {
+                let mut loss: Vec<(String, u32)> = vec![];
+                if let Some(b) = self.world.get_component::<Building>(be) {
+                    for (g, &q) in b.stock.iter() {
+                        let w = week_of(g);
+                        // granaries draw the mice: wheat goes twice as fast
+                        // where the grain's piled - unless a cat walks there
+                        let vermin = b.kind == BuildingKind::Granary && g == "wheat"
+                            && !self.cat_watches(be);
+                        let extra = if vermin { 1 } else { 0 };
+                        if w > 0 && q > 0 && tick % (7 * w) == 3 {
+                            loss.push((g.clone(), 1 + extra));
+                        } else if extra > 0 && tick % 28 == 3 { loss.push((g.clone(), extra)); }
+                    }
+                }
+                if loss.is_empty() { continue; }
+                if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                    for (g, n) in &loss { household::take_stock(b, g, *n); }
+                }
+            }
+        }
+        // a broke, hungry soul eats what shouldn't be eaten
+        if tick % 9 == 4 {
+            if let Some(v) = self.villagers.iter().copied().find(|&v| {
+                !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Purse>(v).map(|p| p.gold < 2.0).unwrap_or(false)
+                && self.world.get_component::<Hunger>(v).map(|h| h.value < 25.0).unwrap_or(false)
+            }) {
+                desires::add_grievance(&mut self.world, v, desires::Problem::SourGut, tick + 30);
+                self.say(v, "It was all there was.", TALK_BUBBLE_SECS);
+            }
+        }
+    }
+
+    /// Does a hunting cat walk this building's yard? Vermin keep away
+    fn cat_watches(&self, building: Entity) -> bool {
+        let Some(b) = self.world.get_component::<Building>(building) else { return false };
+        b.occupants.iter().any(|&occ| self.pets.iter().any(|(e, s, _)| {
+            *s == Species::Cat && self.world.get_component::<Pet>(*e)
+                .map(|p| p.owner == Some(occ)).unwrap_or(false)
+                && self.world.get_component::<PetRole>(*e).map(|r| matches!(r, PetRole::Hunting)).unwrap_or(false)
+        }))
+    }
+
     /// The heart-helper's rounds: she keeps her corner of the market, and
     /// now and then a lonely heart is nudged to come and sit with her
     pub fn matchmaker_tick(&mut self, tick: u64) {
@@ -3720,6 +3775,8 @@ impl Game {
         self.mushroom_tick(tick);
         // the skeps yield, the church burns wax, a swarm wanders off
         self.apiary_tick(tick);
+        // the larder keeps its own score: spoilage, vermin, the cat's job
+        self.spoilage_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -5609,6 +5666,48 @@ mod apiary_tests {
             assert!(desires::problems_of(&g.world, pr, 20).iter()
                 .any(|p| matches!(p, desires::Problem::NoInput("wax"))), "no wax, dark church");
         }
+    }
+}
+
+#[cfg(test)]
+mod vermin_tests {
+    use super::*;
+
+    #[test]
+    fn test_bread_spoils_and_grain_holds() {
+        let mut g = Game::new();
+        let be = g.building_entities[5]; // the trader's stall, well-stocked
+        if let Some(b) = g.world.get_component_mut::<Building>(be) {
+            household::add_stock(b, "bread", 4); household::add_stock(b, "wheat", 4);
+        }
+        g.spoilage_tick(3); // the weekly rot - tick 3 lands on the wheat's turn too
+        g.spoilage_tick(10); // and the next week's
+        let b = g.world.get_component::<Building>(be).unwrap();
+        assert_eq!(b.stock.get("bread").copied().unwrap_or(0), 2, "bread goes in a week");
+        assert_eq!(b.stock.get("wheat").copied().unwrap_or(0), 3, "wheat goes in a month");
+    }
+
+    #[test]
+    fn test_a_hunting_cat_walks_the_yard() {
+        let g = Game::new();
+        // Mog hunts for villagers[1] - their home is watched
+        let home = household::home_of(&g.world, g.villagers[1]);
+        if let Some(h) = home {
+            assert!(g.cat_watches(h), "the cat keeps the vermin off");
+        }
+        // and some building nowhere near a cat is not watched
+        assert!(!g.cat_watches(g.building_entities[4]), "the church has no cat");
+    }
+
+    #[test]
+    fn test_a_poor_soul_eats_what_shouldnt_be_eaten() {
+        let mut g = Game::new();
+        let v = g.villagers[6];
+        g.world.get_component_mut::<Purse>(v).unwrap().gold = 0.5;
+        g.world.get_component_mut::<Hunger>(v).unwrap().value = 10.0;
+        g.spoilage_tick(4);
+        assert!(desires::problems_of(&g.world, v, 4).contains(&desires::Problem::SourGut),
+            "a poor soul carries the sour gut");
     }
 }
 

@@ -3001,7 +3001,7 @@ impl Game {
                 } else {
                     // the herb-wife's pull is her own hut in the meadow,
                     // not the market square
-                    if world.get_component::<TownRole>(*v).map(|r| *r == TownRole::Herbologist).unwrap_or(false) {
+                    if livelihood::has_role(world, *v, TownRole::Herbologist) {
                         self.herb_hut.and_then(|h| world.get_component::<Pos>(h)).map(|p| (p.x, p.y)).or(village_home)
                     } else {
                         village_home
@@ -6046,16 +6046,14 @@ impl Game {
             let fleeing: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                 !villager::is_dead(&self.world, v)
                     && self.world.get_component::<Pos>(v)
-                        .map(|p| self.fire.burning.keys().any(|&(fx, fy)|
-                            (p.x.round() as i32 - fx).abs() + (p.y.round() as i32 - fy).abs() <= 2))
+                        .map(|p| self.fire.burns_near(p.x.round() as i32, p.y.round() as i32, 2))
                         .unwrap_or(false)
             }).collect();
             for v in fleeing {
                 // but not toward the flames: home if it stands clear,
                 // else the market store
                 let safe = |e: Entity| self.world.get_component::<Pos>(e)
-                    .map(|p| !self.fire.burning.keys().any(|&(fx, fy)|
-                        (p.x.round() as i32 - fx).abs() + (p.y.round() as i32 - fy).abs() <= 4))
+                    .map(|p| !self.fire.burns_near(p.x.round() as i32, p.y.round() as i32, 4))
                     .unwrap_or(false);
                 let home = household::home_of(&self.world, v).filter(|&h| safe(h))
                     .or(Some(self.market_food).filter(|&h| safe(h)));
@@ -6865,7 +6863,7 @@ impl Game {
         let occ = desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into());
         lines.push(Line { x: 60, y: 342,
             text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
-        if world.get_component::<TownRole>(v).map(|r| *r == TownRole::Herbologist).unwrap_or(false) {
+        if livelihood::has_role(&self.world, v, TownRole::Herbologist) {
             let n = herbology::remedies_on_hand(world, v);
             lines.push(Line { x: 60, y: 354,
                 text: format!("knows the cures \u{00b7} {} remedies", n), rgb: (150, 210, 150) });

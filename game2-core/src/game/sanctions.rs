@@ -4,7 +4,6 @@
 //! their trade dries up, then the stocks, then the road out. The crowd's
 //! answer decides whether a rung lands or turns back on the accusers.
 
-use crate::game::desires::Problem;
 
 /// The rungs of the ladder, mildest to worst
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -47,9 +46,4 @@ pub fn label(s: Sanction) -> &'static str {
         Sanction::Stocks => "the stocks",
         Sanction::Exile => "driven out",
     }
-}
-
-/// Is this problem a blame the village would act on?
-pub fn blame_worthy(p: &Problem) -> bool {
-    matches!(p, Problem::Blamed | Problem::Smelly | Problem::SourGut)
 }

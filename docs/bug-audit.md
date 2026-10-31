@@ -33,12 +33,12 @@ Items are removed from this list as their PRs land.
 - [ ] **W-020** `campaign::reveals_of` is never called.
 - [ ] **W-021** `campaign::framing_suits` is never called — no validation that a framing suits the issue.
 - [ ] **W-022** `campaign::grumble_line` is never called — dissenters' grumbles are computed but never rendered anywhere.
-- [ ] **W-023** `campaign::stake_of` is never called — `stake_for` is used, the `stake_of` variant is dead.
+- [x] ~~**W-023** `campaign::stake_of` is never called — `stake_for` is used, the `stake_of` variant is dead.~~ (fixed — deleted; nothing needed the top stake)
 - [ ] **W-024** `campaign::vote_for` is only used inside `hold_issue_vote` — either make it private or wire member-level ballots into the UI.
 - [ ] **W-025** `player::recruit_trust` is never called — recruiting never consults personal trust.
 - [ ] **W-026** `desires::housed` is never called.
 - [ ] **W-027** `org_skills::role_skill` is never called — seat-holders' competence at their role is never measured.
-- [ ] **W-028** `fire::on_fire`/`is_scorched` are never called — `session.rs` reads `fire.burning`/`fire.scorched` maps directly; two sources of truth for fire state.
+- [x] ~~**W-028** `fire::on_fire`/`is_scorched` are never called — `session.rs` reads `fire.burning`/`fire.scorched` maps directly; two sources of truth for fire state.~~ (fixed — `fire.burns_near` added; session asks the fire)
 - [ ] **W-029** `organizing::one_on_one`/`harvest_together` are only reachable from the text game/`sim::community` — the GUI Talk path never builds ties through them (verify intended).
 - [ ] **W-030** Posted-guard positions come from `player_pos_at`, not the demo site — and `self.guards` is per-Game not per-org, so two seats' crackdowns draw knights at the wrong places (MP).
 - [ ] **W-031** `CtxAct::Petition` is gated behind `campaign_of().is_some()` — you can't petition for a prisoner when the org's campaign has lapsed or been spent.
@@ -79,13 +79,13 @@ Items are removed from this list as their PRs land.
 - [ ] **W-063** `textiles` `spawn_textile`/`comfort_level` never called.
 - [ ] **W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
-- [ ] **W-066** `livelihood::has_role` never called.
+- [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
 - [ ] **W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.
 - [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
 - [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
 - [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).
 - [ ] **W-071** `economy::run_cycle` never called — the production-chain cycle never runs in a live session.
-- [ ] **W-072** `sanctions::blame_worthy` never called.
+- [x] ~~**W-072** `sanctions::blame_worthy` never called.~~ (fixed — deleted; the blame path adds `Problem::Blamed` directly)
 - [ ] **W-073** `relationships::infer_kind` never called — relationship kinds are never re-inferred from interactions.
 - [ ] **W-074** `pets::pet_mood_boost` never called — a bonded pet gives its owner nothing.
 - [x] ~~**W-075** `tilemap::smooth_noise` never called.~~ (stale — called by terrain gen at tilemap.rs:220)
@@ -104,7 +104,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-085** `infra::ollama` is unwired — execute_task/list_models/extract helpers with no consumer.
 - [ ] **W-086** `infra::hot_reload::reload` never called — the hot-reload hook is dead.
 - [ ] **W-087** `infra::save_load` `checkpoint`/`replay_from` have a single caller each — the game never saves; world dies with the process.
-- [ ] **W-088** `ui::dialogs::generate_line` never called.
+- [x] ~~**W-088** `ui::dialogs::generate_line` never called.~~ (fixed — deleted `ui::dialogs`; the Dialog seam was never constructed)
 - [x] ~~**W-089** `ui::font::draw_char` never called — `draw_text*` is used instead; delete or wire.~~ (stale — called by `draw_text` at font.rs:133)
 - [ ] **W-090** Divergent spawn paths: `new_seeded` vs `new_scenario` vs `action_menu`'s own world setup — new spawn-time components can land in one constructor and silently miss the others (audit all three for the newest components).
 

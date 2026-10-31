@@ -37,6 +37,13 @@ impl Fire {
     /// Whether a tile is burnt out and waiting to recover
     pub fn is_scorched(&self, x: i32, y: i32) -> bool { self.scorched.contains_key(&(x, y)) }
 
+    /// Whether anything is alight within `within` tiles of (x, y) - the
+    /// one place "is the fire near me" gets asked, so callers don't
+    /// reach into the maps themselves
+    pub fn burns_near(&self, x: i32, y: i32, within: i32) -> bool {
+        self.burning.keys().any(|&(fx, fy)| (x - fx).abs() + (y - fy).abs() <= within)
+    }
+
     /// Whether a tile can catch: grass and standing crops burn, a hill
     /// burns where it carries a tree, and a building catches whatever it
     /// sits on; water, rock, road, bridge - and the stone of the wall -

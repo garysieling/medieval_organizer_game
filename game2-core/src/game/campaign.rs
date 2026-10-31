@@ -119,13 +119,6 @@ pub struct IssueVote {
     pub ballots: Vec<Ballot>,
 }
 
-/// A member's self-interest: the live problem or unmet want they'd vote
-/// for, as a reveal (its `issue_tag` is what matches a candidate). Live
-/// problems come first - what hurts now beats what they merely wish for.
-pub fn stake_of(world: &World, member: Entity, tick: u64) -> Option<Reveal> {
-    reveals_of(world, member, tick).into_iter().next()
-}
-
 /// Everything a member could vote on, strongest first: live problems,
 /// then unmet wants
 fn reveals_of(world: &World, member: Entity, tick: u64) -> Vec<Reveal> {

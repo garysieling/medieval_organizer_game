@@ -126,17 +126,28 @@ fn main() {
         // Execute choice
         let target = villagers[target_idx];
         // Name the villager for actions aimed at one person (Organize invites everyone)
-        if "trc".contains(choice) { print!("[{}] ", names[target_idx]); }
+        if "trcdp".contains(choice) { print!("[{}] ", names[target_idx]); }
         let result = match choice {
-            't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target)),
-            'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target)),
-            'i' => execute_choice(&mut world, player, org, MenuActionType::Invest, None),
-            'o' => execute_choice(&mut world, player, org, MenuActionType::Organize, Some(target)),
-            'c' => execute_choice(&mut world, player, org, MenuActionType::Contract, Some(target)),
-            'b' => execute_choice(&mut world, player, org, MenuActionType::Build, None),
+            't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target), tick),
+            'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target), tick),
+            'i' => execute_choice(&mut world, player, org, MenuActionType::Invest, None, tick),
+            'o' => execute_choice(&mut world, player, org, MenuActionType::Organize, Some(target), tick),
+            'c' => execute_choice(&mut world, player, org, MenuActionType::Contract, Some(target), tick),
+            'b' => execute_choice(&mut world, player, org, MenuActionType::Build, None, tick),
+            'm' => execute_choice(&mut world, player, org, MenuActionType::Meet, None, tick),
+            's' => execute_choice(&mut world, player, org, MenuActionType::March, None, tick),
+            'd' => execute_choice(&mut world, player, org, MenuActionType::Delegate, Some(target), tick),
+            'p' => execute_choice(&mut world, player, org, MenuActionType::Petition, Some(target), tick),
             'w' | _ => "You wait and observe.".into(),
         };
         println!("{}\n", result);
+
+        // what a cause leaves on people fades on the same clock the GUI
+        // runs: a season cools a shock, a month dulls a blow-off
+        for v in world.query::<game2_core::game::villager::Villager>() {
+            game2_core::game::reactions::cool_off(&mut world, v, tick);
+            game2_core::game::actions::lifts_with_time(&mut world, v, tick);
+        }
 
         // Random world events
         if tick % 50 == 0 {

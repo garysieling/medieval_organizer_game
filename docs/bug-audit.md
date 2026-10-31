@@ -17,7 +17,6 @@ Items are removed from this list as their PRs land.
 
 
 
-- [ ] **W-010** `drive_agent` can't satisfy its own doc comment — only Eat/Idle/WorkDay; never `Gather`/`BuyFrom` for bench inputs, never `TalkTo` despite `near` in the obs.
 - [ ] **W-011** `blocked: [Option<String>; 5]` covers only the five main buttons — ctx buttons (Meet-not-due, Delegate-nonmember, Petition with no prisoner) fail silently into the log instead of showing a disabled reason.
 - [ ] **W-012** Duplicated comment block in `update_ctx_actions_at` (~line 6154, "the cause meets on its cadence…" twice) — merge artifact; check whether logic beside it was duplicated too.
 

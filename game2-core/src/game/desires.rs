@@ -74,6 +74,8 @@ pub enum Problem {
     DryPit,
     /// The reach below town stinks - the leavings settle in it
     StinkingReach,
+    /// The reckoning didn't add up - shorted in a foreign count
+    ShortChanged,
 }
 
 /// One secret a person can share: a want or a problem
@@ -164,6 +166,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::ThinWood) => "the shrinking wood",
         Reveal::Problem(Problem::DryPit) => "the drowned pit",
         Reveal::Problem(Problem::StinkingReach) => "the stinking reach",
+        Reveal::Problem(Problem::ShortChanged) => "the reckoning that didn't add up",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -215,6 +218,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the shrinking wood" => "the shrinking wood".into(),
         "the drowned pit" => "the drowned pit".into(),
         "the stinking reach" => "the stinking reach".into(),
+        "the reckoning that didn't add up" => "the reckoning that didn't add up".into(),
         _ => tag,
     }
 }
@@ -256,6 +260,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::ThinWood => "the wood's thin this side of the hill".into(),
         Problem::DryPit => "the pit's drowned - no stone to be had".into(),
         Problem::StinkingReach => "the reach below town stinks".into(),
+        Problem::ShortChanged => "shorted in a foreign count".into(),
     }
 }
 
@@ -291,6 +296,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::ThinWood) => (format!("{}: the wood's thin", name), "Walked half a day for a bundle. It wasn't always so.".into()),
         Reveal::Problem(Problem::DryPit) => (format!("{}: the pit's drowned", name), "Water in the cut. No stone comes out of a pond.".into()),
         Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach stinks", name), "You can smell it on a still night. That wasn't always so.".into()),
+        Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's off", name), "He counted it his way. My way it's short.".into()),
     }
 }
 

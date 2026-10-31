@@ -1651,6 +1651,21 @@ pub struct Game {
     /// The lord's estimate of the org's power - lags the truth, updated
     /// only by what he sees
     pub lord_esteem: f32,
+    /// How the village keeps its accounts - the outside counts in
+    /// positional numerals, so trade loses a little to the reckoning
+    pub numeracy: Numeracy,
+    /// The clerk who keeps the tallies straight, when one's emerged
+    pub translator: Option<Entity>,
+    /// Reckonings that didn't add up - enough and a clerk steps up
+    pub reckonings: u32,
+}
+
+/// How a village keeps its accounts
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Numeracy {
+    Tally,
+    RomanBoard,
+    Positional,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -2362,6 +2377,9 @@ impl Game {
             cheeses: vec![],
             cellar_trait,
             lord_esteem: 0.0,
+            numeracy: if seed % 10 < 6 { Numeracy::Tally } else { Numeracy::RomanBoard },
+            translator: None,
+            reckonings: 0,
         }
     }
 
@@ -4232,6 +4250,34 @@ impl Game {
                     let _ = household::buy_at_shop(&mut self.world, seller, who, good, qty);
                 } else {
                     let _ = livelihood::trade_person(&mut self.world, who, seller, good, qty);
+                }
+                // trade with the road's accounts loses a little to the
+                // reckoning - unless the village has a clerk for it
+                if Some(seller) == self.trader_stall && vocation::imported(good)
+                    && self.numeracy != Numeracy::Positional && self.translator.is_none() {
+                    self.reckonings += 1;
+                    if let Some(p) = self.world.get_component_mut::<Purse>(who) {
+                        p.gold = (p.gold - vocation::price(good) * 0.1).max(0.0);
+                    }
+                    if self.reckonings % 3 == 0 {
+                        desires::add_grievance(&mut self.world, who, desires::Problem::ShortChanged, tick + 40);
+                        if self.reckonings == 3 {
+                            self.log.push(format!("t{}: the reckoning didn't add up - he counted it his way.", tick));
+                        }
+                    }
+                    // enough of these and a clerk steps up to keep the
+                    // tallies straight - the dragoman problem solved
+                    if self.reckonings >= 8 {
+                        let clerk = self.villagers.iter().copied().find(|&v|
+                            self.world.get_component::<Craft>(v)
+                                .map(|c| c.vocation == Vocation::Printmaker || c.vocation == Vocation::Priest)
+                                .unwrap_or(false));
+                        if let Some(c) = clerk {
+                            self.translator = Some(c);
+                            let name = self.name_of(c);
+                            self.log.push(format!("t{}: {} keeps the tallies straight now - no more foreign reckonings.", tick, name));
+                        }
+                    }
                 }
                 // a dab of perfume: the buyer smells of roses for days
                 if good == "perfume" {
@@ -7192,6 +7238,46 @@ mod perfume_tests {
         let smelly = [buyer].iter().any(|&v|
             g.smells_of(v).map(|k| k != "roses").unwrap_or(false));
         assert!(!smelly, "a dab of roses counts for a clean suitor");
+    }
+}
+
+#[cfg(test)]
+mod reckoning_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_reckoning_loses_a_little() {
+        let mut g = Game::new();
+        g.numeracy = Numeracy::Tally;
+        let buyer = g.villagers[0];
+        g.world.get_component_mut::<Purse>(buyer).unwrap().gold = 50.0;
+        let stall = g.trader_stall.unwrap();
+        g.world.get_component_mut::<Building>(stall).unwrap()
+            .stock.insert("cloth".to_string(), 5);
+        g.arrive(buyer, Goal::BuyFrom(stall, "cloth", 1));
+        // the price plus the foreign count's bite
+        let gold = g.world.get_component::<Purse>(buyer).unwrap().gold;
+        assert!(gold < 50.0 - vocation::price("cloth"), "the reckoning takes its bite");
+        assert!(g.reckonings >= 1);
+    }
+
+    #[test]
+    fn test_a_clerk_steps_up_for_the_tallies() {
+        let mut g = Game::new();
+        g.numeracy = Numeracy::Tally;
+        let buyer = g.villagers[0];
+        g.world.get_component_mut::<Purse>(buyer).unwrap().gold = 500.0;
+        let stall = g.trader_stall.unwrap();
+        g.world.get_component_mut::<Building>(stall).unwrap()
+            .stock.insert("cloth".to_string(), 20);
+        for t in 0..10 { g.arrive(buyer, Goal::BuyFrom(stall, "cloth", 1)); let _ = t; }
+        assert!(g.translator.is_some(), "enough bad reckonings and a clerk steps up");
+        // and with a clerk, the count comes out right
+        let before = g.world.get_component::<Purse>(buyer).unwrap().gold;
+        g.arrive(buyer, Goal::BuyFrom(stall, "cloth", 1));
+        let gold = g.world.get_component::<Purse>(buyer).unwrap().gold;
+        assert!(gold >= before - vocation::price("cloth") - 0.01,
+            "he keeps the tallies straight");
     }
 }
 

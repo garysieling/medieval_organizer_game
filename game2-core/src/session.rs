@@ -1791,6 +1791,9 @@ pub struct Game {
     pub wolf_coming: bool,
     /// The hens are restless: a fox night is coming once the roll lands
     pub fox_coming: bool,
+    /// What the collector owes the lord: levies and excise in hand,
+    /// separate from his own purse - it rides out on the remittance
+    pub takings: f32,
     /// (home, bed tile, growth) - kitchen gardens beside the cottages
     pub gardens: Vec<(Entity, (i32, i32), f32)>,
     /// The cheese cellar, the wheels aging in it (start ticks), its character
@@ -2659,6 +2662,7 @@ impl Game {
             reach,
             sanctioned: vec![],
             wolf_coming: false,
+            takings: 0.0,
             fox_coming: false,
             gardens,
             cellar,
@@ -5767,7 +5771,10 @@ impl Game {
                     self.log.push(format!("t{}: the collector passes you by - the lord knows an organized man when he sees one.", tick));
                     return;
                 }
-                let taken = livelihood::collect_tax(&mut self.world, c, target, tick)
+                let cut = livelihood::collect_tax(&mut self.world, c, target, tick);
+                // the levy rides the books as the lord's, not the man's
+                self.takings += cut;
+                let taken = cut
                     * if target == self.player && self.lord_esteem > 0.3 {
                         self.log.push(format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
                         0.5
@@ -5790,6 +5797,7 @@ impl Game {
                         .map(|p| p.gold.min(excise)).unwrap_or(0.0);
                     if let Some(p) = self.world.get_component_mut::<Purse>(target) { p.gold -= paid; }
                     if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += paid; }
+                    self.takings += paid;
                     let name = self.villagers.iter().position(|v| *v == target)
                         .map(|i| vill_name(i)).unwrap_or("you");
                     self.log.push(format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));
@@ -6058,6 +6066,15 @@ impl Game {
                 if let Some(target) = livelihood::tax_due(&self.world, c, tick) {
                     self.send(c, Goal::CollectTax(target));
                 }
+            }
+            // and rides out with the takings: the lord's cut is the
+            // lord's - his books hand it over, whatever his own purse
+            // holds, and what's his stays his
+            if tick % 60 == 45 && self.takings > 0.0 {
+                let remit = self.takings;
+                if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold -= remit.min(p.gold); }
+                self.takings = 0.0;
+                self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
             }
         }
         // the herb-wife keeps her shelf brewed and her patches picked

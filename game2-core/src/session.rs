@@ -806,6 +806,11 @@ pub const NAMES: [&str; 31] = [
     "Godric","Matilda","Leofric","Edith","Anselm","Bertha","Roderick","Winifred",
     "Osmund","Greta","Pip","Nell","Tom","Reeve","Willa",
 ];
+/// A villager's name by index - past the named roll, a newcomer stands in:
+/// births and migrants don't panic the name lookup
+fn vill_name(i: usize) -> &'static str {
+    NAMES.get(i).copied().unwrap_or("a newcomer")
+}
 /// Which villager indices are the children, the tax collector and the herb-wife
 const KID_IDXS: [usize; 3] = [26, 27, 28];
 const COLLECTOR_IDX: usize = 29;
@@ -813,7 +818,7 @@ const HERB_IDX: usize = 30;
 /// Name labels with the (child) flag, for the map
 fn villager_label(i: usize) -> &'static str {
     match i { 26 => "Pip (child)", 27 => "Nell (child)", 28 => "Tom (child)",
-        30 => "Willa (herb-wife)", _ => NAMES[i] }
+        30 => "Willa (herb-wife)", _ => vill_name(i) }
 }
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 const TOOLTIPS: [&str; 5] = [
@@ -3089,8 +3094,8 @@ impl Game {
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
-                    toasts.push((format!("{} has died.", NAMES[i]), tick + 60));
-                    log.push(format!("t{}: {} died.", tick, NAMES[i]));
+                    toasts.push((format!("{} has died.", vill_name(i)), tick + 60));
+                    log.push(format!("t{}: {} died.", tick, vill_name(i)));
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
@@ -3110,20 +3115,20 @@ impl Game {
             ];
             let a = (tick as usize / 40) % NAMES.len();
             let b = (tick as usize / 40 + 2) % NAMES.len();
-            log.push(format!("t{}: {} tells {} - {}", tick, NAMES[a], NAMES[b], rumors[tick as usize / 40 % 5]));
+            log.push(format!("t{}: {} tells {} - {}", tick, vill_name(a), vill_name(b), rumors[tick as usize / 40 % 5]));
         }
 
         // a traveller brings the flu; it's contagious, so neighbours may catch it
         if ticked && tick == FLU_DAY {
             let d = world.create_entity();
             world.add_component(d, Disease { name: "flu".into(), patient: villagers[2], stage: Stage::Moderate, severity: 0.45, contagious: true });
-            toasts.push((format!("A traveller brings the flu - {} falls ill", NAMES[2]), tick + 40));
+            toasts.push((format!("A traveller brings the flu - {} falls ill", vill_name(2)), tick + 40));
         }
         // log who falls ill and who recovers
         let sick_now: Vec<bool> = villagers.iter().map(|v| is_sick(world, *v)).collect();
         for (i, (&now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
-            if now && !*was { log.push(format!("t{}: {} has the flu", tick, NAMES[i])); }
-            if !now && *was { log.push(format!("t{}: {} recovered from the flu", tick, NAMES[i])); }
+            if now && !*was { log.push(format!("t{}: {} has the flu", tick, vill_name(i))); }
+            if !now && *was { log.push(format!("t{}: {} recovered from the flu", tick, vill_name(i))); }
             *was = now;
         }
 
@@ -3207,7 +3212,7 @@ impl Game {
         } else { None };
         let (did, said) = match revealed {
             Some(r) => {
-                let (d, s) = desires::reveal_speech(NAMES[who], &r);
+                let (d, s) = desires::reveal_speech(vill_name(who), &r);
                 let pe = self.seats[seat].player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
@@ -3215,7 +3220,7 @@ impl Game {
                 }
                 (d, s)
             }
-            None => talk_response(&self.world, v, NAMES[who], talks_before),
+            None => talk_response(&self.world, v, vill_name(who), talks_before),
         };
         let pe = self.seats[seat].player; act_talk(&mut self.world, pe, v);
         self.say(v, &said, TALK_BUBBLE_SECS);
@@ -3250,10 +3255,10 @@ impl Game {
         match self.path_to_at(seat, who) {
             Some(path) => {
                 self.seats[seat].approach = Some(Approach { who, action, path, stuck: 0 });
-                Some(format!("You walk over to {}.", NAMES[who]))
+                Some(format!("You walk over to {}.", vill_name(who)))
             }
             None => Some(format!("Can't {}: there's no way to reach {}.",
-                ACTION_LABELS[action].to_lowercase(), NAMES[who])),
+                ACTION_LABELS[action].to_lowercase(), vill_name(who))),
         }
     }
 
@@ -3280,7 +3285,7 @@ impl Game {
         if headed_off {
             match self.path_to_at(seat, who) {
                 Some(path) => a.path = path,
-                None => { self.log.push(format!("t{}: You can't find a way to {}.", self.tick, NAMES[who])); return; }
+                None => { self.log.push(format!("t{}: You can't find a way to {}.", self.tick, vill_name(who))); return; }
             }
         }
         let (px, py) = self.player_pos_at(seat);
@@ -3294,7 +3299,7 @@ impl Game {
         if dx.abs() + dy.abs() > 1e-3 { self.walk_at(seat, dx, dy); }
         a.stuck = if self.player_pos_at(seat) != (px, py) { 0 } else { a.stuck + 1 };
         if a.stuck > APPROACH_STUCK_FRAMES {
-            self.log.push(format!("t{}: You can't get through to {}.", self.tick, NAMES[who]));
+            self.log.push(format!("t{}: You can't get through to {}.", self.tick, vill_name(who)));
             return;
         }
         self.seats[seat].approach = Some(a);
@@ -3318,8 +3323,8 @@ impl Game {
                 1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
                     let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);
                     let r = act_recruit(&mut self.world, pe, oe, te);
-                    if r.success { format!("{} joined!", NAMES[selected_target]) }
-                    else { format!("{}: {}", NAMES[selected_target], r.description.to_lowercase()) }
+                    if r.success { format!("{} joined!", vill_name(selected_target)) }
+                    else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
                 }
                 2 => { let pe = self.seats[seat].player; let r = act_invest(&mut self.world, pe, INVEST_GOLD); r.description }
                 3 => self.call_meeting_at(seat),
@@ -3371,7 +3376,7 @@ impl Game {
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))
-            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i]))
+            .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i)))
             .collect();
         // a member won at a meeting counts toward leading the village just
         // like one won with Recruit - otherwise every meeting recruit is
@@ -3450,7 +3455,7 @@ impl Game {
         // grumble - heard in the log, not just counted on the ballots
         let grumbler = vote.ballots.iter().find(|b| b.grumbles).map(|b| b.member);
         if let Some(d) = grumbler {
-            let name = self.villagers.iter().position(|&v| v == d).map(|i| NAMES[i]).unwrap_or("someone");
+            let name = self.villagers.iter().position(|&v| v == d).map(|i| vill_name(i)).unwrap_or("someone");
             msg += &format!(" - {} {}", name,
                 campaign::grumble_line(campaign::Framing::SharedGrievance));
         }
@@ -3501,7 +3506,7 @@ impl Game {
         let dist = |(x, y): (i32, i32)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
         let home = self.buildings.iter().enumerate()
             .filter(|(_, (_, _, s))| matches!(s, BSprite::House(_)))
-            .map(|(i, (x, y, _))| ((*x as i32, *y as i32), if i < 3 { format!("{}'s house", NAMES[i]) } else { "the new house".to_string() }))
+            .map(|(i, (x, y, _))| ((*x as i32, *y as i32), if i < 3 { format!("{}'s house", vill_name(i)) } else { "the new house".to_string() }))
             .filter(|(at, _)| dist(*at) < MEETING_REACH)
             .min_by(|a, b| dist(a.0).partial_cmp(&dist(b.0)).unwrap());
         let (venue, label) = home.unwrap_or(((px.round() as i32, py.round() as i32), "your spot".to_string()));
@@ -3515,7 +3520,7 @@ impl Game {
             let from = (p.x.round() as i32, p.y.round() as i32);
             if from == spot { Some(vec![spot]) } else { self.map.walk_path(from, spot) }
         }).collect();
-        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i])).collect();
+        let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
         let msg = format!("You call a house meeting at {} - {} {} on the way.", label, names.join(", "), if names.len() == 1 { "is" } else { "are" });
         self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], seat });
         msg
@@ -3544,7 +3549,7 @@ impl Game {
                 if roll < chance {
                     let pick = self.rng.next();
                     if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
-                        let (_, said) = desires::reveal_speech(NAMES[i], &r);
+                        let (_, said) = desires::reveal_speech(vill_name(i), &r);
                         self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
                         let pe = self.player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
@@ -3555,7 +3560,7 @@ impl Game {
                         shared = true;
                     }
                 }
-                if !shared { lines.push((v, meeting_remark(&self.world, v, NAMES[i], round))); }
+                if !shared { lines.push((v, meeting_remark(&self.world, v, vill_name(i), round))); }
             }
             lines.push((self.player, MEETING_PROMPTS[round + 1].to_string()));
         }
@@ -4009,7 +4014,7 @@ impl Game {
             let i = self.rng.below(self.villagers.len() as i32).max(0) as usize;
             let who = self.villagers[i];
             self.swarm = Some((who, tick + 1));
-            let name = self.villagers.iter().position(|x| *x == who).map(|x| NAMES[x]).unwrap_or("someone");
+            let name = self.villagers.iter().position(|x| *x == who).map(|x| vill_name(x)).unwrap_or("someone");
             self.log.push(format!("t{}: a swarm took a liking to {} - it follows them about.", tick, name));
         }
         if let Some((_, until)) = self.swarm { if tick >= until { self.swarm = None; } }
@@ -4111,7 +4116,7 @@ impl Game {
                 .find(|&v| !villager::is_dead(&self.world, v)
                     && self.world.get_component::<Craft>(v)
                         .map(|c| c.vocation == voc && c.workplace.is_none()).unwrap_or(false)));
-        let dname = self.villagers.iter().position(|v| *v == dead).map(|i| NAMES[i]).unwrap_or("the dead");
+        let dname = self.villagers.iter().position(|v| *v == dead).map(|i| vill_name(i)).unwrap_or("the dead");
         match heir {
             Some(h) => {
                 // a shop only has the one master - give up any other bench
@@ -4130,7 +4135,7 @@ impl Game {
                 if let Some(p) = self.world.get_component_mut::<Purse>(dead) { p.gold = 0.0; }
                 if let Some(p) = self.world.get_component_mut::<Purse>(h) { p.gold += gold * 0.8; }
                 desires::add_grievance(&mut self.world, h, desires::Problem::DeathDuty, tick + 60);
-                let hname = self.villagers.iter().position(|v| *v == h).map(|i| NAMES[i]).unwrap_or("the heir");
+                let hname = self.villagers.iter().position(|v| *v == h).map(|i| vill_name(i)).unwrap_or("the heir");
                 self.log.push(format!("t{}: {} takes up {}'s bench; the lord takes his fifth.", tick, hname, dname));
             }
             None => {
@@ -4245,7 +4250,7 @@ impl Game {
 
     /// A rung lands: what the village does to its own
     fn apply_sanction(&mut self, v: Entity, s: Sanction, tick: u64) {
-        let name = self.villagers.iter().position(|x| *x == v).map(|i| NAMES[i]).unwrap_or("someone");
+        let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone");
         // a bad word travels ahead of every rung
         self.rep_apply(v, RepAction::BadDeed);
         self.sanctioned.push((v, s, tick + 60));
@@ -5155,7 +5160,7 @@ impl Game {
             c.master = master;
             c.tasked_by = master;
             self.world.add_component(v, c);
-            let name = self.villagers.iter().position(|x| *x == v).map(|i| NAMES[i]).unwrap_or("a youngster");
+            let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("a youngster");
             let trade = vocation::vocation_name(voc).to_lowercase();
             self.log.push(format!("t{}: {} takes up the {}.", tick, name, trade));
             self.toasts.push((format!("{} comes of age - a {}!", name, trade), tick + 30));
@@ -5210,7 +5215,7 @@ impl Game {
     }
 
     fn name_of(&self, e: Entity) -> String {
-        self.villagers.iter().position(|&x| x == e).map(|i| NAMES[i].to_string())
+        self.villagers.iter().position(|&x| x == e).map(|i| vill_name(i).to_string())
             .unwrap_or_else(|| "someone".into())
     }
 
@@ -5451,7 +5456,7 @@ impl Game {
                     self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
                 }
                 if granted {
-                    let name = self.villagers.iter().position(|v| *v == target).map(|i| NAMES[i]).unwrap_or("them");
+                    let name = self.villagers.iter().position(|v| *v == target).map(|i| vill_name(i)).unwrap_or("them");
                     self.log.push(format!("t{}: the lord's grant covers {} - half the cut comes back.", tick, name));
                 }
             }
@@ -5509,7 +5514,7 @@ impl Game {
                 // at the world's edge they don't come back - unless the
                 // castle's keeping them: the dungeon's a held state, and
                 // the org may yet ransom them home
-                let name = self.villagers.iter().position(|v| *v == who).map(|i| NAMES[i]).unwrap_or("someone");
+                let name = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
                 if self.dungeon.iter().any(|(e, _)| *e == who) {
                     self.log.push(format!("t{}: {} is held at the castle - the org may yet ransom them.", tick, name));
                 } else {
@@ -5564,10 +5569,10 @@ impl Game {
                             .min(self.world.get_component::<Purse>(who).map(|p| p.gold).unwrap_or(0.0));
                         if let Some(p) = self.world.get_component_mut::<Purse>(who) { p.gold -= fee; }
                         if let Some(p) = self.world.get_component_mut::<Purse>(her) { p.gold += fee; }
-                        let patient = self.villagers.iter().position(|v| *v == who).map(|i| NAMES[i]).unwrap_or("someone");
+                        let patient = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
                         self.say(her, "Steep it and rest - it'll turn.", CHAT_BUBBLE_SECS);
                         self.cured += 1;
-                        self.log.push(format!("t{}: {} treats {}'s {}.", tick, NAMES[HERB_IDX], patient, illness.unwrap_or_else(|| "illness".into())));
+                        self.log.push(format!("t{}: {} treats {}'s {}.", tick, vill_name(HERB_IDX), patient, illness.unwrap_or_else(|| "illness".into())));
                     }
                     None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
                 }
@@ -5771,8 +5776,8 @@ impl Game {
             let _ = made;
             if let Some(level) = up {
                 let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
-                self.toasts.push((format!("{} is now a {}!", NAMES[i], vocation::level_name(level)), tick + 30));
-                self.log.push(format!("t{}: {} is now a {} {}.", tick, NAMES[i], vocation::level_name(level).to_lowercase(), voc));
+                self.toasts.push((format!("{} is now a {}!", vill_name(i), vocation::level_name(level)), tick + 30));
+                self.log.push(format!("t{}: {} is now a {} {}.", tick, vill_name(i), vocation::level_name(level).to_lowercase(), voc));
             }
         }
         // a tune in the street: anyone with a lute plays, and it lifts the
@@ -6413,7 +6418,7 @@ impl Game {
                         self.world.add_component(rel, relationships::Relationship {
                             from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
                         let mi = self.villagers.iter().position(|x| *x == m).unwrap();
-                        format!("You pair {} with {} - he'll learn faster now.", NAMES[self.seats[seat].selected_target], NAMES[mi])
+                        format!("You pair {} with {} - he'll learn faster now.", vill_name(self.seats[seat].selected_target), vill_name(mi))
                     }
                     None => "No master of their trade to pair them with.".into(),
                 }
@@ -6436,7 +6441,7 @@ impl Game {
                             hirer: self.seats[seat].player, good: g.to_string(), qty: 2, from, to: self.seats[seat].player,
                             pay: 3.0, loaded: false });
                         self.send(k, Goal::RunOddJob);
-                        format!("You send {} to fetch {}.", NAMES[self.seats[seat].selected_target], g)
+                        format!("You send {} to fetch {}.", vill_name(self.seats[seat].selected_target), g)
                     }
                     None => "Nothing you need fetched right now.".into(),
                 }
@@ -6448,7 +6453,7 @@ impl Game {
                 match crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick) {
                     Some(out) => {
                         let who: Vec<String> = out.attendees.iter()
-                            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| NAMES[i].to_string()))
+                            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
                             .collect();
                         let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
                         if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
@@ -6456,7 +6461,7 @@ impl Game {
                         if out.consent { msg += " - consent banked for the next action"; }
                         if !out.healed.is_empty() {
                             let healed: Vec<String> = out.healed.iter()
-                                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| NAMES[i].to_string())).collect();
+                                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
                             msg += &format!(" - {} heard out", healed.join(", "));
                         }
                         msg
@@ -6479,7 +6484,7 @@ impl Game {
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
                 let v = self.villagers[self.seats[seat].selected_target];
-                let name = NAMES[self.seats[seat].selected_target];
+                let name = vill_name(self.seats[seat].selected_target);
                 use crate::game::campaign::Role;
                 let role_name = |r: Role| match r {
                     Role::TurnoutCoordinator => "turnout coordinator",
@@ -6566,7 +6571,7 @@ impl Game {
                             if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
                                 // hauled off mid-errand: whatever they were doing is dropped
                                 self.travels.retain(|t| t.who != taken);
-                                let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
+                                let tn = self.villagers.iter().position(|v| *v == taken).map(|i| vill_name(i))
                                     .unwrap_or("someone");
                                 msg += &format!(" {} is taken.", tn);
                                 // the release effort is a campaign of its own:
@@ -6649,7 +6654,7 @@ impl Game {
                 crate::game::dungeon::press(&mut self.world, v, 0.3);
                 // the hold: what the state spends to keep them inside
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
-                    let name = NAMES[self.seats[seat].selected_target];
+                    let name = vill_name(self.seats[seat].selected_target);
                     self.toasts.push((format!("{} walks free", name), tick + 40));
                     format!("The letters don't stop - and the cell opens. {} walks free.", name)
                 } else {
@@ -6790,7 +6795,7 @@ impl Game {
             .collect();
         let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {
             let p = world.get_component::<Pos>(*e)?;
-            let name = self.villagers.iter().position(|v| *v == *e).map(|i| NAMES[i].to_string())
+            let name = self.villagers.iter().position(|v| *v == *e).map(|i| vill_name(i).to_string())
                 .or_else(|| self.rivals.iter().position(|r| *r == *e).map(|i| RIVAL_NAMES[i].to_string()));
             Some(BubbleV { e: *e, pos: (p.x, p.y), text: text.clone(), thought: *thought, name })
         }).collect();
@@ -6798,7 +6803,7 @@ impl Game {
         let members: Vec<String> = org.members.iter()
             .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| {
                 let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(*m).is_some();
-                format!("{}{}", NAMES[i], if held { " (held)" } else { "" })
+                format!("{}{}", vill_name(i), if held { " (held)" } else { "" })
             }))
             .collect();
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
@@ -6808,7 +6813,7 @@ impl Game {
         let guilds = world.query::<Guild>().len();
         let name_of = |e: Entity| {
             if e == self.seats[seat].player { return "you".to_string(); }
-            self.villagers.iter().position(|v| *v == e).map(|i| NAMES[i].to_string())
+            self.villagers.iter().position(|v| *v == e).map(|i| vill_name(i).to_string())
                 .or_else(|| self.rivals.iter().position(|r| *r == e).map(|i| RIVAL_NAMES[i].to_string()))
                 .unwrap_or_else(|| "someone".to_string())
         };
@@ -6912,18 +6917,18 @@ impl Game {
         lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
         lines.push(Line { x: 18, y: 340, text: kind_word.into(), rgb: (200, 200, 230) });
         let worker = b.worker.and_then(|w| self.villagers.iter().position(|v| *v == w))
-            .map(|i| NAMES[i].to_string())
+            .map(|i| vill_name(i).to_string())
             .or_else(|| b.worker.map(|_| "you".to_string()));
         let who = worker.map(|w| format!("worked by {}", w)).unwrap_or_else(|| "stands empty".to_string());
         let col = if household::derelict(b) { (230, 140, 90) } else { (190, 190, 210) };
         lines.push(Line { x: 18, y: 354, text: who, rgb: col });
         if let Some(o) = b.overseer {
-            let on = self.villagers.iter().position(|v| *v == o).map(|i| NAMES[i]).unwrap_or("someone");
+            let on = self.villagers.iter().position(|v| *v == o).map(|i| vill_name(i)).unwrap_or("someone");
             lines.push(Line { x: 18, y: 368, text: format!("overseer: {}", on), rgb: (200, 160, 120) });
         }
         if b.kind == BuildingKind::Home {
             let names: Vec<&str> = b.occupants.iter()
-                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| NAMES[i]))
+                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i)))
                 .collect();
             lines.push(Line { x: 18, y: 368,
                 text: format!("lives here: {}", if names.is_empty() { "no one".into() } else { names.join(", ") }),
@@ -6947,7 +6952,7 @@ impl Game {
         let i = self.seats[seat].selected_target;
         let v = self.villagers[i];
         let mut lines: Vec<Line> = vec![];
-        lines.push(Line { x: 60, y: 330, text: NAMES[i].into(), rgb: (255, 255, 255) });
+        lines.push(Line { x: 60, y: 330, text: vill_name(i).into(), rgb: (255, 255, 255) });
         if let Some(day) = self.died_on[i] {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
@@ -7170,7 +7175,7 @@ impl Game {
                 if *v == who { return None; }
                 let q = self.world.get_component::<Pos>(*v)?;
                 let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
-                (d < 8.0).then(|| ObsPerson { e: *v, name: NAMES[i].to_string(), dist: d,
+                (d < 8.0).then(|| ObsPerson { e: *v, name: vill_name(i).to_string(), dist: d,
                     dead: villager::is_dead(&self.world, *v) })
             }).collect();
         for s in self.seats.iter().filter(|s| !s.agent) {
@@ -7543,8 +7548,8 @@ impl View {
                     // the dead get a gravestone where they fell, not their standing figure
                     if pv.dead {
                         let top = draw_grave(&mut buf, sx, sy, zoom);
-                        let (lx, _) = name_label_pos(sx, sy, NAMES[i]);
-                        labels.push((NAMES[i], lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
+                        let (lx, _) = name_label_pos(sx, sy, vill_name(i));
+                        labels.push((vill_name(i), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {
                         let fig = &art.villager_sprites[i % art.villager_sprites.len().max(1)];
                         // children draw small and flagged: the pack has no
@@ -8081,7 +8086,7 @@ mod stay_home_tests {
         // a month adrift is a defection; a fortnight's foraging east is an
         // excursion that comes home (on main, Aldric stayed for good)
         assert!(worst <= 30, "{} stayed {} days away at {:?} (route home: {:?}) - neighbours {:?}",
-            NAMES[who_was_it], worst, st, route, around);
+            vill_name(who_was_it), worst, st, route, around);
     }
 }
 
@@ -10055,7 +10060,7 @@ mod progression_tests {
                     .and_then(|r| game.world.get_component::<Relationship>(r)).map(|r| r.strength);
                 let last: Vec<&String> = game.log.iter().rev().take(4).collect();
                 panic!("{} never joined at a meeting (dead {}, trust {:?}, last log {:?})",
-                    NAMES[i], villager::is_dead(&game.world, v), rel, last);
+                    vill_name(i), villager::is_dead(&game.world, v), rel, last);
             }
         }
         while game.disabled_reason(2).is_none()
@@ -10337,7 +10342,7 @@ mod talk_reach_tests {
         game.act(0);
         assert_eq!(game.selected_target, 2, "Talk should turn to the villager in reach");
         let line = game.log.last().unwrap();
-        assert!(line.contains(NAMES[2]) && !line.contains("Can't"), "{}", line);
+        assert!(line.contains(vill_name(2)) && !line.contains("Can't"), "{}", line);
     }
 
     /// A villager the player can walk to who's well out of talking distance
@@ -10361,17 +10366,17 @@ mod talk_reach_tests {
         let start = game.dist_to(who);
 
         game.act(0);
-        assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", NAMES[who])), "{}", game.log.last().unwrap());
+        assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", vill_name(who))), "{}", game.log.last().unwrap());
         assert_eq!(talks(&game), before, "no talking from across the village");
 
         for _ in 0..(30 * FPS) {
             if game.approach.is_none() { break; }
             game.update();
         }
-        assert!(game.approach.is_none(), "still walking to {} ({} tiles off, started {})", NAMES[who], game.dist_to(who), start);
-        assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), NAMES[who]);
+        assert!(game.approach.is_none(), "still walking to {} ({} tiles off, started {})", vill_name(who), game.dist_to(who), start);
+        assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), vill_name(who));
         assert_eq!(talks(&game), before + 1, "talked once on arrival");
-        assert!(game.log.iter().any(|l| l.contains(NAMES[who]) && l.contains(": \"")), "no talk line: {:?}", game.log);
+        assert!(game.log.iter().any(|l| l.contains(vill_name(who)) && l.contains(": \"")), "no talk line: {:?}", game.log);
     }
 
     #[test]
@@ -10385,18 +10390,18 @@ mod talk_reach_tests {
         assert_eq!(game.disabled_reason(1), None, "Recruit walks over, so distance doesn't grey it out");
 
         game.act(1);
-        assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", NAMES[who])), "{}", game.log.last().unwrap());
+        assert!(game.log.last().unwrap().contains(&format!("You walk over to {}", vill_name(who))), "{}", game.log.last().unwrap());
         assert!(game.approach.as_ref().map(|a| a.action) == Some(1));
 
         for _ in 0..(30 * FPS) {
             if game.approach.is_none() { break; }
             game.update();
         }
-        assert!(game.approach.is_none(), "still walking to {}", NAMES[who]);
-        assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), NAMES[who]);
+        assert!(game.approach.is_none(), "still walking to {}", vill_name(who));
+        assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), vill_name(who));
         // the recruit attempt happened on arrival (joined or turned the player down)
         let line = game.log.last().unwrap();
-        assert!(line.contains(NAMES[who]) && !line.contains("walk over") && !line.contains("Can't"), "{}", line);
+        assert!(line.contains(vill_name(who)) && !line.contains("walk over") && !line.contains("Can't"), "{}", line);
     }
 
     #[test]
@@ -10662,7 +10667,7 @@ mod food_reach_tests {
         let act = game.world.get_component::<Villager>(v).map(|x| x.activity);
         let on_job = game.travels.iter().any(|t| t.who == v) || game.world.get_component::<OddJob>(v).is_some();
         assert!(worst <= 5, "{} went {} days at zero hunger at {:?} (passable {}, route {:?}, act {:?}, job {}) with {} servings in the store",
-            NAMES[who], worst, st, game.map.passable(st.0, st.1), route, act, on_job, servings);
+            vill_name(who), worst, st, game.map.passable(st.0, st.1), route, act, on_job, servings);
     }
 }
 
@@ -10854,10 +10859,10 @@ mod reach_name_tests {
         let name_colour = |v: Entity, i: usize| {
             let p = *game.world.get_component::<Pos>(v).unwrap();
             let (sx, sy) = iso_to_screen_cam(p.x, p.y, view.cam_x, view.cam_y, view.zoom);
-            let (lx, ly) = name_label_pos(sx, sprite_label_anchor(&view.art.villager_sprites[i], sy, view.zoom), NAMES[i]);
+            let (lx, ly) = name_label_pos(sx, sprite_label_anchor(&view.art.villager_sprites[i], sy, view.zoom), vill_name(i));
             // labels may be nudged up a line or two; look over that band
             let (mut bright, mut dim) = (0, 0);
-            for y in (ly - 40).max(0)..ly + GLYPH_H { for x in lx.max(0)..(lx + NAMES[i].len() as i32 * GLYPH_W).min(MAP_W as i32) {
+            for y in (ly - 40).max(0)..ly + GLYPH_H { for x in lx.max(0)..(lx + vill_name(i).len() as i32 * GLYPH_W).min(MAP_W as i32) {
                 let k = (y as usize * W + x as usize) * 4;
                 match (buf.pixels[k], buf.pixels[k + 1], buf.pixels[k + 2]) {
                     c if c == NAME_IN_REACH => bright += 1,
@@ -10868,9 +10873,9 @@ mod reach_name_tests {
             (bright, dim)
         };
         let (b, d) = name_colour(near, 0);
-        assert!(b > 10 && d == 0, "{} is in reach but not bright ({} bright, {} dim)", NAMES[0], b, d);
+        assert!(b > 10 && d == 0, "{} is in reach but not bright ({} bright, {} dim)", vill_name(0), b, d);
         let (_, d) = name_colour(far, 4);
-        assert!(d > 10, "{} is out of reach but not dimmed", NAMES[4]);
+        assert!(d > 10, "{} is out of reach but not dimmed", vill_name(4));
     }
 }
 

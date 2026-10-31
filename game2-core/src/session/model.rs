@@ -177,4 +177,6 @@ pub struct UiModel {
     pub sky: Option<String>,
     /// The painted halls - color is clout that fades
     pub painted: Vec<(f32, f32)>,
+    /// The cave mouth at the map's edge
+    pub cave: Option<(f32, f32)>,
 }

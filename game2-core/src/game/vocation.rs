@@ -53,6 +53,8 @@ pub enum Vocation {
 /// The PMC postings that aren't working-class vocations
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TownRole {
+    /// The recluse at the cave - the dark keeps them
+    Hermit,
     /// Drives a farm or mason's yard: boosts the work and takes a cut
     Overseer,
     /// Rounds the village on his yearly circuit, taking the lord's share

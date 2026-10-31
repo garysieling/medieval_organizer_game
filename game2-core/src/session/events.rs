@@ -1129,7 +1129,7 @@ impl Game {
         let at = taproom.and_then(|be| self.world.get_component::<Pos>(be).copied())
             .or_else(|| self.world.get_component::<Pos>(self.market_food).copied());
         let mut brawlers: Vec<Entity> = self.villagers.iter().copied()
-            .filter(|&v| !villager::is_dead(&self.world, v)
+            .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
                 && self.world.get_component::<crate::game::vocation::TownRole>(v).is_none())
             .filter(|&v| {
                 let drunk = self.world.get_component::<villager::Drunk>(v)
@@ -1140,8 +1140,10 @@ impl Game {
                 drunk || near
             }).collect();
         if brawlers.is_empty() {
+            // a brawl's still a brawl if the street's free - but a man
+            // in the lock-up is no man for a punch-up
             brawlers = self.villagers.iter().take(4).copied()
-                .filter(|&v| !villager::is_dead(&self.world, v)).collect();
+                .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).collect();
         }
         brawlers.truncate(2);
         let names: Vec<String> = brawlers.iter().map(|&v| self.name_of(v)).collect();

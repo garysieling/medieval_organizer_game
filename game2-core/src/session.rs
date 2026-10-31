@@ -778,6 +778,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Errand => Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) },
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
         CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
+        CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (140, 80, 80) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -1552,6 +1553,8 @@ pub enum CtxAct {
     Errand,
     /// Put a word between two hearts the organizer knows are lonely
     Matchmake,
+    /// Hold the campaign's meeting, on its cadence
+    Meet,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -3313,7 +3316,33 @@ impl Game {
         self.record_power(if invited.len() >= 3 {
             crate::sim::organized_power::ActionQuality::Transformational
         } else { crate::sim::organized_power::ActionQuality::Overreach });
-        format!("House meeting - {} came. {}{}", invited.len(), outcome, found)
+        let founded = self.maybe_found_campaign(0).map(|s| format!(" {}", s)).unwrap_or_default();
+        format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
+    }
+
+    /// After a house meeting: enough living members and a heard issue and
+    /// the org can take the founding vote. The organizer's ledger supplies
+    /// the candidates; the campaign is born framed as a shared grievance.
+    /// Returns a log line when the campaign forms.
+    pub fn maybe_found_campaign(&mut self, seat: usize) -> Option<String> {
+        use crate::game::campaign;
+        let org = self.seats[seat].org;
+        if campaign::campaign_of(&self.world, org).is_some() { return None; }
+        let living = self.world.get_component::<Organization>(org)
+            .map(|o| o.members.iter().filter(|&&m| !villager::is_dead(&self.world, m)).count())
+            .unwrap_or(0);
+        if living < 3 { return None; }
+        let issues = self.world.get_component::<desires::Organizer>(self.seats[seat].player)
+            .map(|o| o.issues.clone()).unwrap_or_default();
+        if issues.is_empty() { return None; }
+        let vote = campaign::hold_issue_vote(&self.world, org, &issues, campaign::Framing::SharedGrievance, self.tick)?;
+        let oname = self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default();
+        let c = campaign::found_campaign(&mut self.world, org, &vote,
+            campaign::Framing::SharedGrievance, campaign::DecisionRule::Majority, self.tick);
+        self.world.add_component(c, campaign::CampaignMeeting {
+            cadence_days: 3, last_held: self.tick, held: 0, resolves: 0 });
+        self.toasts.push((format!("{} take a vote", oname), self.tick + 40));
+        Some(format!("{} take a vote - they'll fight for {}", oname, vote.winner))
     }
 
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
@@ -6079,6 +6108,11 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
             }
         }
+        // the cause meets on its cadence: always offer the button once a
+        // campaign exists; the meeting itself decides if it's due
+        if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::Meet);
+        }
     }
 
     /// Take a contextual action (entry `i` of ctx_actions)
@@ -6136,6 +6170,29 @@ impl Game {
                         format!("You send {} to fetch {}.", NAMES[self.seats[seat].selected_target], g)
                     }
                     None => "Nothing you need fetched right now.".into(),
+                }
+            }
+            CtxAct::Meet => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+                    return;
+                };
+                match crate::game::campaign::hold_campaign_meeting(&mut self.world, c, tick) {
+                    Some(out) => {
+                        let who: Vec<String> = out.attendees.iter()
+                            .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| NAMES[i].to_string()))
+                            .collect();
+                        let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
+                        if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
+                        if out.noted { msg += " - the notes keep the resolves"; }
+                        if out.consent { msg += " - consent banked for the next action"; }
+                        if !out.healed.is_empty() {
+                            let healed: Vec<String> = out.healed.iter()
+                                .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| NAMES[i].to_string())).collect();
+                            msg += &format!(" - {} heard out", healed.join(", "));
+                        }
+                        msg
+                    }
+                    None => "The campaign isn't due to meet yet.".into(),
                 }
             }
         };
@@ -6263,6 +6320,31 @@ impl Game {
         let p = world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap();
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
         let guilds = world.query::<Guild>().len();
+        let name_of = |e: Entity| {
+            if e == self.seats[seat].player { return "you".to_string(); }
+            self.villagers.iter().position(|v| *v == e).map(|i| NAMES[i].to_string())
+                .or_else(|| self.rivals.iter().position(|r| *r == e).map(|i| RIVAL_NAMES[i].to_string()))
+                .unwrap_or_else(|| "someone".to_string())
+        };
+        let campaign = crate::game::campaign::campaign_of(world, self.seats[seat].org).map(|e| {
+            use crate::game::campaign::{Campaign, CampaignMeeting, Framing, Role};
+            let c = world.get_component::<Campaign>(e).unwrap();
+            let mtg = world.get_component::<CampaignMeeting>(e);
+            let seats = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().map(|&r| {
+                let label = match r { Role::TurnoutCoordinator => "turnout", Role::NoteTaker => "notes", Role::Chair => "chair" };
+                let holder = c.seats.iter().find(|s| s.role == r).map(|s| name_of(s.holder))
+                    .unwrap_or_else(|| "(empty)".to_string());
+                format!("{} {}", label, holder)
+            }).collect();
+            CampaignV {
+                issue: c.issue.clone(),
+                framing: match c.framing { Framing::SharedGrievance => "shared grievance",
+                    Framing::CommonFoe => "common foe", Framing::MoralDuty => "moral duty" }.to_string(),
+                dissenters: c.dissenters.len(), seats,
+                resolves: mtg.map(|m| m.resolves).unwrap_or(0),
+                due: mtg.map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false),
+            }
+        });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
                        self.action_blocker_at(seat, 3), self.action_blocker_at(seat, 4)];
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
@@ -6285,7 +6367,7 @@ impl Game {
             panel: PanelV {
                 name: p.name.clone(), standing: crate::game::player::standing(p.influence).to_string(),
                 influence: p.influence, gold: p.resources,
-                org: org.name.clone(), members, issues, guilds, food,
+                org: org.name.clone(), members, issues, guilds, food, campaign,
             },
             won: p.influence > WIN_INFLUENCE,
             mill: Some((MILL_TILE.0, MILL_TILE.1)),
@@ -7065,8 +7147,10 @@ impl View {
             }
         }
 
-        // contextual actions, under the main buttons
-        for b in m.ctx.iter().map(|a| ctx_button(*a)).collect::<Vec<_>>() {
+        // contextual actions, under the main buttons (stacked when several
+        // are on offer at once)
+        for (i, mut b) in m.ctx.iter().map(|a| ctx_button(*a)).enumerate() {
+            b.y += i as i32 * 34;
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             draw_button(&mut buf, &b, hover, false);
         }
@@ -7106,8 +7190,14 @@ impl View {
         // the issues the organizer has pieced together
         draw_text(&mut buf, UI_X as i32 + 18, 476, "ISSUES", 255, 215, 0);
         let issue_line = if m.panel.issues.is_empty() { "none heard yet".to_string() } else { m.panel.issues.join("; ") };
-        for (n, line) in wrap_text(&issue_line, 42).iter().take(2).enumerate() {
+        for (n, line) in wrap_text(&issue_line, 42).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }).enumerate() {
             draw_text(&mut buf, UI_X as i32 + 18 + (7 * GLYPH_W), 476 + n as i32 * 11, line, 220, 190, 140);
+        }
+        // the campaign the org fights for, once it's taken its vote
+        if let Some(c) = &m.panel.campaign {
+            let due = if c.due { "meet due" } else { "meet to come" };
+            draw_text(&mut buf, UI_X as i32 + 18, 488,
+                &format!("FIGHT {} - {} - {}", c.issue, c.seats.join(" "), due), 255, 180, 120);
         }
         draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
 
@@ -10999,3 +11089,42 @@ mod hud_tests {
     }
 }
 
+
+#[cfg(test)]
+mod campaign_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_harvesters_take_a_vote_and_then_they_meet() {
+        let mut g = Game::new();
+        // three members sworn in, all taxed, and the issue heard - the
+        // vote happens (an org with no stake in the cause can't found one)
+        for &v in &g.villagers[..3] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        let msg = g.maybe_found_campaign(0).unwrap();
+        assert!(msg.contains("they'll fight for the taxes"), "{}", msg);
+        let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+
+        // the panel shows the fight, its seats empty
+        let m = g.ui_model();
+        let cv = m.panel.campaign.as_ref().unwrap();
+        assert_eq!(cv.issue, "the taxes");
+        assert_eq!(cv.seats.len(), 3);
+        assert!(cv.seats.iter().all(|s| s.ends_with("(empty)")), "{:?}", cv.seats);
+        assert!(!cv.due, "just founded - the cadence still has to run");
+
+        // and the Meet button runs the campaign meeting when it's due
+        g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+            .unwrap().cadence_days = 0;
+        g.seats[0].ctx_actions.push(CtxAct::Meet);
+        let i = g.seats[0].ctx_actions.len() - 1;
+        g.ctx_act_at(0, i);
+        assert!(g.log.last().unwrap().contains("meet about the campaign"), "{:?}", g.log.last());
+        assert!(g.ui_model().panel.campaign.unwrap().due);
+    }
+}

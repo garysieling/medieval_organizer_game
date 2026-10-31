@@ -100,6 +100,20 @@ pub struct InspectorV {
     pub lines: Vec<Line>,
 }
 
+/// The campaign the org is running, for the panel's status line
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CampaignV {
+    pub issue: String,
+    pub framing: String,
+    /// Grumblers the issue's loser's left
+    pub dissenters: usize,
+    /// "turnout: Aldric" / "notes: (empty)"
+    pub seats: Vec<String>,
+    pub resolves: u32,
+    /// A meeting is due on the cadence
+    pub due: bool,
+}
+
 /// The right-hand panel's player/org data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelV {
@@ -113,6 +127,8 @@ pub struct PanelV {
     pub guilds: usize,
     /// Market servings (the HUD's "food")
     pub food: u32,
+    /// The org's campaign, when it's founded one
+    pub campaign: Option<CampaignV>,
 }
 
 /// Which of the five action buttons is blocked and why

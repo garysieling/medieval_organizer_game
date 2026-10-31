@@ -166,7 +166,8 @@ fn main() {
         let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap);
         if clicked && !on_minimap {
             if let Some(m) = &cur_model {
-                let ctx_specs: Vec<session::Button> = m.ctx.iter().map(|a| session::ctx_button(*a)).collect();
+                let ctx_specs: Vec<session::Button> = m.ctx.iter().enumerate()
+                    .map(|(i, a)| { let mut b = session::ctx_button(*a); b.y += i as i32 * 34; b }).collect();
                 for (i, b) in ctx_specs.iter().enumerate() {
                     if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h {
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));

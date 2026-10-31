@@ -6303,6 +6303,10 @@ impl Game {
                 match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
                     Some(out) => {
                         let n = out.turnout.len();
+                        // guards already posted stay posted - a second
+                        // crackdown doesn't pile more knights into the frame
+                        let posted_before = self.world
+                            .get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org).is_some();
                         let r = crate::game::reactions::react(&mut self.world, c, &out.turnout, tick);
                         // everyone who saw it and felt the cause wake in them
                         let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
@@ -6331,7 +6335,7 @@ impl Game {
                         if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
                         // a crackdown takes the loudest - and the cause
                         // becomes a prisoner
-                        if r == Some(crate::game::reactions::Reaction::Crackdown) {
+                        if r == Some(crate::game::reactions::Reaction::Crackdown) && !posted_before {
                             // the knights stand in the streets where everyone
                             // can see them
                             let (px, py) = self.player_pos_at(seat);
@@ -6409,6 +6413,12 @@ impl Game {
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
         let in_reach = self.villagers_in_reach_at(seat);
         let mut people: Vec<PersonV> = vec![];
+        // the fight this org is in - woke only marks someone whose shock
+        // matches it (a stranger woken to a different cause isn't your
+        // recruit)
+        let fight = crate::game::campaign::campaign_of(world, self.seats[seat].org)
+            .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c))
+            .map(|c| c.issue.clone());
         for (i, v) in self.villagers.iter().enumerate() {
             let Some(p) = world.get_component::<Pos>(*v) else { continue };
             // what the cause has done to them, read over their head:
@@ -6418,7 +6428,10 @@ impl Game {
                 " (taken)"
             } else if world.get_component::<crate::game::actions::Demoralized>(*v).is_some() {
                 " (hollow)"
-            } else if world.get_component::<crate::game::reactions::Sympathized>(*v).is_some() {
+            } else if fight.as_ref().map(|issue|
+                world.get_component::<crate::game::reactions::Sympathized>(*v)
+                    .map(|s| s.issues.iter().any(|(i, _)| i == issue)).unwrap_or(false))
+                .unwrap_or(false) {
                 " (woke)"
             } else { "" };
             people.push(PersonV {
@@ -6731,11 +6744,17 @@ impl Game {
                 .unwrap_or("just folk");
             // where they stand with the cause: inside it, woken by it,
             // hollowed out by a blow-off, or taken for it
+            let fight = crate::game::campaign::campaign_of(world, self.seats[seat].org)
+                .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c))
+                .map(|c| c.issue.clone());
             let cause = if world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
                 " \u{00b7} taken"
             } else if world.get_component::<crate::game::actions::Demoralized>(v).is_some() {
                 " \u{00b7} hollow"
-            } else if world.get_component::<crate::game::reactions::Sympathized>(v).is_some() {
+            } else if fight.as_ref().map(|issue|
+                world.get_component::<crate::game::reactions::Sympathized>(v)
+                    .map(|s| s.issues.iter().any(|(i, _)| i == issue)).unwrap_or(false))
+                .unwrap_or(false) {
                 " \u{00b7} woke"
             } else if org_members.contains(&v) { " \u{00b7} with you" } else { "" };
             lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, activity_text(vil.activity), cause), rgb: (200, 160, 160) });

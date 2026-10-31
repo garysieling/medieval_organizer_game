@@ -36,6 +36,7 @@ use crate::game::livelihood::{self, OddJob, Purse, Satchel};
 use crate::game::herbology::{self, Apothecary};
 use crate::game::livestock::{self, Livestock, LivestockKind};
 use crate::game::apiary::{self, HiveKind};
+use crate::sim::trails::{self, Trail, TrailParams};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
 
@@ -381,6 +382,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("the fold") || entry.contains("a fox")
         || entry.contains("brought") || entry.contains(" treats ")
         || entry.contains("skeps") || entry.contains("swarm")
+        || entry.contains("takes up") || entry.contains("shuttered")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1272,6 +1274,9 @@ const MEETING_PROMPTS: [&str; 3] = [
 ];
 
 /// The village's vocations and how commonly each is rolled
+/// How fast feet wear the ground in, and how fast it greens over
+const TRAIL_PARAMS: TrailParams = TrailParams { reinforce_rate: 0.06, decay_rate: 0.02, saturation: 0.85 };
+
 const VOCATION_ROLL: [(Vocation, i32); 10] = [
     (Vocation::Farmer, 22), (Vocation::Baker, 12), (Vocation::Mason, 10),
     (Vocation::Tailor, 9), (Vocation::Toolmaker, 8), (Vocation::Knight, 8),
@@ -1602,6 +1607,8 @@ pub struct Game {
     pub swarm: Option<(Entity, u64)>,
     /// The dead whose affairs are settled - succession runs once per soul
     pub succeeded: Vec<Entity>,
+    /// Where feet have worn the ground: tile -> trail strength
+    pub trails: std::collections::HashMap<(i32, i32), Trail>,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -2243,6 +2250,7 @@ impl Game {
             church,
             swarm: None,
             succeeded: vec![],
+            trails: Default::default(),
         }
     }
 
@@ -3525,6 +3533,15 @@ impl Game {
         }
     }
 
+    /// The ground greens over: each trail tile decays toward wild unless
+    /// feet keep it open
+    pub fn trail_tick(&mut self) {
+        self.trails.retain(|_, t| {
+            trails::step_trail(t, 0, 0.0, &TRAIL_PARAMS);
+            t.strength > 0.01
+        });
+    }
+
     /// The young grow: each day the kids age, and on the day they come of
     /// age they take up a trade - the master they ran the most errands
     /// for, else whatever trade the village can use
@@ -3681,17 +3698,26 @@ impl Game {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
         for t in self.travels.iter_mut() {
             if t.path.is_empty() { continue; }
+            // a well-worn path is quicker underfoot
+            let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
+            let stride = MEETING_WALK * (1.0 + 0.6 * worn);
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
+            let ot = (p.x.round() as i32, p.y.round() as i32);
             let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);
             let (dx, dy) = (nx - p.x, ny - p.y);
             let d = (dx * dx + dy * dy).sqrt();
-            let (stepx, stepy) = if d <= MEETING_WALK { (nx, ny) } else { (p.x + dx / d * MEETING_WALK, p.y + dy / d * MEETING_WALK) };
+            let (stepx, stepy) = if d <= stride { (nx, ny) } else { (p.x + dx / d * stride, p.y + dy / d * stride) };
             // never step somewhere they can't stand: a wall in the way
             // aborts the errand rather than leaving them walking into it
             // (and starving on the spot) forever
             if !self.map.passable(stepx.round() as i32, stepy.round() as i32) { t.path.clear(); continue; }
             p.x = stepx; p.y = stepy;
-            if d <= MEETING_WALK { t.path.remove(0); }
+            let nt = (p.x.round() as i32, p.y.round() as i32);
+            if nt != ot {
+                let tr = self.trails.entry(nt).or_insert(Trail::wild());
+                trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
+            }
+            if d <= stride { t.path.remove(0); }
             if t.path.is_empty() { arrived.push((t.who, t.goal.clone())); }
         }
         self.travels.retain(|t| !t.path.is_empty());
@@ -3899,6 +3925,8 @@ impl Game {
         self.succession_tick(tick);
         // and the young grow into their trades
         self.lifecycle_tick(tick);
+        // the worn paths fade toward green where no one walks
+        self.trail_tick();
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -4353,6 +4381,8 @@ impl Game {
             skeps: self.hives.iter().filter_map(|&h| world.get_component::<Pos>(h)
                 .map(|p| (p.x, p.y))).collect(),
             swarm: self.swarm.and_then(|(w, _)| world.get_component::<Pos>(w).map(|p| (p.x, p.y))),
+            trails: self.trails.iter().filter(|(_, t)| t.strength > 0.15)
+                .map(|(&(x, y), t)| (x as f32, y as f32, t.strength)).collect(),
         }
     }
 
@@ -4773,6 +4803,14 @@ impl View {
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
         standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, Piece::Skep)));
         if let Some((wx, wy)) = m.swarm { standing.push((wx, wy, Piece::Swarm)); }
+        // the desire-lines: where feet keep wearing, the ground shows it
+        for &(tx, ty, s) in &m.trails {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            let shade = (30.0 * s) as u8;
+            buf.rect(sx - k(3.0), sy - k(1.0), k(6.0), k(2.0),
+                95u8.saturating_sub(shade), 75u8.saturating_sub(shade), 55u8.saturating_sub(shade));
+        }
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
         standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
@@ -5984,6 +6022,42 @@ mod lifecycle_tests {
         assert_eq!(c.vocation, mvoc, "they follow the trade they ran for");
         assert_eq!(c.master, Some(master), "the hirer stands as master");
         assert_eq!(c.tasked_by, Some(master));
+    }
+}
+
+#[cfg(test)]
+mod trail_tests {
+    use super::*;
+
+    #[test]
+    fn test_feet_wear_the_ground_in() {
+        let mut g = Game::new();
+        // send someone out and back a few times - a desire-line
+        // is a way walked over and over
+        let who = g.villagers[0];
+        let p = g.world.get_component::<Pos>(who).unwrap();
+        let start = (p.x.round() as i32, p.y.round() as i32);
+        for _ in 0..4 {
+            let now = {
+                let p = g.world.get_component::<Pos>(who).unwrap();
+                (p.x.round() as i32, p.y.round() as i32)
+            };
+            let dest = if now == start { (start.0 + 4, start.1) } else { start };
+            let path = g.map.walk_path(now, dest).unwrap_or_else(|| vec![dest]);
+            g.travels.push(Travel { who, path, goal: Goal::Wander });
+            for _ in 0..400 { g.advance_travels(); }
+        }
+        assert!(!g.trails.is_empty(), "feet leave a mark");
+        assert!(g.trails.values().any(|t| t.strength > 0.2), "the way wears in");
+    }
+
+    #[test]
+    fn test_an_unwalked_path_greens_over() {
+        let mut g = Game::new();
+        g.trails.insert((5, 5), Trail { strength: 0.4 });
+        for _ in 0..30 { g.trail_tick(); }
+        let s = g.trails.get(&(5, 5)).map(|t| t.strength).unwrap_or(0.0);
+        assert!(s < 0.3, "the grass takes it back");
     }
 }
 

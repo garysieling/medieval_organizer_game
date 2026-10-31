@@ -165,4 +165,6 @@ pub struct UiModel {
     /// The skeps of the apiary, and a swarm out following someone
     pub skeps: Vec<(f32, f32)>,
     pub swarm: Option<(f32, f32)>,
+    /// Where feet have worn the ground in (x, y, strength)
+    pub trails: Vec<(f32, f32, f32)>,
 }

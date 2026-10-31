@@ -1082,6 +1082,11 @@ impl Game {
                     // the event seed, the village's rng keeps its luck
                     let mut trng = Rng(self.rare_roll(id));
                     let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
+                    // a home with a spare bed takes them, if there is one
+                    let home = self.world.query::<household::Building>().iter().copied()
+                        .find(|&b| self.world.get_component::<household::Building>(b)
+                            .map(|bb| bb.kind == household::BuildingKind::Home && bb.occupants.len() < 4)
+                            .unwrap_or(false));
                     for _ in 0..2 {
                         let v = villager::spawn_villager(&mut self.world, x, y);
                         self.world.add_component(v, Health { condition: 0.7, immunity: 0.4 });
@@ -1090,10 +1095,22 @@ impl Game {
                         self.world.add_component(v, crate::game::traits::personality_from_seed(trng.next()));
                         self.world.add_component(v, crate::game::livelihood::Satchel::default());
                         self.world.add_component(v, desires::Known::default());
-                        self.world.add_component(v, crate::game::vocation::craft(
-                            super::roll_vocation(&mut trng), 0.2));
+                        let voc = super::roll_vocation(&mut trng);
+                        let mut trng2 = Rng(trng.0);
+                        self.world.add_component(v, desires::InnerLife {
+                            wants: desires::sample_wants(
+                                crate::game::vocation::SocialClass::Working, Some(voc), false,
+                                &mut move || trng2.next()),
+                            grievances: vec![], satisfied: vec![] });
+                        self.world.add_component(v, crate::game::vocation::craft(voc, 0.2));
                         self.world.add_component(v, Purse { gold: 0.5 });
                         self.villagers.push(v);
+                        // a roof where there's room (the camp's behind them)
+                        if let Some(h) = home {
+                            if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                                b.occupants.push(v);
+                            }
+                        }
                         // the parallel rolls grow with the roster
                         self.was_sick.push(None);
                         self.died_on.push(None);

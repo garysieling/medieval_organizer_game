@@ -2850,17 +2850,31 @@ impl Game {
         // a meeting also succeeds when it surfaces a pattern: three or more
         // voices with versions of the same trouble become an issue
         let mut tags: std::collections::HashMap<desires::IssueTag, Vec<Entity>> = Default::default();
-        for (who, tag) in &self.voiced { tags.entry(*tag).or_default().push(*who); }
+        for (who, tag) in &self.voiced { tags.entry(tag.clone()).or_default().push(*who); }
         let mut found = String::new();
-        for (tag, mut voices) in tags {
-            voices.sort_unstable();
-            voices.dedup();
-            if voices.len() >= 3 {
-                if let Some(issue) = { let pe = self.player; desires::found_issue(&mut self.world, pe, tag) } {
+        for (tag, voices) in &tags {
+            let mut vs = voices.clone();
+            vs.sort_unstable();
+            vs.dedup();
+            if vs.len() >= 3 {
+                if let Some(issue) = { let pe = self.player; desires::found_issue(&mut self.world, pe, tag.clone()) } {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                     self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
                     found = format!(" Organizer discovers issue {}.", issue);
                 }
+            }
+        }
+        // three voices of one trade converge; the same trouble said by
+        // three trades splinters - a mason's grief isn't a baker's
+        if found.is_empty() {
+            let mut bases: std::collections::HashMap<String, std::collections::HashSet<Entity>> = Default::default();
+            for (tag, voices) in &tags {
+                let base = tag.split_once(" (").map(|(b, _)| b).unwrap_or(tag.as_str());
+                bases.entry(base.to_string()).or_default().extend(voices.iter().copied());
+            }
+            if bases.values().any(|vs| vs.len() >= 3) {
+                self.log.push(format!("t{}: the talk splinters by trade.", self.tick));
+                found = " The talk splinters by trade.".into();
             }
         }
         format!("House meeting - {} came. {}{}", invited.len(), outcome, found)
@@ -2942,7 +2956,8 @@ impl Game {
             for &v in came {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
                 let mine: std::collections::HashSet<desires::IssueTag> =
-                    desires::unrevealed(&self.world, v, self.tick).iter().map(desires::issue_tag).collect();
+                    desires::unrevealed(&self.world, v, self.tick).iter()
+                        .map(|r| desires::issue_tag(&self.world, v, r)).collect();
                 let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
                 let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
                 // the fold's smell hangs on a shepherd: a touch slower to share
@@ -2953,7 +2968,7 @@ impl Game {
                     let pick = self.rng.next();
                     if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
                         let (_, said) = desires::reveal_speech(NAMES[i], &r);
-                        self.voiced.push((v, desires::issue_tag(&r)));
+                        self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
                         let pe = self.player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                             self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
@@ -4194,7 +4209,7 @@ impl Game {
             .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| NAMES[i].to_string()))
             .collect();
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
-            .map(|o| o.issues.iter().map(|t| desires::issue_name(t)).collect()).unwrap_or_default();
+            .map(|o| o.issues.iter().map(|t| desires::issue_name(t.clone())).collect()).unwrap_or_default();
         let p = world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap();
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
         let guilds = world.query::<Guild>().len();
@@ -5708,6 +5723,65 @@ mod vermin_tests {
         g.spoilage_tick(4);
         assert!(desires::problems_of(&g.world, v, 4).contains(&desires::Problem::SourGut),
             "a poor soul carries the sour gut");
+    }
+}
+
+#[cfg(test)]
+mod trade_issue_tests {
+    use super::*;
+
+    fn set_voc(g: &mut Game, v: Entity, voc: Vocation) {
+        g.world.get_component_mut::<Craft>(v).unwrap().vocation = voc;
+    }
+
+    #[test]
+    fn test_a_trades_grief_echoes_among_the_trade() {
+        let mut g = Game::new();
+        let pe = g.player;
+        let (a, b, c) = (g.villagers[0], g.villagers[1], g.villagers[2]);
+        set_voc(&mut g, a, Vocation::Mason);
+        set_voc(&mut g, b, Vocation::Mason);
+        set_voc(&mut g, c, Vocation::Mason);
+        let r = || desires::Reveal::Problem(desires::Problem::NoInput("stone"));
+        assert!(desires::hear(&mut g.world, pe, a, r(), 10).is_none());
+        assert!(desires::hear(&mut g.world, pe, b, r(), 10).is_none());
+        let issue = desires::hear(&mut g.world, pe, c, r(), 10);
+        assert_eq!(issue.as_deref(), Some("the masons' workshops starved of materials"),
+            "three masons make one issue, named for the trade");
+    }
+
+    #[test]
+    fn test_the_same_trouble_across_trades_splinters() {
+        let mut g = Game::new();
+        let pe = g.player;
+        let (a, b, c) = (g.villagers[0], g.villagers[1], g.villagers[2]);
+        set_voc(&mut g, a, Vocation::Mason);
+        set_voc(&mut g, b, Vocation::Mason);
+        set_voc(&mut g, c, Vocation::Baker);
+        let r = || desires::Reveal::Problem(desires::Problem::NoInput("stone"));
+        desires::hear(&mut g.world, pe, a, r(), 10);
+        desires::hear(&mut g.world, pe, b, r(), 10);
+        // two masons and a baker say "no materials" - that's two voices
+        // of one trade plus one of another, never three of a kind
+        assert!(desires::hear(&mut g.world, pe, c, r(), 10).is_none(),
+            "a mixed room doesn't converge on a trade's grief");
+        assert!(g.world.get_component::<Organizer>(pe).unwrap().issues.is_empty());
+    }
+
+    #[test]
+    fn test_everybodys_grief_converges_in_a_mixed_room() {
+        let mut g = Game::new();
+        let pe = g.player;
+        let (a, b, c) = (g.villagers[0], g.villagers[1], g.villagers[2]);
+        set_voc(&mut g, a, Vocation::Mason);
+        set_voc(&mut g, b, Vocation::Baker);
+        set_voc(&mut g, c, Vocation::Priest);
+        let r = || desires::Reveal::Problem(desires::Problem::Taxed);
+        desires::hear(&mut g.world, pe, a, r(), 10);
+        desires::hear(&mut g.world, pe, b, r(), 10);
+        let issue = desires::hear(&mut g.world, pe, c, r(), 10);
+        assert_eq!(issue.as_deref(), Some("the tax collector's cut"),
+            "the commons converge whatever the room's mix");
     }
 }
 

@@ -389,7 +389,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("boycott") || entry.contains("a crowd at")
         || entry.contains("the village gathers") || entry.contains("pays triple")
         || entry.contains("a pedlar") || entry.contains("pedlar's moved on")
-        || entry.contains("rides over the walls")
+        || entry.contains("rides over the walls") || entry.contains("circus")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1359,6 +1359,18 @@ pub struct Minstrel {
     pub playing_until: Option<u64>,
 }
 
+/// The travelling circus: a troupe camps on the meadow for a fortnight -
+/// music and wonder every day, a lighter purse every night, and for the
+/// bored and the unbelonging, the real question: why stay?
+pub struct Circus {
+    pub e: Entity,
+    pub path: Vec<(i32, i32)>,
+    /// Some(day) while it's camped until
+    pub camped_until: Option<u64>,
+    /// The meadow tile it pitches on
+    pub camp: (i32, i32),
+}
+
 /// The roving pedlar: walks the road in, pitches his stall at the
 /// market with goods nothing local supplies, trades gossip both ways,
 /// and leaves. He's the game's newspaper.
@@ -1596,6 +1608,10 @@ pub struct Game {
     pub pedlar: Option<Pedlar>,
     /// Day the next pedlar is due
     pub next_pedlar: u64,
+    /// The travelling circus, when it's camped
+    pub circus: Option<Circus>,
+    /// Day the next circus is due
+    pub next_circus: u64,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: std::collections::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
@@ -2354,6 +2370,8 @@ impl Game {
             next_minstrel: 250 + seed % 200,
             pedlar: None,
             next_pedlar: 60 + seed % 60,
+            circus: None,
+            next_circus: 300 + seed % 180,
             derelict: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
@@ -2791,6 +2809,7 @@ impl Game {
             self.advance_travels();
             self.advance_minstrel();
             self.advance_pedlar();
+            self.advance_circus();
             // the flock grazes: the animals drift about the day's grazing point
             for (ai, &a) in self.flock.iter().enumerate() {
                 if let Some(p) = self.world.get_component_mut::<Pos>(a) {
@@ -4603,6 +4622,8 @@ impl Game {
         if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
         // and the pedlar comes by every few weeks - the game's newspaper
         if self.pedlar.is_none() && tick >= self.next_pedlar { self.spawn_pedlar(); }
+        // and a circus camps outside the walls every year or so
+        if self.circus.is_none() && tick >= self.next_circus { self.spawn_circus(); }
         // the collector walks his round
         if let Some(c) = self.collector {
             if !self.travels.iter().any(|t| t.who == c) {
@@ -4637,6 +4658,8 @@ impl Game {
         self.festival_tick(tick);
         // the gardens fill in a little more each week
         self.garden_tick(tick);
+        // and the circus, while it camps, works its pull
+        self.circus_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
         self.cheese_tick(tick);
         // the day's work leaves its smell - unless the rain washes it off
@@ -4810,6 +4833,93 @@ impl Game {
         let path = self.map.walk_path(start, (16, 16)).unwrap_or_default();
         self.minstrel = Some(Minstrel { e, path, playing_until: None });
         self.log.push(format!("t{}: a travelling minstrel has come to town.", self.tick));
+    }
+
+    /// The circus comes up the road and pitches on the meadow by the gate
+    pub fn spawn_circus(&mut self) {
+        let e = self.world.create_entity();
+        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        // a meadow spot just outside the south wall
+        let camp = self.map.nearest_buildable(self.town_wall.0 + 4, self.town_wall.3 + 3)
+            .unwrap_or((20, 30));
+        let path = self.map.walk_path(start, camp).unwrap_or_default();
+        self.circus = Some(Circus { e, path, camped_until: None, camp });
+        self.log.push(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick));
+    }
+
+    /// One frame of the circus: walk in, camp a fortnight of wonder and
+    /// light fingers, then leave - and maybe not alone
+    pub fn advance_circus(&mut self) {
+        let Some(mut c) = self.circus.take() else { return };
+        if c.camped_until.is_none() {
+            let Some(p) = self.world.get_component_mut::<Pos>(c.e) else { return };
+            if c.path.is_empty() {
+                c.camped_until = Some(self.tick + 10);
+                self.say(c.e, "Come see! Wonders from over the hill!", TALK_BUBBLE_SECS * 2);
+            } else {
+                let (nx, ny) = (c.path[0].0 as f32, c.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; c.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.circus = Some(c);
+        } else {
+            self.circus = Some(c);
+        }
+    }
+
+    /// Each day the circus camps: wonder for those who come, a lighter
+    /// purse for the same, and the pull grows on the ones the days here
+    /// have worn thin - until the tents fold, and someone may go with them
+    pub fn circus_tick(&mut self, tick: u64) {
+        let camped = self.circus.as_ref().and_then(|c| c.camped_until);
+        let Some(until) = camped else { return };
+        let camp = self.circus.as_ref().map(|c| c.camp).unwrap();
+        let org = self.world.get_component::<Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        if tick < until {
+            // a night of wonders: joy for the ones who walk out, and a
+            // few coins lighter walking home
+            for &v in &self.villagers.clone() {
+                if villager::is_dead(&self.world, v) { continue; }
+                let near = self.world.get_component::<Pos>(v)
+                    .map(|p| (p.x.round() as i32 - camp.0).abs() + (p.y.round() as i32 - camp.1).abs() < 8)
+                    .unwrap_or(false);
+                if !near { continue; }
+                desires::satisfy(&mut self.world, v, Want::Joy, tick + 10);
+                desires::satisfy(&mut self.world, v, Want::Music, tick + 10);
+                if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                    if p.gold > 1.0 { p.gold -= 1.0; } // light fingers in the crowd
+                }
+                // the bored and the unbelonging feel the pull - belonging
+                // is the counterweight
+                if !org.contains(&v) && self.world.get_component::<TownRole>(v).is_none() {
+                    desires::add_grievance(&mut self.world, v, desires::Problem::Tempted, until);
+                }
+            }
+        } else {
+            // the tents fold - and the road takes the one it most tempted
+            let mark = self.villagers.iter().copied()
+                .filter(|&v| !villager::is_dead(&self.world, v) && !org.contains(&v)
+                    && self.world.get_component::<TownRole>(v).is_none()
+                    && desires::problems_of(&self.world, v, tick).contains(&desires::Problem::Tempted))
+                .min_by_key(|&v| {
+                    // the loneliest goes: fewest bonds is the lightest tie
+                    self.world.query::<relationships::Relationship>().iter()
+                        .filter(|&&r| self.world.get_component::<relationships::Relationship>(r)
+                            .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count()
+                });
+            if let Some(m) = mark {
+                let name = self.name_of(m);
+                self.log.push(format!("t{}: {} has run off with the circus!", tick, name));
+                self.send(m, Goal::Exile);
+            }
+            self.circus = None;
+            self.next_circus = tick + 300 + self.rng.next() % 200;
+            self.log.push(format!("t{}: the circus folds its tents and goes.", tick));
+        }
     }
 
     /// The roving pedlar comes up the road
@@ -5106,6 +5216,12 @@ impl Game {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
+        if let Some(c) = &self.circus {
+            if let Some(p) = world.get_component::<Pos>(c.e) {
+                people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the circus".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
         for &(x, y) in &self.gulls {
@@ -7451,6 +7567,54 @@ mod disclosure_tests {
             .iter().filter(|p| **p == desires::Problem::Blamed).count();
         assert_eq!(blame, 0, "the village stands with him");
         assert!(g.log.iter().any(|l| l.contains("stands with")));
+    }
+}
+
+#[cfg(test)]
+mod circus_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_circus_camps_and_tempts() {
+        let mut g = Game::new();
+        g.spawn_circus();
+        // walk it in
+        for _ in 0..600 {
+            if g.circus.as_ref().map(|c| c.camped_until.is_some()).unwrap_or(false) { break; }
+            g.advance_circus();
+        }
+        assert!(g.circus.as_ref().map(|c| c.camped_until.is_some()).unwrap_or(false),
+            "the tents go up on the meadow");
+        // a villager by the camp gets the wonder and feels the pull
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        let camp = g.circus.as_ref().unwrap().camp;
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: camp.0 as f32, y: camp.1 as f32 };
+        g.circus_tick(1);
+        assert!(desires::problems_of(&g.world, v, 1).contains(&desires::Problem::Tempted),
+            "the bored feel the road's pull");
+    }
+
+    #[test]
+    fn test_the_loneliest_runs_off_with_it() {
+        let mut g = Game::new();
+        g.spawn_circus();
+        for _ in 0..600 {
+            if g.circus.as_ref().map(|c| c.camped_until.is_some()).unwrap_or(false) { break; }
+            g.advance_circus();
+        }
+        // tempt someone, then let the tents fold
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        desires::add_grievance(&mut g.world, v, desires::Problem::Tempted, 100);
+        let until = g.circus.as_ref().unwrap().camped_until.unwrap();
+        g.tick = until;
+        g.circus_tick(until);
+        assert!(g.circus.is_none(), "the tents fold");
+        if g.travels.iter().any(|t| matches!(t.goal, Goal::Exile)) {
+            assert!(g.log.iter().any(|l| l.contains("run off with the circus")),
+                "the road takes the one it tempted");
+        }
     }
 }
 

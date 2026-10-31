@@ -32,24 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F24. The travelling circus
-
-*Brainstorm "travelling circus — joining means you leave with them."*
-
-**What.** A rare multi-week event: a troupe camps outside the walls —
-music daily, wonder, petty theft, and a real temptation: a villager
-(maybe a bored kid-grown-junior, maybe the player's recruit) can run off
-with the circus.
-
-**Spec.** `CircusEvent`: troupe entities camp on meadow; `Music`/`Joy`
-mass-satisfaction + `Problem::Tempted` on those with `DifferentTrade`/
-unmet `Joy`; nightly small `Purse` drains on attendees (roguery).
-Departure roll: tempted + low bonds → they leave with it (visible walk
-off the road). Org membership boosts resist — belonging is the
-counterweight. **Size: M.**
-
----
-
 ### F25. The lord's arm — castle writ, dungeon, hostage rent
 
 *Brainstorm "castles & dungeons"; `game/military.rs`, `factions.rs` exist.*

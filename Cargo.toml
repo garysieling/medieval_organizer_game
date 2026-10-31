@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "game2-core",
+    "game2-web",
 ]
 resolver = "2"
 

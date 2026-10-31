@@ -1266,6 +1266,33 @@ impl Game {
                     read += 1;
                 }
             }
+            EventId::Astrologer => {
+                // he reads the sky over the village once: forewarned of
+                // whatever's written nearest, and forewarned is forearmed
+                let warned = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0;
+                if warned { return; }
+                let next = self.next_rare.iter()
+                    .filter(|(i, _)| *i != id)
+                    .min_by_key(|(_, d)| *d)
+                    .map(|(i, d)| (*i, *d));
+                if let Some((i, d)) = next {
+                    let name = EVENTS.iter().find(|s| s.id == i).map(|s| s.name).unwrap_or("something");
+                    // the due's already in days - no conversion
+                    let days = d.saturating_sub(tick);
+                    self.log.push(format!("t{}: the astrologer reads the sky - {} comes in about {} days.", tick, name, days.max(1)));
+                }
+                // forearmed: a day's warning's a kind of security for near folk
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Security, tick + 20);
+                }
+                if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2889,6 +2916,36 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny bought the palm");
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::FortuneTeller), "her tent came down on {:?}", st);
+        }
+    }
+
+    /// He reads the sky over the village once: whatever's written
+    /// nearest gets named, and near folk feel forearmed - the frame
+    /// shows his charts first
+    #[test]
+    fn test_the_sky_reads_the_village() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Astrologer);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Astrologer && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Astrologer).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the astrologer")),
+                "the frame shows his charts on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.log.iter().any(|l| l.contains("astrologer reads the sky")),
+                "the reading was told on {:?}", st);
+            assert!(desires::is_satisfied(&g.world, v, Want::Security, g.tick),
+                "forearmed on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Astrologer), "his charts rolled up on {:?}", st);
         }
     }
 

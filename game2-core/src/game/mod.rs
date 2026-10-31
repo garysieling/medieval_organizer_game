@@ -40,3 +40,4 @@ pub mod campaign;
 pub mod org_skills;
 pub mod actions;
 pub mod reactions;
+pub mod dungeon;

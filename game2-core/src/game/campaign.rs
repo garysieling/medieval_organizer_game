@@ -296,7 +296,7 @@ pub fn shadow_elite(world: &World, campaign: Entity) -> Option<Entity> {
     let c = world.get_component::<Campaign>(campaign)?;
     let (leader, members) = world.get_component::<Organization>(c.org)
         .map(|o| (o.leader, o.members.clone()))?;
-    let living: Vec<Entity> = members.iter().copied().filter(|&m| !is_dead(world, m)).collect();
+    let living: Vec<Entity> = members.iter().copied().filter(|&m| !crate::game::dungeon::unavailable(world, m)).collect();
     let leader_mass = tie_mass(world, leader, &living);
     living.iter().copied().filter(|&m| m != leader)
         .map(|m| (m, tie_mass(world, m, &living)))
@@ -363,7 +363,7 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     let mut attendees: Vec<Entity> = vec![];
     if !is_dead(world, driver) { attendees.push(driver); }
     for m in &members {
-        if *m == driver || is_dead(world, *m) { continue; }
+        if *m == driver || crate::game::dungeon::unavailable(world, *m) { continue; }
         if strength_to(world, *m) >= ATTEND_MIN_TIE { attendees.push(*m); }
     }
 

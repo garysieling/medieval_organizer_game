@@ -38,7 +38,7 @@ fn turnout(world: &mut World, campaign: Entity) -> Vec<Entity> {
     let Some(driver) = rally_driver(world, campaign) else { return vec![] };
     let mut out = vec![];
     for m in members {
-        if is_dead(world, m) { continue; }
+        if crate::game::dungeon::unavailable(world, m) { continue; }
         let tied = m == driver || find_relationship(world, m, driver)
             .and_then(|r| world.get_component::<Relationship>(r))
             .map(|r| r.strength >= ATTEND_MIN_TIE).unwrap_or(false);
@@ -114,7 +114,7 @@ pub fn strike_vote(world: &mut World, campaign: Entity, vocation: Vocation, tick
     let mut yes = 0usize;
     let mut no = 0usize;
     for v in world.query::<Craft>() {
-        if is_dead(world, v) { continue; }
+        if crate::game::dungeon::unavailable(world, v) { continue; }
         let Some(craft) = world.get_component::<Craft>(v) else { continue };
         if craft.vocation != vocation { continue; }
         let own_fight = campaign::stake_for(world, v, &issue, tick).is_some();

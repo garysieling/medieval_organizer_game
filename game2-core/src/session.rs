@@ -6436,10 +6436,10 @@ impl Game {
                                 // the issue is a person now, not a grievance
                                 let rc = crate::game::dungeon::found_release_campaign(&mut self.world,
                                     self.seats[seat].org, taken, tick);
-                                // those who watched a friend in the street sign
-                                // on for their release - no organizing needed
-                                let mut scene = out.turnout.clone();
-                                if !scene.contains(&taken) { scene.push(taken); }
+                                // those who watched *them* hauled off - a friend
+                                // of the taken, not just anyone in the crowd -
+                                // sign on for their release, no organizing needed
+                                let scene = [taken];
                                 let mut signed = 0usize;
                                 for &v in &self.villagers.clone() {
                                     if crate::game::reactions::witness(&mut self.world, v,

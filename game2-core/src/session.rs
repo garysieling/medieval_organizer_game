@@ -6053,6 +6053,12 @@ impl Game {
                     label: Some("the circus".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
+        if let Some(b) = &self.ink_boiler {
+            if let Some(p) = world.get_component::<Pos>(b.e) {
+                people.push(PersonV { e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the ink-boiler".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
         for &(x, y) in &self.gulls {
             people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
@@ -8506,6 +8512,16 @@ mod ink_boiler_tests {
         }
         assert!(g.ink_boiler.is_none(), "the road takes him");
         assert!(g.next_ink_boiler > g.tick, "he'll be back in a year or so");
+    }
+
+    #[test]
+    fn test_he_shows_up_on_the_map() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        let e = g.ink_boiler.as_ref().unwrap().e;
+        let model = g.ui_model();
+        assert!(model.people.iter().any(|p| p.e == e && matches!(p.kind, PKind::Traveller)),
+            "the ink-maker is on the map the moment he's spawned, not just his speech bubble");
     }
 }
 

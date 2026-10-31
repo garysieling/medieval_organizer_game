@@ -1036,14 +1036,32 @@ impl Game {
                 }
             }
             EventId::WoolMerchant => {
-                // fleece bought by the stone: the clip off the fold pays
-                // its shepherd a gold the head, four stone a day at most
+                // fleece bought by the stone: the fold's wool stock sells
+                // first, then the fresh clip off the sheep - a head clips
+                // once a visit, goats don't shear, four stone a day at most
                 let fold = self.world.query::<household::Building>().iter().copied()
                     .find(|&b| self.world.get_component::<household::Building>(b)
                         .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
                 if let Some(f) = fold {
-                    let clip = self.flock.len().min(4);
+                    let sheep = self.flock.iter().copied()
+                        .filter(|&a| self.world.get_component::<crate::game::livestock::Livestock>(a)
+                            .map(|l| l.kind == crate::game::livestock::LivestockKind::Sheep).unwrap_or(false))
+                        .count();
+                    let already = self.rare.iter().find(|r| r.id == id).map(|r| r.aux as usize).unwrap_or(0);
+                    // what's in the stockroom goes first, then the backs
+                    let stock_wool = self.world.get_component::<household::Building>(f)
+                        .and_then(|b| b.stock.get("wool").copied()).unwrap_or(0).min(4) as usize;
+                    let fresh = sheep.saturating_sub(already).min(4usize.saturating_sub(stock_wool));
+                    let clip = stock_wool + fresh;
                     if clip > 0 {
+                        if let Some(b) = self.world.get_component_mut::<household::Building>(f) {
+                            let w = b.stock.entry("wool".into()).or_insert(0);
+                            let taken = (*w).min(stock_wool as u32);
+                            *w -= taken;
+                        }
+                        if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) {
+                            r.aux += fresh as u64;
+                        }
                         let shepherd = self.world.get_component::<household::Building>(f)
                             .and_then(|b| b.worker.or(b.overseer))
                             .filter(|&w| !villager::is_dead(&self.world, w)

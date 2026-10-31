@@ -14,10 +14,10 @@ Domains with completed surveys and implemented mechanics.
 
 #### Game Design & Emergence
 **Coverage:** High
-**Surveys:** Sprint 1 (Game Design & Simulation)
-**Mechanics Implemented:** Cellular automata (emergence.rs), Machinations-inspired resource flow
-**Sources:** Sweetser (2006), Dormans (2011)
-**Next Steps:** Explore additional emergent systems (flocking, agent-based modeling)
+**Surveys:** Sprint 1 (Game Design & Simulation), Round 5 (Balance Tester suite: fun/supply-chain games, balance-testing methodology, storytelling arcs, reward/punishment conditioning)
+**Mechanics Implemented:** Cellular automata (emergence.rs), Machinations-inspired resource flow, balance_tester.rs KPI scorer + balance_test bin (PR #212)
+**Sources:** Sweetser (2006), Dormans (2011); Schreiber & Romero Game Balance, Sirlin, Riot/Blizzard/Firaxis practice, RimWorld storyteller constants, Skinner/SDT/Gottman (round 5)
+**Next Steps:** Calibrate KPI bands over a baseline ensemble (30 seeds); persona x scenario policy matrix; typed event-log severity/cause fields
 
 ---
 
@@ -391,7 +391,7 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 39 (+1: Incense Production/Distribution deep-dive; prior: 38) (+1: Religious Institutions Deep-Dive; prior: 37) (+1: Doctrine & Sacramental Politics; prior: 36 incl. round 4 Cult Dynamics + Hinduism-Caste) (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
+**Total Surveys Completed:** 43 (+4: Balance Tester suite - fun/supply-chain, balance-testing methodology, storytelling arcs, reward-punishment; prior: 39) (+1: Incense Production/Distribution deep-dive; prior: 38) (+1: Religious Institutions Deep-Dive; prior: 37) (+1: Doctrine & Sacramental Politics; prior: 36 incl. round 4 Cult Dynamics + Hinduism-Caste) (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)

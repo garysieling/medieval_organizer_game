@@ -251,7 +251,7 @@ cargo run --bin balance_test 400 42  # balance test: 400 days, seed 42, exit 1 o
 - `wiki/backlog.md` - research/mechanics backlog
 - `wiki/project-state.md` - full inventory
 - `wiki/evidence-index.md` - all software output catalog
-- `wiki/literature-reviews/` - research (16 reviews)
+- `wiki/literature-reviews/` - research (20 reviews)
 - `wiki/agents/` - 20 agent specs
 - `wiki/decision-rubric.md` - autonomous decision rules
 

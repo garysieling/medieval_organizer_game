@@ -927,3 +927,21 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** incense, frankincense, myrrh, nabataean, incense-road, trade-routes, thurible, botafumeiro, liturgy, scent-theology, substitute-goods, consumption-dependency, spice-trade, medieval-craft
 
 ---
+
+### ROUND 5: Balance Tester Research Suite (USER-REQUESTED, 4 parallel streams)
+**Date Completed:** 2026-10-31
+**Domain:** Game Design / Testing Methodology / Narrative Design / Behavioral Psychology
+**Output:**
+- wiki/literature-reviews/game-design-fun-supply-chain.md (#208)
+- wiki/literature-reviews/balance-testing-methodology.md (#209)
+- wiki/literature-reviews/narrative-storytelling-arcs.md (#210)
+- wiki/literature-reviews/reward-punishment-conditioning.md (#211)
+**Yield:**
+- Fun mechanisms per title: Factorio self-generating problem queue, Civ5 nested-horizon anticipation, Majesty incentive-priced indirect control (the Wanderer fantasy), Lords food-first feudal stack, RimWorld wealth-scaled rubber band (0.4-1.47 adaptation), Stardew interlocking calm clocks, Settlers 2 legible bottleneck
+- Balance testing as layered practice: human playtests + deconfounded telemetry + synthetic players (Ubisoft/King) + analytical methods (Schreiber cost curves, Sirlin degeneracy) + studio threshold frameworks (Riot 4-band) -> pre-registered KPI bands + baseline ensemble + review cadence
+- Narrative pacing is a scheduler problem: RimWorld datamined constants (Cassandra ~10.6d cycle, >=1.9d min gap; Phoebe ~16d; Randy uniform-random control) anchor all narrative bands; arcs review proposes thread-grouped phase-state machines for story detection
+- Reward structure: FI skeleton (calendar feasts/writs ~90-360d) + VI flesh (jittered 15-45d); punishment as legible natural consequences (warning->escalation->consequence); casinos as explicit anti-target; reward ratio 2.5-5:1 (loss aversion ~2:1 + Gottman 5:1)
+- 53 KPIs total across the four reviews + 20 OKRs; implemented first-cut as 19 KPIs in game2-core/src/agents/balance_tester.rs (PR #212)
+
+**Confidence:** High (bands are priors; all four docs flag calibration-over-ensemble as next step)
+**Tags:** fun, supply-chain, factorio, civ5, majesty, rimworld, stardew, settlers2, balance-testing, playtesting, telemetry, schreiber, sirlin, storytelling, freytag, kishotenketsu, drama-management, operant-conditioning, skinner, reward-schedules, sdt, balance-tester

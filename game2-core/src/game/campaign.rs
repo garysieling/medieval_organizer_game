@@ -8,6 +8,7 @@
 
 use crate::engine::ecs::{Entity, World};
 use crate::game::desires::{self, IssueTag, Reveal, Want};
+use crate::game::organizing::living_leader;
 use crate::game::villager::is_dead;
 use crate::sim::community::Organization;
 
@@ -337,13 +338,23 @@ pub fn lapsed(world: &World, campaign: Entity, tick: u64) -> bool {
 pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> Option<MeetingOutcome> {
     let (org, dissenters, rule) = world.get_component::<Campaign>(campaign)
         .map(|c| (c.org, c.dissenters.clone(), c.decision_rule))?;
-    let (leader, members) = world.get_component::<Organization>(org)
-        .map(|o| (o.leader, o.members.clone()))?;
-    let driver = seat_holder(world, campaign, Role::TurnoutCoordinator)
+
+    // Cadence gate: no component yet, or not due since the last meeting,
+    // and nothing happens - resolves the cadence before touching power.
+    let due = world.get_component::<CampaignMeeting>(campaign)
+        .map(|m| tick.saturating_sub(m.last_held) >= m.cadence_days)?;
+    if !due { return None; }
+
+    let leader = living_leader(world, org)?;
+    let members = world.get_component::<Organization>(org).map(|o| o.members.clone())?;
+    let in_org = |h: Entity| h == leader || members.contains(&h);
+
+    let coordinator = seat_holder(world, campaign, Role::TurnoutCoordinator)
+        .filter(|&h| !is_dead(world, h) && in_org(h));
+    let driver = coordinator
         .or_else(|| shadow_elite(world, campaign))
         .unwrap_or(leader);
-    let drifted = seat_holder(world, campaign, Role::TurnoutCoordinator).is_none()
-        && Some(driver) != Some(leader);
+    let drifted = coordinator.is_none() && driver != leader;
 
     use crate::game::relationships::{find_relationship, Relationship};
     let strength_to = |w: &World, m: Entity| find_relationship(w, m, driver)
@@ -366,7 +377,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
         }
     }
 
-    let noted = seat_holder(world, campaign, Role::NoteTaker).map(|n| attendees.contains(&n)).unwrap_or(false);
+    let note_taker = seat_holder(world, campaign, Role::NoteTaker)
+        .filter(|&h| !is_dead(world, h) && in_org(h));
+    let noted = note_taker.map(|n| attendees.contains(&n)).unwrap_or(false);
     let consent = rule == DecisionRule::Consensus && attendees.len() >= 2;
 
     if attendees.len() >= 2 {

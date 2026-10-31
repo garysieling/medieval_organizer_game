@@ -4,6 +4,9 @@
 pub mod model;
 pub mod net;
 pub mod driver;
+pub mod events;
+pub mod probe;
+pub mod stage;
 
 pub use model::*;
 pub use net::*;
@@ -1817,6 +1820,16 @@ pub struct Game {
     /// The castle's prisoners: (who, the day they were taken) - the org
     /// ransoms them or the ladder climbs
     pub dungeon: Vec<(Entity, u64)>,
+    /// Rare events afoot: the visitors standing their pitch, the spells
+    /// holding their days (the hundred are in session/events.rs)
+    pub rare: Vec<events::RareEvent>,
+    /// The rare-event schedule: (which, the day it's due)
+    pub next_rare: Vec<(events::EventId, u64)>,
+    /// What's already fired: (which, the day) - the probe's record
+    pub rare_fired: Vec<(events::EventId, u64)>,
+    /// The events' own rng stream - scheduling rolls off it, never off
+    /// `rng`, so the events don't shift what the village would have rolled
+    pub rare_seed: u64,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to
@@ -2628,6 +2641,10 @@ impl Game {
             path_tick: u64::MAX,
             sfx: vec![],
             dungeon: vec![],
+            rare: vec![],
+            next_rare: events::initial_due(seed),
+            rare_fired: vec![],
+            rare_seed: seed ^ 0xAA55_5EED,
         }
     }
 
@@ -3166,6 +3183,8 @@ impl Game {
             self.advance_pedlar();
             self.advance_circus();
             self.advance_ink_boiler();
+            // and the rare events walk their roads
+            self.advance_rare();
             // the flock grazes: the animals drift about the day's grazing point
             for (ai, &a) in self.flock.iter().enumerate() {
                 if let Some(p) = self.world.get_component_mut::<Pos>(a) {
@@ -5796,6 +5815,8 @@ impl Game {
         self.circus_tick(tick);
         // the oil boils, the crusts fry, and the black goes in
         self.ink_boiler_tick(tick);
+        // and the hundred small fortunes: what's due comes on
+        self.events_tick(tick);
         // and whatever the day caught, the fire runs on
         self.fire_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
@@ -6891,6 +6912,20 @@ impl Game {
                 people.push(PersonV { e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the ink-boiler".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
+        }
+        // the rare events' figures: wandering trades drawn as travellers,
+        // strays drawn as the beasts they are - all labelled by their errand
+        for r in &self.rare {
+            let Some(e) = r.e else { continue };
+            let Some(p) = world.get_component::<Pos>(e) else { continue };
+            let spec = events::spec(r.id);
+            let kind = match spec.fig {
+                events::Fig::Traveller => PKind::Traveller,
+                events::Fig::Pet(s) => PKind::Pet(s),
+            };
+            people.push(PersonV { e, kind, pos: (p.x, p.y),
+                label: Some(spec.name.into()), dead: false, kid: false, selected: false,
+                in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         }
         for &(x, y) in &self.gulls {
             people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),

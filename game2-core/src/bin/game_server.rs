@@ -1,13 +1,18 @@
 //! The authoritative server: owns one Game, hands each connection a
 //! character, ticks the world in real time, streams each seat its frame.
 //!
-//!   game_server [--port 8787] [--seed N] [--idle-secs 300]
+//!   game_server [--port 8787] [--seed N] [--idle-secs 300] [--probe-port N]
 //!
 //! Clients are two kinds:
 //!   - Human: gets a wanderer seat and a UiModel every broadcast; sends
 //!     Commands. Idle past --idle-secs, the fallback driver steers them.
 //!   - Agent: gets a villager seat and AgentObs; sends AgentCmd. Go quiet
 //!     and the villager's own goals take back over (their travels run out).
+//!
+//! The probe is a THIRD, separate API: `--probe-port` opens a read-only
+//! listener that streams the secret state (session/probe.rs) to tests.
+//! It is never on the player/agent port, and player-facing messages carry
+//! none of it - agents see exactly what players see.
 
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -39,6 +44,8 @@ struct Server {
     /// claim token -> seat index
     claims: std::collections::HashMap<String, usize>,
     conns: Vec<Arc<Mutex<Conn>>>,
+    /// Probe sockets: tests watching the secret state (read-only)
+    probes: Vec<Arc<Mutex<Conn>>>,
     frame: u64,
     idle: Duration,
 }
@@ -64,11 +71,14 @@ fn main() {
         .and_then(|v| v.parse().ok()).unwrap_or_else(session::run_seed);
     let idle_secs: u64 = args.iter().position(|a| a == "--idle-secs").and_then(|i| args.get(i + 1))
         .and_then(|v| v.parse().ok()).unwrap_or(300);
+    let probe_port: Option<u16> = args.iter().position(|a| a == "--probe-port").and_then(|i| args.get(i + 1))
+        .and_then(|v| v.parse().ok());
 
     let server = Arc::new(Mutex::new(Server {
         game: Game::new_seeded(seed),
         claims: Default::default(),
         conns: vec![],
+        probes: vec![],
         frame: 0,
         idle: Duration::from_secs(idle_secs),
     }));
@@ -85,6 +95,21 @@ fn main() {
                 stream.set_nodelay(true).ok();
                 let server = Arc::clone(&server);
                 std::thread::spawn(move || handle_conn(stream, server));
+            }
+        });
+    }
+
+    // the probe: a second, read-only listener for tests - the secret API
+    if let Some(pp) = probe_port {
+        let pl = TcpListener::bind(("0.0.0.0", pp)).expect("probe bind failed");
+        eprintln!("game_server: probe on 0.0.0.0:{} (test API, secret state)", pp);
+        let server = Arc::clone(&server);
+        std::thread::spawn(move || {
+            for stream in pl.incoming() {
+                let Ok(stream) = stream else { continue };
+                stream.set_nodelay(true).ok();
+                let server = Arc::clone(&server);
+                std::thread::spawn(move || handle_probe(stream, server));
             }
         });
     }
@@ -118,6 +143,14 @@ fn main() {
                         Some(obs) => send_msg(&mut c, &ServerMsg::Obs(Box::new(obs))),
                         None => send_msg(&mut c, &ServerMsg::Denied { reason: "seat gone".into() }),
                     },
+                }
+            }
+            // probe sockets get the secret view, on their own channel
+            if !s.probes.is_empty() {
+                let pv = serde_json::to_string(&s.game.probe()).unwrap_or_default();
+                for conn in s.probes.iter() {
+                    let mut c = conn.lock().unwrap();
+                    c.outbox.push(pv.clone());
                 }
             }
         }
@@ -217,4 +250,39 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
     // dropped: the seat keeps its character; claims still map it for reclaim
     let mut s = server.lock().unwrap();
     s.conns.retain(|c| !Arc::ptr_eq(c, &conn));
+}
+
+/// A probe connection: the test API. It accepts the websocket handshake,
+/// then only ever writes - ProbeView frames at the broadcast cadence.
+/// Anything the client sends is ignored: the secret view gives nothing
+/// back to play with.
+fn handle_probe(stream: TcpStream, server: Arc<Mutex<Server>>) {
+    let mut ws = match tungstenite::accept(stream) {
+        Ok(ws) => ws, Err(_) => return,
+    };
+    ws.get_ref().set_read_timeout(Some(Duration::from_millis(50))).ok();
+    let conn = Arc::new(Mutex::new(Conn { seat: 0, kind: ClientKind::Agent,
+        last_active: Instant::now(), outbox: vec![], dead: false }));
+    {
+        let mut s = server.lock().unwrap();
+        s.probes.push(conn.clone());
+    }
+    loop {
+        if conn.lock().unwrap().dead { break; }
+        let out: Vec<String> = { let mut c = conn.lock().unwrap(); c.outbox.drain(..).collect() };
+        let mut alive = true;
+        for s_out in out {
+            if ws.send(tungstenite::Message::Text(s_out.into())).is_err() { alive = false; break; }
+        }
+        if !alive { break; }
+        match ws.read() {
+            // reads are ignored on purpose - but a close or an error ends it
+            Err(tungstenite::Error::Io(e))
+                if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {}
+            Ok(tungstenite::Message::Close(_)) | Err(_) => break,
+            Ok(_) => {}
+        }
+    }
+    let mut s = server.lock().unwrap();
+    s.probes.retain(|c| !Arc::ptr_eq(c, &conn));
 }

@@ -758,6 +758,26 @@ impl Game {
                     }
                 }
             }
+            EventId::BalladMonger => {
+                // a penny a broadside: a tune that sticks, and all the
+                // doings of the wide world besides
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Music, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Music)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Music, tick + 15);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, "Did you hear?", CHAT_BUBBLE_SECS);
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1473,6 +1493,36 @@ mod tests {
                 "the front row was free on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Puppeteer), "he moved on from {:?}", st);
+        }
+    }
+
+    /// A penny a broadside: the tune sticks in whoever has the ear for
+    /// it - and the frame shows the sheets first
+    #[test]
+    fn test_the_ballad_sticks_in_the_ear() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::BalladMonger);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::BalladMonger && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::BalladMonger).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Music];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the ballad-monger")),
+                "the frame shows the sheets on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Music, g.tick),
+                "the tune stuck on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went for the sheet");
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BalladMonger), "he moved on from {:?}", st);
         }
     }
 

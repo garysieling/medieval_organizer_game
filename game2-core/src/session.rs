@@ -778,7 +778,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Errand => Button { label: "Errand".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (90, 120, 90) },
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
         CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
-        CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (140, 80, 80) },
+        // Meet lives on the campaign's FIGHT line in the org section - the
+        // 278 slot would run into the inspector
+        CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 120, h: 16, color: (140, 80, 80) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -1301,6 +1303,8 @@ pub struct Meeting {
     pub frames: u32,                         // how long since it was called, unpaused
     pub talk_from: Option<u32>,              // when the talking began
     pub lines: Vec<(Entity, String)>,        // the conversation, in order
+    /// The seat that called it - resolution belongs to their org
+    pub seat: usize,
 }
 /// How fast people walk to a meeting (tiles a frame), how long the host
 /// waits for them, and how long each turn to speak lasts
@@ -3261,19 +3265,21 @@ impl Game {
 
     /// The end of a house meeting, once those who came have talked it over.
     /// Those who already trust you join the org; everyone who came gets to
-    /// know you a little better (organizing::house_meeting).
-    pub fn resolve_meeting(&mut self, invited: &[Entity]) -> String {
-        let members_before = self.world.get_component::<Organization>(self.org).map(|o| o.members.clone()).unwrap_or_default();
-        let oe = self.org; let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
+    /// know you a little better (organizing::house_meeting). The meeting
+    /// belongs to the seat that called it.
+    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize) -> String {
+        let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
+        let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
+        let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
-            .filter(|v| self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(v)).unwrap_or(false))
+            .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))
             .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i]))
             .collect();
         // a member won at a meeting counts toward leading the village just
         // like one won with Recruit - otherwise every meeting recruit is
         // influence the player can never get back (they can't be Recruited)
-        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) {
+        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) {
             p.influence += RECRUIT_INFLUENCE * joined.len() as f32;
         }
         let outcome = if joined.is_empty() {
@@ -3291,7 +3297,7 @@ impl Game {
             vs.sort_unstable();
             vs.dedup();
             if vs.len() >= 3 {
-                if let Some(issue) = { let pe = self.player; desires::found_issue(&mut self.world, pe, tag.clone()) } {
+                if let Some(issue) = desires::found_issue(&mut self.world, pe, tag.clone()) {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                     self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
                     found = format!(" Organizer discovers issue {}.", issue);
@@ -3316,7 +3322,7 @@ impl Game {
         self.record_power(if invited.len() >= 3 {
             crate::sim::organized_power::ActionQuality::Transformational
         } else { crate::sim::organized_power::ActionQuality::Overreach });
-        let founded = self.maybe_found_campaign(0).map(|s| format!(" {}", s)).unwrap_or_default();
+        let founded = self.maybe_found_campaign(seat).map(|s| format!(" {}", s)).unwrap_or_default();
         format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
     }
 
@@ -3405,7 +3411,7 @@ impl Game {
         }).collect();
         let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| NAMES[i])).collect();
         let msg = format!("You call a house meeting at {} - {} {} on the way.", label, names.join(", "), if names.len() == 1 { "is" } else { "are" });
-        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![] });
+        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], seat });
         msg
     }
 
@@ -3502,7 +3508,7 @@ impl Game {
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
-                    else { self.resolve_meeting(&m.invited) };
+                    else { self.resolve_meeting(&m.invited, m.seat) };
                 self.log.push(format!("t{}: {}", self.tick, msg));
             }
         }
@@ -7147,10 +7153,9 @@ impl View {
             }
         }
 
-        // contextual actions, under the main buttons (stacked when several
-        // are on offer at once)
-        for (i, mut b) in m.ctx.iter().map(|a| ctx_button(*a)).enumerate() {
-            b.y += i as i32 * 34;
+        // contextual actions, each at its own slot (Meet sits on the
+        // campaign's FIGHT line, the rest under the main buttons)
+        for b in m.ctx.iter().map(|a| ctx_button(*a)).collect::<Vec<_>>() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             draw_button(&mut buf, &b, hover, false);
         }
@@ -7193,13 +7198,17 @@ impl View {
         for (n, line) in wrap_text(&issue_line, 42).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }).enumerate() {
             draw_text(&mut buf, UI_X as i32 + 18 + (7 * GLYPH_W), 476 + n as i32 * 11, line, 220, 190, 140);
         }
-        // the campaign the org fights for, once it's taken its vote
+        // the campaign the org fights for, once it's taken its vote - the
+        // Meet button (a ctx action) sits to the right of the issue line
         if let Some(c) = &m.panel.campaign {
-            let due = if c.due { "meet due" } else { "meet to come" };
             draw_text(&mut buf, UI_X as i32 + 18, 488,
-                &format!("FIGHT {} - {} - {}", c.issue, c.seats.join(" "), due), 255, 180, 120);
+                &format!("FIGHT {}", c.issue), 255, 180, 120);
+            let due = if c.due { "meet due" } else { "meet to come" };
+            draw_text(&mut buf, UI_X as i32 + 18, 500,
+                &format!("{} - {}", c.seats.join(" "), due), 120, 120, 140);
+        } else {
+            draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
         }
-        draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
 
         // event log
         draw_rect(&mut buf, UI_X as i32 + 10, 512, 270, 110, 25, 25, 40);

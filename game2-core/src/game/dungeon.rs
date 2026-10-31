@@ -97,8 +97,11 @@ pub fn release_check(world: &mut World, campaign_e: Entity, resistance: f32) -> 
         _ => return false,
     };
     world.remove_component::<Imprisoned>(prisoner);
-    // the campaign's purpose is spent with the release
+    // the campaign's purpose is spent with the release - the cause is
+    // done, the entity goes quiet
     world.remove_component::<ReleaseCampaign>(campaign_e);
+    world.remove_component::<campaign::Campaign>(campaign_e);
+    world.remove_component::<campaign::CampaignMeeting>(campaign_e);
     true
 }
 

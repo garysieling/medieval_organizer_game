@@ -9,7 +9,7 @@ use crate::engine::ecs::{Entity, World};
 use crate::game::campaign::{self, Role, ATTEND_MIN_TIE};
 use crate::game::organizing::living_leader;
 use crate::game::relationships::{find_relationship, Relationship};
-use crate::game::villager::is_dead;
+use crate::game::dungeon::unavailable;
 use crate::game::vocation::{Craft, Vocation};
 use crate::sim::community::Organization;
 use crate::sim::organized_power::{self, ActionQuality};
@@ -22,9 +22,10 @@ fn rally_driver(world: &mut World, campaign: Entity) -> Option<Entity> {
     let members = world.get_component::<Organization>(c.org).map(|o| o.members.clone())?;
     let leader = living_leader(world, c.org)?;
     campaign::seat_holder(world, campaign, Role::TurnoutCoordinator)
-        .filter(|&h| !is_dead(world, h) && (h == leader || members.contains(&h)))
+        .filter(|&h| !unavailable(world, h) && (h == leader || members.contains(&h)))
         .or_else(|| campaign::shadow_elite(world, campaign))
         .or(Some(leader))
+        .filter(|&d| !unavailable(world, d))
 }
 
 /// Who turns out for an action: the members - the driver if they're one,
@@ -38,7 +39,7 @@ fn turnout(world: &mut World, campaign: Entity) -> Vec<Entity> {
     let Some(driver) = rally_driver(world, campaign) else { return vec![] };
     let mut out = vec![];
     for m in members {
-        if crate::game::dungeon::unavailable(world, m) { continue; }
+        if unavailable(world, m) { continue; }
         let tied = m == driver || find_relationship(world, m, driver)
             .and_then(|r| world.get_component::<Relationship>(r))
             .map(|r| r.strength >= ATTEND_MIN_TIE).unwrap_or(false);
@@ -107,14 +108,15 @@ pub const PULLED_TIE: f32 = 0.5;
 pub fn strike_vote(world: &mut World, campaign: Entity, vocation: Vocation, tick: u64) -> Option<StrikeOutcome> {
     let c = world.get_component::<campaign::Campaign>(campaign)?;
     let (issue, org) = (c.issue.clone(), c.org);
-    // the dead pull nobody - only living members' ties drag a ballot
+    // the dead and the jailed pull nobody - only free members' ties
+    // drag a ballot
     let members: Vec<Entity> = world.get_component::<Organization>(org)
         .map(|o| o.members.clone()).unwrap_or_default()
-        .into_iter().filter(|&m| !is_dead(world, m)).collect();
+        .into_iter().filter(|&m| !unavailable(world, m)).collect();
     let mut yes = 0usize;
     let mut no = 0usize;
     for v in world.query::<Craft>() {
-        if crate::game::dungeon::unavailable(world, v) { continue; }
+        if unavailable(world, v) { continue; }
         let Some(craft) = world.get_component::<Craft>(v) else { continue };
         if craft.vocation != vocation { continue; }
         let own_fight = campaign::stake_for(world, v, &issue, tick).is_some();

@@ -48,9 +48,9 @@ Items are removed from this list as their PRs land.
 - [ ] **W-029** `organizing::one_on_one`/`harvest_together` are only reachable from the text game/`sim::community` — the GUI Talk path never builds ties through them (verify intended).
 - [ ] **W-030** Posted-guard positions come from `player_pos_at`, not the demo site — and `self.guards` is per-Game not per-org, so two seats' crackdowns draw knights at the wrong places (MP).
 - [ ] **W-031** `CtxAct::Petition` is gated behind `campaign_of().is_some()` — you can't petition for a prisoner when the org's campaign has lapsed or been spent.
-- [ ] **W-032** `Sympathized` entries never decay — a moral shock marks a villager woke forever.
+- [x] ~~**W-032** `Sympathized` entries never decay — a moral shock marks a villager woke forever.~~ (fixed)
 - [ ] **W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.
-- [ ] **W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.
+- [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
 - [ ] **W-035** `NAMES[i]` indexing assumes `villagers.len() <= 31` — any spawn path that pushes past 31 villagers (migrants, births) panics on name lookup.
 - [ ] **W-036** `action_menu` (text game) has none of the new ctx verbs — no Meet/March/Strike/Townhall/Petition/Delegate/Matchmake/PairUp/Errand; text UI and GUI have drifted apart.
 - [ ] **W-037** `player::market_day` only fires in `bin/game.rs` — the market-day purse event has no GUI/session equivalent.

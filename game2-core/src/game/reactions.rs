@@ -42,6 +42,21 @@ pub fn witness(world: &mut World, observer: Entity, issue: &IssueTag, participan
     true
 }
 
+/// How long a moral shock keeps: a season, then what they saw is a
+/// story they heard once
+pub const SYMPATHY_DAYS: u64 = 90;
+
+/// The woke cool off: a sympathy older than a season fades, and a mark
+/// with nothing left in it lifts. Returns whether the mark is still there.
+pub fn cool_off(world: &mut World, who: Entity, tick: u64) -> bool {
+    let still = world.get_component_mut::<Sympathized>(who).map(|s| {
+        s.issues.retain(|(_, seen)| tick.saturating_sub(*seen) <= SYMPATHY_DAYS);
+        !s.issues.is_empty()
+    }).unwrap_or(false);
+    if !still { world.remove_component::<Sympathized>(who); }
+    still
+}
+
 /// How the powers answer a public action
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Reaction {
@@ -135,6 +150,21 @@ mod tests {
         }
         assert!(witness(&mut w, friend, &"the taxes".into(), &[actor], 5),
             "a friend's face in the crowd is its own argument");
+    }
+
+    #[test]
+    fn test_the_woke_cool_off_after_a_season() {
+        let mut w = World::new();
+        let who = member(&mut w);
+        w.add_component(who, Sympathized { issues: vec![
+            ("the taxes".into(), 10), ("the prisoners".into(), 80)] });
+        // fresh marks keep; stale ones drop
+        cool_off(&mut w, who, 110);
+        let s = w.get_component::<Sympathized>(who).unwrap();
+        assert_eq!(s.issues.len(), 1, "only the taxes cooled - it sat over a season");
+        // and when the last one goes the mark lifts
+        assert!(!cool_off(&mut w, who, 200));
+        assert!(w.get_component::<Sympathized>(who).is_none());
     }
 
     #[test]

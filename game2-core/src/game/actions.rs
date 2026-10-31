@@ -161,6 +161,21 @@ pub struct Demoralized {
     pub since: u64,
 }
 
+/// How long helplessness lingers on its own: about a month, then the
+/// sting fades whether or not anyone coached them through it
+pub const HOLLOW_DAYS: u64 = 30;
+
+/// Time heals what the organizer doesn't get to: a demoralized member
+/// comes back to themselves once the mark has aged out. Returns whether
+/// it lifted.
+pub fn lifts_with_time(world: &mut World, member: Entity, tick: u64) -> bool {
+    let stale = world.get_component::<Demoralized>(member)
+        .map(|d| tick.saturating_sub(d.since) >= HOLLOW_DAYS)
+        .unwrap_or(false);
+    if stale { world.remove_component::<Demoralized>(member); }
+    stale
+}
+
 /// A townhall: the campaign invites a target (a PMC member) and puts its
 /// demands. The answer rides on the scale of the room and the target's
 /// own interests: enough people and a stake that touches them and they
@@ -350,5 +365,18 @@ mod tests {
         // a stranger can't coach; the bonded organizer can
         assert!(coach(&mut w, a, b, 10));
         assert!(w.get_component::<Demoralized>(b).is_none());
+    }
+
+    #[test]
+    fn test_the_hollow_find_their_feet_in_about_a_month() {
+        let mut w = World::new();
+        let m = member(&mut w);
+        w.add_component(m, Demoralized { since: 10 });
+        assert!(!lifts_with_time(&mut w, m, 39), "the sting is still fresh");
+        assert!(w.get_component::<Demoralized>(m).is_some());
+        assert!(lifts_with_time(&mut w, m, 40), "a month on, they get up");
+        assert!(w.get_component::<Demoralized>(m).is_none());
+        // no mark, nothing to lift
+        assert!(!lifts_with_time(&mut w, m, 400));
     }
 }

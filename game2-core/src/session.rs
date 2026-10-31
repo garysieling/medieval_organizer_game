@@ -5748,6 +5748,11 @@ impl Game {
                     if villager::is_dead(&self.world, job.hirer) {
                         if let Some(b) = self.world.get_component_mut::<Building>(job.to) {
                             *b.stock.entry(job.good.clone()).or_insert(0) += qty;
+                        } else {
+                            // no place to leave them: the kid keeps what they carried
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                                *s.goods.entry(job.good.clone()).or_insert(0) += qty;
+                            }
                         }
                         self.say(who, "...he's gone.", CHAT_BUBBLE_SECS);
                         self.world.remove_component::<OddJob>(who);

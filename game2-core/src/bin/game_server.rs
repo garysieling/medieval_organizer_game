@@ -11,8 +11,10 @@
 //!
 //! The probe is a THIRD, separate API: `--probe-port` opens a read-only
 //! listener that streams the secret state (session/probe.rs) to tests.
-//! It is never on the player/agent port, and player-facing messages carry
-//! none of it - agents see exactly what players see.
+//! It is never on the player/agent port, it binds to localhost only, and
+//! `--probe-token` (or GAME2_PROBE_TOKEN) makes the client present the
+//! word first. Player-facing messages carry none of it - agents see
+//! exactly what players see.
 
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -99,17 +101,24 @@ fn main() {
         });
     }
 
-    // the probe: a second, read-only listener for tests - the secret API
+    // the probe: a second, read-only listener for tests - the secret API.
+    // It's bound to localhost only (the secret state never leaves the box),
+    // and --probe-token makes the client present the word before it reads
+    let probe_token: Option<String> = args.iter().position(|a| a == "--probe-token")
+        .and_then(|i| args.get(i + 1)).cloned()
+        .or_else(|| std::env::var("GAME2_PROBE_TOKEN").ok());
     if let Some(pp) = probe_port {
-        let pl = TcpListener::bind(("0.0.0.0", pp)).expect("probe bind failed");
-        eprintln!("game_server: probe on 0.0.0.0:{} (test API, secret state)", pp);
+        let pl = TcpListener::bind(("127.0.0.1", pp)).expect("probe bind failed");
+        eprintln!("game_server: probe on 127.0.0.1:{} (test API, secret state{})", pp,
+            if probe_token.is_some() { ", tokened" } else { "" });
         let server = Arc::clone(&server);
         std::thread::spawn(move || {
             for stream in pl.incoming() {
                 let Ok(stream) = stream else { continue };
                 stream.set_nodelay(true).ok();
                 let server = Arc::clone(&server);
-                std::thread::spawn(move || handle_probe(stream, server));
+                let token = probe_token.clone();
+                std::thread::spawn(move || handle_probe(stream, server, token));
             }
         });
     }
@@ -253,13 +262,19 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
 }
 
 /// A probe connection: the test API. It accepts the websocket handshake,
-/// then only ever writes - ProbeView frames at the broadcast cadence.
-/// Anything the client sends is ignored: the secret view gives nothing
-/// back to play with.
-fn handle_probe(stream: TcpStream, server: Arc<Mutex<Server>>) {
+/// demands the token when one's set, then only ever writes - ProbeView
+/// frames at the broadcast cadence. Anything else the client sends is
+/// ignored: the secret view gives nothing back to play with.
+fn handle_probe(stream: TcpStream, server: Arc<Mutex<Server>>, token: Option<String>) {
     let mut ws = match tungstenite::accept(stream) {
         Ok(ws) => ws, Err(_) => return,
     };
+    ws.get_ref().set_read_timeout(Some(Duration::from_secs(5))).ok();
+    // the word, when one's set: first frame must be it or the conn goes nowhere
+    if let Some(t) = &token {
+        let ok = matches!(ws.read(), Ok(tungstenite::Message::Text(m)) if *m == *t);
+        if !ok { return; }
+    }
     ws.get_ref().set_read_timeout(Some(Duration::from_millis(50))).ok();
     let conn = Arc::new(Mutex::new(Conn { seat: 0, kind: ClientKind::Agent,
         last_active: Instant::now(), outbox: vec![], dead: false }));

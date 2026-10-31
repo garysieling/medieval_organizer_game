@@ -373,7 +373,10 @@ impl Game {
             }
             self.rare[idx] = r;
         }
-        // the road's taken him back
+        // the road's taken him back - and his entity with him
+        let gone: Vec<Entity> = self.rare.iter()
+            .filter(|r| r.leaving && r.path.is_empty()).filter_map(|r| r.e).collect();
+        for e in gone { self.world.destroy_entity(e); }
         self.rare.retain(|r| !(r.leaving && r.path.is_empty()));
     }
 
@@ -417,7 +420,7 @@ impl Game {
         match id {
             EventId::Tinker => {
                 // pots mended: whoever's near his pitch gets a sharper
-                // kit - and a penny changes hands
+                // kit for a penny - once, not a penny a day for the same pot
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
                     if villager::is_dead(&self.world, v) { continue; }
@@ -425,6 +428,8 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near { continue; }
+                    // his work's already done on their kit: no second penny
+                    if desires::is_satisfied(&self.world, v, Want::BetterTools, tick) { continue; }
                     desires::satisfy(&mut self.world, v, Want::BetterTools, tick + 30);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) {
                         if p.gold > 1.0 { p.gold -= 1.0; }

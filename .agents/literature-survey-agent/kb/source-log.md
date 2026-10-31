@@ -130,6 +130,59 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### History of Technology / Ink Making
+
+#### Cennini - Il Libro dell'Arte ch. XCI (c.1390s)
+**Type:** Primary source (craft handbook)
+**Domain:** Medieval craft technology
+**Rating:** A+
+**Relevance:** Linseed oil boiled in glazed pot on enclosed stove; flame must not reach oil; "risk burning down the house"; reduce by half; mordants and tempera
+**Used In:** ink-oil-boiling.md lit review
+
+#### Encyclopedie (Diderot & d'Alembert) - "Encre noir" (1751-72)
+**Type:** Primary technical encyclopedia
+**Domain:** Print history / material culture
+**Rating:** A
+**Relevance:** Full printing-ink recipe: oil heated to varnish, deliberate ignition smothered with wet linen, 1lb bread crusts + dozen onions to degrease, slate-drip readiness test, "wide space such as a garden" siting, sac-a-noir soot chamber
+**Used In:** ink-oil-boiling.md lit review
+
+#### NCBI - Printing Processes and Printing Inks
+**Type:** Scholarly book chapter (conservation science)
+**Domain:** History of printing
+**Rating:** A
+**Relevance:** Oil-based ink required for metal type; lampblack + heated linseed/nut oil + rosin + metal driers; heating was "significant hazard (fires, vapours, spills)"
+**Used In:** ink-oil-boiling.md lit review
+
+#### Savage, Stiber & Morenus - Pre-Industrial Western Printing Inks c.1450-1850
+**Type:** Scholarly survey chapter (SAS-Space)
+**Domain:** Print history
+**Rating:** A
+**Relevance:** Most substantial survey of pre-industrial ink materiality; recipe secrecy until ~17th c.; Dutch vs English varnish practice
+**Used In:** ink-oil-boiling.md lit review
+
+#### "The Path to Pistoia" - Past & Present 246 (OUP)
+**Type:** Peer-reviewed journal article
+**Domain:** Urban environmental history
+**Rating:** A
+**Relevance:** Pistoia statute banishing stench-crafts beyond the walls; urban zoning of nuisance trades
+**Used In:** ink-oil-boiling.md lit review
+
+#### Fire Prevention in Late Medieval British Towns (Oxford Academic)
+**Type:** Scholarly book chapter
+**Domain:** Urban history / fire regulation
+**Rating:** A
+**Relevance:** Towns regulated furnace/oven crafts and combustibles; fire-fighting bylaws, penalties for those responsible
+**Used In:** ink-oil-boiling.md lit review
+
+#### Henley's 20th Century Formulas + NIST Circular 53
+**Type:** Trade encyclopedias / government circular
+**Domain:** Ink manufacture technology
+**Rating:** B/C
+**Relevance:** Boil-over and acrolein fume hazards, fire-on-rails safety rigs, "long" vs "short" varnish drip test, red-hot poker ignition
+**Used In:** ink-oil-boiling.md lit review
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

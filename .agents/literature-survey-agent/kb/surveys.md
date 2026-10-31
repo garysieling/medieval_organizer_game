@@ -459,3 +459,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** art-history, medieval-art, Byzantine, Romanesque, Gothic, aesthetics, Kant, beautiful-vs-sublime, color-symbolism, gold-leaf, lapis-lazuli, atmosphere-design, visual-direction, illuminated-manuscripts, religious-art, Hume, aesthetic-theory
 
 ---
+
+### Hot-Pursuit: Ink Making - The Oil-Boiler's Fire
+**Date Completed:** 2026-10-31
+**Domain:** History of Technology, Medieval Crafts, Printing Ink
+**Output:** wiki/literature-reviews/ink-oil-boiling.md
+**Trigger:** Gary's remembered event - boil linseed oil in a cauldron, bread fries in it, mix in something black for ink. Confirmed real.
+**Yield:**
+- The oil-boiler/varnish-maker trade: linseed oil boiled for hours in a cauldron -> varnish (heat-bodied oil), the binder of printing ink and oil paint
+- Bread crusts + onions thrown into the boiling oil to degrease it (Encyclopedie) - the bread literally fries
+- Deliberate ignition practice: hot oil vapours allowed to catch fire, then smothered with wet linen or a metal lid; readiness tested by dripping on slate until "sticky like thin glue"
+- Lampblack (not ash - correction noted) from burning pitch/resin in a sac-a-noir sheepskin-lined soot chamber, beaten down with sticks
+- Fire/stench hazard pushed the craft outside walls: Cennini's enclosed stove, Encyclopedie's "wide space such as a garden", Pistoia's stench-craft banishment statute, English furnace-craft bylaws
+- Proposed mechanics: periodic oil-boiler event outside the gate, map fire-spread CA, acrolein stench grievance, local ink supply for the print shop
+
+**Key Sources:**
+- Cennini, Libro dell'Arte ch. XCI (c.1390s) - enclosed stove, "risk burning down the house", reduce by half - A+
+- Encyclopedie "Encre noir" (Diderot & d'Alembert) - bread crusts + onions, wet linen smothering, slate test, garden siting, sac-a-noir - A
+- NCBI Printing Processes and Printing Inks - oil ink for metal type, lampblack + linseed oil + rosin + driers - A
+- Savage/Stiber/Morenus, Pre-Industrial Western Printing Inks c.1450-1850 - A
+- "The Path to Pistoia", Past & Present 246 - stench crafts beyond walls - A
+
+**Confidence:** High
+**Tags:** ink-making, oil-boiling, linseed-oil, varnish, lampblack, sac-a-noir, printing-ink, Gutenberg, Cennini, Encyclopedie, fire-hazard, urban-zoning, stench-crafts, outside-the-walls, bread-crusts
+
+---

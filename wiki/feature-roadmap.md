@@ -32,28 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F26. Hard winter as a seasonal scenario inside game_ui
-
-*`bin/hard_winter.rs` exists standalone; `feat/hard-winter-scenario`
-pending — check overlap.*
-
-**What.** Roughly every few years (seeded), winter runs long: crops
-stunted longer, stock decays bite, wolves press nearer, snow visual
-persists, and the village either pulls together (festival-out-of-season,
-org food distribution = perceived power) or pulls apart (theft,
-scapegoating → F13 targets: the herb-wife, the pedlar's people).
-
-**Spec.** Extend `sim/weather.rs`/`climate.rs` with a `HarshWinter`
-multi-year flag; scale existing stunt/starve mechanics rather than new
-ones. It's a tuning event that lets existing systems *sing* under
-stress. **Size: S-M.**
-
----
-
----
-
-## Wave 4 — Craft, art & the strange
-
 ### F27. Pigments & painters — color as clout
 
 *Brainstorm "pigment collector / paint maker"; `sprint-4-printmaking`,

@@ -177,7 +177,8 @@ are stories you can walk into mid-telling: the fever year, the circus
 winter, the widow's shop. For the ones who tune the sim, the village
 reads its own innards: trail heat, people power, the land's score. And
 underneath it all the walks remember themselves - a path's the same
-all day, so the BFS only pays once.
+all day, so the BFS only pays once. And the whole village compiles to
+wasm now - the same sim, one build away from a browser tab.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

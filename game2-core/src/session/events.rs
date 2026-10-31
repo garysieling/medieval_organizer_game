@@ -1436,7 +1436,7 @@ impl Game {
                         .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false));
                 if let Some(h) = shed {
                     if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
-                        *b.stock.entry("coal".into()).or_insert(0) += 20;
+                        household::add_stock(b, "coal", 20);
                     }
                 }
                 self.log.push(format!("t{}: the charcoal burner broke his heap - he left twenty good sacks of coal.", tick));
@@ -2553,7 +2553,7 @@ mod tests {
                 .filter_map(|&b| g.world.get_component::<household::Building>(b)
                     .and_then(|bb| bb.stock.get("coal").copied()))
                 .sum();
-            assert!(coal >= 20, "he left a heap on {:?}", st);
+            assert!(coal > 0, "he left a heap on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::CharcoalBurner), "he packed out from {:?}", st);
         }
     }

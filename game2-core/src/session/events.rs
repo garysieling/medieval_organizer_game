@@ -515,6 +515,31 @@ impl Game {
                 }
                 if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 1; }
             }
+            EventId::Scribe => {
+                // a penny a page for the illiterate: up to two letters a
+                // day, carried to whoever their strongest bond is
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut wrote = 0;
+                for &v in &self.villagers.clone() {
+                    if wrote >= 2 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || self.letters.iter().any(|&(f, _, _)| f == v) { continue; }
+                    let partner = self.world.query::<crate::game::relationships::Relationship>().iter()
+                        .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                        .filter(|rr| rr.from == v || rr.other == v)
+                        .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+                        .map(|rr| if rr.from == v { rr.other } else { rr.from });
+                    let Some(to) = partner else { continue; };
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !pays { continue; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.letters.push((v, to, tick + 30));
+                    wrote += 1;
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -823,6 +848,41 @@ mod tests {
             }
             assert!(g.land.pit_water <= 0.6, "the pit's not drowned on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::Dowser), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The scribe's fair hand earns: letters fly for the illiterate to
+    /// the ones they think of - the frame shows him at his desk first
+    #[test]
+    fn test_the_scribes_fair_hand() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Scribe);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Scribe && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Scribe).and_then(|r| r.at).unwrap();
+            // stand a letter-sender by his desk with a bond to write to -
+            // a living one: the bereft's dead write no letters
+            let living: Vec<_> = g.villagers.iter().copied()
+                .filter(|&v| !villager::is_dead(&g.world, v)).collect();
+            let (a, b) = (living[0], living[1]);
+            g.world.get_component_mut::<Pos>(a).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(a).unwrap().y = at.1 as f32;
+            let r = g.world.create_entity();
+            g.world.add_component(r, crate::game::relationships::Relationship {
+                from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
+                strength: 0.8, interactions: 5 });
+            g.world.get_component_mut::<Purse>(a).unwrap().gold = 10.0;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the scribe")),
+                "the frame shows the scribe on {:?}", st);
+            stage::run_days(&mut g, 2);
+            assert!(g.letters.iter().any(|&(f, t, _)| f == a && t == b),
+                "a letter went out for her on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Scribe), "he moved on from {:?}", st);
         }
     }
 

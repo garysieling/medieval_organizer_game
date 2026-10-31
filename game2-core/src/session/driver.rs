@@ -66,10 +66,13 @@ pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
     // already on something that isn't idling: let it run
     if obs.busy.as_deref() != Some("Idle") && obs.busy.is_some() { return AgentCmd::Idle; }
     // someone's beside you and breathing: a word builds the ties that make
-    // influence and recruits later
-    if let Some(p) = obs.near.iter().filter(|p| !p.dead)
-        .min_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal)) {
-        return AgentCmd::TalkTo { e: p.e };
+    // influence and recruits later - but it's a word, not a life's work, so
+    // it answers on its own cadence (a talk day out of every few work days),
+    // and only when they're close enough to actually hear it
+    let near = obs.near.iter().filter(|p| !p.dead && p.dist <= 8.0)
+        .min_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal));
+    if obs.tick % 4 == 0 && near.is_some() {
+        return AgentCmd::TalkTo { e: near.unwrap().e };
     }
     // default: a day's work - village first
     AgentCmd::WorkDay
@@ -91,14 +94,21 @@ mod tests {
     #[test]
     fn test_the_driver_talks_to_whos_near_and_stands_down_when_held() {
         let mut o = obs();
-        // company nearby and idle: a word before a day's work
+        // company nearby and idle on a talk day: a word before the work
         o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 3.0, dead: false });
         assert!(matches!(drive_agent(&o), AgentCmd::TalkTo { e: 9 }));
+        // but not every day - the bench gets its days too
+        o.tick = 1;
+        assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
+        o.tick = 0;
         // nobody near: the bench gets the day
         o.near.clear();
         assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
-        // the dead don't make company - the bench still gets the day
-        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 3.0, dead: true });
+        // too far to talk across: the bench still gets the day
+        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 10.0, dead: false });
+        assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
+        // the dead don't make company
+        o.near[0].dead = true;
         assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
         // the cell takes no errands, whoever's outside
         o.near.clear();

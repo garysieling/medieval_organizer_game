@@ -17,7 +17,6 @@ Items are removed from this list as their PRs land.
 
 
 
-- [ ] **W-012** Duplicated comment block in `update_ctx_actions_at` (~line 6154, "the cause meets on its cadence…" twice) — merge artifact; check whether logic beside it was duplicated too.
 
 ## P1 — recently added features, dead on arrival
 

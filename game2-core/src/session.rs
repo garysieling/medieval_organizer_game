@@ -6299,8 +6299,6 @@ impl Game {
         }
         // the cause meets on its cadence and marches on the streets: the
         // buttons show once a campaign exists; seats go to the picked member
-        // the cause meets on its cadence and marches on the streets: the
-        // buttons show once a campaign exists; seats go to the picked member
         if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Meet);
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);

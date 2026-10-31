@@ -18,7 +18,7 @@ Items are removed from this list as their PRs land.
 
 
 - [ ] **W-011** `blocked: [Option<String>; 5]` covers only the five main buttons — ctx buttons (Meet-not-due, Delegate-nonmember, Petition with no prisoner) fail silently into the log instead of showing a disabled reason.
-- [ ] **W-012** Duplicated comment block in `update_ctx_actions_at` (~line 6154, "the cause meets on its cadence…" twice) — merge artifact; check whether logic beside it was duplicated too.
+- [x] ~~**W-012** Duplicated comment block in `update_ctx_actions_at` (~line 6154, "the cause meets on its cadence…" twice) — merge artifact; check whether logic beside it was duplicated too.~~ (fixed — comment only, no duplicated logic)
 
 ## P1 — recently added features, dead on arrival
 
@@ -34,7 +34,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-022** `campaign::grumble_line` is never called — dissenters' grumbles are computed but never rendered anywhere.
 - [x] ~~**W-023** `campaign::stake_of` is never called — `stake_for` is used, the `stake_of` variant is dead.~~ (fixed — deleted; nothing needed the top stake)
 - [ ] **W-024** `campaign::vote_for` is only used inside `hold_issue_vote` — either make it private or wire member-level ballots into the UI.
-- [ ] **W-025** `player::recruit_trust` is never called — recruiting never consults personal trust.
+- [x] ~~**W-025** `player::recruit_trust` is never called — recruiting never consults personal trust.~~ (stale — called by `can_recruit`, which gates the Recruit button)
 - [ ] **W-026** `desires::housed` is never called.
 - [ ] **W-027** `org_skills::role_skill` is never called — seat-holders' competence at their role is never measured.
 - [x] ~~**W-028** `fire::on_fire`/`is_scorched` are never called — `session.rs` reads `fire.burning`/`fire.scorched` maps directly; two sources of truth for fire state.~~ (fixed — `fire.burns_near` added; session asks the fire)

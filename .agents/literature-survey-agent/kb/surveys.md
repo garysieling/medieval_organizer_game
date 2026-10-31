@@ -871,3 +871,21 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** hinduism, caste, varna, jati, sanskritization, bhakti, lingayat, kabir, ravidas, dalit, mass-conversion, missionaries, devadasi, phule, ambedkar, navayana-buddhism, group-conversion, exit-as-protest, brahmin-gatekeeping, stratification
 
 ---
+
+### ROUND 4: Doctrine Formation & Sacramental Politics (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Historical Theology / Church-State Relations / Sacramental Sociology
+**Output:** wiki/literature-reviews/organizing-doctrine-sacraments.md
+**Yield:**
+- Creeds as adversarial answer-documents (each clause excludes a defeated heresy; councils as dispute-resolution events; heresiology as enemy-naming genre)
+- Theology of pain: church ran pre-medicine pain-management infrastructure (redemptive suffering, sacraments-as-palliative, purgatory); anesthesia controversy 1847-53 (tech disrupting theodicy - the religion-economics feedback loop confirmed)
+- Sacraments as membership-assignment tech: baptism=citizenship (why rebaptism was capital crime - refused state-assigned ID; drowning punishments), communion=membership enforcement, host-desecration pogroms, BCP rebellions, interdict as siege weapon (Innocent III vs John)
+- State-church contest: cuius regio eius religio, Act of Supremacy (property as real prize), Kulturkampf (failed vs anchored institution), Jesuit suppression/restoration
+- Wesley's accidental schism: field preaching (jurisdiction bypass), class-meeting parallel church, lay preachers, 1784 ordinations, hymns as vernacular doctrine - institution-building outrunning intent
+- Pacifist nonconformity: Quaker oath/hat/tithe refusals (declining deference-tech itself), Martyrs Mirror as memory infrastructure
+- 7 mechanics: creed-builder ledger, council events, affliction_load/theodicy stat, sacraments-as-membership-infrastructure, interdict-type collective punishment, accidental-schism emergence, deference-refusal action class
+
+**Confidence:** High
+**Tags:** doctrine, creeds, councils, nicaea, theology-of-pain, anesthesia, sacraments, baptism, anabaptist, communion, interdict, state-church, cuius-regio, wesley, methodism, schism, quakers, martyrs-mirror, heresiology
+
+---

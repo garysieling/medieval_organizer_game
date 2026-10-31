@@ -391,11 +391,11 @@ Topics that emerge from other work and need immediate research.
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 36 (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
+**Total Surveys Completed:** 37 (+1: Doctrine & Sacramental Politics; prior: 36 incl. round 4 Cult Dynamics + Hinduism-Caste) (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)
-**Mechanics Implemented from Research:** ~150 (+12 round 4: cult totalism dials, extraction loop, escalating commitment, stratification layer, interpretation monopoly, mass defection, exit-as-tactic) (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 + 20 round-3 organizing mechanics)
+**Mechanics Implemented from Research:** ~157 (+7 doctrine/sacrament mechanics: creed-ledger, council events, affliction/theodicy, sacrament-membership, interdict, accidental-schism, deference-refusal) (+12 round 4: cult totalism dials, extraction loop, escalating commitment, stratification layer, interpretation monopoly, mass defection, exit-as-tactic) (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 + 20 round-3 organizing mechanics)
 **Sources Requiring Better Citation:** ~4 (Community Organizing citation gap FILLED 2026-10-31)
 
 **Coverage Score:** 100% (20/20 well-covered domains!)

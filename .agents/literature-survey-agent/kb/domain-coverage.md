@@ -279,9 +279,9 @@ Domains with no research yet but relevant to game vision.
 
 #### Writing Materials & Bookmaking
 **Coverage:** High
-**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking)
-**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md)
-**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus
+**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking); Hot-Pursuit 2026-10-31 (Ink Making - The Oil-Boiler's Fire)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md, wiki/literature-reviews/ink-oil-boiling.md)
+**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus, Cennini oil-boiling, Encyclopedie printing ink, lampblack/sac-a-noir, fire zoning bylaws
 **Mechanics Proposed:**
 - Five writing surfaces (vellum 14-day process, papyrus, vegetable papyrus from peppers, linen rag paper)
 - Four ink types (iron gall archival, carbon/lampblack, berry inks, mineral pigment from stone dust)
@@ -376,17 +376,17 @@ Topics that emerge from other work and need immediate research.
 - None active
 
 **Completed Hot-Pursuit:**
-- None yet
+- Ink Making - The Oil-Boiler's Fire (2026-10-31, Gary request) - confirmed the remembered event: linseed oil boiled to varnish outside the walls, bread crusts fried in it, lampblack (soot, not ash) ground in for printing ink -> periodic event + fire spread mechanics proposed
 
 ---
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 26 (+6 on 2026-10-31: Historical Campaigns; Counter-Organizing; Enforcement/Defense; Campaign Masters; Modern Counter-Playbook; Information Infrastructure — user-requested two-round deep dive)
+**Total Surveys Completed:** 33 (+12 on 2026-10-31 across 4 user-requested rounds: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)
-**Mechanics Implemented from Research:** ~106 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 organizing mechanics)
+**Mechanics Implemented from Research:** ~138 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 + 20 round-3 organizing mechanics)
 **Sources Requiring Better Citation:** ~4 (Community Organizing citation gap FILLED 2026-10-31)
 
 **Coverage Score:** 100% (20/20 well-covered domains!)

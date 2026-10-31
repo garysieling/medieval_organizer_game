@@ -1014,6 +1014,27 @@ impl Game {
                     sold += 1;
                 }
             }
+            EventId::SaltSeller => {
+                // white gold stretches the winter: a gold a handful off
+                // the nearest, and the salt makes the larder last longer
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut sold = 0;
+                for &v in &self.villagers.clone() {
+                    if sold >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !near || !pays { continue; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                        f.servings += 2;
+                    }
+                    self.say(v, "None goes bad who buys it!", CHAT_BUBBLE_SECS);
+                    sold += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2292,6 +2313,35 @@ mod tests {
             assert_eq!(g.world.get_component::<Purse>(v).unwrap().gold, 8.0, "her two gold went for the pepper");
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::SpiceMerchant), "the cart moved on from {:?}", st);
+        }
+    }
+
+    /// White gold stretches the winter: a gold a handful and the salt
+    /// makes the larder last - the frame shows the salt-cart first
+    #[test]
+    fn test_the_salt_stretches_the_store() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::SaltSeller);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::SaltSeller && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::SaltSeller).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            let food0 = g.probe().food_servings;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the salt-seller")),
+                "the frame shows the salt-cart on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.probe().food_servings > food0, "the salt stretched the store on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her gold went for the salt");
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::SaltSeller), "the cart moved on from {:?}", st);
         }
     }
 

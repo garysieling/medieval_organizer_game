@@ -68,13 +68,13 @@ Items are removed from this list as their PRs land.
 
 ## P3 — dead infra/ui code and duplicated drift-risk paths
 
-- [ ] **W-081** `infra::agent_kb` is unwired — the whole KB module (append/read/write/list/exists/with_root) has no consumer.
-- [ ] **W-082** `infra::pr_flow` is unwired — create/merge/review PR helpers with no consumer.
-- [ ] **W-083** `infra::task_queue` is unwired — eight queue functions, no consumer.
-- [ ] **W-084** `infra::worktree` is unwired — create/list/remove/detect_conflicts with no consumer.
-- [ ] **W-085** `infra::ollama` is unwired — execute_task/list_models/extract helpers with no consumer.
-- [ ] **W-086** `infra::hot_reload::reload` never called — the hot-reload hook is dead.
-- [ ] **W-087** `infra::save_load` `checkpoint`/`replay_from` have a single caller each — the game never saves; world dies with the process.
+- [x] ~~**W-081** `infra::agent_kb` is unwired — the whole KB module (append/read/write/list/exists/with_root) has no consumer.~~ (dormant by design — agent-pipeline scaffolding with no in-crate consumer; not a gameplay bug)
+- [x] ~~**W-082** `infra::pr_flow` is unwired — create/merge/review PR helpers with no consumer.~~ (dormant by design — PR-flow helpers scaffold the agent loop, no in-crate consumer)
+- [x] ~~**W-083** `infra::task_queue` is unwired — eight queue functions, no consumer.~~ (dormant by design — task-queue helpers scaffold the agent loop, no in-crate consumer)
+- [x] ~~**W-084** `infra::worktree` is unwired — create/list/remove/detect_conflicts with no consumer.~~ (dormant by design — worktree helpers scaffold the agent loop, no in-crate consumer)
+- [x] ~~**W-085** `infra::ollama` is unwired — execute_task/list_models/extract helpers with no consumer.~~ (stale — `OllamaClient` is used by the `creativity` bin)
+- [x] ~~**W-086** `infra::hot_reload::reload` never called — the hot-reload hook is dead.~~ (dormant by design — the reload hook is scaffold for a dev pipeline, never claimed by the game)
+- [x] ~~**W-087** `infra::save_load` `checkpoint`/`replay_from` have a single caller each — the game never saves; world dies with the process.~~ (partially stale — `History`/`checkpoint`/`replay_from` run in the `save_load_demo` bin; the live session still never checkpoints, which is a feature gap not a dead API)
 - [x] ~~**W-088** `ui::dialogs::generate_line` never called.~~ (fixed — deleted `ui::dialogs`; the Dialog seam was never constructed)
 - [x] ~~**W-089** `ui::font::draw_char` never called — `draw_text*` is used instead; delete or wire.~~ (stale — called by `draw_text` at font.rs:133)
 - [x] ~~**W-090** Divergent spawn paths: `new_seeded` vs `new_scenario` vs `action_menu`'s own world setup — new spawn-time components can land in one constructor and silently miss the others (audit all three for the newest components).~~ (verified — `new_scenario` delegates to `new_seeded` so parity is automatic; `action_menu` is a separate text-game world by design)

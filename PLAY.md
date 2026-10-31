@@ -130,7 +130,11 @@ still too - marigold and lavender under it, scent out at twenty gold a
 flask - and a dab of it smells of roses for days, no smell at all to a
 suitor's nose. Trade with the road loses a little to the reckoning -
 the outside counts in figures the village doesn't keep - until enough
-bad tallies and a clerk steps up to keep them straight.
+bad tallies and a clerk steps up to keep them straight. And now and
+then something rides over the walls - a comet, an eclipse - and the
+whole village looks up, and each reads it by what they carry: the
+priest sees warning, the herb-wife a gathering-night, the blamed sees
+it burn for them.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

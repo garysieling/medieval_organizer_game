@@ -389,6 +389,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("boycott") || entry.contains("a crowd at")
         || entry.contains("the village gathers") || entry.contains("pays triple")
         || entry.contains("a pedlar") || entry.contains("pedlar's moved on")
+        || entry.contains("rides over the walls")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1658,6 +1659,8 @@ pub struct Game {
     pub translator: Option<Entity>,
     /// Reckonings that didn't add up - enough and a clerk steps up
     pub reckonings: u32,
+    /// A sky event rides over the walls: ("comet"/"eclipse", the day it goes)
+    pub sky: Option<(&'static str, u64)>,
 }
 
 /// How a village keeps its accounts
@@ -2380,6 +2383,7 @@ impl Game {
             numeracy: if seed % 10 < 6 { Numeracy::Tally } else { Numeracy::RomanBoard },
             translator: None,
             reckonings: 0,
+            sky: None,
         }
     }
 
@@ -3914,6 +3918,46 @@ impl Game {
         }
     }
 
+    /// The sky keeps its own calendar: a comet every few years, an
+    /// eclipse now and then - and when one rides over the walls every
+    /// villager reads their own omen into it. A crowd of small opinions.
+    pub fn sky_tick(&mut self, tick: u64) {
+        // it burns for three nights
+        if let Some((_, until)) = self.sky {
+            if tick >= until { self.sky = None; }
+        }
+        let kind = if tick % 300 == 150 { Some("comet") }
+            else if tick % 450 == 225 { Some("eclipse") } else { None };
+        let Some(kind) = kind else { return };
+        if self.sky.is_some() { return; }
+        self.sky = Some((kind, tick + 3));
+        self.log.push(format!("t{}: a {} rides over the walls - everyone looks up.", tick, kind));
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            // each reads it by what they carry
+            let omen = if self.world.get_component::<Craft>(v)
+                .map(|c| c.vocation == Vocation::Priest).unwrap_or(false) {
+                "A sign. Pray."
+            } else if Some(v) == self.herbologist {
+                "A gathering-night, that."
+            } else {
+                self.world.get_component::<InnerLife>(v)
+                    .and_then(|l| l.grievances.first().map(|(p, _)| match p {
+                        desires::Problem::Blamed => "It burns for me.",
+                        desires::Problem::Broke => "Even the sky's poor.",
+                        desires::Problem::Smelly => "Even it can't see the fold from there.",
+                        desires::Problem::Taxed | desires::Problem::DeathDuty => "Does the lord tax the sky?",
+                        _ => "A bad omen. I feel it.",
+                    })).unwrap_or_else(|| {
+                        self.world.get_component::<InnerLife>(v)
+                            .map(|l| if l.wants.contains(&Want::Love) { "A star for wishes." }
+                                else { "Look up." }).unwrap_or("Look up.")
+                    })
+            };
+            self.say(v, omen, CHAT_BUBBLE_SECS * 2);
+        }
+    }
+
     /// People power: it builds as the org spends it and atrophies when
     /// idle - and the lord's estimate lags behind the truth, for he only
     /// learns what the street shows him
@@ -4550,6 +4594,8 @@ impl Game {
         self.smell_tick(tick);
         // power atrophies; the lord's estimate creeps toward the truth
         self.power_tick(tick);
+        // and now and then something rides over the walls
+        self.sky_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -5109,6 +5155,7 @@ impl Game {
             } else { None },
             gardens: self.gardens.iter()
                 .map(|&(_, (x, y), g)| (x as f32, y as f32, g.min(1.0))).collect(),
+            sky: self.sky.map(|(k, _)| k.to_string()),
         }
     }
 
@@ -5548,6 +5595,19 @@ impl View {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 60, 90, 120);
+        }
+        // something riding over the walls: a bright head and a fading
+        // tail across the top of the frame
+        if let Some(kind) = m.sky.as_deref() {
+            let (hx, hy) = (buf.width as i32 * 2 / 3, buf.height as i32 / 8);
+            let head = if kind == "comet" { (255, 245, 200) } else { (180, 60, 50) };
+            for t in 0..14 {
+                let (x, y) = (hx - t * 6, hy - t * 3);
+                let f = 1.0 - t as f32 / 14.0;
+                let (r, g, b) = ((head.0 as f32 * f) as u8, (head.1 as f32 * f) as u8, (head.2 as f32 * f) as u8);
+                if x >= 0 && y >= 0 { buf.rect(x - 2, y - 1, 4, 3, r, g, b); }
+            }
+            buf.rect(hx - 3, hy - 3, 6, 6, 255, 250, 230);
         }
         // the garden beds: soil strip, greener as it fills in
         for &(tx, ty, g) in &m.gardens {
@@ -7278,6 +7338,31 @@ mod reckoning_tests {
         let gold = g.world.get_component::<Purse>(buyer).unwrap().gold;
         assert!(gold >= before - vocation::price("cloth") - 0.01,
             "he keeps the tallies straight");
+    }
+}
+
+#[cfg(test)]
+mod sky_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_comet_rides_and_everyone_reads_it() {
+        let mut g = Game::new();
+        g.sky_tick(150);
+        assert!(g.sky.is_some(), "a comet rides the walls");
+        assert!(g.log.iter().any(|l| l.contains("rides over the walls")));
+        let omens = g.bubbles.iter().filter(|b| b.0 != g.player).count();
+        assert!(omens > 10, "a crowd of small opinions");
+        // the priest reads it his way
+        let priest = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false));
+        if let Some(p) = priest {
+            let said = g.bubbles.iter().find(|b| b.0 == p).map(|b| b.1.as_str());
+            assert_eq!(said, Some("A sign. Pray."), "the priest sees warning");
+        }
+        // and it burns out
+        g.sky_tick(160);
+        assert!(g.sky.is_none(), "it burns for three nights, no more");
     }
 }
 

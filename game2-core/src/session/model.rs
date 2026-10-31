@@ -160,4 +160,6 @@ pub struct UiModel {
     pub mill: Option<(f32, f32)>,
     /// Wild herb tufts that are ready to pick
     pub herbs: Vec<(f32, f32)>,
+    /// Ready mushroom patches in the shade
+    pub mush: Vec<(f32, f32)>,
 }

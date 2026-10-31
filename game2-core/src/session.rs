@@ -205,6 +205,13 @@ fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     }
 }
 
+/// A wild mushroom: a little cap on a pale stem
+fn shroom_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+    let k = |v: i32| ((v as f32) * zoom).round() as i32;
+    buf.rect(sx - k(2), sy - k(4), 1.max(k(5)), 1.max(k(3)), 195, 70, 55);
+    buf.rect(sx - k(1), sy - k(1), 1.max(k(3)), 1.max(k(2)), 235, 225, 200);
+}
+
 /// A grazing animal: a wool or hair blob low on four legs
 fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
@@ -1285,6 +1292,10 @@ pub enum Goal {
     SeekRemedy(Entity),
     /// The shepherd walks out to the flock
     Herd(Entity),
+    /// A hungry or broke soul gathers mushrooms in the shade (index into mush_patches)
+    ForageShroom(usize),
+    /// Walk home at the end of the day (target: the building entity)
+    HeadHome(Entity),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -1560,6 +1571,21 @@ pub struct Game {
     /// The heart-helper, and the pairings she's already tried this month
     pub matchmaker: Option<Entity>,
     pub match_tried: Vec<(Entity, Entity, u64)>,
+    /// Wild mushroom patches in the shade of the wood
+    pub mush_patches: Vec<MushPatch>,
+    /// (who, the day they last gathered) - so the wood isn't stripped by one soul
+    pub shroom_breaks: Vec<(Entity, u64)>,
+}
+
+/// A wild mushroom patch: what it is stays hidden until it's in the pan.
+/// Some caps are death; a skilled eye reads them, a hungry one doesn't.
+#[derive(Debug, Clone, Copy)]
+pub struct MushPatch {
+    pub tile: (i32, i32),
+    /// the lookalike problem: this one's a death-cap
+    pub poison: bool,
+    /// the day it flushes again
+    pub next_ready: u64,
 }
 
 /// seat 0 is the local/only player in solo play: `game.selected_target` and
@@ -2023,6 +2049,14 @@ impl Game {
             }
         }
         let graze_at = fold.and_then(|f| world.get_component::<Pos>(f).map(|p| (p.x, p.y))).unwrap_or((0.0, 0.0));
+        // mushroom patches in the shade of the wood: some good, some death-caps
+        let mut mush_patches: Vec<MushPatch> = vec![];
+        for (mi, &(tx, ty)) in map.trees.iter().step_by(7).take(6).enumerate() {
+            if let Some(t) = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (tx + dx, ty + dy)))
+                .find(|&(x, y)| map.passable(x, y)) {
+                mush_patches.push(MushPatch { tile: t, poison: mi % 3 == 0, next_ready: (mi * 11) as u64 });
+            }
+        }
         // hens scratch about a few of the cottages' yards
         let mut hens = vec![];
         let mut hen_houses: Vec<Entity> = vec![];
@@ -2135,6 +2169,8 @@ impl Game {
             hen_houses,
             matchmaker,
             match_tried: vec![],
+            mush_patches,
+            shroom_breaks: vec![],
         }
     }
 
@@ -3020,13 +3056,13 @@ impl Game {
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
-            Goal::SeekRemedy(e) | Goal::Herd(e) => self.world.get_component::<Pos>(*e).copied()
+            Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
             Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(_) => return false, // gathers go through send_gather
-            Goal::Forage(_) => return false, // forages go through send_forage
+            Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
@@ -3036,7 +3072,7 @@ impl Game {
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) => 30, _ => 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -3057,15 +3093,26 @@ impl Game {
             .find(|&(qx, qy)| self.map.passable(qx, qy))
     }
 
-    /// Send `who` out to pick herb patch `pi`
-    pub fn send_forage(&mut self, who: Entity, pi: usize) -> bool {
+    /// Walk `who` to tile `t` carrying `goal` (shared by the forage sends)
+    fn send_tile_walk(&mut self, who: Entity, t: (i32, i32), goal: Goal, max_d: i32) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
-        let Some(t) = self.herb_patches.get(pi).map(|p| p.tile) else { return false };
-        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 16 { return false; }
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > max_d { return false; }
         match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
-            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Forage(pi) }); true }
+            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal }); true }
             None => false,
         }
+    }
+
+    /// Send `who` out to pick herb patch `pi`
+    pub fn send_forage(&mut self, who: Entity, pi: usize) -> bool {
+        let Some(t) = self.herb_patches.get(pi).map(|p| p.tile) else { return false };
+        self.send_tile_walk(who, t, Goal::Forage(pi), 16)
+    }
+
+    /// Send `who` out to gather at mushroom patch `pi`
+    pub fn send_shroom(&mut self, who: Entity, pi: usize) -> bool {
+        let Some(t) = self.mush_patches.get(pi).map(|p| p.tile) else { return false };
+        self.send_tile_walk(who, t, Goal::ForageShroom(pi), 16)
     }
 
     /// The herb-wife's day: brew what the hedge gave into remedies while
@@ -3080,7 +3127,20 @@ impl Game {
         let raw: u32 = self.world.get_component::<Building>(hut)
             .map(|b| herbology::medicinal_herbs().iter()
                 .map(|(n, _, _)| b.stock.get(*n).copied().unwrap_or(0)).sum()).unwrap_or(0);
-        if raw >= 6 { return; }
+        if raw >= 6 {
+            // stocked up and still out in the meadow? she walks home at
+            // the end of the day rather than camp by the last patch -
+            // but not hungry, or the walk west fights the pull to food
+            let fed = self.world.get_component::<Hunger>(her).map(|h| h.value >= 30.0).unwrap_or(true);
+            if fed {
+                if let (Some(hp), Some(p)) = (self.world.get_component::<Pos>(hut).copied(),
+                                              self.world.get_component::<Pos>(her).copied()) {
+                    let far = (p.x - hp.x).abs() + (p.y - hp.y).abs() > 4.0;
+                    if far { self.send(her, Goal::HeadHome(hut)); }
+                }
+            }
+            return;
+        }
         let hp = self.world.get_component::<Pos>(hut).copied();
         let pick = self.herb_patches.iter().enumerate()
             .filter(|(_, p)| tick >= p.next_ready)
@@ -3169,6 +3229,44 @@ impl Game {
         }
     }
 
+    /// A poor soul gathers in the wood when the larder or the purse runs
+    /// light; and a damp year brings Saint Anthony's fire through the rye
+    pub fn mushroom_tick(&mut self, tick: u64) {
+        if tick % 3 == 0 {
+            if let Some(pi) = self.mush_patches.iter().position(|p| tick >= p.next_ready) {
+                // a hungry soul gathers in the wood; the fed stay home
+                let forager = self.villagers.iter().copied().find(|&v| {
+                    // the roles keep their own rounds - a hungry herb-wife
+                    // would never come back from the wood
+                    !villager::is_dead(&self.world, v) && !self.travels.iter().any(|t| t.who == v)
+                    && self.world.get_component::<TownRole>(v).is_none()
+                    && self.world.get_component::<Hunger>(v).map(|h| h.value < 40.0).unwrap_or(false)
+                    && !self.shroom_breaks.iter().any(|&(w, d)| w == v && tick < d + 5)
+                });
+                if let Some(v) = forager { self.send_shroom(v, pi); }
+            }
+        }
+        // a damp year: the rye carries the fire and the bread gets the blame
+        if tick % 365 == 210 && self.rng.below(100) < 12 { self.ergot(tick); }
+    }
+
+    /// Saint Anthony's fire: folk sicken, and the village blames the bread
+    fn ergot(&mut self, tick: u64) {
+        for &v in self.villagers.iter().take(3) {
+            if !villager::is_dead(&self.world, v) {
+                let d = self.world.create_entity();
+                self.world.add_component(d, Disease { name: "saint anthony's fire".into(),
+                    patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false });
+            }
+        }
+        self.log.push(format!("t{}: a burning fire runs through the village - they say it's in the bread.", tick));
+        if let Some(baker) = self.villagers.iter().copied().find(|&v|
+            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Baker).unwrap_or(false)) {
+            desires::add_grievance(&mut self.world, baker, desires::Problem::Blamed, tick + 90);
+            self.say(baker, "They say my bread did it.", CHAT_BUBBLE_SECS);
+        }
+    }
+
     /// The heart-helper's rounds: she keeps her corner of the market, and
     /// now and then a lonely heart is nudged to come and sit with her
     pub fn matchmaker_tick(&mut self, tick: u64) {
@@ -3185,6 +3283,9 @@ impl Game {
     pub fn lonely_hearts(&self) -> Vec<Entity> {
         self.villagers.iter().copied().filter(|&v| {
             !villager::is_dead(&self.world, v)
+            // the roles keep their own rounds; a heart called to market
+            // would never wander home again
+            && self.world.get_component::<TownRole>(v).is_none()
             // grown, not a kid: kids have no craft
             && self.world.get_component::<Craft>(v).is_some()
             && self.world.get_component::<InnerLife>(v)
@@ -3364,6 +3465,28 @@ impl Game {
             }
             Goal::Wander => {}
             Goal::Herd(_) => {}
+            Goal::HeadHome(_) => {}
+            Goal::ForageShroom(pi) => {
+                self.shroom_breaks.push((who, tick));
+                if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = tick + 60; }
+                if let Some(poison) = self.mush_patches.get(pi).map(|p| p.poison) {
+                    // the cap tells its story: a skilled eye reads it, a
+                    // hungry one doesn't
+                    let skilled = self.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
+                    let right = (who as u64).wrapping_mul(2654435761).wrapping_add(tick) % 1000
+                        < (200.0 + skilled * 700.0) as u64;
+                    if poison && !right {
+                        // the death-cap keeps its secret for a few days
+                        let d = self.world.create_entity();
+                        self.world.add_component(d, Disease { name: "bad belly".into(), patient: who,
+                            stage: Stage::Mild, severity: 0.12, contagious: false });
+                        self.say(who, "Earthy. Good enough.", TALK_BUBBLE_SECS);
+                    } else {
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = (h.value + 25.0).min(100.0); }
+                        self.say(who, "Chanterelles. Good pickings.", TALK_BUBBLE_SECS);
+                    }
+                }
+            }
             Goal::Forage(pi) => {
                 // picked clean for a season; two bundles dry on the hut's beams
                 if let Some(p) = self.herb_patches.get_mut(pi) { p.next_ready = tick + 90; }
@@ -3473,20 +3596,22 @@ impl Game {
         self.livestock_tick(tick);
         // the heart-helper walks a lonely heart toward someone
         self.matchmaker_tick(tick);
+        // a poor soul gathers in the wood, and damp years bring the fire
+        self.mushroom_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
             let v = villagers[i];
-            if villager::is_dead(&self.world, v) || self.travels.iter().any(|t| t.who == v) { continue; }
+            if villager::is_dead(&self.world, v) { continue; }
+            // hunger comes first: a starving person abandons any errand
+            // to look for food - even one already under way
+            let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
+            if hungry { self.travels.retain(|t| t.who != v); continue; }
+            if self.travels.iter().any(|t| t.who == v) { continue; }
             if self.world.get_component::<Kid>(v).is_some() { continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
             // at a meeting they're not off working
             if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }
-            // hunger comes first: let them go eat rather than send them on
-            // an errand that keeps them from the store
-            let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
-            // a starving person abandons any errand to look for food
-            if hungry { self.travels.retain(|t| t.who != v); continue; }
             // the sick call on the herb-wife: out to her hut for a remedy,
             // a call at most every fortnight
             if is_sick(&self.world, v) {
@@ -3911,6 +4036,8 @@ impl Game {
             mill: Some((MILL_TILE.0, MILL_TILE.1)),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
+            mush: self.mush_patches.iter().filter(|p| self.tick >= p.next_ready)
+                .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
         }
     }
 
@@ -4300,6 +4427,7 @@ impl View {
             Prop(Option<&'a Sprite>),          // a tree or boulder in the middle of its tile
             Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
             Herb,                              // a wild herb tuft, flat on the meadow
+            Shroom,                            // a wild mushroom in the shade
         }
         #[derive(Clone, Copy)]
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
@@ -4323,6 +4451,7 @@ impl View {
         standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
         // wild herb tufts, ready for the picking
         standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
+        standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
         standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
@@ -4344,6 +4473,7 @@ impl View {
             match piece {
                 Piece::Prop(sprite) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom); },
                 Piece::Herb => herb_tuft(buf, sx, sy, zoom),
+                Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
                 Piece::Castle(sprite) => if let Some(s) = sprite { draw_castle(buf, s, sx, sy, zoom); },
                 Piece::Building(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
@@ -5233,6 +5363,64 @@ mod heart_tests {
             from: a, other: b, kind: relationships::RelKind::Family, strength: 0.8, interactions: 5 });
         for t in (0..40).step_by(31) { g.match_attempt(a, t, g.matchmaker, "the heart-helper"); }
         assert_eq!(g.rel_kind(a, b), Some(relationships::RelKind::Family), "kin stay kin");
+    }
+}
+
+#[cfg(test)]
+mod shroom_tests {
+    use super::*;
+
+    #[test]
+    fn test_mushroom_patches_grow_in_the_shade() {
+        let g = Game::new();
+        assert!(g.mush_patches.len() >= 3, "the wood keeps some patches");
+        assert!(g.mush_patches.iter().any(|p| p.poison), "some caps are death");
+        assert!(g.mush_patches.iter().any(|p| !p.poison), "some are good");
+    }
+
+    #[test]
+    fn test_a_good_cap_fills_the_belly() {
+        let mut g = Game::new();
+        let who = g.villagers[4];
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 30.0;
+        g.arrive(who, Goal::ForageShroom(1)); // a good patch (poison = mi % 3 == 0 → 1 is safe)
+        let h = g.world.get_component::<Hunger>(who).unwrap().value;
+        assert!(h > 30.0, "chanterelles fill the belly, got {:.0}", h);
+    }
+
+    #[test]
+    fn test_a_death_cap_hides_for_a_few_days() {
+        let mut g = Game::new();
+        let who = g.villagers[4];
+        // keep eating the poisoned patch until the eye fails
+        let mut sickened = false;
+        for t in 0..60 {
+            let skilled = g.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
+            let right = (who as u64).wrapping_mul(2654435761).wrapping_add(t) % 1000
+                < (200.0 + skilled * 700.0) as u64;
+            if !right {
+                g.tick = t; // the read is read again on arrival
+                g.arrive(who, Goal::ForageShroom(0));
+                sickened = g.world.query::<Disease>().iter().any(|&d|
+                    g.world.get_component::<Disease>(d).map(|dd| dd.patient == who).unwrap_or(false));
+                if sickened { break; }
+            }
+        }
+        assert!(sickened, "a bad read poisons them in time");
+    }
+
+    #[test]
+    fn test_the_fire_blames_the_bread() {
+        let mut g = Game::new();
+        g.ergot(210);
+        let baker = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Baker).unwrap_or(false));
+        if let Some(b) = baker {
+            assert!(desires::problems_of(&g.world, b, 210).contains(&desires::Problem::Blamed));
+        }
+        assert!(g.log.iter().any(|l| l.contains("in the bread")));
+        assert!(g.world.query::<Disease>().iter().any(|&d|
+            g.world.get_component::<Disease>(d).map(|dd| dd.name == "saint anthony's fire").unwrap_or(false)));
     }
 }
 

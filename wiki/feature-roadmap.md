@@ -65,32 +65,6 @@ tending. **Size: S-M.**
 
 ---
 
-### F5. Foraging & mushrooms — lookalikes, hidden poison, ergot
-
-*`sprint-7-mushrooms.md` — the review calls this CRITICAL for mystery.*
-
-**What.** Mushroom patches spawn in forest/shade after rain. Anyone
-forages them; ID skill decides what you actually picked. Some lookalikes
-are poisonous with delayed onset.
-
-**Spec.**
-
-- `MushroomPatch { species, visible_traits }`; `species` hidden, traits
-  shown ("pale cap, ringed stem"). Forager with skill compares traits →
-  believed identity (wrong on low skill).
-- `HiddenPoison` illness seeded on eating a bad mushroom: no symptoms
-  for ~2–4 days, then severe; the herb-wife (F1) can purge it if reached
-  in time — first real "walk to the healer or die" story.
-- `ErgotEvent`: wet year + rye-heavy bread stock → village-wide
-  St.-Anthony's-fire outbreak; who gets blamed (the baker? the
-  herb-wife? a rival village's grain?) is emergent — feeds F13 sanctions.
-- Foraging as minor vocation `TownRole::Forager` or a fallback activity
-  for the `Broke`: "a poor soul gathering in the wood."
-
-**Verify.** Poison delay holds; skill→ID accuracy monotone; ergot only
-fires on wet+rye; remedy path saves within window. **Size: M.**
-
----
 
 ### F6. Beekeeping — honey, wax, and why the church is dark
 
@@ -687,8 +661,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 2. ~~F2 Shepherds/flocks~~ — **done, PR #142.**
 3. F3 Chickens — cheap after F2, proves Livestock generality.
 4. ~~F41 Heart Helper~~ — **done, PR #144.**
-5. F5 Foraging/mushrooms — deepens the herb-wife's world; first real
-   hidden-poison story.
+5. ~~F5 Foraging/mushrooms~~ — **done, PR #145.**
 6. F43 Issues belong to trades — small, and it makes every later
    grievance richer; do it before the roster of scoped problems grows.
 7. F7 Vermin/cats — S, makes stock feel alive; dog already had a job,

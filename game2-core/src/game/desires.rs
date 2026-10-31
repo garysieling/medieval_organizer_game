@@ -59,6 +59,8 @@ pub enum Problem {
     Smelly,
     /// Wolves got into the fold - stock lost in the night
     Loss,
+    /// The village says their bread brought the fire
+    Blamed,
 }
 
 /// One secret a person can share: a want or a problem
@@ -143,6 +145,7 @@ pub fn issue_tag(r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::Broke) => "poverty",
         Reveal::Problem(Problem::Smelly) => "the fold's stink",
         Reveal::Problem(Problem::Loss) => "the wolves",
+        Reveal::Problem(Problem::Blamed) => "the bad bread",
     }
 }
 
@@ -169,6 +172,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "poverty" => "folk without a coin".into(),
         "the fold's stink" => "the stinking fold".into(),
         "the wolves" => "wolves at the fold".into(),
+        "the bad bread" => "the cursed bread".into(),
         _ => tag.into(),
     }
 }
@@ -204,6 +208,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::Broke => "is nearly broke".into(),
         Problem::Smelly => "smells of the flock".into(),
         Problem::Loss => "lost stock to wolves".into(),
+        Problem::Blamed => "is blamed for the sickness".into(),
     }
 }
 
@@ -233,6 +238,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Broke) => (format!("{} is nearly broke", name), "Two coins left. Two.".into()),
         Reveal::Problem(Problem::Smelly) => (format!("{} smells of the fold", name), "Aye, I've been with the flock all day - mind the smell.".into()),
         Reveal::Problem(Problem::Loss) => (format!("{} lost stock to wolves", name), "The wolf came in the night. I found what's left of her.".into()),
+        Reveal::Problem(Problem::Blamed) => (format!("{} is blamed for the sickness", name), "They say my bread did it. My bread.".into()),
     }
 }
 

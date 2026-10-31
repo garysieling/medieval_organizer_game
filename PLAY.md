@@ -82,6 +82,9 @@ on his coat. Now and then a wolf comes in the night. A few yards keep
 hens too; the household eats the eggs, and now and then a fox comes.
 And one elder keeps an eye on lonely hearts - the heart-helper has a
 word in both their ears, and now and then two folk come together.
+Hungry folk gather mushrooms in the shade of the wood - some caps are
+chanterelles, some are death, and a damp year brings Saint Anthony's
+fire and blame for the baker.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

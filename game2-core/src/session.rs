@@ -40,6 +40,7 @@ use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
 use crate::game::fire::Fire;
 use crate::game::herbology::{self, Apothecary};
+use crate::game::mycology::{self, AilPhase, MushEffect, MushKind, PendingAil};
 use crate::game::livestock::{self, Livestock, LivestockKind};
 use crate::game::apiary::{self, HiveKind};
 use crate::game::sanctions::{self, Sanction};
@@ -1750,6 +1751,13 @@ pub struct Game {
     pub mush_patches: Vec<MushPatch>,
     /// (who, the day they last gathered) - so the wood isn't stripped by one soul
     pub shroom_breaks: Vec<(Entity, u64)>,
+    /// (who, the patch indices they've learned are death) - the wood
+    /// teaches its lessons the hard way, and the herb-wife passes them on
+    pub shroom_lore: Vec<(Entity, Vec<usize>)>,
+    /// Ailments that keep their own calendar: the amatoxin course lands
+    /// in phases days after the meal, and Saint Anthony's brothers make
+    /// their rounds once an outbreak's named
+    pub ailments: Vec<PendingAil>,
     /// The apiary, its keeper, its skeps, and the church it keeps in candles
     pub apiary: Option<Entity>,
     pub beekeeper: Option<Entity>,
@@ -1880,10 +1888,15 @@ pub enum Numeracy {
 #[derive(Debug, Clone, Copy)]
 pub struct MushPatch {
     pub tile: (i32, i32),
-    /// the lookalike problem: this one's a death-cap
-    pub poison: bool,
+    /// the lookalike problem: which of the wood's kinds it really is
+    pub kind: MushKind,
     /// the day it flushes again
     pub next_ready: u64,
+}
+
+impl MushPatch {
+    /// The lookalike problem in a word: this one's death
+    pub fn deadly(&self) -> bool { self.kind.is_deadly() }
 }
 
 /// seat 0 is the local/only player in solo play: `game.selected_target` and
@@ -2473,17 +2486,45 @@ impl Game {
             }
         }
         let graze_at = fold.and_then(|f| world.get_component::<Pos>(f).map(|p| (p.x, p.y))).unwrap_or((0.0, 0.0));
-        // mushroom patches in the shade of the wood: some good, some death-caps
+        // mushroom patches, each kind true to its ground: the wood's shade
+        // keeps the edibles and their death-traps side by side, the pasture
+        // keeps the little nipple-tipped caps (and the little brown killers
+        // beside them), the fly agaric stays under birch, and the best
+        // mushrooms grow in the under
         let mut mush_patches: Vec<MushPatch> = vec![];
+        let wood_kinds = [MushKind::Chanterelle, MushKind::DeathCap, MushKind::FieldMushroom,
+                          MushKind::JackOLantern, MushKind::Galerina, MushKind::Chanterelle];
         for (mi, &(tx, ty)) in map.trees.iter().step_by(7).take(6).enumerate() {
             if let Some(t) = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (tx + dx, ty + dy)))
                 .find(|&(x, y)| map.passable(x, y)) {
-                mush_patches.push(MushPatch { tile: t, poison: mi % 3 == 0, next_ready: (mi * 11) as u64 });
+                mush_patches.push(MushPatch { tile: t, kind: wood_kinds[mi % wood_kinds.len()], next_ready: (mi * 11) as u64 });
             }
+        }
+        // the fly agaric keeps to birch: a patch off a deeper tree
+        if let Some(&(tx, ty)) = map.trees.iter().nth(11) {
+            if let Some(t) = (-3..=3).flat_map(|dy| (-3..=3).map(move |dx| (tx + dx, ty + dy)))
+                .find(|&(x, y)| map.passable(x, y)) {
+                mush_patches.push(MushPatch { tile: t, kind: MushKind::FlyAgaric, next_ready: 30 });
+            }
+        }
+        // liberty caps in the wet grassland by the fold - the shepherd's
+        // secret - with a galerina a tile off: the little brown mushroom
+        // that looks just like them is the one that kills
+        let patch_near = |mush_patches: &mut Vec<MushPatch>, map: &TileMap,
+                              (cx, cy): (i32, i32), kind: MushKind, ready: u64| {
+            if let Some(t) = (-4..=4).flat_map(|dy| (-4..=4).map(move |dx| (cx + dx, cy + dy)))
+                .find(|&(x, y)| map.passable(x, y) && !mush_patches.iter().any(|p| p.tile == (x, y))) {
+                mush_patches.push(MushPatch { tile: t, kind, next_ready: ready });
+            }
+        };
+        let graze_tile = (graze_at.0.round() as i32, graze_at.1.round() as i32);
+        patch_near(&mut mush_patches, &map, graze_tile, MushKind::LibertyCap, 40);
+        if let Some(lc) = mush_patches.iter().find(|p| p.kind == MushKind::LibertyCap).map(|p| p.tile) {
+            patch_near(&mut mush_patches, &map, (lc.0 + 1, lc.1 + 1), MushKind::Galerina, 45);
         }
         // the cave's deep patch: the best mushrooms grow in the under -
         // pushed last so the wood's poisoned patches keep their numbers
-        mush_patches.push(MushPatch { tile: (35, 33), poison: false, next_ready: 0 });
+        mush_patches.push(MushPatch { tile: (35, 33), kind: MushKind::UnderCap, next_ready: 0 });
         // hens scratch about a few of the cottages' yards
         let mut hens = vec![];
         let mut hen_houses: Vec<Entity> = vec![];
@@ -2611,6 +2652,8 @@ impl Game {
             match_tried: vec![],
             mush_patches,
             shroom_breaks: vec![],
+            shroom_lore: vec![],
+            ailments: vec![],
             apiary,
             beekeeper,
             hives,
@@ -3862,6 +3905,101 @@ impl Game {
         self.send_tile_walk(who, t, Goal::ForageShroom(pi), 16)
     }
 
+    /// The cap tells its story - or doesn't. The read decides what they
+    /// THINK it is: a skilled eye sees the true kind, a hungry one sees
+    /// the lookalike, and folk rules ("a poisoned cap blackens silver")
+    /// can clear a death outright. They eat what they believe is food or
+    /// dream; the effect that lands is always the true cap's
+    fn shroom_take(&mut self, who: Entity, pi: usize, kind: MushKind, tick: u64) {
+        let spec = kind.spec();
+        let skilled = self.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
+        // the learned eye never misreads a patch it knows
+        let known = self.lore_of(who).contains(&pi);
+        let roll = (who as u64).wrapping_mul(2654435761).wrapping_add(tick) % 1000;
+        let right = known || roll < mycology::read_chance(skilled);
+        // folk rule: "the silver stayed bright" - confident, and wrong
+        let folk = !right && roll % 10 < 3;
+        let believed = if right { kind }
+            else if folk { MushKind::FieldMushroom }
+            else { spec.lookalike };
+        if !believed.believed_edible() {
+            // they leave what they think is a gut-turn or death
+            let line = if right { spec.trait_line } else { "Off-colour gills. Leave them." };
+            self.say(who, line, TALK_BUBBLE_SECS);
+            return;
+        }
+        if right {
+            self.say(who, spec.eat_line, TALK_BUBBLE_SECS);
+        } else if folk {
+            self.say(who, "The silver stayed bright - it's good.", TALK_BUBBLE_SECS);
+        } else {
+            self.say(who, believed.spec().eat_line, TALK_BUBBLE_SECS);
+        }
+        // they eat the TRUE cap, whatever they believe it is
+        match spec.effect {
+            MushEffect::Meal => {
+                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
+                    h.value = (h.value + spec.food).min(100.0);
+                }
+            }
+            MushEffect::TurnsStomach => {
+                // the jack-o'-lantern's lesson: a sour night, and they
+                // mark the patch after
+                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
+                    h.value = (h.value + spec.food * 0.5).min(100.0);
+                }
+                let d = self.world.create_entity();
+                self.world.add_component(d, Disease { name: "a sour gut".into(), patient: who,
+                    stage: Stage::Mild, severity: 0.15, contagious: false });
+                self.learn_shroom(who, pi);
+            }
+            MushEffect::Vision => {
+                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
+                    h.value = (h.value + spec.food).min(100.0);
+                }
+                // the field speaks - most keep the gift, some take a dark turn
+                if self.rng.below(100) < 20 {
+                    let d = self.world.create_entity();
+                    self.world.add_component(d, Disease { name: "a fearful turn".into(), patient: who,
+                        stage: Stage::Mild, severity: 0.18, contagious: false });
+                    self.say(who, "The field opened its mouth.", CHAT_BUBBLE_SECS);
+                } else {
+                    desires::satisfy(&mut self.world, who, Want::Joy, tick + 30);
+                }
+                // dangerous knowledge: the priest calls the wood's counsel
+                // devil's work, when word of it gets about
+                if self.rng.below(100) < 8 {
+                    if let Some(pr) = self.villagers.iter().copied().find(|&v|
+                        self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false)
+                        && !villager::is_dead(&self.world, v)) {
+                        self.say(pr, "The wood's counsel is the devil's work.", CHAT_BUBBLE_SECS);
+                        self.log.push(format!("t{}: the father preaches against the little caps.", tick));
+                    }
+                }
+            }
+            MushEffect::Delirium => {
+                // the red cap's dream: wild, rarely fatal - the fed take
+                // it on purpose, the hungry learn why folk leave it
+                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
+                    h.value = (h.value + spec.food * 0.5).min(100.0);
+                }
+                let d = self.world.create_entity();
+                self.world.add_component(d, Disease { name: "the red cap's dream".into(), patient: who,
+                    stage: Stage::Moderate, severity: 0.28, contagious: false });
+                desires::satisfy(&mut self.world, who, Want::Joy, tick + 10);
+            }
+            MushEffect::Amatoxin => {
+                // nothing, at first. The belly lands a day on, when the
+                // meal's half forgotten - then the false mend, then the
+                // liver
+                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
+                    h.value = (h.value + spec.food).min(100.0);
+                }
+                self.ailments.push(PendingAil { who, due: tick + 1, phase: AilPhase::ShroomBelly(pi) });
+            }
+        }
+    }
+
     /// The herb-wife's day: brew what the hedge gave into remedies while
     /// there's stock, or walk out to a ready patch when it runs low
     pub fn herbologist_tick(&mut self, tick: u64) {
@@ -3993,41 +4131,200 @@ impl Game {
         }
     }
 
+    /// The patch indices `who` has learned are death - from the belly's
+    /// own lesson, or the herb-wife's teaching
+    fn lore_of(&self, who: Entity) -> &[usize] {
+        self.shroom_lore.iter().find(|&(w, _)| *w == who)
+            .map(|(_, l)| l.as_slice()).unwrap_or(&[])
+    }
+
+    /// `who` marks patch `pi` as death: they won't gather it again, and
+    /// it's lore they can pass on
+    fn learn_shroom(&mut self, who: Entity, pi: usize) {
+        let known = &mut self.shroom_lore;
+        match known.iter_mut().find(|(w, _)| *w == who) {
+            Some((_, l)) if !l.contains(&pi) => l.push(pi),
+            Some(_) => {}
+            None => known.push((who, vec![pi])),
+        }
+    }
+
+    /// How wet the harvest ran: ergot loves a sodden year on the rye.
+    /// The mean of autumn's first month - the days that swell the grain
+    fn harvest_wetness(&self) -> f32 {
+        (180..=210).map(|d| climate::wetness(Season::Autumn, d)).sum::<f32>() / 31.0
+    }
+
     /// A poor soul gathers in the wood when the larder or the purse runs
     /// light; and a damp year brings Saint Anthony's fire through the rye
     pub fn mushroom_tick(&mut self, tick: u64) {
         if tick % 3 == 0 {
-            if let Some(pi) = self.mush_patches.iter().position(|p| tick >= p.next_ready) {
-                // a hungry soul gathers in the wood; the fed stay home
-                let forager = self.villagers.iter().copied().find(|&v| {
-                    // the roles keep their own rounds - a hungry herb-wife
-                    // would never come back from the wood
-                    !villager::is_dead(&self.world, v) && !self.travels.iter().any(|t| t.who == v)
-                    && self.world.get_component::<TownRole>(v).is_none()
-                    && self.world.get_component::<Hunger>(v).map(|h| h.value < 40.0).unwrap_or(false)
-                    && !self.shroom_breaks.iter().any(|&(w, d)| w == v && tick < d + 5)
+            // a hungry soul gathers in the wood; the fed stay home - and
+            // the learned stay clear of the caps they know are death
+            let pick = self.mush_patches.iter().enumerate()
+                .filter(|(_, p)| tick >= p.next_ready)
+                .find_map(|(pi, _)| {
+                    self.villagers.iter().copied().find(|&v| {
+                        // the roles keep their own rounds - a hungry herb-wife
+                        // would never come back from the wood
+                        !villager::is_dead(&self.world, v) && !self.travels.iter().any(|t| t.who == v)
+                        && self.world.get_component::<TownRole>(v).is_none()
+                        && self.world.get_component::<Hunger>(v).map(|h| h.value < 40.0).unwrap_or(false)
+                        && !self.shroom_breaks.iter().any(|&(w, d)| w == v && tick < d + 5)
+                        && !self.lore_of(v).contains(&pi)
+                    }).map(|v| (pi, v))
                 });
-                if let Some(v) = forager { self.send_shroom(v, pi); }
-            }
+            if let Some((pi, v)) = pick { self.send_shroom(v, pi); }
         }
-        // a damp year: the rye carries the fire and the bread gets the blame
-        if tick % 365 == 210 && self.rng.below(100) < 12 { self.ergot(tick); }
+        // the wood teaches: the herb-wife tells a passing neighbour which
+        // caps to leave, a patch at a time
+        if tick % 25 == 7 { self.teach_shrooms(tick); }
+        // the amatoxin course keeps its own calendar: belly, false mend, liver
+        self.ailment_tick(tick);
+        // a damp year: the rye carries the fire and the bread gets the blame.
+        // The wetter the harvest the surer the outbreak
+        let chance = (self.harvest_wetness() * 30.0) as i32;
+        if tick % 365 == 210 && self.rng.below(100) < chance { self.ergot(tick); }
     }
 
-    /// Saint Anthony's fire: folk sicken, and the village blames the bread
+    /// The herb-wife passes her wood-lore on: any neighbour standing near
+    /// learns one deadly patch they didn't know. An elder forager is worth
+    /// having - this is what she's for
+    fn teach_shrooms(&mut self, _tick: u64) {
+        let Some(her) = self.herbologist else { return };
+        if villager::is_dead(&self.world, her) { return; }
+        let Some(hp) = self.world.get_component::<Pos>(her).copied() else { return };
+        let deadly: Vec<usize> = self.mush_patches.iter().enumerate()
+            .filter(|(_, p)| p.deadly()).map(|(i, _)| i).collect();
+        for &v in self.villagers.clone().iter() {
+            if v == her || villager::is_dead(&self.world, v) { continue; }
+            let near = self.world.get_component::<Pos>(v)
+                .map(|p| (p.x - hp.x).abs() + (p.y - hp.y).abs() < 6.0).unwrap_or(false);
+            if !near { continue; }
+            if let Some(&pi) = deadly.iter().find(|pi| !self.lore_of(v).contains(pi)) {
+                self.learn_shroom(v, pi);
+                self.say(her, "The pale cap by the wood is death - mark it.", CHAT_BUBBLE_SECS);
+            }
+        }
+    }
+
+    /// The ailments that keep their own calendar: the amatoxin course
+    /// lands in phases days after the meal, and the brothers of Saint
+    /// Anthony make their rounds after the fire's named
+    fn ailment_tick(&mut self, tick: u64) {
+        let due: Vec<PendingAil> = self.ailments.iter().copied()
+            .filter(|a| tick >= a.due).collect();
+        self.ailments.retain(|a| tick < a.due);
+        for a in due {
+            if villager::is_dead(&self.world, a.who) { continue; }
+            match a.phase {
+                // the belly lands a day on, when the meal's half forgotten -
+                // the poison's already at work while they blame last night's
+                // pottage
+                AilPhase::ShroomBelly(pi) => {
+                    let d = self.world.create_entity();
+                    self.world.add_component(d, Disease { name: "a bad belly".into(),
+                        patient: a.who, stage: Stage::Moderate, severity: 0.4, contagious: false });
+                    self.say(a.who, "Something I ate. It'll pass.", CHAT_BUBBLE_SECS);
+                    // the belly tells on the patch: this one's learned
+                    self.learn_shroom(a.who, pi);
+                    self.ailments.push(PendingAil { who: a.who, due: tick + 2, phase: AilPhase::ShroomRemission });
+                }
+                // the false mend: they seem to turn the corner - the liver's
+                // already failing. This is the apothecary's window, the only
+                // one they get
+                AilPhase::ShroomRemission => {
+                    for d in self.world.query::<Disease>() {
+                        let hit = self.world.get_component::<Disease>(d)
+                            .map(|dd| dd.patient == a.who && dd.name == "a bad belly").unwrap_or(false);
+                        if hit {
+                            let dd = self.world.get_component_mut::<Disease>(d).unwrap();
+                            dd.severity = 0.05;
+                            dd.stage = Stage::Recovering;
+                        }
+                    }
+                    self.say(a.who, "It's passing. I'll be right by Friday.", CHAT_BUBBLE_SECS);
+                    self.ailments.push(PendingAil { who: a.who, due: tick + 4, phase: AilPhase::ShroomLiver });
+                }
+                // the liver gives out, days after the meal - few walk back
+                // from this
+                AilPhase::ShroomLiver => {
+                    let d = self.world.create_entity();
+                    self.world.add_component(d, Disease { name: "the liver gives out".into(),
+                        patient: a.who, stage: Stage::Severe, severity: 0.85, contagious: false });
+                    let name = self.name_of(a.who);
+                    self.log.push(format!("t{}: {} wastes where they stand - the wood keeps its secrets.", tick, name));
+                }
+                // the brothers of Saint Anthony tend the fire's victims:
+                // a hospice bed and a dose of care
+                AilPhase::AntonineCare => {
+                    for d in self.world.query::<Disease>() {
+                        let hit = self.world.get_component::<Disease>(d)
+                            .map(|dd| dd.patient == a.who && dd.name.contains("fire")).unwrap_or(false);
+                        if hit {
+                            let dd = self.world.get_component_mut::<Disease>(d).unwrap();
+                            dd.severity = (dd.severity - 0.12).max(0.05);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Saint Anthony's fire: folk sicken in the convulsive and the burning
+    /// forms, the village finds someone to blame, and the brothers of
+    /// Saint Anthony keep a hospice bed for the victims
     fn ergot(&mut self, tick: u64) {
-        for &v in self.villagers.iter().take(3) {
+        // the wetter the harvest the wider the fire: a sodden year's rye
+        // carries more of it
+        let victims = 2 + if self.harvest_wetness() > 0.45 { 2 } else { 0 };
+        for &v in self.villagers.iter().take(victims) {
             if !villager::is_dead(&self.world, v) {
+                // most take the convulsive fire; some the burning one -
+                // the gangrenous form is rarer and crueller
+                let gangrenous = self.rng.below(100) < 25;
+                let (name, stage, severity) = if gangrenous {
+                    ("the burning fire", Stage::Severe, 0.7)
+                } else {
+                    ("the convulsive fire", Stage::Moderate, 0.45)
+                };
                 let d = self.world.create_entity();
-                self.world.add_component(d, Disease { name: "saint anthony's fire".into(),
-                    patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false });
+                self.world.add_component(d, Disease { name: name.into(),
+                    patient: v, stage, severity, contagious: false });
+                // the brothers make their rounds: a dose of care in the
+                // days after the fire's named, if there's a church to
+                // house them
+                if self.church.is_some() {
+                    self.ailments.push(PendingAil { who: v, due: tick + 4, phase: AilPhase::AntonineCare });
+                }
             }
         }
         self.log.push(format!("t{}: a burning fire runs through the village - they say it's in the bread.", tick));
-        if let Some(baker) = self.villagers.iter().copied().find(|&v|
-            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Baker).unwrap_or(false)) {
-            desires::add_grievance(&mut self.world, baker, desires::Problem::Blamed, tick + 90);
-            self.say(baker, "They say my bread did it.", CHAT_BUBBLE_SECS);
+        if self.church.is_some() {
+            self.log.push(format!("t{}: the brothers of Saint Anthony take in the burned.", tick));
+        }
+        // who carries the blame: the baker if there is one; else the
+        // wood's counsel - the herb-wife's - is the nearest dark thing;
+        // else some poor soul the finger finds
+        let baker = self.villagers.iter().copied().find(|&v|
+            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Baker).unwrap_or(false));
+        let scapegoat = baker.or_else(|| {
+            if self.rng.below(100) < 50 { self.herbologist.filter(|&h| !villager::is_dead(&self.world, h)) }
+            else { self.villagers.iter().copied().find(|&v| !villager::is_dead(&self.world, v)) }
+        });
+        if let Some(b) = scapegoat {
+            desires::add_grievance(&mut self.world, b, desires::Problem::Blamed, tick + 90);
+            let line = if Some(b) == baker { "They say my bread did it." }
+                else if Some(b) == self.herbologist { "They say my cures are curses." }
+                else { "They look at me like I brought it." };
+            self.say(b, line, CHAT_BUBBLE_SECS);
+        }
+        // the priest's reading: a judgment, a curse, a sermon waiting
+        if let Some(pr) = self.villagers.iter().copied().find(|&v|
+            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false)) {
+            if self.rng.below(100) < 60 {
+                self.say(pr, "A judgment on the village - repent.", CHAT_BUBBLE_SECS);
+            }
         }
     }
 
@@ -5695,23 +5992,8 @@ impl Game {
             Goal::ForageShroom(pi) => {
                 self.shroom_breaks.push((who, tick));
                 if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = tick + 60; }
-                if let Some(poison) = self.mush_patches.get(pi).map(|p| p.poison) {
-                    // the cap tells its story: a skilled eye reads it, a
-                    // hungry one doesn't
-                    let skilled = self.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
-                    let right = (who as u64).wrapping_mul(2654435761).wrapping_add(tick) % 1000
-                        < (200.0 + skilled * 700.0) as u64;
-                    if poison && !right {
-                        // the death-cap keeps its secret for a few days
-                        let d = self.world.create_entity();
-                        self.world.add_component(d, Disease { name: "bad belly".into(), patient: who,
-                            stage: Stage::Mild, severity: 0.12, contagious: false });
-                        self.say(who, "Earthy. Good enough.", TALK_BUBBLE_SECS);
-                    } else {
-                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = (h.value + 25.0).min(100.0); }
-                        self.say(who, "Chanterelles. Good pickings.", TALK_BUBBLE_SECS);
-                    }
-                }
+                let Some(kind) = self.mush_patches.get(pi).map(|p| p.kind) else { return };
+                self.shroom_take(who, pi, kind, tick);
             }
             Goal::Forage(pi) => {
                 // picked clean for a season; two bundles dry on the hut's beams
@@ -8696,58 +8978,210 @@ mod heart_tests {
 mod shroom_tests {
     use super::*;
 
+    fn deadly_patch(g: &Game) -> usize {
+        g.mush_patches.iter().position(|p| p.deadly()).unwrap()
+    }
+
+    fn kind_patch(g: &Game, kind: MushKind) -> usize {
+        g.mush_patches.iter().position(|p| p.kind == kind).unwrap()
+    }
+
+    /// The roll `shroom_take` makes for `who` on day `t`
+    fn read_roll(who: Entity, t: u64) -> u64 {
+        (who as u64).wrapping_mul(2654435761).wrapping_add(t) % 1000
+    }
+
+    /// A day `who`'s eye reads true at `skill`
+    fn true_read_day(who: Entity, skill: f32) -> u64 {
+        (0..50000).find(|&t| read_roll(who, t) < mycology::read_chance(skill)).unwrap()
+    }
+
+    /// A day `who`'s eye fails at `skill`, folk rule or no
+    fn misread_day(who: Entity, skill: f32, folk: bool) -> u64 {
+        (0..50000).find(|&t| {
+            let r = read_roll(who, t);
+            r >= mycology::read_chance(skill) && (r % 10 < 3) == folk
+        }).unwrap()
+    }
+
     #[test]
-    fn test_mushroom_patches_grow_in_the_shade() {
+    fn test_the_wood_keeps_each_kind_to_its_ground() {
         let g = Game::new();
-        assert!(g.mush_patches.len() >= 3, "the wood keeps some patches");
-        assert!(g.mush_patches.iter().any(|p| p.poison), "some caps are death");
-        assert!(g.mush_patches.iter().any(|p| !p.poison), "some are good");
+        assert!(g.mush_patches.len() >= 5, "the wood keeps its patches");
+        assert!(g.mush_patches.iter().any(|p| p.deadly()), "some caps are death");
+        assert!(g.mush_patches.iter().any(|p| !p.deadly()), "some are good");
+        // the families, each true to its habitat
+        assert!(g.mush_patches.iter().any(|p| p.kind == MushKind::LibertyCap),
+            "the pasture keeps the little nipple-tipped caps");
+        assert!(g.mush_patches.iter().any(|p| p.kind == MushKind::Galerina),
+            "the little brown killer keeps them company");
+        assert!(g.mush_patches.iter().any(|p| p.kind == MushKind::FlyAgaric),
+            "the fly agaric under birch");
+        assert!(g.mush_patches.iter().any(|p| p.kind == MushKind::UnderCap),
+            "the under keeps its own");
+    }
+
+    #[test]
+    fn test_the_lookalike_pairs_sit_the_way_the_research_put_them() {
+        // galerina is the little brown mushroom that looks like the
+        // liberty cap - the textbook trap for the dream-seeker
+        assert_eq!(MushKind::Galerina.spec().lookalike, MushKind::LibertyCap);
+        assert_eq!(MushKind::LibertyCap.spec().lookalike, MushKind::Galerina);
+        assert!(MushKind::Galerina.is_deadly());
+        assert!(MushKind::LibertyCap.believed_edible());
+        // the death-cap wears the field mushroom's face; the jack wears
+        // the chanterelle's - one kills, one just turns the gut
+        assert_eq!(MushKind::DeathCap.spec().lookalike, MushKind::FieldMushroom);
+        assert_eq!(MushKind::Chanterelle.spec().lookalike, MushKind::JackOLantern);
+        assert!(MushKind::DeathCap.is_deadly());
+        assert!(!MushKind::JackOLantern.is_deadly());
     }
 
     #[test]
     fn test_a_good_cap_fills_the_belly() {
         let mut g = Game::new();
         let who = g.villagers[4];
+        let pi = kind_patch(&g, MushKind::Chanterelle);
         g.world.get_component_mut::<Hunger>(who).unwrap().value = 30.0;
-        g.arrive(who, Goal::ForageShroom(1)); // a good patch (poison = mi % 3 == 0 → 1 is safe)
+        g.world.get_component_mut::<Craft>(who).unwrap().skill = 1.0;
+        g.tick = true_read_day(who, 1.0);
+        g.arrive(who, Goal::ForageShroom(pi));
         let h = g.world.get_component::<Hunger>(who).unwrap().value;
         assert!(h > 30.0, "chanterelles fill the belly, got {:.0}", h);
     }
 
     #[test]
-    fn test_a_death_cap_hides_for_a_few_days() {
+    fn test_the_death_cap_keeps_its_secret_for_days() {
+        // the amatoxin course: nothing, then the belly, a false mend,
+        // then the liver - the delayed onset is the horror of it
         let mut g = Game::new();
         let who = g.villagers[4];
-        // keep eating the poisoned patch until the eye fails
-        g.world.get_component_mut::<Craft>(who).unwrap().skill = 0.05;
-        let mut sickened = false;
-        for t in (0..3000).step_by(37) {
-            let skilled = g.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
-            let right = (who as u64).wrapping_mul(2654435761).wrapping_add(t) % 1000
-                < (200.0 + skilled * 700.0) as u64;
-            if !right {
-                g.tick = t; // the read is read again on arrival
-                g.arrive(who, Goal::ForageShroom(0));
-                sickened = g.world.query::<Disease>().iter().any(|&d|
-                    g.world.get_component::<Disease>(d).map(|dd| dd.patient == who).unwrap_or(false));
-                if sickened { break; }
-            }
+        let pi = deadly_patch(&g);
+        g.world.get_component_mut::<Craft>(who).unwrap().skill = 0.0;
+        g.tick = misread_day(who, 0.0, false);
+        g.arrive(who, Goal::ForageShroom(pi));
+        let diseases_of = |g: &Game| g.world.query::<Disease>().iter()
+            .filter_map(|&d| g.world.get_component::<Disease>(d))
+            .filter(|dd| dd.patient == who).map(|dd| (dd.name.clone(), dd.severity))
+            .collect::<Vec<_>>();
+        assert!(diseases_of(&g).is_empty(), "nothing at first - that's the horror of it");
+        assert!(g.ailments.iter().any(|a| a.who == who && matches!(a.phase, AilPhase::ShroomBelly(_))),
+            "the course is already under way");
+        // the belly lands a day on, when the meal's half forgotten
+        g.ailment_tick(g.tick + 1);
+        assert!(diseases_of(&g).iter().any(|(n, _)| n == "a bad belly"), "the belly lands");
+        assert!(g.lore_of(who).contains(&pi), "the belly teaches the patch");
+        // the false mend - they seem to turn the corner
+        g.ailment_tick(g.tick + 3);
+        assert!(diseases_of(&g).iter().all(|(n, s)| n != "a bad belly" || *s < 0.2),
+            "they seem to mend - they haven't");
+        // then the liver gives out, days after the meal
+        g.ailment_tick(g.tick + 7);
+        assert!(diseases_of(&g).iter().any(|(n, _)| n == "the liver gives out"),
+            "the liver gives out at the end");
+    }
+
+    #[test]
+    fn test_the_learned_leave_death_be() {
+        let mut g = Game::new();
+        let who = g.villagers[4];
+        let pi = deadly_patch(&g);
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 30.0;
+        g.learn_shroom(who, pi);
+        g.arrive(who, Goal::ForageShroom(pi));
+        let h = g.world.get_component::<Hunger>(who).unwrap().value;
+        assert!(h <= 30.0, "the learned leave the death-cap standing");
+        assert!(g.ailments.iter().all(|a| a.who != who), "no course begins for the learned");
+    }
+
+    #[test]
+    fn test_the_herb_wife_teaches_the_wood() {
+        let mut g = Game::new();
+        let her = g.herbologist.unwrap();
+        let who = g.villagers.iter().copied()
+            .find(|&v| v != her && !villager::is_dead(&g.world, v)).unwrap();
+        let hp = g.world.get_component::<Pos>(her).copied().unwrap();
+        let p = g.world.get_component_mut::<Pos>(who).unwrap();
+        p.x = hp.x; p.y = hp.y;
+        g.teach_shrooms(g.tick);
+        assert!(g.lore_of(who).iter().any(|&pi| g.mush_patches[pi].deadly()),
+            "a neighbour learns which cap is death");
+    }
+
+    #[test]
+    fn test_the_folk_rule_clears_a_death_cap() {
+        // "a poisoned cap blackens silver" - the silver stayed bright,
+        // the cap was death anyway: knowledge can be wrong
+        let mut g = Game::new();
+        let who = g.villagers[4];
+        let pi = deadly_patch(&g);
+        g.world.get_component_mut::<Craft>(who).unwrap().skill = 0.0;
+        g.tick = misread_day(who, 0.0, true);
+        g.arrive(who, Goal::ForageShroom(pi));
+        assert!(g.ailments.iter().any(|a| a.who == who && matches!(a.phase, AilPhase::ShroomBelly(_))),
+            "the silver stayed bright - they ate death anyway");
+    }
+
+    #[test]
+    fn test_the_liberty_cap_gives_visions() {
+        let mut g = Game::new();
+        let who = g.villagers[4];
+        let pi = kind_patch(&g, MushKind::LibertyCap);
+        g.world.get_component_mut::<Craft>(who).unwrap().skill = 1.0;
+        let mut saw_joy = false;
+        let mut saw_turn = false;
+        let mut day = 0u64;
+        for _ in 0..30 {
+            day = (day + 1..day + 50000)
+                .find(|&t| read_roll(who, t) < mycology::read_chance(1.0)).unwrap();
+            g.tick = day;
+            g.arrive(who, Goal::ForageShroom(pi));
+            saw_joy |= desires::is_satisfied(&g.world, who, Want::Joy, g.tick);
+            saw_turn |= g.world.query::<Disease>().iter().any(|&d|
+                g.world.get_component::<Disease>(d)
+                    .map(|dd| dd.patient == who && dd.name == "a fearful turn").unwrap_or(false));
+            if saw_joy && saw_turn { break; }
         }
-        assert!(sickened, "a bad read poisons them in time");
+        assert!(saw_joy, "the field speaks kindly");
+        assert!(saw_turn, "now and then a dark turn");
+    }
+
+    #[test]
+    fn test_the_fly_agarics_dream_is_wild_not_lethal() {
+        let mut g = Game::new();
+        let who = g.villagers[4];
+        let pi = kind_patch(&g, MushKind::FlyAgaric);
+        g.world.get_component_mut::<Craft>(who).unwrap().skill = 1.0;
+        g.tick = true_read_day(who, 1.0);
+        g.arrive(who, Goal::ForageShroom(pi));
+        assert!(g.world.query::<Disease>().iter().any(|&d|
+            g.world.get_component::<Disease>(d)
+                .map(|dd| dd.patient == who && dd.name == "the red cap's dream").unwrap_or(false)),
+            "the red cap's dream, not its death");
+        assert!(g.ailments.iter().all(|a| a.who != who), "no amatoxin course from the fly agaric");
     }
 
     #[test]
     fn test_the_fire_blames_the_bread() {
         let mut g = Game::new();
         g.ergot(210);
-        let baker = g.villagers.iter().copied().find(|&v|
-            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Baker).unwrap_or(false));
-        if let Some(b) = baker {
-            assert!(desires::problems_of(&g.world, b, 210).contains(&desires::Problem::Blamed));
-        }
         assert!(g.log.iter().any(|l| l.contains("in the bread")));
-        assert!(g.world.query::<Disease>().iter().any(|&d|
-            g.world.get_component::<Disease>(d).map(|dd| dd.name == "saint anthony's fire").unwrap_or(false)));
+        // the fire takes the convulsive and the burning forms
+        let n_fire = g.world.query::<Disease>().iter().filter(|&&d|
+            g.world.get_component::<Disease>(d)
+                .map(|dd| dd.name == "the convulsive fire" || dd.name == "the burning fire")
+                .unwrap_or(false)).count();
+        let want = 2 + if g.harvest_wetness() > 0.45 { 2 } else { 0 };
+        assert_eq!(n_fire, want, "the wet year's toll");
+        // somebody carries the blame - the baker if there is one
+        let blamed = g.villagers.iter().copied().any(|v|
+            desires::problems_of(&g.world, v, 210).contains(&desires::Problem::Blamed));
+        assert!(blamed, "the village finds someone to blame");
+        // the brothers of Saint Anthony make their rounds
+        if g.church.is_some() {
+            assert!(g.ailments.iter().any(|a| matches!(a.phase, AilPhase::AntonineCare)),
+                "a hospice bed for the burned");
+        }
     }
 }
 
@@ -10017,7 +10451,7 @@ mod cave_tests {
         assert!(desires::problems_of(&g.world, h, 1).contains(&desires::Problem::TheDark),
             "the dark keeps them");
         // and the deep patch is there for the picking
-        assert!(g.mush_patches.iter().any(|p| p.tile == (35, 33)),
+        assert!(g.mush_patches.iter().any(|p| p.tile == (35, 33) && p.kind == MushKind::UnderCap),
             "the best mushrooms grow in the under");
     }
 }

@@ -20,6 +20,7 @@ pub mod terrain;
 pub mod tilemap;
 pub mod pets;
 pub mod herbology;
+pub mod mycology;
 pub mod livestock;
 pub mod apiary;
 pub mod vocation;

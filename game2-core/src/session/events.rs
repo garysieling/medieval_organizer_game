@@ -22,7 +22,8 @@ use crate::game::pets::{self, Species, PetRole};
 use crate::game::villager::{self, Pos};
 use crate::game::household;
 use crate::sim::illness::Health;
-use super::{Game, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
+use crate::game::mycology::MushKind;
+use super::{Game, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
 
 /// Which of the hundred
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -568,6 +569,25 @@ impl Game {
                 self.log.push(format!("t{}: a hailstorm batters the gardens - stones like shot.", self.tick));
                 self.toasts.push(("Hailstones!".into(), self.tick + 40));
             }
+            EventId::MushroomFlush => {
+                // the wet fortnight's gift: every patch flushes at once,
+                // and the wood's edges sprout a few besides - picked
+                // through by the end (aux counts the bonus caps)
+                for p in self.mush_patches.iter_mut() { p.next_ready = self.tick; }
+                let mut added = 0u64;
+                for (i, &(tx, ty)) in self.map.trees.iter().step_by(13).take(3).enumerate() {
+                    if let Some(t) = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (tx + dx, ty + dy)))
+                        .find(|&(x, y)| self.map.passable(x, y)
+                            && !self.mush_patches.iter().any(|p| p.tile == (x, y))) {
+                        let kind = if i % 2 == 0 { MushKind::Chanterelle } else { MushKind::FieldMushroom };
+                        self.mush_patches.push(MushPatch { tile: t, kind, next_ready: self.tick });
+                        added += 1;
+                    }
+                }
+                if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = added; }
+                self.log.push(format!("t{}: a mushroom flush - the wood's full of caps after the rain.", self.tick));
+                self.toasts.push(("Mushrooms!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -606,6 +626,16 @@ impl Game {
                     for g in self.gardens.iter_mut() { g.2 = (g.2 + 0.3).min(1.0); }
                     self.log.push(format!("t{}: water sings under the meadow - the gardens drink it in.", tick));
                 }
+            }
+            EventId::MushroomFlush => {
+                // the flush's own caps are picked through - its bonus
+                // patches (the last `aux` pushed) go to ground for good
+                let added = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) as usize;
+                if added > 0 {
+                    let n = self.mush_patches.len();
+                    for p in self.mush_patches.iter_mut().skip(n - added) { p.next_ready = tick + 365 * 99; }
+                }
+                self.log.push(format!("t{}: the flush is picked through - the shade keeps what it keeps.", tick));
             }
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides
@@ -888,6 +918,25 @@ mod tests {
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Scribe), "he moved on from {:?}", st);
         }
+    }
+
+    /// The mushroom flush readies every patch in the wood, adds a few
+    /// bonus caps of its own for the stay, and is picked through by the
+    /// end - the schedule gives it back one day
+    #[test]
+    fn test_the_mushroom_flush_fills_the_wood() {
+        let mut g = Game::new();
+        for p in g.mush_patches.iter_mut() { p.next_ready = g.tick + 100; }
+        let n_before = g.mush_patches.len();
+        g.force_event(EventId::MushroomFlush);
+        assert!(g.mush_patches.iter().all(|p| p.next_ready <= g.tick),
+            "the flush readies every patch");
+        assert!(g.mush_patches.len() > n_before, "bonus caps with the flush");
+        assert!(g.log.iter().any(|l| l.contains("full of caps")), "the log says so");
+        stage::run_days(&mut g, 12);
+        assert!(g.rare.iter().all(|r| r.id != EventId::MushroomFlush), "the flush passes");
+        assert!(g.mush_patches.iter().skip(n_before).all(|p| p.next_ready > g.tick + 300),
+            "the bonus caps are picked through");
     }
 
     /// The stray dog picks the loneliest heart and stays

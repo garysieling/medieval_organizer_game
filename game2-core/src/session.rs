@@ -4628,6 +4628,11 @@ impl Game {
         for v in self.villagers.clone() {
             crate::game::reactions::cool_off(&mut self.world, v, tick);
             crate::game::actions::lifts_with_time(&mut self.world, v, tick);
+            // and a name fades the same way: esteem cools without upkeep,
+            // even rock-bottom disgrace is eventually forgotten
+            if let Some(r) = self.world.get_component_mut::<ReputationState>(v) {
+                crate::sim::reputation_qsp::transition_tick(r);
+            }
             // folk don't forget the man inside: a little pressure gathers
             // every day even when nobody's pressing - a cell can't hold
             // a name forever on suspicion alone

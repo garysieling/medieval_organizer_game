@@ -27,8 +27,8 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
 - [x] ~~**W-037** `player::market_day` only fires in `bin/game.rs` — the market-day purse event has no GUI/session equivalent.~~ (fixed — `livelihood_tick` pays each seat's purse monthly per living org member)
 - [ ] **W-038** `balance_test` driver never exercises March/Petition/Delegate/etc. — balance runs can't see the newest verbs' effects.
-- [ ] **W-039** Traveller/minstrel fire-fleeing — #203 claimed "travelers flee too"; verify the traveller entity actually flees burning tiles.
-- [ ] **W-040** `next_minstrel` scheduling vs per-seat tick drift — verify the minstrel cadence is a sim tick, not wall/frame.
+- [x] ~~**W-039** Traveller/minstrel fire-fleeing — #203 claimed "travelers flee too"; verify the traveller entity actually flees burning tiles.~~ (fixed — `fire_at_feet` turns minstrel/pedlar/circus/ink-boiler for the road when flames are near)
+- [x] ~~**W-040** `next_minstrel` scheduling vs per-seat tick drift — verify the minstrel cadence is a sim tick, not wall/frame.~~ (verified — `next_minstrel` is set from `self.tick`, a sim day, shared across seats)
 
 ## P2 — whole subsystems implemented but never invoked
 

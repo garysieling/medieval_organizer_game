@@ -905,3 +905,25 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** relics, saints, canonization, furta-sacra, monastic-orders, benedictine-rule, cistercians, jesuits, councils, nicaea, constance, trent, conciliarism, mystics, porete, eckhart, beguines, joan-of-arc, prophecy-license
 
 ---
+
+### ROUND 4: Incense - Production & Distribution (USER-REQUESTED deep-dive)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Craft, Long-Distance Trade, Liturgical Economics
+**Output:** wiki/literature-reviews/craft-incense-production.md
+**Yield:**
+- Resin tier table (frankincense>benzoin>copal>pine/local pitch - the substitute-tier economy; sacramental function same, prestige differs)
+- Incense Road: Nabataean source-mystification monopoly (dragon-guarded grove tales); Pliny silver-drain complaint; caravan->Alexandria->Venice/Genoa->spice guilds->parish; stacked middlemen
+- Craft: resin tears, compounded blends, charcoal delivery, saltpeter self-burning tech (gunpowder-adjacent), thuribles (Botafumeiro 80kg spectacle censer)
+- Theology: Ps 141 smoke=prayer; censing as sacred-zone marking; Reformation scent-war (incense=popery, smell as confessional marker)
+- Economics: perpetual-demand consumable; consumption dependency (church as customer of the trade it preached against); ritual budget as status economy
+- 5 mechanics: incense supply chain w/ tolls+mystification, substitute tiers, scent-as-space-marker, thurible/spectacle objects, consumption dependency
+
+**Key Sources:**
+- Pliny Natural History XII - A+
+- Nabataean/frankincense-trail archaeology - A
+- Medieval incense recipes + Botafumeiro records - A
+
+**Confidence:** High
+**Tags:** incense, frankincense, myrrh, nabataean, incense-road, trade-routes, thurible, botafumeiro, liturgy, scent-theology, substitute-goods, consumption-dependency, spice-trade, medieval-craft
+
+---

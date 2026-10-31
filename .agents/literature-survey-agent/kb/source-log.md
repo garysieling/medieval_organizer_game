@@ -437,6 +437,137 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### Round 3.5: Faith-Power Interface & Critical Pedagogy (added 2026-10-31)
+
+#### Niebuhr - *The Social Sources of Denominationalism* (1929); Weber/Troeltsch church-sect frame
+**Type:** Academic books (sociology of religion canon)
+**Domain:** Sociology of Religion
+**Rating:** A
+**Year:** 1909-1929
+**Relevance:** Co-option by institutionalization: sects of the disinherited → denominations → churches; routinization of charisma as the mechanism
+**Used In:** organizing-faith-and-power.md
+**Notes:** Niebuhr's evolutionism is dated; the dynamic (respectability drift) remains standard.
+
+#### Foucault - *Discipline and Punish*, *Madness and Civilization*, pastoral power lectures
+**Type:** Academic books/lectures
+**Domain:** Institutional Power, Surveillance
+**Rating:** A+
+**Year:** 1961-1980
+**Relevance:** Sovereign vs disciplinary power; examination as power tech (confession→dossier lineage); Great Confinement as institution for surplus population; carceral continuum; Panopticon internalization
+**Used In:** organizing-faith-and-power.md, organizing-critical-pedagogy.md
+
+#### Genovese - *Roll Jordan Roll* (1974) + driver scholarship (Starobin revisionist school)
+**Type:** Academic history (Gramscian)
+**Domain:** Slavery Studies
+**Rating:** A
+**Year:** 1974+
+**Relevance:** Paternalism as contested bargain (slaves weaponized the master's frame); driver as structurally dual intermediary
+**Used In:** organizing-faith-and-power.md
+**Notes:** Paternalism thesis contested but generative; driver-as-mediator is the revisionist consensus.
+
+#### Slave Bible documentation (Glasgow special collections; Porteus correspondence)
+**Type:** Primary artifact + institutional scholarship
+**Domain:** Missionary History, Information Control
+**Rating:** A
+**Year:** 1807 artifact
+**Relevance:** Literal redacted scripture (90% OT/50% NT cut; Exodus/Psalms/Gal 3:28/Revelation removed) — faith-as-information-weapon, documented
+**Used In:** organizing-faith-and-power.md
+
+#### Mission-education/comprador scholarship (Attwell intermediary intellectuals; Macaulay minute; colonial communal electorates)
+**Type:** Academic articles + primary documents
+**Domain:** Colonial Education, Intermediary Classes
+**Rating:** A
+**Year:** various
+**Relevance:** Mission schools produced the intermediary class → co-option backfire (Nkrumah/Mandela/Kenyatta mission-schooled)
+**Used In:** organizing-faith-and-power.md
+
+#### Freire - *Pedagogy of the Oppressed* (1970); Boal - *Theatre of the Oppressed* (1979)
+**Type:** Canonical movement-education texts
+**Domain:** Critical Pedagogy
+**Rating:** A+
+**Year:** 1970/1979
+**Relevance:** Banking vs problem-posing; conscientization; praxis loop; spect-actor rehearsal; Joker facilitation
+**Used In:** organizing-critical-pedagogy.md
+
+#### Horton & Freire - *We Make the Road by Walking* (1990); Highlander historiography (Morris "halfway house"; Citizenship School records)
+**Type:** Primary dialogue + academic history
+**Domain:** Movement Education
+**Rating:** A
+**Year:** 1932-1990
+**Relevance:** The US practitioner precedent; community-teachers-only rule (Robinson case ~80% voter registration); movement halfway house as institution type
+**Used In:** organizing-critical-pedagogy.md
+
+#### Illich - *Deschooling Society*; Bourdieu & Passeron - *Reproduction*; Gramsci - *Prison Notebooks*
+**Type:** Canonical critical-institutional texts
+**Domain:** Institutional Critique, Hegemony
+**Rating:** A+
+**Year:** 1929-1971
+**Relevance:** Institutional education as domestication (Illich); symbolic violence/cultural capital (Bourdieu); organic intellectuals + war of position (Gramsci)
+**Used In:** organizing-critical-pedagogy.md
+
+#### Gutiérrez - *A Theology of Liberation* (1971) + BEC scholarship; Fals-Borda PAR; hooks; Rancière - *The Ignorant Schoolmaster*
+**Type:** Canonical + academic
+**Domain:** Liberation Theology, PAR, Critical Pedagogy
+**Rating:** A/A+
+**Year:** 1971-1994
+**Relevance:** BECs as Freirean praxis in church form; research-as-organizing; engaged pedagogy; Rancière counter-point (equal intelligence axiom vs teacher-led liberation)
+**Used In:** organizing-critical-pedagogy.md, organizing-faith-and-power.md
+
+---
+
+### History of Technology / Ink Making
+
+#### Cennini - Il Libro dell'Arte ch. XCI (c.1390s)
+**Type:** Primary source (craft handbook)
+**Domain:** Medieval craft technology
+**Rating:** A+
+**Relevance:** Linseed oil boiled in glazed pot on enclosed stove; flame must not reach oil; "risk burning down the house"; reduce by half; mordants and tempera
+**Used In:** ink-oil-boiling.md lit review
+
+#### Encyclopedie (Diderot & d'Alembert) - "Encre noir" (1751-72)
+**Type:** Primary technical encyclopedia
+**Domain:** Print history / material culture
+**Rating:** A
+**Relevance:** Full printing-ink recipe: oil heated to varnish, deliberate ignition smothered with wet linen, 1lb bread crusts + dozen onions to degrease, slate-drip readiness test, "wide space such as a garden" siting, sac-a-noir soot chamber
+**Used In:** ink-oil-boiling.md lit review
+
+#### NCBI - Printing Processes and Printing Inks
+**Type:** Scholarly book chapter (conservation science)
+**Domain:** History of printing
+**Rating:** A
+**Relevance:** Oil-based ink required for metal type; lampblack + heated linseed/nut oil + rosin + metal driers; heating was "significant hazard (fires, vapours, spills)"
+**Used In:** ink-oil-boiling.md lit review
+
+#### Savage, Stiber & Morenus - Pre-Industrial Western Printing Inks c.1450-1850
+**Type:** Scholarly survey chapter (SAS-Space)
+**Domain:** Print history
+**Rating:** A
+**Relevance:** Most substantial survey of pre-industrial ink materiality; recipe secrecy until ~17th c.; Dutch vs English varnish practice
+**Used In:** ink-oil-boiling.md lit review
+
+#### "The Path to Pistoia" - Past & Present 246 (OUP)
+**Type:** Peer-reviewed journal article
+**Domain:** Urban environmental history
+**Rating:** A
+**Relevance:** Pistoia statute banishing stench-crafts beyond the walls; urban zoning of nuisance trades
+**Used In:** ink-oil-boiling.md lit review
+
+#### Fire Prevention in Late Medieval British Towns (Oxford Academic)
+**Type:** Scholarly book chapter
+**Domain:** Urban history / fire regulation
+**Rating:** A
+**Relevance:** Towns regulated furnace/oven crafts and combustibles; fire-fighting bylaws, penalties for those responsible
+**Used In:** ink-oil-boiling.md lit review
+
+#### Henley's 20th Century Formulas + NIST Circular 53
+**Type:** Trade encyclopedias / government circular
+**Domain:** Ink manufacture technology
+**Rating:** B/C
+**Relevance:** Boil-over and acrolein fume hazards, fire-on-rails safety rigs, "long" vs "short" varnish drip test, red-hot poker ignition
+**Used In:** ink-oil-boiling.md lit review
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

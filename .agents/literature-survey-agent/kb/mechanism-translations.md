@@ -1,8 +1,8 @@
 # Academic → Game Mechanic Translations
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
-**Version:** 0.1.0
+**Last Updated:** 2026-10-31
+**Version:** 0.2.0
 
 ## Summary
 Maps academic concepts and research findings to concrete game mechanics.
@@ -94,6 +94,75 @@ Maps academic concepts and research findings to concrete game mechanics.
 **Educational Value:** Teaches how power is built from the bottom up
 **Fun Factor:** Satisfying progression from powerless to influential
 **Tags:** liberation, power-building, progression
+
+---
+
+### Pattern: Historical Organizing Campaigns → Campaign Structure Mechanics
+**Academic Source:** Alinsky, Ganz, McAlevey, Han (organizing theory); Chenoweth & Stephan NAVCO (quant); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate)
+**Game Mechanic:**
+- Campaign structure: target org, winnable demand, escalation ladder (petition → structure test → strike/boycott → confrontation), settlement step
+- Pillars of support: power-holder loyalty tracked per pillar (economy, guard, clergy, media, bureaucracy), pulled by targeted actions rather than a single "defeat the leader" bar
+- Political jiu-jitsu / repression backfire: disciplined action met with visible repression converts fence-sitters and can trigger pillar defection; undisciplined action flips the roll in the power-holder's favor
+- Institutional anchoring: orgs tied to a durable institution (church, guild, mutual aid society) decay slowly and survive a leader's death; unanchored orgs decay fast after a win
+- Leadership pipeline vs. charismatic bottleneck: leader capacity caps, with trained successors multiplying org capacity and insuring against decapitation
+- Ask specificity: specific demands win more often but cap low; diffuse demands fail more but can still shift the Overton frame
+- Coalition breadth: alliances raise resilience and participation but add coordination friction and ideological-drift risk
+**Implementation:** Proposed, not yet implemented - see `wiki/literature-reviews/organizing-historical-campaigns.md` (Game Mechanic Proposals 1-7); builds on the existing `Campaign`/`hold_campaign_meeting` model in `game2-core/src/game/campaign.rs`
+**Simplification:** Pillar loyalty and discipline as a handful of tracked scalars rather than the full historical case-by-case dynamics
+**Educational Value:** Shows organizing as a structural contest over named sources of a power-holder's support, not a morale bar
+**Fun Factor:** Escalation ladder and pillar-pulling give players real strategic choices with historically-grounded tradeoffs
+**Tags:** organizing, campaign, pillars-of-support, repression-backfire, leadership, coalition
+
+---
+
+### Pattern: Counter-Organizing History → Repression & Counter-Intel Mechanics
+**Academic Source:** Church Committee (COINTELPRO primary sources); corporate counter-organizing playbook (1870s-present); documented agent-provocateur, false-flag, and soft-repression cases
+**Game Mechanic:**
+- Repression tech tree (power-holder side): surveillance → infiltration → legal harassment → provocation → violent repression, each with escalating cost and exposure risk
+- Trust/paranoia stat: infiltration and snitch-jacketing raise paranoia, which degrades org decision speed and recruitment and raises purge risk; countered by `verification_norms` and `transparency`
+- Controlled-opposition events: a captive seat (works council, advisory board) that may be binding or merely performative, discovered through a detection mini-game
+- Provocateur events: an infiltrator proposes a violent action at the worst moment; countered by trained marshals, verify-then-act process, or eject-on-suspicion (which feeds paranoia)
+- Manufactured crisis + refutation window: a real or staged incident lets a power-holder declare emergency measures; a timed documentation/media/elite-ally response can expose it as a scandal before it normalizes
+- Mohawk Valley playbook as counter-AI: power-holder factions run the documented 9-step de-legitimize → vigilante → "back to work" sequence as a scripted strategy for players to learn to interrupt early
+- Counter-intel as player capability: documentation, relational vetting, and surveillance-exploitation as unlockable org abilities, with a Media-PA-break-in-style high-risk action able to end a repression program
+**Implementation:** Proposed, not yet implemented - see `wiki/literature-reviews/organizing-countertactics.md` (Game Mechanic Proposals 1-7)
+**Simplification:** Paranoia and detection reduced to a few tracked stats and a binary binding/performative check, rather than full case-specific infiltration dynamics
+**Educational Value:** Teaches the real historical mechanism of repression (COINTELPRO, company unions, Mohawk Valley Formula) as a system with legible counters, not just villainy
+**Fun Factor:** Detection mini-games and a timed refutation window create tense, information-asymmetric play
+**Tags:** organizing, repression, paranoia, counter-intel, controlled-opposition, provocateur
+
+---
+
+### Pattern: Hazardous Craft Zoning -> Outside-the-Walls Visitor
+**Academic Source:** Pistoia stench-craft statute, English furnace-craft bylaws, Encyclopedie varnish siting advice, Cennini's stove
+**Game Mechanic:** Periodic specialist (oil-boiler/ink-maker) camps a cauldron on the meadow outside the gate - the fire/smell hazard IS the reason for the location
+**Implementation:** session.rs on the Circus spawn/advance/tick pattern
+**Simplification:** One visitor per ~year, multi-day phases, small per-day fire chance
+**Educational Value:** Why medieval towns zoned dangerous trades; the ink on the page starts as a fire on the meadow
+**Fun Factor:** A scheduled spectacle with a real downside tail (the meadow burns)
+**Tags:** ink, oil-boiling, fire, urban-zoning, periodic-events
+
+---
+
+### Pattern: Process-Stage Recipe -> Multi-Phase Event
+**Academic Source:** Encyclopedie "Encre noir" recipe (boil -> ignite/smother -> bread + onions -> slate test -> grind black)
+**Game Mechanic:** Event advances through historical phases, one per day, each with its own beat (smoke, fried crusts, the drip test)
+**Implementation:** phase enum on the event struct
+**Simplification:** 4-5 phases, no player micro-management
+**Educational Value:** The recipe itself is the content - bread really did go into the oil
+**Fun Factor:** Villagers gather; kids get fried crusts; the drip test is a small reveal
+**Tags:** recipe-as-gameplay, ink, phased-events
+
+---
+
+### Pattern: Flammability Field -> Map Fire Spread
+**Academic Source:** Medieval town conflagrations around furnace trades; Sweetser EmerGEnT CA
+**Game Mechanic:** Burning tiles spread to flammable neighbours (grass, crops, trees, buildings), blocked by water/road, burn out to scorched ground
+**Implementation:** new fire module over TileMap (emergence.rs proved the rules)
+**Simplification:** Probabilistic spread, fixed burn duration, recovery over days
+**Educational Value:** Why one cauldron could burn a medieval town
+**Fun Factor:** Rare catastrophe everyone remembers
+**Tags:** fire, cellular-automata, emergence
 
 ---
 

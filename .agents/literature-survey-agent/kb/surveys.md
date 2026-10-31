@@ -708,3 +708,79 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High
 **Tags:** imprisonment, dungeon, hunger-strike, force-feeding, cat-and-mouse, moral-shocks, condensing-symbols, jasper-poulsen, stranger-recruitment, attica, jailhouse-lawyer, amnesty, prisoner-of-conscience, release-campaign, pressure-accumulator, adoption-groups
+
+---
+
+### ROUND 3.5: The Faith-Power Interface (USER-REQUESTED, w/ Foucault comparison)
+**Date Completed:** 2026-10-31
+**Domain:** Sociology of Religion / Colonial Sociology / Institutional Power
+**Output:** wiki/literature-reviews/organizing-faith-and-power.md
+**Yield:**
+- Intermediary-class theory (Tilly brokerage, Fanon comprador, Weber routinization of charisma as THE co-option mechanism, Niebuhr church-sect drift, Gramsci hegemony, Stark religious economy)
+- Second Temple Judaism as complete typology: Sadducees (collaborator→destroyed), Pharisees (ambiguous intermediary→survived as rabbinic Judaism), Jesus movement (prophetic→captured by empire), Essenes (exit→archive), Zealots (revolt→annihilation)
+- Plantation intermediaries: drivers as structurally dual role (Genovese mediator thesis); paternalism bargain (legitimating ideology as contested resource - slaves weaponized the frame)
+- Slave Bible 1807 (literal redaction: 90% OT/50% NT cut, Exodus removed - faith-as-info-weapon); the double-edge church (Vesey/Turner/Montgomery on the same infrastructure)
+- Imperial co-option toolkit: Constantinian settlement (ur-case), Holy Synod, millet system, patronato, indirect rule, mission-educated comprador class → co-option backfire (Nkrumah/Mandela/Kenyatta were mission-schooled), state churches as controlled opposition, colonial communal categories
+- FOUCAULT: pastoral power→examination lineage; sovereign vs disciplinary; carceral continuum; church-as-intermediary = disciplinary institution avant la lettre; movements need counter-institutions producing counter-subjects
+- 6 mechanics: broker class, incorporation offers, redacted canon, paternalism bargain, disciplinary institutions layer, broker dilemmas
+
+**Key Sources:**
+- Niebuhr *Social Sources of Denominationalism* - A
+- Foucault (D&P, Madness, pastoral power) - A+
+- Genovese *Roll Jordan Roll* + driver scholarship - A
+- Slave Bible collections scholarship - A
+- Mission-education/intermediary-intellectual studies - A
+
+**Confidence:** High
+**Tags:** faith-power, intermediaries, brokers, co-option, pharisees, sadducees, plantation-drivers, paternalism, slave-bible, constantine, millet, indirect-rule, mission-schools, church-sect, foucault, pastoral-power, disciplinary-institutions, routinization-of-charisma
+
+---
+
+### ROUND 3.5: Critical Pedagogy & Movement Education (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Critical Pedagogy / Popular Education / Movement Schools
+**Output:** wiki/literature-reviews/organizing-critical-pedagogy.md
+**Yield:**
+- Author list: Freire, Boal, Horton/Highlander, hooks, Illich, Bourdieu&Passeron, Gramsci, Gutiérrez/liberation theology, Fals-Borda PAR, Giroux/McLaren, Rancière (counter-point), Du Bois, Dewey
+- 8 key insights: education never neutral (form teaches first); oppressor-within as deepest domination layer; praxis loop; community-teachers-only rule (organic intellectuals); agency not information as product; counter-institutions produce counter-subjects; research=organizing (PAR); embodied rehearsal (spect-actor)
+- Internal tensions documented: Freire vs Rancière (liberating teacher paradox), Freire vs Illich (transform vs dissolve), Horton vs Freire (practice vs theory)
+- 6 mechanics: internalized_domination stat, praxis loop skill growth, community-teacher requirement, spect-actor rehearsal, movement schools building, oppressor-within flip risk
+
+**Key Sources:**
+- Freire *Pedagogy of the Oppressed* - A+
+- Boal *Theatre of the Oppressed* - A+
+- Horton/Freire *We Make the Road by Walking* + Highlander historiography - A
+- Illich, Bourdieu&Passeron, Gramsci - A+
+- Gutiérrez + BEC scholarship - A
+- Fals-Borda PAR scholarship - A
+- Citizenship School records (~80% registration) - A
+
+**Confidence:** High
+**Tags:** critical-pedagogy, freire, boal, theatre-of-oppressed, highlander, citizenship-schools, septima-clark, illich, bourdieu, gramsci, organic-intellectuals, liberation-theology, becs, fals-borda, par, hooks, ranciere, conscientization, praxis, movement-schools, subject-production
+
+---
+
+### Hot-Pursuit: Ink Making - The Oil-Boiler's Fire
+**Date Completed:** 2026-10-31
+**Domain:** History of Technology, Medieval Crafts, Printing Ink
+**Output:** wiki/literature-reviews/ink-oil-boiling.md
+**Trigger:** Gary's remembered event - boil linseed oil in a cauldron, bread fries in it, mix in something black for ink. Confirmed real.
+**Yield:**
+- The oil-boiler/varnish-maker trade: linseed oil boiled for hours in a cauldron -> varnish (heat-bodied oil), the binder of printing ink and oil paint
+- Bread crusts + onions thrown into the boiling oil to degrease it (Encyclopedie) - the bread literally fries
+- Deliberate ignition practice: hot oil vapours allowed to catch fire, then smothered with wet linen or a metal lid; readiness tested by dripping on slate until "sticky like thin glue"
+- Lampblack (not ash - correction noted) from burning pitch/resin in a sac-a-noir sheepskin-lined soot chamber, beaten down with sticks
+- Fire/stench hazard pushed the craft outside walls: Cennini's enclosed stove, Encyclopedie's "wide space such as a garden", Pistoia's stench-craft banishment statute, English furnace-craft bylaws
+- Proposed mechanics: periodic oil-boiler event outside the gate, map fire-spread CA, acrolein stench grievance, local ink supply for the print shop
+
+**Key Sources:**
+- Cennini, Libro dell'Arte ch. XCI (c.1390s) - enclosed stove, "risk burning down the house", reduce by half - A+
+- Encyclopedie "Encre noir" (Diderot & d'Alembert) - bread crusts + onions, wet linen smothering, slate test, garden siting, sac-a-noir - A
+- NCBI Printing Processes and Printing Inks - oil ink for metal type, lampblack + linseed oil + rosin + driers - A
+- Savage/Stiber/Morenus, Pre-Industrial Western Printing Inks c.1450-1850 - A
+- "The Path to Pistoia", Past & Present 246 - stench crafts beyond walls - A
+
+**Confidence:** High
+**Tags:** ink-making, oil-boiling, linseed-oil, varnish, lampblack, sac-a-noir, printing-ink, Gutenberg, Cennini, Encyclopedie, fire-hazard, urban-zoning, stench-crafts, outside-the-walls, bread-crusts
+
+---

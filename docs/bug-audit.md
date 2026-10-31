@@ -20,7 +20,6 @@ Items are removed from this list as their PRs land.
 
 ## P1 — recently added features, dead on arrival
 
-- [ ] **W-013** `actions::rally_driver` is never called — rally has no driver or entry point.
 - [ ] **W-014** `organizing::village_concerns` is never called — the village's concerns are never aggregated for speech/meeting content.
 - [ ] **W-015** `organizing::concern_speech` is never called — heard concerns never surface in what people say.
 - [ ] **W-016** `organizing::meeting_sayings` is never called — meeting chatter text is never generated.

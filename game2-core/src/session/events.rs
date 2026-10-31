@@ -427,7 +427,7 @@ impl Game {
                 // kit for a penny - once, not a penny a day for the same pot
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
-                    if villager::is_dead(&self.world, v) { continue; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
@@ -446,7 +446,7 @@ impl Game {
                 // the sparks for free - the show's the thing they remember
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
-                    if villager::is_dead(&self.world, v) { continue; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
@@ -471,6 +471,7 @@ impl Game {
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 let poorest = self.villagers.iter().copied()
                     .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
                         && self.world.get_component::<Pos>(v)
                             .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                             .unwrap_or(false)

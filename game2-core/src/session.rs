@@ -819,10 +819,18 @@ pub const NAMES: [&str; 31] = [
     "Godric","Matilda","Leofric","Edith","Anselm","Bertha","Roderick","Winifred",
     "Osmund","Greta","Pip","Nell","Tom","Reeve","Willa",
 ];
-/// A villager's name by index - past the named roll, a newcomer stands in:
-/// births and migrants don't panic the name lookup
+/// The second roll, for the born and the come-lately: the village grows
+/// past the first thirty-one, and they shouldn't all answer to "a newcomer"
+const NEW_NAMES: [&str; 12] = [
+    "Sible","Dunn","Hamelin","Avice","Colle","Merrick",
+    "Sabyn","Tybalt","Imma","Peryn","Lettice","Hobkin",
+];
+/// A villager's name by index - past the named roll, the second roll
+/// keeps them distinct; past that, a newcomer stands in
 fn vill_name(i: usize) -> &'static str {
-    NAMES.get(i).copied().unwrap_or("a newcomer")
+    NAMES.get(i).copied()
+        .or_else(|| NEW_NAMES.get(i - NAMES.len()).copied())
+        .unwrap_or("a newcomer")
 }
 /// Which villager indices are the children, the tax collector and the herb-wife
 const KID_IDXS: [usize; 3] = [26, 27, 28];

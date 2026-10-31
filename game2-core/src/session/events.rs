@@ -697,6 +697,43 @@ impl Game {
                     self.say(v, "A marvel!", CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::BearWard => {
+                // the bear dances and the hat goes round; and now and
+                // then the bear forgets himself and takes a snap at the
+                // nearest hand - a story either way
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Joy, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Joy)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
+                    let spare = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if spare {
+                        if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    }
+                }
+                // the snap - a snap's worth telling for years
+                if self.rare_roll(id) % 5 == 0 {
+                    let nearest = self.villagers.iter().copied()
+                        .filter(|&v| !villager::is_dead(&self.world, v)
+                            && !crate::game::dungeon::unavailable(&self.world, v))
+                        .filter_map(|v| self.world.get_component::<Pos>(v)
+                            .map(|p| ((p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs(), v)))
+                        .filter(|(d, _)| *d < 4).min_by_key(|(d, _)| *d).map(|(_, v)| v);
+                    if let Some(v) = nearest {
+                        if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                            h.condition = (h.condition - 0.05).max(0.01);
+                        }
+                        self.say(v, "He bit me!", CHAT_BUBBLE_SECS);
+                        self.log.push(format!("t{}: the bear took a snap at the crowd - a story for years.", self.tick));
+                    }
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1350,6 +1387,35 @@ mod tests {
                 "the knives lifted her on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Juggler), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The bear dances and the joy spreads - the snap's a maybe, but the
+    /// crowd's lift is certain, and the frame shows the pair
+    #[test]
+    fn test_the_bear_dances_and_the_hat_goes_round() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::BearWard);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::BearWard && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::BearWard).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a bear-ward")),
+                "the frame shows the pair on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick),
+                "the bear lifted her on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BearWard), "they moved on from {:?}", st);
         }
     }
 

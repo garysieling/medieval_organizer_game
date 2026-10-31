@@ -5273,9 +5273,24 @@ impl Game {
                         self.log.push(format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
                         0.5
                     } else { 1.0 };
+                // a grant carried home lightens the round for the cause's
+                // own: half the cut back, and the taxing doesn't count
+                let granted = self.world.get_component::<crate::game::reactions::LordGrant>(self.org)
+                    .map(|g| tick <= g.until).unwrap_or(false)
+                    && self.world.get_component::<Organization>(self.org)
+                        .map(|o| o.members.contains(&target)).unwrap_or(false);
+                if granted {
+                    let back = (taken * 0.5).round();
+                    if let Some(p) = self.world.get_component_mut::<Purse>(target) { p.gold += back; }
+                    crate::game::desires::lift_grievance(&mut self.world, target, crate::game::desires::Problem::Taxed);
+                }
                 self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
                 if target == self.player {
                     self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
+                }
+                if granted {
+                    let name = self.villagers.iter().position(|v| *v == target).map(|i| NAMES[i]).unwrap_or("them");
+                    self.log.push(format!("t{}: the lord's grant covers {} - half the cut comes back.", tick, name));
                 }
             }
             Goal::TalkTo(e) => {
@@ -6343,6 +6358,16 @@ impl Game {
                                 self.guards.push((px + 1.5, py));
                                 self.guards.push((px - 1.5, py));
                             }
+                            // a campaign that keeps drawing the knights gets
+                            // a rule written against it - the movement
+                            // mattered enough to be outlawed
+                            if posted_before
+                                && self.world.get_component::<crate::game::reactions::AssemblyBan>(self.seats[seat].org).is_none() {
+                                self.world.add_component(self.seats[seat].org,
+                                    crate::game::reactions::AssemblyBan { cap: 2 });
+                                msg += " The Reeve proclaims it law: no more than two assembled.";
+                                self.toasts.push(("the ban is proclaimed".into(), tick + 40));
+                            }
                             // every crackdown can still take someone
                             if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
@@ -6381,6 +6406,17 @@ impl Game {
                     Some(out) => match out.response {
                         TargetResponse::Carries => {
                             self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
+                            // the carried demand lands as a grant: the cut
+                            // lightens for the cause's people, and last
+                            // year's taxing stops counting against them
+                            let oe = self.seats[seat].org;
+                            self.world.add_component(oe, crate::game::reactions::LordGrant {
+                                until: tick + crate::game::desires::YEAR_DAYS });
+                            if let Some(o) = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()) {
+                                for m in o {
+                                    crate::game::desires::lift_grievance(&mut self.world, m, crate::game::desires::Problem::Taxed);
+                                }
+                            }
                             format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
                         }
                         TargetResponse::Deflects =>
@@ -11488,5 +11524,81 @@ mod campaign_visual_tests {
         g.seats[0].picked = true;
         let insp = g.villager_inspector_at(0);
         assert!(insp.lines.iter().any(|l| l.text.contains("woke")), "{:?}", insp.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    }
+}
+
+#[cfg(test)]
+mod campaign_grant_tests {
+    use super::*;
+
+    #[test]
+    fn test_carried_demands_lighten_the_tax_round() {
+        let mut g = Game::new();
+        let pe = g.player;
+        for &v in &g.villagers[..4] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+            for _ in 0..3 {
+                crate::game::relationships::record_interaction(&mut g.world, v,
+                    crate::game::relationships::Interaction {
+                        other: pe, kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+            }
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..4].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+
+        // a man with his own taxing to complain of carries the demand;
+        // the doors stay shut on the ones who don't share the fight
+        let reeve = g.collector.unwrap();
+        desires::add_grievance(&mut g.world, reeve, desires::Problem::Taxed, g.tick + 200);
+        g.seats[0].selected_target = COLLECTOR_IDX;
+        g.seats[0].picked = true;
+        g.seats[0].ctx_actions.push(CtxAct::Townhall);
+        g.ctx_act_at(0, 0);
+        assert!(g.log.last().unwrap().contains("king will hear"), "{:?}", g.log.last());
+
+        // the grant lands: the cause's people stop counting the taxing
+        assert!(g.world.get_component::<crate::game::reactions::LordGrant>(g.org).is_some());
+        assert!(!desires::problems_of(&g.world, g.villagers[1], g.tick)
+            .contains(&desires::Problem::Taxed), "the grievance is answered");
+    }
+}
+
+#[cfg(test)]
+mod campaign_ban_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_rule_is_written_against_the_crowd_that_wont_stop() {
+        let mut g = Game::new();
+        let pe = g.player;
+        for &v in &g.villagers[..5] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+            for _ in 0..3 {
+                crate::game::relationships::record_interaction(&mut g.world, v,
+                    crate::game::relationships::Interaction {
+                        other: pe, kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+            }
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..5].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        g.seats[0].ctx_actions.push(CtxAct::March);
+
+        // first crowd: the knights come out and take the loudest
+        g.ctx_act_at(0, 0);
+        assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
+        // second crowd: the law is written
+        g.ctx_act_at(0, 0);
+        let last = g.log.last().unwrap().clone();
+        assert!(last.contains("no more than two assembled"), "{}", last);
+        assert!(g.world.get_component::<crate::game::reactions::AssemblyBan>(g.org).is_some());
+        // and under the ban even a handful is broken up on sight
+        g.ctx_act_at(0, 0);
+        assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
     }
 }

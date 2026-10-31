@@ -653,3 +653,11 @@ mod tests {
         assert_eq!(class_of(&w, e), SocialClass::Working, "a master with no shop is still working class");
     }
 }
+
+/// Lift a grievance: the load is answered, not just waited out - a
+/// grievance that stops counting right now (a grant, a fix, a fight won)
+pub fn lift_grievance(world: &mut World, e: Entity, p: Problem) {
+    if let Some(life) = world.get_component_mut::<InnerLife>(e) {
+        life.grievances.retain(|(g, _)| *g != p);
+    }
+}

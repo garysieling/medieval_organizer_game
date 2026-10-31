@@ -166,7 +166,9 @@ the water brings up a pale stone, faintly lit, and the tale gets
 around. And at the map's edge there's a cave, and in it a hermit - the
 dark keeps them, they say, and the best mushrooms grow in the under.
 Walk out and ask, and they'll tell you true: the pale one's the real
-thing, where the light dies.
+thing, where the light dies. The village has a voice with a flourish
+on it - by Saint Crispin, a pox on this weather, the talk turns and
+they call a body a knave and no mistake.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

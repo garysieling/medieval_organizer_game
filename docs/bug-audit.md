@@ -28,7 +28,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-022** `campaign::grumble_line` is never called — dissenters' grumbles are computed but never rendered anywhere.
 - [x] ~~**W-023** `campaign::stake_of` is never called — `stake_for` is used, the `stake_of` variant is dead.~~ (fixed — deleted; nothing needed the top stake)
 - [ ] **W-024** `campaign::vote_for` is only used inside `hold_issue_vote` — either make it private or wire member-level ballots into the UI.
-- [ ] **W-025** `player::recruit_trust` is never called — recruiting never consults personal trust.
+- [x] ~~**W-025** `player::recruit_trust` is never called — recruiting never consults personal trust.~~ (stale — called by `can_recruit`, which gates the Recruit button)
 - [ ] **W-026** `desires::housed` is never called.
 - [ ] **W-027** `org_skills::role_skill` is never called — seat-holders' competence at their role is never measured.
 - [x] ~~**W-028** `fire::on_fire`/`is_scorched` are never called — `session.rs` reads `fire.burning`/`fire.scorched` maps directly; two sources of truth for fire state.~~ (fixed — `fire.burns_near` added; session asks the fire)
@@ -73,7 +73,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.~~ (fixed — the graze point centres on the flock)
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
-- [ ] **W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.
+- [x] ~~**W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.~~ (partially stale — `skill_gain` runs via `train_day` in `livelihood`; deleted dead `is_service` (dup of `is_pmc`) and `options_for`)
 - [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
 - [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
 - [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).

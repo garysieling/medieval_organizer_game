@@ -1209,6 +1209,21 @@ impl Game {
                     break;
                 }
             }
+            EventId::WellDigger => {
+                // he digs deep all week: those who stand near get a
+                // cup of what he's striking - a taste of sweet water
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 6)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition + 0.01).min(1.0);
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1534,6 +1549,19 @@ impl Game {
                     }
                 }
                 self.log.push(format!("t{}: the charcoal burner broke his heap - he left twenty good sacks of coal.", tick));
+            }
+            EventId::WellDigger => {
+                // sweet water, not the pond's: the sour gut clears
+                // where clean water runs, and the beds drink deep
+                for &v in &self.villagers.clone() {
+                    if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
+                        l.grievances.retain(|(p, _)| *p != desires::Problem::SourGut);
+                    }
+                }
+                for g in self.gardens.iter_mut() {
+                    g.2 += 0.05;
+                }
+                self.log.push(format!("t{}: the well-digger's shaft struck sweet water - the pond's days are done.", tick));
             }
             EventId::RefugeeFamily => {
                 // fed and rested, the road's still a hard bed: some put
@@ -2760,6 +2788,34 @@ mod tests {
             assert!(thatch > 0, "fresh thatch on the roll on {:?}", st);
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::Thatcher), "his ladder came down on {:?}", st);
+        }
+    }
+
+    /// Sweet water, not the pond's: when his shaft comes in the sour
+    /// gut clears and the beds drink - the frame shows his spade first
+    #[test]
+    fn test_the_shaft_strikes_sweet_water() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::WellDigger);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::WellDigger && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            desires::add_grievance(&mut g.world, v, desires::Problem::SourGut, g.tick + 30);
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the well-digger")),
+                "the frame shows his spade on {:?}", st);
+            stage::run_days(&mut g, 7);
+            assert!(g.world.get_component::<desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().all(|(p, _)| *p != desires::Problem::SourGut))
+                .unwrap_or(false), "the sweet water cleared her gut on {:?}", st);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 > growth0 || g.gardens.is_empty(), "the beds drank on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::WellDigger), "he packed his spade from {:?}", st);
         }
     }
 

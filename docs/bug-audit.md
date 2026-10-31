@@ -31,11 +31,7 @@ Items are removed from this list as their PRs land.
 
 ## P2 — whole subsystems implemented but never invoked
 
-- [ ] **W-043** `sim::stratification` `infer_class`/`spawn_position`/`update_status` never wired — class never updates.
-- [ ] **W-044** `sim::world_events` `spawn_event`/`should_fire`/`event_effect` never wired — no world events ever fire.
 - [x] ~~**W-045** `sim::economics` `base_price`/`set_base_price` never consulted — market prices are hardcoded elsewhere (verify which wins).~~ (verified — `vocation::price()` wins in the session; `Market::base_price` runs in the village_sim market)
-- [ ] **W-046** `sim::reputation_qsp` `spawn_reputation`/`transition_tick` never stepped — reputation QSP is dormant.
-- [ ] **W-047** `sim::fundamentalism` `fundamentalism_risk`/`is_fundamentalist`/`fundamentalist_effects` never wired.
 - [x] ~~**W-048** `sim::illness::apply_treatment` never called — no illness is ever treated in the live sim.~~ (partially stale — live curing runs via `herbology::apply_efficacy`; dead `apply_treatment` deleted)
 - [x] ~~**W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.~~ (stale — all wired transitively: `knows_cure`←`brew_from_stock`, `treats_illness`/`herb_tree`←`medicinal_herbs`, used by the SeekRemedy path)
 - [x] ~~**W-050** `jobs` `work_tick`/`sells_goods` never called — the jobs system never ticks (verify whether vocation/livelihood replaced it and jobs.rs should go).~~ (stale — both run inside `JobSystem`, scheduled by the `game_loop` driver)

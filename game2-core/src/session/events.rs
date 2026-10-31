@@ -566,6 +566,16 @@ impl Game {
                 }
                 self.log.push(format!("t{}: a sack of rats for the road - the larder breathes easier.", tick));
             }
+            EventId::Dowser => {
+                // the forked stick dips or it doesn't - when it does, the
+                // pit's water table rises on the mark he left
+                if self.rare_roll(id) % 4 == 0 {
+                    self.log.push(format!("t{}: the stick never dipped - dry ground all round, says the diviner.", tick));
+                } else {
+                    self.land.pit_water = (self.land.pit_water + 0.5).min(1.0);
+                    self.log.push(format!("t{}: water sings under the meadow - the diviner marked the spot.", tick));
+                }
+            }
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides
                 let mark = self.lonely_hearts().into_iter()
@@ -778,6 +788,30 @@ mod tests {
             assert!(after > g.tick + 100 || after > plague_before,
                 "the plague's pushed off ({plague_before} -> {after}) on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::RatCatcher), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The diviner's stick speaks at the end: water marked, or dry ground
+    /// all round - and the frame showed him walking it first
+    #[test]
+    fn test_the_dowsers_stick_speaks() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            let water0 = g.land.pit_water;
+            g.force_event(EventId::Dowser);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Dowser && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the water-diviner")),
+                "the frame shows the diviner on {:?}", st);
+            stage::run_days(&mut g, 7);
+            let found = g.log.iter().any(|l| l.contains("water sings"));
+            let dry = g.log.iter().any(|l| l.contains("never dipped"));
+            assert!(found || dry, "the stick said something on {:?}", st);
+            assert_eq!(found, g.land.pit_water > water0, "the spring answered on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Dowser), "he moved on from {:?}", st);
         }
     }
 

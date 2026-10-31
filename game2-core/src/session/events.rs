@@ -623,6 +623,28 @@ impl Game {
                     alms += 1;
                 }
             }
+            EventId::RelicSeller => {
+                // a saint's knuckle-bone for two gold: the faithful carry
+                // the blessing a month and a half - the seal's his own work
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut sold = 0;
+                for &v in &self.villagers.clone() {
+                    if sold >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Faith, tick) { continue; }
+                    let faithful = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !faithful || !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, tick + 45);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
+                    self.say(v, "See the seal!", CHAT_BUBBLE_SECS);
+                    sold += 1;
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1056,6 +1078,36 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went in");
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::PilgrimBand), "they passed from {:?}", st);
+        }
+    }
+
+    /// The knuckle-bone's blessing holds: two gold for the faithful, and
+    /// the frame shows his stall first
+    #[test]
+    fn test_the_relics_blessing_holds() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::RelicSeller);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::RelicSeller && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::RelicSeller).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the relic-seller")),
+                "the frame shows the seller on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick),
+                "the blessing took on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold <= 8.0, "two gold went for it");
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::RelicSeller), "he moved on from {:?}", st);
         }
     }
 

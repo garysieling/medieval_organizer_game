@@ -155,7 +155,9 @@ can see, bright for a season until it fades and the work comes round
 again. And now and then a sure pair of hands lays down a thing made to
 outlast them - a lute, a window, a fine toolset - and it gathers
 stories the way a person does, and passes to kin when the hands that
-held it stop.
+held it stop. The literate put word to those they think of - a letter
+travels a week on the road and warms the bond it lands on - and the
+ones who can't read pay the priest a penny to hear it.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -1713,6 +1713,16 @@ pub struct Game {
     pub painted: Vec<(Entity, u64)>,
     /// The things made to outlast their makers - item entities
     pub heirlooms: Vec<Entity>,
+    /// Letters in transit: (from, to, the day they arrive)
+    pub letters: Vec<(Entity, Entity, u64)>,
+}
+
+/// A letter, traveling - durable word that crosses distance
+#[derive(Debug)]
+pub struct Letter {
+    pub from: Entity,
+    pub to: Entity,
+    pub due: u64,
 }
 
 /// How a village keeps its accounts
@@ -2453,6 +2463,7 @@ impl Game {
             harsh_winter: false,
             painted: vec![],
             heirlooms: vec![],
+            letters: vec![],
         }
     }
 
@@ -4096,6 +4107,64 @@ impl Game {
         }
     }
 
+    /// The written word: the literate put word to those they think of -
+    /// it travels a week, and the ones who can't read pay the priest a
+    /// penny to hear it. The pedlar carries the post.
+    pub fn letter_tick(&mut self, tick: u64) {
+        // arriving: a letter lands after a week on the road
+        let due: Vec<(Entity, Entity, u64)> = self.letters.iter().copied()
+            .filter(|(_, _, d)| tick >= *d).collect();
+        self.letters.retain(|(_, _, d)| tick < *d);
+        for (from, to, _) in due {
+            if villager::is_dead(&self.world, to) { continue; }
+            // the illiterate pay the priest a penny to hear it read out
+            let literate = self.literate(to);
+            if !literate {
+                if let Some(priest) = self.villagers.iter().copied().find(|&v|
+                    self.world.get_component::<Craft>(v)
+                        .map(|c| c.vocation == Vocation::Priest).unwrap_or(false)) {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(to) {
+                        if p.gold > 1.0 {
+                            p.gold -= 1.0;
+                            if let Some(pp) = self.world.get_component_mut::<Purse>(priest) { pp.gold += 1.0; }
+                        }
+                    }
+                    self.say(to, "The Father read it out - word from home.", CHAT_BUBBLE_SECS);
+                }
+            }
+            // a letter is a bond kept warm across distance
+            relationships::record_interaction(&mut self.world, from, relationships::Interaction {
+                other: to, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
+            desires::satisfy(&mut self.world, to, Want::Joy, tick + 15);
+            self.log.push(format!("t{}: a letter comes for {}.", tick, self.name_of(to)));
+        }
+        // writing: the literate put word to someone they think of
+        if tick % 30 != 15 { return; }
+        if self.letters.len() >= 3 { return; }
+        let writer = self.villagers.iter().copied().find(|&v|
+            !villager::is_dead(&self.world, v) && self.literate(v)
+            && self.world.get_component::<relationships::Relationship>(v).is_none());
+        let Some(writer) = writer else { return };
+        // someone they think of: the kindest bond they have, or a lover
+        let to = self.world.query::<relationships::Relationship>().iter()
+            .filter_map(|&r| self.world.get_component::<relationships::Relationship>(r))
+            .filter(|r| r.from == writer)
+            .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|r| r.other);
+        if let Some(to) = to {
+            self.letters.push((writer, to, tick + 7));
+            self.say(writer, "Put it in a letter - they'll read it when the pedlar comes.", CHAT_BUBBLE_SECS);
+        }
+    }
+
+    /// Can they read? The priest, the printmaker, the clerk - and you.
+    pub fn literate(&self, v: Entity) -> bool {
+        v == self.player
+            || Some(v) == self.translator
+            || self.world.get_component::<Craft>(v)
+                .map(|c| matches!(c.vocation, Vocation::Priest | Vocation::Printmaker)).unwrap_or(false)
+    }
+
     /// Now and then a maker makes a thing to outlast them - a lute, a
     /// window, a fine toolset - and it gathers stories the way a person
     /// does, and passes to kin when the hands that held it stop.
@@ -4935,6 +5004,8 @@ impl Game {
         self.painter_tick(tick);
         // and now and then a maker makes a thing to outlast them
         self.heirloom_tick(tick);
+        // and the literate put word to those they think of
+        self.letter_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -8044,6 +8115,39 @@ mod heirloom_tests {
         let h = g.world.get_component::<villager::Heirloom>(item).unwrap();
         assert_eq!(h.owner, kin, "a bequest picks kin");
         assert!(!h.stories.is_empty(), "it gathers the story of the passing");
+    }
+}
+
+#[cfg(test)]
+mod letter_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_letter_comes_for_them() {
+        let mut g = Game::new();
+        let from = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false)).unwrap();
+        let to = g.villagers[0];
+        g.letters.push((from, to, 10));
+        g.letter_tick(15);
+        assert!(g.letters.is_empty(), "it arrived");
+        assert!(g.log.iter().any(|l| l.contains("a letter comes")), "word travels");
+    }
+
+    #[test]
+    fn test_the_illiterate_pay_the_priest_a_penny() {
+        let mut g = Game::new();
+        let priest = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false)).unwrap();
+        let reader = g.villagers.iter().copied().find(|&v| v != priest && !g.literate(v)).unwrap();
+        g.world.get_component_mut::<Purse>(reader).unwrap().gold = 10.0;
+        g.world.get_component_mut::<Purse>(priest).unwrap().gold = 0.0;
+        g.letters.push((priest, reader, 10));
+        g.letter_tick(15);
+        let gold = g.world.get_component::<Purse>(reader).unwrap().gold;
+        let priest_gold = g.world.get_component::<Purse>(priest).unwrap().gold;
+        assert_eq!(gold, 9.0, "a penny for the reading");
+        assert_eq!(priest_gold, 1.0, "and the penny's his");
     }
 }
 

@@ -4648,7 +4648,9 @@ impl Game {
         for &b in &self.building_entities.clone() {
             let full = self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home
-                    && bb.occupants.len() < bb.capacity as usize
+                    // beds cap at four like the first settling - the
+                    // building's capacity is its stock limit, not beds
+                    && bb.occupants.len() < 4
                     && bb.occupants.iter().filter(|&&o|
                         self.world.get_component::<Kid>(o).is_none()
                         && !villager::is_dead(&self.world, o)).count() >= 2)
@@ -4676,10 +4678,13 @@ impl Game {
         self.was_sick.push(false);
         self.died_on.push(None);
         // a roof if one's going: spare beds fill before anyone's a
-        // stranger long; otherwise a bed is the first thing on their mind
+        // stranger long; otherwise a bed is the first thing on their
+        // mind. Same exclusions as the first settling - the herb hut is
+        // hers alone, and the foreign houses aren't for our strangers
         let room = self.building_entities.iter().copied().find(|&b|
             self.world.get_component::<Building>(b)
-                .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < bb.capacity as usize)
+                .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < 4
+                    && bb.name != "the herb hut" && bb.name != "a foreign house")
                 .unwrap_or(false));
         match room {
             Some(h) => self.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(v),

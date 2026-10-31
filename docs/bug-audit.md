@@ -41,7 +41,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-046** `sim::reputation_qsp` `spawn_reputation`/`transition_tick` never stepped — reputation QSP is dormant.
 - [ ] **W-047** `sim::fundamentalism` `fundamentalism_risk`/`is_fundamentalist`/`fundamentalist_effects` never wired.
 - [ ] **W-048** `sim::illness::apply_treatment` never called — no illness is ever treated in the live sim.
-- [ ] **W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.
+- [x] ~~**W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.~~ (stale — all wired transitively: `knows_cure`←`brew_from_stock`, `treats_illness`/`herb_tree`←`medicinal_herbs`, used by the SeekRemedy path)
 - [ ] **W-050** `jobs` `work_tick`/`sells_goods` never called — the jobs system never ticks (verify whether vocation/livelihood replaced it and jobs.rs should go).
 - [ ] **W-051** `lifecycle::spawn_person` never called — nobody is ever born; `KidGrowth` only ages existing kids, so the village can only shrink.
 - [ ] **W-052** `migration` `spawn_migrants`/`integrate`/`migration_effects` never called — no newcomers ever arrive (pilgrim-settling is text-game only).
@@ -59,7 +59,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.~~ (fixed — the graze point centres on the flock)
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
-- [ ] **W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.
+- [x] ~~**W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.~~ (partially stale — `skill_gain` runs via `train_day` in `livelihood`; deleted dead `is_service` (dup of `is_pmc`) and `options_for`)
 - [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
 - [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
 - [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).

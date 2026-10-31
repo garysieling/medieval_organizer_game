@@ -6233,19 +6233,28 @@ impl Game {
                 let v = self.villagers[self.seats[seat].selected_target];
                 let name = NAMES[self.seats[seat].selected_target];
                 use crate::game::campaign::Role;
-                // the first seat standing empty: turnout, notes, then chair
-                let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
-                    .find(|&r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
-                match open {
-                    Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) => {
-                        format!("You name {} the campaign's {}.", name, match r {
-                            Role::TurnoutCoordinator => "turnout coordinator",
-                            Role::NoteTaker => "note taker",
-                            Role::Chair => "chair",
-                        })
+                let role_name = |r: Role| match r {
+                    Role::TurnoutCoordinator => "turnout coordinator",
+                    Role::NoteTaker => "note taker",
+                    Role::Chair => "chair",
+                };
+                // a seated member doesn't get re-seated silently - their
+                // old seat would empty behind the new one
+                let already = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .and_then(|c| c.seats.iter().find(|s| s.holder == v)).map(|s| s.role);
+                match already {
+                    Some(r) => format!("{} already holds the {} seat.", name, role_name(r)),
+                    // the first seat standing empty: turnout, notes, then chair
+                    None => {
+                        let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
+                            .find(|&r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
+                        match open {
+                            Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) =>
+                                format!("You name {} the campaign's {}.", name, role_name(r)),
+                            Some(_) => format!("{} can't hold a seat - they have to be a living member.", name),
+                            None => "Every seat is spoken for - someone would have to step down.".into(),
+                        }
                     }
-                    Some(_) => format!("{} can't hold a seat - they have to be a living member.", name),
-                    None => "Every seat is spoken for - someone would have to step down.".into(),
                 }
             }
             CtxAct::March => {
@@ -6262,7 +6271,10 @@ impl Game {
                             self.world.get_component::<Organization>(self.seats[seat].org)
                                 .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
                         let mut woke = 0;
-                        for v in self.villagers_in_reach_at(seat) {
+                        for &v in &self.villagers {
+                            // a march is seen, not invited to: shunned or
+                            // not, whoever shares the stake or the friend
+                            // can feel the cause wake
                             if !members.contains(&v) {
                                 woke += crate::game::reactions::witness(&mut self.world, v, &issue, &out.turnout, tick) as usize;
                             }
@@ -7249,13 +7261,6 @@ impl View {
             }
         }
 
-        // contextual actions, each at its own slot (Meet sits on the
-        // campaign's FIGHT line, the rest under the main buttons)
-        for b in m.ctx.iter().map(|a| ctx_button(*a)).collect::<Vec<_>>() {
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            draw_button(&mut buf, &b, hover, false);
-        }
-
         // inspector: a villager's card, or a building's when one's clicked
         // inspector: a villager's card, or a building's when one's clicked
         if self.inspector_open {
@@ -7281,6 +7286,14 @@ impl View {
                     }
                 }
             }
+        }
+
+        // contextual actions: after the inspector, so the ones that live on
+        // the card's bottom edge (Seat/Strike) stay visible. Meet sits on
+        // the campaign's FIGHT line, the rest under the main buttons
+        for b in m.ctx.iter().map(|a| ctx_button(*a)).collect::<Vec<_>>() {
+            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
+            draw_button(&mut buf, &b, hover, false);
         }
 
         // organization: who has joined, by name

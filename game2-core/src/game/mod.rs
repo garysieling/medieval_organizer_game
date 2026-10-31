@@ -17,7 +17,6 @@ pub mod succession;
 pub mod sanctions;
 pub mod jobs;
 pub mod traits;
-pub mod migration;
 pub mod trade_routes;
 pub mod warfare;
 pub mod feuds;

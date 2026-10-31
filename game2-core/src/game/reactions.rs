@@ -71,7 +71,11 @@ pub const CRACKDOWN_AT: usize = 4;
 /// knights (GuardsPosted lands on the org). Returns the reaction.
 pub fn react(world: &mut World, campaign: Entity, turnout: &[Entity], tick: u64) -> Option<Reaction> {
     let org = world.get_component::<campaign::Campaign>(campaign)?.org;
-    let r = if turnout.len() >= CRACKDOWN_AT { Reaction::Crackdown }
+    // under a ban, a crowd over the cap is broken up on sight - the rule
+    // itself does the state's work
+    let banned = !turnout.is_empty() && world.get_component::<AssemblyBan>(org)
+        .map(|b| turnout.len() > b.cap).unwrap_or(false);
+    let r = if turnout.len() >= CRACKDOWN_AT || banned { Reaction::Crackdown }
         else if turnout.len() >= WATCHED_AT { Reaction::Watched }
         else { Reaction::Ignored };
     if r == Reaction::Crackdown {
@@ -146,4 +150,23 @@ mod tests {
         assert_eq!(react(&mut w, camp, &crowd, 5), Some(Reaction::Crackdown));
         assert_eq!(w.get_component::<GuardsPosted>(o).unwrap().knights, 2);
     }
+}
+
+/// The lord's answer to carried demands: the load the issue names comes
+/// back light for the cause's people until `until`. A concession is
+/// dated - the state gives relief, not surrender; the organizer has to
+/// keep it won. Only the issue fought for is answered
+#[derive(Debug)]
+pub struct LordGrant {
+    pub issue: String,
+    pub until: u64,
+}
+
+/// The state's other answer: a rule made against the assembly itself.
+/// A ban on gatherings over `cap` - the movement got big enough that
+/// the law had to answer it. Public actions over the cap are broken up
+/// on sight
+#[derive(Debug)]
+pub struct AssemblyBan {
+    pub cap: usize,
 }

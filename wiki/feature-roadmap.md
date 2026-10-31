@@ -318,60 +318,6 @@ stress. **Size: S-M.**
 
 ---
 
-### F42. The land keeps score — slow environmental pressure
-
-*Side-feedback request; numbered F42 for stable refs. Three creeping
-degradations that generate issues through the existing Heard→Issue
-machinery: the point is organizing content, not scenery.*
-
-**What.** The map accumulates damage from what the village does: the
-wood thins and isn't replanted, the worked-out pit floods, and the river
-carries the town's leavings downstream. Each pressure crosses thresholds
-that seed problems → complaints → discoverable issues.
-
-**Spec.**
-
-- New `sim/environment.rs` (or `game/` — sim is the better home since
-  bins reuse it): per-tile counters with daily update:
-  - `tree_cover: f32` — each wood gather takes ~0.1; regrowth +0.005/day
-    on undisturbed forest only (pasture, trail, and built tiles don't
-    recover — trampling kills regrowth). Below 0.3 the tile draws
-    stumps; wood yields scale with remaining cover → toolmaker/luthier
-    `NoInput("wood")` spreads → issue **"the shrinking wood"**.
-  - `pit_water: f32` — a `Quarry` zone feeds stone/ore gathering (mason,
-    toolmaker); each gather adds water (digging below the water table).
-    Yield drops at 0.4/0.7, flooded dead at 1.0 — it renders as a pond
-    where the pit was → mason `Problem::DryPit` → issue **"the drowned
-    pit"**. (F32's cave becomes the alternative source later — one
-    pressure creating a demand for another feature.)
-  - `effluent` on river tiles — tanner/works/houses dump a little daily
-    upstream; flow propagates a `stink` field *downstream only*: fisher
-    catch −, `Problem::Stink` on homes near the reach, small illness
-    uptick within it → issue **"the stinking reach"**. Feeds F10's
-    smell field and F31's fisher; upstream stays clean so direction
-    is legible on the map.
-- All three are *slow* — tuned so a casual 360-day year barely shows
-  them, but sustained play visibly wears the land (thinned treeline,
-  flooded pit, a brown reach below town). Counters are seeded with a
-  little head start so mid-length sessions see the first threshold.
-- Issue plumbing is the point: when a problem's *cause* is
-  environmental, its Talk/meeting line says so ("the wood's thin this
-  side of the hill"), and `Heard` entries key to the issue names above.
-  All three are `vocation: None` common issues (F43) — the land's
-  grievances are the ones everybody shares.
-- Rendering: stump/dimmed-tree variants, murky-brown tint on downstream
-  water tiles, water-fill in the pit. No new sprites — tint and terrain
-  swaps only.
-- Later hooks (not this PR): a woodward/coppicing answer, the lord's
-  forest law (F25 edict forbidding cutting — a pressure that makes an
-  *illegal* economy).
-
-**Verify.** Gathering depletes cover and regrowth needs undisturbed
-tiles; the pit floods at cumulative gather count, not calendar; stink
-field never propagates upstream; each pressure produces its issue via
-≥3 heard entries; mid-length seeds show threshold 1 within ~a year.
-**Size: M.**
-
 ---
 
 ## Wave 4 — Craft, art & the strange
@@ -549,7 +495,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 9. ~~F11 Children grow up~~ — **done, PR #150.**
 10. ~~F18 Footfall trails~~ — **done, PR #151.**
     already written.
-11. F42 The land keeps score — the land's grievances are the bridge
+11. ~~F42 The land keeps score~~ — **done, PR #152.**
     issues F43 makes matter; needs a few features' worth of economy to
     bite.
 12. F13 Sanction ladder — the emergent-stories engine; witch-trial and

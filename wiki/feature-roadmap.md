@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F19. The roving pedlar
-
-*Brainstorm "roving pots-and-pans seller"; reuses `traveller_path`
-+ `TownRole::Trader` machinery + `sim/gossip.rs`.*
-
-**What.** Every ~60–120 days a pedlar walks the road to the market,
-sells imported oddities (ribbons, needles, a lute string, a rumor about
-the next village over), trades gossip both ways, and leaves.
-
-**Spec.** `PedlarEvent` like the minstrel: stock of 4–8 goods incl. 1–2
-items nothing local supplies; carries `gossip` entries seeded from rival
-village state (their famine becomes our rumor). Villagers `Buying`-walk
-to his stall. He's the game's newspaper. **Size: M.**
-
----
-
 ### F20. Perfumer — flowers, aqua vitae, and glass
 
 *`sprint-7-perfume-and-smell.md`; consumes F4 flowers, F9 distillery

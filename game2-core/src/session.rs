@@ -388,6 +388,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("the talk turns") || entry.contains("cold shoulder")
         || entry.contains("boycott") || entry.contains("a crowd at")
         || entry.contains("the village gathers") || entry.contains("pays triple")
+        || entry.contains("a pedlar") || entry.contains("pedlar's moved on")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1357,6 +1358,18 @@ pub struct Minstrel {
     pub playing_until: Option<u64>,
 }
 
+/// The roving pedlar: walks the road in, pitches his stall at the
+/// market with goods nothing local supplies, trades gossip both ways,
+/// and leaves. He's the game's newspaper.
+pub struct Pedlar {
+    pub e: Entity,
+    pub path: Vec<(i32, i32)>,
+    /// Some(day) while he's selling at the market until
+    pub selling_until: Option<u64>,
+    /// His pitch while he's here
+    pub stall: Option<Entity>,
+}
+
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;
 
@@ -1578,6 +1591,10 @@ pub struct Game {
     pub minstrel: Option<Minstrel>,
     /// Day the next minstrel is due
     pub next_minstrel: u64,
+    /// The roving pedlar, when one's about
+    pub pedlar: Option<Pedlar>,
+    /// Day the next pedlar is due
+    pub next_pedlar: u64,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: std::collections::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
@@ -2304,6 +2321,8 @@ impl Game {
             travels: vec![],
             minstrel: None,
             next_minstrel: 250 + seed % 200,
+            pedlar: None,
+            next_pedlar: 60 + seed % 60,
             derelict: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
@@ -2733,6 +2752,7 @@ impl Game {
             self.advance_meeting();
             self.advance_travels();
             self.advance_minstrel();
+            self.advance_pedlar();
             // the flock grazes: the animals drift about the day's grazing point
             for (ai, &a) in self.flock.iter().enumerate() {
                 if let Some(p) = self.world.get_component_mut::<Pos>(a) {
@@ -4421,6 +4441,8 @@ impl Game {
         }
         // a minstrel rides in every so often
         if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
+        // and the pedlar comes by every few weeks - the game's newspaper
+        if self.pedlar.is_none() && tick >= self.next_pedlar { self.spawn_pedlar(); }
         // the collector walks his round
         if let Some(c) = self.collector {
             if !self.travels.iter().any(|t| t.who == c) {
@@ -4626,6 +4648,91 @@ impl Game {
         self.log.push(format!("t{}: a travelling minstrel has come to town.", self.tick));
     }
 
+    /// The roving pedlar comes up the road
+    pub fn spawn_pedlar(&mut self) {
+        let e = self.world.create_entity();
+        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        let path = self.map.walk_path(start, (16, 16)).unwrap_or_default();
+        self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None });
+        self.log.push(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick));
+    }
+
+    /// One frame of the pedlar's visit: walk in, pitch the stall, trade
+    /// gossip and oddities a few days, then the road takes him
+    pub fn advance_pedlar(&mut self) {
+        let Some(mut m) = self.pedlar.take() else { return };
+        if m.selling_until.is_none() {
+            // walking to the market
+            let Some(p) = self.world.get_component_mut::<Pos>(m.e) else { return };
+            if m.path.is_empty() {
+                // pitched: a stall of oddities nothing local supplies
+                let (px, py) = (p.x, p.y);
+                let stall = self.world.create_entity();
+                self.world.add_component(stall, Pos { x: px, y: py });
+                let mut stock = std::collections::HashMap::new();
+                stock.insert("ribbon".to_string(), 4);
+                stock.insert("needle".to_string(), 6);
+                stock.insert("lute_string".to_string(), 2);
+                self.world.add_component(stall, household::Building {
+                    kind: household::BuildingKind::TraderStall,
+                    name: "the pedlar's pitch".into(),
+                    worker: Some(m.e), stock, occupants: vec![],
+                    capacity: 1, overseer: None,
+                });
+                m.stall = Some(stall);
+                m.selling_until = Some(self.tick + 3);
+                // and the word goes out: a few with a want for finery come
+                let buyers: Vec<Entity> = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<InnerLife>(v)
+                            .map(|l| l.wants.contains(&Want::Finery)).unwrap_or(false))
+                    .take(4).collect();
+                for v in buyers { self.send(v, Goal::BuyFrom(stall, "ribbon", 1)); }
+                // and he trades in the only currency he makes: news
+                const RUMOURS: [&str; 4] = [
+                    "Word from the next village - their harvest failed. Bread's dear there.",
+                    "Their fisher drowned his boat last month. No fish on their market.",
+                    "The lord raised the fifth to a quarter there. Hard times.",
+                    "A wolf took a shepherd on their common. They say it walks upright.",
+                ];
+                let rumour = RUMOURS[(self.tick / 60 % 4) as usize];
+                self.say(m.e, rumour, TALK_BUBBLE_SECS * 2);
+            } else {
+                let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.pedlar = Some(m);
+        } else if self.tick <= m.selling_until.unwrap() {
+            self.pedlar = Some(m); // selling at the market
+        } else {
+            // the road calls: pack up and walk off
+            if let Some(p) = self.world.get_component_mut::<Pos>(m.e).copied() {
+                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                if m.path.is_empty() {
+                    m.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                }
+                if m.path.is_empty() {
+                    if let Some(s) = m.stall { self.world.destroy_entity(s); }
+                    self.world.destroy_entity(m.e);
+                    self.next_pedlar = self.tick + 60 + self.rng.next() % 60;
+                    self.log.push(format!("t{}: the pedlar's moved on.", self.tick));
+                    return;
+                }
+                let p = self.world.get_component_mut::<Pos>(m.e).unwrap();
+                let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.pedlar = Some(m);
+        }
+    }
+
     /// One frame of the minstrel's visit: ride to the market, play a
     /// while, then ride off - and the town wants music again next season
     pub fn advance_minstrel(&mut self) {
@@ -4826,6 +4933,12 @@ impl Game {
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         }
         if let Some(m) = &self.minstrel {
+            if let Some(p) = world.get_component::<Pos>(m.e) {
+                people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
+        if let Some(m) = &self.pedlar {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
@@ -6982,6 +7095,49 @@ mod power_tests {
         g.arrive(g.collector.unwrap(), Goal::CollectTax(g.player));
         assert_eq!(g.world.get_component::<Purse>(g.player).unwrap().gold, 100.0,
             "a force is passed by");
+    }
+}
+
+#[cfg(test)]
+mod pedlar_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_pedlar_pitches_and_sells() {
+        let mut g = Game::new();
+        g.spawn_pedlar();
+        assert!(g.pedlar.is_some());
+        // walk him in - the pitch happens once he's stood at market
+        for _ in 0..400 {
+            if g.pedlar.as_ref().map(|p| p.selling_until.is_some()).unwrap_or(false) { break; }
+            g.advance_pedlar();
+        }
+        let m = g.pedlar.as_ref().unwrap();
+        assert!(m.stall.is_some(), "he pitches a stall");
+        let stall = m.stall.unwrap();
+        let ribbon = g.world.get_component::<Building>(stall)
+            .map(|b| b.stock.get("ribbon").copied().unwrap_or(0)).unwrap_or(0);
+        assert!(ribbon > 0, "oddities nothing local supplies");
+        assert!(g.travels.iter().any(|t| matches!(t.goal, Goal::BuyFrom(s, "ribbon", _)
+            if s == stall)), "the word goes out to the finery-wanters");
+    }
+
+    #[test]
+    fn test_the_road_takes_him() {
+        let mut g = Game::new();
+        g.spawn_pedlar();
+        for _ in 0..400 {
+            if g.pedlar.as_ref().map(|p| p.path.is_empty() && p.selling_until.is_some()).unwrap_or(false) { break; }
+            g.advance_pedlar();
+        }
+        // run him past his selling days
+        g.tick = 10;
+        for _ in 0..900 {
+            g.advance_pedlar();
+            if g.pedlar.is_none() { break; }
+        }
+        assert!(g.pedlar.is_none(), "the road takes him");
+        assert!(g.next_pedlar > g.tick, "another comes by one day");
     }
 }
 

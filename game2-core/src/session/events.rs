@@ -1017,7 +1017,24 @@ impl Game {
                         .unwrap_or(9999));
                 match kid {
                     Some(v) if self.rare_roll(id) % 3 != 0 => {
-                        self.villagers.retain(|&x| x != v);
+                        // off the roster, and every index that pointed at
+                        // the line shifts home with it
+                        let idx = self.villagers.iter().position(|&x| x == v).unwrap();
+                        self.villagers.remove(idx);
+                        for seat in self.seats.iter_mut() {
+                            if seat.selected_target > idx { seat.selected_target -= 1; }
+                            else if seat.selected_target == idx {
+                                seat.selected_target = idx.min(self.villagers.len().saturating_sub(1));
+                            }
+                        }
+                        // his bed's free (the org rolls prune him next
+                        // influence tick - the destroyed lack Health, so
+                        // is_dead reads them gone)
+                        for b in self.world.query::<household::Building>() {
+                            if let Some(bb) = self.world.get_component_mut::<household::Building>(b) {
+                                bb.occupants.retain(|&x| x != v);
+                            }
+                        }
                         self.world.destroy_entity(v);
                         self.log.push(format!("t{}: the levy took the youngest - they marched off at dawn.", tick));
                     }

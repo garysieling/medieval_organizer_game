@@ -33,6 +33,7 @@ use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, Tow
 use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
+use crate::game::fire::Fire;
 use crate::game::herbology::{self, Apothecary};
 use crate::game::livestock::{self, Livestock, LivestockKind};
 use crate::game::apiary::{self, HiveKind};
@@ -722,6 +723,11 @@ const INK_BOIL_DAYS: u64 = 5;
 
 /// Ink he sells off before the road takes him
 const INK_YIELD: u32 = 6;
+
+/// Per-boiling-day chance the oil's vapours take fire - it happens, "as
+/// will happen" says the Encyclopedie; most times he smothers it, but the
+/// meadow keeps the scorch
+const OIL_FLARE_PCT: i32 = 8;
 
 /// Walking over to someone to talk to or recruit them
 pub struct Approach {
@@ -1659,6 +1665,8 @@ pub struct Game {
     pub ink_boiler: Option<InkBoiler>,
     /// Day the next ink-maker is due
     pub next_ink_boiler: u64,
+    /// Whatever's alight on the map, and the ground it scorched
+    pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: std::collections::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
@@ -2516,6 +2524,7 @@ impl Game {
             next_circus: 300 + seed % 180,
             ink_boiler: None,
             next_ink_boiler: 400 + seed % 200,
+            fire: Fire::new(),
             derelict: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
@@ -5408,6 +5417,8 @@ impl Game {
         self.circus_tick(tick);
         // the oil boils, the crusts fry, and the black goes in
         self.ink_boiler_tick(tick);
+        // and whatever the day caught, the fire runs on
+        self.fire_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
         self.cheese_tick(tick);
         // the day's work leaves its smell - unless the rain washes it off
@@ -5804,8 +5815,36 @@ impl Game {
                 self.say(be, "The black goes in - there's your ink.", TALK_BUBBLE_SECS);
                 self.log.push(format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD));
             }
-            // days one and two: the oil just boils, watched and smoking
+            // days one and two: the oil just boils, watched and smoking -
+            // and now and then the vapours take fire, as they will
+            0 | 1 => {
+                if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1) {
+                    self.say(be, "She's caught - keep back!", TALK_BUBBLE_SECS);
+                    self.log.push(format!("t{}: the oil takes fire on the meadow.", tick));
+                }
+            }
             _ => {}
+        }
+    }
+
+    /// Whatever's alight on the map runs its course: spreading a tile a
+    /// day, burning out to scorched ground, and gutting what it reaches
+    fn fire_tick(&mut self, tick: u64) {
+        if !self.fire.active() && self.fire.scorched.is_empty() { return; }
+        let (lit, out) = self.fire.tick(&mut self.map, tick);
+        // a building the fire reaches loses what it held
+        for &(x, y) in &lit {
+            if let Some(&be) = self.building_entities.iter().find(|&&be| {
+                self.world.get_component::<Pos>(be)
+                    .map(|p| p.x.round() as i32 == x && p.y.round() as i32 == y).unwrap_or(false)
+            }) {
+                if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                    b.stock.clear();
+                }
+            }
+        }
+        if !lit.is_empty() || !out.is_empty() {
+            self.log.push(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()));
         }
     }
 
@@ -8640,6 +8679,25 @@ mod ink_boiler_tests {
         g.arrive(v, Goal::TalkTo(be));
         assert!(desires::is_satisfied(&g.world, v, Want::GoodFood, g.tick),
             "they come back fried");
+    }
+
+    #[test]
+    fn test_the_meadow_can_burn() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let camp = g.ink_boiler.as_ref().unwrap().camp;
+        assert!(g.fire.ignite(&g.map, camp.0, camp.1), "the cauldron's tile can take fire");
+        // it runs its course and leaves scorched ground behind
+        let mut scorched_any = false;
+        for t in 1..40 {
+            g.fire_tick(t);
+            if !g.fire.scorched.is_empty() { scorched_any = true; break; }
+        }
+        assert!(scorched_any, "it burned out to scorched ground");
     }
 }
 

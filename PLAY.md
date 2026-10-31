@@ -90,7 +90,10 @@ and when the candles run out the church goes dark. The larder keeps its
 own score too: bread spoils, grain draws mice where no cat walks, and a
 poor soul eats what shouldn't be eaten. And the talk splinters by trade:
 a mason's grief isn't a baker's, so a mixed room only converges on the
-troubles everyone shares - the taxes, the dark, the cursed bread.
+troubles everyone shares - the taxes, the dark, the cursed bread. When a
+master dies the bench passes - to the senior apprentice, else kin under
+the roof, else a journeyman with no shop - and the lord takes his fifth
+of what was left.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -66,6 +66,8 @@ pub enum Problem {
     Blamed,
     /// Ate spoiled stock - a sour gut for a poor soul
     SourGut,
+    /// The lord took his fifth of what the dead one left
+    DeathDuty,
 }
 
 /// One secret a person can share: a want or a problem
@@ -152,6 +154,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::Loss) => "the wolves",
         Reveal::Problem(Problem::Blamed) => "the bad bread",
         Reveal::Problem(Problem::SourGut) => "the sour gut",
+        Reveal::Problem(Problem::DeathDuty) => "the death duty",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -199,6 +202,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the wolves" => "wolves at the fold".into(),
         "the bad bread" => "the cursed bread".into(),
         "the sour gut" => "spoiled stock in the larder".into(),
+        "the death duty" => "the lord's death-duty".into(),
         _ => tag,
     }
 }
@@ -236,6 +240,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::Loss => "lost stock to wolves".into(),
         Problem::Blamed => "is blamed for the sickness".into(),
         Problem::SourGut => "ate spoiled stock".into(),
+        Problem::DeathDuty => "paid the lord's fifth on the dead".into(),
     }
 }
 
@@ -267,6 +272,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Loss) => (format!("{} lost stock to wolves", name), "The wolf came in the night. I found what's left of her.".into()),
         Reveal::Problem(Problem::Blamed) => (format!("{} is blamed for the sickness", name), "They say my bread did it. My bread.".into()),
         Reveal::Problem(Problem::SourGut) => (format!("{} ate spoiled stock", name), "It was all there was. Still smells.".into()),
+        Reveal::Problem(Problem::DeathDuty) => (format!("{} paid the lord's fifth", name), "A fifth of all he had. For dying.".into()),
     }
 }
 

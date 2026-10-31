@@ -112,6 +112,8 @@ pub struct CampaignV {
     pub resolves: u32,
     /// A meeting is due on the cadence
     pub due: bool,
+    /// Days between meetings, the organizer's recommendation
+    pub cadence_days: u64,
 }
 
 /// The right-hand panel's player/org data

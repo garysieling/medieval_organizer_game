@@ -136,24 +136,6 @@ with it, the roster breathes. Requires wiring `lifecycle.rs` age ticks.
 
 ---
 
-### F12. Shop succession & inheritance
-
-*`game/succession.rs` exists (unwired in game_ui); brainstorm "death &
-continuation" groundwork; `feat/hard-winter-shows-succession` pending —
-check overlap.*
-
-**What.** When a master dies, the workshop passes to their senior
-apprentice, else their eldest kin, else it stands derelict — and a
-journeyman of the trade may claim it (a promotion story).
-
-**Spec.** On `Dead`: find heir by (apprentice at shop → kin in household
-→ same-vocation journeyman with no workplace). Transfer `Craft.workplace`
-+ building `worker`. Kin also inherit `Purse` ×0.8 (the lord's death-duty
-is the other 0.2 — a quiet `Problem::DeathDuty` grievance). Unclaimed
-shops become `DerelictNearby` sources — the street visibly declines and
-can recover. **Size: M.**
-
----
 
 ### F13. The sanction ladder — shame before violence
 
@@ -588,15 +570,14 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 
 1. ~~F1 Herbologist~~ — **done, PR #141.**
 2. ~~F2 Shepherds/flocks~~ — **done, PR #142.**
-3. F3 Chickens — cheap after F2, proves Livestock generality.
+3. ~~F3 Chickens~~ — **done, PR #143.**
 4. ~~F41 Heart Helper~~ — **done, PR #144.**
 5. ~~F5 Foraging/mushrooms~~ — **done, PR #145.**
 6. ~~F43 Issues belong to trades~~ — **done, PR #148.**
    grievance richer; do it before the roster of scoped problems grows.
 7. ~~F7 Vermin/cats~~ — **done, PR #147.**
    now cats do too.
-8. F12 Shop succession — deaths stop being pure loss; inheritance feeds
-   F28 heirlooms and F33 continuation.
+8. ~~F12 Shop succession~~ — **done, PR #149.**
 9. F11 Children grow up — the roster breathes; pairs with F12.
 10. F18 Footfall trails — visual payoff for all this walking; module
     already written.

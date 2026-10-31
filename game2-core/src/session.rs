@@ -3445,7 +3445,16 @@ impl Game {
         self.world.add_component(c, campaign::CampaignMeeting {
             cadence_days: 3, last_held: self.tick, held: 0, resolves: 0 });
         self.toasts.push((format!("{} take a vote", oname), self.tick + 40));
-        Some(format!("{} take a vote - they'll fight for {}", oname, vote.winner))
+        let mut msg = format!("{} take a vote - they'll fight for {}", oname, vote.winner);
+        // they came along, but when the framing sits wrong on a stake they
+        // grumble - heard in the log, not just counted on the ballots
+        let grumbler = vote.ballots.iter().find(|b| b.grumbles).map(|b| b.member);
+        if let Some(d) = grumbler {
+            let name = self.villagers.iter().position(|&v| v == d).map(|i| NAMES[i]).unwrap_or("someone");
+            msg += &format!(" - {} {}", name,
+                campaign::grumble_line(campaign::Framing::SharedGrievance));
+        }
+        Some(msg)
     }
 
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
@@ -11696,6 +11705,22 @@ mod campaign_tests {
         // and when it IS due the button answers again
         g.tick += 4;
         assert!(g.ctx_blocker_at(0, CtxAct::Meet).is_none());
+    }
+
+    #[test]
+    fn test_the_losers_grumble_as_the_cause_is_named() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..3] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        let msg = g.maybe_found_campaign(0).unwrap();
+        // a tax grievance under a shared-grievance banner loses something in
+        // the framing - the log hears the dissent, not just the count
+        assert!(msg.contains("mutters"), "{}", msg);
     }
 
     #[test]

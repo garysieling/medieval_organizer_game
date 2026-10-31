@@ -32,23 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F33. Death & continuation — the player is the org
-
-*Brainstorm "death & continuation — on death, a cutscene, then continue
-as another character."*
-
-**What.** When the player's character dies, the game doesn't end: a
-short grave-scene, then control passes to the org member with highest
-trust (or a chosen heir) — "the work goes on."
-
-**Spec.** On player `Dead`: pick successor (trust×bond ranking, org-first
-then kin); transfer `PlayerCharacter` + `Heard` ledger (the organizer's
-knowledge is institutional, not personal — the organizing thesis made
-mechanical). If no heir/org: true end screen as today. Changes the whole
-game's emotional contract. **Size: M.**
-
----
-
 ### F34. A voice with Shakespeare in it
 
 *Brainstorm "Shakespearean language — insults, jokes, compliments";

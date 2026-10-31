@@ -889,3 +889,19 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** doctrine, creeds, councils, nicaea, theology-of-pain, anesthesia, sacraments, baptism, anabaptist, communion, interdict, state-church, cuius-regio, wesley, methodism, schism, quakers, martyrs-mirror, heresiology
 
 ---
+
+### ROUND 4: Religious Institutions Deep-Dive (USER-REQUESTED continuation)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Church History / Institutional Sociology
+**Output:** wiki/literature-reviews/organizing-religious-institutions-deep.md
+**Yield:**
+- Relic/saint economy: canonization as brand management; relics as ultimate collateral (Louis IX's Crown of Thorns > Sainte-Chapelle cost); furta sacra sacred theft (Venice's St. Mark heist); Reformation iconoclasm as legitimacy-market crash; pilgrimage economy
+- Monastic orders as proto-multinationals: Benedict's Rule as 1500yr org charter; Cistercian franchise model (~750 abbeys, lay-brother labor, granges); accumulation trap (durability->wealth->expropriation); Jesuit suppression/restoration (killable order, unkillable network)
+- Councils as constitutional machinery: Nicaea (emperor convenes/enforces), Constance (3 rival popes -> council deposes all, elects Martin V - conciliarism), Trent (18yr counter-doctrine production), Vatican II (self-loosening for competition)
+- Mystics' suppression = license-to-prophesy gate: Porete burned 1310 (heresy of ACCESS not content), Eckhart posthumous condemnation, beguines eliminated as unclassifiable female autonomy, Joan of Arc (mystic->military->martyr->saint); two-paths rule (submit experience to doctrine=canonized; claim it suffices=eliminated)
+- 5 mechanics: relic/cult economy with theft and crash, order-type orgs with accumulation->expropriation risk, council override events, license-to-prophesy gate, furta sacra raids
+
+**Confidence:** High
+**Tags:** relics, saints, canonization, furta-sacra, monastic-orders, benedictine-rule, cistercians, jesuits, councils, nicaea, constance, trent, conciliarism, mystics, porete, eckhart, beguines, joan-of-arc, prophecy-license
+
+---

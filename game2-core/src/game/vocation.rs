@@ -48,6 +48,21 @@ pub enum Vocation {
     /// Works the river's edge: fish, eels, and the strange things the
     /// water brings up
     Fisher,
+    /// Brews small ale in the brewhouse like the alewives always did:
+    /// grain in, ale out, sour inside the week
+    Alewife,
+    /// Runs the brewery the Flemish way: grain and hops together, a beer
+    /// that keeps and travels - capital work, not kitchen work
+    Brewer,
+    /// Presses the road's grapes and minds the casks: a wine that keeps
+    /// the year, if it's cellared well
+    Vintner,
+    /// Keeps the still: wine in, the water of life out - it never turns,
+    /// it's worth more by the drop, and it's worth stealing
+    Distiller,
+    /// Hoops and staves: the barrels every brewer, vintner and pedlar
+    /// stores and ships in
+    Cooper,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -132,13 +147,18 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
         Vocation::Toolmaker => &["wood", "stone"],
         Vocation::Tailor => &["cloth"],
         Vocation::Weaver => &["wool"],
-        Vocation::Perfumer => &["marigold", "lavender"],
         Vocation::Painter => &["pigment", "wood"],
         Vocation::Fisher => &[],
         Vocation::Glazier => &["sand", "pigment"],
         Vocation::Printmaker => &["paper", "ink"],
         Vocation::Mason => &["stone"],
         Vocation::Luthier => &["wood"],
+        Vocation::Alewife => &["wheat"],
+        Vocation::Brewer => &["wheat", "hops"],
+        Vocation::Vintner => &["grapes"],
+        Vocation::Distiller => &["wine"],
+        Vocation::Cooper => &["wood"],
+        Vocation::Perfumer => &["marigold", "lavender", "spirits"],
         _ => &[],
     }
 }
@@ -163,7 +183,19 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Perfumer => Some("perfume"),
         Vocation::Painter => Some("paint"),
         Vocation::Fisher => Some("fish"),
+        Vocation::Alewife => Some("ale"),
+        Vocation::Brewer => Some("beer"),
+        Vocation::Vintner => Some("wine"),
+        Vocation::Distiller => Some("spirits"),
+        Vocation::Cooper => Some("casks"),
     }
+}
+
+/// Whether the good pours at a table: what the drink trades make, and
+/// what the assize counts and the thief wants. Vinegar's a spoil, not
+/// a drink
+pub fn is_drink(good: &str) -> bool {
+    matches!(good, "ale" | "beer" | "wine" | "spirits")
 }
 
 /// Whether the good can be gathered from the land itself rather than
@@ -172,9 +204,12 @@ pub fn gatherable(good: &str) -> bool {
     matches!(good, "wood" | "stone" | "sand")
 }
 
-/// Whether the good only comes in on the road (the trader's stock)
+/// Whether the good only comes in on the road (the trader's stock) -
+/// the hops and grapes the drink trades can't grow, the wine and the
+/// water of life the apothecaries bring
 pub fn imported(good: &str) -> bool {
-    matches!(good, "cloth" | "paper" | "ink" | "pigment")
+    matches!(good, "cloth" | "paper" | "ink" | "pigment"
+        | "hops" | "grapes" | "wine" | "spirits")
 }
 
 /// Everyday price of a good or service, in gold
@@ -201,6 +236,14 @@ pub fn price(good: &str) -> f32 {
         "garments" => 14.0,
         "tools" => 15.0,
         "lute" => 25.0,
+        "ale" => 4.0,
+        "beer" => 7.0,
+        "wine" => 12.0,
+        "spirits" => 25.0,
+        "vinegar" => 2.0,
+        "hops" => 4.0,
+        "grapes" => 5.0,
+        "casks" => 8.0,
         _ => 5.0,
     }
 }
@@ -224,6 +267,11 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Perfumer => "the perfumery",
         Vocation::Painter => "the paint shop",
         Vocation::Fisher => "the fish-smoke house",
+        Vocation::Alewife => "the alehouse",
+        Vocation::Brewer => "the brewery",
+        Vocation::Vintner => "the vintner's",
+        Vocation::Distiller => "the distillery",
+        Vocation::Cooper => "the cooper's",
     }
 }
 
@@ -246,6 +294,11 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Perfumer => "Perfumer",
         Vocation::Painter => "Painter",
         Vocation::Fisher => "Fisher",
+        Vocation::Alewife => "Alewife",
+        Vocation::Brewer => "Brewer",
+        Vocation::Vintner => "Vintner",
+        Vocation::Distiller => "Distiller",
+        Vocation::Cooper => "Cooper",
     }
 }
 
@@ -361,6 +414,31 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("smoke the catch", "the day's take hung over embers"),
             a("mend the nets", "the river takes its share of line"),
         ],
+        Vocation::Alewife => vec![
+            a("brew a batch", "malt in, small ale out - it'll not keep"),
+            a("draw a cup", "the village drinks at her bench"),
+            a("send for grain", "task a journeyman to fetch wheat"),
+        ],
+        Vocation::Brewer => vec![
+            a("mash the wort", "grain and hops in the copper"),
+            a("hoop a barrel", "beer that travels - if the cooper's done"),
+            a("buy hops", "the Flemish bine comes off the road"),
+        ],
+        Vocation::Vintner => vec![
+            a("press the grapes", "the road's harvest under the beam"),
+            a("rack the casks", "the year's wine sleeps in the cellar"),
+            a("sell a firkin", "the castle's table pays for good years"),
+        ],
+        Vocation::Distiller => vec![
+            a("run the still", "wine becomes the water of life"),
+            a("sell to the apothecary", "the wise woman buys it for cures"),
+            a("lock the cellar", "aqua vitae walks off on its own"),
+        ],
+        Vocation::Cooper => vec![
+            a("raise a barrel", "staves bound in iron hoops"),
+            a("re-hoop", "a slack cask weeps its keeper's profit"),
+            a("sell casks", "no brewer or vintner works without them"),
+        ],
     }
 }
 
@@ -412,7 +490,8 @@ mod tests {
     fn test_every_vocation_has_a_sign_and_a_product() {
         for v in [Vocation::Farmer, Vocation::Baker, Vocation::Toolmaker, Vocation::Knight,
                   Vocation::Tailor, Vocation::Glazier, Vocation::Printmaker, Vocation::Mason,
-                  Vocation::Priest, Vocation::Luthier] {
+                  Vocation::Priest, Vocation::Luthier, Vocation::Alewife, Vocation::Brewer,
+                  Vocation::Vintner, Vocation::Distiller, Vocation::Cooper] {
             assert!(!trade_name(v).is_empty());
             assert!(output(v).is_some(), "{:?} makes nothing", v);
             assert_eq!(actions(v).len(), 3, "{:?} should have three actions", v);
@@ -420,7 +499,8 @@ mod tests {
         }
         // goods vocations' inputs are buyable, gatherable or imported
         for v in [Vocation::Baker, Vocation::Toolmaker, Vocation::Tailor, Vocation::Glazier,
-                  Vocation::Printmaker, Vocation::Mason, Vocation::Luthier] {
+                  Vocation::Printmaker, Vocation::Mason, Vocation::Luthier, Vocation::Alewife,
+                  Vocation::Brewer, Vocation::Vintner, Vocation::Distiller, Vocation::Cooper] {
             for i in inputs(v) {
                 assert!(gatherable(i) || imported(i) || *i == "wheat",
                     "{:?} needs {} which no one makes or brings", v, i);

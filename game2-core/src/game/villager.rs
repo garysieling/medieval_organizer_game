@@ -62,6 +62,14 @@ pub struct Condition {
     pub kind: &'static str,
 }
 
+/// Last night's cup still has them: they sleep it off instead of
+/// working the day. The short lift was worth the lost morning.
+#[derive(Debug, Clone, Copy)]
+pub struct Drunk {
+    /// The day they're sober again
+    pub until: u64,
+}
+
 /// A thing made to outlast its maker: a lute, a window, a fine toolset -
 /// named, owned, and passed down. It gathers stories the way a person does.
 #[derive(Debug)]

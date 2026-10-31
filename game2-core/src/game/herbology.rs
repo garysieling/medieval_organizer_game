@@ -60,6 +60,7 @@ pub fn herb_tree() -> Vec<(String, HerbEffect, PrepMethod, f32)> {
         ("peppermint".into(), HerbEffect::Energizing, PrepMethod::Tea, 0.4),
         ("mugwort".into(), HerbEffect::Vision, PrepMethod::Smoke, 0.3),
         ("sage".into(), HerbEffect::Purifying, PrepMethod::Smoke, 0.6),
+        ("feverfew".into(), HerbEffect::Healing, PrepMethod::Tincture, 0.55),
     ]
 }
 
@@ -93,6 +94,7 @@ pub fn medicinal_herbs() -> Vec<(&'static str, PrepMethod, f32)> {
                 "willow_bark" => "willow_bark",
                 "yarrow" => "yarrow",
                 "sage" => "sage",
+                "feverfew" => "feverfew",
                 _ => "sage",
             };
             (name, prep, potency)
@@ -108,13 +110,18 @@ pub fn knows_cure(world: &World, apothecary: Entity, herb: &str) -> bool {
 }
 
 /// Brew one of the hut's raw herbs into a remedy on the apothecary's
-/// shelf: one stock unit out, one Remedy recorded. Returns the remedy's
+/// shelf: one stock unit out, one Remedy recorded. A tincture steeps
+/// the herb in the water of life - it takes a measure of spirits off
+/// the shelf too, and draws the cure out stronger. Returns the remedy's
 /// efficacy (potency x skill x traditional-prep fit), or None when the
 /// hut has no herb she knows a cure for
 pub fn brew_from_stock(world: &mut World, apothecary: Entity, hut: Entity) -> Option<f32> {
-    // the stock keys she has a known cure for, tree order (strongest first)
+    // the stock keys she has a known cure for, tree order (strongest
+    // first) - a tincture's only on when there's spirit to steep it in
     let pick = medicinal_herbs().iter().copied()
-        .filter(|(name, _, _)| knows_cure(world, apothecary, name))
+        .filter(|(name, prep, _)| knows_cure(world, apothecary, name)
+            && (*prep != PrepMethod::Tincture || world.get_component::<Building>(hut)
+                .map(|b| b.stock.get("spirits").copied().unwrap_or(0) > 0).unwrap_or(false)))
         .find(|(name, _, _)| {
             world.get_component::<Building>(hut)
                 .map(|b| b.stock.get(*name).copied().unwrap_or(0) > 0).unwrap_or(false)
@@ -123,10 +130,18 @@ pub fn brew_from_stock(world: &mut World, apothecary: Entity, hut: Entity) -> Op
     {
         let mut b = world.get_component_mut::<Building>(hut)?;
         if household::take_stock(&mut b, name, 1) < 1 { return None; }
+        if prep == PrepMethod::Tincture { household::take_stock(&mut b, "spirits", 1); }
     }
     let herb = spawn_herb(world, name, potency, herb_tree().into_iter()
         .find(|(n, _, _, _)| n == name).map(|(_, e, _, _)| e).unwrap_or(HerbEffect::Healing), prep);
     let treatment = prepare_remedy(world, apothecary, herb, prep)?;
+    // the spirit draws the virtue out: a tincture keeps and works better
+    if prep == PrepMethod::Tincture {
+        if let Some(ap) = world.get_component_mut::<Apothecary>(apothecary) {
+            if let Some(r) = ap.remedies.last_mut() { r.efficacy *= 1.3; }
+        }
+        return Some(treatment.efficacy * 1.3);
+    }
     Some(treatment.efficacy)
 }
 
@@ -217,6 +232,27 @@ mod tests {
         let right = prepare_remedy(&mut w, ap, yarrow, PrepMethod::Poultice).unwrap().efficacy;
         let wrong = prepare_remedy(&mut w, ap, yarrow, PrepMethod::Smoke).unwrap().efficacy;
         assert!(wrong < right);
+    }
+
+    #[test]
+    fn test_a_tincture_takes_the_spirit_and_draws_stronger() {
+        let mut w = World::new();
+        let ap = setup(&mut w, &["feverfew"], 1.0);
+        let hut = household::spawn_building(&mut w,
+            household::BuildingKind::Shop(crate::game::vocation::Vocation::Mason),
+            "the hut", 0.0, 0.0, 20);
+        // no spirit, no tincture: she brews nothing at all
+        w.get_component_mut::<Building>(hut).unwrap().stock.insert("feverfew".into(), 1);
+        assert!(brew_from_stock(&mut w, ap, hut).is_none(),
+            "a tincture needs the water of life to steep in");
+        // with the spirit on the shelf it goes in the cure - and the
+        // alcohol draws the virtue out stronger than the bare herb
+        w.get_component_mut::<Building>(hut).unwrap().stock.insert("spirits".into(), 1);
+        let e = brew_from_stock(&mut w, ap, hut).unwrap();
+        assert!((e - 0.55 * 1.3).abs() < 1e-6, "the spirit draws it stronger");
+        assert_eq!(w.get_component::<Building>(hut).unwrap()
+            .stock.get("spirits").copied().unwrap_or(0), 0, "a measure went in");
+        assert_eq!(w.get_component::<Apothecary>(ap).unwrap().remedies.len(), 1);
     }
 
     #[test]

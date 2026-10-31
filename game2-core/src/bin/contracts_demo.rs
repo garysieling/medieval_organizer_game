@@ -1,8 +1,8 @@
 //! C7: Contracts + reputation - sign, breach, consequences.
 //! Legal relationships enforce cooperation; breach damages reputation/trust.
 
-use game2_core::engine::ecs::World;
-use game2_core::game::contracts::{Contract, Term, ContractStatus, Reputation, breach};
+use game2_core::engine::ecs::{World, Scheduler};
+use game2_core::game::contracts::{Contract, Term, ContractStatus, ContractSystem, Reputation, breach};
 
 fn main() {
     println!("=== CONTRACTS + REPUTATION ===\n");
@@ -42,5 +42,26 @@ fn main() {
 
     // Consequence: future trust damaged
     println!("\nMiller's low reputation means baker won't trust new contracts");
+
+    // The engine itself: a second contract that DOES get fulfilled -
+    // ContractSystem sees every term met and credits the obligated party
+    let mut sched = Scheduler::new();
+    sched.add_system(ContractSystem);
+    let honest = world.create_entity();
+    world.add_component(honest, Reputation { entity: honest, trust_score: 0.6, contracts_honored: 0, contracts_breached: 0 });
+    let c2 = world.create_entity();
+    world.add_component(c2, Contract {
+        parties: vec![honest, baker],
+        terms: vec![Term { description: "deliver 10 barley by t60".into(), obligated: honest, fulfilled: false }],
+        status: ContractStatus::Active,
+        breach_penalty: 0.2,
+    });
+    println!("\nSecond contract signed: honest -> baker, 10 barley");
+    // the delivery lands on time
+    for t in world.get_component_mut::<Contract>(c2).unwrap().terms.iter_mut() { t.fulfilled = true; }
+    sched.tick(&mut world);
+    let r = world.get_component::<Reputation>(honest).unwrap();
+    println!("engine ticks: contract fulfilled -> trust {:.2} ({} honored)", r.trust_score, r.contracts_honored);
+
     println!("=== CONTRACTS COMPLETE ===");
 }

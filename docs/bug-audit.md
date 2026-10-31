@@ -68,7 +68,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-077** `community::exert_influence` never called — org influence is never spent through the community module.~~ (stale — the session spends through `OrganizedPower`; `InfluenceSystem`/`exert_influence` is the bin-scoped community API)
 - [ ] **W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.
 - [ ] **W-079** `weather::health_effect` never called — weather doesn't touch health.
-- [ ] **W-080** `contracts` `run`/`setup` never called — the contract engine never runs; `seal_aid_pact`/`breach` are text-game-only paths.
+- [x] ~~**W-080** `contracts` `run`/`setup` never called — the contract engine never runs; `seal_aid_pact`/`breach` are text-game-only paths.~~ (fixed — `ContractSystem` scheduled in the contracts_demo driver; a fulfilled contract now credits reputation live)
 
 ## P3 — dead infra/ui code and duplicated drift-risk paths
 
@@ -81,7 +81,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-087** `infra::save_load` `checkpoint`/`replay_from` have a single caller each — the game never saves; world dies with the process.
 - [x] ~~**W-088** `ui::dialogs::generate_line` never called.~~ (fixed — deleted `ui::dialogs`; the Dialog seam was never constructed)
 - [x] ~~**W-089** `ui::font::draw_char` never called — `draw_text*` is used instead; delete or wire.~~ (stale — called by `draw_text` at font.rs:133)
-- [ ] **W-090** Divergent spawn paths: `new_seeded` vs `new_scenario` vs `action_menu`'s own world setup — new spawn-time components can land in one constructor and silently miss the others (audit all three for the newest components).
+- [x] ~~**W-090** Divergent spawn paths: `new_seeded` vs `new_scenario` vs `action_menu`'s own world setup — new spawn-time components can land in one constructor and silently miss the others (audit all three for the newest components).~~ (verified — `new_scenario` delegates to `new_seeded` so parity is automatic; `action_menu` is a separate text-game world by design)
 
 ## P4 — agent/network surface gaps
 

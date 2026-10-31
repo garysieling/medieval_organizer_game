@@ -828,11 +828,6 @@ fn vill_name(i: usize) -> &'static str {
 const KID_IDXS: [usize; 3] = [26, 27, 28];
 const COLLECTOR_IDX: usize = 29;
 const HERB_IDX: usize = 30;
-/// Name labels with the (child) flag, for the map
-fn villager_label(i: usize) -> &'static str {
-    match i { 26 => "Pip (child)", 27 => "Nell (child)", 28 => "Tom (child)",
-        30 => "Willa (herb-wife)", _ => vill_name(i) }
-}
 const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 const TOOLTIPS: [&str; 5] = [
     "talk to someone nearby",
@@ -6956,11 +6951,16 @@ impl Game {
                 .unwrap_or(false) {
                 " (woke)"
             } else { "" };
+            let kid = world.get_component::<Kid>(*v).is_some();
+            // the marks go by the state, not the roll: a child grown
+            // drops the (child), and whoever holds the herb hut is the herb-wife
+            let role = if Some(*v) == self.herbologist { " (herb-wife)" }
+                else if kid { " (child)" } else { "" };
             people.push(PersonV {
                 e: *v, kind: PKind::Villager(i), pos: (p.x, p.y),
-                label: Some(format!("{}{}", villager_label(i), cause_mark)),
+                label: Some(format!("{}{}{}", vill_name(i), role, cause_mark)),
                 dead: villager::is_dead(world, *v),
-                kid: world.get_component::<Kid>(*v).is_some(),
+                kid,
                 selected: self.seats[seat].selected_target == i && self.seats[seat].picked,
                 in_reach: in_reach.contains(v),
                 hungry: world.get_component::<Hunger>(*v).map(|h| h.value < 40.0).unwrap_or(false),
@@ -7814,7 +7814,7 @@ impl View {
 
         // name labels are drawn after every sprite (so no sprite covers one)
         // and de-overlapped: (text, x, y, colour, hungry, selected)
-        let mut labels: Vec<(&str, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
+        let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
         let mut standing = standing.iter().peekable();
         for &(px, py, who) in &people {
             while let Some(st) = standing.next_if(|st| st.0 + st.1 <= px + py) { draw_piece(&mut buf, st); }
@@ -7849,20 +7849,21 @@ impl View {
                     if pv.dead {
                         let top = draw_grave(&mut buf, sx, sy, zoom);
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
-                        labels.push((vill_name(i), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
+                        labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {
                         let fig = &art.villager_sprites[i % art.villager_sprites.len().max(1)];
                         // children draw small and flagged: the pack has no
                         // figure for them, so they're a scaled villager
-                        if pv.kid || KID_IDXS.contains(&i) {
+                        if pv.kid {
                             draw_kid(&mut buf, fig, sx, sy, zoom);
                         } else {
                             draw_character(&mut buf, fig, sx, sy, zoom);
                         }
-                        let (lx, ly) = name_label_pos(sx, sprite_label_anchor(fig, sy, zoom), villager_label(i));
+                        let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
+                        let (lx, ly) = name_label_pos(sx, sprite_label_anchor(fig, sy, zoom), &lbl);
                         // bright when close enough to talk, recruit or meet; dim otherwise
                         let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
-                        labels.push((villager_label(i), lx, ly, rgb, pv.hungry, pv.selected));
+                        labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected));
                         // sick: a green cross on the other side of the head
                         if pv.sick {
                             let (mk, (r, g, b), _) = MARK_SICK;
@@ -7892,7 +7893,7 @@ impl View {
                         None => 0,
                     };
                     if pv.bond {
-                        labels.push(("<3", dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
+                        labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
                     }
                 },
                 // the watch: soldiers from the humans pack at the gates
@@ -7925,7 +7926,7 @@ impl View {
                         None => label_anchor(sy, zoom),
                     };
                     let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
-                    labels.push((RIVAL_NAMES[i], lx, ly, (255, 140, 140), false, false));
+                    labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false));
                 },
                 // player sprite at their actual position
                 Who::P(pv) if let PKind::Player = pv.kind => {
@@ -7939,7 +7940,7 @@ impl View {
                     }
                     let anchor = art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
-                    labels.push(("YOU", lx, ly, (255, 255, 0), false, false));
+                    labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
                 },
                 Who::P(_) => {},
             }
@@ -7962,7 +7963,7 @@ impl View {
             .collect();
         let placed = place_labels(&boxes);
         // where each name finally sits, so a speech bubble can clear it
-        let label_ys: Vec<(&str, i32)> = labels.iter().zip(&placed).map(|(l, y)| (l.0, *y)).collect();
+        let label_ys: Vec<(&String, i32)> = labels.iter().zip(&placed).map(|(l, y)| (&l.0, *y)).collect();
         for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(placed) {
             draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
             // hunger indicator, right after the name
@@ -8173,7 +8174,7 @@ impl View {
                     let (sx, sy) = iso_to_screen_cam(bv.pos.0, bv.pos.1, cam_x, cam_y, zoom);
                     // off the map view (e.g. under the panel): the log already
                     // has what they said, so don't float a bubble over the panel
-                    let label_y = bv.name.as_deref().and_then(|n| label_ys.iter().find(|(t, _)| *t == n).map(|(_, y)| *y));
+                    let label_y = bv.name.as_deref().and_then(|n| label_ys.iter().find(|(t, _)| t.as_str() == n).map(|(_, y)| *y));
                     if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text, label_y) {
                         let tail_x = (sx - 4).clamp(bx + 2, bx + bw - 10);
                         if thought {

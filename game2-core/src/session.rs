@@ -5767,17 +5767,19 @@ impl Game {
                 // to degrease - someone carries them out and comes back
                 // smelling of frying oil
                 self.say(be, "A pound of crusts and an onion or two - they take the grease out.", TALK_BUBBLE_SECS);
-                let bringer = self.villagers.iter().copied().find(|&v| {
+                let candidates: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                     !villager::is_dead(&self.world, v)
                         && self.world.get_component::<TownRole>(v).is_none()
                         && !self.travels.iter().any(|t| t.who == v)
                         && self.world.get_component::<Pos>(v)
                             .map(|p| (p.x.round() as i32 - camp.0).abs() + (p.y.round() as i32 - camp.1).abs() <= 8)
                             .unwrap_or(false)
-                });
-                if let Some(v) = bringer {
+                }).collect();
+                // ask until someone can actually make the walk
+                for v in candidates {
                     if self.send(v, Goal::TalkTo(be)) {
                         self.log.push(format!("t{}: a villager carries the day's crusts out to the cauldron.", tick));
+                        break;
                     }
                 }
             }

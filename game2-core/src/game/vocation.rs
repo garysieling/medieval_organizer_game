@@ -35,6 +35,9 @@ pub enum Vocation {
     /// Keeps the fold out in the meadow: milk from the goats daily, wool
     /// off the sheep at shearing
     Shepherd,
+    /// Keeps the skeps at the meadow's edge: honey in season, wax for
+    /// the candles and the seals
+    Beekeeper,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -136,6 +139,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Priest => Some("faith"),
         Vocation::Luthier => Some("lute"),
         Vocation::Shepherd => Some("milk"),
+        Vocation::Beekeeper => Some("honey"),
     }
 }
 
@@ -193,6 +197,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Priest => "the church",
         Vocation::Luthier => "the luthier's",
         Vocation::Shepherd => "the fold",
+        Vocation::Beekeeper => "the apiary",
     }
 }
 
@@ -210,6 +215,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Priest => "Priest",
         Vocation::Luthier => "Luthier",
         Vocation::Shepherd => "Shepherd",
+        Vocation::Beekeeper => "Beekeeper",
     }
 }
 
@@ -299,6 +305,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("walk the flock", "drive the animals to fresh grazing"),
             a("milk the goats", "a pail a day from the fold"),
             a("shear the flock", "wool off their backs at the season"),
+        ],
+        Vocation::Beekeeper => vec![
+            a("tend the skeps", "smoke the hives and check the queens"),
+            a("draw honey", "a comb a season from each skep"),
+            a("render wax", "for the candles and the seals"),
         ],
     }
 }

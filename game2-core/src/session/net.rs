@@ -84,6 +84,18 @@ pub struct AgentObs {
     pub satchel: Vec<(String, u32)>,
     /// The walk under way, if any
     pub walking: bool,
+    /// Whether the cell holds you - no errands until you're out
+    #[serde(default)]
+    pub held: bool,
+    /// The org you march under, if you belong to one
+    #[serde(default)]
+    pub org: Option<String>,
+    /// The issue your org's campaign is fighting, if it has one
+    #[serde(default)]
+    pub campaign: Option<String>,
+    /// Burning tiles near you - walk around, not through
+    #[serde(default)]
+    pub burning: Vec<(f32, f32)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

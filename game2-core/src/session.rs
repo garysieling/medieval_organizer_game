@@ -7024,10 +7024,26 @@ impl Game {
         }).collect();
         let satchel = self.world.get_component::<Satchel>(who)
             .map(|s| s.goods.iter().map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some();
+        // the political layer: whose banner you march under, and what for
+        let (org, campaign) = self.world.query::<Organization>().iter()
+            .filter_map(|e| self.world.get_component::<Organization>(*e)
+                .filter(|o| o.members.contains(&who)).map(|o| (*e, o.name.clone())))
+            .map(|(oe, name)| {
+                let issue = crate::game::campaign::campaign_of(&self.world, oe)
+                    .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                    .map(|c| c.issue.clone());
+                (Some(name), issue)
+            }).next().unwrap_or((None, None));
+        // the fire on the wind: burning tiles close enough to matter
+        let burning: Vec<(f32, f32)> = self.fire.burning.keys()
+            .filter(|&&(x, y)| ((x as f32 - p.x).powi(2) + (y as f32 - p.y).powi(2)).sqrt() < 12.0)
+            .map(|&(x, y)| (x as f32, y as f32)).collect();
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
             near, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
+            held, org, campaign, burning,
         })
     }
 

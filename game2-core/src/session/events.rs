@@ -1100,6 +1100,21 @@ impl Game {
                     sold += 1;
                 }
             }
+            EventId::CharcoalBurner => {
+                // his heap burns slow and warm at the woods edge: those
+                // who pass feel it in their bones a little
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 6)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition + 0.01).min(1.0);
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1412,6 +1427,19 @@ impl Game {
                 } else {
                     self.log.push(format!("t{}: the deserter melted off at dawn - no one saw anything.", tick));
                 }
+            }
+            EventId::CharcoalBurner => {
+                // the heap comes down: the sacks get carried into the
+                // village's first home - burns cleaner than wood all winter
+                let shed = self.world.query::<household::Building>().iter().copied()
+                    .find(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false));
+                if let Some(h) = shed {
+                    if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::add_stock(b, "coal", 20);
+                    }
+                }
+                self.log.push(format!("t{}: the charcoal burner broke his heap - he left twenty good sacks of coal.", tick));
             }
             EventId::RefugeeFamily => {
                 // fed and rested, the road's still a hard bed: some put
@@ -2494,6 +2522,39 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her gold went for the book");
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Bookseller), "the cart moved on from {:?}", st);
+        }
+    }
+
+    /// His heap burns warm at the woods edge, and when he breaks it a
+    /// stock of coal is left - the frame shows his smoke first
+    #[test]
+    fn test_the_heap_leaves_coal() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CharcoalBurner);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::CharcoalBurner && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::CharcoalBurner).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            let cond0 = g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a charcoal burner")),
+                "the frame shows his smoke on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0) > cond0,
+                "the heap warmed her on {:?}", st);
+            stage::run_days(&mut g, 8);
+            let coal: u32 = g.world.query::<household::Building>().iter()
+                .filter_map(|&b| g.world.get_component::<household::Building>(b)
+                    .and_then(|bb| bb.stock.get("coal").copied()))
+                .sum();
+            assert!(coal > 0, "he left a heap on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::CharcoalBurner), "he packed out from {:?}", st);
         }
     }
 

@@ -3,7 +3,7 @@
 **Survey Date:** 2026-10-31
 **Agent:** Literature Survey Agent
 **Domain:** Social Movement History / Prison Organizing / Recruitment Sociology
-**Series:** Organizing research round 2 (user-requested). Feeds `wiki/campaign-plan.md` piece C6 (the dungeon) and deepens C5 (bystanders). Companion to [organizing-internal-structure.md](organizing-internal-structure.md)
+**Series:** Organizing research round 2 (user-requested). Feeds `wiki/campaign-plan.md` piece C6 (the dungeon) and deepens C5 (bystanders). Companion survey: `organizing-internal-structure.md` (sibling PR #188)
 **Confidence:** High — the suffragette and Attica records are primary-source rich; Jasper & Poulsen is the standard stranger-recruitment paper
 
 ## Purpose

@@ -234,4 +234,20 @@ mod tests {
         assert!(!m.trees.contains(&(tx, ty)), "the tree is gone");
         assert!(!Fire::flammable(&m, tx, ty), "a bare hill doesn't catch");
     }
+
+    #[test]
+    fn test_a_house_built_on_a_bare_hill_can_catch() {
+        let mut m = map();
+        let Some(&(hx, hy)) = (0..m.height as i32).flat_map(|y| (0..m.width as i32).map(move |x| (x, y)))
+            .collect::<Vec<_>>().iter()
+            .find(|&&(x, y)| m.get(x, y) == Some(Tile::Hill) && !m.trees.contains(&(x, y)) && !m.is_occupied(x, y))
+        else {
+            panic!("the test map should have a bare, buildable hill");
+        };
+        assert!(!Fire::flammable(&m, hx, hy), "a bare hill carries nothing to burn yet");
+        m.build_at(hx, hy);
+        assert!(Fire::flammable(&m, hx, hy), "a house on the hill is fuel, tree or no tree");
+        let mut f = Fire::new();
+        assert!(f.ignite(&m, hx, hy), "the new house catches");
+    }
 }

@@ -17,7 +17,6 @@ Items are removed from this list as their PRs land.
 
 
 
-- [ ] **W-008** `AgentCmd::Eat` may never actually eat — documented in `docs/multiplayer-round2.md` ("paths to the market but never explicitly eats"); verify hunger resolves for driven agents.
 - [ ] **W-009** `game2-web` `WasmGame` exposes no input — `tick`/`scene`/`day`/`telemetry` only; no `command()` binding, so the browser client can only watch, never play.
 - [ ] **W-010** `drive_agent` can't satisfy its own doc comment — only Eat/Idle/WorkDay; never `Gather`/`BuyFrom` for bench inputs, never `TalkTo` despite `near` in the obs.
 - [ ] **W-011** `blocked: [Option<String>; 5]` covers only the five main buttons — ctx buttons (Meet-not-due, Delegate-nonmember, Petition with no prisoner) fail silently into the log instead of showing a disabled reason.

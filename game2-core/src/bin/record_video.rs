@@ -44,6 +44,9 @@ fn main() {
         "ffmpeg" => Format::Ffmpeg,
         other => { eprintln!("unknown --format {} (gif|apng|frames|ffmpeg)", other); std::process::exit(2); }
     };
+    let die = |why: &str| -> ! { eprintln!("{}", why); std::process::exit(2) };
+    if opts.fps == 0 || opts.fps > 240 { die("--fps must be 1-240"); }
+    if !matches!(opts.game_speed, 1 | 4) { die("--game-speed must be 1 or 4"); }
     if let Some(p) = arg(&args, "--ffmpeg-path") { opts.ffmpeg = p.to_string(); }
     if let Some(s) = arg(&args, "--script") {
         match std::fs::read_to_string(s).map_err(|e| e.to_string())
@@ -60,6 +63,9 @@ fn main() {
         if ext.is_empty() { format!("evidence/videos/{}s", opts.play_secs) }
         else { format!("evidence/videos/play-{}s.{}", opts.play_secs, ext) }
     });
+    if opts.format == Format::Ffmpeg && opts.out.starts_with('-') {
+        die("ffmpeg reads a leading '-' in --out as one of its own flags");
+    }
     if let Some(dir) = std::path::Path::new(&opts.out).parent().filter(|p| !p.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).ok();
     }

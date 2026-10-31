@@ -13,7 +13,7 @@
 //! line, `<frame> <verb> [args]` -
 //!   120 walk 1 0     held walk until `stop` (like WASD held)
 //!   340 stop         stop walking
-//!   360 act 1        press action button i (Talk, Recruit, Invest, Organize, Build)
+//!   360 act 0        press action button i, 0-based (0 Talk .. 4 Build)
 //!   400 select 3     the 1-8 keys
 //!   420 ctx 0        a contextual action (Work, Pair up, ...)
 //!   440 click 700 400   click the map through the camera
@@ -26,7 +26,7 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use crate::engine::render::Buffer;
-use super::{Art, Command, Game, View, FPS};
+use super::{action_buttons, camera_on, Art, Command, Game, View, FPS};
 
 /// Which file the frames land in
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -113,7 +113,12 @@ pub fn parse_script(text: &str) -> Result<Vec<(u64, ScriptOp)>, String> {
         let op = match verb {
             "walk" => ScriptOp::Cmd(Command::Walk(num(&mut it)?, num(&mut it)?)),
             "stop" => ScriptOp::Cmd(Command::Walk(0.0, 0.0)),
-            "act" => ScriptOp::Cmd(Command::Act(num(&mut it)? as usize)),
+            // act N beyond the buttons panics in the sim - catch it at parse time
+            "act" => {
+                let i = num(&mut it)? as usize;
+                if i >= action_buttons().len() { return Err(err("act index out of range")); }
+                ScriptOp::Cmd(Command::Act(i))
+            }
             "ctx" => ScriptOp::Cmd(Command::CtxAct(num(&mut it)? as usize)),
             "select" => ScriptOp::Cmd(Command::Select(num(&mut it)? as usize)),
             "click" => ScriptOp::Cmd(Command::ClickMap {
@@ -151,6 +156,11 @@ struct FramesSink { dir: std::path::PathBuf, n: u32 }
 /// Raw RGBA frames piped to an ffmpeg child's stdin
 struct FfmpegSink { child: std::process::Child }
 
+impl Drop for FfmpegSink {
+    // an error mid-run mustn't leave an ffmpeg holding an open pipe
+    fn drop(&mut self) { let _ = self.child.kill(); }
+}
+
 fn open_sink(opts: &RecordOpts, w: usize, h: usize, n_frames: u64) -> std::io::Result<Box<dyn Sink>> {
     let other = |e: String| std::io::Error::new(std::io::ErrorKind::Other, e);
     match opts.format {
@@ -159,6 +169,7 @@ fn open_sink(opts: &RecordOpts, w: usize, h: usize, n_frames: u64) -> std::io::R
             let mut enc = gif::Encoder::new(f, w as u16, h as u16, &[])
                 .map_err(|e| other(format!("gif encoder: {}", e)))?;
             enc.set_repeat(gif::Repeat::Infinite).map_err(|e| other(e.to_string()))?;
+            // 2cs floor: viewers clamp shorter delays to ~50fps anyway
             Ok(Box::new(GifSink { enc, delay_cs: (100.0 / opts.fps.max(1) as f64).round().max(2.0) as u16 }))
         }
         Format::Apng => {
@@ -244,14 +255,38 @@ impl Sink for FfmpegSink {
     }
 }
 
+/// One scripted op's effect on the run: camera ops touch the View,
+/// commands go to the game, and `walk` arms the held-key resend
+fn apply_op(op: &ScriptOp, game: &mut Game, view: &mut View, held_walk: &mut Option<(f32, f32)>) {
+    match op {
+        ScriptOp::Look(tx, ty) => { (view.cam_x, view.cam_y) = camera_on(*tx as f32, *ty as f32); }
+        // a `stop` lifts the key; the held resend below walks a real `walk`
+        ScriptOp::Cmd(Command::Walk(dx, dy)) => {
+            *held_walk = if *dx == 0.0 && *dy == 0.0 { None } else { Some((*dx, *dy)) };
+        }
+        ScriptOp::Cmd(Command::ClickMap { mx, my, .. }) => game.command(Command::ClickMap {
+            mx: *mx, my: *my, cam_x: view.cam_x, cam_y: view.cam_y, zoom: view.zoom,
+        }),
+        ScriptOp::Cmd(c) => game.command(c.clone()),
+    }
+}
+
 /// Play the game with no window for `play_secs` of play time, rendering a
 /// video frame every `capture_every` game frames. Returns the output path.
-pub fn run_recording(art: Art, opts: RecordOpts, seed: u64) -> std::io::Result<String> {
+pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Result<String> {
     let mut game = Game::new_seeded(seed);
     game.speed = opts.game_speed;
     let mut view = View::new(art);
     view.zoom = opts.zoom;
     if let Some(cam) = opts.cam { (view.cam_x, view.cam_y) = cam; }
+
+    let mut script: BTreeMap<u64, Vec<ScriptOp>> = BTreeMap::new();
+    for (f, op) in std::mem::take(&mut opts.script) { script.entry(f).or_default().push(op); }
+    let mut held_walk: Option<(f32, f32)> = None;
+    // ops keyed to the first frame run before its render
+    if let Some(ops) = script.remove(&0) {
+        for op in &ops { apply_op(op, &mut game, &mut view, &mut held_walk); }
+    }
 
     let every = capture_every(opts.speedup, opts.fps);
     let total_frames = opts.play_secs * FPS as u64;
@@ -263,29 +298,10 @@ pub fn run_recording(art: Art, opts: RecordOpts, seed: u64) -> std::io::Result<S
     let mut sink = open_sink(&opts, probe.width, probe.height, n_frames)?;
     sink.push(probe)?;
 
-    let mut script: BTreeMap<u64, Vec<ScriptOp>> = BTreeMap::new();
-    for (f, op) in opts.script { script.entry(f).or_default().push(op); }
-    let mut held_walk: Option<(f32, f32)> = None;
-
     let mut captured = 1u64;
     for f in 1..total_frames {
-        if let Some(ops) = script.get(&f) {
-            for op in ops {
-                match op {
-                    ScriptOp::Look(x, y) => { (view.cam_x, view.cam_y) = (*x, *y); }
-                    // a `stop` lifts the key; only real motion reaches the game
-                    ScriptOp::Cmd(Command::Walk(dx, dy)) => {
-                        held_walk = if *dx == 0.0 && *dy == 0.0 { None } else {
-                            game.command(Command::Walk(*dx, *dy));
-                            Some((*dx, *dy))
-                        };
-                    }
-                    ScriptOp::Cmd(Command::ClickMap { mx, my, .. }) => game.command(Command::ClickMap {
-                        mx: *mx, my: *my, cam_x: view.cam_x, cam_y: view.cam_y, zoom: view.zoom,
-                    }),
-                    ScriptOp::Cmd(c) => game.command(c.clone()),
-                }
-            }
+        if let Some(ops) = script.remove(&f) {
+            for op in &ops { apply_op(op, &mut game, &mut view, &mut held_walk); }
         }
         if let Some((dx, dy)) = held_walk { game.command(Command::Walk(dx, dy)); }
         game.update();
@@ -298,9 +314,16 @@ pub fn run_recording(art: Art, opts: RecordOpts, seed: u64) -> std::io::Result<S
             }
         }
     }
+    if let Some((&f, _)) = script.iter().next() {
+        eprintln!("warning: script ops at frame {}+ never ran (recording ends at {})", f, total_frames - 1);
+    }
     sink.finish()?;
-    let size = std::fs::metadata(&opts.out).map(|m| m.len()).unwrap_or(0);
-    println!("{} video frames over {} play-seconds -> {} ({} bytes)", captured, opts.play_secs, opts.out, size);
+    if opts.format == Format::Frames {
+        println!("{} video frames over {} play-seconds -> {}", captured, opts.play_secs, opts.out);
+    } else {
+        let size = std::fs::metadata(&opts.out).map(|m| m.len()).unwrap_or(0);
+        println!("{} video frames over {} play-seconds -> {} ({} bytes)", captured, opts.play_secs, opts.out, size);
+    }
     Ok(opts.out)
 }
 

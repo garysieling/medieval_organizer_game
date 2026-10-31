@@ -2764,7 +2764,8 @@ impl Game {
         };
         // the same pace whichever way they go, diagonals included
         let len = (dx * dx + dy * dy).sqrt();
-        if len == 0.0 { return; } // a still stick: the window never sends one, the wire could
+        // a still stick or noise on the wire: no step, and never a NaN position
+        if !(len.is_finite() && len > 0.0) { return; }
         let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
         let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
         if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {

@@ -2689,7 +2689,7 @@ impl Game {
             if self.build_site_at(seat).is_none() { return Some("no room nearby".into()); }
             return None;
         }
-        self.disabled_reason(i)
+        self.disabled_reason_at(seat, i)
     }
 
     /// The nearest free tile to the player where a house can go: dry,
@@ -2735,21 +2735,24 @@ impl Game {
             .unwrap_or(self.seats[seat].selected_target)
     }
 
-    /// Why action button `i` can't be used right now, if it can't
-    pub fn disabled_reason(&self, i: usize) -> Option<String> {
+    /// Why action button `i` can't be used right now for this seat, if it
+    /// can't - the seat's own selection, reach, purse and org answer, not
+    /// seat 0's
+    pub fn disabled_reason_at(&self, seat: usize, i: usize) -> Option<String> {
         // Recruit is pointless on a member and Invest on an empty purse: say
         // so on the button, as Build does, rather than fail in the log
         // Talk and Recruit need the selected villager alive (they walk over
         // to them); a house meeting (Organize) just needs someone nearby to come
-        let target = self.villagers[if (i == 0 || i == 1) && self.picked { self.selected_target } else { self.reach_target() }];
-        let in_reach = self.villagers_in_reach();
+        let target = self.villagers[if (i == 0 || i == 1) && self.seats[seat].picked { self.seats[seat].selected_target } else { self.reach_target_at(seat) }];
+        let in_reach = self.villagers_in_reach_at(seat);
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let p = self.world.get_component::<PlayerCharacter>(self.player).unwrap();
-        let recruit_infl_ok = can_recruit(p.influence);
-        let member = self.world.get_component::<Organization>(self.org).map(|o| o.members.contains(&target)).unwrap_or(false);
+        let p = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
+            .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
+        let recruit_infl_ok = can_recruit(p.0);
+        let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
         else if i == 1 && member { Some("already a member".into()) }
-        else if i == 2 && p.resources < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
+        else if i == 2 && p.1 < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 3 && self.meeting.is_some() { Some("a meeting is under way".into()) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
@@ -5476,7 +5479,11 @@ impl Game {
                 let _ = i;
             }
         }
-        let pe = self.player; sync_purse(&mut self.world, pe, false);
+        // every seat's purse mirrors the day's trading, not just seat 0's;
+        // agent seats have no PlayerCharacter and sync_purse no-ops on them
+        for s in 0..self.seats.len() {
+            let pe = self.seats[s].player; sync_purse(&mut self.world, pe, false);
+        }
     }
 
     /// What this person might walk out to buy today: a good that feeds an
@@ -6023,7 +6030,7 @@ impl Game {
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
                        self.action_blocker_at(seat, 3), self.action_blocker_at(seat, 4)];
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
-            self.building_inspector()
+            self.building_inspector_at(seat)
         } else {
             Some(self.villager_inspector_at(seat))
         };
@@ -6073,9 +6080,9 @@ impl Game {
         }
     }
 
-    /// The inspector card for the selected building
-    fn building_inspector(&self) -> Option<InspectorV> {
-        let bi = self.selected_building?;
+    /// The inspector card for the building this seat clicked
+    fn building_inspector_at(&self, seat: usize) -> Option<InspectorV> {
+        let bi = self.seats[seat].selected_building?;
         let be = *self.building_entities.get(bi)?;
         let world = &self.world;
         let b = world.get_component::<Building>(be)?;
@@ -6355,6 +6362,7 @@ impl Game {
     pub fn command(&mut self, cmd: Command) { self.command_at(0, cmd) }
     pub fn ui_model(&self) -> UiModel { self.ui_model_at(0) }
     pub fn action_blocker(&self, i: usize) -> Option<String> { self.action_blocker_at(0, i) }
+    pub fn disabled_reason(&self, i: usize) -> Option<String> { self.disabled_reason_at(0, i) }
     pub fn villagers_in_reach(&self) -> Vec<Entity> { self.villagers_in_reach_at(0) }
     pub fn reach_target(&self) -> usize { self.reach_target_at(0) }
     pub fn player_pos(&self) -> (f32, f32) { self.player_pos_at(0) }

@@ -3746,6 +3746,70 @@ impl Game {
         self.sanctioned.iter().any(|(e, s, _)| *e == v && *s >= Sanction::Shun)
     }
 
+    /// The year's feast days: one mid-season each quarter, the village
+    /// gathers at the market, the good stock comes out, and for a day
+    /// the wants that never quite get fed are fed
+    pub fn festival_tick(&mut self, tick: u64) {
+        if tick % 90 != 45 { return; }
+        const FEASTS: [&str; 4] = ["St. Swithin's day", "the Harvest Home", "Candlemas", "St. Martin's day"];
+        let feast = FEASTS[(tick / 90 % 4) as usize];
+        self.log.push(format!("t{}: {} - the village gathers at the market.", tick, feast));
+        // the good stock comes out: bread, honey, whatever the stalls held
+        let mut loaves = 0u32;
+        for &be in &self.building_entities.clone() {
+            if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                loaves += household::take_stock(b, "bread", 3);
+                loaves += household::take_stock(b, "honey", 2);
+            }
+        }
+        let gathered: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<TownRole>(v).is_none()
+                && !self.shunned(v))
+            .collect();
+        let store = self.market_food;
+        for &v in &gathered {
+            // everyone comes to market for the day
+            self.travels.retain(|t| t.who != v);
+            self.send(v, Goal::HeadHome(store));
+            // the day feeds the wants that never quite get fed
+            desires::satisfy(&mut self.world, v, Want::Joy, tick + 90);
+            desires::satisfy(&mut self.world, v, Want::Music, tick + 90);
+            if loaves > 0 {
+                desires::satisfy(&mut self.world, v, Want::GoodFood, tick + 30);
+                if let Some(h) = self.world.get_component_mut::<Hunger>(v) { h.value = (h.value + 25.0).min(100.0); }
+            }
+        }
+        // bonds grow between the co-attendees: a pair or two each
+        for (i, &v) in gathered.iter().enumerate() {
+            for &o in gathered.iter().skip(i + 1).take(2) {
+                relationships::record_interaction(&mut self.world, v, relationships::Interaction {
+                    other: o, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
+            }
+        }
+        // a few toasts surface what folk carry - the truth comes out in drink
+        for &v in gathered.iter().take(4) {
+            let line = self.world.get_component::<InnerLife>(v)
+                .and_then(|l| l.grievances.first().map(|(p, _)| *p))
+                .map(|p| match p {
+                    desires::Problem::Blamed => "To my bread - whatever they say of it!",
+                    desires::Problem::Taxed | desires::Problem::DeathDuty => "To what's left after the fifth!",
+                    desires::Problem::Broke => "To better days!",
+                    desires::Problem::Smelly => "To the fold - it smells of honest work!",
+                    _ => "To the village!",
+                }).unwrap_or("To the harvest!");
+            self.say(v, line, CHAT_BUBBLE_SECS * 2);
+        }
+        // the tax collector is never invited but always shows
+        if let Some(c) = self.collector {
+            if !villager::is_dead(&self.world, c) {
+                self.travels.retain(|t| t.who != c);
+                self.send(c, Goal::HeadHome(store));
+                self.say(c, "Uninvited. As ever.", CHAT_BUBBLE_SECS * 2);
+            }
+        }
+    }
+
     /// The young grow: each day the kids age, and on the day they come of
     /// age they take up a trade - the master they ran the most errands
     /// for, else whatever trade the village can use
@@ -4163,6 +4227,8 @@ impl Game {
         self.land_tick(tick);
         // the ladder of shame climbs one rung at a time
         self.sanction_tick(tick);
+        // and the year has its feast days
+        self.festival_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -6458,6 +6524,42 @@ mod sanction_tests {
         // and at the world's edge they're dead to the village
         g.arrive(v, Goal::Exile);
         assert!(villager::is_dead(&g.world, v), "gone is gone");
+    }
+}
+
+#[cfg(test)]
+mod festival_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_feast_gathers_the_village() {
+        let mut g = Game::new();
+        g.festival_tick(45);
+        assert!(g.log.iter().any(|l| l.contains("the village gathers")),
+            "the log names the feast");
+        let walkers = g.travels.iter()
+            .filter(|t| matches!(t.goal, Goal::HeadHome(_))).count();
+        assert!(walkers > 10, "the whole village walks to market");
+        // and the collector comes uninvited
+        let c = g.collector.unwrap();
+        assert!(g.travels.iter().any(|t| t.who == c), "he always shows");
+    }
+
+    #[test]
+    fn test_the_feast_feeds_the_wants() {
+        let mut g = Game::new();
+        // hungry and joyless before the feast, and the store stocked for it
+        for &v in g.villagers.clone().iter() {
+            if let Some(h) = g.world.get_component_mut::<Hunger>(v) { h.value = 20.0; }
+        }
+        if let Some(b) = g.world.get_component_mut::<Building>(g.building_entities[5]) {
+            household::add_stock(b, "bread", 20);
+        }
+        g.festival_tick(45);
+        let fed = g.villagers.iter().filter(|&&v| {
+            g.world.get_component::<Hunger>(v).map(|h| h.value > 30.0).unwrap_or(false)
+        }).count();
+        assert!(fed > 10, "the good stock feeds the crowd");
     }
 }
 

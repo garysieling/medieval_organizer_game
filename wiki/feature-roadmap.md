@@ -139,24 +139,6 @@ power in the street. **Size: M.**
 
 ---
 
-### F15. Festivals & feast days
-
-*Reuses "festival loaves", `Playing`, minstrel machinery, `sprint-4-tea-herbology` ritual bonding.*
-
-**What.** ~4 feast days a year (seeded saints'-day names). The village
-gathers at the market: special goods consumed (festival loaves, cheese,
-ale), `Music`/`Joy` wants satisfied en masse, bonds strengthen between
-co-attendees, grievances surface in drink — and the tax collector is
-never invited but always shows.
-
-**Spec.** `FestivalEvent` on the calendar (tick % 90 season boundary);
-villagers divert to market; consume stock; `relationships` +bond among
-pairs present; one toast speech-bubble per attendee drawn from wants/
-problems (the reveal machinery on a party line). Org can sponsor a feast
-(spend stock → +perceived power, F14). **Size: M.**
-
----
-
 
 ## Wave 3 — The world outside (roads, travelers, and the far powers)
 
@@ -482,5 +464,5 @@ Deliberately grim and rare; flag to disable. **Size: S.**
     bite.
 12. ~~F13 Sanction ladder~~ — **done, PR #153.**
     ergot paths converge here.
-13. F15 Festivals — ties music, food, bonds, and the calendar together;
+13. ~~F15 Festivals~~ — **done, PR #154.**
     the first thing that feels like a *village*, not a sim.

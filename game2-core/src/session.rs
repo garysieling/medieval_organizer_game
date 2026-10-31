@@ -5577,7 +5577,11 @@ impl Game {
                 }
             }
             Goal::TalkTo(e) => {
-                if Some(e) == self.matchmaker && who != e {
+                if villager::is_dead(&self.world, e) {
+                    // whoever they meant to greet is gone - a grave isn't
+                    // a conversation
+                    self.say(who, "Oh.", TALK_BUBBLE_SECS);
+                } else if Some(e) == self.matchmaker && who != e {
                     // a lonely heart comes to sit with the heart-helper
                     self.match_attempt(who, tick, Some(e), "the heart-helper");
                 } else if self.ink_boiler.as_ref().map(|b| b.e) == Some(e) && who != e {
@@ -12387,6 +12391,18 @@ mod agent_tests {
         g.livelihood_tick(1);
         assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)),
             "a hungry villager is sent for the meal, not left standing");
+    }
+
+    #[test]
+    fn test_no_conversation_is_had_with_the_dead() {
+        let mut g = Game::new();
+        let (who, e) = (g.villagers[0], g.villagers[1]);
+        g.world.add_component(e, villager::Dead);
+        g.arrive(who, Goal::TalkTo(e));
+        assert!(g.world.query::<relationships::Relationship>().iter()
+            .filter(|&&r| g.world.get_component::<relationships::Relationship>(r)
+                .map(|rr| rr.from == who && rr.other == e).unwrap_or(false))
+            .count() == 0, "a grave isn't a conversation");
     }
 
     #[test]

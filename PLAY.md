@@ -168,7 +168,10 @@ dark keeps them, they say, and the best mushrooms grow in the under.
 Walk out and ask, and they'll tell you true: the pale one's the real
 thing, where the light dies. The village has a voice with a flourish
 on it - by Saint Crispin, a pox on this weather, the talk turns and
-they call a body a knave and no mistake.
+they call a body a knave and no mistake. And at the dark end of it
+all: defy the castle a third time and the bailiff comes back with
+knights - a hanging where all can see - and the grave they make of it
+keeps a vigil no lord can stamp out.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

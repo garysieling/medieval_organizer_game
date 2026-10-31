@@ -116,7 +116,10 @@ shepherd's wool in, village cloth out - and the tailor cuts local
 cloth before he'd pay the trader's price for it. Down in the cheese
 cellar by the fold the milk becomes wheels in the dark - this village's
 is the stone-cellar cheese - and now and then a noble rides in and pays
-triple for a wheel well past its year.
+triple for a wheel well past its year. And the day's work leaves its
+smell: the shepherd smells of the fold, the beekeeper of smoke and wax,
+the herb-wife of bitter herbs - a suitor's suit falls flat if they
+haven't had a rain in a while, but the rain washes everyone clean.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

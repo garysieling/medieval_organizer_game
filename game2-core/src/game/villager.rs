@@ -45,6 +45,15 @@ pub struct Villager {
 /// this marker is the durable record `is_dead` can still see afterward.
 pub struct Dead;
 
+/// What a villager smells of: the fold, the smoke, the cut. Recomputed
+/// daily from vocation; the rain washes it off; it shows in talk and
+/// damps the heart-helper's rolls. Texture, not a sim.
+#[derive(Debug, Clone, Copy)]
+pub struct Smell {
+    pub intensity: f32,
+    pub kind: &'static str,
+}
+
 /// Whether an entity has died: either its `Health` has hit 0, or it was
 /// marked dead (e.g. by the windowed game after removing `Health`).
 /// Entities with neither are never counted as dead.

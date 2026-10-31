@@ -12,7 +12,7 @@ use game2_core::game::relationships::{Relationship, RelKind};
 use game2_core::game::villager::{self, Hunger};
 use game2_core::sim::climate::{self, Climate, Season, SeasonSystem};
 use game2_core::sim::community::{Citizen, InfluenceSystem, Organization};
-use game2_core::sim::illness::{Disease, Health, IllnessSystem, Stage};
+use game2_core::sim::illness::{Disease, DiseaseKind, Health, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, Bond, GriefSystem};
 
 const TICKS: u64 = 400;
@@ -62,7 +62,7 @@ fn main() {
     // sickness his body can't fight
     if let Some(h) = world.get_component_mut::<Health>(villagers[0]) { h.immunity = 0.0; }
     let sickness = world.create_entity();
-    world.add_component(sickness, Disease { name: "consumption".into(), patient: villagers[0], stage: Stage::Severe, severity: 0.8, contagious: false });
+    world.add_component(sickness, Disease::new(DiseaseKind::Consumption, villagers[0], 0.8));
 
     // Aldric keeps a dog and leads the village guild
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);

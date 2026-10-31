@@ -62,6 +62,14 @@ pub struct Condition {
     pub kind: &'static str,
 }
 
+/// Last night's cup still has them: they sleep it off instead of
+/// working the day. The short lift was worth the lost morning.
+#[derive(Debug, Clone, Copy)]
+pub struct Drunk {
+    /// The day they're sober again
+    pub until: u64,
+}
+
 /// A thing made to outlast its maker: a lute, a window, a fine toolset -
 /// named, owned, and passed down. It gathers stories the way a person does.
 #[derive(Debug)]
@@ -447,12 +455,12 @@ mod tests {
 
     #[test]
     fn test_the_sick_do_not_mend_from_food_alone() {
-        use crate::sim::illness::{Disease, Health, Stage};
+        use crate::sim::illness::{Disease, DiseaseKind, Health, Stage};
         let mut w = World::new();
         let v = spawn_villager(&mut w, 0.0, 0.0);
         w.add_component(v, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0 });
         for _ in 0..50 { NourishmentSystem.run(&mut w); }
         assert_eq!(w.get_component::<Health>(v).unwrap().condition, 0.5);
     }

@@ -94,3 +94,17 @@ Completed task task_16: Add a comment to main.rs
 **Patterns Used:** Sink trait over encoders (gif/apng/frames/ffmpeg); probe frame to size sinks pre-run; BTreeMap script schedule; mirror --dump-frame CLI conventions
 
 ---
+
+### Task: Video sound + speed presets (PR #298)
+**Date:** 2026-10-31
+**Type:** feature
+**Files Changed:**
+- game2-core/src/session/record.rs (AudioEvent, synth_track, write_wav, speed_preset, AviSink, FfmpegSink audio mux, Sink::finish(audio))
+- game2-core/src/bin/record_video.rs (--speed presets, --audio, format aliases)
+- game2-core/Cargo.toml (+jpeg-encoder 0.6), scripts/get-ffmpeg.ps1, PLAY.md, .gitignore
+
+**Outcome:** Success - PR #298 merged (squash), 8 record tests green
+**Notes:** game.sfx drains per update() - cues live one frame, collect post-update. Cues map game-frame -> watch-time at f/(every*fps). AVI is hand-rolled RIFF: LIST sizes patched at finish (flush before seek!), idx1 offsets relative to the 'movi' fourcc (ffmpeg convention, +4 vs movi data start), audio strh uses scale=blockAlign rate=byteRate. ffmpeg can't take two piped inputs on Windows - audio goes via temp wav + a second mux pass (-c:v copy -c:a aac). ffmpeg binary via npm ffmpeg-static into .tools/ (no admin). Voice envelopes need attack+release taper or they click.
+**Patterns Used:** placeholder+patch for RIFF headers; two-pass mux when a child can't see the future; named presets over raw params for situational use
+
+---

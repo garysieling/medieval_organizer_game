@@ -48,7 +48,8 @@ pub enum EventId {
     OwlInTower, CrowsMob, FishRun,
     // ill luck
     ChimneyFire, FouledWell, GranaryLeak, CartOverturns, DrownedInPond,
-    LostChild, Foundling, Quarrel, AlehouseBrawl, OldOakFalls,
+    LostChild, Foundling, Quarrel, AlehouseBrawl, OldOakFalls, Assize,
+    CellarThief,
     // findings
     CoinHoard, OldStones, SpringBubbles, HoneyTree, Truffle, HerbFlush,
     BerryYear, MushroomFlush, StormWashUp, ProdigalSon,
@@ -195,6 +196,8 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: Foundling, name: "a foundling", kind: Moment, fig: Fig::Traveller, gap: 500, span: 380, stay: 0, cry: "" },
     EventSpec { id: Quarrel, name: "a quarrel in the square", kind: Moment, fig: Fig::Traveller, gap: 200, span: 140, stay: 0, cry: "" },
     EventSpec { id: AlehouseBrawl, name: "an alehouse brawl", kind: Moment, fig: Fig::Traveller, gap: 260, span: 180, stay: 0, cry: "" },
+    EventSpec { id: Assize, name: "the assize of ale", kind: Moment, fig: Fig::Traveller, gap: 200, span: 140, stay: 0, cry: "" },
+    EventSpec { id: CellarThief, name: "a thief in the night", kind: Moment, fig: Fig::Traveller, gap: 240, span: 160, stay: 0, cry: "" },
     EventSpec { id: OldOakFalls, name: "the old oak falls", kind: Moment, fig: Fig::Traveller, gap: 600, span: 400, stay: 0, cry: "" },
     // ---- findings ----
     EventSpec { id: CoinHoard, name: "a coin hoard", kind: Moment, fig: Fig::Traveller, gap: 500, span: 380, stay: 0, cry: "" },
@@ -545,6 +548,237 @@ impl Game {
                     wrote += 1;
                 }
             }
+            EventId::ToothDrawer => {
+                // one bad tooth a day: the worst jaw in reach gets the
+                // pull, a penny the tooth - quick as a wink, he swears
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mark = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                            .unwrap_or(false)
+                        && self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false)
+                        && self.world.get_component::<Health>(v).map(|h| h.condition < 0.9).unwrap_or(false))
+                    .min_by(|&a, &b| {
+                        let ha = self.world.get_component::<Health>(a).map(|h| h.condition).unwrap_or(1.0);
+                        let hb = self.world.get_component::<Health>(b).map(|h| h.condition).unwrap_or(1.0);
+                        ha.partial_cmp(&hb).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                if let Some(v) = mark {
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition + 0.05).min(1.0);
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, "Out with it! - that's that, then.", CHAT_BUBBLE_SECS);
+                }
+            }
+            EventId::BarberSurgeon => {
+                // a bloodletting for a penny: it mostly does them good,
+                // though now and then the knife slips - the barber's
+                // honest enough to say so
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mark = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                            .unwrap_or(false)
+                        && self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false)
+                        && self.world.get_component::<Health>(v).map(|h| h.condition < 0.95).unwrap_or(false))
+                    .min_by(|&a, &b| {
+                        let ha = self.world.get_component::<Health>(a).map(|h| h.condition).unwrap_or(1.0);
+                        let hb = self.world.get_component::<Health>(b).map(|h| h.condition).unwrap_or(1.0);
+                        ha.partial_cmp(&hb).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                if let Some(v) = mark {
+                    let slipped = self.rare_roll(id) % 4 == 0;
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        // a nick only ever cuts - the floor never lifts them
+                        h.condition = if slipped { (h.condition - 0.03).max(0.01) }
+                            else { (h.condition + 0.03).min(1.0) };
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, if slipped { "The knife slipped. A bandage'll set it." } else { "There. The humours flow easier." }, CHAT_BUBBLE_SECS);
+                }
+            }
+            EventId::PilgrimBand => {
+                // the road to the shrine passes here: a penny in the
+                // bowl feeds the faith - up to three alms a day, and
+                // only from those who can spare it
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut alms = 0;
+                for &v in &self.villagers.clone() {
+                    if alms >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Faith, tick) { continue; }
+                    // only the faithful drop a penny in - the bowl means
+                    // nothing to those whose wants lie elsewhere
+                    let faithful = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !faithful || !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, "Go with God.", CHAT_BUBBLE_SECS);
+                    alms += 1;
+                }
+            }
+            EventId::RelicSeller => {
+                // a saint's knuckle-bone for two gold: the faithful carry
+                // the blessing a month and a half - the seal's his own work
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut sold = 0;
+                for &v in &self.villagers.clone() {
+                    if sold >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Faith, tick) { continue; }
+                    let faithful = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !faithful || !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, tick + 45);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
+                    self.say(v, "See the seal!", CHAT_BUBBLE_SECS);
+                    sold += 1;
+                }
+            }
+            EventId::Pardoner => {
+                // a grievance off the heart for two gold: the paper's
+                // real enough, though the seal's his own carving
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut sold = 0;
+                for &v in &self.villagers.clone() {
+                    if sold >= 2 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    // a live burden only - the faded ones weigh nothing
+                    let burdened = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.grievances.iter().any(|(_, u)| tick <= *u)).unwrap_or(false);
+                    if !near || !burdened { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !pays { continue; }
+                    // the newest live weight off the heart
+                    if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
+                        if let Some(i) = l.grievances.iter().rposition(|(_, u)| tick <= *u) {
+                            l.grievances.remove(i);
+                        }
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
+                    self.say(v, "Your sins made light!", CHAT_BUBBLE_SECS);
+                    sold += 1;
+                }
+            }
+            EventId::Juggler => {
+                // three knives and a grin: the show's free, but the hat
+                // comes round - a penny in from those who felt the joy
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Joy, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Joy)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
+                    let spare = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if spare {
+                        if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    }
+                    self.say(v, "A marvel!", CHAT_BUBBLE_SECS);
+                }
+            }
+            EventId::BearWard => {
+                // the bear dances and the hat goes round; and now and
+                // then the bear forgets himself and takes a snap at the
+                // nearest hand - a story either way
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Joy, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Joy)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
+                    let spare = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if spare {
+                        if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    }
+                }
+                // the snap - a snap's worth telling for years
+                if self.rare_roll(id) % 5 == 0 {
+                    let nearest = self.villagers.iter().copied()
+                        .filter(|&v| !villager::is_dead(&self.world, v)
+                            && !crate::game::dungeon::unavailable(&self.world, v))
+                        .filter_map(|v| self.world.get_component::<Pos>(v)
+                            .map(|p| ((p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs(), v)))
+                        .filter(|(d, _)| *d < 4).min_by_key(|(d, _)| *d).map(|(_, v)| v);
+                    if let Some(v) = nearest {
+                        if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                            h.condition = (h.condition - 0.05).max(0.01);
+                        }
+                        self.say(v, "He bit me!", CHAT_BUBBLE_SECS);
+                        self.log.push(format!("t{}: the bear took a snap at the crowd - a story for years.", self.tick));
+                    }
+                }
+            }
+            EventId::Puppeteer => {
+                // Noah's flood and the devil's due: the kids are
+                // enthralled for free; the grown-ups who watch over
+                // their heads drop a penny in the hat
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Joy, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Joy)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
+                    // kids get the front row for free; the rest pay the hat
+                    if self.world.get_component::<crate::game::vocation::Kid>(v).is_none() {
+                        let spare = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                        if spare {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                        }
+                    }
+                }
+            }
+            EventId::BalladMonger => {
+                // a penny a broadside: a tune that sticks, and all the
+                // doings of the wide world besides
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Music, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Music)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Music, tick + 15);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, "Did you hear?", CHAT_BUBBLE_SECS);
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -555,6 +789,22 @@ impl Game {
                     if let Some(h) = self.world.get_component_mut::<Health>(v) {
                         h.condition = (h.condition - 0.02).max(0.05);
                     }
+                }
+            }
+            EventId::WineMerchant => {
+                // "a cup before you buy": anyone in reach with a thirst
+                // pays the pedlar's price for the road's vintage
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Drink, tick) { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Drink, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
                 }
             }
             _ => {}
@@ -595,7 +845,123 @@ impl Game {
     /// A moment's blow, all on the day
     fn event_moment(&mut self, id: EventId) {
         let s = spec(id);
-        self.log.push(format!("t{}: {}.", self.tick, s.name));
+        match id {
+            EventId::AlehouseBrawl => self.brawl_moment(),
+            EventId::Assize => self.assize_moment(),
+            EventId::CellarThief => self.cellar_thief_moment(),
+            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+        }
+    }
+
+    /// The alehouse earns its other name: a cup in and the insults come
+    /// out. Bruises, not blades - the drunk and the thirsty swing first
+    fn brawl_moment(&mut self) {
+        // where the drink pours; else the market stands in for a taproom
+        let taproom = self.building_entities.iter().copied().find(|&be|
+            self.world.get_component::<household::Building>(be)
+                .map(|b| matches!(b.kind, household::BuildingKind::Shop(
+                    crate::game::vocation::Vocation::Alewife | crate::game::vocation::Vocation::Brewer
+                    | crate::game::vocation::Vocation::Vintner | crate::game::vocation::Vocation::Distiller))
+                    && b.stock.iter().any(|(g, q)| crate::game::vocation::is_drink(g) && *q > 0))
+                .unwrap_or(false));
+        let at = taproom.and_then(|be| self.world.get_component::<Pos>(be).copied())
+            .or_else(|| self.world.get_component::<Pos>(self.market_food).copied());
+        let mut brawlers: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::vocation::TownRole>(v).is_none())
+            .filter(|&v| {
+                let drunk = self.world.get_component::<villager::Drunk>(v)
+                    .map(|d| self.tick < d.until).unwrap_or(false);
+                let near = at.map(|a| self.world.get_component::<Pos>(v)
+                    .map(|p| (p.x - a.x).abs() + (p.y - a.y).abs() < 8.0).unwrap_or(false))
+                    .unwrap_or(false);
+                drunk || near
+            }).collect();
+        if brawlers.is_empty() {
+            brawlers = self.villagers.iter().take(4).copied()
+                .filter(|&v| !villager::is_dead(&self.world, v)).collect();
+        }
+        brawlers.truncate(2);
+        let names: Vec<String> = brawlers.iter().map(|&v| self.name_of(v)).collect();
+        for &v in &brawlers {
+            if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                h.condition = (h.condition - 0.05).max(0.05);
+            }
+            self.say(v, "Say that again!", CHAT_BUBBLE_SECS);
+        }
+        let place = taproom
+            .and_then(|be| self.world.get_component::<household::Building>(be).map(|b| b.name.clone()))
+            .unwrap_or_else(|| "the market".into());
+        self.log.push(format!("t{}: an alehouse brawl at {} - {} come to blows over a spilled cup.",
+            self.tick, place, names.join(" and ")));
+    }
+
+    /// The assize of ale: the taster walks the drink-shops. Thin brews
+    /// are fined; an honest master's name is praised
+    fn assize_moment(&mut self) {
+        let mut heard = false;
+        for &v in &self.villagers.clone() {
+            let Some(c) = self.world.get_component::<crate::game::vocation::Craft>(v) else { continue };
+            if !matches!(c.vocation, crate::game::vocation::Vocation::Alewife
+                | crate::game::vocation::Vocation::Brewer | crate::game::vocation::Vocation::Vintner
+                | crate::game::vocation::Vocation::Distiller) { continue; }
+            heard = true;
+            let name = self.name_of(v);
+            if crate::game::vocation::level_of(c.skill) == crate::game::vocation::Level::Master {
+                self.log.push(format!("t{}: the ale-taster calls {}'s brew honest and true.", self.tick, name));
+                desires::satisfy(&mut self.world, v, Want::Mastery, self.tick + 60);
+            } else {
+                if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                    p.gold = (p.gold - 3.0).max(0.0);
+                }
+                self.log.push(format!("t{}: the ale-taster fines {} - thin stuff, barely worth the water.", self.tick, name));
+            }
+        }
+        if !heard {
+            self.log.push(format!("t{}: the ale-taster rides through - no brewer's bench to judge here.", self.tick));
+        }
+    }
+
+    /// A cellar worth robbing is a cellar worth watching: the drink
+    /// trade's stock draws a thief in the night, and the watch earns
+    /// its keep when one walks the walls
+    fn cellar_thief_moment(&mut self) {
+        // the fattest drink-stock in the village draws him
+        let mark = self.building_entities.iter().copied()
+            .filter_map(|be| self.world.get_component::<household::Building>(be)
+                .map(|b| (be, b.stock.iter()
+                    .filter(|(g, _)| crate::game::vocation::is_drink(g))
+                    .map(|(g, q)| crate::game::vocation::price(g) * *q as f32).sum::<f32>())))
+            .filter(|(_, v)| *v >= 20.0)
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(be, _)| be);
+        let Some(mark) = mark else {
+            self.log.push(format!("t{}: a thief slips through in the night - but finds no fat cellar.", self.tick));
+            return;
+        };
+        // a living watch is why a fat cellar locks its door
+        let watched = self.villagers.iter().copied().any(|v|
+            !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::vocation::Craft>(v)
+                    .map(|c| c.vocation == crate::game::vocation::Vocation::Knight).unwrap_or(false));
+        let name = self.world.get_component::<household::Building>(mark)
+            .map(|b| b.name.clone()).unwrap_or_else(|| "a cellar".into());
+        if watched {
+            self.log.push(format!("t{}: the watch catches a thief at {} - the good stock stays.", self.tick, name));
+            return;
+        }
+        // half the drink walks off; the shop's keeper wears the grievance
+        let worker = self.world.get_component::<household::Building>(mark).and_then(|b| b.worker);
+        if let Some(b) = self.world.get_component_mut::<household::Building>(mark) {
+            for g in ["ale", "beer", "wine", "spirits"] {
+                let q = b.stock.get(g).copied().unwrap_or(0);
+                household::take_stock(b, g, (q + 1) / 2);
+            }
+        }
+        if let Some(w) = worker {
+            desires::add_grievance(&mut self.world, w, desires::Problem::Robbed, self.tick + 60);
+        }
+        self.log.push(format!("t{}: a thief in the night - half the drink walks out of {}.", self.tick, name));
     }
 
     /// A visitor's last day: what it leaves behind
@@ -666,10 +1032,10 @@ mod tests {
     use crate::session::stage;
     use crate::session::PKind;
 
-    /// The whole registry is a hundred events, every id exactly once
+    /// The whole registry's its hundred and counting, every id once
     #[test]
     fn test_the_registry_is_a_hundred() {
-        assert_eq!(EVENTS.len(), 100);
+        assert_eq!(EVENTS.len(), 102);
         for i in 0..EVENTS.len() {
             for j in (i + 1)..EVENTS.len() {
                 assert_ne!(EVENTS[i].id, EVENTS[j].id, "duplicate id in the registry");
@@ -937,6 +1303,276 @@ mod tests {
         assert!(g.rare.iter().all(|r| r.id != EventId::MushroomFlush), "the flush passes");
         assert!(g.mush_patches.iter().skip(n_before).all(|p| p.next_ready > g.tick + 300),
             "the bonus caps are picked through");
+    }
+
+    /// The worst jaw in reach gets the pull, a penny the tooth - and the
+    /// frame showed the drawer at his stool first
+    #[test]
+    fn test_the_toothdrawer_pulls_the_worst_jaw() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Fever] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::ToothDrawer);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::ToothDrawer && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::ToothDrawer).and_then(|r| r.at).unwrap();
+            // a bad jaw by his stool: a living one with a coin for the pull
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Health>(v).unwrap().condition = 0.4;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the tooth-drawer")),
+                "the frame shows the drawer on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Health>(v).unwrap().condition > 0.4,
+                "the pull eased her on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::ToothDrawer), "he moved on from {:?}", st);
+        }
+    }
+
+    /// A bloodletting for a penny: the knife touches whoever's worst off
+    /// in reach - eased or nicked, the day's work shows
+    #[test]
+    fn test_the_barbers_knife_touches() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Fever] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::BarberSurgeon);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::BarberSurgeon && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::BarberSurgeon).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Health>(v).unwrap().condition = 0.5;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the barber-surgeon")),
+                "the frame shows the barber on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert_ne!(g.world.get_component::<Health>(v).unwrap().condition, 0.5,
+                "his knife touched her on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BarberSurgeon), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The pilgrim bowl feeds the faith: a penny in, a blessing out -
+    /// and the frame shows the band passing first
+    #[test]
+    fn test_the_pilgrim_bowl_feeds_the_faith() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::PilgrimBand);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::PilgrimBand && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::PilgrimBand).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            // she's one who feels the lack of it
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a band of pilgrims")),
+                "the frame shows the band on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick),
+                "the bowl fed her faith on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went in");
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::PilgrimBand), "they passed from {:?}", st);
+        }
+    }
+
+    /// The knuckle-bone's blessing holds: two gold for the faithful, and
+    /// the frame shows his stall first
+    #[test]
+    fn test_the_relics_blessing_holds() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::RelicSeller);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::RelicSeller && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::RelicSeller).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the relic-seller")),
+                "the frame shows the seller on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick),
+                "the blessing took on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold <= 8.0, "two gold went for it");
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::RelicSeller), "he moved on from {:?}", st);
+        }
+    }
+
+    /// A grievance off the heart for two gold: the burdened pay, the
+    /// paper takes the weight - and the frame shows him first
+    #[test]
+    fn test_the_pardons_paper_takes_the_weight() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Pardoner);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Pardoner && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Pardoner).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 30);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the pardoner")),
+                "the frame shows the pardoner on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.is_empty(),
+                "the pardon lifted her on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Pardoner), "he moved on from {:?}", st);
+        }
+    }
+
+    /// Three knives and a grin: the joy spreads free, the hat takes a
+    /// penny from those who can spare it - the frame shows him first
+    #[test]
+    fn test_the_jugglers_knives_lift_the_street() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Fever] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Juggler);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Juggler && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Juggler).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a juggler")),
+                "the frame shows the juggler on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick),
+                "the knives lifted her on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Juggler), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The bear dances and the joy spreads - the snap's a maybe, but the
+    /// crowd's lift is certain, and the frame shows the pair
+    #[test]
+    fn test_the_bear_dances_and_the_hat_goes_round() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::BearWard);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::BearWard && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::BearWard).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a bear-ward")),
+                "the frame shows the pair on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick),
+                "the bear lifted her on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BearWard), "they moved on from {:?}", st);
+        }
+    }
+
+    /// Noah's flood enthralled them: the kids are lifted for free, and
+    /// the frame shows the booth first
+    #[test]
+    fn test_the_puppet_show_enthralls_the_kids() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Puppeteer);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Puppeteer && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Puppeteer).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
+            // she's a kid for the front row: no hat money changes hands
+            g.world.add_component(v, crate::game::vocation::Kid);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a puppeteer")),
+                "the frame shows the booth on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick),
+                "the show enthralled her on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold == 10.0,
+                "the front row was free on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Puppeteer), "he moved on from {:?}", st);
+        }
+    }
+
+    /// A penny a broadside: the tune sticks in whoever has the ear for
+    /// it - and the frame shows the sheets first
+    #[test]
+    fn test_the_ballad_sticks_in_the_ear() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::BalladMonger);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::BalladMonger && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::BalladMonger).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Music];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the ballad-monger")),
+                "the frame shows the sheets on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Music, g.tick),
+                "the tune stuck on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went for the sheet");
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BalladMonger), "he moved on from {:?}", st);
+        }
     }
 
     /// The stray dog picks the loneliest heart and stays

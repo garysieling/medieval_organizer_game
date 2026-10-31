@@ -257,12 +257,19 @@ speed - and writes what the window would show to a video, for reviewing
 test runs and long stretches of village life:
 
 ```bash
-cargo run --release --bin record_video -- --play-time 60 --speedup 3 --out evidence/videos/minute.gif
+cargo run --release --bin record_video -- --play-time 60 --speed 2x --format mp4 --audio --out evidence/videos/minute.mp4
 ```
 
-- `--play-time SECS` of play, `--speedup X` compresses to watch time
-- `--format gif|apng|frames|ffmpeg` (`ffmpeg` pipes raw frames to an
-  ffmpeg binary for mp4/webm - pass `--ffmpeg-path` if it isn't on PATH)
+- `--speed realtime|1x|2x|5x|10x|60x` compresses play time to watch time
+  (`--speedup N` for arbitrary values)
+- `--format gif|apng|avi|mp4|webm|frames`
+  - `gif`/`apng`/`frames` need no external tools (no sound)
+  - `avi` is MJPEG+PCM written in pure Rust - the game's sfx cues
+    synthesised into a soundtrack, no external tools
+  - `mp4`/`webm`/`ffmpeg` pipe raw frames to an ffmpeg binary - best
+    quality and size; `scripts/get-ffmpeg.ps1` fetches one into
+    `.tools/ffmpeg/` (needs node, no admin), then pass `--ffmpeg-path`
+  - `--audio` adds the synthesised soundtrack to mp4/webm
 - `--script FILE` drives the player: `<frame> <verb> [args]` lines
   (`walk`, `stop`, `act`, `ctx`, `select`, `click`, `look`, `pause`,
   `speed`, `cancel`) - see `scripts/record-walkabout.txt`

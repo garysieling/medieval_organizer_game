@@ -67,6 +67,9 @@ pub const SATCHEL_CAP: u32 = 10;
 pub const TASK_COMMISSION: f32 = 0.25;
 /// How many days the trader's stall takes to restock one imported good
 pub const TRADER_RESTOCK_DAYS: u64 = 2;
+/// The lord's share on the barrel: on collection day the collector takes
+/// this cut of whatever a shop's stocked drink is worth
+pub const DRINK_EXCISE: f32 = 0.15;
 
 /// What a day's work needs that isn't already in hand (satchel or own
 /// shop's stock)
@@ -173,19 +176,27 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
 /// himself, and a shopless printer knows where his trade's ink lives
 pub fn seller_for(world: &World, good: &str, at: Pos) -> Option<Entity> {
     if vocation::imported(good) {
-        return world.query::<Building>().into_iter()
+        let stall = world.query::<Building>().into_iter()
             .filter(|&b| {
                 world.get_component::<Building>(b)
-                    .map(|bb| (bb.kind == household::BuildingKind::TraderStall
+                    .map(|bb| bb.stock.get(good).copied().unwrap_or(0) > 0
+                        && (bb.kind == household::BuildingKind::TraderStall
                             || (good == "ink"
-                                && bb.kind == household::BuildingKind::Shop(vocation::Vocation::Printmaker)))
-                        && bb.stock.get(good).copied().unwrap_or(0) > 0)
+                                && bb.kind == household::BuildingKind::Shop(vocation::Vocation::Printmaker))
+                            // the stall's the usual source, but a shop
+                            // that makes the good itself sells it too -
+                            // the distillery's aqua vitae comes off its
+                            // own shelf, not the road's
+                            || matches!(bb.kind, household::BuildingKind::Shop(v)
+                                if vocation::output(v) == Some(good))))
                     .unwrap_or(false)
             })
             .min_by_key(|&b| {
                 world.get_component::<Pos>(b)
                     .map(|p| ((p.x - at.x).abs() + (p.y - at.y).abs()) as i32).unwrap_or(i32::MAX)
             });
+        if stall.is_some() { return stall; }
+        // and a cask in a distiller's satchel sells like anything else
     }
     world.query::<Satchel>().into_iter()
         .filter(|&s| {
@@ -273,8 +284,11 @@ pub fn tax_round(world: &mut World, collector: Entity, roster: &[Entity], start_
 
 /// The trader's stall restocks one imported good a turn
 pub fn restock_trader(world: &mut World, stall: Entity, seed: u64) {
-    const EXOTICS: [&str; 4] = ["cloth", "paper", "ink", "pigment"];
-    let good = EXOTICS[(seed % EXOTICS.len() as u64) as usize];
+    const EXOTICS: [&str; 8] = ["cloth", "paper", "ink", "pigment",
+        "hops", "grapes", "wine", "spirits"];
+    // the seed's a tick and the calls come every RESTOCK days: index on
+    // the count of restocks, not the day, or half the cart never lands
+    let good = EXOTICS[((seed / TRADER_RESTOCK_DAYS) as usize) % EXOTICS.len()];
     if let Some(b) = world.get_component_mut::<Building>(stall) {
         household::add_stock(b, good, 1);
     }
@@ -390,6 +404,27 @@ mod tests {
         assert_eq!(tax_due(&w, collector, 42), Some(b));
         assert_eq!(tax_due(&w, collector, 389), Some(b));
         assert_eq!(tax_due(&w, collector, 390), Some(a));
+    }
+
+    #[test]
+    fn test_the_road_goods_sell_off_the_still_too() {
+        let mut w = World::new();
+        let at = Pos { x: 0.0, y: 0.0 };
+        // the stall stocks the road's spirits as usual
+        let stall = household::spawn_building(&mut w, BuildingKind::TraderStall,
+            "the trader's stall", 30.0, 0.0, 20);
+        w.get_component_mut::<Building>(stall).unwrap().stock.insert("spirits".into(), 2);
+        // but the distillery sells its own water of life closer in
+        let still = household::spawn_building(&mut w,
+            BuildingKind::Shop(vocation::Vocation::Distiller), "the distillery", 5.0, 0.0, 20);
+        w.get_component_mut::<Building>(still).unwrap().stock.insert("spirits".into(), 3);
+        assert_eq!(seller_for(&w, "spirits", at), Some(still), "nearest first");
+        // and when no shelf stocks it, a cask in a satchel sells
+        w.get_component_mut::<Building>(still).unwrap().stock.remove("spirits");
+        w.get_component_mut::<Building>(stall).unwrap().stock.remove("spirits");
+        let pedlar = worker(&mut w, vocation::Vocation::Distiller, 0.5, 0.0);
+        w.get_component_mut::<Satchel>(pedlar).unwrap().goods.insert("spirits".into(), 1);
+        assert_eq!(seller_for(&w, "spirits", at), Some(pedlar));
     }
 
     #[test]

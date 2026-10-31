@@ -38,6 +38,7 @@ pub enum Want {
     DifferentTrade,// the assigned vocation bores them
     Love,          // a close bond
     Joy,           // play - mostly the children's want
+    Drink,         // a cup at the alehouse - company in a bowl
 }
 
 /// What's in someone's way. Most are computed from their situation each
@@ -87,6 +88,9 @@ pub enum Problem {
     TheDark,
     /// What they watched and can't unsee - the hanging's weight
     Grief,
+    /// The good stock walked off in the night - a cellar worth robbing
+    /// is a cellar worth watching
+    Robbed,
 }
 
 /// One secret a person can share: a want or a problem
@@ -162,6 +166,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Want(Want::DifferentTrade) => "restlessness",
         Reveal::Want(Want::Love) => "loneliness",
         Reveal::Want(Want::Joy) => "joy",
+        Reveal::Want(Want::Drink) => "the drink",
         Reveal::Problem(Problem::NoWorkplace) => "workplaces",
         Reveal::Problem(Problem::NoMaster) => "apprenticeship",
         Reveal::Problem(Problem::NoInput(_)) => "materials",
@@ -183,6 +188,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::LongWinter) => "the long winter",
         Reveal::Problem(Problem::TheDark) => "the dark",
         Reveal::Problem(Problem::Grief) => "the grief",
+        Reveal::Problem(Problem::Robbed) => "the thieves",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -240,6 +246,8 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the long winter" => "the long winter".into(),
         "the dark" => "the dark".into(),
         "the grief" => "the grief".into(),
+        "the drink" => "a dry village".into(),
+        "the thieves" => "thieves in the night".into(),
         _ => tag,
     }
 }
@@ -259,6 +267,7 @@ pub fn want_label(w: Want) -> &'static str {
         Want::DifferentTrade => "bored with the trade",
         Want::Love => "wants love",
         Want::Joy => "wants to play",
+        Want::Drink => "wants a drink",
     }
 }
 
@@ -287,6 +296,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::LongWinter => "the winter runs long and the stores run thin".into(),
         Problem::TheDark => "the dark keeps me".into(),
         Problem::Grief => "I watched it and can't unsee it".into(),
+        Problem::Robbed => "was robbed in the night".into(),
     }
 }
 
@@ -306,6 +316,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Want(Want::DifferentTrade) => (format!("{} is bored with the trade", name), "This isn't the life I pictured.".into()),
         Reveal::Want(Want::Love) => (format!("{} confides they're lonely", name), "Everyone's got someone. Not me.".into()),
         Reveal::Want(Want::Joy) => (format!("{} wants to play", name), "I just want to play a while.".into()),
+        Reveal::Want(Want::Drink) => (format!("{} misses a cup", name), "A cup of something would sit well about now.".into()),
         Reveal::Problem(Problem::NoHome) => (format!("{} has no home", name), "Nowhere to lay my head. Nowhere.".into()),
         Reveal::Problem(Problem::NoWorkplace) => (format!("{} has no workshop", name), "No bench, no hearth - I work in the street.".into()),
         Reveal::Problem(Problem::NoMaster) => (format!("{} has no master", name), "No one to learn from. I'll be a journeyman forever.".into()),
@@ -328,6 +339,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are thin", name), "Second winter running. The barrel knows it.".into()),
         Reveal::Problem(Problem::TheDark) => (format!("{} keeps to the dark", name), "The village is loud with light. Down here it's honest.".into()),
         Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
+        Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),
     }
 }
 
@@ -456,6 +468,7 @@ pub fn sample_wants(class: SocialClass, voc: Option<vocation::Vocation>, is_kid:
             Want::Love => 3, Want::Faith => 2, Want::Music => 2,
             Want::Finery => 2, Want::BetterTools => 2, Want::Shelter => 2,
             Want::DifferentTrade => 2, Want::Instrument => 1, Want::Joy => 1,
+            Want::Drink => 3,
         };
         let bonus: u64 = match (w, voc) {
             (Want::Faith, Some(vocation::Vocation::Priest)) => 6,
@@ -478,10 +491,10 @@ pub fn sample_wants(class: SocialClass, voc: Option<vocation::Vocation>, is_kid:
         };
         base + bonus + class_bonus
     };
-    const ALL: [Want; 11] = [
+    const ALL: [Want; 12] = [
         Want::GoodFood, Want::Finery, Want::Faith, Want::Shelter, Want::Security,
         Want::Mastery, Want::Music, Want::Instrument, Want::BetterTools,
-        Want::DifferentTrade, Want::Love,
+        Want::DifferentTrade, Want::Love, Want::Drink,
     ];
     let mut pool: Vec<Want> = ALL.iter().copied()
         .flat_map(|w| std::iter::repeat(w).take(weight(w) as usize)).collect();

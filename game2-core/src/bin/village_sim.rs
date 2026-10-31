@@ -5,7 +5,7 @@
 use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::villager::{self, Hunger, Villager, Activity};
 use game2_core::sim::psychology::{AttachmentHistory, infer_style};
-use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
+use game2_core::sim::illness::{Health, Disease, DiseaseKind, IllnessSystem};
 use game2_core::sim::climate::{self, SeasonSystem};
 use game2_core::sim::economics::{self, Market, ProductionSystem};
 use game2_core::infra::telemetry::Telemetry;
@@ -60,10 +60,7 @@ fn main() {
         // so whoever spends time near them may catch it too
         if tick == 50 {
             let d = world.create_entity();
-            world.add_component(d, Disease {
-                name: "flu".into(), patient: villagers[0], stage: Stage::Mild,
-                severity: 0.4, contagious: true,
-            });
+            world.add_component(d, Disease::new(DiseaseKind::Influenza, villagers[0], 0.4));
             if let Some(h) = world.get_component_mut::<Health>(villagers[0]) {
                 h.condition -= 0.2;
             }
@@ -86,7 +83,7 @@ fn main() {
                     }
                 }
             }
-            // everyone carrying the flu, however mild
+            // everyone carrying la grippe, however mild
             let infected = world.query::<Disease>().len();
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
             let mkt = world.get_component::<Market>(market).unwrap();

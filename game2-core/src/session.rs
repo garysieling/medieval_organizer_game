@@ -4566,7 +4566,27 @@ impl Game {
     /// The king's patience has a length: posted guards stand their tour,
     /// then ride home - the streets are the village's again, and a
     /// crackdown that comes after has to post them fresh
+    /// The cell lets go of one prisoner: the components clear, and a
+    /// release campaign raised just for them is spent with the release
+    fn free_prisoner(&mut self, m: Entity, tick: u64) {
+        self.world.remove_component::<crate::game::dungeon::Imprisoned>(m);
+        self.world.remove_component::<crate::game::dungeon::ReleaseCampaign>(m);
+        if let Some(rc) = self.world.get_component::<crate::game::dungeon::ReleaseOf>(m).map(|r| r.campaign) {
+            self.world.remove_component::<crate::game::campaign::Campaign>(rc);
+            self.world.remove_component::<crate::game::campaign::CampaignMeeting>(rc);
+            self.world.remove_component::<crate::game::dungeon::ReleaseOf>(m);
+        }
+        self.log.push(format!("t{}: the cell stands open - {} walks home.", tick, self.name_of(m)));
+    }
+
     pub fn guards_tick(&mut self, tick: u64) {
+        // a stint inside is a stint inside: nobody sits past one, whatever
+        // fresh crackdowns restamp a tour
+        for &m in &self.villagers.clone() {
+            let Some(since) = self.world.get_component::<crate::game::dungeon::Imprisoned>(m)
+                .map(|i| i.since) else { continue; };
+            if tick >= since + GUARD_TOUR { self.free_prisoner(m, tick); }
+        }
         for seat in 0..self.seats.len() {
             let org = self.seats[seat].org;
             let stood_down = self.world.get_component::<crate::game::reactions::GuardsPosted>(org)
@@ -4577,6 +4597,20 @@ impl Game {
             // knights ride home (another's may still be on their tour;
             // the gate watch is a different corps entirely)
             self.posted.retain(|&(o, _, _)| o != org);
+            // and without the knights the cells can't hold: this org's held
+            // walk free early, petitions answered or not
+            let members = self.world.get_component::<Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            for &m in &self.villagers.clone() {
+                if self.world.get_component::<crate::game::dungeon::Imprisoned>(m).is_none() { continue; }
+                // whose cell is it? the org that founded the release
+                // campaign owns the prisoner; without one, membership says
+                let ours = self.world.get_component::<crate::game::dungeon::ReleaseOf>(m)
+                    .and_then(|r| self.world.get_component::<crate::game::campaign::Campaign>(r.campaign)
+                        .map(|c| c.org == org))
+                    .unwrap_or_else(|| members.contains(&m));
+                if ours { self.free_prisoner(m, tick); }
+            }
             self.log.push(format!("t{}: the knights ride home - the tour is done.", tick));
         }
     }
@@ -11920,6 +11954,46 @@ mod campaign_dungeon_tests {
         // the gate watch, though, stands all year
         assert!(!g.guards.is_empty());
         assert!(g.log.iter().any(|l| l.contains("knights ride home")), "{:?}", g.log);
+    }
+
+    #[test]
+    fn test_petition_shows_even_when_the_cause_is_spent() {
+        let mut g = Game::new();
+        // no campaign at all - and someone's inside
+        g.seats[0].selected_target = 0;
+        g.seats[0].picked = true;
+        let v = g.villagers[0];
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        g.update_ctx_actions_at(0);
+        assert!(g.seats[0].ctx_actions.contains(&CtxAct::Petition),
+            "the way out doesn't depend on a live campaign: {:?}", g.seats[0].ctx_actions);
+    }
+
+    #[test]
+    fn test_the_cell_opens_when_the_knights_ride_home() {
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members = vec![v];
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 0 });
+        // petitions unanswered and the tour still ends: the cell opens
+        g.guards_tick(30);
+        assert!(g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none(),
+            "no life sentence - the knights gone, the door stands open");
+        assert!(g.log.iter().any(|l| l.contains("walks home")), "{:?}", g.log);
+    }
+
+    #[test]
+    fn test_the_stint_is_the_stint_whatever_the_tours_do() {
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: 0, charge: "sedition".into() });
+        // a fresh crackdown every week keeps the tour going - the prisoner
+        // still walks when their own month is done
+        g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 25 });
+        g.guards_tick(31);
+        assert!(g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none(),
+            "a restamped tour can't stretch the stint past a month");
     }
 }
 

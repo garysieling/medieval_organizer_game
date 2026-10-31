@@ -81,6 +81,7 @@ pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::session::ObsPerson;
 
     fn obs() -> AgentObs {
         AgentObs {

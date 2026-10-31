@@ -5646,6 +5646,17 @@ impl Game {
     /// The town's business each day: work, errands, the tax round, the
     /// trader's restock, the odd minstrel, a tune in the street
     pub fn livelihood_tick(&mut self, tick: u64) {
+        // market day, once a month: the org's members sell their work and
+        // the purse sees its share of the takings
+        if tick % 30 == 20 {
+            for seat in 0..self.seats.len() {
+                let earned = crate::game::player::market_day(&mut self.world,
+                    self.seats[seat].player, self.seats[seat].org);
+                if earned > 0.0 {
+                    self.log.push(format!("t{}: market day - the org sells its members' work; {:.0} gold to the purse.", tick, earned));
+                }
+            }
+        }
         // the trader's stall restocks an exotic every couple of days
         if tick % livelihood::TRADER_RESTOCK_DAYS == 0 {
             if let Some(s) = self.trader_stall { livelihood::restock_trader(&mut self.world, s, tick); }

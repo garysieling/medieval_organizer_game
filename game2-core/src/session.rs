@@ -4764,9 +4764,11 @@ impl Game {
                 let _ = household::take_stock(b, "grain", 1);
             }
         }
-        // and everyone's a little hungrier for it
+        // and everyone's a little hungrier for it - except the dead and
+        // the held, whose hunger isn't theirs to feel
         if tick % 10 == 0 {
             for &v in &self.villagers.clone() {
+                if crate::game::dungeon::unavailable(&self.world, v) { continue; }
                 if let Some(h) = self.world.get_component_mut::<Hunger>(v) {
                     if h.value > 8.0 { h.value -= 8.0; }
                 }
@@ -4783,7 +4785,9 @@ impl Game {
             // looks for who to blame
             if self.lord_esteem > 0.5 {
                 if tick % 60 == 10 {
-                    for v in self.villagers.iter().take(6).copied().collect::<Vec<_>>() {
+                    for v in self.villagers.iter().copied()
+                        .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).take(6)
+                        .collect::<Vec<_>>() {
                         desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
                         if let Some(h) = self.world.get_component_mut::<Hunger>(v) {
                             h.value = (h.value + 15.0).min(100.0);
@@ -6829,6 +6833,12 @@ impl Game {
     /// walking is done - arrival triggers the trade, the chat, the gather.
     pub fn agent_command(&mut self, seat: usize, cmd: AgentCmd) -> Result<(), String> {
         let who = self.seats.get(seat).map(|s| s.player).ok_or_else(|| "no such seat".to_string())?;
+        // the held can only stand down - walks, errands and gathers all
+        // pass the jailer first
+        if self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some()
+            && !matches!(cmd, AgentCmd::Idle) {
+            return Err("held - the cell allows no errands".into());
+        }
         match cmd {
             AgentCmd::Idle => { self.travels.retain(|t| t.who != who); Ok(()) }
             AgentCmd::GoTo { x, y } => {
@@ -6860,9 +6870,6 @@ impl Game {
                 if self.send_gather(who, g, (x, y)) { Ok(()) } else { Err("nothing to gather there".into()) }
             }
             AgentCmd::WorkDay => {
-                if self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some() {
-                    return Err("held - the cell takes no day's work".into());
-                }
                 let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
                 if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }
             }

@@ -116,7 +116,10 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
     if has(&["takes up the", "bench", "colors", "tallies straight", "lays down", "outlast"]) {
         return (Valence::Positive, Thread::Craft);
     }
-    if has(&["cold shoulder", "talk turns", "tells ", "gossip", "word spreads"]) {
+    // the cold shoulder is a landed sanction - it bars meetings and
+    // courtship, so it's a real blow, not idle chatter
+    if has(&["cold shoulder"]) { return (Valence::Negative, Thread::Lifecycle); }
+    if has(&["talk turns", "tells ", "gossip", "word spreads"]) {
         return (Valence::Neutral, Thread::Lifecycle);
     }
     if has(&["begins", "stops", "winter sets", "drizzle", "snow", "rain"]) {

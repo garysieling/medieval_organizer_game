@@ -99,16 +99,17 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
              "letter comes", "brought", "together"]) {
         return (Valence::Positive, Thread::Visitor);
     }
+    if has(&["skeps yield", "market day", "grant covers"]) {
+        // a yield, a selling day, a rebate: the economy's own good news,
+        // and the context a shortage lands in - before the Org branch,
+        // whose "member" would otherwise claim market day's pay line
+        return (Valence::Positive, Thread::Economy);
+    }
     if has(&["guild formed", "stands with", "pulls together", "shares out", "ransom", "walks home",
              "takes up the organizing", "tread lightly", "passes you by", "vigil"]) {
         return (Valence::Positive, Thread::Org);
     }
     if has(&["recruit", "joined", "member"]) { return (Valence::Positive, Thread::Org); }
-    if has(&["skeps yield", "market day", "grant covers"]) {
-        // a yield, a selling day, a rebate: the economy's own good news,
-        // and the context a shortage lands in
-        return (Valence::Positive, Thread::Economy);
-    }
     if has(&["boycott", "shuttered", "derelict", "thin stores", "drowned", "spoiled", "starv"]) {
         return (Valence::Negative, Thread::Economy);
     }

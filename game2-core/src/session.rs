@@ -4649,8 +4649,10 @@ impl Game {
             let full = self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home
                     // beds cap at four like the first settling - the
-                    // building's capacity is its stock limit, not beds
-                    && bb.occupants.len() < 4
+                    // building's capacity is its stock limit, not beds.
+                    // death doesn't vacate a bed in `occupants`, so count
+                    // only the living against that cap
+                    && bb.occupants.iter().filter(|&&o| !villager::is_dead(&self.world, o)).count() < 4
                     && bb.occupants.iter().filter(|&&o|
                         self.world.get_component::<Kid>(o).is_none()
                         && !villager::is_dead(&self.world, o)).count() >= 2)
@@ -4683,7 +4685,10 @@ impl Game {
         // hers alone, and the foreign houses aren't for our strangers
         let room = self.building_entities.iter().copied().find(|&b|
             self.world.get_component::<Building>(b)
-                .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < 4
+                .map(|bb| bb.kind == BuildingKind::Home
+                    // death doesn't vacate a bed in `occupants`, so count
+                    // only the living against the four-bed cap
+                    && bb.occupants.iter().filter(|&&o| !villager::is_dead(&self.world, o)).count() < 4
                     && bb.name != "the herb hut" && bb.name != "a foreign house")
                 .unwrap_or(false));
         match room {
@@ -12327,5 +12332,48 @@ mod growth_tests {
         let wants_bed = desires::problems_of(&g.world, m, g.tick).contains(&desires::Problem::NoHome);
         assert!(housed || wants_bed, "a spare bed or the want of one");
         assert!(g.log.iter().any(|l| l.contains("settles")), "{:?}", g.log.last());
+    }
+
+    #[test]
+    fn test_a_grave_frees_the_bed_it_held_for_a_birth() {
+        let mut g = Game::new();
+        // a four-occupant home, two of them already dead: two living,
+        // two empty beds in all but name
+        let home = g.building_entities.iter().copied().find(|&b|
+            g.world.get_component::<Building>(b).map(|bb| bb.kind == BuildingKind::Home).unwrap_or(false)).unwrap();
+        let four: Vec<Entity> = g.villagers[..4].to_vec();
+        g.world.add_component(four[2], villager::Dead);
+        g.world.add_component(four[3], villager::Dead);
+        g.world.get_component_mut::<Building>(home).unwrap().occupants = four;
+        let n = g.villagers.len();
+        g.maybe_birth(40); // may or may not, it's a roll - keep calling until the roll lands
+        for t in (40..400).step_by(40) { if g.villagers.len() > n { break; } g.maybe_birth(t); }
+        assert!(g.villagers.len() > n, "the grave didn't keep the bed - a living pair still has room for a child");
+    }
+
+    #[test]
+    fn test_a_grave_frees_the_bed_it_held_for_a_migrant() {
+        let mut g = Game::new();
+        // every ordinary home is packed with four living occupants,
+        // except one that holds a lone survivor and three graves
+        let homes: Vec<Entity> = g.building_entities.iter().copied().filter(|&b|
+            g.world.get_component::<Building>(b)
+                .map(|bb| bb.kind == BuildingKind::Home && bb.name != "the herb hut" && bb.name != "a foreign house")
+                .unwrap_or(false)).collect();
+        let filler: Vec<Entity> = g.villagers[..4].to_vec();
+        for &h in &homes {
+            g.world.get_component_mut::<Building>(h).unwrap().occupants = filler.clone();
+        }
+        let target = homes[0];
+        let dead: Vec<Entity> = g.villagers[5..8].to_vec();
+        for &d in &dead { g.world.add_component(d, villager::Dead); }
+        let mut occupants = vec![g.villagers[4]];
+        occupants.extend(dead);
+        g.world.get_component_mut::<Building>(target).unwrap().occupants = occupants;
+
+        g.maybe_migrant(30);
+        let m = *g.villagers.last().unwrap();
+        assert_eq!(household::home_of(&g.world, m), Some(target),
+            "one living soul and three graves still leaves three empty beds for the stranger");
     }
 }

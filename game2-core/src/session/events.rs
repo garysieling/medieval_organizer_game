@@ -1000,6 +1000,30 @@ impl Game {
                     self.log.push(format!("t{}: water sings under the meadow - the gardens drink it in.", tick));
                 }
             }
+            EventId::Recruiter => {
+                // the levy marches off - and a young one may march with
+                // him, if the drum caught one while he was here
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let kid = self.villagers.iter().copied()
+                    .filter(|&v| v != self.player
+                        && !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<crate::game::vocation::Kid>(v).is_some()
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                            .unwrap_or(false))
+                    .min_by_key(|&v| self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs())
+                        .unwrap_or(9999));
+                match kid {
+                    Some(v) if self.rare_roll(id) % 3 != 0 => {
+                        self.villagers.retain(|&x| x != v);
+                        self.world.destroy_entity(v);
+                        self.log.push(format!("t{}: the levy took the youngest - they marched off at dawn.", tick));
+                    }
+                    _ => self.log.push(format!("t{}: the drum got no one - the village kept its young.", tick)),
+                }
+            }
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides
                 let mark = self.lonely_hearts().into_iter()
@@ -1583,6 +1607,37 @@ mod tests {
             assert!(talks > 0, "the street talked on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::NewsCrier), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The levy marches off with a young one if the drum caught one -
+    /// or the village keeps its young, and the log says which
+    #[test]
+    fn test_the_drum_takes_or_the_village_keeps() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Recruiter);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Recruiter && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Recruiter).and_then(|r| r.at).unwrap();
+            // a young one near his drum
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.add_component(v, crate::game::vocation::Kid);
+            let before = g.villagers.len();
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the recruiting sergeant")),
+                "the frame shows the drum on {:?}", st);
+            stage::run_days(&mut g, 6);
+            let took = g.log.iter().any(|l| l.contains("the levy took"));
+            let kept = g.log.iter().any(|l| l.contains("kept its young"));
+            assert!(took || kept, "the drum said something on {:?}", st);
+            assert_eq!(took, g.villagers.len() < before, "the roll matched the roster on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Recruiter), "he marched off from {:?}", st);
         }
     }
 

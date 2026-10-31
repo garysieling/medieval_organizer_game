@@ -37,3 +37,5 @@ pub mod household;
 pub mod livelihood;
 pub mod fire;
 pub mod campaign;
+pub mod org_skills;
+pub mod actions;

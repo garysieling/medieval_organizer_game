@@ -168,13 +168,17 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
 
 /// Who to buy `good` from near `at`: whoever holds it - a person's satchel
 /// for trade goods, the trader's stall for imports - nearest first, since
-/// it's a small town and everyone knows who has what
+/// it's a small town and everyone knows who has what. Ink is the one
+/// import a shop can also carry: the ink-maker stocks the print shop
+/// himself, and a shopless printer knows where his trade's ink lives
 pub fn seller_for(world: &World, good: &str, at: Pos) -> Option<Entity> {
     if vocation::imported(good) {
         return world.query::<Building>().into_iter()
             .filter(|&b| {
                 world.get_component::<Building>(b)
-                    .map(|bb| bb.kind == household::BuildingKind::TraderStall
+                    .map(|bb| (bb.kind == household::BuildingKind::TraderStall
+                            || (good == "ink"
+                                && bb.kind == household::BuildingKind::Shop(vocation::Vocation::Printmaker)))
                         && bb.stock.get(good).copied().unwrap_or(0) > 0)
                     .unwrap_or(false)
             })
@@ -368,5 +372,26 @@ mod tests {
         assert_eq!(tax_due(&w, collector, 42), Some(b));
         assert_eq!(tax_due(&w, collector, 389), Some(b));
         assert_eq!(tax_due(&w, collector, 390), Some(a));
+    }
+
+    #[test]
+    fn test_the_print_shop_sells_the_inkmakers_ink() {
+        let mut w = World::new();
+        let at = Pos { x: 0.0, y: 0.0 };
+        let shop = household::spawn_building(&mut w, BuildingKind::Shop(vocation::Vocation::Printmaker),
+            "the print shop", 5.0, 0.0, 20);
+        w.get_component_mut::<Building>(shop).unwrap().stock.insert("ink".into(), 6);
+        assert_eq!(seller_for(&w, "ink", at), Some(shop),
+            "the trade knows where its ink lives");
+        // but the shop doesn't deal the road's other exotics
+        w.get_component_mut::<Building>(shop).unwrap().stock.insert("paper".into(), 4);
+        assert_eq!(seller_for(&w, "paper", at), None,
+            "paper still comes off the trader's cart");
+        // and the trader's stall stays a seller too
+        let stall = household::spawn_building(&mut w, BuildingKind::TraderStall,
+            "the trader's stall", 30.0, 0.0, 20);
+        w.get_component_mut::<Building>(stall).unwrap().stock.insert("ink".into(), 3);
+        assert_eq!(seller_for(&w, "ink", at), Some(shop), "nearest first");
+        assert_eq!(seller_for(&w, "ink", Pos { x: 40.0, y: 0.0 }), Some(stall));
     }
 }

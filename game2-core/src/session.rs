@@ -33,6 +33,7 @@ use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, Tow
 use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
+use crate::game::fire::Fire;
 use crate::game::herbology::{self, Apothecary};
 use crate::game::livestock::{self, Livestock, LivestockKind};
 use crate::game::apiary::{self, HiveKind};
@@ -716,6 +717,18 @@ const APPROACH_STUCK_FRAMES: u32 = FPS;
 /// The courier's pace along the road (tiles a frame): a day's ride each way
 const TRAVELLER_SPEED: f32 = 4.0 / FPS as f32;
 
+/// Days the ink-maker's cauldron smokes on the meadow: the boil, the
+/// crusts, the drip test, and the grinding
+const INK_BOIL_DAYS: u64 = 5;
+
+/// Ink he sells off before the road takes him
+const INK_YIELD: u32 = 6;
+
+/// Per-boiling-day chance the oil's vapours take fire - it happens, "as
+/// will happen" says the Encyclopedie; most times he smothers it, but the
+/// meadow keeps the scorch
+const OIL_FLARE_PCT: i32 = 8;
+
 /// Walking over to someone to talk to or recruit them
 pub struct Approach {
     pub who: usize,              // villager index
@@ -1391,6 +1404,20 @@ pub struct Circus {
     pub camp: (i32, i32),
 }
 
+/// The ink-maker: once a year or so he walks the road in and boils his
+/// linseed oil down to varnish on the meadow outside the gate - the law
+/// and the fire both want that trade out there (Encyclopedie: "a wide
+/// space such as a garden"). Then lampblack goes into the pot, and the
+/// print shop gets ink the road used to have to bring.
+pub struct InkBoiler {
+    pub e: Entity,
+    pub path: Vec<(i32, i32)>,
+    /// Some(day) while his cauldron smokes on the meadow until
+    pub working_until: Option<u64>,
+    /// The meadow tile the cauldron stands on
+    pub camp: (i32, i32),
+}
+
 /// The roving pedlar: walks the road in, pitches his stall at the
 /// market with goods nothing local supplies, trades gossip both ways,
 /// and leaves. He's the game's newspaper.
@@ -1634,6 +1661,12 @@ pub struct Game {
     pub circus: Option<Circus>,
     /// Day the next circus is due
     pub next_circus: u64,
+    /// The ink-maker, when he's boiling on the meadow
+    pub ink_boiler: Option<InkBoiler>,
+    /// Day the next ink-maker is due
+    pub next_ink_boiler: u64,
+    /// Whatever's alight on the map, and the ground it scorched
+    pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: std::collections::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
@@ -1898,7 +1931,7 @@ impl Game {
             (woods_edge_site(&map, wall, (wall.0, (wall.1 + wall.3) / 2)), BSprite::House(8)),
         ] {
             let Some((bx, by)) = site.and_then(|(x, y)| map.nearest_buildable(x, y)) else { continue };
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, sprite));
         }
@@ -1910,7 +1943,7 @@ impl Game {
         for gy in (wall.1 + 3..wall.3 - 1).step_by(3) {
             for gx in (wall.0 + 3..wall.2 - 1).step_by(3) {
                 if let Some((bx, by)) = map.nearest_buildable(gx + rng.around(1), gy + rng.around(1)) {
-                    map.occupy(bx, by);
+                    map.build_at(bx, by);
                     map.connect((bx, by));
                     buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
                 }
@@ -1918,7 +1951,7 @@ impl Game {
         }
         for &(x, y) in &[(wall.0 - 3, wall.3 + 3), (wall.2 + 4, wall.3 + 2), (wall.0 - 5, (wall.1 + wall.3) / 2)] {
             if let Some((bx, by)) = map.nearest_buildable(x, y) {
-                map.occupy(bx, by);
+                map.build_at(bx, by);
                 map.connect((bx, by));
                 buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
             }
@@ -1927,21 +1960,21 @@ impl Game {
         // of the wall, nearer the wild herbs than the market square
         let herb_hut_site = map.nearest_buildable(wall.0 + 1, wall.3 + 3);
         if let Some((bx, by)) = herb_hut_site {
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(5)));
         }
         // the apiary: the beekeeper's yard at the meadow's edge, east of the fold
         let apiary_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 8, wall.3 + 5);
         if let Some((bx, by)) = apiary_site {
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(9)));
         }
         // the fold: the shepherd's pen in the meadow below the town
         let fold_site = map.nearest_buildable(wall.0 + (wall.2 - wall.0) / 2 + 3, wall.3 + 4);
         if let Some((bx, by)) = fold_site {
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(7)));
         }
@@ -2007,7 +2040,7 @@ impl Game {
                 else if kind == BuildingKind::Shop(Vocation::Fisher) { (35, 18) }
                 else { (16 + rng.around(4), 15 + rng.around(4)) };
             let Some((bx, by)) = map.nearest_buildable(cx, cy) else { continue };
-            map.occupy(bx, by);
+            map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
         }
@@ -2489,6 +2522,9 @@ impl Game {
             next_pedlar: 60 + seed % 60,
             circus: None,
             next_circus: 300 + seed % 180,
+            ink_boiler: None,
+            next_ink_boiler: 400 + seed % 200,
+            fire: Fire::new(),
             derelict: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
@@ -3027,6 +3063,7 @@ impl Game {
             self.advance_minstrel();
             self.advance_pedlar();
             self.advance_circus();
+            self.advance_ink_boiler();
             // the flock grazes: the animals drift about the day's grazing point
             for (ai, &a) in self.flock.iter().enumerate() {
                 if let Some(p) = self.world.get_component_mut::<Pos>(a) {
@@ -3188,7 +3225,7 @@ impl Game {
                     let (bx, by) = self.build_site_at(seat).unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }
                     self.buildings.push((bx, by, BSprite::House(self.rng.below(97) as usize)));
-                    self.map.occupy(bx as i32, by as i32);
+                    self.map.build_at(bx as i32, by as i32);
                     // the road is laid a tile at a time, then the house goes up
                     let road = self.map.plan_road((bx as i32, by as i32));
                     self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
@@ -5167,6 +5204,10 @@ impl Game {
                 if Some(e) == self.matchmaker && who != e {
                     // a lonely heart comes to sit with the heart-helper
                     self.match_attempt(who, tick, Some(e), "the heart-helper");
+                } else if self.ink_boiler.as_ref().map(|b| b.e) == Some(e) && who != e {
+                    // crusts for the pot, and a fried taste for carrying them
+                    desires::satisfy(&mut self.world, who, Want::GoodFood, tick + 30);
+                    self.say(who, "The crusts come back fried.", CHAT_BUBBLE_SECS);
                 } else {
                     // stand and chat: a conversation, a step toward a tie
                     relationships::record_interaction(&mut self.world, who, relationships::Interaction {
@@ -5336,6 +5377,8 @@ impl Game {
         if self.pedlar.is_none() && tick >= self.next_pedlar { self.spawn_pedlar(); }
         // and a circus camps outside the walls every year or so
         if self.circus.is_none() && tick >= self.next_circus { self.spawn_circus(); }
+        // and the ink-maker boils his oil where the law wants it: outside
+        if self.ink_boiler.is_none() && tick >= self.next_ink_boiler { self.spawn_ink_boiler(); }
         // the collector walks his round
         if let Some(c) = self.collector {
             if !self.travels.iter().any(|t| t.who == c) {
@@ -5372,6 +5415,10 @@ impl Game {
         self.garden_tick(tick);
         // and the circus, while it camps, works its pull
         self.circus_tick(tick);
+        // the oil boils, the crusts fry, and the black goes in
+        self.ink_boiler_tick(tick);
+        // and whatever the day caught, the fire runs on
+        self.fire_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
         self.cheese_tick(tick);
         // the day's work leaves its smell - unless the rain washes it off
@@ -5657,6 +5704,152 @@ impl Game {
             self.circus = None;
             self.next_circus = tick + 300 + self.rng.next() % 200;
             self.log.push(format!("t{}: the circus folds its tents and goes.", tick));
+        }
+    }
+
+    /// The ink-maker comes up the road and pitches his cauldron on the
+    /// meadow outside the gate - where the law wants a fire like his
+    pub fn spawn_ink_boiler(&mut self) {
+        let e = self.world.create_entity();
+        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        // a clear spot beyond the south wall, off the circus's patch
+        let camp = self.map.nearest_buildable(self.town_wall.0 + 8, self.town_wall.3 + 4)
+            .unwrap_or((24, 30));
+        let path = self.map.walk_path(start, camp).unwrap_or_default();
+        self.ink_boiler = Some(InkBoiler { e, path, working_until: None, camp });
+        self.log.push(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick));
+    }
+
+    /// One frame of the ink-maker's visit: walk out to the meadow, work
+    /// the cauldron a few days, then the road takes him back
+    pub fn advance_ink_boiler(&mut self) {
+        let Some(mut b) = self.ink_boiler.take() else { return };
+        if b.working_until.is_none() {
+            let Some(p) = self.world.get_component_mut::<Pos>(b.e) else { return };
+            if b.path.is_empty() {
+                b.working_until = Some(self.tick + INK_BOIL_DAYS);
+                self.say(b.e, "The oil takes its time - bring your crusts when it spits.", TALK_BUBBLE_SECS * 2);
+            } else {
+                let (nx, ny) = (b.path[0].0 as f32, b.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; b.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.ink_boiler = Some(b);
+        } else if self.tick <= b.working_until.unwrap() {
+            self.ink_boiler = Some(b); // the pot's on
+        } else {
+            // the varnish's made: pack up and walk off
+            if let Some(p) = self.world.get_component_mut::<Pos>(b.e).copied() {
+                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                if b.path.is_empty() {
+                    b.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                }
+                if b.path.is_empty() {
+                    self.world.destroy_entity(b.e);
+                    self.next_ink_boiler = self.tick + 250 + self.rng.next() % 200;
+                    self.log.push(format!("t{}: the ink-maker's moved on, smelling of his trade.", self.tick));
+                    return;
+                }
+                let p = self.world.get_component_mut::<Pos>(b.e).unwrap();
+                let (nx, ny) = (b.path[0].0 as f32, b.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; b.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.ink_boiler = Some(b);
+        }
+    }
+
+    /// Each day the cauldron's on, the recipe walks its stages: two days
+    /// of boil, the crusts and onions that take the grease out, the slate
+    /// drip that says it's varnish, and the black going in - then the
+    /// print shop's stocked with ink the road used to have to bring
+    pub fn ink_boiler_tick(&mut self, tick: u64) {
+        let Some(b) = &self.ink_boiler else { return };
+        let Some(until) = b.working_until else { return };
+        let (camp, be) = (b.camp, b.e);
+        match tick - (until - INK_BOIL_DAYS) {
+            2 => {
+                // day three: a pound of crusts and a dozen onions go in
+                // to degrease - someone carries them out and comes back
+                // smelling of frying oil
+                self.say(be, "A pound of crusts and an onion or two - they take the grease out.", TALK_BUBBLE_SECS);
+                let candidates: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
+                    !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<TownRole>(v).is_none()
+                        && !self.travels.iter().any(|t| t.who == v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - camp.0).abs() + (p.y.round() as i32 - camp.1).abs() <= 8)
+                            .unwrap_or(false)
+                }).collect();
+                // ask until someone can actually make the walk
+                for v in candidates {
+                    if self.send(v, Goal::TalkTo(be)) {
+                        self.log.push(format!("t{}: a villager carries the day's crusts out to the cauldron.", tick));
+                        break;
+                    }
+                }
+            }
+            3 => {
+                // day four: dripped on the slate it hangs like thin glue
+                self.say(be, "See it hang off the slate? That's varnish now.", TALK_BUBBLE_SECS);
+                self.log.push(format!("t{}: the oil's boiled down to varnish - sticky as thin glue off the slate.", tick));
+            }
+            4 => {
+                // day five: the lampblack goes in - soot, not ash - and
+                // it's ink; the print shop's stocked till he comes again
+                let shop = self.building_entities.iter().copied().find(|&e| {
+                    self.world.get_component::<Building>(e)
+                        .map(|b| matches!(b.kind, household::BuildingKind::Shop(Vocation::Printmaker)))
+                        .unwrap_or(false)
+                }).or(self.trader_stall);
+                if let Some(shop) = shop {
+                    if let Some(b) = self.world.get_component_mut::<Building>(shop) {
+                        household::add_stock(b, "ink", INK_YIELD);
+                    }
+                }
+                self.say(be, "The black goes in - there's your ink.", TALK_BUBBLE_SECS);
+                self.log.push(format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD));
+            }
+            // days one and two: the oil just boils, watched and smoking -
+            // and now and then the vapours take fire, as they will
+            0 | 1 => {
+                if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1) {
+                    self.say(be, "She's caught - keep back!", TALK_BUBBLE_SECS);
+                    self.log.push(format!("t{}: the oil takes fire on the meadow.", tick));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Whatever's alight on the map runs its course: spreading a tile a
+    /// day, burning out to scorched ground, and gutting what it reaches
+    fn fire_tick(&mut self, tick: u64) {
+        if !self.fire.active() && self.fire.scorched.is_empty() { return; }
+        let (lit, out) = self.fire.tick(&mut self.map, tick);
+        // a building the fire holds loses what it holds - it burns while
+        // it stands alight, restocking only once it's cold
+        for &(x, y) in self.fire.burning.keys() {
+            if let Some(&be) = self.building_entities.iter().find(|&&be| {
+                self.world.get_component::<Pos>(be)
+                    .map(|p| p.x.round() as i32 == x && p.y.round() as i32 == y).unwrap_or(false)
+            }) {
+                if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                    b.stock.clear();
+                }
+            }
+        }
+        // and the canopy score forgets the trees the fire took
+        for &t in &out {
+            if let Some(c) = self.land.tree_cover.get_mut(&t) { *c = 0.0; }
+        }
+        if !lit.is_empty() || !out.is_empty() {
+            self.log.push(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()));
         }
     }
 
@@ -5973,6 +6166,12 @@ impl Game {
                     label: Some("the circus".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
+        if let Some(b) = &self.ink_boiler {
+            if let Some(p) = world.get_component::<Pos>(b.e) {
+                people.push(PersonV { e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the ink-boiler".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
         for &(x, y) in &self.gulls {
             people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
@@ -6069,6 +6268,8 @@ impl Game {
             pond: if self.land.pit_water >= 0.7 {
                 self.pit.map(|(x, y)| (x as f32, y as f32))
             } else { None },
+            burning: self.fire.burning.keys().map(|&(x, y)| (x as f32, y as f32)).collect(),
+            scorched: self.fire.scorched.keys().map(|&(x, y)| (x as f32, y as f32)).collect(),
             gardens: self.gardens.iter()
                 .map(|&(_, (x, y), g)| (x as f32, y as f32, g.min(1.0))).collect(),
             sky: self.sky.map(|(k, _)| k.to_string()),
@@ -6558,6 +6759,20 @@ impl View {
             if g >= 1.0 {
                 buf.rect(sx - k(1.0), sy - k(3.0), k(2.0), k(1.0), 220, 180, 80);
             }
+        }
+        // the scorched ground: dark scars where the fire's been
+        for &(tx, ty) in &m.scorched {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 30, 26, 24);
+        }
+        // and what's alight: a flame's worth of colour over the tile
+        for &(tx, ty) in &m.burning {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            let lick = (m.frame % 9 < 5) as i32; // it gutters
+            buf.rect(sx - k(4.0), sy - k(2.0 + lick as f32), k(8.0), k(5.0 + lick as f32), 160, 45, 20);
+            buf.rect(sx - k(2.0), sy - k(3.0 + lick as f32), k(4.0), k(4.0), 235, 150, 40);
         }
         // the desire-lines: where feet keep wearing, the ground shows it
         for &(tx, ty, s) in &m.trails {
@@ -8386,6 +8601,124 @@ mod circus_tests {
             assert!(g.log.iter().any(|l| l.contains("run off with the circus")),
                 "the road takes the one it tempted");
         }
+    }
+}
+
+#[cfg(test)]
+mod ink_boiler_tests {
+    use super::*;
+
+    #[test]
+    fn test_he_pitches_outside_the_walls() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        assert!(g.ink_boiler.is_some());
+        // walk him out to the meadow
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let b = g.ink_boiler.as_ref().unwrap();
+        assert!(b.working_until.is_some(), "the cauldron's set up");
+        // the law wants a fire like his beyond the south wall
+        assert!(b.camp.1 > g.town_wall.3, "he boils outside the gate, not in the street");
+        assert!(!g.log.iter().any(|l| l.is_empty()));
+    }
+
+    #[test]
+    fn test_the_road_takes_him_too() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.path.is_empty() && b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        // run him past his boiling days
+        g.tick = 100;
+        for _ in 0..2000 {
+            g.advance_ink_boiler();
+            if g.ink_boiler.is_none() { break; }
+        }
+        assert!(g.ink_boiler.is_none(), "the road takes him");
+        assert!(g.next_ink_boiler > g.tick, "he'll be back in a year or so");
+    }
+
+    #[test]
+    fn test_he_shows_up_on_the_map() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        let e = g.ink_boiler.as_ref().unwrap().e;
+        let model = g.ui_model();
+        assert!(model.people.iter().any(|p| p.e == e && matches!(p.kind, PKind::Traveller)),
+            "the ink-maker is on the map the moment he's spawned, not just his speech bubble");
+    }
+
+    #[test]
+    fn test_the_recipe_walks_its_days() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let pitched = g.ink_boiler.as_ref().unwrap().working_until.unwrap() - INK_BOIL_DAYS;
+        for d in 0..INK_BOIL_DAYS { g.ink_boiler_tick(pitched + d); }
+        assert!(g.log.iter().any(|l| l.contains("varnish")), "the slate says varnish");
+        // the print shop - or the trader if there's no printer - is stocked
+        let stocked = g.building_entities.iter().copied().find(|&e| {
+            g.world.get_component::<Building>(e)
+                .map(|b| matches!(b.kind, household::BuildingKind::Shop(Vocation::Printmaker)))
+                .unwrap_or(false)
+        }).or(g.trader_stall).unwrap();
+        let ink = g.world.get_component::<Building>(stocked)
+            .and_then(|b| b.stock.get("ink").copied()).unwrap_or(0);
+        assert!(ink >= INK_YIELD, "there's ink where the road used to bring it");
+    }
+
+    #[test]
+    fn test_the_crusts_come_back_fried() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let (camp, be) = {
+            let b = g.ink_boiler.as_ref().unwrap();
+            (b.camp, b.e)
+        };
+        // someone walks out with the day's crusts
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 - 2) as f32 };
+        let pitched = g.ink_boiler.as_ref().unwrap().working_until.unwrap() - INK_BOIL_DAYS;
+        g.tick = pitched + 2;
+        g.ink_boiler_tick(g.tick);
+        assert!(g.travels.iter().any(|t| matches!(t.goal, Goal::TalkTo(e) if e == be)),
+            "the crusts get carried out to the pot");
+        // and the bearer gets the taste of them
+        g.arrive(v, Goal::TalkTo(be));
+        assert!(desires::is_satisfied(&g.world, v, Want::GoodFood, g.tick),
+            "they come back fried");
+    }
+
+    #[test]
+    fn test_the_meadow_can_burn() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let camp = g.ink_boiler.as_ref().unwrap().camp;
+        assert!(g.fire.ignite(&g.map, camp.0, camp.1), "the cauldron's tile can take fire");
+        // it runs its course and leaves scorched ground behind
+        let mut scorched_any = false;
+        for t in 1..40 {
+            g.fire_tick(t);
+            if !g.fire.scorched.is_empty() { scorched_any = true; break; }
+        }
+        assert!(scorched_any, "it burned out to scorched ground");
     }
 }
 

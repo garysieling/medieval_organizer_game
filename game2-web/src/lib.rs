@@ -83,5 +83,10 @@ mod tests {
         assert!(g.command("\"TogglePause\""), "a real Command parses");
         assert!(g.game.paused, "the input reached the sim");
         assert!(!g.command("\"NotACommand\""), "garbage is refused");
+        // a parseable-but-wrong index is refused by the sim, not stored up
+        // to crash the next frame
+        g.command("{\"Select\": 999}");
+        g.tick();
+        g.scene();
     }
 }

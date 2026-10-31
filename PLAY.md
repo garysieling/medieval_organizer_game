@@ -108,7 +108,10 @@ soul in the stocks is a scandal, not a lesson. And the year has its
 feast days: St. Swithin's, the Harvest Home, Candlemas, St. Martin's -
 the village gathers at the market, the good stock comes out, the truth
 comes out in the toasts, and the tax collector is never invited but
-always shows.
+always shows. Some of the cottages keep a garden bed beside the door -
+the soil strip fills in over the weeks with marigold and feverfew, and
+when the herb-wife's own shelves run thin she tends the beds of folk
+who don't begrudge her.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

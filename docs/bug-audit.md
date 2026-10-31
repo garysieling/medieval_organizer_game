@@ -46,7 +46,6 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
 - [x] ~~**W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.~~ (partially stale — `skill_gain` runs via `train_day` in `livelihood`; deleted dead `is_service` (dup of `is_pmc`) and `options_for`)
 - [x] ~~**W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.~~ (verified — the recipe table is a dormant alternative model; livelihood's own craft checks cover it in the live session)
-- [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
 - [x] ~~**W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).~~ (partially stale — `infer_mood`/`target_layers` DO run inside `evolve`, driven by the `music_demo` bin; the session has no audio path for it to follow)
 - [x] ~~**W-071** `economy::run_cycle` never called — the production-chain cycle never runs in a live session.~~ (stale — runs inside `ProductionSystem`, scheduled by the `village_sim` driver; the session's own livelihood model supersedes it)
 - [x] ~~**W-072** `sanctions::blame_worthy` never called.~~ (fixed — deleted; the blame path adds `Problem::Blamed` directly)

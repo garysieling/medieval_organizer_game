@@ -8174,7 +8174,9 @@ impl View {
                     let (sx, sy) = iso_to_screen_cam(bv.pos.0, bv.pos.1, cam_x, cam_y, zoom);
                     // off the map view (e.g. under the panel): the log already
                     // has what they said, so don't float a bubble over the panel
-                    let label_y = bv.name.as_deref().and_then(|n| label_ys.iter().find(|(t, _)| t.as_str() == n).map(|(_, y)| *y));
+                    // the drawn label carries the marks - the plain name
+                    // is its prefix, not the whole string
+                    let label_y = bv.name.as_deref().and_then(|n| label_ys.iter().find(|(t, _)| t.starts_with(n)).map(|(_, y)| *y));
                     if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text, label_y) {
                         let tail_x = (sx - 4).clamp(bx + 2, bx + bw - 10);
                         if thought {

@@ -184,13 +184,32 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 // the first meeting is the founding: they take a vote on
                 // the spot, once you know what they'd fight for
                 None => {
-                    let issues = world.get_component::<super::desires::Organizer>(player)
+                    let members = world.get_component::<crate::sim::community::Organization>(org)
+                        .map(|o| o.members.clone()).unwrap_or_default();
+                    let mut issues = world.get_component::<super::desires::Organizer>(player)
                         .map(|o| o.issues.clone()).unwrap_or_default();
+                    if issues.is_empty() {
+                        // no organizer's notebook in the text game: the
+                        // members' own troubles name the cause - the most
+                        // common grievances lead the ballot
+                        let mut tally: Vec<(String, usize)> = vec![];
+                        for &m in &members {
+                            for p in super::desires::problems_of(world, m, tick) {
+                                let tag = super::desires::issue_tag(world, m,
+                                    &super::desires::Reveal::Problem(p));
+                                match tally.iter_mut().find(|(t, _)| *t == tag) {
+                                    Some(e) => e.1 += 1,
+                                    None => tally.push((tag, 1)),
+                                }
+                            }
+                        }
+                        tally.sort_by(|a, b| b.1.cmp(&a.1));
+                        issues = tally.into_iter().take(3).map(|(t, _)| t).collect();
+                    }
                     if issues.is_empty() {
                         return "Nobody's told you what they'd fight for - talk to people first.".into();
                     }
-                    let living = world.get_component::<crate::sim::community::Organization>(org)
-                        .map(|o| o.members.iter().filter(|&&m| !super::villager::is_dead(world, m)).count()).unwrap_or(0);
+                    let living = members.iter().filter(|&&m| !super::villager::is_dead(world, m)).count();
                     if living < 3 { return "Three members make a cause worth a vote.".into(); }
                     match campaign::hold_issue_vote(world, org, &issues, campaign::Framing::SharedGrievance, tick) {
                         Some(vote) => {
@@ -218,7 +237,15 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             match super::actions::demonstrate(world, c, player, tick) {
                 Some(out) => {
                     let r = super::reactions::react(world, c, &out.turnout, tick);
+                    // everyone who saw it and felt the cause wake in them
+                    let issue = world.get_component::<campaign::Campaign>(c).map(|c| c.issue.clone()).unwrap_or_default();
+                    let mut woke = 0usize;
+                    for v in world.query::<super::villager::Villager>() {
+                        if out.turnout.contains(&v) { continue; }
+                        woke += super::reactions::witness(world, v, &issue, &out.turnout, tick) as usize;
+                    }
                     let mut msg = format!("{} march in the street.", out.turnout.len());
+                    if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
                     if r == Some(super::reactions::Reaction::Crackdown) {
                         msg += " The knights come out";
                         if let Some(taken) = super::dungeon::arrest(world, c, tick) {
@@ -237,6 +264,16 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 return if target.is_none() { "Pick someone first.".into() }
                     else { "There's no campaign with seats to fill.".into() };
             };
+            // a seated member doesn't get re-seated silently - their
+            // old seat would empty behind the new one
+            let role_name = |r: Role| match r {
+                Role::TurnoutCoordinator => "turnout coordinator",
+                Role::NoteTaker => "note taker", Role::Chair => "chair" };
+            let already = world.get_component::<campaign::Campaign>(c)
+                .and_then(|c| c.seats.iter().find(|s| s.holder == t)).map(|s| s.role);
+            if let Some(r) = already {
+                return format!("They already hold the {} seat.", role_name(r));
+            }
             let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
                 .find(|&r| campaign::seat_holder(world, c, r).is_none());
             match open {

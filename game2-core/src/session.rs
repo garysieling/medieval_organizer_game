@@ -4681,7 +4681,7 @@ impl Game {
                     && bb.occupants.len() < 4
                     && bb.occupants.iter().filter(|&&o|
                         self.world.get_component::<Kid>(o).is_none()
-                        && !villager::is_dead(&self.world, o)).count() >= 2)
+                        && !crate::game::dungeon::unavailable(&self.world, o)).count() >= 2)
                 .unwrap_or(false);
             if full && self.rng.next() % 3 == 0 { self.spawn_kid(b, tick); return; }
         }

@@ -4465,10 +4465,13 @@ impl Game {
                 }
             }
         }
-        // a swarm takes a liking to someone - harmless, memorable
+        // a swarm takes a liking to someone - harmless, memorable; a
+        // swarm does not favor the grave, and the cell is out of reach
         if tick % 90 == 70 && self.rng.below(100) < 8 {
-            let i = self.rng.below(self.villagers.len() as i32).max(0) as usize;
-            let who = self.villagers[i];
+            let able: Vec<Entity> = self.villagers.iter().copied()
+                .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).collect();
+            let Some(who) = able.get((self.rng.below(able.len() as i32).max(0)) as usize).copied()
+            else { return };
             self.swarm = Some((who, tick + 1));
             let name = self.villagers.iter().position(|x| *x == who).map(|x| vill_name(x)).unwrap_or("someone");
             self.log.push(format!("t{}: a swarm took a liking to {} - it follows them about.", tick, name));

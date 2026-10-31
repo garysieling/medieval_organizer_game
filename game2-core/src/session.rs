@@ -7916,7 +7916,9 @@ impl Game {
     /// TownRole or a PMC Craft); and a child is nobody's worker. The
     /// town's duties stay the town's.
     pub fn free_villager(&self) -> Option<usize> {
-        self.villagers.iter().position(|v| !villager::is_dead(&self.world, *v)
+        // an agent needs a villager who can answer - the grave and the
+        // lock-up keep their counsel
+        self.villagers.iter().position(|v| !crate::game::dungeon::unavailable(&self.world, *v)
             && !self.seats.iter().any(|s| s.player == *v)
             && self.world.get_component::<TownRole>(*v).is_none()
             && self.world.get_component::<Kid>(*v).is_none()

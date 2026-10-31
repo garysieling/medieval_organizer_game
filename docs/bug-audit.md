@@ -78,7 +78,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-062** `tea` `spawn_tea`/`drink_tea` never called — tea exists only in its module.
 - [ ] **W-063** `textiles` `spawn_textile`/`comfort_level` never called.
 - [ ] **W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.
-- [ ] **W-065** `household::stock_room` never called.
+- [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [ ] **W-066** `livelihood::has_role` never called.
 - [ ] **W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.
 - [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
@@ -88,8 +88,8 @@ Items are removed from this list as their PRs land.
 - [ ] **W-072** `sanctions::blame_worthy` never called.
 - [ ] **W-073** `relationships::infer_kind` never called — relationship kinds are never re-inferred from interactions.
 - [ ] **W-074** `pets::pet_mood_boost` never called — a bonded pet gives its owner nothing.
-- [ ] **W-075** `tilemap::smooth_noise` never called.
-- [ ] **W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.
+- [x] ~~**W-075** `tilemap::smooth_noise` never called.~~ (stale — called by terrain gen at tilemap.rs:220)
+- [x] ~~**W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.~~ (fixed)
 - [ ] **W-077** `community::exert_influence` never called — org influence is never spent through the community module.
 - [ ] **W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.
 - [ ] **W-079** `weather::health_effect` never called — weather doesn't touch health.
@@ -105,7 +105,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-086** `infra::hot_reload::reload` never called — the hot-reload hook is dead.
 - [ ] **W-087** `infra::save_load` `checkpoint`/`replay_from` have a single caller each — the game never saves; world dies with the process.
 - [ ] **W-088** `ui::dialogs::generate_line` never called.
-- [ ] **W-089** `ui::font::draw_char` never called — `draw_text*` is used instead; delete or wire.
+- [x] ~~**W-089** `ui::font::draw_char` never called — `draw_text*` is used instead; delete or wire.~~ (stale — called by `draw_text` at font.rs:133)
 - [ ] **W-090** Divergent spawn paths: `new_seeded` vs `new_scenario` vs `action_menu`'s own world setup — new spawn-time components can land in one constructor and silently miss the others (audit all three for the newest components).
 
 ## P4 — agent/network surface gaps

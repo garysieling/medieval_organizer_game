@@ -656,12 +656,18 @@ impl Game {
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
+                    // a live burden only - the faded ones weigh nothing
                     let burdened = self.world.get_component::<desires::InnerLife>(v)
-                        .map(|l| !l.grievances.is_empty()).unwrap_or(false);
+                        .map(|l| l.grievances.iter().any(|(_, u)| tick <= *u)).unwrap_or(false);
                     if !near || !burdened { continue; }
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
                     if !pays { continue; }
-                    if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) { l.grievances.pop(); }
+                    // the newest live weight off the heart
+                    if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
+                        if let Some(i) = l.grievances.iter().rposition(|(_, u)| tick <= *u) {
+                            l.grievances.remove(i);
+                        }
+                    }
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
                     self.say(v, "Your sins made light!", CHAT_BUBBLE_SECS);
                     sold += 1;

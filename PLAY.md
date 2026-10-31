@@ -163,7 +163,10 @@ village walks a little slower for them, and theirs check on them. And
 the river gives: the fisher keeps the fish-smoke house down at the
 water's edge - a catch for the smoke, thin in the ice, and now and then
 the water brings up a pale stone, faintly lit, and the tale gets
-around.
+around. And at the map's edge there's a cave, and in it a hermit - the
+dark keeps them, they say, and the best mushrooms grow in the under.
+Walk out and ask, and they'll tell you true: the pale one's the real
+thing, where the light dies.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

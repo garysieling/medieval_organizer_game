@@ -1715,6 +1715,10 @@ pub struct Game {
     pub heirlooms: Vec<Entity>,
     /// Letters in transit: (from, to, the day they arrive)
     pub letters: Vec<(Entity, Entity, u64)>,
+    /// The cave mouth at the map's edge - the monochrome under
+    pub cave_pos: Option<(i32, i32)>,
+    /// The hermit who keeps to it
+    pub hermit: Option<Entity>,
 }
 
 /// A letter, traveling - durable word that crosses distance
@@ -2289,6 +2293,12 @@ impl Game {
                 world.add_component(villagers[i], villager::Condition { kind });
             }
         }
+        // and the recluse keeps to the cave at the map's edge
+        let hermit_e = villagers.get(22).copied();
+        if let Some(h) = hermit_e {
+            world.add_component(h, TownRole::Hermit);
+            world.add_component(h, Pos { x: 36.0, y: 33.0 });
+        }
         // the heart-helper: one elder who keeps an eye on lonely hearts
         let matchmaker = villagers.get(27).copied();
         if let Some(mm) = matchmaker { world.add_component(mm, TownRole::Matchmaker); }
@@ -2333,6 +2343,9 @@ impl Game {
                 mush_patches.push(MushPatch { tile: t, poison: mi % 3 == 0, next_ready: (mi * 11) as u64 });
             }
         }
+        // the cave's deep patch: the best mushrooms grow in the under -
+        // pushed last so the wood's poisoned patches keep their numbers
+        mush_patches.push(MushPatch { tile: (35, 33), poison: false, next_ready: 0 });
         // hens scratch about a few of the cottages' yards
         let mut hens = vec![];
         let mut hen_houses: Vec<Entity> = vec![];
@@ -2383,6 +2396,11 @@ impl Game {
             let voc = world.get_component::<Craft>(v).map(|c| c.vocation);
             let wants = desires::sample_wants(class, voc, is_kid, &mut || g.next());
             world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
+        }
+        // the dark keeps the hermit - their one big want, now that they
+        // have an inner life to hold it in
+        if let Some(h) = hermit_e {
+            desires::add_grievance(&mut world, h, desires::Problem::TheDark, u64::MAX);
         }
         // the player's coins and their Purse are the same purse - see
         // sync_purse, called at the end of every day's business
@@ -2469,6 +2487,7 @@ impl Game {
             lord_esteem: 0.0,
             numeracy: if seed % 10 < 6 { Numeracy::Tally } else { Numeracy::RomanBoard },
             translator: None,
+            hermit: hermit_e,
             reckonings: 0,
             sky: None,
             pending_discovery: None,
@@ -2479,6 +2498,7 @@ impl Game {
             painted: vec![],
             heirlooms: vec![],
             letters: vec![],
+            cave_pos: Some((36, 33)),
         }
     }
 
@@ -5741,6 +5761,7 @@ impl Game {
             sky: self.sky.map(|(k, _)| k.to_string()),
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
+            cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
         }
     }
 
@@ -6193,6 +6214,14 @@ impl View {
                 if x >= 0 && y >= 0 { buf.rect(x - 2, y - 1, 4, 3, r, g, b); }
             }
             buf.rect(hx - 3, hy - 3, 6, 6, 255, 250, 230);
+        }
+        // the cave mouth: a dark hollow at the map's edge, desaturated
+        if let Some((cx, cy)) = m.cave {
+            let (sx, sy) = iso_to_screen_cam(cx, cy, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(6.0), sy - k(6.0), k(12.0), k(7.0), 18, 18, 22);
+            buf.rect(sx - k(4.0), sy - k(4.0), k(8.0), k(5.0), 8, 8, 10);
+            buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
         }
         // the painted halls: a bright trim above the door
         for &(tx, ty) in &m.painted {
@@ -8285,6 +8314,23 @@ mod fisher_tests {
         g.fisher_tick(60);
         assert!(g.log.iter().any(|l| l.contains("pale stone")),
             "a pale stone, faintly lit");
+    }
+}
+
+#[cfg(test)]
+mod cave_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_hermit_keeps_to_the_dark() {
+        let g = Game::new();
+        let Some(h) = g.hermit else { panic!("no hermit") };
+        assert_eq!(g.world.get_component::<TownRole>(h), Some(&TownRole::Hermit));
+        assert!(desires::problems_of(&g.world, h, 1).contains(&desires::Problem::TheDark),
+            "the dark keeps them");
+        // and the deep patch is there for the picking
+        assert!(g.mush_patches.iter().any(|p| p.tile == (35, 33)),
+            "the best mushrooms grow in the under");
     }
 }
 

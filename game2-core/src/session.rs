@@ -2801,6 +2801,28 @@ impl Game {
         self.disabled_reason_at(seat, i)
     }
 
+    /// Why a ctx button can't answer right now, if it can't - shown greyed
+    /// with the reason beside it, like the five main buttons' `blocked`
+    pub fn ctx_blocker_at(&self, seat: usize, act: CtxAct) -> Option<String> {
+        match act {
+            CtxAct::Meet => {
+                let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
+                let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                    .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
+                if due { None } else { Some("not due to meet".into()) }
+            }
+            CtxAct::Delegate => {
+                let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
+                let open = [crate::game::campaign::Role::TurnoutCoordinator,
+                    crate::game::campaign::Role::NoteTaker,
+                    crate::game::campaign::Role::Chair].iter().copied()
+                    .any(|r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
+                if open { None } else { Some("every seat's spoken for".into()) }
+            }
+            _ => None,
+        }
+    }
+
     /// The nearest free tile to the player where a house can go: dry,
     /// buildable land (not water or peaks), with no building (or the
     /// windmill) on it or next to it - a house sprite is ~2 tiles wide - not
@@ -6309,6 +6331,10 @@ impl Game {
     pub fn ctx_act_at(&mut self, seat: usize, i: usize) {
         let Some(&act) = self.seats[seat].ctx_actions.get(i) else { return };
         let tick = self.tick;
+        if let Some(reason) = self.ctx_blocker_at(seat, act) {
+            self.log.push(format!("t{}: Can't {}: {}.", tick, ctx_button(act).label.to_lowercase(), reason));
+            return;
+        }
         let msg = match act {
             CtxAct::Work => {
                 let (made, up) = { let pe = self.seats[seat].player; livelihood::work_day(&mut self.world, pe, tick) };
@@ -6771,7 +6797,10 @@ impl Game {
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),
-            blocked, ctx: self.seats[seat].ctx_actions.clone(), inspector,
+            blocked, ctx: self.seats[seat].ctx_actions.clone(),
+            ctx_blocked: self.seats[seat].ctx_actions.iter()
+                .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
+            inspector,
             panel: PanelV {
                 name: p.name.clone(), standing: crate::game::player::standing(p.influence).to_string(),
                 influence: p.influence, gold: p.resources,
@@ -7646,9 +7675,19 @@ impl View {
         // contextual actions: after the inspector, so the ones that live on
         // the card's bottom edge (Seat/Strike) stay visible. Meet sits on
         // the campaign's FIGHT line, the rest under the main buttons
-        for b in m.ctx.iter().map(|a| ctx_button(*a)).collect::<Vec<_>>() {
+        // two passes: the buttons first, then any greyed reason on hover -
+        // drawn last so a neighbouring button or status line can't cover it
+        let ctx_btns: Vec<(Button, Option<&String>)> = m.ctx.iter().map(|a| ctx_button(*a))
+            .zip(m.ctx_blocked.iter()).map(|(b, r)| (b, r.as_ref())).collect();
+        for (b, reason) in &ctx_btns {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            draw_button(&mut buf, &b, hover, false);
+            draw_button(&mut buf, b, hover, reason.is_some());
+        }
+        for (b, reason) in &ctx_btns {
+            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
+            if let Some(r) = reason.filter(|_| hover) {
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 255, 180, 140);
+            }
         }
 
         // organization: who has joined, by name
@@ -11626,6 +11665,29 @@ mod campaign_tests {
         for _ in 0..3 { g.ctx_act_at(0, i); }
         assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
             .unwrap().cadence_days, 3, "the cycle wraps to the fight's rhythm");
+    }
+
+    #[test]
+    fn test_a_ctx_button_that_cant_answer_says_why() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..3] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        g.seats[0].ctx_actions.push(CtxAct::Meet);
+        // the campaign just met at founding - Meet shows but can't answer yet
+        let mi = g.ui_model().ctx.iter().position(|a| *a == CtxAct::Meet).unwrap();
+        assert!(g.ui_model().ctx_blocked[mi].is_some(), "not due: the button should say so");
+        let log_len = g.log.len();
+        g.ctx_act_at(0, mi);
+        assert!(g.log[log_len].contains("Can't"), "{:?}", g.log.last());
+        // and when it IS due the button answers again
+        g.tick += 4;
+        assert!(g.ctx_blocker_at(0, CtxAct::Meet).is_none());
     }
 
     #[test]

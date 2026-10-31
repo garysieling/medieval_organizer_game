@@ -97,7 +97,11 @@ of what was left. And the kids grow up: errands run become bonds, and on
 the day they come of age they take up the trade of whoever kept them
 busiest. The map learns where people walk too - feet wear the ground
 in, a well-trodden way is quicker underfoot, and the path to the
-herb-wife's hut shows where the sick keep going.
+herb-wife's hut shows where the sick keep going. The land keeps score:
+the wood thins and isn't replanted where feet and hooves keep it bare,
+the worked pit fills with water until it's a pond, and the reach below
+town carries the stink of everything dumped in it - and all three become
+troubles the whole village can agree on.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

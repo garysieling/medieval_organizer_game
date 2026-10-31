@@ -17,4 +17,5 @@ pub mod stratification;
 pub mod fundamentalism;
 pub mod organized_power;
 pub mod trails;
+pub mod environment;
 pub mod precipitation;

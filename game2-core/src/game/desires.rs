@@ -68,6 +68,12 @@ pub enum Problem {
     SourGut,
     /// The lord took his fifth of what the dead one left
     DeathDuty,
+    /// The wood's thin this side of the hill - gathers outpace regrowth
+    ThinWood,
+    /// The worked pit drowned - no stone to be had
+    DryPit,
+    /// The reach below town stinks - the leavings settle in it
+    StinkingReach,
 }
 
 /// One secret a person can share: a want or a problem
@@ -155,6 +161,9 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::Blamed) => "the bad bread",
         Reveal::Problem(Problem::SourGut) => "the sour gut",
         Reveal::Problem(Problem::DeathDuty) => "the death duty",
+        Reveal::Problem(Problem::ThinWood) => "the shrinking wood",
+        Reveal::Problem(Problem::DryPit) => "the drowned pit",
+        Reveal::Problem(Problem::StinkingReach) => "the stinking reach",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -203,6 +212,9 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the bad bread" => "the cursed bread".into(),
         "the sour gut" => "spoiled stock in the larder".into(),
         "the death duty" => "the lord's death-duty".into(),
+        "the shrinking wood" => "the shrinking wood".into(),
+        "the drowned pit" => "the drowned pit".into(),
+        "the stinking reach" => "the stinking reach".into(),
         _ => tag,
     }
 }
@@ -241,6 +253,9 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::Blamed => "is blamed for the sickness".into(),
         Problem::SourGut => "ate spoiled stock".into(),
         Problem::DeathDuty => "paid the lord's fifth on the dead".into(),
+        Problem::ThinWood => "the wood's thin this side of the hill".into(),
+        Problem::DryPit => "the pit's drowned - no stone to be had".into(),
+        Problem::StinkingReach => "the reach below town stinks".into(),
     }
 }
 
@@ -273,6 +288,9 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Blamed) => (format!("{} is blamed for the sickness", name), "They say my bread did it. My bread.".into()),
         Reveal::Problem(Problem::SourGut) => (format!("{} ate spoiled stock", name), "It was all there was. Still smells.".into()),
         Reveal::Problem(Problem::DeathDuty) => (format!("{} paid the lord's fifth", name), "A fifth of all he had. For dying.".into()),
+        Reveal::Problem(Problem::ThinWood) => (format!("{}: the wood's thin", name), "Walked half a day for a bundle. It wasn't always so.".into()),
+        Reveal::Problem(Problem::DryPit) => (format!("{}: the pit's drowned", name), "Water in the cut. No stone comes out of a pond.".into()),
+        Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach stinks", name), "You can smell it on a still night. That wasn't always so.".into()),
     }
 }
 

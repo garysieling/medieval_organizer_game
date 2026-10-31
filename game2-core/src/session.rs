@@ -1300,7 +1300,7 @@ pub enum Goal {
     /// Buy `good` at a shop's stockpile (finished goods; maybe for a want)
     BuyAt(Entity, &'static str, Option<Want>),
     /// Gather `good` at a tile (wood, stone, sand)
-    Gather(&'static str),
+    Gather(&'static str, (i32, i32)),
     /// The collector walks to collect the year's cut
     CollectTax(Entity),
     /// A kid runs an OddJob (component has hirer/good/from/to/pay)
@@ -1609,6 +1609,11 @@ pub struct Game {
     pub succeeded: Vec<Entity>,
     /// Where feet have worn the ground: tile -> trail strength
     pub trails: std::collections::HashMap<(i32, i32), Trail>,
+    /// The land's memory: canopy left, water in the pit, stink downstream
+    pub land: crate::sim::environment::LandScore,
+    /// The worked pit's tile, and the reach below town that takes the leavings
+    pub pit: Option<(i32, i32)>,
+    pub reach: Vec<(i32, i32)>,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -1884,6 +1889,18 @@ impl Game {
         let stones: Vec<(i32, i32)> = [(6, 19), (20, 23), (34, 30), (14, 38), (42, 18)].iter()
             .filter_map(|&(x, y)| map.nearest_buildable(x, y)).collect();
         for &(x, y) in &stones { map.occupy(x, y); }
+
+        // the land keeps score: canopy a little thinned already, the pit
+        // already wet, the reach already carrying the town's leavings
+        let mut land = crate::sim::environment::LandScore {
+            tree_cover: map.trees.iter().map(|&t| (t, 0.85f32)).collect(),
+            pit_water: 0.5, effluent: Default::default(),
+        };
+        let pit = stones.first().copied();
+        // the reach: river tiles below the south wall take what the town dumps
+        let reach: Vec<(i32, i32)> = (0..map.height as i32).flat_map(|y| (0..map.width as i32).map(move |x| (x, y)))
+            .filter(|&(x, y)| map.get(x, y) == Some(Tile::River) && y > wall.3).collect();
+        for &t in &reach { land.effluent.insert(t, 0.15); }
 
         // herb patches: wild tufts out in the meadow past the wall, weighted
         // to what cures - the herb-wife keeps them picked over
@@ -2251,6 +2268,9 @@ impl Game {
             swarm: None,
             succeeded: vec![],
             trails: Default::default(),
+            land,
+            pit,
+            reach,
         }
     }
 
@@ -3156,7 +3176,7 @@ impl Game {
             Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
-            Goal::Gather(_) => return false, // gathers go through send_gather
+            Goal::Gather(..) => return false, // gathers go through send_gather
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
@@ -3542,6 +3562,67 @@ impl Game {
         });
     }
 
+    /// The land keeps score: canopy regrows only where nothing disturbs
+    /// it, the reach carries the leavings downstream, and past a
+    /// threshold the land's grievances land on the folk who feel them -
+    /// all commons, the troubles everyone shares
+    pub fn land_tick(&mut self, tick: u64) {
+        // regrowth is for undisturbed ground: a trampled or built tile
+        // never gets its canopy back
+        for (&t, c) in self.land.tree_cover.iter_mut() {
+            let trampled = self.trails.get(&t).map(|tr| tr.strength > 0.1).unwrap_or(false);
+            if *c > 0.3 && *c < 1.0 && !trampled && !self.map.is_occupied(t.0, t.1) {
+                *c = (*c + 0.005).min(1.0);
+            }
+        }
+        // the reach: the town's leavings settle in downstream water
+        if tick % 3 == 0 {
+            for t in self.reach.clone() {
+                let e = self.land.effluent.entry(t).or_insert(0.0);
+                *e = (*e + 0.004).min(1.0);
+            }
+        }
+        // the thresholds - each lands on the folk who feel it, as commons
+        let n = self.land.tree_cover.len().max(1) as f32;
+        let mean_cover: f32 = self.land.tree_cover.values().sum::<f32>() / n;
+        if tick % 7 == 2 {
+            if mean_cover < 0.55 {
+                for v in self.villagers.clone() {
+                    let wood_worker = self.world.get_component::<Craft>(v)
+                        .map(|c| matches!(c.vocation, Vocation::Toolmaker | Vocation::Luthier)).unwrap_or(false);
+                    if wood_worker && !villager::is_dead(&self.world, v) {
+                        desires::add_grievance(&mut self.world, v, desires::Problem::ThinWood, tick + 30);
+                    }
+                }
+            }
+            if self.land.pit_water >= 0.7 {
+                for v in self.villagers.clone() {
+                    let pit_worker = self.world.get_component::<Craft>(v)
+                        .map(|c| matches!(c.vocation, Vocation::Mason | Vocation::Toolmaker)).unwrap_or(false);
+                    if pit_worker && !villager::is_dead(&self.world, v) {
+                        desires::add_grievance(&mut self.world, v, desires::Problem::DryPit, tick + 30);
+                    }
+                }
+            }
+            // a home within sniffing distance of the foul reach feels it
+            let foul: Vec<(i32, i32)> = self.land.effluent.iter()
+                .filter(|(_, &e)| e > 0.4).map(|(&t, _)| t).collect();
+            if !foul.is_empty() {
+                for v in self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) { continue; }
+                    let near = household::home_of(&self.world, v)
+                        .and_then(|h| self.world.get_component::<Pos>(h).copied())
+                        .map(|hp| foul.iter().any(|&(x, y)|
+                            (x as f32 - hp.x).abs() + (y as f32 - hp.y).abs() < 6.0))
+                        .unwrap_or(false);
+                    if near {
+                        desires::add_grievance(&mut self.world, v, desires::Problem::StinkingReach, tick + 30);
+                    }
+                }
+            }
+        }
+    }
+
     /// The young grow: each day the kids age, and on the day they come of
     /// age they take up a trade - the master they ran the most errands
     /// for, else whatever trade the village can use
@@ -3687,7 +3768,7 @@ impl Game {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 9 { return false; }
         match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
-            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good) }); true }
+            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good, t) }); true }
             None => false,
         }
     }
@@ -3750,9 +3831,28 @@ impl Game {
                     }
                 }
             }
-            Goal::Gather(good) => {
-                if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
-                    *s.goods.entry(good.to_string()).or_insert(0) += 2;
+            Goal::Gather(good, tile) => {
+                // the land keeps score: the canopy thins, the pit fills
+                let qty = match good {
+                    "wood" => {
+                        let cover = self.land.tree_cover.get(&tile).copied().unwrap_or(0.6);
+                        if let Some(c) = self.land.tree_cover.get_mut(&tile) { *c = (*c - 0.12).max(0.0); }
+                        crate::sim::environment::wood_yield(cover)
+                    }
+                    "stone" => {
+                        let y = crate::sim::environment::stone_yield(self.land.pit_water);
+                        self.land.pit_water = (self.land.pit_water + 0.03).min(1.0);
+                        if self.land.pit_water >= 1.0 && self.pit == Some(tile) {
+                            self.log.push(format!("t{}: the pit's drowned - no stone comes out of a pond.", tick));
+                        }
+                        y
+                    }
+                    _ => 2,
+                };
+                if qty > 0 {
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                        *s.goods.entry(good.to_string()).or_insert(0) += qty;
+                    }
                 }
             }
             Goal::CollectTax(target) => {
@@ -3927,6 +4027,8 @@ impl Game {
         self.lifecycle_tick(tick);
         // the worn paths fade toward green where no one walks
         self.trail_tick();
+        // the land keeps score: canopy, pit water, the reach
+        self.land_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -4383,6 +4485,13 @@ impl Game {
             swarm: self.swarm.and_then(|(w, _)| world.get_component::<Pos>(w).map(|p| (p.x, p.y))),
             trails: self.trails.iter().filter(|(_, t)| t.strength > 0.15)
                 .map(|(&(x, y), t)| (x as f32, y as f32, t.strength)).collect(),
+            stumps: self.land.tree_cover.iter().filter(|(_, &c)| c < 0.3)
+                .map(|(&(x, y), _)| (x as f32, y as f32)).collect(),
+            murk: self.land.effluent.iter().filter(|(_, &e)| e > 0.4)
+                .map(|(&(x, y), _)| (x as f32, y as f32)).collect(),
+            pond: if self.land.pit_water >= 0.7 {
+                self.pit.map(|(x, y)| (x as f32, y as f32))
+            } else { None },
         }
     }
 
@@ -4803,6 +4912,24 @@ impl View {
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
         standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, Piece::Skep)));
         if let Some((wx, wy)) = m.swarm { standing.push((wx, wy, Piece::Swarm)); }
+        // the land's score shows: stumps where the canopy went, the foul
+        // reach below town, the pit filled to a pond
+        for &(tx, ty) in &m.stumps {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(1.0), sy - k(4.0), k(2.0), k(4.0), 95, 75, 50);
+            buf.rect(sx - k(2.0), sy - k(5.0), k(4.0), k(1.0), 120, 95, 65);
+        }
+        for &(tx, ty) in &m.murk {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 85, 70, 45);
+        }
+        if let Some((tx, ty)) = m.pond {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 60, 90, 120);
+        }
         // the desire-lines: where feet keep wearing, the ground shows it
         for &(tx, ty, s) in &m.trails {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
@@ -6058,6 +6185,74 @@ mod trail_tests {
         for _ in 0..30 { g.trail_tick(); }
         let s = g.trails.get(&(5, 5)).map(|t| t.strength).unwrap_or(0.0);
         assert!(s < 0.3, "the grass takes it back");
+    }
+}
+
+#[cfg(test)]
+mod land_tests {
+    use super::*;
+
+    #[test]
+    fn test_gathering_thins_the_wood_and_the_undisturbed_regrow() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        g.world.get_component_mut::<Satchel>(who);
+        let tile = g.map.trees[0];
+        let before = g.land.tree_cover.get(&tile).copied().unwrap_or(0.85);
+        g.arrive(who, Goal::Gather("wood", tile));
+        let after = g.land.tree_cover.get(&tile).copied().unwrap();
+        assert!(after < before, "a gather takes canopy");
+        // undisturbed ground creeps back
+        g.land_tick(5);
+        let regrown = g.land.tree_cover.get(&tile).copied().unwrap();
+        assert!(regrown > after, "undisturbed canopy regrows");
+        // trampled ground does not
+        g.trails.insert(tile, Trail { strength: 0.5 });
+        let c = g.land.tree_cover.get(&tile).copied().unwrap();
+        g.land_tick(12);
+        assert_eq!(g.land.tree_cover.get(&tile).copied().unwrap(), c, "a worn tile stays bare");
+    }
+
+    #[test]
+    fn test_the_pit_drowns_and_the_mason_knows_it() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        let t = g.pit.unwrap_or((6, 19));
+        for _ in 0..20 { g.arrive(who, Goal::Gather("stone", t)); }
+        assert!(g.land.pit_water >= 0.7, "the pit fills as it's dug");
+        let mason = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Mason).unwrap_or(false));
+        if let Some(m) = mason {
+            g.land_tick(2);
+            assert!(desires::problems_of(&g.world, m, 2).contains(&desires::Problem::DryPit),
+                "the drowned pit lands on the trade that needs it");
+        }
+    }
+
+    #[test]
+    fn test_the_reach_carries_downstream_only() {
+        let mut g = Game::new();
+        for _ in 0..30 { g.land_tick(3); }
+        let (wx0, _, _, wy1) = g.town_wall;
+        // every river tile above the town stays clean
+        let upstream_dirty = (0..g.map.height as i32).flat_map(|y| (0..g.map.width as i32).map(move |x| (x, y)))
+            .filter(|&(x, y)| g.map.get(x, y) == Some(Tile::River) && y < wy1 - 4)
+            .any(|t| g.land.effluent.get(&t).copied().unwrap_or(0.0) > 0.2);
+        assert!(!upstream_dirty, "the stink never travels upriver");
+        let _ = wx0;
+    }
+
+    #[test]
+    fn test_a_thin_wood_troubles_the_toolmaker() {
+        let mut g = Game::new();
+        for c in g.land.tree_cover.values_mut() { *c = 0.2; }
+        let tool = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Toolmaker).unwrap_or(false));
+        if let Some(t) = tool {
+            g.land_tick(2);
+            assert!(desires::problems_of(&g.world, t, 2).contains(&desires::Problem::ThinWood),
+                "the shrinking wood lands on the wood trade");
+        }
     }
 }
 
@@ -7569,8 +7764,11 @@ mod death_tests {
         let p = *game.world.get_component::<Pos>(corvin).unwrap();
         let (sx, sy) = iso_to_screen_cam(p.x, p.y, view.cam_x, view.cam_y, view.zoom);
         let px = |x: i32, y: i32| { let i = (y as usize * W + x as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
-        // the stone is there, beside the carved cross down its middle
-        assert_eq!(px(sx - 3, sy - 4), GRAVE_STONE, "no gravestone where Corvin fell");
+        // the stone is there, beside the carved cross down its middle -
+        // checked across a small patch so a passer-by's edge can't hide it
+        let stone_shows = (sy - 7..sy - 1).any(|y| (sx - 6..sx + 1)
+            .any(|x| px(x, y) == GRAVE_STONE));
+        assert!(stone_shows, "no gravestone where Corvin fell");
         // and nothing is standing on it: the space where a living head would be
         // shows no sprite colours from Corvin's figure
         let fig = &view.art.villager_sprites[3];

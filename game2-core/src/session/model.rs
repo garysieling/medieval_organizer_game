@@ -179,4 +179,6 @@ pub struct UiModel {
     pub painted: Vec<(f32, f32)>,
     /// The cave mouth at the map's edge
     pub cave: Option<(f32, f32)>,
+    /// The tuning panel's gauge lines, for the debug overlay
+    pub debug_lines: Vec<String>,
 }

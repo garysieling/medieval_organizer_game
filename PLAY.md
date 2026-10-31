@@ -171,7 +171,11 @@ on it - by Saint Crispin, a pox on this weather, the talk turns and
 they call a body a knave and no mistake. And at the dark end of it
 all: defy the castle a third time and the bailiff comes back with
 knights - a hanging where all can see - and the grave they make of it
-keeps a vigil no lord can stamp out.
+keeps a vigil no lord can stamp out. When the organizer's hands stop,
+the work goes on - the member who knew them best takes it up. And there
+are stories you can walk into mid-telling: the fever year, the circus
+winter, the widow's shop. For the ones who tune the sim, the village
+reads its own innards: trail heat, people power, the land's score.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

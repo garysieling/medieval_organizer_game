@@ -2559,6 +2559,48 @@ impl Game {
         g
     }
 
+    /// The tuning panel's gauges: what the village's innards read at
+    /// this tick - trail heat, people power, the economy's pulse
+    pub fn telemetry(&self) -> Vec<(&'static str, f64)> {
+        let alive = self.villagers.iter().filter(|&&v| !villager::is_dead(&self.world, v)).count();
+        let hungry = self.villagers.iter().filter(|&&v|
+            self.world.get_component::<Hunger>(v).map(|h| h.value < 40.0).unwrap_or(false)).count();
+        let trail_heat: f32 = self.trails.values().map(|t| t.strength).sum();
+        let trail_max = self.trails.values().map(|t| t.strength).fold(0.0f32, f32::max);
+        let power = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
+            .map(|p| p.capacity).unwrap_or(0.0);
+        let grain = self.world.get_component::<Building>(self.market_food)
+            .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0) as f64;
+        let bread = self.world.get_component::<Building>(self.market_food)
+            .map(|b| b.stock.get("bread").copied().unwrap_or(0)).unwrap_or(0) as f64;
+        let org_members = self.world.get_component::<Organization>(self.org)
+            .map(|o| o.members.len()).unwrap_or(0);
+        let sanctioned = self.sanctioned.len();
+        let tree_cover = self.land.tree_cover.values().sum::<f32>() / self.land.tree_cover.len().max(1) as f32;
+        vec![
+            ("villagers.alive", alive as f64),
+            ("villagers.hungry", hungry as f64),
+            ("org.members", org_members as f64),
+            ("org.power", power as f64),
+            ("org.lord_esteem", self.lord_esteem as f64),
+            ("sanctioned", sanctioned as f64),
+            ("trails.heat", trail_heat as f64),
+            ("trails.max", trail_max as f64),
+            ("stock.grain", grain),
+            ("stock.bread", bread),
+            ("env.tree_cover", tree_cover as f64),
+            ("price.grain", vocation::price("grain") as f64),
+            ("price.wood", vocation::price("wood") as f64),
+            ("price.fish", vocation::price("fish") as f64),
+            ("winter.harsh", if self.harsh_winter { 1.0 } else { 0.0 }),
+        ]
+    }
+
+    /// The gauges as overlay lines: "org.power 0.4" for the tuning panel
+    pub fn telemetry_lines(&self) -> Vec<String> {
+        self.telemetry().iter().map(|(k, v)| format!("{} {:.2}", k, v)).collect()
+    }
+
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~5s/day normal, ~1.2s turbo
         if self.speed == 1 { 5 * FPS } else { 5 * FPS / 4 }
@@ -5898,6 +5940,7 @@ impl Game {
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
+            debug_lines: self.telemetry_lines(),
         }
     }
 
@@ -8570,6 +8613,23 @@ mod scenario_tests {
         let any_derelict = g.building_entities.iter().any(|&b|
             g.world.get_component::<Building>(b).map(|bb| household::derelict(bb)).unwrap_or(false));
         assert!(any_derelict, "a shop stands derelict");
+    }
+}
+
+#[cfg(test)]
+mod telemetry_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_tuning_panel_reads_the_innards() {
+        let g = Game::new();
+        let gauges = g.telemetry();
+        assert!(gauges.iter().any(|(k, _)| *k == "org.power"), "the power matrix's there");
+        assert!(gauges.iter().any(|(k, _)| *k == "trails.heat"), "the trails heat's there");
+        assert!(gauges.iter().any(|(k, _)| *k == "env.tree_cover"), "the land's score's there");
+        assert!(gauges.iter().any(|(k, _)| *k == "price.fish"), "the economy's there");
+        let lines = g.telemetry_lines();
+        assert!(lines.iter().any(|l| l.starts_with("villagers.alive")), "a line per gauge");
     }
 }
 

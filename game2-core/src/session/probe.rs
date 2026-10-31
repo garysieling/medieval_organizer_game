@@ -59,6 +59,9 @@ pub struct ProbeView {
     pub disclosure_made: bool,
     /// Which mushroom patches are death-caps (the lookalike test)
     pub poison_mushrooms: Vec<(i32, i32)>,
+    /// What every mushroom patch really is (tile, the true kind) - hidden
+    /// knowledge, for the tests that check the lookalike traps
+    pub mushroom_species: Vec<(i32, i32, String)>,
     /// The lord's read on the org's power - lags the truth
     pub lord_esteem: f32,
     /// The org's hidden strength, unlagged
@@ -144,7 +147,9 @@ impl Game {
             tick: self.tick,
             discovery: self.pending_discovery.map(|(w, f, _)| (name_of(w), f.to_string())),
             disclosure_made: self.disclosure_made,
-            poison_mushrooms: self.mush_patches.iter().filter(|p| p.poison).map(|p| p.tile).collect(),
+            poison_mushrooms: self.mush_patches.iter().filter(|p| p.deadly()).map(|p| p.tile).collect(),
+            mushroom_species: self.mush_patches.iter()
+                .map(|p| (p.tile.0, p.tile.1, p.kind.spec().name.to_string())).collect(),
             lord_esteem: self.lord_esteem,
             org_power,
             repression_debt: self.repression_debt,
@@ -195,7 +200,7 @@ mod tests {
         // a truth sits unsaid
         g.pending_discovery = Some((g.villagers[0], "the lord's fifth is really a quarter", g.tick));
         // a death-cap among the mushrooms
-        if let Some(p) = g.mush_patches.first_mut() { p.poison = true; }
+        if let Some(p) = g.mush_patches.first_mut() { p.kind = crate::game::mycology::MushKind::DeathCap; }
         // a fever nobody's told about
         let d = g.world.create_entity();
         g.world.add_component(d, Disease { kind: DiseaseKind::Sweats, patient: g.villagers[1], name: "the sweats".into(),

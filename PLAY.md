@@ -208,6 +208,10 @@ the issue - shown on the panel's ISSUES line.
 - Pets bond to owners (dog, cat, etc.)
 - Seasons cycle (Summer→Autumn→Winter→Spring)
 - Tech tree: printmaking track (paper mill is the gate)
+- Hungry villagers forage the wood's caps: good ones fill the belly, the
+  little ones bring visions, and the pale lookalikes kill days later.
+  **The caps' names and traits are story, not a foraging guide - never
+  eat a wild mushroom on a game's say-so.**
 
 ### AI Villages
 

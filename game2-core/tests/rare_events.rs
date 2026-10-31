@@ -10,6 +10,7 @@
 use game2_core::session::{self, ClientKind};
 use game2_core::session::events::{self, EventId, EventKind};
 use game2_core::session::stage::{self, Stage};
+use game2_core::game::mycology::MushKind;
 
 /// Every event in the registry, fired on three staged villages and run
 /// out a month: the village still works, both surfaces still serve.
@@ -75,7 +76,7 @@ fn the_secret_view_is_separate_from_what_players_and_agents_see() {
     let mut g = stage::staged(Stage::Ordinary);
     // secrets to hide: an unsaid truth and a death-cap
     g.pending_discovery = Some((g.villagers[0], "the tithe is a sham", g.tick));
-    if let Some(p) = g.mush_patches.first_mut() { p.poison = true; }
+    if let Some(p) = g.mush_patches.first_mut() { p.kind = MushKind::DeathCap; }
 
     let probe_json = serde_json::to_string(&g.probe()).unwrap();
     assert!(probe_json.contains("the tithe is a sham"), "the probe sees the unsaid");

@@ -136,7 +136,7 @@ fn reveals_of(world: &World, member: Entity, tick: u64) -> Vec<Reveal> {
 /// The reveal a member's vote rests on: their live interest whose tag is
 /// `tag`. What a vote is really about, for them - it's what they judge
 /// the framing by.
-fn stake_for(world: &World, member: Entity, tag: &IssueTag, tick: u64) -> Option<Reveal> {
+pub fn stake_for(world: &World, member: Entity, tag: &IssueTag, tick: u64) -> Option<Reveal> {
     reveals_of(world, member, tick).into_iter()
         .find(|r| desires::issue_tag(world, member, r) == *tag)
 }
@@ -392,6 +392,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
         m.held += 1;
         if noted { m.resolves += 1; }
     }
+    // Participation teaches: the room learns meeting craft, the seats
+    // learn theirs
+    crate::game::org_skills::learn_from_meeting(world, campaign, &attendees);
     Some(MeetingOutcome { attendees, healed, drifted, noted, consent })
 }
 

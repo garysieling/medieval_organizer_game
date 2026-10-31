@@ -405,6 +405,10 @@ impl Game {
             EventId::StrayDog => {
                 self.log.push(format!("t{}: a stray dog hangs about the market, ribs showing.", self.tick));
             }
+            EventId::KnifeGrinder => {
+                if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
+                self.log.push(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name));
+            }
             _ => {
                 // the baseline: a figure stands his pitch and cries his trade
                 if let Some(e) = e {
@@ -431,6 +435,29 @@ impl Game {
                     // his work's already done on their kit: no second penny
                     if desires::is_satisfied(&self.world, v, Want::BetterTools, tick) { continue; }
                     desires::satisfy(&mut self.world, v, Want::BetterTools, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                        if p.gold > 1.0 { p.gold -= 1.0; }
+                    }
+                }
+            }
+            EventId::KnifeGrinder => {
+                // an edge on the trades' steel for a penny; the kids get
+                // the sparks for free - the show's the thing they remember
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    if self.world.get_component::<crate::game::vocation::Kid>(v).is_some() {
+                        desires::satisfy(&mut self.world, v, Want::Joy, tick + 10);
+                        continue;
+                    }
+                    // his wheel only earns off a working blade
+                    if self.world.get_component::<crate::game::vocation::Craft>(v).is_none() { continue; }
+                    if desires::is_satisfied(&self.world, v, Want::BetterTools, tick) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::BetterTools, tick + 45);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) {
                         if p.gold > 1.0 { p.gold -= 1.0; }
                     }
@@ -575,6 +602,33 @@ mod tests {
         assert!(battered || before.iter().all(|b| *b < 0.1), "the hail bit");
         stage::run_days(&mut g, 2);
         assert!(g.rare.iter().all(|r| r.id != EventId::Hailstorm), "the storm lifted");
+    }
+
+    /// The knife-grinder puts an edge on the trades' steel - the frame
+    /// shows him at his wheel, and the road takes him when he's done
+    #[test]
+    fn test_the_knifegrinder_puts_an_edge_on() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::KnifeGrinder);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::KnifeGrinder && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            assert!(g.rare.iter().any(|r| r.id == EventId::KnifeGrinder), "he's afoot on {:?}", st);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the knife-grinder")),
+                "the frame shows the grinder on {:?}", st);
+            // his days sharpen the trades' tools
+            stage::run_days(&mut g, 2);
+            let sharpened = g.villagers.iter().copied().any(|v|
+                g.world.get_component::<crate::game::vocation::Craft>(v).is_some()
+                    && desires::is_satisfied(&g.world, v, Want::BetterTools, g.tick));
+            assert!(sharpened, "a working blade got an edge on {:?}", st);
+            // and the road takes him when his days are done
+            stage::run_days(&mut g, 6);
+            assert!(g.rare.iter().all(|r| r.id != EventId::KnifeGrinder), "the road took him on {:?}", st);
+        }
     }
 
     /// The stray dog picks the loneliest heart and stays

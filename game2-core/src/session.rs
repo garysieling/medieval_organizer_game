@@ -6886,12 +6886,17 @@ impl Game {
     }
 
     /// The first living villager nobody drives yet. A posting isn't up
-    /// for the taking - a bot can claim a free hand, not the collector
-    /// or the herb-wife; the town's duties stay the town's.
+    /// for the taking - a bot can claim a free hand, not the collector,
+    /// the herb-wife, the knight or the priest (postings ride either
+    /// TownRole or a PMC Craft); and a child is nobody's worker. The
+    /// town's duties stay the town's.
     pub fn free_villager(&self) -> Option<usize> {
         self.villagers.iter().position(|v| !villager::is_dead(&self.world, *v)
             && !self.seats.iter().any(|s| s.player == *v)
-            && self.world.get_component::<TownRole>(*v).is_none())
+            && self.world.get_component::<TownRole>(*v).is_none()
+            && self.world.get_component::<Kid>(*v).is_none()
+            && !self.world.get_component::<Craft>(*v)
+                .map(|c| vocation::is_pmc(c.vocation)).unwrap_or(false))
     }
 
     /// What an agent asks its villager to do. Maps to the same travel/goal

@@ -65,7 +65,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.~~ (fixed — the graze point centres on the flock)
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
-- [ ] **W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.
+- [x] ~~**W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.~~ (partially stale — `skill_gain` runs via `train_day` in `livelihood`; deleted dead `is_service` (dup of `is_pmc`) and `options_for`)
 - [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
 - [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
 - [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).

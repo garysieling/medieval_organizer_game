@@ -119,15 +119,6 @@ pub fn level_of(skill: f32) -> Level {
     if skill >= 0.75 { Level::Master } else if skill >= 0.4 { Level::Apprentice } else { Level::Journeyman }
 }
 
-/// How many interaction options a level gives (1/2/3 up the tree)
-pub fn options_for(level: Level) -> usize {
-    match level {
-        Level::Journeyman => 1,
-        Level::Apprentice => 2,
-        Level::Master => 3,
-    }
-}
-
 /// Whether a vocation is professional-middle rather than working class
 pub fn is_pmc(v: Vocation) -> bool {
     matches!(v, Vocation::Knight | Vocation::Priest)
@@ -173,11 +164,6 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Painter => Some("paint"),
         Vocation::Fisher => Some("fish"),
     }
-}
-
-/// Whether the vocation's product is a service, not a stackable good
-pub fn is_service(v: Vocation) -> bool {
-    matches!(v, Vocation::Knight | Vocation::Priest)
 }
 
 /// Whether the good can be gathered from the land itself rather than
@@ -287,8 +273,8 @@ pub struct VocationAction {
     pub does: &'static str,
 }
 
-/// The actions a vocation opens up, level by level (options_for() of them
-/// are live at each level - the higher levels add the rest)
+/// The actions a vocation opens up, level by level - the higher levels
+/// add the rest
 const fn a(name: &'static str, does: &'static str) -> VocationAction {
     VocationAction { name, does }
 }
@@ -410,9 +396,6 @@ mod tests {
         assert_eq!(level_of(0.2), Level::Journeyman);
         assert_eq!(level_of(0.5), Level::Apprentice);
         assert_eq!(level_of(0.9), Level::Master);
-        assert_eq!(options_for(Level::Journeyman), 1);
-        assert_eq!(options_for(Level::Apprentice), 2);
-        assert_eq!(options_for(Level::Master), 3);
     }
 
     #[test]

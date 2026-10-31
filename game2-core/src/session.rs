@@ -5739,10 +5739,20 @@ impl Game {
                         }
                     }
                 } else {
-                    // delivered: goods to the hirer, pay to the kid
+                    // delivered: goods to the hirer, pay to the kid. A hirer
+                    // who died waiting gets no satchel and pays no coin - the
+                    // goods land in the place's stock if there is one
                     let qty = self.world.get_component_mut::<Satchel>(who)
                         .and_then(|s| s.goods.get_mut(&job.good).map(|q| { let n = (*q).min(job.qty); *q -= n; n }))
                         .unwrap_or(0);
+                    if villager::is_dead(&self.world, job.hirer) {
+                        if let Some(b) = self.world.get_component_mut::<Building>(job.to) {
+                            *b.stock.entry(job.good.clone()).or_insert(0) += qty;
+                        }
+                        self.say(who, "...he's gone.", CHAT_BUBBLE_SECS);
+                        self.world.remove_component::<OddJob>(who);
+                        return;
+                    }
                     if let Some(s) = self.world.get_component_mut::<Satchel>(job.hirer) {
                         *s.goods.entry(job.good).or_insert(0) += qty;
                     }
@@ -12393,6 +12403,29 @@ mod agent_tests {
         g.livelihood_tick(1);
         assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)),
             "a hungry villager is sent for the meal, not left standing");
+    }
+
+    #[test]
+    fn test_a_dead_hirer_pays_no_coin() {
+        let mut g = Game::new();
+        let kid = g.villagers[26];
+        let hirer = g.villagers[0];
+        let to = g.building_entities[0];
+        g.world.get_component_mut::<Satchel>(kid).unwrap().goods.insert("wheat".into(), 2);
+        if g.world.get_component::<Purse>(kid).is_none() {
+            g.world.add_component(kid, Purse { gold: 0.0 });
+        }
+        g.world.add_component(kid, OddJob {
+            hirer, good: "wheat".into(), qty: 2, from: hirer, to, pay: 5.0, loaded: true });
+        g.world.add_component(hirer, villager::Dead);
+        let stock_before = g.world.get_component::<Building>(to).unwrap().stock.get("wheat").copied().unwrap_or(0);
+        let kid_gold = g.world.get_component::<Purse>(kid).unwrap().gold;
+        g.arrive(kid, Goal::RunOddJob);
+        assert_eq!(g.world.get_component::<Purse>(kid).unwrap().gold, kid_gold,
+            "a corpse pays no coin");
+        assert_eq!(g.world.get_component::<Building>(to).unwrap().stock.get("wheat").copied().unwrap_or(0),
+            stock_before + 2, "the goods land in the place's stock");
+        assert!(g.world.get_component::<OddJob>(kid).is_none(), "the errand ends there");
     }
 
     #[test]

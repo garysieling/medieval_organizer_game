@@ -1080,15 +1080,20 @@ impl Game {
                 // a day, to the lettered - a book's joy outlasts the cold
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 let mut sold = 0;
-                for &v in &self.villagers.clone() {
+                // the roster plus the player - she can read too
+                let cands: Vec<Entity> = self.villagers.iter().copied()
+                    .chain(std::iter::once(self.player)).collect();
+                for v in cands {
                     if sold >= 1 { break; }
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     if !self.literate(v) { continue; }
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
+                    // a book lasts - the already-fed don't buy again today
+                    let fed = desires::is_satisfied(&self.world, v, Want::Joy, tick);
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 3.0).unwrap_or(false);
-                    if !near || !pays { continue; }
+                    if !near || fed || !pays { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, tick + 40);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 3.0; }
                     self.say(v, "Words that outlive the winter!", CHAT_BUBBLE_SECS);

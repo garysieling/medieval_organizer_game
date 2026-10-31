@@ -14,13 +14,10 @@ use game2_core::game::villager::{self, Pos, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::sim::climate::{self, SeasonSystem};
+use game2_core::session::{W, H, MAP_W, UI_X};
 
-const W: usize = 960;
-const H: usize = 640;
-const MAP_W: usize = 640;
 const TILE_W: i32 = 28;
 const TILE_H: i32 = 14;
-const UI_X: usize = 660;
 
 fn iso(tx: f32, ty: f32) -> (i32, i32) {
     (MAP_W as i32 / 2 + ((tx - ty) * TILE_W as f32) as i32,

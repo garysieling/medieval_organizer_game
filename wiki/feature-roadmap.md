@@ -67,20 +67,6 @@ tending. **Size: S-M.**
 
 
 
-### F7. Vermin, spoilage & the granary cat
-
-*Small systemic pressure; pets get a second job.*
-
-**What.** Stockpiles quietly spoil; grain draws mice; cats earn their
-keep.
-
-**Spec.** Per-good `half_life` (bread days, wheat weeks, wool months);
-house/shop stock decays by it. `Granary` buildings gain a `vermin` rate
-∝ nearby grain; a bonded `PetRole::Hunting` cat on the owner's home
-suppresses it. Broke villagers eat spoiled stock → `Problem::SourGut`
-(minor illness). Cheap, makes the store feel alive. **Size: S.**
-
----
 
 ### F8. Wool → cloth: the weaver and the tailor's local supply
 
@@ -647,7 +633,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
 5. ~~F5 Foraging/mushrooms~~ — **done, PR #145.**
 6. F43 Issues belong to trades — small, and it makes every later
    grievance richer; do it before the roster of scoped problems grows.
-7. F7 Vermin/cats — S, makes stock feel alive; dog already had a job,
+7. ~~F7 Vermin/cats~~ — **done, PR #147.**
    now cats do too.
 8. F12 Shop succession — deaths stop being pure loss; inheritance feeds
    F28 heirlooms and F33 continuation.

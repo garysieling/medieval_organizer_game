@@ -673,6 +673,27 @@ impl Game {
                     sold += 1;
                 }
             }
+            EventId::Juggler => {
+                // three knives and a grin: the show's free, but the hat
+                // comes round - a penny in from those who felt the joy
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Joy, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Joy)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
+                    let spare = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if spare {
+                        if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    }
+                    self.say(v, "A marvel!", CHAT_BUBBLE_SECS);
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1165,6 +1186,35 @@ mod tests {
                 "the pardon lifted her on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Pardoner), "he moved on from {:?}", st);
+        }
+    }
+
+    /// Three knives and a grin: the joy spreads free, the hat takes a
+    /// penny from those who can spare it - the frame shows him first
+    #[test]
+    fn test_the_jugglers_knives_lift_the_street() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Fever] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Juggler);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Juggler && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Juggler).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a juggler")),
+                "the frame shows the juggler on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick),
+                "the knives lifted her on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Juggler), "he moved on from {:?}", st);
         }
     }
 

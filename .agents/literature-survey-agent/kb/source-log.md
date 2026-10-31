@@ -641,6 +641,113 @@ Condensed per-stream log; full per-source ratings live in each review's Key Sour
 
 ---
 
+### Historical Epidemiology — Victorian Diseases (2026-10-31)
+
+#### Mooney - "Infectious Diseases and Epidemiologic Transition in Victorian Britain? Definitely" (SHM 2007)
+**Type:** Academic Paper
+**Domain:** Historical Epidemiology
+**Rating:** A+
+**Relevance:** Quantifies the infectious share of Victorian mortality (~40% nationally, >50% in towns)
+**Used In:** victorian-diseases.md
+**Notes:** Rebuttal to Condrau & Worboys; argues the epidemiological transition is real.
+
+#### Hardy - *The Epidemic Streets* (OUP 1993)
+**Type:** Academic Book
+**Domain:** Historical Epidemiology
+**Rating:** A+
+**Relevance:** Disease-by-disease Victorian epidemiology; crowding-susceptible dynamics
+**Used In:** victorian-diseases.md
+**Notes:** Standard work. Key concept: childhood diseases need replenished susceptibles.
+
+#### Snow - *On the Mode of Communication of Cholera* (1849, rev. 1854)
+**Type:** Primary Source
+**Domain:** Epidemiology / Public Health History
+**Rating:** A+
+**Relevance:** Waterborne transmission; natural-experiment method
+**Used In:** victorian-diseases.md
+**Notes:** "Mode of communication" — distinct from touch-contagion. Southwark & Vauxhall vs Lambeth = history's great natural experiment.
+
+#### Farr - Statistical Nosology (4th/5th Annual Reports, Registrar-General, 1841-42)
+**Type:** Primary Source
+**Domain:** Medical Statistics / Nosology
+**Rating:** A+
+**Relevance:** Zymotic classification; period disease terminology
+**Used In:** victorian-diseases.md
+**Notes:** Five classes: zymotic/constitutional/local/developmental/violent. Documents Victorian euphemisms ('teething' = infant diarrhoea).
+
+#### Brody et al. - "Map-making and myth-making in Broad Street" (Lancet 2000)
+**Type:** Academic Historiography
+**Domain:** Public Health History
+**Rating:** A
+**Relevance:** Debunks the pump-handle folk tale; legend vs data
+**Used In:** victorian-diseases.md
+
+#### Hardy - "Urban Famine or Urban Crisis? Typhus in the Victorian City" (Medical History)
+**Type:** Academic Paper
+**Domain:** Social History of Medicine
+**Rating:** A
+**Relevance:** Typhus as poverty disease (93% of deaths wage-earners); overcrowding chain
+**Used In:** victorian-diseases.md
+
+#### "Sex differentials in phthisis mortality, 1861-1870" (Continuity & Change 2015) + PMC6204963 TB trends
+**Type:** Academic Papers
+**Domain:** Historical Demography
+**Rating:** A
+**Relevance:** Consumption as #1 killer; young-adult/female skew; ~50% pre-chemo CFR
+**Used In:** victorian-diseases.md
+
+#### Porter & Porter + Fitzpatrick - anti-vaccination politics; Lancet 1890 (primary); Leicester Method paper
+**Type:** Academic + Primary
+**Domain:** Medical Politics / Organizing History
+**Rating:** A
+**Relevance:** Vaccination Acts → Anti-Compulsory Vaccination League → Leicester Method as alternative institution
+**Used In:** victorian-diseases.md
+**Notes:** Gold for the organizing side of the game: a movement that built its own public-health system to defeat compulsion.
+
+#### CampOP "Shitscapes" (Cambridge, working paper)
+**Type:** Academic Working Paper
+**Domain:** Historical Demography
+**Rating:** A
+**Relevance:** Infant diarrhoea resisted sanitation until 1900+; fly/milk route ≠ water route
+**Used In:** victorian-diseases.md
+
+#### Dobson - "Fenland ague in the nineteenth century" (Medical History)
+**Type:** Academic Paper
+**Domain:** Historical Epidemiology
+**Rating:** A
+**Relevance:** Endemic English malaria; relapse signature; folk naming
+**Used In:** victorian-diseases.md
+
+#### Valtierra et al. - 1889 Russian flu (PNAS 2010)
+**Type:** Academic Paper
+**Domain:** Epidemiology
+**Rating:** A
+**Relevance:** First rail/sea pandemic: R0~2.1, attack ~60%, CFR 0.1-0.28%
+**Used In:** victorian-diseases.md
+
+#### Occupational-disease cluster (USURJ phossy jaw; OEM scrotal-cancer review; ILO C18 history PMC3923370)
+**Type:** Academic + Institutional
+**Domain:** Occupational Health History
+**Rating:** A/B+
+**Relevance:** Vocation-keyed diseases; matchgirls' strike origin
+**Used In:** victorian-diseases.md
+
+#### Science Museum / London Museum / BBC / healthandthepeople.ncl.ac.uk - sanitation arc
+**Type:** Museum/Educational (curated, well-sourced)
+**Domain:** Public Health History
+**Rating:** A-/B+
+**Relevance:** Chadwick → PH Act 1848 → Great Stink 1858 → Bazalgette
+**Used In:** victorian-diseases.md
+
+#### PubMed 20027740 - historical disease terminology methods (Victoria 1853-1900)
+**Type:** Academic Paper
+**Domain:** Medical Terminology
+**Rating:** A
+**Relevance:** Maps period names → modern diagnoses
+**Used In:** victorian-diseases.md naming table
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

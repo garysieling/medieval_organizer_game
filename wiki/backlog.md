@@ -1130,3 +1130,11 @@ Tell me which mode you want to enter, and I'll guide you through the process.
 - **Added:** 2026-10-31
 - **Done:** 504 sit-in, ACT UP, Salt March, Otpor/CANVAS (campaign-masters doc); abolition petition machinery (info-infrastructure doc); enforcement/defense dynamics (enforcement doc); foreign-agent laws, TigerSwan, spyware, lawfare (modern-playbook doc)
 - **Remaining:** UK spycops inquiry (richest modern infiltration record), INCITE! "The Revolution Will Not Be Funded" (NGO-ization/co-option critique), platform-manipulation research (DFRLab), Color Revolution rollback scholarship (authoritarian learning)
+
+### [ ] Implement Victorian Disease Realism (disease kinds, incubation, waterborne spread)
+- **Status:** Pending
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-10-31
+- **Output:** wiki/literature-reviews/victorian-diseases.md
+- **Notes:** 8 mechanics proposed. Minimum pass (planned with the research merge): DiseaseKind enum + Victorian names (la grippe, scarlatina, the gripes). Bigger candidates: waterborne route through the existing effluent/pit_water tiles (Broad Street mechanic — find-the-pump goal), real incubation via Stage::Latent, seasonal outbreak table (generalize FLU_DAY/ergot gates), differential immunity + ague/TB relapse, crowding/hunger exposure modifiers, occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), epidemic blame/scapegoat events. Organizing tie-in: Vaccination Act as oppression event, Leicester Method as player counter-institution.

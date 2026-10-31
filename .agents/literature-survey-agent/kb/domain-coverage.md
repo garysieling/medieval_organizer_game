@@ -72,11 +72,20 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Systems Biology & Medicine
-**Coverage:** Medium
-**Surveys:** Sprint 3 (QSP for Game Systems)
-**Mechanics Implemented:** Illness stages, treatments (illness.rs)
-**Sources:** QSP/ADME literature (needs specific citations)
-**Next Steps:** Specific illnesses (cancer progression), preventive medicine, epidemiology
+**Coverage:** Medium-High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (QSP for Game Systems), Victorian Diseases (historical epidemiology roster)
+**Mechanics Implemented:** Illness stages, treatments (illness.rs); contagious spread by proximity
+**Mechanics Proposed:**
+- Zymotic roster / DiseaseKind enum (per-disease route, virulence, immunity, incubation, season) - victorian-diseases review
+- Real incubation period via unused Stage::Latent - victorian-diseases review
+- Waterborne transmission through existing effluent/pit_water tiles (Broad Street mechanic) - victorian-diseases review
+- Seasonal fever calendar (summer cholera/diarrhoea, winter respiratory, autumn ague) - victorian-diseases review
+- Differential immunity + relapse (ague/ague dormancy, TB reactivation on hunger) - victorian-diseases review
+- Crowding/class exposure modifier + hunger-immunity loop - victorian-diseases review
+- Occupational trade-exposure diseases (phossy jaw, miner's dust, sweeps' cancer) - victorian-diseases review
+- Epidemic blame/grievance extension (miasma-minded scapegoats) - victorian-diseases review
+**Sources:** QSP/ADME literature (needs specific citations); Mooney, Hardy, Snow, Farr, CampOP (victorian-diseases review)
+**Next Steps:** Apply victorian naming table to in-code diseases; specific illnesses (cancer progression), preventive medicine, epidemiology
 
 ---
 

@@ -211,3 +211,80 @@ Every mechanic must trace to:
 **Tags:** organizing, prison, dungeon, moral-shocks, release-campaign, bystander-recruitment
 
 ---
+
+### Pattern: Farr's Nosology → Zymotic Disease Roster
+**Academic Source:** William Farr, Statistical Nosology (Registrar-General 4th Annual Report, 1842); Hardy, *The Epidemic Streets* (OUP 1993); Mooney (SHM 2007)
+**Game Mechanic:** `DiseaseKind`/`Zymotic` enum + static table replacing free-string disease names: each kind carries route (contact | waterborne | vector | occupational | foodborne), contagiousness, virulence, lethality, immunity_conferred, incubation, season
+**Implementation:** game2-core/src/sim/illness.rs (Disease.kind); spawn sites in session.rs look up kinds instead of hand-writing name+contagious+severity
+**Simplification:** ~8 kinds to start (la grippe, scarlatina, the cholera, typhoid, putrid fever, consumption, ague, the gripes/ergotism) instead of the full roster; one route field instead of mixing
+**Educational Value:** Cholera ≠ flu; the water/well was the enemy, not the neighbour
+**Fun Factor:** Outbreaks have identity and counterplay; "the fever year" becomes "the scarlatina year"
+**Tags:** disease, epidemiology, nosology, farr, zymotic, roster
+
+---
+
+### Pattern: Victorian Incubations → Stage::Latent Timer
+**Academic Source:** Period incubation data (cholera 12h–5d, measles ~12d, scarlet fever 2–5d, typhoid 1–3wk) via Hardy and period clinical records
+**Game Mechanic:** New infections spend `incubation` ticks in the existing-but-unused `Stage::Latent`: no damage, no (or weak) shedding; severity blooms after
+**Implementation:** `Disease.incubation_left` in illness.rs; spread_contagion gates on stage
+**Simplification:** One tick ≈ one day; per-kind constant, no variance
+**Educational Value:** Why quarantine windows existed; the healthy-looking traveller is the scary one
+**Fun Factor:** "Who else caught it?" dread; isolation decisions under uncertainty
+**Tags:** disease, incubation, latent-stage, quarantine
+
+---
+
+### Pattern: Snow's Broad Street → Effluent/Water Transmission Route
+**Academic Source:** Snow (1849/1854); Southwark & Vauxhall vs Lambeth natural experiment; Chadwick sewer-flushing backfire
+**Game Mechanic:** Waterborne kinds deposit `effluent` on home/pit tiles; villagers drawing water/food from contaminated tiles gain exposure independently of proximity; cleaning or fixing the pit breaks the chain
+**Implementation:** reuse `effluent: HashMap<Tile>` + `pit_water` already in session.rs (~line 2200); second channel beside spread_contagion
+**Simplification:** Tile-level contamination, no water-flow simulation; effluent decays on a timer
+**Educational Value:** THE Victorian insight — the pump, not the person; why sewers beat quarantine
+**Fun Factor:** Find-the-pump detective moment; infrastructure as medicine
+**Tags:** disease, waterborne, cholera, snow, sanitation, effluent
+
+---
+
+### Pattern: The Fever Calendar → Seasonal Outbreaks
+**Academic Source:** Summer diarrhoea/cholera heat link (1890s peaks, 1911 epidemic); typhus/influenza winter link; ague autumn relapse; rickets late-spring; ergot damp-harvest (game already gates `tick % 365 == 210`)
+**Game Mechanic:** Per-kind `season` window on the year cycle; outbreak spawner rolls only inside it; heatwave modifiers boost diarrhoeal kinds
+**Implementation:** generalize FLU_DAY + ergot gates into a `seasonal_outbreaks` table
+**Simplification:** Single annual window per kind; fixed probability per year
+**Educational Value:** Victorians feared August for the belly and January for the chest — opposite seasons for opposite routes
+**Fun Factor:** Predictable dread; stockpile herbs before the fever season
+**Tags:** disease, seasonality, calendar, outbreaks
+
+---
+
+### Pattern: Typhus Respects the Rent → Crowding/Class Exposure
+**Academic Source:** Liverpool typhus data (93% of deaths among weekly-wage earners); Hardy's crowding-susceptible childhood diseases; rickets as fatality amplifier
+**Game Mechanic:** Exposure multiplier for co-housed villagers; Hunger lowers effective immunity (malnutrition→disease loop)
+**Implementation:** spread_contagion already has Pos; add household co-location bonus + Hunger-based immunity debuff
+**Simplification:** One crowding multiplier + one hunger threshold
+**Educational Value:** Poverty IS a transmission route — the same germ killed the poor more
+**Fun Factor:** Housing and wages become health policy; epidemics punish inequality the player built
+**Tags:** disease, class, crowding, hunger, typhus, inequality
+
+---
+
+### Pattern: Phossy Jaw → Vocation Trade-Exposure
+**Academic Source:** Match-factory phosphorus necrosis (USURJ); Pott 1775 sweep's cancer (first occupational cancer); Ramazzini/Agricola dust diseases; ILO C18 list
+**Game Mechanic:** Long service in a `Vocation` accrues `trade_exposure`; past a threshold the trade's occupational disease sets in — chronic, non-contagious, skill-reducing
+**Implementation:** `Craft.exposure` accumulation in vocation tick; threshold → Disease { kind: occupational }
+**Simplification:** 3 trades to start (matches→phossy jaw, mining→the dust, sweeping→sweeps' rot); no cure, only prevention/switching trades
+**Educational Value:** Industrial disease hid for decades — "it was just toothache"; why the 1888 matchgirls struck
+**Fun Factor:** Guild reform vs output tension; the strike writes itself
+**Tags:** disease, occupational, vocation, phossy-jaw, labor, matchgirls
+
+---
+
+### Pattern: Bread-Blame → Epidemic Scapegoating
+**Academic Source:** Ergot/St Anthony's fire bread-blame (implemented); cholera blamed on migrants/Irish/railways; "fever nests" rhetoric; Snow legend > data
+**Game Mechanic:** During outbreaks, villagers generate Grievance::Blamed toward plausible-but-wrong targets (baker, traveller, herb-wife, newcomers); identifying the true source is a player knowledge unlock
+**Implementation:** extend ergot()'s blame pattern to other kinds; Problem::Blamed exists
+**Simplification:** One wrong-target pick by proximity/novelty; no rumor-propagation model
+**Educational Value:** Public health history is a history of blaming the wrong thing — and the wrong people
+**Fun Factor:** Witch-hunt risk mid-epidemic; the player's info edge is actionable
+**Tags:** disease, blame, grievance, scapegoat, miasma-minded
+
+---

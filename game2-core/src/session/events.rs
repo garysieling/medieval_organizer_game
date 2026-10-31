@@ -242,6 +242,9 @@ pub struct RareEvent {
     pub leaving: bool,
     /// Per-event scratch: a counter, a picked target, a flag
     pub aux: u64,
+    /// Homes already served this visit, for an event that must not
+    /// repeat one - independent of any want a home's occupants hold
+    pub visited: Vec<Entity>,
 }
 
 /// When each event first becomes due: its gap window from the start, jittered
@@ -314,12 +317,12 @@ impl Game {
                 self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
                 let at = self.event_pitch(id);
                 let path = self.map.walk_path(start, at).unwrap_or_default();
-                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0 });
+                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, visited: vec![] });
                 self.log.push(format!("t{}: {} has come to town.", self.tick, s.name));
             }
             EventKind::Spell => {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
-                    at: None, leaving: false, aux: 0 });
+                    at: None, leaving: false, aux: 0, visited: vec![] });
                 self.event_began(id);
                 // its first day is this one - the daily tick for tomorrow
                 // hasn't come yet, and a one-day spell sees no other
@@ -1149,22 +1152,22 @@ impl Game {
                 // glass for the church, light for the dark months: one
                 // home a day gets its panes - the draft's out, the
                 // light's in, the folk inside feel both
-                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
-                let mut glazed = 0;
+                let Some(r) = self.rare.iter().find(|r| r.id == id) else { return };
+                let Some(at) = r.at else { return };
+                let visited = r.visited.clone();
+                let mut glazed_home = None;
                 for &v in &self.villagers.clone() {
-                    if glazed >= 1 { break; }
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     let Some(h) = household::home_of(&self.world, v) else { continue };
+                    // a glazed home shows in its folk's light - done once,
+                    // tracked by home rather than by any want its folk hold
+                    if visited.contains(&h) { continue; }
                     let near = self.world.get_component::<Pos>(h)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near { continue; }
                     let occ: Vec<Entity> = self.world.get_component::<household::Building>(h)
                         .map(|b| b.occupants.clone()).unwrap_or_default();
-                    // a glazed home shows in its folk's light - done once
-                    if occ.iter().next()
-                        .map(|&o| desires::is_satisfied(&self.world, o, Want::Joy, tick))
-                        .unwrap_or(false) { continue; }
                     for o in occ {
                         if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }
                         if let Some(hl) = self.world.get_component_mut::<Health>(o) {
@@ -1172,7 +1175,11 @@ impl Game {
                         }
                         desires::satisfy(&mut self.world, o, Want::Joy, tick + 10);
                     }
-                    glazed += 1;
+                    glazed_home = Some(h);
+                    break;
+                }
+                if let Some(h) = glazed_home {
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.visited.push(h); }
                 }
             }
             EventId::NewsCrier => {

@@ -792,6 +792,13 @@ impl Game {
                     if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
                 }
             }
+            EventId::RefugeeFamily => {
+                // their village burned - they eat from the store while
+                // they camp: a serving a day is cheap for what they fled
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    f.servings = f.servings.saturating_sub(1);
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1063,6 +1070,52 @@ impl Game {
                     self.log.push(format!("t{}: riders asking after a deserter - a writ for harboring comes hard behind.", tick));
                 } else {
                     self.log.push(format!("t{}: the deserter melted off at dawn - no one saw anything.", tick));
+                }
+            }
+            EventId::RefugeeFamily => {
+                // fed and rested, the road's still a hard bed: some put
+                // down roots where they camped - two more beds for it
+                if self.rare_roll(id) % 3 == 0 {
+                    self.log.push(format!("t{}: the refugee family moved on at dawn - the road took them north.", tick));
+                } else {
+                    // their faces are the roll's own: a temp stream off
+                    // the event seed, the village's rng keeps its luck
+                    let mut trng = Rng(self.rare_roll(id));
+                    let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
+                    // a home with a spare bed takes them, if there is one
+                    let home = self.world.query::<household::Building>().iter().copied()
+                        .find(|&b| self.world.get_component::<household::Building>(b)
+                            .map(|bb| bb.kind == household::BuildingKind::Home && bb.occupants.len() < 4)
+                            .unwrap_or(false));
+                    for _ in 0..2 {
+                        let v = villager::spawn_villager(&mut self.world, x, y);
+                        self.world.add_component(v, Health { condition: 0.7, immunity: 0.4 });
+                        self.world.add_component(v, crate::sim::community::Citizen {
+                            influence: 0.1, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
+                        self.world.add_component(v, crate::game::traits::personality_from_seed(trng.next()));
+                        self.world.add_component(v, crate::game::livelihood::Satchel::default());
+                        self.world.add_component(v, desires::Known::default());
+                        let voc = super::roll_vocation(&mut trng);
+                        let mut trng2 = Rng(trng.0);
+                        self.world.add_component(v, desires::InnerLife {
+                            wants: desires::sample_wants(
+                                crate::game::vocation::SocialClass::Working, Some(voc), false,
+                                &mut move || trng2.next()),
+                            grievances: vec![], satisfied: vec![] });
+                        self.world.add_component(v, crate::game::vocation::craft(voc, 0.2));
+                        self.world.add_component(v, Purse { gold: 0.5 });
+                        self.villagers.push(v);
+                        // a roof where there's room (the camp's behind them)
+                        if let Some(h) = home {
+                            if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                                b.occupants.push(v);
+                            }
+                        }
+                        // the parallel rolls grow with the roster
+                        self.was_sick.push(None);
+                        self.died_on.push(None);
+                    }
+                    self.log.push(format!("t{}: the refugee family stayed - two more beds in the village.", tick));
                 }
             }
             EventId::StrayDog => {
@@ -1708,6 +1761,33 @@ mod tests {
             assert!(g.repression_debt > debt0, "the writ's debt landed on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("writ for harboring")), "the riders came on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::Deserter), "he melted off from {:?}", st);
+        }
+    }
+
+    /// Fed and rested, they stay or the road takes them - either way
+    /// the store thinned for them and the log says how it ended
+    #[test]
+    fn test_the_family_roots_or_the_road_takes_them() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let before = g.villagers.len();
+            let food0 = g.probe().food_servings;
+            g.force_event(EventId::RefugeeFamily);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::RefugeeFamily && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a refugee family")),
+                "the frame shows them on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.probe().food_servings < food0, "they ate from the store on {:?}", st);
+            stage::run_days(&mut g, 6);
+            let stayed = g.log.iter().any(|l| l.contains("family stayed"));
+            let moved = g.log.iter().any(|l| l.contains("moved on at dawn"));
+            assert!(stayed || moved, "their fate was told on {:?}", st);
+            assert_eq!(stayed, g.villagers.len() == before + 2, "the roster matches on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::RefugeeFamily), "their camp's gone from {:?}", st);
         }
     }
 

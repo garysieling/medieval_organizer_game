@@ -128,7 +128,9 @@ and word of the next village - pitches his stall of oddities at the
 market, trades gossip both ways, and moves on. The perfumer keeps the
 still too - marigold and lavender under it, scent out at twenty gold a
 flask - and a dab of it smells of roses for days, no smell at all to a
-suitor's nose.
+suitor's nose. Trade with the road loses a little to the reckoning -
+the outside counts in figures the village doesn't keep - until enough
+bad tallies and a clerk steps up to keep them straight.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

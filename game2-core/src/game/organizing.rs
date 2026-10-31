@@ -235,10 +235,57 @@ const SMALL_TALK: [(&str, &str); 5] = [
     ("swapped stories by the well", "Remember the winter the river froze?"),
 ];
 
+/// A voice with a register: oaths, by-your-leaves, and the kind of
+/// flourished word that makes a passing remark a line worth hearing
+const REGISTERS: [&str; 8] = [
+    "By Saint Crispin, the hedges are full of it.",
+    "Thee's a good neighbor - there's my hand on it.",
+    "A pox on this weather, and that's God's truth.",
+    "I swear by the well it's the driest year in memory.",
+    "As I live and breathe, the miller's a knave and no mistake.",
+    "Good morrow to thee - the Lord keep thy purse fat.",
+    "There's a tale for thee, if thy ears'll take it.",
+    "Marry, the market's dear and the purse is thin.",
+];
+
+#[cfg(test)]
+mod voice_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_voice_with_a_flourish_on_it() {
+        // every fourth remark's a register line; the rest's small talk
+        assert!(passing_remark(0).len() > 5);
+        let flavored = passing_remark(3);
+        assert!(flavored.contains("By") || flavored.contains("thee") || flavored.contains("pox")
+            || flavored.contains("Marry") || flavored.contains("swear") || flavored.contains("morrow")
+            || flavored.contains("neighbor"), "a word with a flourish on it: {}", flavored);
+        // and the gossip reaches for an insult
+        assert!(gossip_insult(0).contains("knave") || gossip_insult(0).len() > 8,
+            "the talk turns flourished");
+    }
+}
+
+/// The flourish aimed at a rung of the ladder: the words a gossip
+/// reaches for when the talk turns on someone
+const INSULTS: [&str; 5] = [
+    "a knave and no mistake",
+    "proud as a cock on a midden",
+    "all mouth and no measure",
+    "light-fingered as a weasel",
+    "born for the stocks, that one",
+];
+
+/// What the gossip reaches for when the talk turns - a flourished
+/// insult, picked by `n`
+pub fn gossip_insult(n: usize) -> &'static str {
+    INSULTS[n % INSULTS.len()]
+}
+
 /// Something said in passing, when people meet: one of the small-talk
-/// lines, picked by `n`
+/// lines - and now and then a word with a flourish on it - picked by `n`
 pub fn passing_remark(n: usize) -> &'static str {
-    SMALL_TALK[n % SMALL_TALK.len()].1
+    if n % 4 == 3 { REGISTERS[n % REGISTERS.len()] } else { SMALL_TALK[n % SMALL_TALK.len()].1 }
 }
 
 /// What `name` says when the player talks with them (`talks_before` is how

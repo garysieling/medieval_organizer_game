@@ -26,7 +26,7 @@ use crate::sim::illness::{Health, Disease, Stage, IllnessSystem};
 #[allow(unused_imports)] // only the tests name attachment styles now
 use crate::sim::psychology::{AttachmentHistory, AttachmentStyle};
 use crate::sim::community::{Citizen, Organization};
-use crate::game::organizing::{meeting_remark, passing_remark, talk_response};
+use crate::game::organizing::{gossip_insult, meeting_remark, passing_remark, talk_response};
 use crate::game::traits::personality_from_seed;
 use crate::game::relationships;
 use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, TownRole, Vocation};
@@ -3915,7 +3915,8 @@ impl Game {
         match s {
             Sanction::Gossip => {
                 self.log.push(format!("t{}: the talk turns on {}.", tick, name));
-                self.say(v, "I hear what they say of me.", TALK_BUBBLE_SECS);
+                // the words they reach for, flourished
+                self.say(v, &format!("They call me {}.", gossip_insult(v as usize)), TALK_BUBBLE_SECS);
             }
             Sanction::Shun => {
                 self.log.push(format!("t{}: {} gets the cold shoulder - no one sits with them.", tick, name));

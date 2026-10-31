@@ -67,6 +67,24 @@ impl Buffer {
         }
     }
 
+    /// Nearest-neighbour resample to `scale` of the size - a video can
+    /// trade pixels for a much smaller file
+    pub fn scaled(&self, scale: f32) -> Buffer {
+        let w = ((self.width as f32 * scale).round() as usize).max(1);
+        let h = ((self.height as f32 * scale).round() as usize).max(1);
+        let mut out = Buffer::new(w, h);
+        let xmap: Vec<usize> = (0..w).map(|x| ((x as f32 / scale) as usize).min(self.width - 1)).collect();
+        for y in 0..h {
+            let sy = ((y as f32 / scale) as usize).min(self.height - 1);
+            for (x, &sx) in xmap.iter().enumerate() {
+                let s = (sy * self.width + sx) * 4;
+                let d = (y * w + x) * 4;
+                out.pixels[d..d + 4].copy_from_slice(&self.pixels[s..s + 4]);
+            }
+        }
+        out
+    }
+
     /// Load a BMP written by save_bmp (uncompressed 24-bit, bottom-up)
     pub fn load_bmp(path: &str) -> std::io::Result<Buffer> {
         let data = std::fs::read(path)?;

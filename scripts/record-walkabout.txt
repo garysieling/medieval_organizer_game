@@ -1,0 +1,11 @@
+# Example record_video script: the wanderer strolls east, stops, talks to
+# whoever's nearby. One op per line: <frame> <verb> [args]. At 60 game
+# frames a second, frame 30 is half a second in.
+#
+#   cargo run --release --bin record_video -- --play-time 10 \
+#       --script scripts/record-walkabout.txt --out evidence/videos/walkabout.gif
+#
+30 walk 1 0      # hold "D" - amble east
+150 stop         # let go
+180 act 0        # Talk, to whoever's in reach
+300 look 40 60   # swing the camera to the village square

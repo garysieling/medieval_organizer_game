@@ -246,6 +246,25 @@ cargo run --bin fun_score     # rubric scoring
 cargo run --bin balance_test 400 42  # balance test: 400 days, seed 42, exit 1 on red flags
 ```
 
+### Video recordings
+
+The recorder plays the village headless - at computer speed, not watch
+speed - and writes what the window would show to a video, for reviewing
+test runs and long stretches of village life:
+
+```bash
+cargo run --release --bin record_video -- --play-time 60 --speedup 3 --out evidence/videos/minute.gif
+```
+
+- `--play-time SECS` of play, `--speedup X` compresses to watch time
+- `--format gif|apng|frames|ffmpeg` (`ffmpeg` pipes raw frames to an
+  ffmpeg binary for mp4/webm - pass `--ffmpeg-path` if it isn't on PATH)
+- `--script FILE` drives the player: `<frame> <verb> [args]` lines
+  (`walk`, `stop`, `act`, `ctx`, `select`, `click`, `look`, `pause`,
+  `speed`, `cancel`) - see `scripts/record-walkabout.txt`
+- `--scale 0.5`, `--fps 12`, `--cam X,Y`, `--zoom F`, `--seed N`,
+  `--game-speed 4` tune it further
+
 ## Research & Documentation
 
 - `wiki/backlog.md` - research/mechanics backlog

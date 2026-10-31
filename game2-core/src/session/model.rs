@@ -170,6 +170,8 @@ pub struct UiModel {
     /// Disabled reason per action button
     pub blocked: [Option<String>; 5],
     pub ctx: Vec<CtxAct>,
+    /// Disabled reason per ctx button, same index order as `ctx`
+    pub ctx_blocked: Vec<Option<String>>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
     /// The player won (influence over the village lead)

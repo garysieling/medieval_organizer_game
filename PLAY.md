@@ -181,7 +181,9 @@ all day, so the BFS only pays once. And the whole village compiles to
 wasm now - the same sim, one build away from a browser tab. And it has
 a voice you can almost hear: the rain on the thatch, the smithy's
 rhythm, the festival hum, a hush when something rides the sky - the
-cues rise with the days for the audio layer to answer.
+cues rise with the days for the audio layer to answer. And a summons
+doesn't take you for good now - it takes you to the castle, and the
+org has a month to pay the ransom before the ladder climbs to its top.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

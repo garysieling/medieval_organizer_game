@@ -820,10 +820,18 @@ pub const NAMES: [&str; 31] = [
     "Godric","Matilda","Leofric","Edith","Anselm","Bertha","Roderick","Winifred",
     "Osmund","Greta","Pip","Nell","Tom","Reeve","Willa",
 ];
-/// A villager's name by index - past the named roll, a newcomer stands in:
-/// births and migrants don't panic the name lookup
+/// The second roll, for the born and the come-lately: the village grows
+/// past the first thirty-one, and they shouldn't all answer to "a newcomer"
+const NEW_NAMES: [&str; 12] = [
+    "Sible","Dunn","Hamelin","Avice","Colle","Merrick",
+    "Sabyn","Tybalt","Imma","Peryn","Lettice","Hobkin",
+];
+/// A villager's name by index - past the named roll, the second roll
+/// keeps them distinct; past that, a newcomer stands in
 fn vill_name(i: usize) -> &'static str {
-    NAMES.get(i).copied().unwrap_or("a newcomer")
+    NAMES.get(i).copied()
+        .or_else(|| NEW_NAMES.get(i - NAMES.len()).copied())
+        .unwrap_or("a newcomer")
 }
 /// Which villager indices are the children, the tax collector and the herb-wife
 const KID_IDXS: [usize; 3] = [26, 27, 28];
@@ -3878,7 +3886,12 @@ impl Game {
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
+        // urgent errands get the long reach: the sick, the hungry, the
+        // flock, home - and a worker's inputs, or the craft starves
+        let cap = match &goal { Goal::CollectTax(_) => 24,
+            Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat
+            | Goal::BuyFrom(..) | Goal::BuyAt(..) => 30,
+            Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -5908,7 +5921,9 @@ impl Game {
     /// Send `who` to gather `good` at tile `t`
     pub fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
-        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 9 { return false; }
+        // gathers get the forage-errand reach: wood and stone have no
+        // other source, and the craft can't wait on a near tree
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 16 { return false; }
         match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
             Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good, t) }); true }
             None => false,

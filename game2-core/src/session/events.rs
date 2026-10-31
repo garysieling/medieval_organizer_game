@@ -20,6 +20,7 @@ use crate::game::desires::{self, Want};
 use crate::game::livelihood::Purse;
 use crate::game::pets::{self, Species, PetRole};
 use crate::game::villager::{self, Pos};
+use crate::game::household;
 use crate::sim::illness::Health;
 use super::{Game, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
 
@@ -487,12 +488,14 @@ impl Game {
                 }
             }
             EventId::ChimneySweep => {
-                // a penny a flue: near homes breathe easier (Security)
-                // while his brush's up them
+                // a penny a flue: homes in reach of his ladder breathe
+                // easier (Security) - it's the hearth he cleans, not the
+                // passer-by, so the reach runs on their home's door
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
-                    let near = self.world.get_component::<Pos>(v)
+                    let near = household::home_of(&self.world, v)
+                        .and_then(|h| self.world.get_component::<Pos>(h))
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near { continue; }

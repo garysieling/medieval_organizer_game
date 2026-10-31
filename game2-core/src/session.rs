@@ -4577,6 +4577,22 @@ impl Game {
             // knights ride home (another's may still be on their tour;
             // the gate watch is a different corps entirely)
             self.posted.retain(|&(o, _, _)| o != org);
+            // and without the knights the cells can't hold: the org's held
+            // walk free, petitions answered or not - a life sentence was
+            // never on the books
+            let members = self.world.get_component::<Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            for m in members {
+                if self.world.get_component::<crate::game::dungeon::Imprisoned>(m).is_none() { continue; }
+                self.world.remove_component::<crate::game::dungeon::Imprisoned>(m);
+                self.world.remove_component::<crate::game::dungeon::ReleaseCampaign>(m);
+                if let Some(rc) = self.world.get_component::<crate::game::dungeon::ReleaseOf>(m).map(|r| r.campaign) {
+                    self.world.remove_component::<crate::game::campaign::Campaign>(rc);
+                    self.world.remove_component::<crate::game::campaign::CampaignMeeting>(rc);
+                    self.world.remove_component::<crate::game::dungeon::ReleaseOf>(m);
+                }
+                self.log.push(format!("t{}: the cell stands open - {} walks home.", tick, self.name_of(m)));
+            }
             self.log.push(format!("t{}: the knights ride home - the tour is done.", tick));
         }
     }
@@ -6314,6 +6330,15 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
             }
         }
+        // someone's inside: the way out is pressure, campaign or no
+        // campaign - the petitions don't stop because the cause is spent
+        if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
+            let v = self.villagers[self.seats[seat].selected_target];
+            if !crate::game::villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
+                self.seats[seat].ctx_actions.push(CtxAct::Petition);
+            }
+        }
         // the cause meets on its cadence and marches on the streets: the
         // buttons show once a campaign exists; seats go to the picked member
         if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some() {
@@ -6323,10 +6348,7 @@ impl Game {
             if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
                 let v = self.villagers[self.seats[seat].selected_target];
                 if !crate::game::villager::is_dead(&self.world, v) {
-                    if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
-                        // someone's inside: the way out is pressure
-                        self.seats[seat].ctx_actions.push(CtxAct::Petition);
-                    } else {
+                    if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none() {
                         let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                             .map(|o| o.members.contains(&v)).unwrap_or(false);
                         if is_member {
@@ -11891,6 +11913,33 @@ mod campaign_dungeon_tests {
         // the gate watch, though, stands all year
         assert!(!g.guards.is_empty());
         assert!(g.log.iter().any(|l| l.contains("knights ride home")), "{:?}", g.log);
+    }
+
+    #[test]
+    fn test_petition_shows_even_when_the_cause_is_spent() {
+        let mut g = Game::new();
+        // no campaign at all - and someone's inside
+        g.seats[0].selected_target = 0;
+        g.seats[0].picked = true;
+        let v = g.villagers[0];
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        g.update_ctx_actions_at(0);
+        assert!(g.seats[0].ctx_actions.contains(&CtxAct::Petition),
+            "the way out doesn't depend on a live campaign: {:?}", g.seats[0].ctx_actions);
+    }
+
+    #[test]
+    fn test_the_cell_opens_when_the_knights_ride_home() {
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members = vec![v];
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 0 });
+        // petitions unanswered and the tour still ends: the cell opens
+        g.guards_tick(30);
+        assert!(g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none(),
+            "no life sentence - the knights gone, the door stands open");
+        assert!(g.log.iter().any(|l| l.contains("walks home")), "{:?}", g.log);
     }
 }
 

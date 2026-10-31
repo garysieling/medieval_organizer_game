@@ -782,6 +782,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // Meet lives on the campaign's FIGHT line in the org section - the
         // 278 slot would run into the inspector; March beside it
         CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 60, h: 16, color: (140, 80, 80) },
+        CtxAct::Cadence => Button { label: "Cadence".into(), key: ' ', x: UI_X as i32 + 150, y: 470, w: 60, h: 16, color: (100, 100, 130) },
         CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
@@ -1582,6 +1583,8 @@ pub enum CtxAct {
     Townhall,
     /// Keep pressing for the prisoner's release
     Petition,
+    /// Set how often the cause meets: the organizer's recommendation
+    Cadence,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -6234,6 +6237,7 @@ impl Game {
         // buttons show once a campaign exists; seats go to the picked member
         if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Meet);
+            self.seats[seat].ctx_actions.push(CtxAct::Cadence);
             self.seats[seat].ctx_actions.push(CtxAct::March);
             if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
                 let v = self.villagers[self.seats[seat].selected_target];
@@ -6338,6 +6342,18 @@ impl Game {
                     }
                     None => "The campaign isn't due to meet yet.".into(),
                 }
+            }
+            CtxAct::Cadence => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+                    return;
+                };
+                // the organizer's recommendation: the meeting steps up or
+                // down a notch - weekly for the long haul, daily for the fight
+                let now = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                    .map(|m| m.cadence_days).unwrap_or(3);
+                let next = match now { 0..=3 => 7, 4..=7 => 14, 8..=14 => 30, _ => 3 };
+                crate::game::campaign::set_cadence(&mut self.world, c, next, tick);
+                format!("The cause will meet every {} days now - the organizer's word.", next)
             }
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
@@ -6692,6 +6708,7 @@ impl Game {
                 dissenters: c.dissenters.len(), seats,
                 resolves: mtg.map(|m| m.resolves).unwrap_or(0),
                 due: mtg.map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false),
+                cadence_days: mtg.map(|m| m.cadence_days).unwrap_or(0),
             }
         });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
@@ -7572,7 +7589,7 @@ impl View {
                 &format!("FIGHT {}", c.issue), 255, 180, 120);
             let due = if c.due { "meet due" } else { "meet to come" };
             draw_text(&mut buf, UI_X as i32 + 18, 500,
-                &format!("{} - {}", c.seats.join(" "), due), 120, 120, 140);
+                &format!("{} - {} - every {}d", c.seats.join(" "), due, c.cadence_days), 120, 120, 140);
         } else {
             draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
         }
@@ -11502,6 +11519,32 @@ mod campaign_tests {
         g.ctx_act_at(0, i);
         assert!(g.log.last().unwrap().contains("meet about the campaign"), "{:?}", g.log.last());
         assert!(g.ui_model().panel.campaign.unwrap().due);
+    }
+
+    #[test]
+    fn test_the_organizer_sets_how_often_they_meet() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..3] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+        assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+            .unwrap().cadence_days, 3, "the founding cadence");
+        // the Cadence button steps the recommendation up, then wraps round
+        g.seats[0].ctx_actions.push(CtxAct::Cadence);
+        let i = g.seats[0].ctx_actions.len() - 1;
+        g.ctx_act_at(0, i);
+        assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+            .unwrap().cadence_days, 7);
+        assert_eq!(g.ui_model().panel.campaign.unwrap().cadence_days, 7);
+        for _ in 0..3 { g.ctx_act_at(0, i); }
+        assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+            .unwrap().cadence_days, 3, "the cycle wraps to the fight's rhythm");
     }
 
     #[test]

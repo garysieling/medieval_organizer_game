@@ -964,6 +964,20 @@ impl Game {
                     sold += 1;
                 }
             }
+            EventId::CornFactor => {
+                // grain bought by the quarter: three servings a day off
+                // the store for fair weight, and the till fattens for it
+                let sold = self.world.get_component_mut::<villager::FoodSource>(self.market_food)
+                    .map(|f| { let s = f.servings.min(3); f.servings -= s; s }).unwrap_or(0);
+                if sold > 0 {
+                    if self.world.get_component::<Purse>(self.market_food).is_none() {
+                        self.world.add_component(self.market_food, Purse { gold: 0.0 });
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(self.market_food) {
+                        p.gold += sold as f32;
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2181,6 +2195,30 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went for the fish");
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::FishHawker), "the cart moved on from {:?}", st);
+        }
+    }
+
+    /// The quarter's bought for fair weight: the store thins and the
+    /// market till fattens - the frame shows the factor first
+    #[test]
+    fn test_the_quarter_moves_for_fair_weight() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CornFactor);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::CornFactor && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let food0 = g.probe().food_servings;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the corn-factor")),
+                "the frame shows the factor on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let food1 = g.probe().food_servings;
+            let till = g.world.get_component::<Purse>(g.market_food).map(|p| p.gold).unwrap_or(0.0);
+            assert!(food1 < food0 || till > 0.0, "the quarter moved for coin on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::CornFactor), "he weighed out from {:?}", st);
         }
     }
 

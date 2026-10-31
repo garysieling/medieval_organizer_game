@@ -566,6 +566,18 @@ impl Game {
                 }
                 self.log.push(format!("t{}: a sack of rats for the road - the larder breathes easier.", tick));
             }
+            EventId::Dowser => {
+                // the forked stick dips or it doesn't - when it does, a
+                // spring in the water table feeds the gardens on the mark
+                // he left (it feeds them, mind: a drowned pit yields no
+                // stone, so the mark's never on the pit itself)
+                if self.rare_roll(id) % 4 == 0 {
+                    self.log.push(format!("t{}: the stick never dipped - dry ground all round, says the diviner.", tick));
+                } else {
+                    for g in self.gardens.iter_mut() { g.2 = (g.2 + 0.3).min(1.0); }
+                    self.log.push(format!("t{}: water sings under the meadow - the gardens drink it in.", tick));
+                }
+            }
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides
                 let mark = self.lonely_hearts().into_iter()
@@ -778,6 +790,39 @@ mod tests {
             assert!(after > g.tick + 100 || after > plague_before,
                 "the plague's pushed off ({plague_before} -> {after}) on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::RatCatcher), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The diviner's stick speaks at the end: water marked, or dry ground
+    /// all round - and the frame showed him walking it first
+    #[test]
+    fn test_the_dowsers_stick_speaks() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            if g.gardens.is_empty() {
+                let home = g.building_entities[0];
+                g.gardens.push((home, (15, 20), 0.5));
+            }
+            let growth0: f32 = g.gardens.iter().map(|g| g.2).sum();
+            g.force_event(EventId::Dowser);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Dowser && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the water-diviner")),
+                "the frame shows the diviner on {:?}", st);
+            stage::run_days(&mut g, 7);
+            let found = g.log.iter().any(|l| l.contains("water sings"));
+            let dry = g.log.iter().any(|l| l.contains("never dipped"));
+            assert!(found || dry, "the stick said something on {:?}", st);
+            // a spring feeds the gardens; the pit's stone yield is untouched
+            if found {
+                let growth1: f32 = g.gardens.iter().map(|g| g.2).sum();
+                assert!(growth1 > growth0, "the gardens drank on {:?}", st);
+            }
+            assert!(g.land.pit_water <= 0.6, "the pit's not drowned on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Dowser), "he moved on from {:?}", st);
         }
     }
 

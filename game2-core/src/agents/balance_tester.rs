@@ -403,13 +403,17 @@ fn m_punish_warn(r: &RunRecord) -> f64 {
 /// first-half negatives (1.0 = flat).
 fn m_shaping_slope(r: &RunRecord) -> f64 {
     let half = r.days / 2;
+    let alive: std::collections::HashMap<u64, f64> = r.series("villagers.alive").into_iter().collect();
     let (mut early, mut late) = (0.0, 0.0);
     for (t, e) in r.events() {
         if classify(e).0 == Valence::Negative {
-            if t < half { early += 1.0; } else { late += 1.0; }
+            // per head, not per day: a village that grows makes more
+            // negatives honestly - growth itself isn't the world rigging
+            let w = 1.0 / alive.get(&t).copied().unwrap_or(1.0).max(1.0);
+            if t < half { early += w; } else { late += w; }
         }
     }
-    if early < 1.0 { return if late > 0.0 { 3.0 } else { 0.0 }; }
+    if early < f64::EPSILON { return if late > 0.0 { 3.0 } else { 0.0 }; }
     late / early
 }
 
@@ -504,8 +508,8 @@ pub fn default_kpis() -> Vec<Kpi> {
             why: "natural consequences need warning: writ before knights; <0.5 reads as arbitrary, breeds helplessness",
             measure: m_punish_warn },
         Kpi { name: "shaping_slope", domain: Domain::Reward, unit: "ratio",
-            target: (0.5, 3.0), flag_below: None, flag_above: None,
-            why: "successive approximations: pressure ramps with the run, but a >3x back-half spike reads as rigged",
+            target: (0.5, 5.0), flag_below: None, flag_above: None,
+            why: "successive approximations: pressure ramps with the run - per head now, so growth doesn't read as rigging; >5x back-half spike does",
             measure: m_shaping_slope },
     ]
 }

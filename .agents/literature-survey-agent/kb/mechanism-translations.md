@@ -190,6 +190,17 @@ Every mechanic must trace to:
 
 ---
 
+### Pattern: Movement Sociology → Internal Org Structure
+**Academic Source:** Freeman "Tyranny of Structurelessness" (1972); Snow et al. frame alignment (ASR 1986); Polletta participatory democracy (2002); Highlander/CEP pedagogy records
+**Game Mechanic:** Per-member `alignment` gate on participation; delegated seats with a shadow-elite failure mode; `DecisionRule` (majority vs consensus) trade-off dial; train-the-trainer skill replication
+**Implementation:** proposed for game2-core/src/game/campaign.rs (C1-C3 of wiki/campaign-plan.md)
+**Simplification:** 3-level alignment enum instead of continuous frame congruence; two decision rules + a size threshold for splinter risk; teaching gated on trainer skill bar
+**Educational Value:** Why groups need structure to act; why phrasing an issue matters as much as picking it; how organizing skill multiplies
+**Fun Factor:** Grumbling dissenters, shadow-elite takeovers, hidden schools — inside drama to match the outside fights
+**Tags:** organizing, internal-structure, frame-alignment, consensus, training, delegation
+
+---
+
 ### Pattern: Prison History → Dungeon-as-Venue Mechanics
 **Academic Source:** Jasper & Poulsen moral shocks (Social Problems 1995); suffragette prison record (UK Parliament, primary); Attica manifesto + historiography; Amnesty adoption-group model
 **Game Mechanic:** `Imprisoned` as an active state (demands/strike/petition); moral-shock stranger recruitment (second channel beside network ties); jailer's-dilemma response table; release-campaign pressure accumulator with elite-prestige multiplier

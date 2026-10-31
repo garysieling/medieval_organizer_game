@@ -32,23 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F9. Milk → cheese: cellars and the maturity clock
-
-*`sprint-7-fermentation-trades.md`; completes F2's second chain.*
-
-**What.** A cheesemaker (or the shepherd's household) turns goat/cow milk
-into cheese that ages in a cellar — the same recipe in different cellars
-yields different named cheeses.
-
-**Spec.** `struct AgingGood { base, cellar_traits (temp, humidity, mold),
-  start_tick }` — item-level, on building stock. `"cheese"` price grows
-with age; `Cellar` is a `BuildingKind` with seeded traits so each
-village's cheese is "the stone-cellar cheese" vs "the damp cheese."
-Rare noble-buyer event pays triple for a well-aged wheel. F3-style
-children can be sent to "turn the cheeses." **Size: M.**
-
----
-
 ### F10. Smell as a system
 
 *`sprint-7-perfume-and-smell.md`; unifies F2 `Smelly`, F7 rot, F20 perfume.*

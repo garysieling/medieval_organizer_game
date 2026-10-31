@@ -988,6 +988,32 @@ impl Game {
                     }
                 }
             }
+            EventId::SpiceMerchant => {
+                // pepper and cloves are dear: two gold a packet, good
+                // food eased and a pinch of cure for those who buy
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut sold = 0;
+                for &v in &self.villagers.clone() {
+                    if sold >= 2 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::GoodFood, tick) { continue; }
+                    let taste = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::GoodFood)).unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !taste || !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::GoodFood, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
+                    // the cure: folk hold pepper's a physic
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition + 0.02).min(1.0);
+                    }
+                    self.say(v, "Things that cure what ails!", CHAT_BUBBLE_SECS);
+                    sold += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2236,6 +2262,36 @@ mod tests {
                 "the quarter moved for coin on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::CornFactor), "he weighed out from {:?}", st);
+        }
+    }
+
+    /// Pepper's dear: two gold a packet eases the taste and folk hold
+    /// a pinch cures what ails - the frame shows the spice-cart first
+    #[test]
+    fn test_the_pepper_eases_and_cures() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::SpiceMerchant);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::SpiceMerchant && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::SpiceMerchant).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::GoodFood];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the spice merchant")),
+                "the frame shows the spice-cart on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::GoodFood, g.tick),
+                "the packet eased her taste on {:?}", st);
+            assert_eq!(g.world.get_component::<Purse>(v).unwrap().gold, 8.0, "her two gold went for the pepper");
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::SpiceMerchant), "the cart moved on from {:?}", st);
         }
     }
 

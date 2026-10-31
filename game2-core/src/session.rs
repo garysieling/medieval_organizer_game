@@ -5274,13 +5274,16 @@ impl Game {
                         0.5
                     } else { 1.0 };
                 // a grant carried home lightens the round for the cause's
-                // own: half the cut back, and the taxing doesn't count
-                let granted = self.world.get_component::<crate::game::reactions::LordGrant>(self.org)
-                    .map(|g| tick <= g.until).unwrap_or(false)
-                    && self.world.get_component::<Organization>(self.org)
-                        .map(|o| o.members.contains(&target)).unwrap_or(false);
+                // own: half the cut back, and the taxing doesn't count -
+                // wherever the grant was won, not just seat zero's fight
+                let granted = self.seats.iter().any(|s|
+                    self.world.get_component::<crate::game::reactions::LordGrant>(s.org)
+                        .map(|g| tick <= g.until && g.issue == "the taxes")
+                        .unwrap_or(false)
+                    && self.world.get_component::<Organization>(s.org)
+                        .map(|o| o.members.contains(&target)).unwrap_or(false));
                 if granted {
-                    let back = (taken * 0.5).round();
+                    let back = taken * 0.5;
                     if let Some(p) = self.world.get_component_mut::<Purse>(target) { p.gold += back; }
                     crate::game::desires::lift_grievance(&mut self.world, target, crate::game::desires::Problem::Taxed);
                 }
@@ -6406,15 +6409,21 @@ impl Game {
                     Some(out) => match out.response {
                         TargetResponse::Carries => {
                             self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
-                            // the carried demand lands as a grant: the cut
-                            // lightens for the cause's people, and last
-                            // year's taxing stops counting against them
+                            // the carried demand lands as a grant: the load
+                            // the issue names eases for the cause's people,
+                            // and this year's taxing stops counting - but
+                            // only the issue fought for is answered
                             let oe = self.seats[seat].org;
+                            let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                                .map(|cc| cc.issue.clone()).unwrap_or_default();
                             self.world.add_component(oe, crate::game::reactions::LordGrant {
-                                until: tick + crate::game::desires::YEAR_DAYS });
-                            if let Some(o) = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()) {
-                                for m in o {
-                                    crate::game::desires::lift_grievance(&mut self.world, m, crate::game::desires::Problem::Taxed);
+                                issue: issue.clone(), until: tick + crate::game::desires::YEAR_DAYS });
+                            // the tag the tax fight is voted under
+                            if issue == "the taxes" {
+                                if let Some(o) = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()) {
+                                    for m in o {
+                                        crate::game::desires::lift_grievance(&mut self.world, m, crate::game::desires::Problem::Taxed);
+                                    }
                                 }
                             }
                             format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())

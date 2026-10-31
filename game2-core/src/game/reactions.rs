@@ -152,11 +152,13 @@ mod tests {
     }
 }
 
-/// The lord's answer to carried demands: the cut comes back light for
-/// the cause's people until `until`. A concession is dated - the state
-/// gives relief, not surrender; the organizer has to keep it won
+/// The lord's answer to carried demands: the load the issue names comes
+/// back light for the cause's people until `until`. A concession is
+/// dated - the state gives relief, not surrender; the organizer has to
+/// keep it won. Only the issue fought for is answered
 #[derive(Debug)]
 pub struct LordGrant {
+    pub issue: String,
     pub until: u64,
 }
 

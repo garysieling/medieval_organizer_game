@@ -2832,7 +2832,9 @@ impl Game {
             .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
         let recruit_infl_ok = can_recruit(p.0);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some();
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
+        else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 2 && p.1 < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
@@ -3211,8 +3213,9 @@ impl Game {
     pub fn advance_approach_at(&mut self, seat: usize) {
         let Some(mut a) = self.seats[seat].approach.take() else { return };
         let who = a.who;
-        // they died on the way: nothing to say
-        if villager::is_dead(&self.world, self.villagers[who]) { return; }
+        // they died on the way: nothing to say; hauled off: no one to walk to
+        if villager::is_dead(&self.world, self.villagers[who])
+            || self.world.get_component::<crate::game::dungeon::Imprisoned>(self.villagers[who]).is_some() { return; }
         if self.dist_to_at(seat, who) <= TALK_DIST {
             // beside them now: take the action on them (act checks it can
             // still be done - they may have joined, or influence slipped)
@@ -3302,8 +3305,9 @@ impl Game {
             let near = self.world.get_component::<Pos>(*v)
                 .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < MEETING_REACH)
                 .unwrap_or(false);
-            // the shunned aren't asked to sit
+            // the shunned aren't asked to sit, and the held aren't around at all
             alive && near && !self.shunned(*v)
+                && self.world.get_component::<crate::game::dungeon::Imprisoned>(*v).is_none()
         }).collect()
     }
 
@@ -3562,7 +3566,8 @@ impl Game {
     /// CHAT_RANGE of each other, one of them passes a remark - at most once
     /// a CHAT_COOLDOWN days a pair - and the pair get on a little better
     pub fn chat_in_passing(&mut self) {
-        let mut people: Vec<Entity> = self.villagers.iter().copied().filter(|v| !villager::is_dead(&self.world, *v)).collect();
+        let mut people: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|v| !crate::game::dungeon::unavailable(&self.world, *v)).collect();
         people.push(self.player);
         let pos = |w: &World, e: Entity| w.get_component::<Pos>(e).map(|p| (p.x, p.y));
         let mut near = vec![];
@@ -11528,6 +11533,24 @@ mod campaign_dungeon_tests {
         assert_eq!((at.x, at.y), (now.x, now.y), "the held stand where the guards left them");
         assert_eq!(g.world.get_component::<Hunger>(v).unwrap().value, hunger,
             "the castle feeds its prisoners - no starving where they stand");
+    }
+
+    #[test]
+    fn test_you_cant_talk_a_man_out_of_a_cell() {
+        let mut g = Game::new();
+        // stand him beside the player, then the knights take him
+        let v = g.villagers[0];
+        let (px, py) = g.player_pos_at(0);
+        *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: px + 1.0, y: py };
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        // he's not around to be reached, and the buttons say why
+        assert!(!g.villagers_in_reach().contains(&v));
+        g.seats[0].selected_target = 0;
+        g.seats[0].picked = true;
+        assert_eq!(g.disabled_reason(0).as_deref(), Some("in the dungeon"));
+        assert_eq!(g.disabled_reason(1).as_deref(), Some("in the dungeon"));
+        g.act(0);
+        assert!(g.log.last().unwrap().contains("in the dungeon"), "{:?}", g.log.last());
     }
 }
 

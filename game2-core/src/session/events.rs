@@ -1018,21 +1018,21 @@ impl Game {
                 // white gold stretches the winter: a gold a handful off
                 // the nearest, and the salt makes the larder last longer
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
-                let mut sold = 0;
-                for &v in &self.villagers.clone() {
-                    if sold >= 3 { break; }
-                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
-                    let near = self.world.get_component::<Pos>(v)
-                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
-                        .unwrap_or(false);
-                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
-                    if !near || !pays { continue; }
+                // nearest three who can pay - the cry catches closest ears
+                let mut buyers: Vec<(i32, Entity)> = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false))
+                    .filter_map(|v| self.world.get_component::<Pos>(v)
+                        .map(|p| ((p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs(), v)))
+                    .filter(|(d, _)| *d < 8).collect();
+                buyers.sort_by_key(|(d, _)| *d);
+                for (_, v) in buyers.into_iter().take(3) {
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                     if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
                         f.servings += 2;
                     }
                     self.say(v, "None goes bad who buys it!", CHAT_BUBBLE_SECS);
-                    sold += 1;
                 }
             }
             EventId::NewsCrier => {

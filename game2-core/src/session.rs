@@ -5422,6 +5422,8 @@ impl Game {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
         for t in self.travels.iter_mut() {
             if t.path.is_empty() { continue; }
+            // the dead finish no errands - the errand ends where they fell
+            if villager::is_dead(&self.world, t.who) { t.path.clear(); continue; }
             // a well-worn path is quicker underfoot - trails::movement_cost
             // is the one place the worn-way discount is worked out
             let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
@@ -12391,6 +12393,19 @@ mod agent_tests {
         g.livelihood_tick(1);
         assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)),
             "a hungry villager is sent for the meal, not left standing");
+    }
+
+    #[test]
+    fn test_the_dead_finish_no_errands() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 20.0;
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        g.travels.push(Travel { who, path: vec![(sp.x.round() as i32, sp.y.round() as i32)], goal: Goal::Eat });
+        g.world.add_component(who, villager::Dead);
+        g.advance_travels();
+        assert!(!g.travels.iter().any(|t| t.who == who), "the errand ends where they fell");
+        assert_ne!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0, "a corpse eats nothing");
     }
 
     #[test]

@@ -3745,15 +3745,33 @@ impl Game {
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
-            Goal::Eat => self.world.get_component::<Pos>(self.market_food)
-                .map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::Eat => {
+                // the village table while it's laid: folk eat at their
+                // own market, and only a bare shelf sends them hunting
+                // for the next source
+                let market_laid = self.world.get_component::<villager::FoodSource>(self.market_food)
+                    .map(|f| f.servings > 0).unwrap_or(false);
+                if market_laid {
+                    self.world.get_component::<Pos>(self.market_food)
+                        .map(|p| (p.x.round() as i32, p.y.round() as i32))
+                } else {
+                    self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter_map(|f| self.world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x.round() as i32, fp.y.round() as i32),
+                                (fp.x - from.x).abs() + (fp.y - from.y).abs())))
+                        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                        .map(|(p, _)| p)
+                }
+            }
         };
         let Some(to) = to else { return false };
         // nobody hikes halfway to the next village on an errand (the tax
         // man's round reaches the outskirts - that's his job; so does a
         // sick walk out to the herb hut)
         let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
-        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
+        let cap = match &goal { Goal::CollectTax(_) => 24, Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat => 30, Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {
             self.travels.push(Travel { who, path: vec![to], goal });
@@ -5570,15 +5588,25 @@ impl Game {
             }
             Goal::Wander => {}
             Goal::Eat => {
-                // a real meal off the store - if the day's hunger system
-                // already fed them mid-errand, no second helping goes down
+                // a real meal off the nearest table - if the day's hunger
+                // system already fed them mid-errand, no second helping
                 let still_hungry = self.world.get_component::<Hunger>(who)
                     .map(|h| h.value < 100.0).unwrap_or(false);
-                let served = still_hungry && self.world.get_component_mut::<villager::FoodSource>(self.market_food)
-                    .map(|f| { if f.servings > 0 { f.servings -= 1; true } else { false } })
-                    .unwrap_or(false);
-                if served {
-                    if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                let table = self.world.get_component::<Pos>(who).copied()
+                    .map(|p| self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter(|&f| self.world.get_component::<Pos>(f)
+                            .map(|fp| (fp.x - p.x).abs() + (fp.y - p.y).abs() < 3.0).unwrap_or(false))
+                        .next());
+                if still_hungry {
+                    if let Some(Some(t)) = table {
+                        let served = self.world.get_component_mut::<villager::FoodSource>(t)
+                            .map(|f| { f.servings -= 1; true }).unwrap_or(false);
+                        if served {
+                            if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                        }
+                    }
                 }
             }
             Goal::Herd(_) => {}
@@ -5840,9 +5868,19 @@ impl Game {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
             // hunger comes first: a starving person abandons any errand
-            // to look for food - even one already under way
+            // to look for food - even one already under way. And looking
+            // means walking: the store has the day's meal
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
-            if hungry { self.travels.retain(|t| t.who != v); continue; }
+            if hungry {
+                self.travels.retain(|t| t.who != v);
+                let at_store = self.world.get_component::<Pos>(self.market_food)
+                    .zip(self.world.get_component::<Pos>(v))
+                    .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
+                    .unwrap_or(false);
+                if at_store { self.arrive(v, Goal::Eat); }
+                else { self.send(v, Goal::Eat); }
+                continue;
+            }
             if self.travels.iter().any(|t| t.who == v) { continue; }
             if self.world.get_component::<Kid>(v).is_some() { continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
@@ -12322,11 +12360,39 @@ mod agent_tests {
         g.seats.push(Seat { player: who, ..Seat::default() });
         g.agent_command(1, AgentCmd::Eat).unwrap();
         assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)));
-        // and on arrival a serving goes down and the belly fills
+        // and on arrival - the walk done, standing at the table - a
+        // serving goes down and the belly fills
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(who).unwrap() = sp;
         g.arrive(who, Goal::Eat);
         assert_eq!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0);
         assert_eq!(g.world.get_component::<villager::FoodSource>(g.market_food).unwrap().servings,
             servings - 1, "a real serving went down");
+    }
+
+    #[test]
+    fn test_the_hungry_walk_to_the_store_not_just_stand_about() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        // low enough that a stray egg breakfast still leaves them hungry
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 2.0;
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(who).unwrap() = Pos { x: sp.x + 6.0, y: sp.y };
+        g.livelihood_tick(1);
+        assert!(g.travels.iter().any(|t| t.who == who && matches!(t.goal, Goal::Eat)),
+            "a hungry villager is sent for the meal, not left standing");
+    }
+
+    #[test]
+    fn test_the_hungry_at_the_store_eat_where_they_stand() {
+        let mut g = Game::new();
+        let who = g.villagers[0];
+        g.world.get_component_mut::<Hunger>(who).unwrap().value = 2.0;
+        let sp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+        *g.world.get_component_mut::<Pos>(who).unwrap() = Pos { x: sp.x, y: sp.y };
+        g.livelihood_tick(1);
+        assert_eq!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0,
+            "already at the store: the meal goes down now");
     }
 
     #[test]

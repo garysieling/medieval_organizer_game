@@ -4,7 +4,7 @@
 //! useful: eat, work, talk, invest. `drive_agent` is the same instinct for
 //! a bot's villager. Both bias toward things that keep the village running.
 
-use super::{AgentCmd, AgentObs, Command, Game};
+use super::{AgentCmd, AgentObs, Command, Game, ObsPerson};
 use crate::game::vocation::Craft;
 use crate::game::villager::Pos;
 use crate::game::player::PlayerCharacter;
@@ -51,16 +51,62 @@ pub fn drive_player(game: &mut Game, seat: usize) {
     game.command_at(seat, Command::Walk(t.cos() * 0.5, t.sin() * 0.5));
 }
 
-/// What a bot's villager does next, from its observation: eat when hungry,
-/// work when it can, buy food when the store has it, gather wood when idle,
-/// talk for ties. Heuristic, biased to keeping the village running.
+/// What a bot's villager does next, from its observation: nothing while
+/// held or mid-errand, eat when hungry, let a running errand run, talk
+/// to whoever's near - the ties are what the village runs on - else put
+/// in a day's work. The obs carries no craft inputs or sellers' goods,
+/// so bench provisioning stays a decision only a real bot can make.
 pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
+    // the cell takes no errands
+    if obs.held { return AgentCmd::Idle; }
     // mid-errand: let it finish (nothing happens until the walking is done)
     if obs.walking { return AgentCmd::Idle; }
     // hungry: eat before everything
     if obs.hunger < 40.0 { return AgentCmd::Eat; }
-    // carry nothing and broke? put in a day at the bench
+    // already on something that isn't idling: let it run
     if obs.busy.as_deref() != Some("Idle") && obs.busy.is_some() { return AgentCmd::Idle; }
+    // someone's beside you and breathing: a word builds the ties that make
+    // influence and recruits later
+    if let Some(p) = obs.near.iter().filter(|p| !p.dead)
+        .min_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal)) {
+        return AgentCmd::TalkTo { e: p.e };
+    }
     // default: a day's work - village first
     AgentCmd::WorkDay
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn obs() -> AgentObs {
+        AgentObs {
+            tick: 0, you: 1, pos: (0.0, 0.0), gold: 10.0, hunger: 80.0,
+            busy: Some("Idle".into()), near: vec![], near_buildings: vec![],
+            satchel: vec![], walking: false, held: false,
+            orgs: vec![], campaigns: vec![], burning: vec![],
+        }
+    }
+
+    #[test]
+    fn test_the_driver_talks_to_whos_near_and_stands_down_when_held() {
+        let mut o = obs();
+        // company nearby and idle: a word before a day's work
+        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 3.0, dead: false });
+        assert!(matches!(drive_agent(&o), AgentCmd::TalkTo { e: 9 }));
+        // nobody near: the bench gets the day
+        o.near.clear();
+        assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
+        // the dead don't make company - the bench still gets the day
+        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 3.0, dead: true });
+        assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
+        // the cell takes no errands, whoever's outside
+        o.near.clear();
+        o.held = true;
+        assert!(matches!(drive_agent(&o), AgentCmd::Idle));
+        // and hunger still comes first
+        o.held = false;
+        o.hunger = 20.0;
+        assert!(matches!(drive_agent(&o), AgentCmd::Eat));
+    }
 }

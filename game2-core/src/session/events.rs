@@ -590,7 +590,9 @@ impl Game {
                 if let Some(v) = mark {
                     let slipped = self.rare_roll(id) % 4 == 0;
                     if let Some(h) = self.world.get_component_mut::<Health>(v) {
-                        h.condition = (h.condition + if slipped { -0.03 } else { 0.03 }).clamp(0.05, 1.0);
+                        // a nick only ever cuts - the floor never lifts them
+                        h.condition = if slipped { (h.condition - 0.03).max(0.01) }
+                            else { (h.condition + 0.03).min(1.0) };
                     }
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                     self.say(v, if slipped { "The knife slipped. A bandage'll set it." } else { "There. The humours flow easier." }, CHAT_BUBBLE_SECS);

@@ -833,6 +833,41 @@ impl Game {
                     }
                 }
             }
+            EventId::Friar => {
+                // confession under the hawthorn: a live weight comes off
+                // and the ear hears a want plain - no coin, just the telling
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut heard = 0;
+                for &v in &self.villagers.clone() {
+                    if heard >= 2 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    let burdened = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.grievances.iter().any(|(_, u)| tick <= *u)).unwrap_or(false);
+                    if !burdened { continue; }
+                    // absolution takes the newest live weight
+                    if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
+                        if let Some(i) = l.grievances.iter().rposition(|(_, u)| tick <= *u) {
+                            l.grievances.remove(i);
+                        }
+                    }
+                    // the telling surfaces a want for the ear to know
+                    let want = self.world.get_component::<desires::InnerLife>(v)
+                        .and_then(|l| l.wants.first().copied());
+                    if let Some(w) = want {
+                        if let Some(kn) = self.world.get_component_mut::<desires::Known>(v) {
+                            if !kn.revealed.contains(&desires::Reveal::Want(w)) {
+                                kn.revealed.push(desires::Reveal::Want(w));
+                            }
+                        }
+                    }
+                    self.say(v, "Go and carry it lighter.", CHAT_BUBBLE_SECS);
+                    heard += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -1852,6 +1887,38 @@ mod tests {
                 "the charity counted on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::LeperBand), "the bells faded from {:?}", st);
+        }
+    }
+
+    /// Confession under the hawthorn: a live weight comes off and the
+    /// ear learns a want - the frame shows him first
+    #[test]
+    fn test_the_hawthorn_lightens_a_heart() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Friar);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Friar && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Friar).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Love];
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 30);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a wandering friar")),
+                "the frame shows him on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.is_empty(),
+                "the weight came off on {:?}", st);
+            assert!(g.world.get_component::<desires::Known>(v)
+                .map(|k| k.revealed.contains(&desires::Reveal::Want(Want::Love))).unwrap_or(false),
+                "the ear learned the want on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Friar), "he wandered on from {:?}", st);
         }
     }
 

@@ -14,7 +14,7 @@ Items are removed from this list as their PRs land.
 
 ## P0 — live gameplay bugs in recently landed features
 
-- [ ] **W-001** Imprisoned villagers still live their lives — `villager.rs` systems (Hunger, SeekFood) never check `dungeon::unavailable`; prisoners eat, work, wander the map while marked "(taken)".
+
 - [ ] **W-002** Prisoners stay selectable and talkable — `villagers_in_reach_at`, Talk/Recruit don't filter `Imprisoned`; you can recruit a man out of the dungeon.
 - [ ] **W-003** `reactions::GuardsPosted` never expires — after one crackdown, every later public action can `arrest()` forever; nothing removes the component.
 - [ ] **W-004** `Game.guards` sprite list never clears — knights posted at the crackdown site stand at that spot permanently.

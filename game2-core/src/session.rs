@@ -4521,6 +4521,17 @@ impl Game {
         }
     }
 
+    /// What a cause leaves on people fades on its own clock: a season
+    /// cools a moral shock (reactions::cool_off), a month dulls a
+    /// blow-off (actions::lifts_with_time). Coaching is still the fast
+    /// way back - this is just the floor under "stuck forever".
+    pub fn marks_tick(&mut self, tick: u64) {
+        for v in self.villagers.clone() {
+            crate::game::reactions::cool_off(&mut self.world, v, tick);
+            crate::game::actions::lifts_with_time(&mut self.world, v, tick);
+        }
+    }
+
     /// The martyr's grave: they gather there, and the remembering is a
     /// kind of organizing no castle can stamp out
     pub fn martyr_tick(&mut self, tick: u64) {
@@ -5587,6 +5598,8 @@ impl Game {
         self.dungeon_tick(tick);
         // and the posted knights stand only their tour
         self.guards_tick(tick);
+        // and the marks a cause leaves fade on their own clock
+        self.marks_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {

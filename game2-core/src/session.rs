@@ -4562,17 +4562,19 @@ impl Game {
             .map(|c| (c.workplace, c.vocation)).unwrap_or((None, Vocation::Farmer))
         else { return };
         if self.world.get_component::<Building>(shop).is_none() { return }
+        // no bench passes to a grave or a cell - the heir must be able
+        // to stand behind it
         let heir = self.villagers.iter().copied()
-            .find(|&v| !villager::is_dead(&self.world, v)
+            .find(|&v| !crate::game::dungeon::unavailable(&self.world, v)
                 && self.world.get_component::<Craft>(v).map(|c| c.master == Some(dead)).unwrap_or(false))
             .or_else(|| {
                 let home = household::home_of(&self.world, dead)?;
                 self.world.get_component::<Building>(home)?.occupants.iter().copied()
-                    .find(|&o| o != dead && !villager::is_dead(&self.world, o)
+                    .find(|&o| o != dead && !crate::game::dungeon::unavailable(&self.world, o)
                         && self.world.get_component::<Kid>(o).is_none())
             })
             .or_else(|| self.villagers.iter().copied()
-                .find(|&v| !villager::is_dead(&self.world, v)
+                .find(|&v| !crate::game::dungeon::unavailable(&self.world, v)
                     && self.world.get_component::<Craft>(v)
                         .map(|c| c.vocation == voc && c.workplace.is_none()).unwrap_or(false)));
         let dname = self.villagers.iter().position(|v| *v == dead).map(|i| vill_name(i)).unwrap_or("the dead");

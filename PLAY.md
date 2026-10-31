@@ -157,7 +157,9 @@ outlast them - a lute, a window, a fine toolset - and it gathers
 stories the way a person does, and passes to kin when the hands that
 held it stop. The literate put word to those they think of - a letter
 travels a week on the road and warms the bond it lands on - and the
-ones who can't read pay the priest a penny to hear it.
+ones who can't read pay the priest a penny to hear it. And a few carry
+a difference - a lame leg, failing sight, a mind that needs quiet - the
+village walks a little slower for them, and theirs check on them.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

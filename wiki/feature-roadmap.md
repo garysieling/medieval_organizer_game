@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F30. Disabilities & care
-
-*Brainstorm "disabilities — consider modelling some".*
-
-**What.** A few villagers seeded with a difference (a lame leg —
-slower walk; failing sight; a mind that needs quiet). Buildings can be
-"good for them" (near the market vs far); kin/neighbors checking on them
-is a modeled care relationship that builds attachment — community made
-visible.
-
-**Spec.** `Condition { kind }` on ~8% of villagers; walk-speed/path-cost
-modifier, a matching `Want`/caregiver `RelKind`. Kept humane and
-non-mockable — texture, not punchline. **Size: S-M.**
-
----
-
 ### F31. The fisher and the water's edge
 
 *Brainstorm "sea creatures/fishable things" — map already has a river.*

@@ -2274,6 +2274,13 @@ impl Game {
             }
         }
         world.get_component_mut::<Building>(trader_stall).unwrap().worker = Some(villagers[25]);
+        // a few carry a difference: the village walks a little slower
+        // for them, and theirs check on them
+        for (i, kind) in [(7usize, "a lame leg"), (11, "failing sight"), (15, "a mind that needs quiet")] {
+            if i < villagers.len() {
+                world.add_component(villagers[i], villager::Condition { kind });
+            }
+        }
         // the heart-helper: one elder who keeps an eye on lonely hearts
         let matchmaker = villagers.get(27).copied();
         if let Some(mm) = matchmaker { world.add_component(mm, TownRole::Matchmaker); }
@@ -4107,6 +4114,42 @@ impl Game {
         }
     }
 
+    /// The village walks a little slower for its own: a lame leg covers
+    /// less ground in a day, and theirs check on them - kin, and the
+    /// ones whose bond runs deep
+    pub fn care_tick(&mut self, tick: u64) {
+        if tick % 7 != 2 { return; }
+        for &v in &self.villagers.clone() {
+            let Some(cond) = self.world.get_component::<villager::Condition>(v)
+                .map(|c| c.kind) else { continue };
+            if villager::is_dead(&self.world, v) { continue; }
+            // someone checks on them: kin under the same roof first,
+            // else whoever knows them best
+            let checker = household::home_of(&self.world, v)
+                .and_then(|home| self.world.get_component::<Building>(home)
+                    .map(|b| b.occupants.iter().copied()
+                        .find(|&o| o != v && !villager::is_dead(&self.world, o))))
+                .flatten()
+                .or_else(|| self.world.query::<relationships::Relationship>().iter()
+                    .filter_map(|&r| self.world.get_component::<relationships::Relationship>(r))
+                    .filter(|r| r.from != v && r.other == v)
+                    .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|r| r.from));
+            let Some(checker) = checker else { continue };
+            // the visit: a bond kept warm, and the walk there counted
+            relationships::record_interaction(&mut self.world, checker, relationships::Interaction {
+                other: v, kind: relationships::InteractionKind::Conversation, intensity: 1.2 });
+            desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
+            if tick % 21 == 2 {
+                self.say(checker, match cond {
+                    "a lame leg" => "How's the leg treating you?",
+                    "failing sight" => "Let me read it out for you.",
+                    _ => "The quiet does you good, I hope.",
+                }, CHAT_BUBBLE_SECS);
+            }
+        }
+    }
+
     /// The written word: the literate put word to those they think of -
     /// it travels a week, and the ones who can't read pay the priest a
     /// penny to hear it. The pedlar carries the post.
@@ -4652,7 +4695,10 @@ impl Game {
             if t.path.is_empty() { continue; }
             // a well-worn path is quicker underfoot
             let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
-            let stride = MEETING_WALK * (1.0 + 0.6 * worn);
+            // a lame leg covers less ground in a day
+            let slow = self.world.get_component::<villager::Condition>(t.who)
+                .map(|c| if c.kind == "a lame leg" { 0.6 } else { 1.0 }).unwrap_or(1.0);
+            let stride = MEETING_WALK * (1.0 + 0.6 * worn) * slow;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
             let ot = (p.x.round() as i32, p.y.round() as i32);
             let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);
@@ -5006,6 +5052,8 @@ impl Game {
         self.heirloom_tick(tick);
         // and the literate put word to those they think of
         self.letter_tick(tick);
+        // and theirs check on the ones who need checking on
+        self.care_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -8148,6 +8196,37 @@ mod letter_tests {
         let priest_gold = g.world.get_component::<Purse>(priest).unwrap().gold;
         assert_eq!(gold, 9.0, "a penny for the reading");
         assert_eq!(priest_gold, 1.0, "and the penny's his");
+    }
+}
+
+#[cfg(test)]
+mod care_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_village_walks_slower_for_a_lame_leg() {
+        let g = Game::new();
+        let lame = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<villager::Condition>(v)
+                .map(|c| c.kind == "a lame leg").unwrap_or(false));
+        assert!(lame.is_some(), "someone carries a difference");
+    }
+
+    #[test]
+    fn test_theirs_check_on_them() {
+        let mut g = Game::new();
+        let v = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<villager::Condition>(v).is_some()).unwrap();
+        let home = household::home_of(&g.world, v).unwrap();
+        let kin = g.world.get_component::<Building>(home).unwrap()
+            .occupants.iter().copied().find(|&o| o != v);
+        if kin.is_some() {
+            g.care_tick(2);
+            // the visit warms them - Joy's satisfied
+            assert!(g.world.get_component::<desires::InnerLife>(v)
+                .map(|l| l.satisfied.iter().any(|(w, u)| *w == Want::Joy && *u > 2))
+                .unwrap_or(false), "theirs check on them");
+        }
     }
 }
 

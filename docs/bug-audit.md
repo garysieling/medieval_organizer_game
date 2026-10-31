@@ -85,8 +85,8 @@ Items are removed from this list as their PRs land.
 - [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).
 - [ ] **W-071** `economy::run_cycle` never called — the production-chain cycle never runs in a live session.
 - [x] ~~**W-072** `sanctions::blame_worthy` never called.~~ (fixed — deleted; the blame path adds `Problem::Blamed` directly)
-- [ ] **W-073** `relationships::infer_kind` never called — relationship kinds are never re-inferred from interactions.
-- [ ] **W-074** `pets::pet_mood_boost` never called — a bonded pet gives its owner nothing.
+- [x] ~~**W-073** `relationships::infer_kind` never called — relationship kinds are never re-inferred from interactions.~~ (stale — `record_interaction` re-infers on every interaction; only the decay part of RelationshipSystem is unscheduled)
+- [x] ~~**W-074** `pets::pet_mood_boost` never called — a bonded pet gives its owner nothing.~~ (fixed — `comforting_pet` now comforts in `care_tick`)
 - [x] ~~**W-075** `tilemap::smooth_noise` never called.~~ (stale — called by terrain gen at tilemap.rs:220)
 - [x] ~~**W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.~~ (fixed)
 - [ ] **W-077** `community::exert_influence` never called — org influence is never spent through the community module.

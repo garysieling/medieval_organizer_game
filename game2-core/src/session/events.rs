@@ -965,16 +965,26 @@ impl Game {
                 }
             }
             EventId::CornFactor => {
-                // grain bought by the quarter: three servings a day off
-                // the store for fair weight, and the till fattens for it
-                let sold = self.world.get_component_mut::<villager::FoodSource>(self.market_food)
-                    .map(|f| { let s = f.servings.min(3); f.servings -= s; s }).unwrap_or(0);
-                if sold > 0 {
-                    if self.world.get_component::<Purse>(self.market_food).is_none() {
-                        self.world.add_component(self.market_food, Purse { gold: 0.0 });
+                // grain bought by the quarter: surplus only - no factor
+                // starves a village for weight - and the coin lands in
+                // the market's own hand, not the building's ledger
+                let surplus = self.world.get_component::<villager::FoodSource>(self.market_food)
+                    .map(|f| (f.servings.saturating_sub(4)).min(3)).unwrap_or(0);
+                if surplus > 0 {
+                    if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                        f.servings -= surplus;
                     }
-                    if let Some(p) = self.world.get_component_mut::<Purse>(self.market_food) {
-                        p.gold += sold as f32;
+                    let seller = self.world.get_component::<household::Building>(self.market_food)
+                        .and_then(|b| b.worker.or(b.overseer))
+                        .filter(|&w| !villager::is_dead(&self.world, w)
+                            && !crate::game::dungeon::unavailable(&self.world, w))
+                        .or_else(|| self.villagers.iter().copied()
+                            .find(|&v| !villager::is_dead(&self.world, v)
+                                && !crate::game::dungeon::unavailable(&self.world, v)));
+                    if let Some(s) = seller {
+                        if let Some(p) = self.world.get_component_mut::<Purse>(s) {
+                            p.gold += surplus as f32;
+                        }
                     }
                 }
             }
@@ -2210,13 +2220,20 @@ mod tests {
                 g.advance_rare();
             }
             let food0 = g.probe().food_servings;
+            let seller = g.world.get_component::<household::Building>(g.market_food)
+                .and_then(|b| b.worker.or(b.overseer))
+                .or_else(|| g.villagers.iter().copied()
+                    .find(|&v| !villager::is_dead(&g.world, v)));
+            let gold0 = seller.and_then(|s| g.world.get_component::<Purse>(s)).map(|p| p.gold).unwrap_or(0.0);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the corn-factor")),
                 "the frame shows the factor on {:?}", st);
             stage::run_days(&mut g, 1);
             let food1 = g.probe().food_servings;
-            let till = g.world.get_component::<Purse>(g.market_food).map(|p| p.gold).unwrap_or(0.0);
-            assert!(food1 < food0 || till > 0.0, "the quarter moved for coin on {:?}", st);
+            let gold1 = seller.and_then(|s| g.world.get_component::<Purse>(s)).map(|p| p.gold).unwrap_or(0.0);
+            assert!(food0 - food1 <= 3, "only surplus moved on {:?}", st);
+            assert!(food1 < food0 || gold1 > gold0 || g.probe().food_servings <= 4,
+                "the quarter moved for coin on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::CornFactor), "he weighed out from {:?}", st);
         }

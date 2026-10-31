@@ -1044,7 +1044,9 @@ impl Game {
                     self.mush_patches.truncate(kept);
                     for t in self.travels.iter_mut() {
                         if let Goal::ForageShroom(pi) = t.goal {
-                            if pi >= kept { t.goal = Goal::Wander; }
+                            // the cap's gone - they stand where they are,
+                            // they don't finish the dead walk to it
+                            if pi >= kept { t.goal = Goal::Wander; t.path.clear(); }
                         }
                     }
                 }

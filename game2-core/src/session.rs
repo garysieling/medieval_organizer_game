@@ -7668,9 +7668,11 @@ impl View {
             .zip(&m.ctx_blocked).collect::<Vec<_>>() {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             draw_button(&mut buf, &b, hover, reason.is_some());
-            // a greyed-out button always says why, same as the main row
+            // a greyed-out button always says why, same as the main row -
+            // level with the button, not below it: Meet/March sit on the
+            // campaign's own rows and the status text owns the space below
             if let Some(r) = &reason {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, r, 200, 140, 120);
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 200, 140, 120);
             }
         }
 

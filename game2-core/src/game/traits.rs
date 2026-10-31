@@ -1,7 +1,6 @@
 //! Traits: villager personalities that shape behavior.
 //! Each villager has traits that emerge in how they act/react.
 
-use crate::engine::ecs::{Entity, World};
 
 /// A personality trait
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -42,11 +41,6 @@ pub fn modifies(p: &Personality, behavior: &str) -> f32 {
         };
     }
     modifier
-}
-
-/// Spawn a personality for a villager
-pub fn spawn_personality(world: &mut World, e: Entity, traits: Vec<Trait>) {
-    world.add_component(e, Personality { traits });
 }
 
 /// Pick random-ish traits from seed

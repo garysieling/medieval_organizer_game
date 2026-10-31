@@ -3,7 +3,6 @@
 //! Fractal midpoint displacement (diamond-square) for realistic
 //! heightmaps. Emergent property: complexity from simple rules.
 
-use crate::engine::ecs::World;
 
 /// Terrain heightmap
 #[derive(Debug)]
@@ -199,12 +198,6 @@ impl Terrain {
         }
         s
     }
-}
-
-/// Spawn terrain as ECS component
-pub fn spawn_terrain(world: &mut World, terrain: Terrain) {
-    let e = world.create_entity();
-    world.add_component(e, terrain);
 }
 
 #[cfg(test)]

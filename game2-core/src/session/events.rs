@@ -255,7 +255,6 @@ pub fn initial_due(seed: u64) -> Vec<(EventId, u64)> {
 const OMENS: &[(EventId, &str)] = &[
     (WolfAtFold, "wolf tracks in the mud by the fold - the dogs won't settle"),
     (FoxInYard, "the hens won't settle at dusk - something prowls the hedges"),
-    (RatPlague, "the rats are bold this year - bold as daylight"),
 ];
 /// Days ahead an omen lands
 const OMEN_LEAD: u64 = 5;

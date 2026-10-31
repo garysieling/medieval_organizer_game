@@ -544,6 +544,31 @@ impl Game {
                     wrote += 1;
                 }
             }
+            EventId::ToothDrawer => {
+                // one bad tooth a day: the worst jaw in reach gets the
+                // pull, a penny the tooth - quick as a wink, he swears
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mark = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                            .unwrap_or(false)
+                        && self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false)
+                        && self.world.get_component::<Health>(v).map(|h| h.condition < 0.9).unwrap_or(false))
+                    .min_by(|&a, &b| {
+                        let ha = self.world.get_component::<Health>(a).map(|h| h.condition).unwrap_or(1.0);
+                        let hb = self.world.get_component::<Health>(b).map(|h| h.condition).unwrap_or(1.0);
+                        ha.partial_cmp(&hb).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                if let Some(v) = mark {
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition + 0.05).min(1.0);
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, "Out with it! - that's that, then.", CHAT_BUBBLE_SECS);
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -887,6 +912,36 @@ mod tests {
                 "a letter went out for her on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Scribe), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The worst jaw in reach gets the pull, a penny the tooth - and the
+    /// frame showed the drawer at his stool first
+    #[test]
+    fn test_the_toothdrawer_pulls_the_worst_jaw() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Fever] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::ToothDrawer);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::ToothDrawer && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::ToothDrawer).and_then(|r| r.at).unwrap();
+            // a bad jaw by his stool: a living one with a coin for the pull
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Health>(v).unwrap().condition = 0.4;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the tooth-drawer")),
+                "the frame shows the drawer on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Health>(v).unwrap().condition > 0.4,
+                "the pull eased her on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::ToothDrawer), "he moved on from {:?}", st);
         }
     }
 

@@ -5371,8 +5371,11 @@ impl Game {
             }
             Goal::Wander => {}
             Goal::Eat => {
-                // a real meal off the store: a serving goes, the belly fills
-                let served = self.world.get_component_mut::<villager::FoodSource>(self.market_food)
+                // a real meal off the store - if the day's hunger system
+                // already fed them mid-errand, no second helping goes down
+                let still_hungry = self.world.get_component::<Hunger>(who)
+                    .map(|h| h.value < 100.0).unwrap_or(false);
+                let served = still_hungry && self.world.get_component_mut::<villager::FoodSource>(self.market_food)
                     .map(|f| { if f.servings > 0 { f.servings -= 1; true } else { false } })
                     .unwrap_or(false);
                 if served {
@@ -7019,6 +7022,8 @@ impl Game {
                 match self.map.walk_path(
                     self.world.get_component::<Pos>(who).map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(p), p)
                 {
+                    // already standing at the store: eat now, no walk to take
+                    Some(path) if path.is_empty() => { self.arrive(who, Goal::Eat); Ok(()) }
                     Some(path) => { self.travels.retain(|t| t.who != who); self.travels.push(Travel { who, path, goal: Goal::Eat }); Ok(()) }
                     None => Err("no way to the store".into()),
                 }

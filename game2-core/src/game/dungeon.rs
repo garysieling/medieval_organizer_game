@@ -49,6 +49,14 @@ pub struct ReleaseCampaign {
     pub pressure: f32,
 }
 
+/// Which campaign exists to free this prisoner - a dedicated release
+/// campaign is retired when they walk; a cause's own campaign isn't
+/// touched
+#[derive(Debug)]
+pub struct ReleaseOf {
+    pub campaign: Entity,
+}
+
 /// Found a campaign for a prisoner's release: the issue is a person, so
 /// there are no dissenters and the framing is duty. The sympathetic join
 /// directly - nobody needs to be organized into caring.
@@ -56,6 +64,7 @@ pub fn found_release_campaign(world: &mut World, org: Entity, prisoner: Entity, 
     let vote = campaign::IssueVote { winner: "the prisoners".into(), ballots: vec![] };
     let c = campaign::found_campaign(world, org, &vote, Framing::MoralDuty, DecisionRule::Consensus, founded_day);
     world.add_component(prisoner, ReleaseCampaign { pressure: 0.0 });
+    world.add_component(prisoner, ReleaseOf { campaign: c });
     c
 }
 
@@ -103,6 +112,13 @@ pub fn release_check(world: &mut World, prisoner: Entity, resistance: f32) -> bo
     if !holds { return false; }
     world.remove_component::<Imprisoned>(prisoner);
     world.remove_component::<ReleaseCampaign>(prisoner);
+    // a campaign raised just for this prisoner is spent with the release;
+    // anything else the org fights for marches on
+    if let Some(rc) = world.get_component::<ReleaseOf>(prisoner).map(|r| r.campaign) {
+        world.remove_component::<campaign::Campaign>(rc);
+        world.remove_component::<campaign::CampaignMeeting>(rc);
+        world.remove_component::<ReleaseOf>(prisoner);
+    }
     true
 }
 
@@ -174,13 +190,15 @@ mod tests {
         let (o, _) = org_and_campaign(&mut w, &[]);
         let prisoner = member(&mut w);
         w.add_component(prisoner, Imprisoned { since: 3, charge: "sedition".into() });
-        let _c = found_release_campaign(&mut w, o, prisoner, 4);
+        let c = found_release_campaign(&mut w, o, prisoner, 4);
 
         press(&mut w, prisoner, 0.3);
         assert!(!release_check(&mut w, prisoner, 1.0), "one letter is not pressure");
         press(&mut w, prisoner, 0.8);
         assert!(release_check(&mut w, prisoner, 1.0), "but letters that never stop are");
         assert!(!unavailable(&w, prisoner), "the cell opens");
-        assert!(!release_check(&mut w, prisoner, 0.1), "and it's spent - the campaign's purpose is done");
+        // the spent campaign's purpose is done - the org can take a new cause
+        assert!(w.get_component::<campaign::Campaign>(c).is_none());
+        assert!(!release_check(&mut w, prisoner, 0.1), "and it's spent");
     }
 }

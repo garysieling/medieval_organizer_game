@@ -1141,9 +1141,10 @@ impl Game {
             }).collect();
         if brawlers.is_empty() {
             // a brawl's still a brawl if the street's free - but a man
-            // in the lock-up is no man for a punch-up
-            brawlers = self.villagers.iter().take(4).copied()
-                .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).collect();
+            // in the lock-up is no man for a punch-up: the able come
+            // first, the window after
+            brawlers = self.villagers.iter().copied()
+                .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).take(4).collect();
         }
         brawlers.truncate(2);
         let names: Vec<String> = brawlers.iter().map(|&v| self.name_of(v)).collect();

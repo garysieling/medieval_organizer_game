@@ -4548,6 +4548,9 @@ impl Game {
                         // alone - a writ at max repression is a gibbet
                         let name = self.name_of(m);
                         self.world.add_component(m, villager::Dead);
+                        if let Some(i) = self.villagers.iter().position(|&x| x == m) {
+                            self.died_on[i] = Some(tick);
+                        }
                         if let Some(p) = self.world.get_component::<Pos>(m) {
                             self.martyr_grave = Some((p.x.round() as i32, p.y.round() as i32));
                         }
@@ -4634,6 +4637,9 @@ impl Game {
                 }
             } else {
                 self.world.add_component(who, villager::Dead);
+                if let Some(i) = self.villagers.iter().position(|&x| x == who) {
+                    self.died_on[i] = Some(tick);
+                }
                 self.log.push(format!("t{}: no ransom came - {} is hanged at the castle.", tick, name));
             }
         }

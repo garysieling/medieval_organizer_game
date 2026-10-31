@@ -4592,7 +4592,8 @@ impl Game {
             // folk don't forget the man inside: a little pressure gathers
             // every day even when nobody's pressing - a cell can't hold
             // a name forever on suspicion alone
-            if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
+            if !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
                 crate::game::dungeon::press(&mut self.world, v, 0.02);
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = self.name_of(v);

@@ -6026,7 +6026,7 @@ impl Game {
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
                        self.action_blocker_at(seat, 3), self.action_blocker_at(seat, 4)];
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
-            self.building_inspector()
+            self.building_inspector_at(seat)
         } else {
             Some(self.villager_inspector_at(seat))
         };
@@ -6076,9 +6076,9 @@ impl Game {
         }
     }
 
-    /// The inspector card for the selected building
-    fn building_inspector(&self) -> Option<InspectorV> {
-        let bi = self.selected_building?;
+    /// The inspector card for the building this seat clicked
+    fn building_inspector_at(&self, seat: usize) -> Option<InspectorV> {
+        let bi = self.seats[seat].selected_building?;
         let be = *self.building_entities.get(bi)?;
         let world = &self.world;
         let b = world.get_component::<Building>(be)?;

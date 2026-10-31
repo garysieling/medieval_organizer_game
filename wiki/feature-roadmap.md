@@ -32,23 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F25. The lord's arm — castle writ, dungeon, hostage rent
-
-*Brainstorm "castles & dungeons"; `game/military.rs`, `factions.rs` exist.*
-
-**What.** The off-map lord stops being pure text: a bailiff rides in with
-writs — a levy (X grain), a fee (X gold), or a summons (one person for
-"questioning"). Orgs can comply, bargain (F14 power), or defy (F13
-counter-sanction: the levy wagon ambushed, tithe-barn picketed).
-
-**Spec.** `LordEdict` events on a seasonal cadence + crisis triggers;
-compliance costs goods/gold; defiance seeds `Repression` (bailiff
-returns with knights — stocks/dungeon for the ringleader, who must be
-ransomed or rescued by org action). The village's relationship with the
-castle becomes a legible meter made of incidents, not a stat. **Size: L.**
-
----
-
 ### F26. Hard winter as a seasonal scenario inside game_ui
 
 *`bin/hard_winter.rs` exists standalone; `feat/hard-winter-scenario`

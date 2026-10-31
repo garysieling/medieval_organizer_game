@@ -1119,7 +1119,8 @@ impl Game {
                 // lime for the fields: folk carry it out to the beds
                 // while he stands - the soil grows the sweeter for it
                 for g in self.gardens.iter_mut() {
-                    g.2 = (g.2 + 0.02).min(1.0);
+                    // no cap - a bed past ripe stays past ripe
+                    g.2 += 0.02;
                 }
             }
             EventId::NewsCrier => {

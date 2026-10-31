@@ -1661,6 +1661,13 @@ pub struct Game {
     pub reckonings: u32,
     /// A sky event rides over the walls: ("comet"/"eclipse", the day it goes)
     pub sky: Option<(&'static str, u64)>,
+    /// The disclosure: (who found it, what they found, the day it was found)
+    /// while it stays unsaid
+    pub pending_discovery: Option<(Entity, &'static str, u64)>,
+    /// Whether the discovery's been made public
+    pub disclosure_made: bool,
+    /// How many the herb-wife's turned - proof the old cures work
+    pub cured: u32,
 }
 
 /// How a village keeps its accounts
@@ -2384,6 +2391,9 @@ impl Game {
             translator: None,
             reckonings: 0,
             sky: None,
+            pending_discovery: None,
+            disclosure_made: false,
+            cured: 0,
         }
     }
 
@@ -3958,6 +3968,44 @@ impl Game {
         }
     }
 
+    /// The disclosure: a truth sits unsaid until it ripens, then it
+    /// comes out - and the power it threatens answers. A strong org
+    /// shields the discoverer; a weak one leaves him to the ladder.
+    pub fn discovery_tick(&mut self, tick: u64) {
+        if tick % 30 != 20 || self.disclosure_made { return; }
+        if let Some((who, found, day)) = self.pending_discovery {
+            // it ripens a fortnight, then comes out in a whisper
+            if tick >= day + 14 {
+                self.pending_discovery = None;
+                self.disclosure_made = true;
+                let name = self.name_of(who);
+                self.log.push(format!("t{}: {} whispers it about - {}. The word's out now.", tick, name, found));
+                if self.lord_esteem > 0.4 {
+                    // an org worth the name stands with its own
+                    self.log.push(format!("t{}: the village stands with {} - the truth was theirs to say.", tick, name));
+                    self.say(who, "I said what I saw. That's all I did.", CHAT_BUBBLE_SECS * 2);
+                } else {
+                    // no one to stand with him: the threatened move - and
+                    // the ladder's there for a man who talks treason
+                    for _ in 0..3 {
+                        desires::add_grievance(&mut self.world, who, desires::Problem::Blamed, tick + 90);
+                    }
+                    self.say(who, "I only said what I saw.", CHAT_BUBBLE_SECS * 2);
+                }
+            }
+            return;
+        }
+        // what there is to find: the clerk's tallies, the old cures
+        let found = if let Some(t) = self.translator {
+            Some((t, "the lord's fifth is really a quarter"))
+        } else if self.cured >= 3 {
+            self.herbologist.map(|h| (h, "the old cures work, doctrine or no"))
+        } else { None };
+        if let Some((who, found)) = found {
+            self.pending_discovery = Some((who, found, tick));
+        }
+    }
+
     /// People power: it builds as the org spends it and atrophies when
     /// idle - and the lord's estimate lags behind the truth, for he only
     /// learns what the street shows him
@@ -4479,6 +4527,7 @@ impl Game {
                         if let Some(p) = self.world.get_component_mut::<Purse>(her) { p.gold += fee; }
                         let patient = self.villagers.iter().position(|v| *v == who).map(|i| NAMES[i]).unwrap_or("someone");
                         self.say(her, "Steep it and rest - it'll turn.", CHAT_BUBBLE_SECS);
+                        self.cured += 1;
                         self.log.push(format!("t{}: {} treats {}'s {}.", tick, NAMES[HERB_IDX], patient, illness.unwrap_or_else(|| "illness".into())));
                     }
                     None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
@@ -4596,6 +4645,8 @@ impl Game {
         self.power_tick(tick);
         // and now and then something rides over the walls
         self.sky_tick(tick);
+        // and a truth sits unsaid somewhere, ripening
+        self.discovery_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -7363,6 +7414,43 @@ mod sky_tests {
         // and it burns out
         g.sky_tick(160);
         assert!(g.sky.is_none(), "it burns for three nights, no more");
+    }
+}
+
+#[cfg(test)]
+mod disclosure_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_truth_ripens_and_comes_out() {
+        let mut g = Game::new();
+        let cleric = g.villagers[5];
+        g.translator = Some(cleric);
+        g.discovery_tick(20);
+        assert!(g.pending_discovery.is_some(), "a truth sits unsaid");
+        g.discovery_tick(50); // past the fortnight
+        assert!(g.disclosure_made, "the word's out");
+        assert!(g.log.iter().any(|l| l.contains("whispers it about")),
+            "it comes out in a whisper");
+        // weak org: the threatened move - blame lands on the discoverer
+        let blame = desires::problems_of(&g.world, cleric, 50)
+            .iter().filter(|p| **p == desires::Problem::Blamed).count();
+        assert!(blame >= 1, "the ladder's there for a man who talks treason");
+    }
+
+    #[test]
+    fn test_a_strong_org_stands_with_its_own() {
+        let mut g = Game::new();
+        let cleric = g.villagers[5];
+        g.translator = Some(cleric);
+        g.lord_esteem = 0.5;
+        g.pending_discovery = Some((cleric, "the lord's fifth is really a quarter", 20));
+        g.discovery_tick(50);
+        assert!(g.disclosure_made);
+        let blame = desires::problems_of(&g.world, cleric, 50)
+            .iter().filter(|p| **p == desires::Problem::Blamed).count();
+        assert_eq!(blame, 0, "the village stands with him");
+        assert!(g.log.iter().any(|l| l.contains("stands with")));
     }
 }
 

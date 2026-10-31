@@ -32,23 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F23. The disclosure — a Galileo-style showdown
-
-*`sprint-7-galileo-showdown.md`; climax of F21/F22/printmaker threads.*
-
-**What.** Rarely, a character makes a discovery (an omen pattern true, a
-remedy that works against doctrine, a number that exposes the tax
-reckoning). They may disclose it; threatened orgs react.
-
-**Spec.** `Discovery { kind, threatens: Vec<OrgKind> }`; disclosure
-choice (whisper, pamphlet, pulpit) → each threatened org responds from
-F14 perceived-power: ignore / denounce / sanction (F13) / adopt. The
-player can be the discoverer or the protector. The review's ally-buffer
-model: patrons and guilds absorb backlash. This is a capstone — it pays
-off a dozen earlier systems at once. **Size: L.**
-
----
-
 ### F24. The travelling circus
 
 *Brainstorm "travelling circus — joining means you leave with them."*

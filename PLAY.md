@@ -134,7 +134,11 @@ bad tallies and a clerk steps up to keep them straight. And now and
 then something rides over the walls - a comet, an eclipse - and the
 whole village looks up, and each reads it by what they carry: the
 priest sees warning, the herb-wife a gathering-night, the blamed sees
-it burn for them.
+it burn for them. And a truth sits unsaid somewhere until it ripens -
+the clerk's tallies show the lord's fifth is really a quarter, the old
+cures work doctrine or no - and when it comes out, the power it
+threatens answers: a strong org stands with its own, a weak one leaves
+the discoverer to the ladder.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

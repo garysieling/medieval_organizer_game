@@ -23,7 +23,7 @@ use crate::game::villager::{self, Pos};
 use crate::game::household;
 use crate::sim::illness::Health;
 use crate::game::mycology::MushKind;
-use super::{Game, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
+use super::{Game, Goal, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
 
 /// Which of the hundred
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1035,12 +1035,18 @@ impl Game {
                 }
             }
             EventId::MushroomFlush => {
-                // the flush's own caps are picked through - its bonus
-                // patches (the last `aux` pushed) go to ground for good
+                // the flush's own caps are picked through: its bonus
+                // patches (the last `aux` pushed) leave the wood for good,
+                // and anyone mid-walk to one wanders home instead
                 let added = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) as usize;
                 if added > 0 {
-                    let n = self.mush_patches.len();
-                    for p in self.mush_patches.iter_mut().skip(n - added) { p.next_ready = tick + 365 * 99; }
+                    let kept = self.mush_patches.len() - added;
+                    self.mush_patches.truncate(kept);
+                    for t in self.travels.iter_mut() {
+                        if let Goal::ForageShroom(pi) = t.goal {
+                            if pi >= kept { t.goal = Goal::Wander; }
+                        }
+                    }
                 }
                 self.log.push(format!("t{}: the flush is picked through - the shade keeps what it keeps.", tick));
             }

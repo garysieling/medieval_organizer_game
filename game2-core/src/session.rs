@@ -1867,6 +1867,9 @@ pub struct Game {
     /// blame roll off it, never off `rng`, so the wood doesn't shift
     /// what the village would have rolled either
     pub shroom_rng: Rng,
+    /// The safety note's told its piece: real cap traits in-world carry
+    /// the disclaimer once, where folk will read it
+    pub shroom_disclaimed: bool,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to
@@ -2695,6 +2698,7 @@ impl Game {
             shroom_lore: vec![],
             ailments: vec![],
             shroom_rng: Rng(seed ^ 0xCA45),
+            shroom_disclaimed: false,
             apiary,
             beekeeper,
             hives,
@@ -3953,6 +3957,15 @@ impl Game {
         self.send_tile_walk(who, t, Goal::ForageShroom(pi), 16)
     }
 
+    /// The safety note from the lit review: real traits in-world carry
+    /// the disclaimer, once, where folk will read it
+    fn disclaim_traits_once(&mut self) {
+        if !self.shroom_disclaimed {
+            self.shroom_disclaimed = true;
+            self.log.push(mycology::FORAGING_DISCLAIMER.to_string());
+        }
+    }
+
     /// The cap tells its story - or doesn't. The read decides what they
     /// THINK it is: a skilled eye sees the true kind, a hungry one sees
     /// the lookalike, and folk rules ("a poisoned cap blackens silver")
@@ -3973,6 +3986,7 @@ impl Game {
         if !believed.believed_edible() {
             // they leave what they think is a gut-turn or death
             let line = if right { spec.trait_line } else { "Off-colour gills. Leave them." };
+            if right { self.disclaim_traits_once(); }
             self.say(who, line, TALK_BUBBLE_SECS);
             return;
         }
@@ -4219,10 +4233,12 @@ impl Game {
         }
     }
 
-    /// How wet the harvest ran: ergot loves a sodden year on the rye.
-    /// The mean of autumn's first month - the days that swell the grain
-    fn harvest_wetness(&self) -> f32 {
-        (180..=210).map(|d| climate::wetness(Season::Autumn, d)).sum::<f32>() / 31.0
+    /// How wet this year's harvest ran: ergot loves a sodden year on the
+    /// rye. The mean of the thirty days before the rye comes in - absolute
+    /// days, so a wet year reads wet and a dry one dry
+    fn harvest_wetness(&self, tick: u64) -> f32 {
+        let lo = tick.saturating_sub(30);
+        (lo..=tick).map(|d| climate::wetness(Season::Autumn, d as u32)).sum::<f32>() / (tick - lo + 1) as f32
     }
 
     /// A poor soul gathers in the wood when the larder or the purse runs
@@ -4253,7 +4269,7 @@ impl Game {
         self.ailment_tick(tick);
         // a damp year: the rye carries the fire and the bread gets the blame.
         // The wetter the harvest the surer the outbreak
-        let chance = (self.harvest_wetness() * 30.0) as i32;
+        let chance = (self.harvest_wetness(tick) * 30.0) as i32;
         if tick % 365 == 210 && self.rng.below(100) < chance { self.ergot(tick); }
     }
 
@@ -4320,8 +4336,13 @@ impl Game {
                     self.ailments.push(PendingAil { who: a.who, due: tick + 4, phase: AilPhase::ShroomLiver });
                 }
                 // the liver gives out, days after the meal - few walk back
-                // from this
+                // from this. Unless the herb-wife turned it: a belly she
+                // cleared in the window stays clear
                 AilPhase::ShroomLiver => {
+                    let still_sick = self.world.query::<Disease>().iter().any(|&d|
+                        self.world.get_component::<Disease>(d)
+                            .map(|dd| dd.patient == a.who && dd.name == "a bad belly").unwrap_or(false));
+                    if !still_sick { continue; }
                     let d = self.world.create_entity();
                     let mut liver = Disease::new(DiseaseKind::Gripes, a.who, 0.85);
                     liver.name = "the liver gives out".into();
@@ -4353,7 +4374,7 @@ impl Game {
     fn ergot(&mut self, tick: u64) {
         // the wetter the harvest the wider the fire: a sodden year's rye
         // carries more of it
-        let victims = 2 + if self.harvest_wetness() > 0.45 { 2 } else { 0 };
+        let victims = 2 + if self.harvest_wetness(tick) > 0.45 { 2 } else { 0 };
         for &v in self.villagers.iter().take(victims) {
             if !villager::is_dead(&self.world, v) {
                 // most take the convulsive fire; some the burning one -
@@ -9412,7 +9433,7 @@ mod shroom_tests {
             g.world.get_component::<Disease>(d)
                 .map(|dd| dd.name == "the convulsive fire" || dd.name == "the burning fire")
                 .unwrap_or(false)).count();
-        let want = 2 + if g.harvest_wetness() > 0.45 { 2 } else { 0 };
+        let want = 2 + if g.harvest_wetness(210) > 0.45 { 2 } else { 0 };
         assert_eq!(n_fire, want, "the wet year's toll");
         // somebody carries the blame - the baker if there is one
         let blamed = g.villagers.iter().copied().any(|v|

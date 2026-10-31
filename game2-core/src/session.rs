@@ -4447,7 +4447,7 @@ impl Game {
         // coming a few days before it lands - time to gather, to bargain,
         // or to hide the grain
         if tick % 120 == 76 {
-            self.log.push(format!("t{}: word on the road - the bailiff rides this way. If the village stands against the writ, now's the time to gather.", tick));
+            self.log.push(format!("t{}: word on the road - the bailiff rides this way. A writ comes down in a few days.", tick));
         }
         if tick % 120 != 80 { return; }
         let kind = (tick / 120) % 3;

@@ -35,3 +35,4 @@ pub mod vocation;
 pub mod desires;
 pub mod household;
 pub mod livelihood;
+pub mod campaign;

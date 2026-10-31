@@ -47,7 +47,8 @@ pub enum EventId {
     OwlInTower, CrowsMob, FishRun,
     // ill luck
     ChimneyFire, FouledWell, GranaryLeak, CartOverturns, DrownedInPond,
-    LostChild, Foundling, Quarrel, AlehouseBrawl, OldOakFalls,
+    LostChild, Foundling, Quarrel, AlehouseBrawl, OldOakFalls, Assize,
+    CellarThief,
     // findings
     CoinHoard, OldStones, SpringBubbles, HoneyTree, Truffle, HerbFlush,
     BerryYear, MushroomFlush, StormWashUp, ProdigalSon,
@@ -194,6 +195,8 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: Foundling, name: "a foundling", kind: Moment, fig: Fig::Traveller, gap: 500, span: 380, stay: 0, cry: "" },
     EventSpec { id: Quarrel, name: "a quarrel in the square", kind: Moment, fig: Fig::Traveller, gap: 200, span: 140, stay: 0, cry: "" },
     EventSpec { id: AlehouseBrawl, name: "an alehouse brawl", kind: Moment, fig: Fig::Traveller, gap: 260, span: 180, stay: 0, cry: "" },
+    EventSpec { id: Assize, name: "the assize of ale", kind: Moment, fig: Fig::Traveller, gap: 200, span: 140, stay: 0, cry: "" },
+    EventSpec { id: CellarThief, name: "a thief in the night", kind: Moment, fig: Fig::Traveller, gap: 240, span: 160, stay: 0, cry: "" },
     EventSpec { id: OldOakFalls, name: "the old oak falls", kind: Moment, fig: Fig::Traveller, gap: 600, span: 400, stay: 0, cry: "" },
     // ---- findings ----
     EventSpec { id: CoinHoard, name: "a coin hoard", kind: Moment, fig: Fig::Traveller, gap: 500, span: 380, stay: 0, cry: "" },
@@ -556,6 +559,22 @@ impl Game {
                     }
                 }
             }
+            EventId::WineMerchant => {
+                // "a cup before you buy": anyone in reach with a thirst
+                // pays the pedlar's price for the road's vintage
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Drink, tick) { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Drink, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 2.0; }
+                }
+            }
             _ => {}
         }
     }
@@ -575,7 +594,123 @@ impl Game {
     /// A moment's blow, all on the day
     fn event_moment(&mut self, id: EventId) {
         let s = spec(id);
-        self.log.push(format!("t{}: {}.", self.tick, s.name));
+        match id {
+            EventId::AlehouseBrawl => self.brawl_moment(),
+            EventId::Assize => self.assize_moment(),
+            EventId::CellarThief => self.cellar_thief_moment(),
+            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+        }
+    }
+
+    /// The alehouse earns its other name: a cup in and the insults come
+    /// out. Bruises, not blades - the drunk and the thirsty swing first
+    fn brawl_moment(&mut self) {
+        // where the drink pours; else the market stands in for a taproom
+        let taproom = self.building_entities.iter().copied().find(|&be|
+            self.world.get_component::<household::Building>(be)
+                .map(|b| matches!(b.kind, household::BuildingKind::Shop(
+                    crate::game::vocation::Vocation::Alewife | crate::game::vocation::Vocation::Brewer
+                    | crate::game::vocation::Vocation::Vintner | crate::game::vocation::Vocation::Distiller))
+                    && b.stock.iter().any(|(g, q)| crate::game::vocation::is_drink(g) && *q > 0))
+                .unwrap_or(false));
+        let at = taproom.and_then(|be| self.world.get_component::<Pos>(be).copied())
+            .or_else(|| self.world.get_component::<Pos>(self.market_food).copied());
+        let mut brawlers: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::vocation::TownRole>(v).is_none())
+            .filter(|&v| {
+                let drunk = self.world.get_component::<villager::Drunk>(v)
+                    .map(|d| self.tick < d.until).unwrap_or(false);
+                let near = at.map(|a| self.world.get_component::<Pos>(v)
+                    .map(|p| (p.x - a.x).abs() + (p.y - a.y).abs() < 8.0).unwrap_or(false))
+                    .unwrap_or(false);
+                drunk || near
+            }).collect();
+        if brawlers.is_empty() {
+            brawlers = self.villagers.iter().take(4).copied()
+                .filter(|&v| !villager::is_dead(&self.world, v)).collect();
+        }
+        brawlers.truncate(2);
+        let names: Vec<String> = brawlers.iter().map(|&v| self.name_of(v)).collect();
+        for &v in &brawlers {
+            if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                h.condition = (h.condition - 0.05).max(0.05);
+            }
+            self.say(v, "Say that again!", CHAT_BUBBLE_SECS);
+        }
+        let place = taproom
+            .and_then(|be| self.world.get_component::<household::Building>(be).map(|b| b.name.clone()))
+            .unwrap_or_else(|| "the market".into());
+        self.log.push(format!("t{}: an alehouse brawl at {} - {} come to blows over a spilled cup.",
+            self.tick, place, names.join(" and ")));
+    }
+
+    /// The assize of ale: the taster walks the drink-shops. Thin brews
+    /// are fined; an honest master's name is praised
+    fn assize_moment(&mut self) {
+        let mut heard = false;
+        for &v in &self.villagers.clone() {
+            let Some(c) = self.world.get_component::<crate::game::vocation::Craft>(v) else { continue };
+            if !matches!(c.vocation, crate::game::vocation::Vocation::Alewife
+                | crate::game::vocation::Vocation::Brewer | crate::game::vocation::Vocation::Vintner
+                | crate::game::vocation::Vocation::Distiller) { continue; }
+            heard = true;
+            let name = self.name_of(v);
+            if crate::game::vocation::level_of(c.skill) == crate::game::vocation::Level::Master {
+                self.log.push(format!("t{}: the ale-taster calls {}'s brew honest and true.", self.tick, name));
+                desires::satisfy(&mut self.world, v, Want::Mastery, self.tick + 60);
+            } else {
+                if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                    p.gold = (p.gold - 3.0).max(0.0);
+                }
+                self.log.push(format!("t{}: the ale-taster fines {} - thin stuff, barely worth the water.", self.tick, name));
+            }
+        }
+        if !heard {
+            self.log.push(format!("t{}: the ale-taster rides through - no brewer's bench to judge here.", self.tick));
+        }
+    }
+
+    /// A cellar worth robbing is a cellar worth watching: the drink
+    /// trade's stock draws a thief in the night, and the watch earns
+    /// its keep when one walks the walls
+    fn cellar_thief_moment(&mut self) {
+        // the fattest drink-stock in the village draws him
+        let mark = self.building_entities.iter().copied()
+            .filter_map(|be| self.world.get_component::<household::Building>(be)
+                .map(|b| (be, b.stock.iter()
+                    .filter(|(g, _)| crate::game::vocation::is_drink(g))
+                    .map(|(g, q)| crate::game::vocation::price(g) * *q as f32).sum::<f32>())))
+            .filter(|(_, v)| *v >= 20.0)
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(be, _)| be);
+        let Some(mark) = mark else {
+            self.log.push(format!("t{}: a thief slips through in the night - but finds no fat cellar.", self.tick));
+            return;
+        };
+        // a living watch is why a fat cellar locks its door
+        let watched = self.villagers.iter().copied().any(|v|
+            !villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::game::vocation::Craft>(v)
+                    .map(|c| c.vocation == crate::game::vocation::Vocation::Knight).unwrap_or(false));
+        let name = self.world.get_component::<household::Building>(mark)
+            .map(|b| b.name.clone()).unwrap_or_else(|| "a cellar".into());
+        if watched {
+            self.log.push(format!("t{}: the watch catches a thief at {} - the good stock stays.", self.tick, name));
+            return;
+        }
+        // half the drink walks off; the shop's keeper wears the grievance
+        let worker = self.world.get_component::<household::Building>(mark).and_then(|b| b.worker);
+        if let Some(b) = self.world.get_component_mut::<household::Building>(mark) {
+            for g in ["ale", "beer", "wine", "spirits"] {
+                let q = b.stock.get(g).copied().unwrap_or(0);
+                household::take_stock(b, g, (q + 1) / 2);
+            }
+        }
+        if let Some(w) = worker {
+            desires::add_grievance(&mut self.world, w, desires::Problem::Robbed, self.tick + 60);
+        }
+        self.log.push(format!("t{}: a thief in the night - half the drink walks out of {}.", self.tick, name));
     }
 
     /// A visitor's last day: what it leaves behind
@@ -636,10 +771,10 @@ mod tests {
     use crate::session::stage;
     use crate::session::PKind;
 
-    /// The whole registry is a hundred events, every id exactly once
+    /// The whole registry's its hundred and counting, every id once
     #[test]
     fn test_the_registry_is_a_hundred() {
-        assert_eq!(EVENTS.len(), 100);
+        assert_eq!(EVENTS.len(), 102);
         for i in 0..EVENTS.len() {
             for j in (i + 1)..EVENTS.len() {
                 assert_ne!(EVENTS[i].id, EVENTS[j].id, "duplicate id in the registry");

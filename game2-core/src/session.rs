@@ -1357,6 +1357,14 @@ const VOCATION_ROLL: [(Vocation, i32); 10] = [
     (Vocation::Glazier, 5),
 ];
 
+/// The trades that keep a village drinking: exactly one is guaranteed
+/// at spawn, rolled off the seed - an alehouse, a brewery, a vintner's
+/// or a still. They never come up in the open roll, so no village gets
+/// two taps and none goes dry
+pub const DRINK_TRADES: [Vocation; 4] = [
+    Vocation::Alewife, Vocation::Brewer, Vocation::Vintner, Vocation::Distiller,
+];
+
 /// Roll a vocation by its weighted table (shareable by player spawns)
 fn roll_vocation(rng: &mut Rng) -> Vocation {
     let total: i32 = VOCATION_ROLL.iter().map(|(_, w)| w).sum();
@@ -2089,13 +2097,29 @@ impl Game {
                 && v != Vocation::Painter && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
             .unwrap_or(swap5);
         adult_vocs[swap6] = Vocation::Fisher;
+        // and the drink trade: every village keeps one - this village's
+        // is rolled off the seed (alehouse, brewery, vintner's or still).
+        // A later duplicate of an unforced trade gives way first; failing
+        // that, any unforced trade does - the forced benches keep theirs
+        let drink_voc = DRINK_TRADES[rng.below(DRINK_TRADES.len() as i32) as usize];
+        let forced = |v: Vocation| matches!(v,
+            Vocation::Farmer | Vocation::Shepherd | Vocation::Beekeeper | Vocation::Weaver
+            | Vocation::Perfumer | Vocation::Painter | Vocation::Fisher
+            | Vocation::Alewife | Vocation::Brewer | Vocation::Vintner | Vocation::Distiller);
+        let swap7 = adult_vocs.iter().rposition(|&v| !forced(v)
+                && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
+            .or_else(|| adult_vocs.iter().rposition(|&v| !forced(v)))
+            .unwrap_or(swap6);
+        adult_vocs[swap7] = drink_voc;
         for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
         let mut shop_kinds: Vec<BuildingKind> = vec![];
         for v in vocs_present {
             // the fold and the apiary stand apart, seeded on their own
             if v == Vocation::Shepherd || v == Vocation::Beekeeper { continue; }
             // the trades a feature hangs on always keep their house
-            let must = matches!(v, Vocation::Weaver | Vocation::Perfumer | Vocation::Painter | Vocation::Fisher);
+            let must = matches!(v, Vocation::Weaver | Vocation::Perfumer | Vocation::Painter
+                | Vocation::Fisher | Vocation::Alewife | Vocation::Brewer | Vocation::Vintner
+                | Vocation::Distiller);
             if must || rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
         }
         // the smithy, church and guildhall already stand: shop for the
@@ -2571,7 +2595,8 @@ impl Game {
             tick: 0,
             paused: false,
             speed: 1,
-            log: vec!["Welcome to the village.".into()],
+            log: vec!["Welcome to the village.".into(),
+                format!("The village keeps {}.", vocation::trade_name(drink_voc))],
             bubbles: vec![],
             meeting: None,
             near: vec![],
@@ -4436,6 +4461,67 @@ impl Game {
         }
     }
 
+    /// The drink trade's own clocks: small ale sours inside the week and
+    /// the spoil turns to vinegar (which still sells for something); wine
+    /// keeps the year in a good cask and forever in the cellar's dark,
+    /// but turns on a plain shelf. Beer and the water of life keep - and
+    /// every fortnight the still slips the wise woman a measure for her
+    /// tinctures
+    pub fn drink_tick(&mut self, tick: u64) {
+        if tick % 3 == 2 {
+            for &be in &self.building_entities.clone() {
+                let ale = self.world.get_component::<Building>(be)
+                    .map(|b| b.stock.get("ale").copied().unwrap_or(0)).unwrap_or(0);
+                if ale == 0 { continue; }
+                let sour = (ale / 4).max(1);
+                if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                    let lost = household::take_stock(b, "ale", sour);
+                    household::add_stock(b, "vinegar", lost / 2);
+                }
+            }
+        }
+        if tick % 7 == 5 {
+            for &be in &self.building_entities.clone() {
+                let (wine, kind, casks) = self.world.get_component::<Building>(be)
+                    .map(|b| (b.stock.get("wine").copied().unwrap_or(0), b.kind,
+                        b.stock.get("casks").copied().unwrap_or(0)))
+                    .unwrap_or((0, BuildingKind::Home, 0));
+                if wine == 0 || kind == BuildingKind::Cellar { continue; }
+                // hooped and banged, a cask buys the wine twice the time
+                if casks > 0 && tick % 14 != 5 { continue; }
+                if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                    if household::take_stock(b, "wine", 1) > 0 {
+                        household::add_stock(b, "vinegar", 1);
+                    }
+                }
+            }
+        }
+        // the water of life is the wise woman's solvent: the still owes
+        // her a measure a fortnight, like the monastery always did
+        if tick % 15 == 10 {
+            if let Some(hut) = self.herb_hut {
+                let thin = self.world.get_component::<Building>(hut)
+                    .map(|b| b.stock.get("spirits").copied().unwrap_or(0) < 2).unwrap_or(false);
+                if thin {
+                    let still = self.building_entities.iter().copied().find(|&be|
+                        self.world.get_component::<Building>(be)
+                            .map(|b| b.kind == BuildingKind::Shop(Vocation::Distiller)
+                                && b.stock.get("spirits").copied().unwrap_or(0) > 0)
+                            .unwrap_or(false));
+                    if let Some(still) = still {
+                        if let Some(b) = self.world.get_component_mut::<Building>(still) {
+                            if household::take_stock(b, "spirits", 1) > 0 {
+                                if let Some(h) = self.world.get_component_mut::<Building>(hut) {
+                                    household::add_stock(h, "spirits", 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// The sky keeps its own calendar: a comet every few years, an
     /// eclipse now and then - and when one rides over the walls every
     /// villager reads their own omen into it. A crowd of small opinions.
@@ -4488,7 +4574,7 @@ impl Game {
             self.log.push(format!("t{}: word on the road - the bailiff rides this way. A writ comes down in a few days.", tick));
         }
         if tick % 120 != 80 { return; }
-        let kind = (tick / 120) % 3;
+        let kind = (tick / 120) % 4;
         // the debt counts the defiances - a summons reads it before the
         // writ's own weight consumes it
         let debt = self.repression_debt;
@@ -4522,6 +4608,23 @@ impl Game {
                 }
                 self.log.push(format!("t{}: a bailiff's writ - a fee of {:.0} gold off the village.{}",
                     tick, taken, if bargained { " Halved - the org's word counts." } else { "" }));
+            }
+            3 => {
+                // the drink levy: the castle's share of every barrel in
+                // the village - a quarter of what pours, off every stock
+                let share = |q: u32| ((q as f32) * if bargained { 0.125 } else { 0.25 }).ceil() as u32;
+                let mut taken = 0u32;
+                for &be in &self.building_entities.clone() {
+                    if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                        for g in ["ale", "beer", "wine", "spirits"] {
+                            let q = b.stock.get(g).copied().unwrap_or(0);
+                            if q > 0 { taken += household::take_stock(b, g, share(q)); }
+                        }
+                    }
+                }
+                self.log.push(format!("t{}: a bailiff's writ - the castle's share of the barrel, {} measures off the village's drink.{}",
+                    tick, taken,
+                    if bargained { " Halved - the org's word counts." } else { "" }));
             }
             _ => {
                 // a summons: one of the village's own for 'questioning' -
@@ -5202,6 +5305,9 @@ impl Game {
                 Vocation::Beekeeper => Some("smoke and wax"),
                 Vocation::Mason => Some("the cut"),
                 Vocation::Weaver => Some("the dye"),
+                Vocation::Alewife | Vocation::Brewer | Vocation::Distiller => Some("the mash"),
+                Vocation::Vintner => Some("the press"),
+                Vocation::Cooper => Some("the pitch"),
                 _ => None,
             });
             // and the herb-wife always carries her bitter herbs
@@ -5244,6 +5350,15 @@ impl Game {
                 loaves += household::take_stock(b, "honey", 2);
             }
         }
+        // and the barrel's tapped: whatever the village pours, the feast pours
+        let mut poured = 0u32;
+        for &be in &self.building_entities.clone() {
+            if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                for d in ["ale", "beer", "wine", "spirits"] {
+                    poured += household::take_stock(b, d, 2);
+                }
+            }
+        }
         let gathered: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| !villager::is_dead(&self.world, v)
                 && self.world.get_component::<TownRole>(v).is_none()
@@ -5260,6 +5375,9 @@ impl Game {
             if loaves > 0 {
                 desires::satisfy(&mut self.world, v, Want::GoodFood, tick + 30);
                 if let Some(h) = self.world.get_component_mut::<Hunger>(v) { h.value = (h.value + 25.0).min(100.0); }
+            }
+            if poured > 0 {
+                desires::satisfy(&mut self.world, v, Want::Drink, tick + 30);
             }
         }
         // bonds grow between the co-attendees: a pair or two each
@@ -5552,6 +5670,29 @@ impl Game {
                             }
                         }
                     }
+                    if vocation::is_drink(good) {
+                        // a cup goes down at the counter, not home in the
+                        // bag: company, a small lift - and sometimes the
+                        // morning after
+                        desires::satisfy(&mut self.world, who, Want::Drink, tick + 60);
+                        desires::satisfy(&mut self.world, who, Want::Joy, tick + 15);
+                        if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                            if let Some(q) = s.goods.get_mut(good) { *q = q.saturating_sub(1); }
+                        }
+                        // the keeper hears everyone's business - a cup
+                        // buys a chat, and the alehouse earns its name
+                        if let Some(k) = self.world.get_component::<Building>(shop)
+                            .and_then(|b| b.worker).filter(|&k| k != who) {
+                            relationships::record_interaction(&mut self.world, who, relationships::Interaction {
+                                other: k, kind: relationships::InteractionKind::Conversation,
+                                intensity: CHAT_INTENSITY,
+                            });
+                        }
+                        if self.rng.below(100) < 15 {
+                            self.world.add_component(who, villager::Drunk { until: tick + 2 });
+                            self.say(who, "One more won't hurt.", CHAT_BUBBLE_SECS);
+                        }
+                    }
                 }
             }
             Goal::Gather(good, tile) => {
@@ -5593,6 +5734,26 @@ impl Game {
                         self.log.push(format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
                         0.5
                     } else { 1.0 };
+                // the assize's share on the barrel: a shop stocked with
+                // drink pays a cut on what it pours - the alehouse, the
+                // brewery and the still are the lord's best takings
+                let excise = self.world.get_component::<Craft>(target)
+                    .and_then(|cr| cr.workplace)
+                    .and_then(|b| self.world.get_component::<Building>(b))
+                    .map(|b| b.stock.iter()
+                        .filter(|(g, _)| vocation::is_drink(g))
+                        .map(|(g, q)| vocation::price(g) * *q as f32).sum::<f32>())
+                    .map(|v| (v * livelihood::DRINK_EXCISE).round())
+                    .unwrap_or(0.0);
+                if excise > 0.0 {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(target) {
+                        p.gold = (p.gold - excise).max(0.0);
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += excise; }
+                    let name = self.villagers.iter().position(|v| *v == target)
+                        .map(|i| vill_name(i)).unwrap_or("you");
+                    self.log.push(format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));
+                }
                 // a grant carried home lightens the round for the cause's
                 // own: half the cut back, and the taxing doesn't count -
                 // wherever the grant was won, not just seat zero's fight
@@ -5895,6 +6056,8 @@ impl Game {
         self.fire_tick(tick);
         // milk becomes wheels in the dark, and a noble buys the old ones
         self.cheese_tick(tick);
+        // ale sours, wine turns, and the still owes the wise woman
+        self.drink_tick(tick);
         // the day's work leaves its smell - unless the rain washes it off
         self.smell_tick(tick);
         // power atrophies; the lord's estimate creeps toward the truth
@@ -5951,6 +6114,9 @@ impl Game {
             if self.travels.iter().any(|t| t.who == v) { continue; }
             if self.world.get_component::<Kid>(v).is_some() { continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
+            // last night's cup still has them - they sleep it off
+            if self.world.get_component::<villager::Drunk>(v)
+                .map(|d| tick < d.until).unwrap_or(false) { continue; }
             // at a meeting they're not off working
             if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }
             // the sick call on the herb-wife: out to her hut for a remedy,
@@ -6024,9 +6190,13 @@ impl Game {
     /// What this person might walk out to buy today: a good that feeds an
     /// unsatisfied want, stocked by some working shop
     pub fn want_shopping(&mut self, v: Entity, tick: u64) -> Option<Goal> {
-        const WANT_GOODS: [(Want, &str); 6] = [
+        const WANT_GOODS: [(Want, &str); 10] = [
             (Want::GoodFood, "bread"), (Want::Finery, "garments"), (Want::Faith, "faith"),
             (Want::Security, "security"), (Want::Instrument, "lute"), (Want::BetterTools, "tools"),
+            // the everyday pour first - the dearer the drink, the fewer
+            // the purses that reach it
+            (Want::Drink, "ale"), (Want::Drink, "beer"), (Want::Drink, "wine"),
+            (Want::Drink, "spirits"),
         ];
         let life = self.world.get_component::<InnerLife>(v)?;
         let wants = life.wants.clone();
@@ -9379,6 +9549,12 @@ mod pedlar_tests {
     #[test]
     fn test_the_pedlar_pitches_and_sells() {
         let mut g = Game::new();
+        // two hearts for finery, whatever the want-roll dealt the village
+        for &v in &g.villagers[..2] {
+            if let Some(l) = g.world.get_component_mut::<InnerLife>(v) {
+                if !l.wants.contains(&Want::Finery) { l.wants.push(Want::Finery); }
+            }
+        }
         g.spawn_pedlar();
         assert!(g.pedlar.is_some());
         // walk him in - the pitch happens once he's stood at market
@@ -9425,7 +9601,8 @@ mod perfume_tests {
         let p = g.villagers.iter().copied().find(|&v|
             g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Perfumer).unwrap_or(false));
         assert!(p.is_some(), "a perfumer keeps the still");
-        assert_eq!(vocation::inputs(Vocation::Perfumer), &["marigold", "lavender"]);
+        // Hungary water: garden flowers steeped in the water of life
+        assert_eq!(vocation::inputs(Vocation::Perfumer), &["marigold", "lavender", "spirits"]);
         assert_eq!(vocation::output(Vocation::Perfumer), Some("perfume"));
     }
 
@@ -12606,5 +12783,199 @@ mod growth_tests {
         let wants_bed = desires::problems_of(&g.world, m, g.tick).contains(&desires::Problem::NoHome);
         assert!(housed || wants_bed, "a spare bed or the want of one");
         assert!(g.log.iter().any(|l| l.contains("settles")), "{:?}", g.log.last());
+    }
+}
+
+#[cfg(test)]
+mod drink_tests {
+    use super::*;
+    use crate::game::villager::Drunk;
+
+    /// The village's taproom: whichever of the four trades pours here
+    fn drink_shop(g: &Game) -> Option<Entity> {
+        g.building_entities.iter().copied().find(|&be|
+            g.world.get_component::<Building>(be)
+                .map(|b| matches!(b.kind, BuildingKind::Shop(
+                    Vocation::Alewife | Vocation::Brewer | Vocation::Vintner | Vocation::Distiller))
+                    && b.worker.is_some())
+                .unwrap_or(false))
+    }
+
+    #[test]
+    fn test_every_village_keeps_a_drink_trade() {
+        let g = Game::new();
+        assert!(DRINK_TRADES.iter().any(|&dv| g.villagers.iter().any(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == dv).unwrap_or(false))),
+            "one of the four pours here");
+        assert!(drink_shop(&g).is_some(), "and the taproom's a real place");
+        assert!(g.log.iter().any(|l| l.contains("The village keeps")));
+    }
+
+    #[test]
+    fn test_small_ale_sours_and_the_spoil_sells() {
+        let mut g = Game::new();
+        let shop = drink_shop(&g).unwrap();
+        {
+            let b = g.world.get_component_mut::<Building>(shop).unwrap();
+            b.stock.clear();
+            b.stock.insert("ale".into(), 8);
+        }
+        g.drink_tick(2);
+        let b = g.world.get_component::<Building>(shop).unwrap();
+        assert!(b.stock.get("ale").copied().unwrap_or(0) < 8, "the ale's turning");
+        assert!(b.stock.get("vinegar").copied().unwrap_or(0) > 0, "the spoil's vinegar");
+        assert!(vocation::price("vinegar") > 0.0, "and vinegar still sells");
+    }
+
+    #[test]
+    fn test_wine_turns_on_a_shelf_and_keeps_in_the_dark() {
+        let mut g = Game::new();
+        let shelf = g.building_entities.iter().copied().find(|&be|
+            g.world.get_component::<Building>(be)
+                .map(|b| b.kind != BuildingKind::Cellar).unwrap_or(false)).unwrap();
+        {
+            let b = g.world.get_component_mut::<Building>(shelf).unwrap();
+            b.stock.clear();
+            b.stock.insert("wine".into(), 4);
+        }
+        if let Some(cellar) = g.cellar {
+            g.world.get_component_mut::<Building>(cellar).unwrap().stock.insert("wine".into(), 4);
+        }
+        g.drink_tick(12); // a wine day, not a casked one
+        assert_eq!(g.world.get_component::<Building>(shelf).unwrap()
+            .stock.get("wine").copied().unwrap_or(0), 3, "a shelf bottle turns");
+        if let Some(cellar) = g.cellar {
+            assert_eq!(g.world.get_component::<Building>(cellar).unwrap()
+                .stock.get("wine").copied().unwrap_or(0), 4, "the dark keeps it");
+        }
+    }
+
+    #[test]
+    fn test_a_cask_buys_the_wine_time() {
+        let mut g = Game::new();
+        let mut bare = None;
+        let mut casked = None;
+        for &be in &g.building_entities {
+            let is_cellar = g.world.get_component::<Building>(be)
+                .map(|b| b.kind == BuildingKind::Cellar).unwrap_or(false);
+            if is_cellar { continue; }
+            if bare.is_none() { bare = Some(be); }
+            else if casked.is_none() { casked = Some(be); break; }
+        }
+        let (bare, casked) = (bare.unwrap(), casked.unwrap());
+        {
+            let b = g.world.get_component_mut::<Building>(bare).unwrap();
+            b.stock.clear(); b.stock.insert("wine".into(), 4);
+        }
+        {
+            let b = g.world.get_component_mut::<Building>(casked).unwrap();
+            b.stock.clear(); b.stock.insert("wine".into(), 4); b.stock.insert("casks".into(), 2);
+        }
+        g.drink_tick(12);
+        assert_eq!(g.world.get_component::<Building>(bare).unwrap()
+            .stock.get("wine").copied().unwrap_or(0), 3, "a bare bottle turns");
+        assert_eq!(g.world.get_component::<Building>(casked).unwrap()
+            .stock.get("wine").copied().unwrap_or(0), 4, "the cask holds it");
+    }
+
+    #[test]
+    fn test_a_cup_goes_down_at_the_counter() {
+        let mut g = Game::new();
+        let shop = drink_shop(&g).unwrap();
+        g.world.get_component_mut::<Building>(shop).unwrap().stock.insert("ale".into(), 5);
+        let buyer = g.villagers[8];
+        g.world.get_component_mut::<Purse>(buyer).unwrap().gold = 20.0;
+        g.arrive(buyer, Goal::BuyAt(shop, "ale", Some(Want::Drink)));
+        assert!(desires::is_satisfied(&g.world, buyer, Want::Drink, g.tick),
+            "the thirst's answered");
+        assert_eq!(g.world.get_component::<Satchel>(buyer).unwrap()
+            .goods.get("ale").copied().unwrap_or(0), 0, "nothing carried home");
+        assert_eq!(g.world.get_component::<Building>(shop).unwrap().stock["ale"], 4);
+    }
+
+    #[test]
+    fn test_enough_cups_and_the_morning_after_comes() {
+        let mut g = Game::new();
+        let shop = drink_shop(&g).unwrap();
+        g.world.get_component_mut::<Building>(shop).unwrap().stock.insert("beer".into(), 40);
+        let buyer = g.villagers[9];
+        g.world.get_component_mut::<Purse>(buyer).unwrap().gold = 500.0;
+        for _ in 0..40 {
+            if g.world.get_component::<Drunk>(buyer).is_some() { break; }
+            g.arrive(buyer, Goal::BuyAt(shop, "beer", Some(Want::Drink)));
+        }
+        assert!(g.world.get_component::<Drunk>(buyer).is_some(), "the morning after comes");
+    }
+
+    #[test]
+    fn test_the_collector_counts_the_barrels() {
+        let mut g = Game::new();
+        let v = g.villagers[5];
+        let shop = g.building_entities.iter().copied().find(|&be|
+            g.world.get_component::<Building>(be)
+                .map(|b| b.worker.is_none() && household::is_workplace(b.kind)).unwrap_or(false))
+            .unwrap_or_else(|| drink_shop(&g).unwrap());
+        {
+            let b = g.world.get_component_mut::<Building>(shop).unwrap();
+            b.stock.clear();
+            b.stock.insert("beer".into(), 10); // 70 gold of drink
+        }
+        g.world.get_component_mut::<Craft>(v).unwrap().workplace = Some(shop);
+        g.world.get_component_mut::<Purse>(v).unwrap().gold = 50.0;
+        let c = g.collector.unwrap();
+        let before = g.world.get_component::<Purse>(c).unwrap().gold;
+        g.arrive(c, Goal::CollectTax(v));
+        // the year's cut plus the ale excise: 5.0 + (70 * 0.15) = 5 + 11
+        let after = g.world.get_component::<Purse>(c).unwrap().gold;
+        assert!((after - before - 16.0).abs() < 0.5,
+            "the purse cut and the barrel count both came ({})", after - before);
+        assert!(g.log.iter().any(|l| l.contains("ale excise")));
+    }
+
+    #[test]
+    fn test_the_still_owes_the_wise_woman() {
+        let mut g = Game::new();
+        let still = g.building_entities[10];
+        {
+            let b = g.world.get_component_mut::<Building>(still).unwrap();
+            b.kind = BuildingKind::Shop(Vocation::Distiller);
+            b.stock.insert("spirits".into(), 3);
+        }
+        let hut = g.herb_hut.expect("the herb hut stands on the classic map");
+        g.world.get_component_mut::<Building>(hut).unwrap().stock.remove("spirits");
+        g.drink_tick(10); // the fortnight's measure
+        assert_eq!(g.world.get_component::<Building>(hut).unwrap()
+            .stock.get("spirits").copied().unwrap_or(0), 1, "a measure for the tinctures");
+        assert_eq!(g.world.get_component::<Building>(still).unwrap()
+            .stock.get("spirits").copied().unwrap_or(0), 2);
+    }
+
+    #[test]
+    fn test_a_watch_earns_its_keep_at_the_cellar() {
+        let mut g = Game::new();
+        let shop = drink_shop(&g).unwrap();
+        {
+            let b = g.world.get_component_mut::<Building>(shop).unwrap();
+            b.stock.clear();
+            b.stock.insert("spirits".into(), 8); // 200 gold - worth stealing
+        }
+        // post a watch - the classic village rolls none of its own
+        g.world.add_component(g.villagers[3], vocation::craft(Vocation::Knight, 0.5));
+        g.force_event(events::EventId::CellarThief);
+        assert!(g.log.iter().any(|l| l.contains("catches a thief")),
+            "a living watch catches him: {:?}", g.log.last());
+        assert_eq!(g.world.get_component::<Building>(shop).unwrap()
+            .stock.get("spirits").copied().unwrap_or(0), 8, "the good stock stays");
+        // no watch, no lock: hang the knights and the drink walks
+        for &v in &g.villagers.clone() {
+            if g.world.get_component::<Craft>(v)
+                .map(|c| c.vocation == Vocation::Knight).unwrap_or(false) {
+                g.world.add_component(v, villager::Dead);
+            }
+        }
+        g.force_event(events::EventId::CellarThief);
+        assert_eq!(g.world.get_component::<Building>(shop).unwrap()
+            .stock.get("spirits").copied().unwrap_or(0), 4, "half the drink walks off");
+        assert!(g.log.iter().any(|l| l.contains("thief in the night")));
     }
 }

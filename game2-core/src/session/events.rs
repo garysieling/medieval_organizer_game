@@ -789,18 +789,19 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near { continue; }
-                    let bond = self.world.query::<crate::game::relationships::Relationship>().iter().copied()
-                        .filter(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r)
-                            .map(|rr| rr.from == v || rr.other == v).unwrap_or(false))
-                        .max_by(|&a, &b| {
-                            let sa = self.world.get_component::<crate::game::relationships::Relationship>(a).map(|r| r.strength).unwrap_or(0.0);
-                            let sb = self.world.get_component::<crate::game::relationships::Relationship>(b).map(|r| r.strength).unwrap_or(0.0);
-                            sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
-                        });
-                    if let Some(r) = bond {
-                        if let Some(rr) = self.world.get_component_mut::<crate::game::relationships::Relationship>(r) {
-                            rr.interactions += 1;
-                        }
+                    // the news goes home to their closest living bond -
+                    // the dead hear no gossip, and the record keeps its kind honest
+                    let partner = self.world.query::<crate::game::relationships::Relationship>().iter()
+                        .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                        .filter(|rr| (rr.from == v || rr.other == v)
+                            && !villager::is_dead(&self.world, if rr.from == v { rr.other } else { rr.from }))
+                        .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+                        .map(|rr| if rr.from == v { rr.other } else { rr.from });
+                    if let Some(to) = partner {
+                        crate::game::relationships::record_interaction(&mut self.world, v,
+                            crate::game::relationships::Interaction {
+                                other: to, kind: crate::game::relationships::InteractionKind::Conversation,
+                                intensity: 0.2 });
                     }
                 }
             }

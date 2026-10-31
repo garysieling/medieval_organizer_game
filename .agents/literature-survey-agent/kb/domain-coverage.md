@@ -41,7 +41,7 @@ Domains with completed surveys and implemented mechanics.
 
 #### Community Organizing & Sociology
 **Coverage:** High (deepened 2026-10-31)
-**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure, Pre-Modern Resistance Organizations, Secret Societies & Oath Networks, Movement Internal Structure (decisions, meetings, training)
+**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure, Pre-Modern Resistance Organizations, Secret Societies & Oath Networks, Imprisonment & Release Campaigns, Movement Internal Structure (decisions, meetings, training)
 **Mechanics Implemented:** 1-1 conversations, house meetings (community.rs)
 **Mechanics Proposed:**
 - Campaign structure (target, demand, escalation ladder, settlement) - historical-campaigns review
@@ -64,8 +64,9 @@ Domains with completed surveys and implemented mechanics.
 - Channel ownership + petition artifacts + suppression backfire + brand propagation - info-infrastructure review
 - Hidden-institution form + inquisition counter-cycle + relapse/penitent mechanic + negotiate-and-decapitate event + moderate-split exploitation - premodern-resistance review
 - Oath intensity tech + cover function + penetration timer + counter-ritual enemy action + dual-org architecture - secret-societies review
+- Imprisoned-as-active-state + moral-shock stranger recruitment + jailer's dilemma + release-campaign pressure accumulator + adoption-as-charter - prisons-and-release review
 - Alignment-as-participation-gate + seats-as-accountability (shadow elite) + decision rules + frame-work meetings + train-the-trainer + hidden schools - internal-structure review
-**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure); Le Roy Ladurie/Montaillou, Bernard Gui, Biller (pre-modern resistance); Rath, Kershaw/Rice, ter Haar, Le Caron (secret societies); Freeman, Snow/Benford frame alignment, Polletta (internal structure); Highlander/CEP records (training schools)
+**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure); Le Roy Ladurie/Montaillou, Bernard Gui, Biller (pre-modern resistance); Rath, Kershaw/Rice, ter Haar, Le Caron (secret societies); Jasper & Poulsen, suffragette/Attica/Amnesty records (imprisonment & release); Freeman, Snow/Benford frame alignment, Polletta (internal structure); Highlander/CEP records (training schools)
 **Next Steps:** Deep-dives done: 504, ACT UP, abolition petitions (round 2). Remaining: UK spycops inquiry, NGO-ization/co-option literature, platform-manipulation research
 
 ---

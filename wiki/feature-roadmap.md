@@ -32,23 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F20. Perfumer — flowers, aqua vitae, and glass
-
-*`sprint-7-perfume-and-smell.md`; consumes F4 flowers, F9 distillery
-alcohol, glazier glass; counterpoint to F10 smell.*
-
-**What.** A rare petit-bourgeois trade: the perfumer distills garden
-flowers into scent — a luxury good that also mechanically counters
-`Smelly` problems and serves status/clout.
-
-**Spec.** `Vocation::Perfumer` (inputs `["flowers","aqua_vitae","glass"]`,
-output `"perfume"`, high price ~20g). Wearing perfume sets a positive
-`Smell` for days (visible "smells of roses" on the card). Noble/PMC
-buyers; a gift of perfume is a trust lever the player can invest in.
-Glassblower secret-trade variant (below) pairs naturally. **Size: M.**
-
----
-
 ### F21. Number systems & translators — the dragoman problem
 
 *`sprint-7-number-systems-and-translators.md`.*

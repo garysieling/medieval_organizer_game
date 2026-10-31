@@ -18,7 +18,10 @@ pub const REVEAL_BASE: f32 = 0.15;
 pub const REVEAL_PARALLEL: f32 = 0.10;
 
 /// An issue kind: complaints in the same family, however people put them
-pub type IssueTag = &'static str;
+/// What an issue's about. Trade-flavored problems carry the trade too -
+/// "no master (mason)" only echoes among masons; the commons (tax,
+/// broke, the bad bread) carry no tag and echo for everyone
+pub type IssueTag = String;
 
 /// What a person wants, inspired by Maslow's hierarchy
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,8 +128,8 @@ pub fn add_grievance(world: &mut World, e: Entity, p: Problem, until: u64) {
 }
 
 /// The issue family a reveal belongs to - parallel complaints share one
-pub fn issue_tag(r: &Reveal) -> IssueTag {
-    match r {
+pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
+    let base: &'static str = match r {
         Reveal::Want(Want::GoodFood) => "hunger",
         Reveal::Want(Want::Finery) => "comfort",
         Reveal::Want(Want::Faith) => "faith",
@@ -149,12 +152,31 @@ pub fn issue_tag(r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::Loss) => "the wolves",
         Reveal::Problem(Problem::Blamed) => "the bad bread",
         Reveal::Problem(Problem::SourGut) => "the sour gut",
+    };
+    // a trade's grievance only echoes among the trade - the commons
+    // (tax, poverty, the bad bread, the sour gut) echo for everyone
+    let scoped = matches!(r,
+        Reveal::Problem(Problem::NoWorkplace) | Reveal::Problem(Problem::NoMaster)
+        | Reveal::Problem(Problem::NoInput(_)) | Reveal::Problem(Problem::DerelictNearby)
+        | Reveal::Problem(Problem::OverseerCut) | Reveal::Problem(Problem::Smelly)
+        | Reveal::Problem(Problem::Loss) | Reveal::Want(Want::BetterTools));
+    if scoped {
+        if let Some(v) = world.get_component::<crate::game::vocation::Craft>(e)
+            .map(|c| crate::game::vocation::vocation_name(c.vocation).to_lowercase()) {
+            return format!("{} ({})", base, v);
+        }
     }
+    base.into()
 }
 
-/// What the issue is called once the organizer sees the pattern
+/// What the issue is called once the organizer sees the pattern. A
+/// trade-scoped tag names its trade: "materials (baker)" reads "the
+/// bakers' workshops starved of materials"
 pub fn issue_name(tag: IssueTag) -> String {
-    match tag {
+    if let Some((base, voc)) = tag.strip_suffix(')').and_then(|s| s.split_once(" (")) {
+        return format!("the {}s' {}", voc, issue_name(base.to_string()));
+    }
+    match tag.as_str() {
         "hunger" => "the bread shortage".into(),
         "comfort" => "plain living".into(),
         "faith" => "the neglected faith".into(),
@@ -177,7 +199,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the wolves" => "wolves at the fold".into(),
         "the bad bread" => "the cursed bread".into(),
         "the sour gut" => "spoiled stock in the larder".into(),
-        _ => tag.into(),
+        _ => tag,
     }
 }
 
@@ -290,10 +312,10 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
             }
         }
     }
-    let tag = issue_tag(&r);
+    let tag = issue_tag(world, person, &r);
     let org = world.get_component_mut::<Organizer>(organizer)?;
     org.heard.retain(|(_, _, day)| tick <= *day + YEAR_DAYS);
-    org.heard.push((tag, person, tick));
+    org.heard.push((tag.clone(), person, tick));
     if org.issues.contains(&tag) { return None; }
     let voices: Vec<Entity> = org.heard.iter()
         .filter(|(t, _, _)| *t == tag).map(|(_, e, _)| *e).collect();
@@ -301,7 +323,7 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
     dedup.sort_unstable();
     dedup.dedup();
     if dedup.len() >= 3 {
-        org.issues.push(tag);
+        org.issues.push(tag.clone());
         Some(issue_name(tag))
     } else {
         None
@@ -313,7 +335,7 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
 pub fn found_issue(world: &mut World, organizer: Entity, tag: IssueTag) -> Option<String> {
     let org = world.get_component_mut::<Organizer>(organizer)?;
     if org.issues.contains(&tag) { return None; }
-    org.issues.push(tag);
+    org.issues.push(tag.clone());
     Some(issue_name(tag))
 }
 

@@ -61,7 +61,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.~~ (fixed)
 - [x] ~~**W-077** `community::exert_influence` never called — org influence is never spent through the community module.~~ (stale — the session spends through `OrganizedPower`; `InfluenceSystem`/`exert_influence` is the bin-scoped community API)
 - [x] ~~**W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.~~ (stale — `rain_effect` runs via `climate_multiplier`, which the demo/sim bins consult for food)
-- [ ] **W-079** `weather::health_effect` never called — weather doesn't touch health.
+- [x] ~~**W-079** `weather::health_effect` never called — weather doesn't touch health.~~ (fixed — `full_session` applies each active weather's health bite to every Health each tick)
 - [x] ~~**W-080** `contracts` `run`/`setup` never called — the contract engine never runs; `seal_aid_pact`/`breach` are text-game-only paths.~~ (fixed — `ContractSystem` scheduled in the contracts_demo driver; a fulfilled contract now credits reputation live)
 
 ## P3 — dead infra/ui code and duplicated drift-risk paths

@@ -178,22 +178,6 @@ problems (the reveal machinery on a party line). Org can sponsor a feast
 
 ## Wave 3 — The world outside (roads, travelers, and the far powers)
 
-### F18. Footfall trails — the map learns where people walk
-
-*`sprint-7-roads-and-trails.md`; `sim/trails.rs` exists (Active Walker
-Model), unwired; `feature/trail-strength-feedback-loop` pending — check.*
-
-**What.** Per-tile `trail_strength` reinforced by walking, decaying to
-terrain baseline; stronger trails are cheaper to path through → real
-desire-lines emerge and are rendered.
-
-**Spec.** Add `Trail` layer to the game_ui tilemap; feed footfall on
-every walk_path step; movement cost ÷ (1 + strength). Render as a
-darkening/widening overlay (exists in the module's intent). Emergent:
-the path to the herb-hut wears in; a derelict street greens over.
-Tuning knobs per the ant paper; expose in debug overlay. **Size: M.**
-
----
 
 ### F19. The roving pedlar
 
@@ -563,7 +547,7 @@ Deliberately grim and rare; flag to disable. **Size: S.**
    now cats do too.
 8. ~~F12 Shop succession~~ — **done, PR #149.**
 9. ~~F11 Children grow up~~ — **done, PR #150.**
-10. F18 Footfall trails — visual payoff for all this walking; module
+10. ~~F18 Footfall trails~~ — **done, PR #151.**
     already written.
 11. F42 The land keeps score — the land's grievances are the bridge
     issues F43 makes matter; needs a few features' worth of economy to

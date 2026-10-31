@@ -779,8 +779,13 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::PairUp => Button { label: "Pair up".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (120, 90, 140) },
         CtxAct::Matchmake => Button { label: "Matchmake".into(), key: ' ', x: UI_X as i32 + 10, y: 278, w: 130, h: 30, color: (160, 90, 110) },
         // Meet lives on the campaign's FIGHT line in the org section - the
-        // 278 slot would run into the inspector
-        CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 120, h: 16, color: (140, 80, 80) },
+        // 278 slot would run into the inspector; March beside it
+        CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 60, h: 16, color: (140, 80, 80) },
+        CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
+        // Delegate and Strike act on the picked member - they live on the
+        // bottom edge of their inspector card
+        CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
+        CtxAct::Strike => Button { label: "Strike".into(), key: ' ', x: UI_X as i32 + 212, y: 438, w: 62, h: 16, color: (150, 60, 60) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -1559,6 +1564,12 @@ pub enum CtxAct {
     Matchmake,
     /// Hold the campaign's meeting, on its cadence
     Meet,
+    /// Take the campaign to the streets: a demonstration at the player
+    March,
+    /// Give the picked member a campaign seat (turnout, notes, chair)
+    Delegate,
+    /// Ballot the picked member's trade: nine of ten, or a public failure
+    Strike,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -6114,10 +6125,26 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
             }
         }
-        // the cause meets on its cadence: always offer the button once a
-        // campaign exists; the meeting itself decides if it's due
+        // the cause meets on its cadence and marches on the streets: the
+        // buttons show once a campaign exists; seats go to the picked member
+        // the cause meets on its cadence and marches on the streets: the
+        // buttons show once a campaign exists; seats go to the picked member
         if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Meet);
+            self.seats[seat].ctx_actions.push(CtxAct::March);
+            if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
+                let v = self.villagers[self.seats[seat].selected_target];
+                if !crate::game::villager::is_dead(&self.world, v) {
+                    let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
+                        .map(|o| o.members.contains(&v)).unwrap_or(false);
+                    if is_member {
+                        self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                    }
+                    if self.world.get_component::<Craft>(v).is_some() {
+                        self.seats[seat].ctx_actions.push(CtxAct::Strike);
+                    }
+                }
+            }
         }
     }
 
@@ -6199,6 +6226,75 @@ impl Game {
                         msg
                     }
                     None => "The campaign isn't due to meet yet.".into(),
+                }
+            }
+            CtxAct::Delegate => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
+                let v = self.villagers[self.seats[seat].selected_target];
+                let name = NAMES[self.seats[seat].selected_target];
+                use crate::game::campaign::Role;
+                // the first seat standing empty: turnout, notes, then chair
+                let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
+                    .find(|&r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
+                match open {
+                    Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) => {
+                        format!("You name {} the campaign's {}.", name, match r {
+                            Role::TurnoutCoordinator => "turnout coordinator",
+                            Role::NoteTaker => "note taker",
+                            Role::Chair => "chair",
+                        })
+                    }
+                    Some(_) => format!("{} can't hold a seat - they have to be a living member.", name),
+                    None => "Every seat is spoken for - someone would have to step down.".into(),
+                }
+            }
+            CtxAct::March => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
+                let pe = self.seats[seat].player;
+                match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
+                    Some(out) => {
+                        let n = out.turnout.len();
+                        let r = crate::game::reactions::react(&mut self.world, c, &out.turnout, tick);
+                        // everyone who saw it and felt the cause wake in them
+                        let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                            .map(|cc| cc.issue.clone()).unwrap_or_default();
+                        let members: std::collections::HashSet<Entity> =
+                            self.world.get_component::<Organization>(self.seats[seat].org)
+                                .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
+                        let mut woke = 0;
+                        for v in self.villagers_in_reach_at(seat) {
+                            if !members.contains(&v) {
+                                woke += crate::game::reactions::witness(&mut self.world, v, &issue, &out.turnout, tick) as usize;
+                            }
+                        }
+                        let mut msg = match r {
+                            Some(crate::game::reactions::Reaction::Crackdown) => {
+                                self.toasts.push(("knights posted to the streets".into(), tick + 40));
+                                format!("{} march in the street - and the knights come out.", n)
+                            }
+                            Some(crate::game::reactions::Reaction::Watched) =>
+                                format!("{} march in the street - the names get taken.", n),
+                            _ => format!("{} march in the street - beneath notice, for now.", n),
+                        };
+                        if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
+                        msg
+                    }
+                    None => "You call a march - and nobody comes. The street stays empty.".into(),
+                }
+            }
+            CtxAct::Strike => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
+                let v = self.villagers[self.seats[seat].selected_target];
+                let Some(voc) = self.world.get_component::<Craft>(v).map(|c| c.vocation) else {
+                    return;
+                };
+                match crate::game::actions::strike_vote(&mut self.world, c, voc, tick) {
+                    Some(out) => {
+                        format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
+                            if out.called { " - the strike is on" } else { "" },
+                            if out.called { "The trade stands together." } else { "Less than nine of ten: it fails in public." })
+                    }
+                    None => "Nobody of the trade to ballot.".into(),
                 }
             }
         };
@@ -11135,5 +11231,38 @@ mod campaign_tests {
         g.ctx_act_at(0, i);
         assert!(g.log.last().unwrap().contains("meet about the campaign"), "{:?}", g.log.last());
         assert!(g.ui_model().panel.campaign.unwrap().due);
+    }
+
+    #[test]
+    fn test_the_organizer_names_a_seat_and_takes_the_street() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..3] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+
+        // pick a member and hand them the turnout seat
+        g.seats[0].selected_target = 0;
+        g.seats[0].picked = true;
+        g.seats[0].ctx_actions.push(CtxAct::Delegate);
+        g.ctx_act_at(0, 0);
+        assert!(g.log.last().unwrap().contains("turnout coordinator"), "{:?}", g.log.last());
+        assert_eq!(crate::game::campaign::seat_holder(&g.world, c,
+            crate::game::campaign::Role::TurnoutCoordinator), Some(g.villagers[0]));
+
+        // a bonded member answers the march - the street reads the ties
+        for _ in 0..3 {
+            crate::game::relationships::record_interaction(&mut g.world, g.villagers[1],
+                crate::game::relationships::Interaction {
+                    other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+        }
+        g.seats[0].ctx_actions.push(CtxAct::March);
+        g.ctx_act_at(0, 1);
+        assert!(g.log.last().unwrap().contains("march in the street"), "{:?}", g.log.last());
     }
 }

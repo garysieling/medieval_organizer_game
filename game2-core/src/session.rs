@@ -6335,12 +6335,15 @@ impl Game {
                         if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
                         // a crackdown takes the loudest - and the cause
                         // becomes a prisoner
-                        if r == Some(crate::game::reactions::Reaction::Crackdown) && !posted_before {
+                        if r == Some(crate::game::reactions::Reaction::Crackdown) {
                             // the knights stand in the streets where everyone
-                            // can see them
-                            let (px, py) = self.player_pos_at(seat);
-                            self.guards.push((px + 1.5, py));
-                            self.guards.push((px - 1.5, py));
+                            // can see them - once; posted guards stay posted
+                            if !posted_before {
+                                let (px, py) = self.player_pos_at(seat);
+                                self.guards.push((px + 1.5, py));
+                                self.guards.push((px - 1.5, py));
+                            }
+                            // every crackdown can still take someone
                             if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
                                     .unwrap_or("someone");

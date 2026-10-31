@@ -63,16 +63,23 @@ pub struct ActionOutcome {
 /// show of power, a thin crowd barely registers, an empty street costs
 /// the org.
 pub fn demonstrate(world: &mut World, campaign: Entity, _at: Entity, _tick: u64) -> Option<ActionOutcome> {
-    let member_count = world.get_component::<campaign::Campaign>(campaign)
-        .and_then(|c| world.get_component::<Organization>(c.org))
-        .map(|o| o.members.len()).unwrap_or(0);
+    let c = world.get_component::<campaign::Campaign>(campaign)?;
+    let (org, member_count) = (c.org, world.get_component::<Organization>(c.org)
+        .map(|o| o.members.len()).unwrap_or(0));
     let out = turnout(world, campaign);
-    if out.is_empty() { return None; }
+    if out.is_empty() {
+        // nobody came: if there were members to call, that's a public
+        // failure - the empty street costs the org
+        if member_count > 0 {
+            organized_power::record_action(world, org, ActionQuality::Overreach);
+        }
+        return None;
+    }
     let scale = out.len() as f32 / (member_count.max(1)) as f32;
-    let quality = if scale >= 0.5 { ActionQuality::Transformational }
+    // a real show of power takes more than the person who called it
+    let quality = if scale >= 0.5 && out.len() >= 2 { ActionQuality::Transformational }
         else if scale >= 0.2 { ActionQuality::Transactional }
         else { ActionQuality::Overreach };
-    let org = world.get_component::<campaign::Campaign>(campaign).unwrap().org;
     organized_power::record_action(world, org, quality);
     Some(ActionOutcome { turnout: out, scale, quality })
 }
@@ -100,8 +107,10 @@ pub const PULLED_TIE: f32 = 0.5;
 pub fn strike_vote(world: &mut World, campaign: Entity, vocation: Vocation, tick: u64) -> Option<StrikeOutcome> {
     let c = world.get_component::<campaign::Campaign>(campaign)?;
     let (issue, org) = (c.issue.clone(), c.org);
-    let members = world.get_component::<Organization>(org)
-        .map(|o| o.members.clone()).unwrap_or_default();
+    // the dead pull nobody - only living members' ties drag a ballot
+    let members: Vec<Entity> = world.get_component::<Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default()
+        .into_iter().filter(|&m| !is_dead(world, m)).collect();
     let mut yes = 0usize;
     let mut no = 0usize;
     for v in world.query::<Craft>() {
@@ -241,10 +250,44 @@ mod tests {
         assert_eq!(out.turnout.len(), 3, "everyone who pulls answers the call");
         assert_eq!(out.quality, ActionQuality::Transformational);
 
-        // a campaign nobody joins has no crowd and no test
+        // a one-member org's coordinator is its whole crowd - no show
         let (_, thin) = campaign(&mut w, &[a], "poverty");
-        assert!(demonstrate(&mut w, thin, spot, 5)
-            .map(|o| o.quality != ActionQuality::Transformational).unwrap_or(true));
+        campaign::delegate_role(&mut w, thin, Role::TurnoutCoordinator, a);
+        let out = demonstrate(&mut w, thin, spot, 5).unwrap();
+        assert_eq!(out.turnout.len(), 1);
+        assert_ne!(out.quality, ActionQuality::Transformational,
+            "one body in the street is no show of power");
+    }
+
+    #[test]
+    fn test_an_empty_street_costs_the_org() {
+        let mut w = World::new();
+        let (a, b) = (member(&mut w), member(&mut w));
+        let (o, camp) = campaign(&mut w, &[a, b], "the taxes");
+        // members exist but nobody's tied to the leader who calls it
+        w.get_component_mut::<organized_power::OrganizedPower>(o).unwrap().capacity = 0.5;
+        let spot = w.create_entity();
+        assert!(demonstrate(&mut w, camp, spot, 5).is_none());
+        let after = w.get_component::<organized_power::OrganizedPower>(o).unwrap().capacity;
+        assert!(after < 0.5, "an empty demonstration burns capacity, got {}", after);
+    }
+
+    #[test]
+    fn test_the_dead_pull_no_ballots() {
+        let mut w = World::new();
+        let living_member = member(&mut w);
+        let dead_member = member(&mut w);
+        let (_, camp) = campaign(&mut w, &[living_member, dead_member], "the taxes");
+        // a mason bonded hard to the dead member, indifferent to the issue
+        let mason = member(&mut w);
+        for _ in 0..5 { bond(&mut w, mason, dead_member); }
+        w.add_component(mason, Craft {
+            vocation: Vocation::Mason, skill: 0.5,
+            workplace: None, master: None, tasked_by: None, pending: 0.0 });
+        w.add_component(dead_member, crate::game::villager::Dead);
+        let out = strike_vote(&mut w, camp, Vocation::Mason, 10).unwrap();
+        assert_eq!(out.yes, 0, "a dead member's pull died with them");
+        assert!(!out.called);
     }
 
     #[test]

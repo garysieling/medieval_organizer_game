@@ -611,8 +611,12 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near || desires::is_satisfied(&self.world, v, Want::Faith, tick) { continue; }
+                    // only the faithful drop a penny in - the bowl means
+                    // nothing to those whose wants lie elsewhere
+                    let faithful = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
-                    if !pays { continue; }
+                    if !faithful || !pays { continue; }
                     desires::satisfy(&mut self.world, v, Want::Faith, tick + 30);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                     self.say(v, "Go with God.", CHAT_BUBBLE_SECS);
@@ -1041,6 +1045,8 @@ mod tests {
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            // she's one who feels the lack of it
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a band of pilgrims")),
                 "the frame shows the band on {:?}", st);

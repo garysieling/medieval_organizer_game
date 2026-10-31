@@ -40,6 +40,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-055** `warfare` `spawn_conflict`/`conflict_effects` never called — conflicts can't start or resolve.~~ (fixed — orphaned `warfare` module deleted; no conflicts ever started)
 - [x] ~~**W-056** `military::army_power` never called (`resolve_battle` has a single caller) — battles can't be fought or lost.~~ (fixed — orphaned `military` module deleted with `resolve_battle`'s only caller)
 - [x] ~~**W-057** `tech_tree::can_research` never called — research is never gated; `next_researchable` has one caller, verify it's live.~~ (stale — `can_research` runs via `research`/`next_researchable`, exercised by the demo bins and the tech view)
+
 - [x] ~~**W-058** `world::spawn_world` never called — an alternate world-gen path abandoned in place.~~ (fixed — deleted the abandoned `spawn_world` path)
 - [x] ~~**W-059** `terrain::spawn_terrain` never called — `Terrain::generate_country` won; remove or wire.~~ (fixed — `spawn_terrain` deleted; `Terrain::generate_country` is the one path)
 - [x] ~~**W-060** `factions::spawn_faction` never called — factions can never spawn.~~ (fixed — orphaned `factions` module deleted; nothing ever constructed a Faction)

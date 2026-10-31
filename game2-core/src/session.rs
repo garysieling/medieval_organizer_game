@@ -2832,7 +2832,11 @@ impl Game {
             .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
         let recruit_infl_ok = can_recruit(p.0);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some();
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
+        // a cell visit can't be Talk or Recruit: the way out is Petition,
+        // which shows as a context button once a campaign exists
+        else if (i == 0 || i == 1) && held { Some("the cell holds them".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 2 && p.1 < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
@@ -3302,8 +3306,10 @@ impl Game {
             let near = self.world.get_component::<Pos>(*v)
                 .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < MEETING_REACH)
                 .unwrap_or(false);
-            // the shunned aren't asked to sit
+            // the shunned aren't asked to sit, and the held can't leave
+            // the cell to come
             alive && near && !self.shunned(*v)
+                && self.world.get_component::<crate::game::dungeon::Imprisoned>(*v).is_none()
         }).collect()
     }
 

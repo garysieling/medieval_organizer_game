@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F34. A voice with Shakespeare in it
-
-*Brainstorm "Shakespearean language — insults, jokes, compliments";
-creativity corpus has the texts.*
-
-**What.** Talk/meeting/bubble lines get a register pass: flavored
-insults (sanction gossip), compliments (courtship), oaths — drawn from a
-line-bank built off the corpus, keeping per-vocation voice tables.
-
-**Spec.** `linebank.rs` data module (seeded tables per register +
-vocation); Talk lines sample register by relationship. Zero new
-mechanics — pure voice. Do it after F17 so jokes can *reference* things.
-**Size: S.**
-
----
-
 ### F35. The dark cap: the gibbet (optional)
 
 *Brainstorm "Guillotine — maybe; the violent end of the spectrum."*

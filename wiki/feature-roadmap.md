@@ -32,24 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F21. Number systems & translators — the dragoman problem
-
-*`sprint-7-number-systems-and-translators.md`.*
-
-**What.** Rival villages keep different accounts: tallies, Roman+board,
-positional numerals. Cross-village trade and contracts lose value to
-"conversion friction" and open fraud unless a translator/clerk is
-involved.
-
-**Spec.** `Numeracy` trait per village/faction; trade events between
-mismatched systems apply a friction tax (1–15%, error-seeded) unless a
-`Translator` (new TownRole, spawns when two villages trade regularly)
-mediates. `AbacusSchool` building spreads positional numeracy. Fraud
-cases become `Problem`-worthy grievances — an organizer issue: "the
-reckoning that didn't add up." **Size: M-L.**
-
----
-
 ### F22. Sky events — comets, eclipses, solstices
 
 *Brainstorm "astrology/sky events"; pre-loads F23.*

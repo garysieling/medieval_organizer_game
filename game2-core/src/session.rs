@@ -1719,6 +1719,8 @@ pub struct Game {
     pub cave_pos: Option<(i32, i32)>,
     /// The hermit who keeps to it
     pub hermit: Option<Entity>,
+    /// Whether the player's first body's gone - the work goes on
+    pub player_passed: bool,
 }
 
 /// A letter, traveling - durable word that crosses distance
@@ -2499,6 +2501,7 @@ impl Game {
             heirlooms: vec![],
             letters: vec![],
             cave_pos: Some((36, 33)),
+            player_passed: false,
         }
     }
 
@@ -4142,6 +4145,44 @@ impl Game {
         }
     }
 
+    /// The player is the org, not a body: when the first pair of hands
+    /// stops, the work passes to the member who knew them best - or the
+    /// kin under the same roof - and goes on
+    pub fn continuation_tick(&mut self, tick: u64) {
+        if self.player_passed || !villager::is_dead(&self.world, self.player) { return; }
+        // the successor: an org member first - the organizing's
+        // institutional - then kin under the same roof
+        let members = self.world.get_component::<Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        let org_pick = members.iter().copied()
+            .filter(|&m| !villager::is_dead(&self.world, m) && m != self.player)
+            .max_by_key(|&m| relationships::find_relationship(&self.world, self.player, m)
+                .map(|r| self.world.get_component::<relationships::Relationship>(r)
+                    .map(|rr| (rr.strength * 100.0) as u32).unwrap_or(0)).unwrap_or(0));
+        let kin_pick = household::home_of(&self.world, self.player)
+            .and_then(|h| self.world.get_component::<Building>(h)
+                .map(|b| b.occupants.iter().copied()
+                    .find(|&o| o != self.player && !villager::is_dead(&self.world, o))))
+            .flatten();
+        let succ = org_pick.or(kin_pick);
+        self.player_passed = true;
+        let Some(succ) = succ else {
+            self.log.push(format!("t{}: the work dies with them - no hands left to take it up.", tick));
+            return;
+        };
+        // the purse and the standing pass; the influence is theirs to make
+        let (res, standing) = self.world.get_component::<PlayerCharacter>(self.player)
+            .map(|p| (p.resources, p.standing)).unwrap_or((0.0, 0.0));
+        self.world.add_component(succ, PlayerCharacter {
+            name: self.name_of(succ), influence: standing * 0.5,
+            authority: 0.0, resources: res, standing,
+        });
+        let name = self.name_of(succ);
+        self.player = succ;
+        self.log.push(format!("t{}: the work goes on - {} takes up the organizing.", tick, name));
+        self.say(succ, "The work goes on. Someone has to.", CHAT_BUBBLE_SECS * 2);
+    }
+
     /// The river gives: a catch for the fish-smoke house, better in a
     /// flood year and thin in the ice - and now and then the water
     /// brings up something strange, and the pedlar sells the tale
@@ -5106,6 +5147,8 @@ impl Game {
         self.care_tick(tick);
         // and the river gives up its catch, season on season
         self.fisher_tick(tick);
+        // and if the player's gone, the work goes on in another pair of hands
+        self.continuation_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -8331,6 +8374,40 @@ mod cave_tests {
         // and the deep patch is there for the picking
         assert!(g.mush_patches.iter().any(|p| p.tile == (35, 33)),
             "the best mushrooms grow in the under");
+    }
+}
+
+#[cfg(test)]
+mod continuation_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_work_goes_on() {
+        let mut g = Game::new();
+        let succ = g.villagers[5];
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(succ);
+        let r = g.world.create_entity();
+        g.world.add_component(r, relationships::Relationship {
+            from: g.player, other: succ, kind: relationships::RelKind::Friend,
+            strength: 0.9, interactions: 8 });
+        g.world.add_component(g.player, villager::Dead);
+        g.continuation_tick(1);
+        assert_eq!(g.player, succ, "the deepest bond takes it up");
+        assert!(g.log.iter().any(|l| l.contains("the work goes on")));
+        assert!(g.world.get_component::<PlayerCharacter>(succ).is_some());
+    }
+
+    #[test]
+    fn test_no_hands_means_the_work_dies() {
+        let mut g = Game::new();
+        // no org, no kin under the roof
+        if let Some(home) = household::home_of(&g.world, g.player) {
+            g.world.get_component_mut::<Building>(home).unwrap().occupants.clear();
+        }
+        g.world.add_component(g.player, villager::Dead);
+        g.continuation_tick(1);
+        assert!(g.log.iter().any(|l| l.contains("the work dies with them")));
+        assert!(g.player_passed);
     }
 }
 

@@ -5479,7 +5479,11 @@ impl Game {
                 let _ = i;
             }
         }
-        let pe = self.player; sync_purse(&mut self.world, pe, false);
+        // every seat's purse mirrors the day's trading, not just seat 0's;
+        // agent seats have no PlayerCharacter and sync_purse no-ops on them
+        for s in 0..self.seats.len() {
+            let pe = self.seats[s].player; sync_purse(&mut self.world, pe, false);
+        }
     }
 
     /// What this person might walk out to buy today: a good that feeds an

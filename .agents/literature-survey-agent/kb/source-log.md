@@ -334,6 +334,69 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### Round 3: Anti-Colonial, Messianic, Pre-Modern, Secret Societies (added 2026-10-31)
+
+#### Norman Cohn - *The Pursuit of the Millennium* (1957/1970)
+**Type:** Academic book (Oxford UP)
+**Domain:** Medieval Millenarianism, Religious Movements
+**Rating:** A
+**Year:** 1957/1970
+**Relevance:** The spine for prophetic mobilization: prophet class (lower clergy/marginal intellectuals), constituency (rootless poor), narrative structure (golden age→corruption→imminent overturn), cases from Niklashausen to Münster
+**Used In:** organizing-messianic-prophetic.md
+**Notes:** Still the only comprehensive work. Cohn's modern-totalitarianism linkage is contested; case history is standard.
+
+#### Emmanuel Le Roy Ladurie - *Montaillou* (Fournier register) + Bernard Gui - *Practica Inquisitionis*
+**Type:** Inquisitorial primary records / microhistory + inquisitor's manual
+**Domain:** Medieval Counter-Intelligence, Heresy
+**Rating:** A+
+**Year:** 1318-25 register; manual 1320s
+**Relevance:** Best-documented pre-modern counter-organizing institution: dossier system, informer networks, grace-period amnesty harvests, secret denunciation, relapse=death engineered informer class
+**Used In:** organizing-premodern-resistance.md
+
+#### Haitian Revolution scholarship (Geggus; Bois Caiman ceremony analyses)
+**Type:** Academic monograph + journal articles
+**Domain:** Slave Revolt, Caribbean History
+**Rating:** A
+**Year:** various
+**Relevance:** Commandeur network pre-organization, Vodou as cross-ethnic binding infrastructure, blood oath as commitment device, conspirators' fake-decree disinfo document
+**Used In:** organizing-anticolonial-campaigns.md
+**Notes:** Ceremony details contested; consensus on religious-network organizational function.
+
+#### Land League scholarship (Parnell Ennis speech — primary; BAHS organizational study)
+**Type:** Primary speech + peer-reviewed history
+**Domain:** Irish History, Agrarian Movements
+**Rating:** A
+**Year:** 1879-82 events
+**Relevance:** Boycott invention ("moral Coventry"); boycotting primarily as insider discipline; Ladies' Land League pre-built succession redundancy
+**Used In:** organizing-anticolonial-campaigns.md
+
+#### Battle of Algiers / counter-insurgency studies (DTIC French HUMINT study; RAND *Pacification in Algeria*; J Cold War Studies on guerre revolutionnaire; Ormsby on Galula)
+**Type:** Military-academic analysis
+**Domain:** Counter-Insurgency Doctrine
+**Rating:** A
+**Year:** various
+**Relevance:** Two-register COIN (mass brutal vs surgical bleuite); torture's strategic self-defeat; Galula hearts-and-minds paradox; COIN as competitive organizing
+**Used In:** organizing-anticolonial-campaigns.md
+
+#### Waldensian/Hussite/Remenca scholarship (Biller *The Waldenses*; Kaminsky; Freedman; Cohn *Lust for Liberty*)
+**Type:** Academic monographs
+**Domain:** Medieval Religious Resistance
+**Rating:** A
+**Year:** various
+**Relevance:** Clandestine parallel-church durability (800yr), wagon-fort tactical innovation, Compactata negotiated win + moderate-split exploitation, rare peasant negotiated victory
+**Used In:** organizing-premodern-resistance.md
+
+#### Secret society scholarship (Rath on Carbonari AHR 1964; Kershaw/Rice on Mau Mau oath; ter Haar on Triads; Fenian ritual documents; Le Caron account)
+**Type:** Peer-reviewed + primary documents
+**Domain:** Clandestine Organizations
+**Rating:** A
+**Year:** various
+**Relevance:** Oath as costly-signal commitment tech; staged degrees; cover functions; Le Caron 25-year penetration; counter-oathing ceremonies; dual-org architecture
+**Used In:** organizing-secret-societies.md
+**Notes:** Le Caron is the infiltrator's own account — self-serving but primary.
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

@@ -599,3 +599,92 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** information-infrastructure, petition-machinery, gag-rule, movement-press, samizdat, church-pulpits, broadcast-networks, brand-symbols, silence-death, indymedia, tactical-freeze, tufekci, suppression-backfire, streisand
 
 ---
+
+### ROUND 3: Anti-Colonial Campaign History (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Colonial/Decolonial History, Insurgency & Counter-Insurgency
+**Output:** wiki/literature-reviews/organizing-anticolonial-campaigns.md
+**Yield:**
+- Haiti: Bois Caiman as fused org+ritual (commandeur networks + maroons + blood oath); conspirators' fake royal-decree disinfo; indemnity counter-attack (post-victory economic isolation)
+- Ireland Land War: boycott invented (Ennis speech); boycotting primarily as insider discipline; Ladies' Land League = pre-built succession redundancy (decapitation insurance)
+- Algeria/FLN: cells + parallel state; two Battles of Algiers (mass brutal vs surgical bleuite infiltration); torture's strategic self-defeat; Galula hearts-and-minds paradox (even the clean doctrine failed vs structural legitimacy deficit)
+- Counter-insurgency doctrine inventory: quadrillage, population control, infiltration>raids, torture trap
+- Supporting: Setif atrocity radicalization debt, Viet Minh parallel governance, swadeshi, Palmares (90-year parallel state)
+- 5 mechanics: sacred binding infrastructure, ostracism as insider discipline, succession redundancy, COIN doctrine choice, deferred radicalization debt
+
+**Key Sources:**
+- Geggus Haitian Revolutionary Studies + Bois Caiman analyses - A
+- Land League/Parnell Ennis speech (primary) + BAHS organizational study - A
+- DTIC/RAND Battle of Algiers studies - A
+- J Cold War Studies guerre revolutionnaire + Galula limits - A
+- CLR James Black Jacobins - A+
+
+**Confidence:** High
+**Tags:** anticolonial, haiti, bois-caiman, land-league, boycott, ladies-land-league, algeria, fln, battle-of-algiers, bleuite, galula, counterinsurgency, setif, palmares, maroons, succession-redundancy, torture-paradox
+
+---
+
+### ROUND 3: Messianic & Prophetic Movements (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval/Early-Modern Religious Movements, Millenarianism
+**Output:** wiki/literature-reviews/organizing-messianic-prophetic.md
+**Yield:**
+- Cohn framework: prophets from lower clergy/marginal intellectuals; constituency = rootless poor; narrative = golden age→corruption→imminent overturn
+- Cases: Drummer of Niklashausen (30-70k mobilized in weeks, one arrest ended it), Müntzer/Peasants' War (prophetic legitimacy ≠ military competence, Frankenhausen annihilation), Münster (prophetic takeover→authoritarian capture, cages as memorial deterrence), Savonarola (prophet rules a republic via institutional cover, ends when sponsors withdraw), Flagellants (leaderless replication = leaderless drift), Free Spirit (meme without org)
+- Prophet-vs-organizer archetype table; deep patterns (prophecy solves collective action; deadline as kill-switch; single point of failure; capture vulnerability; martyrdom double-edge)
+- 5 mechanics: prophetic mobilization growth mode, millenarian timer, martyrdom roll, prophetic capture events, institutional-cover dependency
+
+**Key Sources:**
+- Cohn *Pursuit of the Millennium* (1957/1970) - A (classic; contested on modern-totalitarianism linkage)
+- Wunderli *Peasant Fires* - A
+- Peasants' War/Münster/Savonarola historiography - A
+
+**Confidence:** High
+**Tags:** messianic, prophetic, millenarian, cohn, niklashausen, muntzer, munster, anabaptist, savonarola, flagellants, free-spirit, charismatic-mobilization, deadline-movement, martyrdom, authoritarian-capture
+
+---
+
+### ROUND 3: Pre-Modern Resistance Organizations (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Religious/Social Movements, Heresy & Persecution
+**Output:** wiki/literature-reviews/organizing-premodern-resistance.md
+**Yield:**
+- Survivors: Waldensians (800yr clandestine parallel church - dissimulation as doctrine), Hussites (wagon-fort wins + Compactata negotiated settlement; moderate-militant split exploited at Lipany), Lollards (text-based persistence), Remenca (rare negotiated WIN - Sentencia 1486 abolished serfdom via crown-as-arbiter pillar defection)
+- Institutional fork: Francis (absorbed - capture-by-incorporation) vs Dominicans (counter-movement order that staffed the Inquisition - power answers organizing with parallel organizing)
+- Insurrection failures: Bundschuh (network kept warm between attempts), 1381 (Tyler killed AT negotiation - negotiate-and-decapitate countertactic), Jacquerie (pure spontaneity), Ciompi (movement-to-administration gap)
+- INQUISITION AS MEDIEVAL COUNTER-INTEL: Fournier register/Montaillou (dossiers, informers, flipped penitents); Bernard Gui manual; grace-period amnesty = informer harvest; secret denunciation; relapse=death engineered informer class; tolerated freelance inquisitors
+- 5 mechanics: hidden-institution form, inquisition counter-cycle, relapse/penitent mechanic, negotiate-and-decapitate event, moderate-split exploitation
+
+**Key Sources:**
+- Le Roy Ladurie *Montaillou* / Fournier register - A+
+- Bernard Gui *Practica Inquisitionis* - A+ (primary manual)
+- Biller *The Waldenses* - A
+- Hussite/Remenca/Peasants' Revolt scholarship - A
+
+**Confidence:** High
+**Tags:** premodern, waldensians, hussites, lollards, remenca, inquisition, fournier, montaillou, bernard-gui, heresy, underground-church, wagon-forts, negotiate-and-decapitate, relapse-informers, franciscans, dominicans, bundschuh, jacquerie, ciompi
+
+---
+
+### ROUND 3: Secret Societies & Oath Networks (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Clandestine Organization History, Ritual & Trust Economics
+**Output:** wiki/literature-reviews/organizing-secret-societies.md
+**Yield:**
+- Core tech: oath as costly-signal commitment device; staged degrees; passwords/recognition protocols (Fenian ritual documented); cover functions
+- Carbonari (vendite cells + ritual; Mazzini's critique: secrecy outlived function = ritual drift), Fenians/IRB (Le Caron 25-year deep infiltration; dual open+clandestine architecture; diaspora funding), Mau Mau (oath as sophisticated mass-binding; British counter-oathing cleansing ceremonies + villagization), Triads (mutual aid + rebellion dual function; 300yr persistence via service), Tolpuddle (oath itself criminalized 1834 - prosecution created the founding myth), Freemasonry (the template; anti-Masonic counter-movement shows 'secret cabal' frame as weapon)
+- Failure modes: ritual drift, penetration, informer-class flips, isolation from legitimacy, conspiracy frame vulnerability
+- Function map: secret vs open forms across trust/comm/coordination/legitimacy/scale/survival; secret society = wartime form, must convert to win
+- 5 mechanics: oath intensity tech, cover function, penetration timer, counter-ritual enemy action, dual-org architecture
+
+**Key Sources:**
+- Rath on Carbonari (AHR 1964) - A
+- Mau Mau oath scholarship (Kershaw; Rice thesis) - A
+- Fenian ritual + Le Caron account - A
+- ter Haar on Triads - A
+- Tolpuddle records - A
+
+**Confidence:** High
+**Tags:** secret-societies, oaths, carbonari, fenian, irb, mau-mau, oathing, counter-oathing, triads, tolpuddle, freemasonry, clandestine, infiltration, le-caron, ritual-drift, dual-org, cover-function, costly-signaling
+
+---

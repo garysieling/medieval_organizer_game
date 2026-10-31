@@ -6170,9 +6170,10 @@ impl Game {
                 }
             }
             Goal::TalkTo(e) => {
-                if crate::game::dungeon::unavailable(&self.world, e) {
-                    // whoever they meant to greet is gone or behind bars -
-                    // a grave isn't a conversation, and neither is a cell
+                // whoever they meant to greet is gone, behind bars, or
+                // down the road and dusted - no conversation at any of them
+                if crate::game::dungeon::unavailable(&self.world, e)
+                    || self.world.get_component::<Pos>(e).is_none() {
                     self.say(who, "Oh.", TALK_BUBBLE_SECS);
                 } else if Some(e) == self.matchmaker && who != e {
                     // a lonely heart comes to sit with the heart-helper

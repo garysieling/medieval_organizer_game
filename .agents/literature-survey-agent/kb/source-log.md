@@ -334,6 +334,46 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+#### Freeman, "The Tyranny of Structurelessness" (1970 talk; The Second Wave 1972; Berkeley J. Sociology 17)
+**Type:** Primary movement essay
+**Domain:** Participatory democracy / org structure
+**Rating:** A+ (canonical; defines the informal-elite problem)
+**Year:** 1972
+**Relevance:** Structureless groups hide unaccountable elites; accountable delegated roles are the fix
+**Used In:** organizing-internal-structure.md
+
+---
+
+#### Snow, Rochford, Worden & Benford, "Frame Alignment Processes, Micromobilization, and Movement Participation," ASR 51(4)
+**Type:** Peer-reviewed theory (field studies of religious/peace/neighborhood movements)
+**Domain:** Micro-mobilization / framing
+**Rating:** A+ (6,500+ citations; the standard joining model)
+**Year:** 1986
+**Relevance:** Bridging/amplification/extension/transformation; alignment necessary & ongoing for participation
+**Used In:** organizing-internal-structure.md
+
+---
+
+#### Polletta, *Freedom Is an Endless Meeting* (U. Chicago 2002) + "Consensual decision-making" (Wiley-Blackwell encyclopedia)
+**Type:** Academic monograph + reference entry (100+ activist interviews)
+**Domain:** Participatory democracy history
+**Rating:** A
+**Year:** 2002 / 2011
+**Relevance:** Consensus vs majority trade-offs; spokescouncils; friendship-model failure; explicit norms beat charisma
+**Used In:** organizing-internal-structure.md
+
+---
+
+#### Highlander / Citizenship Education Program records (King Institute Stanford; J. Am. Hist. CEP study 2011; HEQ "The Answers Come from the People")
+**Type:** Institutional history + peer-reviewed historiography
+**Domain:** Movement pedagogy / leadership development
+**Rating:** A
+**Year:** various (school active 1953–61; SCLC program to 1970)
+**Relevance:** Train-the-trainer replication (37 Sea Island schools, ~100k trained); noncharismatic teachers; hidden venues; charter revocation as repression
+**Used In:** organizing-internal-structure.md
+
+---
+
 ### Round 3: Anti-Colonial, Messianic, Pre-Modern, Secret Societies (added 2026-10-31)
 
 #### Norman Cohn - *The Pursuit of the Millennium* (1957/1970)
@@ -394,6 +434,46 @@ Tracks all sources found during literature surveys with credibility ratings.
 **Relevance:** Oath as costly-signal commitment tech; staged degrees; cover functions; Le Caron 25-year penetration; counter-oathing ceremonies; dual-org architecture
 **Used In:** organizing-secret-societies.md
 **Notes:** Le Caron is the infiltrator's own account — self-serving but primary.
+
+---
+
+#### Jasper & Poulsen, "Recruiting Strangers and Friends: Moral Shocks and Social Networks," Social Problems 42(4)
+**Type:** Peer-reviewed survey study (animal-rights & anti-nuclear protestors)
+**Domain:** Recruitment sociology
+**Rating:** A+ (~760 citations; the stranger-recruitment paper)
+**Year:** 1995
+**Relevance:** Two recruitment channels — network activation vs moral shocks to strangers via condensing symbols
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+#### Suffragette prison record (UK Parliament heritage pages; London Museum; OpenLearn)
+**Type:** Institutional/primary-source histories
+**Domain:** Political imprisonment / hunger strikes
+**Rating:** A/A+
+**Year:** events 1909–1914
+**Relevance:** Dunlop's 1909 hunger strike (status demand), force-feeding as propaganda gift, Cat and Mouse Act failure mode
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+#### Attica Liberation Faction manifesto + historiography (Freedom Archives primary; Race & Class 2011; Harvard CR-CL; NYS Archives)
+**Type:** Primary document + peer-reviewed history
+**Domain:** Prison organizing
+**Rating:** A
+**Year:** events 1971
+**Relevance:** 28 "strikingly moderate" demands; manifesto-drafting as organizing; amnesty as the state's real refusal point; jailhouse-lawyer strand
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+#### Amnesty International archive (AI@50 timeline; 1981 membership handbook; Urgent Action records)
+**Type:** Primary institutional records
+**Domain:** Release-campaign architecture
+**Rating:** A
+**Year:** 1961–present
+**Relevance:** Adoption groups (prisoner-as-charter); "one letter is not pressure" volume doctrine; elite-statement prestige multiplier; response latency
+**Used In:** organizing-prisons-and-release.md
 
 ---
 

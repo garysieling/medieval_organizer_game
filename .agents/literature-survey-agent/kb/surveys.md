@@ -600,6 +600,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 ---
 
+### ROUND 2: Movement Internal Structure — Decisions, Meetings, Training (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement Sociology / Participatory Democracy / Movement Pedagogy
+**Output:** wiki/literature-reviews/organizing-internal-structure.md
+**Yield:**
+- Freeman's structurelessness problem: informal elites are inevitable and unaccountable; rap groups founder when they try to act; the fix is accountable delegated roles, not hierarchy
+- Snow et al. frame alignment taxonomy (bridging/amplification/extension/transformation) — alignment is a necessary, ongoing condition for participation; maps directly onto Framing grumbles
+- Polletta: failures come from modeling democracy on friendship/tutelage; consensus = commitment + slowness + splinter-risk, majority = speed + permanent minority, spokescouncils = the scaling unlock
+- Highlander/Citizenship Schools as the leadership multiplier: noncharismatic teachers, hidden venues, train-the-trainer replication (37 Sea Island schools → ~100k trained under SCLC)
+- 6 mechanics: alignment-as-participation-gate, seats-as-accountability/shadow elite, decision rules, frame work as meeting action, train-the-trainer, hidden schools
+
+**Key Sources:**
+- Freeman "Tyranny of Structurelessness" (1970/72) - A+
+- Snow, Rochford, Worden & Benford, ASR 51(4) 1986 (6.5k citations) - A+
+- Polletta *Freedom Is an Endless Meeting* (2002) + consensus encyclopedia entry - A
+- King Institute Highlander records; J. Am. Hist. CEP study; HEQ Highlander pedagogy - A
+
+**Confidence:** High
+**Tags:** internal-structure, tyranny-of-structurelessness, informal-elites, delegation, frame-alignment, snow-benford, consensus, majority-vote, spokescouncil, participatory-democracy, polletta, highlander, citizenship-schools, septima-clark, train-the-trainer, meeting-craft
+
+---
+
 ### ROUND 3: Anti-Colonial Campaign History (USER-REQUESTED)
 **Date Completed:** 2026-10-31
 **Domain:** Colonial/Decolonial History, Insurgency & Counter-Insurgency
@@ -689,6 +711,28 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 ---
 
+### ROUND 2: The Dungeon — Imprisonment & Release Campaigns (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Prison Organizing / Recruitment Sociology
+**Output:** wiki/literature-reviews/organizing-prisons-and-release.md
+**Yield:**
+- Jasper & Poulsen moral shocks: strangers recruit via broadcast condensing symbols — a second channel beside network recruitment (the bystander mechanic)
+- Prisoner-as-organizer: Dunlop 1909 invented the hunger strike over status; Attica's 28-demand manifesto as inside-organizing; jailhouse-lawyer track
+- All-losing state responses: force-feeding = propaganda gift, Cat-and-Mouse Act = revolving-door absurdity + fugitives, hold-without-process = legitimacy drain
+- Amnesty adoption model: prisoner-as-charter, pressure = volume × time + elite prestige multiplier, response latency as a stat
+- 5 mechanics: Imprisoned-as-active-state, moral-shock stranger recruitment, jailer's dilemma, release-campaign pressure accumulator, adoption-as-charter
+
+**Key Sources:**
+- Jasper & Poulsen, Social Problems 42(4) 1995 - A+
+- UK Parliament / London Museum suffragette prison record - A/A+
+- Attica manifesto (Freedom Archives primary) + CR-CL/Race&Class historiography - A
+- Amnesty archive (AI@50, 1981 handbook, Urgent Action) - A
+
+**Confidence:** High
+**Tags:** imprisonment, dungeon, hunger-strike, force-feeding, cat-and-mouse, moral-shocks, condensing-symbols, jasper-poulsen, stranger-recruitment, attica, jailhouse-lawyer, amnesty, prisoner-of-conscience, release-campaign, pressure-accumulator, adoption-groups
+
+---
+
 ### ROUND 3.5: The Faith-Power Interface (USER-REQUESTED, w/ Foucault comparison)
 **Date Completed:** 2026-10-31
 **Domain:** Sociology of Religion / Colonial Sociology / Institutional Power
@@ -760,5 +804,126 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High
 **Tags:** ink-making, oil-boiling, linseed-oil, varnish, lampblack, sac-a-noir, printing-ink, Gutenberg, Cennini, Encyclopedie, fire-hazard, urban-zoning, stench-crafts, outside-the-walls, bread-crusts
+
+---
+
+### SYNTHESIS: The Organizing/Power Architecture (all 12 surveys unified)
+**Date Completed:** 2026-10-31
+**Domain:** Cross-domain synthesis / System Architecture
+**Output:** wiki/literature-reviews/organizing-synthesis-architecture.md
+**Yield:**
+- Unified model: 3 coupled systems (mobilization modes / subject-production / counter-playbook) across a 6-phase lifecycle (build→mobilize→campaign→win→enforce→defend)
+- Core finding: "win" is phase 3 of 5 — movements disband, losers reorganize
+- Org-form spectrum table (open/secret/prophetic/parallel-institution/anchored/crowd) with growth-strength-weakness-counter mappings
+- Subject-production layer (Foucault×Freire): both sides build institutions that manufacture citizen dispositions
+- Unified stats model: organized_power, perceived_power, discipline, paranoia, logistics, brand_saturation, win_integrity, penetration (org) + internalized_domination, critical_agency, courage, dignity, broker_duality (citizen) + legitimacy, repression_debt, perceived_threat (power-holder)
+- Actor taxonomy (organizer, organic leader, prophet, broker, watchdog, marshal, canvasser, infiltrator, informer class)
+- Doc-to-mechanic map + 5-phase implementation path (loop→enemy→depth→forms→long game) + design flags (ethics layer, prophet play, broker play, medieval theming)
+
+**Confidence:** High (synthesis of documented material)
+**Tags:** synthesis, architecture, organizing-systems, mobilization-modes, subject-production, counter-playbook, campaign-lifecycle, stats-model, actor-taxonomy, implementation-path
+
+---
+
+### ROUND 4: Cult Dynamics (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Psychology of Totalism / New Religious Movements
+**Output:** wiki/literature-reviews/organizing-cult-dynamics.md
+**Yield:**
+- Lifton's 3 markers (charismatic leader becomes object of worship; thought reform; exploitation of members)
+- 8-criteria toolkit as 8 dials (milieu control, mystical manipulation, demand for purity, cult of confession, sacred science, loading the language, doctrine over person, dispensing of existence)
+- Key insight: cult is a phase state, not a type - normal social mechanics at toxic dosage; emergent not scripted
+- Lifecycle: charismatic founder→idealistic recruits→isolation→exploitation scales→leader paranoia→collapse modes (implosion/capture/deadline/institutionalization)
+- Cult vs movement vs sect vs secret society comparison table
+- 6 mechanics: 8-dial totalism system, exploitation extraction loop, isolation mechanics, escalating-commitment bind, collapse modes, exit-assistance counters
+
+**Key Sources:**
+- Lifton *Thought Reform and the Psychology of Totalism* (1961/89) - A+
+- Jonestown scholarship (SDSU Institute) - A
+- NRM/church-sect-cult scholarship - A
+
+**Confidence:** High
+**Tags:** cults, lifton, thought-reform, totalism, charismatic-leader, thought-reform-8-criteria, milieu-control, jonestown, munster, nxivm, synanon, exit-cost, exploitation, cult-emergence
+
+---
+
+### ROUND 4: Hinduism, Caste & Faith (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Religious Sociology / South Asian History / Caste Systems
+**Output:** wiki/literature-reviews/organizing-hinduism-caste-faith.md
+**Yield:**
+- Caste machine: varna (scriptural schema) vs jati (~3000 real endogamous occupational groups); purity/pollution economics; sanskritization (mobility that reinforces the frame); Brahmin interpretation monopoly; temple economies
+- Bhakti counter-tradition: vernacular devotion bypassing Brahmin gatekeeping (Basava/Lingayat, Kabir, Ravidas, Chaitanya) - the Lollard/Waldensian pattern 500 years early
+- Mass-conversion phenomenon: 1M->5M Christians 1860-1930, ~80% via GROUP movements not individual (Shanars, Chuhras, Telugu, Mizos); Dalit-initiated, missions followed; rice-Christians dependency problem
+- Exploitation/hypocrisy layer: devadasi debates, anti-nautch campaign vs British patronage; Spivak 'white men saving brown women' rescue-discourse frame
+- Hindu counter-organizing: Arya Samaj shuddhi re-conversion missions (the Dominican move)
+- Modern Dalit organizing: Phule Satyashodhak Samaj, Ambedkar; 1956 Navayana mass conversion ~500k (exit-as-mass-movement-tactic)
+- 6 mechanics: hereditary stratification layer, interpretation monopoly lever, mass_defection campaign type, ambiguous liberation institutions, exit-as-tactic, hereditary servitude institutions
+
+**Key Sources:**
+- Pickett *Christian Mass Movements in India* (1933) + modern scholarship - A
+- Srinivas sanskritization/varna-jati sociology - A+
+- Bhakti studies - A
+- Phule/Ambedkar scholarship + Navayana records - A
+- Spivak 'Can the Subaltern Speak' - A+
+
+**Confidence:** High
+**Tags:** hinduism, caste, varna, jati, sanskritization, bhakti, lingayat, kabir, ravidas, dalit, mass-conversion, missionaries, devadasi, phule, ambedkar, navayana-buddhism, group-conversion, exit-as-protest, brahmin-gatekeeping, stratification
+
+---
+
+### ROUND 4: Doctrine Formation & Sacramental Politics (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Historical Theology / Church-State Relations / Sacramental Sociology
+**Output:** wiki/literature-reviews/organizing-doctrine-sacraments.md
+**Yield:**
+- Creeds as adversarial answer-documents (each clause excludes a defeated heresy; councils as dispute-resolution events; heresiology as enemy-naming genre)
+- Theology of pain: church ran pre-medicine pain-management infrastructure (redemptive suffering, sacraments-as-palliative, purgatory); anesthesia controversy 1847-53 (tech disrupting theodicy - the religion-economics feedback loop confirmed)
+- Sacraments as membership-assignment tech: baptism=citizenship (why rebaptism was capital crime - refused state-assigned ID; drowning punishments), communion=membership enforcement, host-desecration pogroms, BCP rebellions, interdict as siege weapon (Innocent III vs John)
+- State-church contest: cuius regio eius religio, Act of Supremacy (property as real prize), Kulturkampf (failed vs anchored institution), Jesuit suppression/restoration
+- Wesley's accidental schism: field preaching (jurisdiction bypass), class-meeting parallel church, lay preachers, 1784 ordinations, hymns as vernacular doctrine - institution-building outrunning intent
+- Pacifist nonconformity: Quaker oath/hat/tithe refusals (declining deference-tech itself), Martyrs Mirror as memory infrastructure
+- 7 mechanics: creed-builder ledger, council events, affliction_load/theodicy stat, sacraments-as-membership-infrastructure, interdict-type collective punishment, accidental-schism emergence, deference-refusal action class
+
+**Confidence:** High
+**Tags:** doctrine, creeds, councils, nicaea, theology-of-pain, anesthesia, sacraments, baptism, anabaptist, communion, interdict, state-church, cuius-regio, wesley, methodism, schism, quakers, martyrs-mirror, heresiology
+
+---
+
+### ROUND 4: Religious Institutions Deep-Dive (USER-REQUESTED continuation)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Church History / Institutional Sociology
+**Output:** wiki/literature-reviews/organizing-religious-institutions-deep.md
+**Yield:**
+- Relic/saint economy: canonization as brand management; relics as ultimate collateral (Louis IX's Crown of Thorns > Sainte-Chapelle cost); furta sacra sacred theft (Venice's St. Mark heist); Reformation iconoclasm as legitimacy-market crash; pilgrimage economy
+- Monastic orders as proto-multinationals: Benedict's Rule as 1500yr org charter; Cistercian franchise model (~750 abbeys, lay-brother labor, granges); accumulation trap (durability->wealth->expropriation); Jesuit suppression/restoration (killable order, unkillable network)
+- Councils as constitutional machinery: Nicaea (emperor convenes/enforces), Constance (3 rival popes -> council deposes all, elects Martin V - conciliarism), Trent (18yr counter-doctrine production), Vatican II (self-loosening for competition)
+- Mystics' suppression = license-to-prophesy gate: Porete burned 1310 (heresy of ACCESS not content), Eckhart posthumous condemnation, beguines eliminated as unclassifiable female autonomy, Joan of Arc (mystic->military->martyr->saint); two-paths rule (submit experience to doctrine=canonized; claim it suffices=eliminated)
+- 5 mechanics: relic/cult economy with theft and crash, order-type orgs with accumulation->expropriation risk, council override events, license-to-prophesy gate, furta sacra raids
+
+**Confidence:** High
+**Tags:** relics, saints, canonization, furta-sacra, monastic-orders, benedictine-rule, cistercians, jesuits, councils, nicaea, constance, trent, conciliarism, mystics, porete, eckhart, beguines, joan-of-arc, prophecy-license
+
+---
+
+### ROUND 4: Incense - Production & Distribution (USER-REQUESTED deep-dive)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Craft, Long-Distance Trade, Liturgical Economics
+**Output:** wiki/literature-reviews/craft-incense-production.md
+**Yield:**
+- Resin tier table (frankincense>benzoin>copal>pine/local pitch - the substitute-tier economy; sacramental function same, prestige differs)
+- Incense Road: Nabataean source-mystification monopoly (dragon-guarded grove tales); Pliny silver-drain complaint; caravan->Alexandria->Venice/Genoa->spice guilds->parish; stacked middlemen
+- Craft: resin tears, compounded blends, charcoal delivery, saltpeter self-burning tech (gunpowder-adjacent), thuribles (Botafumeiro 80kg spectacle censer)
+- Theology: Ps 141 smoke=prayer; censing as sacred-zone marking; Reformation scent-war (incense=popery, smell as confessional marker)
+- Economics: perpetual-demand consumable; consumption dependency (church as customer of the trade it preached against); ritual budget as status economy
+- 5 mechanics: incense supply chain w/ tolls+mystification, substitute tiers, scent-as-space-marker, thurible/spectacle objects, consumption dependency
+
+**Key Sources:**
+- Pliny Natural History XII - A+
+- Nabataean/frankincense-trail archaeology - A
+- Medieval incense recipes + Botafumeiro records - A
+
+**Confidence:** High
+**Tags:** incense, frankincense, myrrh, nabataean, incense-road, trade-routes, thurible, botafumeiro, liturgy, scent-theology, substitute-goods, consumption-dependency, spice-trade, medieval-craft
 
 ---

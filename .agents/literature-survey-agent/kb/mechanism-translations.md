@@ -97,6 +97,39 @@ Maps academic concepts and research findings to concrete game mechanics.
 
 ---
 
+### Pattern: Hazardous Craft Zoning -> Outside-the-Walls Visitor
+**Academic Source:** Pistoia stench-craft statute, English furnace-craft bylaws, Encyclopedie varnish siting advice, Cennini's stove
+**Game Mechanic:** Periodic specialist (oil-boiler/ink-maker) camps a cauldron on the meadow outside the gate - the fire/smell hazard IS the reason for the location
+**Implementation:** session.rs on the Circus spawn/advance/tick pattern
+**Simplification:** One visitor per ~year, multi-day phases, small per-day fire chance
+**Educational Value:** Why medieval towns zoned dangerous trades; the ink on the page starts as a fire on the meadow
+**Fun Factor:** A scheduled spectacle with a real downside tail (the meadow burns)
+**Tags:** ink, oil-boiling, fire, urban-zoning, periodic-events
+
+---
+
+### Pattern: Process-Stage Recipe -> Multi-Phase Event
+**Academic Source:** Encyclopedie "Encre noir" recipe (boil -> ignite/smother -> bread + onions -> slate test -> grind black)
+**Game Mechanic:** Event advances through historical phases, one per day, each with its own beat (smoke, fried crusts, the drip test)
+**Implementation:** phase enum on the event struct
+**Simplification:** 4-5 phases, no player micro-management
+**Educational Value:** The recipe itself is the content - bread really did go into the oil
+**Fun Factor:** Villagers gather; kids get fried crusts; the drip test is a small reveal
+**Tags:** recipe-as-gameplay, ink, phased-events
+
+---
+
+### Pattern: Flammability Field -> Map Fire Spread
+**Academic Source:** Medieval town conflagrations around furnace trades; Sweetser EmerGEnT CA
+**Game Mechanic:** Burning tiles spread to flammable neighbours (grass, crops, trees, buildings), blocked by water/road, burn out to scorched ground
+**Implementation:** new fire module over TileMap (emergence.rs proved the rules)
+**Simplification:** Probabilistic spread, fixed burn duration, recovery over days
+**Educational Value:** Why one cauldron could burn a medieval town
+**Fun Factor:** Rare catastrophe everyone remembers
+**Tags:** fire, cellular-automata, emergence
+
+---
+
 ## Translation Heuristics
 
 ### Math → Mechanics Rule

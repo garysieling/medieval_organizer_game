@@ -259,9 +259,9 @@ Domains with no research yet but relevant to game vision.
 
 #### Writing Materials & Bookmaking
 **Coverage:** High
-**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking)
-**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md)
-**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus
+**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking); Hot-Pursuit 2026-10-31 (Ink Making - The Oil-Boiler's Fire)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md, wiki/literature-reviews/ink-oil-boiling.md)
+**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus, Cennini oil-boiling, Encyclopedie printing ink, lampblack/sac-a-noir, fire zoning bylaws
 **Mechanics Proposed:**
 - Five writing surfaces (vellum 14-day process, papyrus, vegetable papyrus from peppers, linen rag paper)
 - Four ink types (iron gall archival, carbon/lampblack, berry inks, mineral pigment from stone dust)
@@ -356,13 +356,13 @@ Topics that emerge from other work and need immediate research.
 - None active
 
 **Completed Hot-Pursuit:**
-- None yet
+- Ink Making - The Oil-Boiler's Fire (2026-10-31, Gary request) - confirmed the remembered event: linseed oil boiled to varnish outside the walls, bread crusts fried in it, lampblack (soot, not ash) ground in for printing ink -> periodic event + fire spread mechanics proposed
 
 ---
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 20
+**Total Surveys Completed:** 21 (20 scheduled + 1 hot-pursuit)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)

@@ -26,7 +26,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.~~ (fixed — pressure gathers a little every day; a prisoner walks alone in ~50 days)
 - [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
 - [ ] **W-036** `action_menu` (text game) has none of the new ctx verbs — no Meet/March/Strike/Townhall/Petition/Delegate/Matchmake/PairUp/Errand; text UI and GUI have drifted apart.
-- [ ] **W-037** `player::market_day` only fires in `bin/game.rs` — the market-day purse event has no GUI/session equivalent.
+- [x] ~~**W-037** `player::market_day` only fires in `bin/game.rs` — the market-day purse event has no GUI/session equivalent.~~ (fixed — `livelihood_tick` pays each seat's purse monthly per living org member)
 - [ ] **W-038** `balance_test` driver never exercises March/Petition/Delegate/etc. — balance runs can't see the newest verbs' effects.
 - [ ] **W-039** Traveller/minstrel fire-fleeing — #203 claimed "travelers flee too"; verify the traveller entity actually flees burning tiles.
 - [ ] **W-040** `next_minstrel` scheduling vs per-seat tick drift — verify the minstrel cadence is a sim tick, not wall/frame.

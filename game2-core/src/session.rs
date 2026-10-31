@@ -6432,8 +6432,23 @@ impl Game {
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
                                     .unwrap_or("someone");
                                 msg += &format!(" {} is taken.", tn);
-                                self.world.add_component(taken, crate::game::dungeon::ReleaseCampaign {
-                                    pressure: 0.0 });
+                                // the release effort is a campaign of its own:
+                                // the issue is a person now, not a grievance
+                                let rc = crate::game::dungeon::found_release_campaign(&mut self.world,
+                                    self.seats[seat].org, taken, tick);
+                                // those who watched a friend in the street sign
+                                // on for their release - no organizing needed
+                                let mut scene = out.turnout.clone();
+                                if !scene.contains(&taken) { scene.push(taken); }
+                                let mut signed = 0usize;
+                                for &v in &self.villagers.clone() {
+                                    if crate::game::reactions::witness(&mut self.world, v,
+                                            &"the prisoners".to_string(), &scene, tick)
+                                        && crate::game::dungeon::join(&mut self.world, rc, v) {
+                                        signed += 1;
+                                    }
+                                }
+                                if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
                                 self.toasts.push((format!("{} is taken", tn), tick + 40));
                             }
                         }
@@ -11576,6 +11591,45 @@ mod campaign_dungeon_tests {
         assert_eq!((at.x, at.y), (now.x, now.y), "the held stand where the guards left them");
         assert_eq!(g.world.get_component::<Hunger>(v).unwrap().value, hunger,
             "the castle feeds its prisoners - no starving where they stand");
+    }
+
+    #[test]
+    fn test_the_taken_get_a_release_campaign_and_their_friends_sign_on() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..4] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..4].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        // the loudest leads, and a bystander loves him enough to feel the take
+        for &v in &g.villagers[1..4] {
+            for _ in 0..3 {
+                crate::game::relationships::record_interaction(&mut g.world, v,
+                    crate::game::relationships::Interaction {
+                        other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+            }
+        }
+        let friend = g.villagers[6];
+        for _ in 0..3 {
+            crate::game::relationships::record_interaction(&mut g.world, friend,
+                crate::game::relationships::Interaction {
+                    other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+        }
+        g.seats[0].ctx_actions.push(CtxAct::March);
+        g.ctx_act_at(0, 0);
+        let prisoner = g.villagers.iter().copied()
+            .find(|&v| g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some())
+            .expect("the crackdown takes the loudest");
+        // the cause becomes a person: a campaign of their own
+        let rc = g.world.get_component::<crate::game::dungeon::ReleaseOf>(prisoner)
+            .map(|r| r.campaign).expect("a release campaign stands for the taken");
+        assert!(g.world.get_component::<crate::game::campaign::Campaign>(rc).is_some());
+        // and the ones who loved them sign on without an invite
+        assert!(g.world.get_component::<Organization>(g.org).unwrap().members.contains(&friend),
+            "the friend signs on for the release");
     }
 
     #[test]

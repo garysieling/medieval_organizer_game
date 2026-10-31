@@ -1732,6 +1732,9 @@ pub struct Game {
     pub path_tick: u64,
     /// The audio cue queue: drained per frame into the UiModel
     pub sfx: Vec<SfxCue>,
+    /// The castle's prisoners: (who, the day they were taken) - the org
+    /// ransoms them or the ladder climbs
+    pub dungeon: Vec<(Entity, u64)>,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to
@@ -2538,6 +2541,7 @@ impl Game {
             path_cache: std::collections::HashMap::new(),
             path_tick: u64::MAX,
             sfx: vec![],
+            dungeon: vec![],
         }
     }
 
@@ -4291,6 +4295,9 @@ impl Game {
                     } else {
                         self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
                         for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
+                        // taken to the castle - held, not gone: the org
+                        // ransoms them or the ladder climbs
+                        self.dungeon.push((m, tick));
                         self.send(m, Goal::Exile);
                     }
                 }
@@ -4322,6 +4329,43 @@ impl Game {
         }
         if let Some((_, until)) = self.sky {
             if until == tick + 2 { self.emit_sfx("wonder", 20.0, 5.0, 0.7); }
+        }
+    }
+
+    /// The castle's prisoners: a month to ransom them, or the ladder
+    /// climbs to its top. The org's purse answers for its own.
+    pub fn dungeon_tick(&mut self, tick: u64) {
+        if self.dungeon.is_empty() || tick % 15 != 5 { return; }
+        let mut resolved: Vec<(Entity, bool)> = vec![]; // (who, ransomed?)
+        for &(who, taken) in &self.dungeon.clone() {
+            let held = tick - taken;
+            let members = self.world.get_component::<Organization>(self.org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            let purse = self.world.get_component::<PlayerCharacter>(self.player)
+                .map(|p| p.resources).unwrap_or(0.0);
+            if held >= 30 && held < 60 && !members.is_empty() && purse >= 20.0 {
+                // the org pays the ransom: the purse answers for its own
+                if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.player) {
+                    p.resources -= 20.0;
+                }
+                resolved.push((who, true));
+            } else if held >= 60 {
+                // a month unanswered: the ladder climbs to its top
+                resolved.push((who, false));
+            }
+        }
+        for (who, ransomed) in resolved {
+            self.dungeon.retain(|(e, _)| *e != who);
+            let name = self.name_of(who);
+            if ransomed {
+                self.log.push(format!("t{}: the org pays the ransom - {} walks home.", tick, name));
+                if let Some(home) = household::home_of(&self.world, who).or(Some(self.market_food)) {
+                    self.send(who, Goal::HeadHome(home));
+                }
+            } else {
+                self.world.add_component(who, villager::Dead);
+                self.log.push(format!("t{}: no ransom came - {} is hanged at the castle.", tick, name));
+            }
         }
     }
 
@@ -5151,11 +5195,16 @@ impl Game {
                 }
             }
             Goal::Exile => {
-                // at the world's edge they don't come back: dead to the
-                // village, their grave the road itself
-                self.world.add_component(who, villager::Dead);
+                // at the world's edge they don't come back - unless the
+                // castle's keeping them: the dungeon's a held state, and
+                // the org may yet ransom them home
                 let name = self.villagers.iter().position(|v| *v == who).map(|i| NAMES[i]).unwrap_or("someone");
-                self.log.push(format!("t{}: {} is driven out - the road takes them.", tick, name));
+                if self.dungeon.iter().any(|(e, _)| *e == who) {
+                    self.log.push(format!("t{}: {} is held at the castle - the org may yet ransom them.", tick, name));
+                } else {
+                    self.world.add_component(who, villager::Dead);
+                    self.log.push(format!("t{}: {} is driven out - the road takes them.", tick, name));
+                }
             }
             Goal::ForageShroom(pi) => {
                 self.shroom_breaks.push((who, tick));
@@ -5350,6 +5399,8 @@ impl Game {
         self.continuation_tick(tick);
         // and the martyr's grave keeps its vigil
         self.martyr_tick(tick);
+        // and the castle's prisoners wait on the org's answer
+        self.dungeon_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -8754,6 +8805,48 @@ mod sfx_tests {
         // and a frame later it's gone - cues live exactly one read
         g.update();
         assert!(g.sfx.is_empty(), "the queue resets");
+    }
+}
+
+#[cfg(test)]
+mod dungeon_tests {
+    use super::*;
+
+    #[test]
+    fn test_taken_is_held_not_gone() {
+        let mut g = Game::new();
+        let m = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        g.dungeon.push((m, 10));
+        g.arrive(m, Goal::Exile); // they reach the castle's edge
+        assert!(!villager::is_dead(&g.world, m), "held, not gone");
+        assert!(g.log.iter().any(|l| l.contains("held at the castle")));
+    }
+
+    #[test]
+    fn test_the_org_pays_the_ransom() {
+        let mut g = Game::new();
+        let m = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
+        g.world.get_component_mut::<PlayerCharacter>(g.player).unwrap().resources = 50.0;
+        g.dungeon.push((m, 10));
+        g.dungeon_tick(50); // 40 days held, a %15==5 day - inside the window
+        assert!(g.dungeon.is_empty(), "the ransom came");
+        assert!(g.log.iter().any(|l| l.contains("pays the ransom")));
+        let res = g.world.get_component::<PlayerCharacter>(g.player).unwrap().resources;
+        assert_eq!(res, 30.0, "the purse answers for its own");
+    }
+
+    #[test]
+    fn test_no_ransom_means_the_ladder_climbs() {
+        let mut g = Game::new();
+        let m = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        g.dungeon.push((m, 10));
+        g.dungeon_tick(80); // 70 days - a %15==5 day, unanswered
+        assert!(villager::is_dead(&g.world, m), "the ladder climbs to its top");
+        assert!(g.log.iter().any(|l| l.contains("hanged at the castle")));
     }
 }
 

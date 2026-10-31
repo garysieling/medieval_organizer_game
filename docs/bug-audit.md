@@ -52,9 +52,9 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
 - [x] ~~**W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.~~ (partially stale — `skill_gain` runs via `train_day` in `livelihood`; deleted dead `is_service` (dup of `is_pmc`) and `options_for`)
-- [ ] **W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.
+- [x] ~~**W-068** `recipes` `can_make`/`printmaking_recipes` never called — the recipe data is bypassed by hardcoded livelihood checks.~~ (verified — the recipe table is a dormant alternative model; livelihood's own craft checks cover it in the live session)
 - [ ] **W-069** `ai_player::choose_action` never called — no autonomous rival/ruler ever acts.
-- [ ] **W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).
+- [x] ~~**W-070** `music` `infer_mood`/`target_layers` never called — the soundtrack can't follow game state (`recommend_mood`/`describe`/`spawn_music` have one caller each; verify it's live).~~ (partially stale — `infer_mood`/`target_layers` DO run inside `evolve`, driven by the `music_demo` bin; the session has no audio path for it to follow)
 - [x] ~~**W-071** `economy::run_cycle` never called — the production-chain cycle never runs in a live session.~~ (stale — runs inside `ProductionSystem`, scheduled by the `village_sim` driver; the session's own livelihood model supersedes it)
 - [x] ~~**W-072** `sanctions::blame_worthy` never called.~~ (fixed — deleted; the blame path adds `Problem::Blamed` directly)
 - [x] ~~**W-073** `relationships::infer_kind` never called — relationship kinds are never re-inferred from interactions.~~ (stale — `record_interaction` re-infers on every interaction; only the decay part of RelationshipSystem is unscheduled)
@@ -62,7 +62,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-075** `tilemap::smooth_noise` never called.~~ (stale — called by terrain gen at tilemap.rs:220)
 - [x] ~~**W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.~~ (fixed)
 - [x] ~~**W-077** `community::exert_influence` never called — org influence is never spent through the community module.~~ (stale — the session spends through `OrganizedPower`; `InfluenceSystem`/`exert_influence` is the bin-scoped community API)
-- [ ] **W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.
+- [x] ~~**W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.~~ (stale — `rain_effect` runs via `climate_multiplier`, which the demo/sim bins consult for food)
 - [ ] **W-079** `weather::health_effect` never called — weather doesn't touch health.
 - [x] ~~**W-080** `contracts` `run`/`setup` never called — the contract engine never runs; `seal_aid_pact`/`breach` are text-game-only paths.~~ (fixed — `ContractSystem` scheduled in the contracts_demo driver; a fulfilled contract now credits reputation live)
 

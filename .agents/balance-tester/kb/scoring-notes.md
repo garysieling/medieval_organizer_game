@@ -23,3 +23,25 @@ explicitly call for calibration over a baseline ensemble; expect movement.
 - time_to_first_growth = 200 (never) WARN - expected under the idle
   driver; this KPI measures the passive-player experience until a real
   policy exists.
+
+## Round 2 calibration (2026-10-31, seeds 42/7, 200-300d, dev build)
+
+- villagers.hungry re-thresholded to the sim's own seek line (<30); the old
+  <40 read the bottom of the meal cycle as famine (~0.68 peak when nobody
+  starved in 300d). villagers.starving (<=10) added as the hard red line.
+- hunger_peak replaced by hunger_pressure = MEAN share <30 (band 0.05-0.30
+  per balance review). Peak-share flagged survivable winter waves.
+- price_cv dropped: prices sit on a fixed vocation table by design, no
+  market gauge exists. Replaced by econ_gold_spread (top/mean purse ratio;
+  measured 4.5-6.6, band 0.5-8, flag >15).
+- classify() now skips command feedback ("Can't X", "You can't", "No one
+  is near") - blocked-button spam was inflating beat_density to ~19/10d.
+- Harness driver upgraded from the idle fallback to a light organizing
+  policy: eats/works via drive_player, talks fresh contacts for influence
+  (+0.05 each to 0.4), recruits at bond >= 0.5, calls meetings when 2+
+  ready, and never presses a greyed-out button (respects action_blocker).
+  Result: first org member ~day 41-43 across seeds.
+- punishment_warn 0.14-0.25 FAIL/WARN across seeds - a real finding, not
+  instrumentation: most negative beats (flu, writs, wolves) land with no
+  same-thread warning event in the prior 45d. Candidate for a warning
+  mechanic, not a band change.

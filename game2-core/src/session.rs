@@ -1723,6 +1723,11 @@ pub struct Game {
     pub player_passed: bool,
     /// The martyr's grave - where they hanged the one who said no
     pub martyr_grave: Option<(i32, i32)>,
+    /// Path memo: (from,to) -> the walk, cleared each day - the map
+    /// barely changes mid-day, and the BFS is the game's hot line
+    pub path_cache: std::collections::HashMap<((i32, i32), (i32, i32)), Option<Vec<(i32, i32)>>>,
+    /// The tick the cache was born on - a day older and it's stale
+    pub path_tick: u64,
 }
 
 /// A saved scenario: a village already mid-story when you walk in
@@ -2516,6 +2521,8 @@ impl Game {
             cave_pos: Some((36, 33)),
             player_passed: false,
             martyr_grave: None,
+            path_cache: std::collections::HashMap::new(),
+            path_tick: u64::MAX,
         }
     }
 
@@ -3540,10 +3547,23 @@ impl Game {
             self.travels.push(Travel { who, path: vec![to], goal });
             return true;
         }
-        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), to) {
+        match self.walk_memo((from.x.round() as i32, from.y.round() as i32), to) {
             Some(mut path) => { path.push(to); self.travels.push(Travel { who, path, goal }); true }
             None => false,
         }
+    }
+
+    /// The BFS is the game's hot line - a path's the same all day, so
+    /// remember it until the map might have moved
+    fn walk_memo(&mut self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
+        if self.path_tick != self.tick {
+            self.path_cache.clear();
+            self.path_tick = self.tick;
+        }
+        if let Some(cached) = self.path_cache.get(&(from, to)) { return cached.clone(); }
+        let p = self.map.walk_path(from, to);
+        self.path_cache.insert((from, to), p.clone());
+        p
     }
 
     /// A passable tile right next to a building's (occupied) one: where a
@@ -3559,7 +3579,7 @@ impl Game {
     fn send_tile_walk(&mut self, who: Entity, t: (i32, i32), goal: Goal, max_d: i32) -> bool {
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > max_d { return false; }
-        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
+        match self.walk_memo((from.x.round() as i32, from.y.round() as i32), t) {
             Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal }); true }
             None => false,
         }
@@ -8630,6 +8650,24 @@ mod telemetry_tests {
         assert!(gauges.iter().any(|(k, _)| *k == "price.fish"), "the economy's there");
         let lines = g.telemetry_lines();
         assert!(lines.iter().any(|l| l.starts_with("villagers.alive")), "a line per gauge");
+    }
+}
+
+#[cfg(test)]
+mod perf_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_path_memo_holds_for_the_day() {
+        let mut g = Game::new();
+        let p1 = g.walk_memo((10, 10), (15, 15));
+        assert!(p1.is_some(), "the walk's still walkable");
+        assert!(g.path_cache.contains_key(&((10, 10), (15, 15))), "it's remembered");
+        // a day older and it's stale
+        g.tick = 1;
+        g.walk_memo((10, 10), (15, 15));
+        assert_eq!(g.path_tick, 1, "the cache turned over");
+        assert_eq!(g.path_cache.len(), 1, "fresh, not accumulated");
     }
 }
 

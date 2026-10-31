@@ -608,6 +608,39 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### Round 5: Balance Tester Suite (added 2026-10-31)
+
+Condensed per-stream log; full per-source ratings live in each review's Key Sources.
+
+#### Game Design Fun / Supply-Chain (game-design-fun-supply-chain.md)
+- Csikszentmihalyi Flow; Koster Theory of Fun; Salen & Zimmerman meaningful play; Meier "interesting decisions" - A/A- theory spine
+- Per-title dev blogs, manuals, datamined wikis, designer interviews (Factorio FFF, Civ5, Majesty, Lords of the Realm, RimWorld storyteller constants, Stardew, Settlers 2) - A/B+ primary
+
+#### Balance Testing Methodology (balance-testing-methodology.md)
+- Schreiber & Romero, Game Balance (CRC 2021) + Game Balance Concepts course - A+
+- Sirlin, Playing to Win + balancing essays - A
+- Dormans, Engineering Emergence / Machinations - A
+- Ubisoft GDC'19 AI playtesting; King IEEE CoG'18 human-like playtesting - A
+- Riot /dev balance framework; Blizzard SC2/Hearthstone practice; Firaxis difficulty design; Bungie user research - A/A-
+- Pfau et al. "Dungeons & Replicants II" (IEEE ToG 2022); Mahlmann/Togelius/Yannakakis Dominion (CEC 2012) - B+
+
+#### Narrative & Storytelling Arcs (narrative-storytelling-arcs.md)
+- Aristotle/Freytag/Hero's Journey/Save the Cat - A (canonical)
+- Kishotenketsu analyses - B+
+- Mateas & Stern Façade beats; Thue et al. PaSSAGE; Roberts & Isbell survey - A
+- RimWorld storyteller personas (datamined constants) - A-
+- Reagan et al., six emotional-arc shapes (EPJ 2016) - A
+
+#### Reward & Punishment Conditioning (reward-punishment-conditioning.md)
+- Skinner, schedules of reinforcement (Ferster & Skinner 1957) - A+
+- Deci & Ryan, Self-Determination Theory - A+
+- Gottman ratio (~5:1) - A
+- Near-miss/LDW gambling literature (Clark et al.) - A
+- Dog-training / clicker practice (Pryor) - B+
+- Dark patterns literature (Gray et al., Mathur et al.) - A-
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

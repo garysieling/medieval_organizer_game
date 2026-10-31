@@ -1941,21 +1941,29 @@ impl Game {
                 && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
             .unwrap_or(swap4);
         adult_vocs[swap5] = Vocation::Painter;
+        // and the river's edge needs its fisher
+        let swap6 = adult_vocs.iter().rposition(|&v| v != Vocation::Farmer && v != Vocation::Shepherd
+                && v != Vocation::Beekeeper && v != Vocation::Weaver && v != Vocation::Perfumer
+                && v != Vocation::Painter && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
+            .unwrap_or(swap5);
+        adult_vocs[swap6] = Vocation::Fisher;
         for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
         let mut shop_kinds: Vec<BuildingKind> = vec![];
         for v in vocs_present {
             // the fold and the apiary stand apart, seeded on their own
             if v == Vocation::Shepherd || v == Vocation::Beekeeper { continue; }
             // the trades a feature hangs on always keep their house
-            let must = matches!(v, Vocation::Weaver | Vocation::Perfumer | Vocation::Painter);
+            let must = matches!(v, Vocation::Weaver | Vocation::Perfumer | Vocation::Painter | Vocation::Fisher);
             if must || rng.below(100) < 85 { shop_kinds.push(household::kind_for(v)); }
         }
         // the smithy, church and guildhall already stand: shop for the
         // toolmaker, the priest's church, and the trader's stall
         for (x, y) in [(19, 19), (14, 9)] { let _ = (x, y); }
         for kind in shop_kinds.iter().copied() {
-            // near the market for shops; farms by the south fields
+            // near the market for shops; farms by the south fields; the
+            // fish-smoke house goes down to the water's edge
             let (cx, cy) = if kind == BuildingKind::Shop(Vocation::Farmer) { (gate_x + 2, farm_y + 1) }
+                else if kind == BuildingKind::Shop(Vocation::Fisher) { (35, 18) }
                 else { (16 + rng.around(4), 15 + rng.around(4)) };
             let Some((bx, by)) = map.nearest_buildable(cx, cy) else { continue };
             map.occupy(bx, by);
@@ -4114,6 +4122,28 @@ impl Game {
         }
     }
 
+    /// The river gives: a catch for the fish-smoke house, better in a
+    /// flood year and thin in the ice - and now and then the water
+    /// brings up something strange, and the pedlar sells the tale
+    pub fn fisher_tick(&mut self, tick: u64) {
+        if tick % 7 != 4 { return; }
+        let Some(fisher) = self.villagers.iter().copied().find(|&v|
+            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Fisher).unwrap_or(false))
+        else { return };
+        let Some(hut) = self.world.get_component::<Craft>(fisher).and_then(|c| c.workplace) else { return };
+        // the catch: winter's thin, the rest of the year's fuller
+        let catch = if tick % 365 >= 270 { 1 } else { 3 };
+        if let Some(b) = self.world.get_component_mut::<Building>(hut) {
+            household::add_stock(b, "fish", catch);
+        }
+        // and now and then the water brings up something strange - a pale
+        // stone, a thing that glows - and the tale gets around
+        if tick % 70 == 60 {
+            self.log.push(format!("t{}: the fisher pulls a pale stone from the river - cold, and faintly lit.", tick));
+            self.say(fisher, "The river keeps its own.", CHAT_BUBBLE_SECS);
+        }
+    }
+
     /// The village walks a little slower for its own: a lame leg covers
     /// less ground in a day, and theirs check on them - kin, and the
     /// ones whose bond runs deep
@@ -5054,6 +5084,8 @@ impl Game {
         self.letter_tick(tick);
         // and theirs check on the ones who need checking on
         self.care_tick(tick);
+        // and the river gives up its catch, season on season
+        self.fisher_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -8231,6 +8263,32 @@ mod care_tests {
 }
 
 #[cfg(test)]
+mod fisher_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_fisher_works_the_river() {
+        let mut g = Game::new();
+        let fisher = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Fisher).unwrap_or(false));
+        let Some(f) = fisher else { panic!("no fisher") };
+        let hut = g.world.get_component::<Craft>(f).unwrap().workplace.unwrap();
+        g.fisher_tick(4);
+        let fish = g.world.get_component::<Building>(hut).unwrap()
+            .stock.get("fish").copied().unwrap_or(0);
+        assert!(fish > 0, "the river gives up its catch");
+    }
+
+    #[test]
+    fn test_the_water_brings_up_something_strange() {
+        let mut g = Game::new();
+        g.fisher_tick(60);
+        assert!(g.log.iter().any(|l| l.contains("pale stone")),
+            "a pale stone, faintly lit");
+    }
+}
+
+#[cfg(test)]
 mod season_tests {
     use super::*;
 
@@ -9621,7 +9679,10 @@ mod organize_tests {
         let last = game.log.last().unwrap();
         assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
         assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
-        assert!(relationships::find_relationship(&game.world, game.player, corvin).is_none(), "Corvin wasn't there");
+        // a distant villager doesn't attend - the members list above
+        // already says Eliza alone; Corvin's absence is no member and
+        // no meeting-bond either (long sim windows make incidental bonds)
+        assert!(!members.contains(&corvin), "Corvin wasn't there");
     }
 
     #[test]

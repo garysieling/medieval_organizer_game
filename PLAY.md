@@ -159,7 +159,11 @@ held it stop. The literate put word to those they think of - a letter
 travels a week on the road and warms the bond it lands on - and the
 ones who can't read pay the priest a penny to hear it. And a few carry
 a difference - a lame leg, failing sight, a mind that needs quiet - the
-village walks a little slower for them, and theirs check on them.
+village walks a little slower for them, and theirs check on them. And
+the river gives: the fisher keeps the fish-smoke house down at the
+water's edge - a catch for the smoke, thin in the ice, and now and then
+the water brings up a pale stone, faintly lit, and the tale gets
+around.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

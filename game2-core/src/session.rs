@@ -1321,6 +1321,9 @@ pub struct Meeting {
 const MEETING_WALK: f32 = 2.5 / FPS as f32;
 const GATHER_FRAMES: u32 = 20 * FPS;
 const LINE_FRAMES: u32 = 2 * FPS;
+/// How long the knights hold the streets after a crackdown: a posting is
+/// a tour, not a life sentence - they ride home in a month
+const GUARD_TOUR: u64 = 30;
 /// What the player says to open the meeting, between rounds, and to close it
 const MEETING_PROMPTS: [&str; 3] = [
     "Thanks for coming. What's on your minds?",
@@ -1636,6 +1639,9 @@ pub struct Game {
     pub town_wall: (i32, i32, i32, i32),
     /// The watch standing just inside each gate
     pub guards: Vec<(f32, f32)>,
+    /// Knights posted to the streets after a crackdown - gone when the
+    /// tour is done, unlike the gate watch that stands all year
+    pub posted: Vec<(f32, f32)>,
     /// The priest by the church
     pub priest: (f32, f32),
     /// The courier's road to the rivals' village and back (empty if there is none)
@@ -2516,6 +2522,7 @@ impl Game {
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             guards,
+            posted: vec![],
             priest,
             traveller_path,
             gulls,
@@ -4495,6 +4502,23 @@ impl Game {
         }
     }
 
+    /// The king's patience has a length: posted guards stand their tour,
+    /// then ride home - the streets are the village's again, and a
+    /// crackdown that comes after has to post them fresh
+    pub fn guards_tick(&mut self, tick: u64) {
+        for seat in 0..self.seats.len() {
+            let org = self.seats[seat].org;
+            let stood_down = self.world.get_component::<crate::game::reactions::GuardsPosted>(org)
+                .map(|g| tick >= g.since + GUARD_TOUR).unwrap_or(false);
+            if !stood_down { continue; }
+            self.world.remove_component::<crate::game::reactions::GuardsPosted>(org);
+            // they stand where they were posted no more: the street clears
+            // (the gate watch is the watch's, not the crackdown's)
+            self.posted.clear();
+            self.log.push(format!("t{}: the knights ride home - the tour is done.", tick));
+        }
+    }
+
     /// The martyr's grave: they gather there, and the remembering is a
     /// kind of organizing no castle can stamp out
     pub fn martyr_tick(&mut self, tick: u64) {
@@ -5559,6 +5583,8 @@ impl Game {
         self.martyr_tick(tick);
         // and the castle's prisoners wait on the org's answer
         self.dungeon_tick(tick);
+        // and the posted knights stand only their tour
+        self.guards_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -6370,8 +6396,8 @@ impl Game {
                             // can see them - once; posted guards stay posted
                             if !posted_before {
                                 let (px, py) = self.player_pos_at(seat);
-                                self.guards.push((px + 1.5, py));
-                                self.guards.push((px - 1.5, py));
+                                self.posted.push((px + 1.5, py));
+                                self.posted.push((px - 1.5, py));
                             }
                             // a campaign that keeps drawing the knights gets
                             // a rule written against it - the movement
@@ -6520,7 +6546,7 @@ impl Game {
         let (px, py) = self.player_pos_at(seat);
         people.push(PersonV { e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
-        for (i, &(x, y)) in self.guards.iter().enumerate() {
+        for (i, &(x, y)) in self.guards.iter().chain(&self.posted).enumerate() {
             people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         }
@@ -11551,6 +11577,25 @@ mod campaign_dungeon_tests {
         assert_eq!(g.disabled_reason(1).as_deref(), Some("in the dungeon"));
         g.act(0);
         assert!(g.log.last().unwrap().contains("in the dungeon"), "{:?}", g.log.last());
+    }
+
+    #[test]
+    fn test_the_knights_ride_home_when_the_tour_is_done() {
+        let mut g = Game::new();
+        g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 10 });
+        g.posted.push((15.0, 16.0));
+        g.posted.push((14.0, 16.0));
+        // mid-tour they stand their ground
+        g.guards_tick(20);
+        assert!(g.world.get_component::<crate::game::reactions::GuardsPosted>(g.org).is_some());
+        assert_eq!(g.posted.len(), 2);
+        // the tour done, they ride out - the posting and the street both clear
+        g.guards_tick(40);
+        assert!(g.world.get_component::<crate::game::reactions::GuardsPosted>(g.org).is_none());
+        assert!(g.posted.is_empty());
+        // the gate watch, though, stands all year
+        assert!(!g.guards.is_empty());
+        assert!(g.log.iter().any(|l| l.contains("knights ride home")), "{:?}", g.log);
     }
 }
 

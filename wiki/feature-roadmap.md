@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F31. The fisher and the water's edge
-
-*Brainstorm "sea creatures/fishable things" — map already has a river.*
-
-**What.** A fisher works the river: fish as a GoodFood source, eels,
-occasional river-strange finds (a pale stone, a thing that glows —
-vision/magic hooks). Winter ice changes it; the river floods rare years.
-
-**Spec.** `Vocation::Fisher` (no inputs, output `"fish"`, workplace a
-hut by the water); catch rate scales with season/flood state; flood
-event damages riverside stock (storm-damage machinery pending). Optional
-`SeaMonsterRumor` gossip line the pedlar (F19) sells — true or not is a
-world parameter. **Size: M.**
-
----
-
 ### F32. Caves — the monochrome under
 
 *Brainstorm "caves — underground is monochromatic."*

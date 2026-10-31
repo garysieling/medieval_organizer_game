@@ -136,4 +136,10 @@ pub enum AgentCmd {
     WorkDay,
     /// Eat at the nearest food source (hunger first)
     Eat,
+    /// Sign on with the cause: join the org when its issue has woken you
+    /// or the fight is your own
+    JoinOrg,
+    /// Write letters for a prisoner's release - your voice adds pressure
+    /// the jailer can't ignore
+    Press { prisoner: Entity },
 }

@@ -7216,6 +7216,31 @@ impl Game {
                     None => Err("no way to the store".into()),
                 }
             }
+            AgentCmd::JoinOrg => {
+                let oe = self.seats[seat].org;
+                if self.world.get_component::<Organization>(oe)
+                    .map(|o| o.members.contains(&who)).unwrap_or(false) { return Ok(()); }
+                // you sign on when the cause has woken you, or the fight's
+                // your own - either way the issue itself organizes you
+                let issue = crate::game::campaign::campaign_of(&self.world, oe)
+                    .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                    .map(|c| c.issue.clone());
+                let Some(issue) = issue else { return Err("no cause to sign on with".into()) };
+                let woken = self.world.get_component::<crate::game::reactions::Sympathized>(who)
+                    .map(|s| s.issues.iter().any(|(i, _)| *i == issue)).unwrap_or(false);
+                let own = crate::game::campaign::stake_for(&self.world, who, &issue, self.tick).is_some();
+                if !(woken || own) { return Err("the cause hasn't reached you - come to a meeting first".into()); }
+                if let Some(o) = self.world.get_component_mut::<Organization>(oe) { o.members.push(who); }
+                Ok(())
+            }
+            AgentCmd::Press { prisoner } => {
+                if self.world.get_component::<crate::game::dungeon::Imprisoned>(prisoner).is_none() {
+                    return Err("no one inside by that name".into());
+                }
+                // a letter home, a vigil, a name kept spoken
+                crate::game::dungeon::press(&mut self.world, prisoner, 0.1);
+                Ok(())
+            }
         }
     }
 
@@ -12212,5 +12237,36 @@ mod agent_tests {
         assert_eq!(g.world.get_component::<Hunger>(who).unwrap().value, 100.0);
         assert_eq!(g.world.get_component::<villager::FoodSource>(g.market_food).unwrap().servings,
             servings - 1, "a real serving went down");
+    }
+
+    #[test]
+    fn test_the_agent_who_the_cause_reached_signs_on_and_writes_for_the_held() {
+        let mut g = Game::new();
+        // a villager outside the taxed four: a stranger to the cause
+        let who = g.villagers[6];
+        g.seats.push(Seat { player: who, org: g.org, agent: true, ..Seat::default() });
+        // a cause to sign on with
+        for &v in &g.villagers[..4] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..4].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        // a stranger to it is refused
+        assert!(g.agent_command(1, AgentCmd::JoinOrg).is_err());
+        // but the woken sign on without being convinced
+        g.world.add_component(who, crate::game::reactions::Sympathized {
+            issues: vec![("the taxes".into(), g.tick)] });
+        g.agent_command(1, AgentCmd::JoinOrg).unwrap();
+        assert!(g.world.get_component::<Organization>(g.org).unwrap().members.contains(&who));
+        // and letters reach a prisoner, whoever writes them
+        let held = g.villagers[1];
+        assert!(g.agent_command(1, AgentCmd::Press { prisoner: held }).is_err(), "no one inside yet");
+        g.world.add_component(held, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        g.agent_command(1, AgentCmd::Press { prisoner: held }).unwrap();
+        assert!(g.world.get_component::<crate::game::dungeon::ReleaseCampaign>(held)
+            .map(|r| r.pressure > 0.0).unwrap_or(false), "the letters pile up");
     }
 }

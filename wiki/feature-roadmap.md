@@ -34,11 +34,6 @@ lower-risk, and lay groundwork later items reuse.
 
 ## Wave 5 — Meta & quality (work in when convenient)
 
-- **F36. Perf/batch pass** — flock + villagers > 40 entities: batch
-  separation pass, sprite cache, path memo (planned in
-  skills-vocations-plan's phase 5).
----
-
 ## Suggested opening run — in order
 
 1. ~~F1 Herbologist~~ — **done, PR #141.**

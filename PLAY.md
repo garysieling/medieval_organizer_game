@@ -175,7 +175,9 @@ keeps a vigil no lord can stamp out. When the organizer's hands stop,
 the work goes on - the member who knew them best takes it up. And there
 are stories you can walk into mid-telling: the fever year, the circus
 winter, the widow's shop. For the ones who tune the sim, the village
-reads its own innards: trail heat, people power, the land's score.
+reads its own innards: trail heat, people power, the land's score. And
+underneath it all the walks remember themselves - a path's the same
+all day, so the BFS only pays once.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -1224,6 +1224,44 @@ impl Game {
                     }
                 }
             }
+            EventId::FortuneTeller => {
+                // your palm, love - the lines don't lie: a penny a palm,
+                // the lines surface a want, and most times the telling's
+                // kind - now and then it's dark and the penny bought truth
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut read = 0;
+                for &v in &self.villagers.clone() {
+                    if read >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !near || !pays { continue; }
+                    // the lines surface a want the ear didn't know
+                    let want = {
+                        let wants: Vec<Want> = self.world.get_component::<desires::InnerLife>(v)
+                            .map(|l| l.wants.clone()).unwrap_or_default();
+                        let kn = self.world.get_component::<desires::Known>(v);
+                        wants.into_iter().find(|w| kn
+                            .map(|k| !k.revealed.contains(&desires::Reveal::Want(*w)))
+                            .unwrap_or(true))
+                    };
+                    if let Some(w) = want {
+                        let org = self.seats[0].org;
+                        desires::hear(&mut self.world, org, v, desires::Reveal::Want(w), tick);
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    // most palms read kind - a dark line's still the truth
+                    if self.rare_roll(id) % 4 != 0 {
+                        desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
+                        self.say(v, "The lines don't lie, love.", CHAT_BUBBLE_SECS);
+                    } else {
+                        self.say(v, "...ah. Best not say more.", CHAT_BUBBLE_SECS);
+                    }
+                    read += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2816,6 +2854,37 @@ mod tests {
             let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
             assert!(growth1 > growth0 || g.gardens.is_empty(), "the beds drank on {:?}", st);
             assert!(g.rare.iter().all(|r| r.id != EventId::WellDigger), "he packed his spade from {:?}", st);
+        }
+    }
+
+    /// Your palm, love: a penny a palm and the lines surface a want -
+    /// the frame shows her scarf first
+    #[test]
+    fn test_the_lines_dont_lie() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::FortuneTeller);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::FortuneTeller && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::FortuneTeller).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Love];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the fortune-teller")),
+                "the frame shows her scarf on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<desires::Known>(v)
+                .map(|k| k.revealed.contains(&desires::Reveal::Want(Want::Love))).unwrap_or(false),
+                "the lines surfaced the want on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny bought the palm");
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::FortuneTeller), "her tent came down on {:?}", st);
         }
     }
 

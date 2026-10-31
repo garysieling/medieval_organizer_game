@@ -189,8 +189,9 @@ pub fn seller_for(world: &World, good: &str, at: Pos) -> Option<Entity> {
     }
     world.query::<Satchel>().into_iter()
         .filter(|&s| {
-            world.get_component::<Satchel>(s)
-                .map(|t| t.goods.get(good).copied().unwrap_or(0) > 0).unwrap_or(false)
+            !crate::game::villager::is_dead(world, s)
+                && world.get_component::<Satchel>(s)
+                    .map(|t| t.goods.get(good).copied().unwrap_or(0) > 0).unwrap_or(false)
         })
         .min_by_key(|&s| {
             world.get_component::<Pos>(s)
@@ -217,6 +218,10 @@ pub fn shop_for(world: &World, good: &str, at: Pos) -> Option<Entity> {
 /// buyer's, gold the other way (the overseer's skim only applies to shop
 /// sales). Returns the price paid
 pub fn trade_person(world: &mut World, buyer: Entity, seller: Entity, good: &str, qty: u32) -> Option<f32> {
+    // the dead keep their satchels and take no coin
+    if crate::game::villager::is_dead(world, buyer) || crate::game::villager::is_dead(world, seller) {
+        return None;
+    }
     let cost = vocation::price(good) * qty as f32;
     let afford = world.get_component::<Purse>(buyer).map(|p| p.gold).unwrap_or(0.0);
     if afford < cost { return None; }
@@ -351,6 +356,19 @@ mod tests {
         // can't buy what isn't there or can't afford
         assert_eq!(trade_person(&mut w, baker, farmer, "wheat", 3), None);
         assert_eq!(trade_person(&mut w, baker, farmer, "wheat", 1), Some(2.0));
+    }
+
+    #[test]
+    fn test_the_dead_keep_their_satchels_and_take_no_coin() {
+        let mut w = World::new();
+        let farmer = worker(&mut w, vocation::Vocation::Farmer, 0.5, 0.0);
+        w.get_component_mut::<Satchel>(farmer).unwrap().goods.insert("wheat".into(), 3);
+        let baker = worker(&mut w, vocation::Vocation::Baker, 0.5, 10.0);
+        w.add_component(farmer, crate::game::villager::Dead);
+        assert_eq!(trade_person(&mut w, baker, farmer, "wheat", 1), None,
+            "no coin changes hands with a corpse");
+        assert_eq!(w.get_component::<Satchel>(farmer).unwrap().goods["wheat"], 3);
+        assert_eq!(w.get_component::<Purse>(baker).unwrap().gold, 10.0);
     }
 
     #[test]

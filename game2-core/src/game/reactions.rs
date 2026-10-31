@@ -10,7 +10,6 @@ use crate::game::campaign;
 use crate::game::desires::IssueTag;
 use crate::game::relationships::{find_relationship, Relationship};
 use crate::game::villager::is_dead;
-use crate::sim::community::Organization;
 
 /// A bystander woken to causes they never organized into: the issues
 /// they've watched become theirs (moral-shock recruitment - the channel
@@ -85,6 +84,7 @@ pub fn react(world: &mut World, campaign: Entity, turnout: &[Entity], tick: u64)
 mod tests {
     use super::*;
     use crate::game::campaign::{DecisionRule, Framing, IssueVote};
+    use crate::sim::community::Organization;
     use crate::game::desires::{add_grievance, InnerLife, Problem};
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
 

@@ -56,7 +56,12 @@ fn main() {
     opts.audio = args.iter().any(|a| a == "--audio");
     let die = |why: &str| -> ! { eprintln!("{}", why); std::process::exit(2) };
     if opts.fps == 0 || opts.fps > 240 { die("--fps must be 1-240"); }
+    if opts.speedup <= 0.0 { die("--speedup must be positive"); }
+    if !(0.05..=4.0).contains(&opts.scale) { die("--scale must be 0.05-4.0"); }
     if !matches!(opts.game_speed, 1 | 4) { die("--game-speed must be 1 or 4"); }
+    if opts.audio && matches!(opts.format, Format::Gif | Format::Apng | Format::Frames) {
+        eprintln!("warning: --audio does nothing for {}", arg(&args, "--format").unwrap_or("gif"));
+    }
     if let Some(p) = arg(&args, "--ffmpeg-path") { opts.ffmpeg = p.to_string(); }
     if let Some(s) = arg(&args, "--script") {
         match std::fs::read_to_string(s).map_err(|e| e.to_string())
@@ -67,9 +72,10 @@ fn main() {
     }
     let seed: u64 = arg(&args, "--seed").and_then(|v| v.parse().ok()).unwrap_or_else(session::run_seed);
     opts.out = arg(&args, "--out").map(|s| s.to_string()).unwrap_or_else(|| {
-        let ext = match opts.format {
-            Format::Gif => "gif", Format::Apng => "png", Format::Ffmpeg => "mp4",
-            Format::Avi => "avi", Format::Frames => "",
+        // the ffmpeg formats keep the extension the user asked for
+        let ext = match arg(&args, "--format").unwrap_or("gif") {
+            "gif" => "gif", "apng" => "png", "frames" => "", "avi" => "avi",
+            "webm" => "webm", "mov" => "mov", _ => "mp4",
         };
         if ext.is_empty() { format!("evidence/videos/{}s", opts.play_secs) }
         else { format!("evidence/videos/play-{}s.{}", opts.play_secs, ext) }

@@ -212,7 +212,9 @@ pub fn synth_track(events: &[AudioEvent], every: u64, fps: u32, watch_secs: f64)
             rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
             let x = rng as f32 / u32::MAX as f32;
             let t = i as f32 / rate as f32;
-            let s = voice(ev.kind, t, x) * ev.gain;
+            // a ~15ms attack and a tail taper - hard edges click
+            let env = (1.0 - (-60.0 * t).exp()) * ((n - i).min(200) as f32 / 200.0).min(1.0);
+            let s = voice(ev.kind, t, x) * ev.gain * env;
             let (li, ri) = ((at + i) * 2, (at + i) * 2 + 1);
             if ri < pcm.len() {
                 pcm[li] = pcm[li].saturating_add((s * lg * i16::MAX as f32) as i16);
@@ -316,7 +318,9 @@ impl AviSink {
     fn idx_chunk(&mut self, fourcc: &[u8; 4], data: &[u8], flags: u32) -> std::io::Result<()> {
         self.idx.extend_from_slice(fourcc);
         self.idx.extend_from_slice(&flags.to_le_bytes());
-        self.idx.extend_from_slice(&((self.pos - self.movi_data_at) as u32).to_le_bytes());
+        // idx1 offsets run from the 'movi' fourcc itself (ffmpeg's
+        // convention), and movi_data_at sits four bytes past it
+        self.idx.extend_from_slice(&((self.pos - self.movi_data_at + 4) as u32).to_le_bytes());
         self.idx.extend_from_slice(&(data.len() as u32).to_le_bytes());
         self.write_chunk(fourcc, data)
     }
@@ -469,22 +473,28 @@ impl Sink for FfmpegSink {
         let other = |e: String| std::io::Error::new(std::io::ErrorKind::Other, e);
         drop(self.child.stdin.take());
         if !self.child.wait()?.success() {
+            let _ = std::fs::remove_file(&self.video_path);
             return Err(other("ffmpeg video pass failed".into()));
         }
         let Some(pcm) = audio else {
             return Ok(()); // the video landed at out directly
         };
-        // mux pass: video stream copy + the wav as aac/opus
+        // mux pass: video stream copy + the wav as aac/opus, webm speaks
+        // opus; faststart puts the mp4 header up front for browsers
         let wav = format!("{}.tmpsound.wav", self.out);
-        write_wav(&wav, pcm, 2)?;
+        if let Err(e) = write_wav(&wav, pcm, 2) {
+            let _ = std::fs::remove_file(&self.video_path);
+            return Err(e);
+        }
         let acodec: &[&str] = if self.out.ends_with(".webm") { &["-c:a", "libopus"] }
-            else { &["-c:a", "aac", "-b:a", "128k"] };
+            else { &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"] };
         let status = std::process::Command::new(&self.ffmpeg)
             .args(["-loglevel", "error", "-y", "-i", &self.video_path, "-i", &wav])
             .args(["-c:v", "copy"]).args(acodec).args(["-shortest", &self.out])
-            .status().map_err(|e| other(e.to_string()))?;
+            .status();
         let _ = std::fs::remove_file(&wav);
         let _ = std::fs::remove_file(&self.video_path);
+        let status = status.map_err(|e| other(e.to_string()))?;
         if status.success() { Ok(()) } else { Err(other(format!("ffmpeg mux pass exited {}", status))) }
     }
 }
@@ -504,7 +514,9 @@ impl Sink for AviSink {
     }
 
     fn finish(mut self: Box<Self>, audio: Option<&[i16]>) -> std::io::Result<()> {
-        // the soundtrack lands as one chunk at the end of the movi list
+        // the soundtrack lands as one chunk at the end of the movi list -
+        // legal RIFF and idx1 points at it fine (cues only exist once the
+        // run is over, so interleaving as we go isn't an option)
         let pcm_bytes: Vec<u8> = audio.map(|pcm| {
             pcm.iter().flat_map(|s| s.to_le_bytes()).collect()
         }).unwrap_or_default();

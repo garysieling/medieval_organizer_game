@@ -8,4 +8,5 @@ if (!(Test-Path package.json)) { npm init -y | Out-Null }
 npm install ffmpeg-static --no-fund --no-audit | Out-Null
 $ff = Join-Path $tools "node_modules\ffmpeg-static\ffmpeg.exe"
 Pop-Location
+if (!(Test-Path $ff)) { Write-Error "ffmpeg install failed - is node/npm on PATH?"; exit 1 }
 Write-Output "FFMPEG:$ff"

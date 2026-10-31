@@ -41,7 +41,7 @@ Domains with completed surveys and implemented mechanics.
 
 #### Community Organizing & Sociology
 **Coverage:** High (deepened 2026-10-31)
-**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure, Imprisonment & Release Campaigns
+**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure, Pre-Modern Resistance Organizations, Secret Societies & Oath Networks, Imprisonment & Release Campaigns
 **Mechanics Implemented:** 1-1 conversations, house meetings (community.rs)
 **Mechanics Proposed:**
 - Campaign structure (target, demand, escalation ladder, settlement) - historical-campaigns review
@@ -62,8 +62,10 @@ Domains with completed surveys and implemented mechanics.
 - Campaign design stack (6 layers) + decision-tree rule + playbook export/counter-adaptation - campaign-masters review
 - Repression-as-market + legalization track + lawfare events - modern-playbook review
 - Channel ownership + petition artifacts + suppression backfire + brand propagation - info-infrastructure review
+- Hidden-institution form + inquisition counter-cycle + relapse/penitent mechanic + negotiate-and-decapitate event + moderate-split exploitation - premodern-resistance review
+- Oath intensity tech + cover function + penetration timer + counter-ritual enemy action + dual-org architecture - secret-societies review
 - Imprisoned-as-active-state + moral-shock stranger recruitment + jailer's dilemma + release-campaign pressure accumulator + adoption-as-charter - prisons-and-release review
-**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure); Jasper & Poulsen, suffragette/Attica/Amnesty records (imprisonment & release)
+**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure); Le Roy Ladurie/Montaillou, Bernard Gui, Biller (pre-modern resistance); Rath, Kershaw/Rice, ter Haar, Le Caron (secret societies); Jasper & Poulsen, suffragette/Attica/Amnesty records (imprisonment & release)
 **Next Steps:** Deep-dives done: 504, ACT UP, abolition petitions (round 2). Remaining: UK spycops inquiry, NGO-ization/co-option literature, platform-manipulation research
 
 ---
@@ -78,10 +80,13 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Religion & Fundamentalism
-**Coverage:** Medium
-**Surveys:** Sprint 3 (Religion & Emergence)
+**Coverage:** Medium-High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (Religion & Emergence), Messianic & Prophetic Movements, The Faith-Power Interface
 **Mechanics Implemented:** Congregations, fundamentalism (religion.rs, fundamentalism.rs)
-**Sources:** Sociology of religion (needs specific citations)
+**Mechanics Proposed:**
+- Prophetic mobilization growth mode + millenarian timer + martyrdom roll + prophetic capture events + institutional-cover dependency - messianic-prophetic review
+- Broker class + incorporation offers + redacted canon + paternalism bargain + disciplinary institutions layer + broker dilemmas - faith-and-power review
+**Sources:** Sociology of religion (needs specific citations); Cohn *Pursuit of the Millennium* (messianic movements); Niebuhr, Weber/Troeltsch, Foucault, Genovese (faith-power)
 **User Note - Religion-Economics Feedback Loop (Bonhoeffer, Niebuhr):**
 - Economic scarcity → Religious coping (simplicity/hard work as values, celebration of pain, apocalyptic hope)
 - New technology → Removes need → Tension between faith and reality → Schism (new organizations form)
@@ -93,10 +98,12 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Political Theory & Liberation
-**Coverage:** Medium-Low
-**Surveys:** Sprint 4 (Anti-Colonialist/Liberation)
+**Coverage:** Medium (deepened 2026-10-31)
+**Surveys:** Sprint 4 (Anti-Colonialist/Liberation), Anti-Colonial Campaign History
 **Mechanics Implemented:** Player role progression (Outsider → Leader)
-**Sources:** Liberation theory (needs specific citations)
+**Mechanics Proposed:**
+- Sacred binding infrastructure + ostracism as insider discipline + succession redundancy + COIN doctrine choice + deferred radicalization debt - anticolonial-campaigns review
+**Sources:** Liberation theory (needs specific citations); Geggus (Haiti), Land League/Parnell, DTIC/RAND Battle of Algiers studies, CLR James
 **Next Steps:** Specific organizing tactics, oppression mechanics, revolution dynamics
 
 ---
@@ -248,10 +255,10 @@ Domains with no research yet but relevant to game vision.
 ---
 
 #### Education & Pedagogy
-**Coverage:** High
-**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy)
+**Coverage:** High (deepened 2026-10-31)
+**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy), Critical Pedagogy & Movement Education
 **Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/education-pedagogy.md)
-**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory
+**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory; Freire, Boal, Horton/Highlander, Illich, Bourdieu & Passeron, Gramsci (critical pedagogy)
 **Mechanics Proposed:**
 - Medieval education structures (monastery schools, cathedral schools, universities with four faculties)
 - Seven liberal arts curriculum (trivium + quadrivium progression)
@@ -259,6 +266,7 @@ Domains with no research yet but relevant to game vision.
 - Deliberate practice skill system (quality over quantity, 3x multiplier for focused practice)
 - Literacy teaching (wax tablets, hornbooks, oral recitation, reading vs writing as separate skills)
 - Tacit vs explicit knowledge transfer (books for theory, apprenticeship for embodied skills)
+- Internalized_domination stat + praxis loop skill growth + community-teacher requirement + spect-actor rehearsal + movement schools building + oppressor-within flip risk - critical-pedagogy review
 **Next Steps:** Implement education.rs and skills.rs modules, test deliberate practice mechanics, balance apprenticeship timescales
 
 ---

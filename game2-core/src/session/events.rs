@@ -486,6 +486,23 @@ impl Game {
                     self.say(v, "For the rags? Bless you, mister.", CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::ChimneySweep => {
+                // a penny a flue: near homes breathe easier (Security)
+                // while his brush's up them
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    if desires::is_satisfied(&self.world, v, Want::Security, tick) { continue; }
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Security, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -523,6 +540,13 @@ impl Game {
     /// A visitor's last day: what it leaves behind
     fn event_end(&mut self, id: EventId, tick: u64) {
         match id {
+            EventId::ChimneySweep => {
+                // clean flues to the cap: the next chimney fire's far off
+                if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::ChimneyFire) {
+                    *due = (*due).max(tick + 150);
+                }
+                self.log.push(format!("t{}: every flue's clean to the cap - the sweep earned his soot.", tick));
+            }
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides
                 let mark = self.lonely_hearts().into_iter()
@@ -682,6 +706,31 @@ mod tests {
             assert!(gold > 1.0, "her rags earned on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::RagAndBone), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The sweep's clean flues hold the chimney fire off - the schedule
+    /// itself shows it, and the street's easier for his visit
+    #[test]
+    fn test_the_sweep_holds_the_fire_off() {
+        for st in [stage::Stage::Ordinary, stage::Stage::HardWinter] {
+            let mut g = stage::staged(st);
+            let before = g.next_rare.iter().find(|(i, _)| *i == EventId::ChimneyFire).map(|(_, d)| *d).unwrap();
+            g.force_event(EventId::ChimneySweep);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::ChimneySweep && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the sweep")),
+                "the frame shows the sweep on {:?}", st);
+            // his days are done: the flues are clean, the fire's far off
+            stage::run_days(&mut g, 6);
+            let after = g.next_rare.iter().find(|(i, _)| *i == EventId::ChimneyFire).map(|(_, d)| *d).unwrap();
+            assert!(after > before || after > g.tick + 100,
+                "the chimney fire's pushed off ({before} -> {after}, tick {}) on {:?}", g.tick, st);
+            assert!(g.log.iter().any(|l| l.contains("flue")), "the log says why");
+            assert!(g.rare.iter().all(|r| r.id != EventId::ChimneySweep), "he moved on from {:?}", st);
         }
     }
 

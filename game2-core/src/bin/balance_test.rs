@@ -54,9 +54,14 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
         let acted = if ctxs.contains(&CtxAct::Meet) && game.ctx_blocker_at(seat, CtxAct::Meet).is_none() {
             act_ctx(game, seat, CtxAct::Meet); true
         } else if ctxs.contains(&CtxAct::Delegate) {
+            // an open seat goes to someone without one - re-picking the
+            // seated member eats the day's slot without delegating
+            let seated: Vec<game2_core::engine::ecs::Entity> = game2_core::game::campaign::campaign_of(&game.world, game.seats[seat].org)
+                .and_then(|c| game.world.get_component::<game2_core::game::campaign::Campaign>(c))
+                .map(|c| c.seats.iter().map(|s| s.holder).collect()).unwrap_or_default();
             let member_i = game.world.get_component::<Organization>(game.seats[seat].org)
-                .map(|o| o.members.iter().filter_map(|m| game.villagers.iter().position(|x| x == m)).next())
-                .flatten();
+                .and_then(|o| o.members.iter().find(|m| !seated.contains(m)).copied())
+                .and_then(|m| game.villagers.iter().position(|x| *x == m));
             match member_i {
                 Some(i) => {
                     game.seats[seat].selected_target = i;
@@ -65,17 +70,16 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
                 }
                 None => false,
             }
-        } else if ctxs.contains(&CtxAct::Petition) {
-            let inside_i = game.villagers.iter().enumerate().find_map(|(i, v)|
-                game.world.get_component::<game2_core::game::dungeon::Imprisoned>(*v).is_some().then_some(i));
-            match inside_i {
-                Some(i) => {
-                    game.seats[seat].selected_target = i;
-                    game.seats[seat].picked = true;
-                    act_ctx(game, seat, CtxAct::Petition); true
-                }
-                None => false,
-            }
+        } else if let Some(i) = game.villagers.iter().enumerate().find_map(|(i, v)|
+            game.world.get_component::<game2_core::game::dungeon::Imprisoned>(*v).is_some().then_some(i)) {
+            // the button only shows once someone's inside is picked:
+            // pick them, refresh, then press the letters
+            game.seats[seat].selected_target = i;
+            game.seats[seat].picked = true;
+            game.update_ctx_actions_at(seat);
+            if game.seats[seat].ctx_actions.contains(&CtxAct::Petition) {
+                act_ctx(game, seat, CtxAct::Petition); true
+            } else { false }
         } else if ctxs.contains(&CtxAct::March) && game.tick % 14 == 0 {
             act_ctx(game, seat, CtxAct::March); true
         } else { false };

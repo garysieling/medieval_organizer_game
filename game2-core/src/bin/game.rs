@@ -142,6 +142,13 @@ fn main() {
         };
         println!("{}\n", result);
 
+        // what a cause leaves on people fades on the same clock the GUI
+        // runs: a season cools a shock, a month dulls a blow-off
+        for v in world.query::<game2_core::game::villager::Villager>() {
+            game2_core::game::reactions::cool_off(&mut world, v, tick);
+            game2_core::game::actions::lifts_with_time(&mut world, v, tick);
+        }
+
         // Random world events
         if tick % 50 == 0 {
             match ["harvest","market day","pilgrimage","storm warning"][tick as usize / 50 % 4] {

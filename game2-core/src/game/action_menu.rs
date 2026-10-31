@@ -195,6 +195,9 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                         let mut tally: Vec<(String, usize)> = vec![];
                         for &m in &members {
                             for p in super::desires::problems_of(world, m, tick) {
+                                // NoHome is ambient - everyone under a roof
+                                // counts it, so it would take every tie
+                                if p == super::desires::Problem::NoHome { continue; }
                                 let tag = super::desires::issue_tag(world, m,
                                     &super::desires::Reveal::Problem(p));
                                 match tally.iter_mut().find(|(t, _)| *t == tag) {

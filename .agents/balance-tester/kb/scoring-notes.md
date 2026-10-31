@@ -45,3 +45,8 @@ explicitly call for calibration over a baseline ensemble; expect movement.
   instrumentation: most negative beats (flu, writs, wolves) land with no
   same-thread warning event in the prior 45d. Candidate for a warning
   mechanic, not a band change.
+- is_beat now requires valence: neutral chatter (gossip, forewarnings,
+  warnings-as-context) isn't a beat. Density 9.8 -> 6.6 beats/10d on
+  seed 42, so the band moved 2-6 -> 2-8 to fit the livelier village
+  (births, migrants, festivals, rare events landed after the band was
+  set). Evidence: seed 42/400d healthy run at 6.58.

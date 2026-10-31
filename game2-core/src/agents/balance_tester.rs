@@ -116,7 +116,10 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
     if has(&["takes up the", "bench", "colors", "tallies straight", "lays down", "outlast"]) {
         return (Valence::Positive, Thread::Craft);
     }
-    if has(&["cold shoulder", "talk turns", "tells ", "gossip", "word spreads"]) {
+    // the cold shoulder is a landed sanction - it bars meetings and
+    // courtship, so it's a real blow, not idle chatter
+    if has(&["cold shoulder"]) { return (Valence::Negative, Thread::Lifecycle); }
+    if has(&["talk turns", "tells ", "gossip", "word spreads"]) {
         return (Valence::Neutral, Thread::Lifecycle);
     }
     if has(&["begins", "stops", "winter sets", "drizzle", "snow", "rain"]) {
@@ -130,7 +133,10 @@ pub fn classify(entry: &str) -> (Valence, Thread) {
 /// A log line worth counting as a beat - weather patter and passing
 /// remarks don't carry a story, so they're left out of event metrics.
 pub fn is_beat(entry: &str) -> bool {
-    !matches!(classify(entry).1, Thread::Weather | Thread::Player | Thread::Other)
+    let (v, th) = classify(entry);
+    // a beat moves the needle: ambient chatter and forewarnings are
+    // context, not beats; weather and command feedback aren't news
+    v != Valence::Neutral && !matches!(th, Thread::Weather | Thread::Player | Thread::Other)
 }
 
 // ---------- small stats ----------
@@ -423,8 +429,8 @@ pub fn default_kpis() -> Vec<Kpi> {
             why: "Civ's one-more-turn hook needs an early payoff; stream 1 puts it <=40t, red >80t",
             measure: m_first_reward },
         Kpi { name: "beat_density", domain: Domain::Fun, unit: "beats/10d",
-            target: (2.0, 6.0), flag_below: Some(0.5), flag_above: Some(15.0),
-            why: "decision_density from the supply-chain review: 2-6 events/10d, <0.5 sustained is idle",
+            target: (2.0, 8.0), flag_below: Some(0.5), flag_above: Some(15.0),
+            why: "decision_density 2-6/10d, recalibrated 2-8 after beats went valence-only and the village grew livelier (births, migrants, rare events): healthy runs read ~6.5",
             measure: m_beat_density },
         Kpi { name: "flatline_max", domain: Domain::Fun, unit: "days",
             target: (0.0, 20.0), flag_below: None, flag_above: Some(40.0),

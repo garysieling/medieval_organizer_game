@@ -6011,10 +6011,13 @@ impl Game {
     /// gather site when the land provides
     pub fn errand_for_input(&mut self, v: Entity, input: &'static str, _i: usize) -> bool {
         let pos = match self.world.get_component::<Pos>(v) { Some(p) => *p, None => return false };
-        // a kid can run it: nearby, idle, not already on a job
+        // a kid can run it: any child about - nearby, idle, not already
+        // on a job. The village grows, so it's the Kid mark that counts,
+        // not whichever three were born first
         if self.rng.below(100) < 40 {
-            for &ki in &KID_IDXS {
-                let k = self.villagers[ki];
+            let kids: Vec<Entity> = self.villagers.iter().copied()
+                .filter(|&k| self.world.get_component::<Kid>(k).is_some()).collect();
+            for k in kids {
                 if villager::is_dead(&self.world, k) || self.travels.iter().any(|t| t.who == k)
                     || self.world.get_component::<OddJob>(k).is_some() { continue; }
                 let near = self.world.get_component::<Pos>(k)

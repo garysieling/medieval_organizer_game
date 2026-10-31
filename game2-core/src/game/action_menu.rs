@@ -193,11 +193,12 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                         // members' own troubles name the cause - the most
                         // common grievances lead the ballot
                         let mut tally: Vec<(String, usize)> = vec![];
+                        let mut roofless = 0usize;
                         for &m in &members {
                             for p in super::desires::problems_of(world, m, tick) {
                                 // NoHome is ambient - everyone under a roof
-                                // counts it, so it would take every tie
-                                if p == super::desires::Problem::NoHome { continue; }
+                                // counts it, so it trails the real ballot
+                                if p == super::desires::Problem::NoHome { roofless += 1; continue; }
                                 let tag = super::desires::issue_tag(world, m,
                                     &super::desires::Reveal::Problem(p));
                                 match tally.iter_mut().find(|(t, _)| *t == tag) {
@@ -208,6 +209,14 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                         }
                         tally.sort_by(|a, b| b.1.cmp(&a.1));
                         issues = tally.into_iter().take(3).map(|(t, _)| t).collect();
+                        // a roof is still a fight worth having - it just
+                        // never leads the ballot when a grievance stands
+                        if roofless > 0 && issues.len() < 3 {
+                            if let Some(&m) = members.first() {
+                                issues.push(super::desires::issue_tag(world, m,
+                                    &super::desires::Reveal::Problem(super::desires::Problem::NoHome)));
+                            }
+                        }
                     }
                     if issues.is_empty() {
                         return "Nobody's told you what they'd fight for - talk to people first.".into();

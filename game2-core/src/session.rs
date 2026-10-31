@@ -27,7 +27,7 @@ use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
 use crate::ui::weather_fx;
-use crate::sim::illness::{Health, Disease, Stage, IllnessSystem};
+use crate::sim::illness::{Health, Disease, DiseaseKind, Stage, IllnessSystem};
 #[allow(unused_imports)] // only the tests name attachment styles now
 use crate::sim::psychology::{AttachmentHistory, AttachmentStyle};
 use crate::sim::community::{Citizen, Organization};
@@ -423,7 +423,7 @@ fn visible_log(log: &[String]) -> Vec<&String> {
 /// An entry the player should still see rows later: illness and loss,
 /// the exile's road, the discovery told
 fn is_important(entry: &str) -> bool {
-    entry.contains("flu") || entry.contains("recovered") || entry.contains("died")
+    entry.contains("is taken with") || entry.contains("recovered") || entry.contains("died")
         || entry.contains("driven out") || entry.contains("run off")
         || entry.contains("whispers it about") || entry.contains("stocks")
         || entry.contains("born") || entry.contains("dead")
@@ -449,7 +449,7 @@ fn log_colour(entry: &str) -> (u8, u8, u8) {
     else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
     else if entry.contains("joined") { (120, 255, 120) }
     // whole words only: "influence" contains "flu" and "grain" contains "rain"
-    else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "drizzle" | "showers" | "snow" | "rainbow" | "flu")) { (120, 200, 255) }
+    else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "drizzle" | "showers" | "snow" | "rainbow" | "grippe" | "scarlatina" | "gripes" | "sweats" | "consumption" | "fever" | "cholera" | "ague")) { (120, 200, 255) }
     else { (210, 210, 210) }
 }
 
@@ -666,9 +666,17 @@ fn disease_of(world: &World, who: Entity) -> Option<(String, Stage)> {
         .map(|d| (d.name.clone(), d.stage))
 }
 
-/// Is `who` ill right now (a disease not yet beaten)?
+/// The name of the sickness `who` is showing, if any. The latent are
+/// brewing it and don't feel it yet; the recovering are on the mend.
+fn sickness_name(world: &World, who: Entity) -> Option<String> {
+    disease_of(world, who)
+        .filter(|(_, stage)| *stage != Stage::Recovering && *stage != Stage::Latent)
+        .map(|(name, _)| name)
+}
+
+/// Is `who` ill right now - showing symptoms?
 fn is_sick(world: &World, who: Entity) -> bool {
-    disease_of(world, who).map(|(_, stage)| stage != Stage::Recovering).unwrap_or(false)
+    sickness_name(world, who).is_some()
 }
 
 pub struct Button {
@@ -757,7 +765,7 @@ const WOODS_SLOWDOWN: f32 = 0.6;
 /// How far from the player (in tiles) to look for a free building site
 const BUILD_SEARCH: i32 = 8;
 
-/// Day a traveller brings the flu to the village
+/// Day a traveller brings la grippe to the village
 const FLU_DAY: u64 = 120;
 
 /// Keyboard shortcut for each action button, in button order (Talk, Recruit,
@@ -1692,7 +1700,7 @@ pub struct Game {
 
     pub precip: Option<PrecipKind>, // what is falling today
     pub rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
-    pub was_sick: Vec<bool>, // per villager, to log when someone falls ill or recovers
+    pub was_sick: Vec<Option<String>>, // per villager, the disease they're showing - to log when someone falls ill or recovers
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,
@@ -1851,7 +1859,7 @@ pub struct SfxCue {
 /// A saved scenario: a village already mid-story when you walk in
 #[derive(Debug, Clone, Copy)]
 pub enum Scenario {
-    /// The year the fever took hold - sickness already in the walls
+    /// The year the scarlatina took hold - sickness already in the walls
     FeverYear,
     /// The year the circus came in a hard winter - wonders and thin stores
     CircusWinter,
@@ -2576,7 +2584,7 @@ impl Game {
             meeting: None,
             near: vec![],
             last_chat: vec![],
-            was_sick: vec![false; NAMES.len()],
+            was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
             precip: None,
@@ -2662,15 +2670,13 @@ impl Game {
         let mut g = Game::new_seeded(MAP_SEED);
         match s {
             Scenario::FeverYear => {
-                // the fever's already in three beds when you arrive
+                // the scarlatina's already in three beds when you arrive
                 for (i, &v) in g.villagers.iter().take(3).enumerate() {
                     let d = g.world.create_entity();
-                    g.world.add_component(d, Disease {
-                        patient: v, name: "the fever".into(),
-                        stage: crate::sim::illness::Stage::Moderate,
-                        severity: 0.6 - i as f32 * 0.1, contagious: true });
+                    g.world.add_component(d,
+                        Disease::new(DiseaseKind::ScarletFever, v, 0.6 - i as f32 * 0.1));
                 }
-                g.log.push(format!("t{}: the fever year - it's already in three beds.", g.tick));
+                g.log.push(format!("t{}: the scarlatina year - it's already in three beds.", g.tick));
             }
             Scenario::CircusWinter => {
                 // a hard winter, and the tents already pitched outside
@@ -3145,18 +3151,22 @@ impl Game {
             log.push(format!("t{}: {} tells {} - {}", tick, vill_name(a), vill_name(b), rumors[tick as usize / 40 % 5]));
         }
 
-        // a traveller brings the flu; it's contagious, so neighbours may catch it
+        // a traveller brings la grippe; it brews a while, then the
+        // neighbours may catch it
         if ticked && tick == FLU_DAY {
             let d = world.create_entity();
-            world.add_component(d, Disease { name: "flu".into(), patient: villagers[2], stage: Stage::Moderate, severity: 0.45, contagious: true });
-            toasts.push((format!("A traveller brings the flu - {} falls ill", vill_name(2)), tick + 40));
+            world.add_component(d, Disease::new(DiseaseKind::Influenza, villagers[2], 0.45));
+            toasts.push((format!("A traveller brings la grippe - {} falls ill", vill_name(2)), tick + 40));
         }
         // log who falls ill and who recovers
-        let sick_now: Vec<bool> = villagers.iter().map(|v| is_sick(world, *v)).collect();
-        for (i, (&now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
-            if now && !*was { log.push(format!("t{}: {} has the flu", tick, vill_name(i))); }
-            if !now && *was { log.push(format!("t{}: {} recovered from the flu", tick, vill_name(i))); }
-            *was = now;
+        let sick_now: Vec<Option<String>> = villagers.iter().map(|v| sickness_name(world, *v)).collect();
+        for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
+            match (now, was.as_ref()) {
+                (Some(name), None) => log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name)),
+                (None, Some(old)) => log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old)),
+                _ => {}
+            }
+            *was = now.clone();
         }
 
         // detect events -> toasts
@@ -4019,8 +4029,7 @@ impl Game {
         for &v in self.villagers.iter().take(3) {
             if !villager::is_dead(&self.world, v) {
                 let d = self.world.create_entity();
-                self.world.add_component(d, Disease { name: "saint anthony's fire".into(),
-                    patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false });
+                self.world.add_component(d, Disease::new(DiseaseKind::Ergotism, v, 0.45));
             }
         }
         self.log.push(format!("t{}: a burning fire runs through the village - they say it's in the bread.", tick));
@@ -4699,7 +4708,7 @@ impl Game {
         if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
-        self.was_sick.push(false);
+        self.was_sick.push(None);
         self.died_on.push(None);
         self.log.push(format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
     }
@@ -4737,7 +4746,7 @@ impl Game {
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
-        self.was_sick.push(false);
+        self.was_sick.push(None);
         self.died_on.push(None);
         // a roof if one's going: spare beds fill before anyone's a
         // stranger long; otherwise a bed is the first thing on their
@@ -5702,10 +5711,10 @@ impl Game {
                     let right = (who as u64).wrapping_mul(2654435761).wrapping_add(tick) % 1000
                         < (200.0 + skilled * 700.0) as u64;
                     if poison && !right {
-                        // the death-cap keeps its secret for a few days
+                        // the death-cap keeps its secret for a day or so -
+                        // then the gripes take hold
                         let d = self.world.create_entity();
-                        self.world.add_component(d, Disease { name: "bad belly".into(), patient: who,
-                            stage: Stage::Mild, severity: 0.12, contagious: false });
+                        self.world.add_component(d, Disease::new(DiseaseKind::Gripes, who, 0.12));
                         self.say(who, "Earthy. Good enough.", TALK_BUBBLE_SECS);
                     } else {
                         if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = (h.value + 25.0).min(100.0); }
@@ -8412,10 +8421,10 @@ mod illness_tests {
         while game.tick < FLU_DAY + 5 { game.update(); }
         // the herb-wife may already have seen to him - the arrival itself
         // is the log line, not whether he's still down with it
-        assert!(game.log.iter().any(|l| l.contains("Bram has the flu")), "the log should say who fell ill");
+        assert!(game.log.iter().any(|l| l.contains("Bram is taken with la grippe")), "the log should say who fell ill");
         while game.tick < 600 { game.update(); }
         assert!(game.villagers.iter().all(|v| !is_sick(&game.world, *v)), "the flu should have run its course by day 600");
-        assert!(game.log.iter().any(|l| l.contains("recovered from the flu")), "the log should say who recovered");
+        assert!(game.log.iter().any(|l| l.contains("recovered from la grippe")), "the log should say who recovered");
     }
 }
 
@@ -8482,7 +8491,7 @@ mod herb_tests {
         let mut game = Game::new();
         let v = game.villagers[5];
         let d = game.world.create_entity();
-        game.world.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false });
+        game.world.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false, incubation: 0 });
         // stock the shelf so a cure's in hand
         let hut = game.herb_hut.unwrap();
         game.world.get_component_mut::<Building>(hut).unwrap().stock.insert("yarrow".into(), 2);
@@ -8502,7 +8511,7 @@ mod herb_tests {
         let mut game = Game::new();
         let v = game.villagers[5];
         let d = game.world.create_entity();
-        game.world.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
+        game.world.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0 });
         let hut = game.herb_hut.unwrap();
         game.arrive(v, Goal::SeekRemedy(hut));
         assert!(game.bubbles.iter().any(|(e, t, _, _, _)| *e == game.herbologist.unwrap() && t.contains("Nothing")),
@@ -10101,9 +10110,9 @@ mod scenario_tests {
         let g = Game::new_scenario(Scenario::FeverYear);
         let fevered = g.world.query::<Disease>().iter()
             .filter(|&&d| g.world.get_component::<Disease>(d)
-                .map(|dd| dd.name == "the fever").unwrap_or(false)).count();
-        assert_eq!(fevered, 3, "the fever's already in three beds");
-        assert!(g.log.iter().any(|l| l.contains("the fever year")));
+                .map(|dd| dd.name == "scarlatina").unwrap_or(false)).count();
+        assert_eq!(fevered, 3, "the scarlatina's already in three beds");
+        assert!(g.log.iter().any(|l| l.contains("the scarlatina year")));
     }
 
     #[test]
@@ -10771,7 +10780,7 @@ mod action_log_tests {
         assert_ne!(log_colour("t3: Invested 10 gold"), illness);
         assert_ne!(log_colour("t3: Can't recruit: need influence 0.40."), illness);
         assert_ne!(log_colour("t9: the grain store is low"), illness);
-        assert_eq!(log_colour("t120: Bram has the flu"), illness);
+        assert_eq!(log_colour("t120: Bram is taken with la grippe"), illness);
         assert_eq!(log_colour("t200: it's raining"), illness);
     }
 }
@@ -10782,27 +10791,27 @@ mod log_priority_tests {
 
     #[test]
     fn test_old_gossip_does_not_push_events_out_of_the_log() {
-        let mut log: Vec<String> = vec!["t1: The Merchant Guild formed!".into(), "t120: Bram has the flu".into()];
+        let mut log: Vec<String> = vec!["t1: The Merchant Guild formed!".into(), "t120: Bram is taken with la grippe".into()];
         for t in (160..=600).step_by(40) { log.push(format!("t{}: Aldric tells Bram - word spreads", t)); }
         let shown = visible_log(&log);
-        assert!(shown.iter().any(|e| e.contains("has the flu")), "the flu should still be in view: {:?}", shown);
+        assert!(shown.iter().any(|e| e.contains("la grippe")), "the grippe should still be in view: {:?}", shown);
         assert!(shown.iter().any(|e| e.contains("Guild formed")), "the guild should still be in view");
         assert_eq!(shown.iter().filter(|e| is_gossip(e)).count(), LOG_GOSSIP_SHOWN);
         // the important pin rides above the newest gossip - the flu's
         // still first; the word-of-mouth line's just under it
-        assert!(shown[0].contains("has the flu"), "important pins top");
+        assert!(shown[0].contains("la grippe"), "important pins top");
         assert_eq!(shown[1], &"t600: Aldric tells Bram - word spreads".to_string(), "newest of the rest next");
     }
 
     #[test]
     fn test_weather_changes_do_not_push_events_out_of_the_log() {
-        let mut log: Vec<String> = vec!["t120: Bram has the flu".into()];
+        let mut log: Vec<String> = vec!["t120: Bram is taken with la grippe".into()];
         for t in (130..=600).step_by(5) {
             log.push(format!("t{}: drizzle begins", t));
             log.push(format!("t{}: the rain stops - a rainbow!", t + 2));
         }
         let shown = visible_log(&log);
-        assert!(shown.iter().any(|e| e.contains("has the flu")), "the flu should still be in view: {:?}", shown);
+        assert!(shown.iter().any(|e| e.contains("la grippe")), "the grippe should still be in view: {:?}", shown);
         assert_eq!(shown.iter().filter(|e| is_weather_note(e)).count(), LOG_WEATHER_SHOWN);
     }
 
@@ -10811,7 +10820,7 @@ mod log_priority_tests {
         let mut game = Game::new();
         while game.tick < 600 { game.update(); }
         let shown: Vec<&String> = visible_log(&game.log).into_iter().take(8).collect();
-        assert!(shown.iter().any(|e| e.contains("flu")), "by day 600 the flu has scrolled away: {:?}", shown);
+        assert!(shown.iter().any(|e| e.contains("grippe")), "by day 600 the grippe has scrolled away: {:?}", shown);
     }
 }
 
@@ -10922,7 +10931,7 @@ mod log_day_tests {
 
     #[test]
     fn test_log_entries_show_the_day_like_the_hud() {
-        assert_eq!(log_parts("t120: Bram has the flu"), (Some("day 120".into()), "Bram has the flu"));
+        assert_eq!(log_parts("t120: Bram is taken with la grippe"), (Some("day 120".into()), "Bram is taken with la grippe"));
         assert_eq!(log_parts("Welcome to the village."), (None, "Welcome to the village."));
         assert_eq!(log_parts("tea: not a day"), (None, "tea: not a day"));
     }
@@ -11587,7 +11596,7 @@ mod real_frame_tests {
         assert!(std::path::Path::new("../assets").exists(), "assets folder not found from {:?}", std::env::current_dir());
         let mut game = Game::new();
         let view = View::new(Art::load_fs("../assets", 0));
-        // day 1, the flu (150), rain (200, from the weather sim) and deep winter (330)
+        // day 1, la grippe (150), rain (200, from the weather sim) and deep winter (330)
         for day in [1u64, 150, 200, 330] {
             while game.tick < day { game.update(); }
             let buf = view.render(&game.ui_model(), (-1, -1));

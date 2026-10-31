@@ -11,14 +11,99 @@ pub struct Health {
     pub immunity: f32,
 }
 
+/// The period diseases a village can catch. Each kind is a Victorian-era
+/// disease with its own profile: what the village calls it, how long it
+/// brews before it shows, whether it passes between neighbours, and what
+/// beating it leaves in the body.
+/// (wiki/literature-reviews/victorian-diseases.md)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiseaseKind {
+    /// "la grippe" - influenza; a traveller's gift, weak lasting immunity
+    Influenza,
+    /// "scarlatina" - scarlet fever; the childhood killer, strong immunity
+    ScarletFever,
+    /// "saint anthony's fire" - ergotism; it's in the rye
+    Ergotism,
+    /// "the gripes" - poisoning (death-caps, bad food)
+    Gripes,
+    /// "consumption" - tuberculosis; the long wasting
+    Consumption,
+    /// "the sweats" - sweating sickness
+    Sweats,
+}
+
+impl DiseaseKind {
+    /// What the village calls it
+    pub fn name(self) -> &'static str {
+        match self {
+            DiseaseKind::Influenza => "la grippe",
+            DiseaseKind::ScarletFever => "scarlatina",
+            DiseaseKind::Ergotism => "saint anthony's fire",
+            DiseaseKind::Gripes => "the gripes",
+            DiseaseKind::Consumption => "consumption",
+            DiseaseKind::Sweats => "the sweats",
+        }
+    }
+
+    /// Days it brews before it shows - and before it can be shed. Poisons
+    /// strike as they're taken; infections incubate.
+    pub fn incubation(self) -> u32 {
+        match self {
+            DiseaseKind::Influenza => 2,   // 1-3 days
+            DiseaseKind::ScarletFever => 3, // 2-5 days
+            DiseaseKind::Ergotism => 0,    // poisoning, not infection
+            DiseaseKind::Gripes => 1,      // the death-cap waits a day to tell
+            DiseaseKind::Consumption => 0, // the slow kind - no acute onset
+            DiseaseKind::Sweats => 2,
+        }
+    }
+
+    /// Whether it passes villager to villager. The poisonings never do.
+    pub fn contagious(self) -> bool {
+        matches!(self, DiseaseKind::Influenza | DiseaseKind::ScarletFever | DiseaseKind::Sweats)
+    }
+
+    /// Immunity beating it teaches the body. Poisons teach nothing; the
+    /// grippe fades; scarlatina protects for life.
+    pub fn immunity_gain(self) -> f32 {
+        match self {
+            DiseaseKind::Influenza => 0.15,
+            DiseaseKind::ScarletFever => 0.9,
+            DiseaseKind::Ergotism => 0.0,
+            DiseaseKind::Gripes => 0.0,
+            DiseaseKind::Consumption => 0.1,
+            DiseaseKind::Sweats => 0.4,
+        }
+    }
+}
+
 /// A disease progressing through compartments
 #[derive(Debug)]
 pub struct Disease {
+    pub kind: DiseaseKind,
     pub name: String,
     pub patient: Entity, // who is sick with it
     pub stage: Stage,
     pub severity: f32,
     pub contagious: bool,
+    /// Days left brewing before it shows - and before it can spread
+    pub incubation: u32,
+}
+
+impl Disease {
+    /// A fresh case of `kind` at full incubation, stage from severity
+    pub fn new(kind: DiseaseKind, patient: Entity, severity: f32) -> Self {
+        let incubation = kind.incubation();
+        Disease {
+            kind,
+            name: kind.name().into(),
+            patient,
+            stage: if incubation > 0 { Stage::Latent } else { stage_for(severity) },
+            severity,
+            contagious: kind.contagious(),
+            incubation,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -59,8 +144,8 @@ pub struct IllnessSystem;
 impl crate::engine::ecs::System for IllnessSystem {
     fn run(&mut self, world: &mut World) {
         for d in world.query::<Disease>() {
-            let (patient, stage, severity) = match world.get_component::<Disease>(d) {
-                Some(dis) => (dis.patient, dis.stage, dis.severity),
+            let (patient, stage, severity, kind) = match world.get_component::<Disease>(d) {
+                Some(dis) => (dis.patient, dis.stage, dis.severity, dis.kind),
                 None => continue,
             };
             let Some(h) = world.get_component_mut::<Health>(patient) else {
@@ -72,11 +157,21 @@ impl crate::engine::ecs::System for IllnessSystem {
                 world.destroy_entity(d);
                 continue;
             }
+            if stage == Stage::Latent {
+                // brewing quietly: no harm, nothing shed - the healthy-
+                // looking carrier nobody knows to fear
+                if let Some(dis) = world.get_component_mut::<Disease>(d) {
+                    dis.incubation = dis.incubation.saturating_sub(1);
+                    if dis.incubation == 0 { dis.stage = stage_for(dis.severity); }
+                }
+                continue;
+            }
             if stage == Stage::Recovering {
                 h.condition = (h.condition + RECOVERY_RATE).min(1.0);
                 if h.condition >= RECOVERED {
-                    // beating it leaves them harder to reinfect
-                    h.immunity = (h.immunity + ACQUIRED_IMMUNITY).min(1.0);
+                    // beating it leaves them harder to reinfect - how much
+                    // harder depends on the disease (poisons teach nothing)
+                    h.immunity = (h.immunity + kind.immunity_gain()).min(1.0);
                     world.destroy_entity(d);
                 }
                 continue;
@@ -104,8 +199,6 @@ const EXPOSURE_RATE: f32 = 0.08;
 const EXPOSURE_RETAINED: f32 = 0.98;
 /// Share of the source's severity a newly caught case starts with
 const TRANSMITTED_SEVERITY: f32 = 0.8;
-/// Immunity gained from beating a disease
-const ACQUIRED_IMMUNITY: f32 = 0.3;
 
 /// How much contagion a healthy agent has soaked up from the sick around them
 #[derive(Debug, Default)]
@@ -115,16 +208,17 @@ pub struct Exposure(pub f32);
 /// CONTACT_RANGE of an actively sick one build up exposure in proportion to
 /// that patient's severity (fading when they're away from the sick); once
 /// exposure outweighs their immunity they catch a slightly milder case.
+/// The latent don't shed - a brewing sickness keeps its secret.
 fn spread_contagion(world: &mut World) {
     use crate::game::villager::Pos;
-    let mut sources = vec![]; // (position, severity, name)
+    let mut sources = vec![]; // (position, severity, kind)
     let mut sick = vec![];
     for d in world.query::<Disease>() {
         let Some(dis) = world.get_component::<Disease>(d) else { continue };
         sick.push(dis.patient);
-        if !dis.contagious || dis.stage == Stage::Recovering { continue; }
+        if !dis.contagious || dis.stage == Stage::Recovering || dis.stage == Stage::Latent { continue; }
         if let Some(p) = world.get_component::<Pos>(dis.patient) {
-            sources.push(((p.x, p.y), dis.severity, dis.name.clone()));
+            sources.push(((p.x, p.y), dis.severity, dis.kind));
         }
     }
     for e in world.query::<Health>() {
@@ -144,16 +238,17 @@ fn spread_contagion(world: &mut World) {
         exposure.0 = exposure.0 * EXPOSURE_RETAINED + dose;
         if exposure.0 <= immunity { continue; }
         exposure.0 = 0.0;
-        // catch the worst case they were exposed to, a little weakened
-        let (_, sev, name) = near.iter()
+        // catch the worst case they were exposed to, a little weakened -
+        // and brewing its own incubation from scratch
+        let (_, sev, kind) = near.iter()
             .max_by(|a, b| a.1.total_cmp(&b.1))
             .copied()
             .cloned()
-            .unwrap_or(((0.0, 0.0), 0.0, String::new()));
+            .unwrap_or(((0.0, 0.0), 0.0, DiseaseKind::Influenza));
         let severity = sev * TRANSMITTED_SEVERITY;
         if severity < 0.1 { continue; } // too weak to take hold
         let d = world.create_entity();
-        world.add_component(d, Disease { name, patient: e, stage: stage_for(severity), severity, contagious: true });
+        world.add_component(d, Disease::new(kind, e, severity));
     }
 }
 
@@ -196,7 +291,7 @@ mod tests {
         w.add_component(sick, Health { condition: 0.9, immunity: 0.5 });
         w.add_component(well, Health { condition: 0.9, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: sick, stage: Stage::Mild, severity: 0.4, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: sick, stage: Stage::Mild, severity: 0.4, contagious: false, incubation: 0 });
         IllnessSystem.run(&mut w);
         assert!(w.get_component::<Health>(sick).unwrap().condition < 0.9);
         assert_eq!(w.get_component::<Health>(well).unwrap().condition, 0.9);
@@ -208,7 +303,7 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.7, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.4, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.4, contagious: false, incubation: 0 });
         let mut lowest = 1.0f32;
         for _ in 0..300 {
             IllnessSystem.run(&mut w);
@@ -225,7 +320,7 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.0, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
         IllnessSystem.run(&mut w);
         assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.0, "the dead should stay dead");
         assert!(w.get_component::<Disease>(d).is_none(), "the dead don't keep fighting off disease");
@@ -240,7 +335,7 @@ mod tests {
 
     fn infect(w: &mut World, patient: Entity, contagious: bool) {
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient, stage: Stage::Moderate, severity: 0.5, contagious });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient, stage: Stage::Moderate, severity: 0.5, contagious, incubation: 0 });
     }
 
     fn is_sick(w: &World, e: Entity) -> bool {
@@ -297,11 +392,11 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.5, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: p, stage: Stage::Mild, severity: 0.5, contagious: false, incubation: 0 });
         let q = w.create_entity();
         w.add_component(q, Health { condition: 0.5, immunity: 0.5 });
         let other = w.create_entity();
-        w.add_component(other, Disease { name: "flu".into(), patient: q, stage: Stage::Mild, severity: 0.5, contagious: false });
+        w.add_component(other, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: q, stage: Stage::Mild, severity: 0.5, contagious: false, incubation: 0 });
         let t = Treatment { name: "herb".into(), dose: 1.0, absorption: 0.5, clearance: 0.1, efficacy: 0.8 };
         let before = w.get_component::<Health>(p).unwrap().condition;
         treat_health(w.get_component_mut::<Health>(p).unwrap(), &t);
@@ -336,7 +431,7 @@ mod tests {
         w.add_component(p, Health { condition: 0.02, immunity: 0.9 });
         w.add_component(p, crate::game::villager::Pos { x: 0.0, y: 0.0 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "plague".into(), patient: p, stage: Stage::Critical, severity: 1.0, contagious: true });
+        w.add_component(d, Disease { kind: DiseaseKind::Sweats, name: "plague".into(), patient: p, stage: Stage::Critical, severity: 1.0, contagious: true, incubation: 0 });
         let neighbour = w.create_entity();
         w.add_component(neighbour, Health { condition: 1.0, immunity: 0.0 });
         w.add_component(neighbour, crate::game::villager::Pos { x: 1.0, y: 0.0 });
@@ -357,11 +452,44 @@ mod tests {
         w.add_component(sick, Health { condition: 0.9, immunity: 0.0 });
         w.add_component(sick, crate::game::villager::Pos { x: 0.0, y: 0.0 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: sick, stage: Stage::Severe, severity: 0.8, contagious: true });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: sick, stage: Stage::Severe, severity: 0.8, contagious: true, incubation: 0 });
         let corpse = w.create_entity();
         w.add_component(corpse, Health { condition: 0.0, immunity: 0.0 });
         w.add_component(corpse, crate::game::villager::Pos { x: 1.0, y: 0.0 });
         for _ in 0..50 { IllnessSystem.run(&mut w); }
         assert!(w.query::<Disease>().iter().all(|d| w.get_component::<Disease>(*d).unwrap().patient != corpse));
+    }
+
+    #[test]
+    fn test_a_brewing_disease_shows_nothing_then_strikes() {
+        let mut w = World::new();
+        let p = villager_at(&mut w, 0.0, 0.5);
+        let neighbour = villager_at(&mut w, 1.0, 0.0);
+        let d = w.create_entity();
+        w.add_component(d, Disease::new(DiseaseKind::Influenza, p, 0.6));
+        // brewing quietly: no harm yet, and nothing shed to the neighbour
+        IllnessSystem.run(&mut w);
+        assert_eq!(w.get_component::<Health>(p).unwrap().condition, 0.9);
+        assert!(!is_sick(&w, neighbour), "the latent shed nothing");
+        // once the incubation's run, it bites
+        for _ in 0..DiseaseKind::Influenza.incubation() { IllnessSystem.run(&mut w); }
+        assert!(w.get_component::<Health>(p).unwrap().condition < 0.9, "the fever breaks cover");
+        assert!(is_sick(&w, neighbour), "and now it spreads");
+    }
+
+    #[test]
+    fn test_beating_scarlatina_protects_longer_than_la_grippe() {
+        for (kind, want) in [(DiseaseKind::ScarletFever, 1.0f32), (DiseaseKind::Influenza, 0.65f32)] {
+            let mut w = World::new();
+            let p = villager_at(&mut w, 0.0, 0.5);
+            let d = w.create_entity();
+            let mut dis = Disease::new(kind, p, 0.4);
+            dis.incubation = 0;
+            dis.stage = Stage::Mild;
+            w.add_component(d, dis);
+            for _ in 0..400 { IllnessSystem.run(&mut w); }
+            let got = w.get_component::<Health>(p).unwrap().immunity;
+            assert!((got - want).abs() < 0.01, "{:?} should leave immunity {}, got {}", kind, want, got);
+        }
     }
 }

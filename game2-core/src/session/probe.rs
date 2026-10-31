@@ -185,7 +185,7 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::illness::Stage;
+    use crate::sim::illness::{Stage, DiseaseKind};
 
     /// The probe sees what the frame hides: the unsaid truth, the death-cap,
     /// the org's real strength. The UiModel and the AgentObs carry none of it.
@@ -198,8 +198,8 @@ mod tests {
         if let Some(p) = g.mush_patches.first_mut() { p.poison = true; }
         // a fever nobody's told about
         let d = g.world.create_entity();
-        g.world.add_component(d, Disease { patient: g.villagers[1], name: "the sweats".into(),
-            stage: Stage::Latent, severity: 0.3, contagious: true });
+        g.world.add_component(d, Disease { kind: DiseaseKind::Sweats, patient: g.villagers[1], name: "the sweats".into(),
+            stage: Stage::Latent, severity: 0.3, contagious: true, incubation: 2 });
 
         let pv = g.probe();
         assert_eq!(pv.discovery.as_ref().map(|(_, f)| f.as_str()), Some("the lord's fifth is really a quarter"));

@@ -10,7 +10,7 @@ use game2_core::game::pets::{self, Pet, PetRole, Species};
 use game2_core::game::relationships::{RelKind, Relationship};
 use game2_core::game::villager::{self, Hunger, Pos};
 use game2_core::sim::community::{Citizen, InfluenceSystem, Organization};
-use game2_core::sim::illness::{Disease, Health, IllnessSystem, Stage};
+use game2_core::sim::illness::{Disease, DiseaseKind, Health, IllnessSystem};
 use game2_core::sim::psychology::{AttachmentHistory, Bond, GriefSystem};
 use game2_core::sim::religion::{self, Congregation, Faith, Service};
 
@@ -74,7 +74,7 @@ fn a_death_ripples_through_the_village() {
     let mut v = village();
     // The elder is struck down by a fatal illness
     let d = v.world.create_entity();
-    v.world.add_component(d, Disease { name: "plague".into(), patient: v.elder, stage: Stage::Critical, severity: 1.0, contagious: false });
+    v.world.add_component(d, Disease::new(DiseaseKind::Consumption, v.elder, 1.0));
     v.world.get_component_mut::<Health>(v.elder).unwrap().condition = 0.005;
     v.world.get_component_mut::<Health>(v.elder).unwrap().immunity = 0.0;
     v.sched.tick(&mut v.world);

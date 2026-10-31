@@ -6320,8 +6320,8 @@ impl Game {
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
                                     .unwrap_or("someone");
                                 msg += &format!(" {} is taken.", tn);
-                                self.world.add_component(c, crate::game::dungeon::ReleaseCampaign {
-                                    prisoner: taken, pressure: 0.0 });
+                                self.world.add_component(taken, crate::game::dungeon::ReleaseCampaign {
+                                    pressure: 0.0 });
                                 self.toasts.push((format!("{} is taken", tn), tick + 40));
                             }
                         }
@@ -6364,15 +6364,15 @@ impl Game {
                 }
             }
             CtxAct::Petition => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                crate::game::dungeon::press(&mut self.world, c, 0.3);
+                let v = self.villagers[self.seats[seat].selected_target];
+                crate::game::dungeon::press(&mut self.world, v, 0.3);
                 // the hold: what the state spends to keep them inside
-                if crate::game::dungeon::release_check(&mut self.world, c, 1.0) {
+                if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = NAMES[self.seats[seat].selected_target];
                     self.toasts.push((format!("{} walks free", name), tick + 40));
                     format!("The letters don't stop - and the cell opens. {} walks free.", name)
                 } else {
-                    let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(c)
+                    let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(v)
                         .map(|r| r.pressure).unwrap_or(0.0);
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
                 }

@@ -41,11 +41,20 @@ pub fn arrest(world: &mut World, campaign: Entity, tick: u64) -> Option<Entity> 
     Some(loudest)
 }
 
-/// A release campaign: the pressure a prisoner accumulates
+/// A release effort: the pressure piling up for a prisoner's freedom.
+/// It lives on the prisoner, so two people inside each carry their own -
+/// and the cause that put them there keeps its own campaign untouched.
 #[derive(Debug)]
 pub struct ReleaseCampaign {
-    pub prisoner: Entity,
     pub pressure: f32,
+}
+
+/// Which campaign exists to free this prisoner - a dedicated release
+/// campaign is retired when they walk; a cause's own campaign isn't
+/// touched
+#[derive(Debug)]
+pub struct ReleaseOf {
+    pub campaign: Entity,
 }
 
 /// Found a campaign for a prisoner's release: the issue is a person, so
@@ -54,7 +63,8 @@ pub struct ReleaseCampaign {
 pub fn found_release_campaign(world: &mut World, org: Entity, prisoner: Entity, founded_day: u64) -> Entity {
     let vote = campaign::IssueVote { winner: "the prisoners".into(), ballots: vec![] };
     let c = campaign::found_campaign(world, org, &vote, Framing::MoralDuty, DecisionRule::Consensus, founded_day);
-    world.add_component(c, ReleaseCampaign { prisoner, pressure: 0.0 });
+    world.add_component(prisoner, ReleaseCampaign { pressure: 0.0 });
+    world.add_component(prisoner, ReleaseOf { campaign: c });
     c
 }
 
@@ -79,29 +89,36 @@ pub fn join(world: &mut World, campaign_e: Entity, person: Entity) -> bool {
 }
 
 /// Every letter, every vigil, every petition - small actions that never
-/// stop. Pressure to free a prisoner accumulates; it doesn't fade on its
-/// own (release campaigns don't lapse while someone's inside).
-pub fn press(world: &mut World, campaign_e: Entity, amount: f32) {
-    if let Some(r) = world.get_component_mut::<ReleaseCampaign>(campaign_e) {
+/// stop. Pressure to free a prisoner accumulates on the prisoner; it
+/// doesn't fade on its own (release efforts don't lapse while someone's
+/// inside).
+pub fn press(world: &mut World, prisoner: Entity, amount: f32) {
+    if world.get_component::<Imprisoned>(prisoner).is_none() { return; }
+    if world.get_component::<ReleaseCampaign>(prisoner).is_none() {
+        world.add_component(prisoner, ReleaseCampaign { pressure: 0.0 });
+    }
+    if let Some(r) = world.get_component_mut::<ReleaseCampaign>(prisoner) {
         r.pressure += amount;
     }
 }
 
 /// The jailer's ledger: when accumulated pressure beats the hold, the
-/// prisoner walks - Imprisoned lifted, the campaign's purpose spent.
-/// `resistance` is what the state spends to keep them (its legitimacy,
-/// translated: how much pressure it absorbs before it folds).
-pub fn release_check(world: &mut World, campaign_e: Entity, resistance: f32) -> bool {
-    let prisoner = match world.get_component::<ReleaseCampaign>(campaign_e) {
-        Some(r) if r.pressure >= resistance => r.prisoner,
-        _ => return false,
-    };
+/// prisoner walks - Imprisoned lifted, the effort spent. `resistance` is
+/// what the state spends to keep them (its legitimacy, translated: how
+/// much pressure it absorbs before it folds).
+pub fn release_check(world: &mut World, prisoner: Entity, resistance: f32) -> bool {
+    let holds = world.get_component::<ReleaseCampaign>(prisoner)
+        .map(|r| r.pressure >= resistance).unwrap_or(false);
+    if !holds { return false; }
     world.remove_component::<Imprisoned>(prisoner);
-    // the campaign's purpose is spent with the release - the cause is
-    // done, the entity goes quiet
-    world.remove_component::<ReleaseCampaign>(campaign_e);
-    world.remove_component::<campaign::Campaign>(campaign_e);
-    world.remove_component::<campaign::CampaignMeeting>(campaign_e);
+    world.remove_component::<ReleaseCampaign>(prisoner);
+    // a campaign raised just for this prisoner is spent with the release;
+    // anything else the org fights for marches on
+    if let Some(rc) = world.get_component::<ReleaseOf>(prisoner).map(|r| r.campaign) {
+        world.remove_component::<campaign::Campaign>(rc);
+        world.remove_component::<campaign::CampaignMeeting>(rc);
+        world.remove_component::<ReleaseOf>(prisoner);
+    }
     true
 }
 
@@ -175,11 +192,13 @@ mod tests {
         w.add_component(prisoner, Imprisoned { since: 3, charge: "sedition".into() });
         let c = found_release_campaign(&mut w, o, prisoner, 4);
 
-        press(&mut w, c, 0.3);
-        assert!(!release_check(&mut w, c, 1.0), "one letter is not pressure");
-        press(&mut w, c, 0.8);
-        assert!(release_check(&mut w, c, 1.0), "but letters that never stop are");
+        press(&mut w, prisoner, 0.3);
+        assert!(!release_check(&mut w, prisoner, 1.0), "one letter is not pressure");
+        press(&mut w, prisoner, 0.8);
+        assert!(release_check(&mut w, prisoner, 1.0), "but letters that never stop are");
         assert!(!unavailable(&w, prisoner), "the cell opens");
-        assert!(!release_check(&mut w, c, 0.1), "and it's spent - the campaign's purpose is done");
+        // the spent campaign's purpose is done - the org can take a new cause
+        assert!(w.get_component::<campaign::Campaign>(c).is_none());
+        assert!(!release_check(&mut w, prisoner, 0.1), "and it's spent");
     }
 }

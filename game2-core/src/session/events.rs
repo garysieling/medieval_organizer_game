@@ -598,6 +598,31 @@ impl Game {
                     self.say(v, if slipped { "The knife slipped. A bandage'll set it." } else { "There. The humours flow easier." }, CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::PilgrimBand => {
+                // the road to the shrine passes here: a penny in the
+                // bowl feeds the faith - up to three alms a day, and
+                // only from those who can spare it
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut alms = 0;
+                for &v in &self.villagers.clone() {
+                    if alms >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Faith, tick) { continue; }
+                    // only the faithful drop a penny in - the bowl means
+                    // nothing to those whose wants lie elsewhere
+                    let faithful = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Faith)).unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 2.0).unwrap_or(false);
+                    if !faithful || !pays { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, tick + 30);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    self.say(v, "Go with God.", CHAT_BUBBLE_SECS);
+                    alms += 1;
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1000,6 +1025,37 @@ mod tests {
                 "his knife touched her on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::BarberSurgeon), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The pilgrim bowl feeds the faith: a penny in, a blessing out -
+    /// and the frame shows the band passing first
+    #[test]
+    fn test_the_pilgrim_bowl_feeds_the_faith() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Bereft] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::PilgrimBand);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::PilgrimBand && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::PilgrimBand).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            // she's one who feels the lack of it
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a band of pilgrims")),
+                "the frame shows the band on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick),
+                "the bowl fed her faith on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went in");
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::PilgrimBand), "they passed from {:?}", st);
         }
     }
 

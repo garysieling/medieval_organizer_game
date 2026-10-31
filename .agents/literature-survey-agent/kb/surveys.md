@@ -824,3 +824,50 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** synthesis, architecture, organizing-systems, mobilization-modes, subject-production, counter-playbook, campaign-lifecycle, stats-model, actor-taxonomy, implementation-path
 
 ---
+
+### ROUND 4: Cult Dynamics (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Psychology of Totalism / New Religious Movements
+**Output:** wiki/literature-reviews/organizing-cult-dynamics.md
+**Yield:**
+- Lifton's 3 markers (charismatic leader becomes object of worship; thought reform; exploitation of members)
+- 8-criteria toolkit as 8 dials (milieu control, mystical manipulation, demand for purity, cult of confession, sacred science, loading the language, doctrine over person, dispensing of existence)
+- Key insight: cult is a phase state, not a type - normal social mechanics at toxic dosage; emergent not scripted
+- Lifecycle: charismatic founder→idealistic recruits→isolation→exploitation scales→leader paranoia→collapse modes (implosion/capture/deadline/institutionalization)
+- Cult vs movement vs sect vs secret society comparison table
+- 6 mechanics: 8-dial totalism system, exploitation extraction loop, isolation mechanics, escalating-commitment bind, collapse modes, exit-assistance counters
+
+**Key Sources:**
+- Lifton *Thought Reform and the Psychology of Totalism* (1961/89) - A+
+- Jonestown scholarship (SDSU Institute) - A
+- NRM/church-sect-cult scholarship - A
+
+**Confidence:** High
+**Tags:** cults, lifton, thought-reform, totalism, charismatic-leader, thought-reform-8-criteria, milieu-control, jonestown, munster, nxivm, synanon, exit-cost, exploitation, cult-emergence
+
+---
+
+### ROUND 4: Hinduism, Caste & Faith (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Religious Sociology / South Asian History / Caste Systems
+**Output:** wiki/literature-reviews/organizing-hinduism-caste-faith.md
+**Yield:**
+- Caste machine: varna (scriptural schema) vs jati (~3000 real endogamous occupational groups); purity/pollution economics; sanskritization (mobility that reinforces the frame); Brahmin interpretation monopoly; temple economies
+- Bhakti counter-tradition: vernacular devotion bypassing Brahmin gatekeeping (Basava/Lingayat, Kabir, Ravidas, Chaitanya) - the Lollard/Waldensian pattern 500 years early
+- Mass-conversion phenomenon: 1M->5M Christians 1860-1930, ~80% via GROUP movements not individual (Shanars, Chuhras, Telugu, Mizos); Dalit-initiated, missions followed; rice-Christians dependency problem
+- Exploitation/hypocrisy layer: devadasi debates, anti-nautch campaign vs British patronage; Spivak 'white men saving brown women' rescue-discourse frame
+- Hindu counter-organizing: Arya Samaj shuddhi re-conversion missions (the Dominican move)
+- Modern Dalit organizing: Phule Satyashodhak Samaj, Ambedkar; 1956 Navayana mass conversion ~500k (exit-as-mass-movement-tactic)
+- 6 mechanics: hereditary stratification layer, interpretation monopoly lever, mass_defection campaign type, ambiguous liberation institutions, exit-as-tactic, hereditary servitude institutions
+
+**Key Sources:**
+- Pickett *Christian Mass Movements in India* (1933) + modern scholarship - A
+- Srinivas sanskritization/varna-jati sociology - A+
+- Bhakti studies - A
+- Phule/Ambedkar scholarship + Navayana records - A
+- Spivak 'Can the Subaltern Speak' - A+
+
+**Confidence:** High
+**Tags:** hinduism, caste, varna, jati, sanskritization, bhakti, lingayat, kabir, ravidas, dalit, mass-conversion, missionaries, devadasi, phule, ambedkar, navayana-buddhism, group-conversion, exit-as-protest, brahmin-gatekeeping, stratification
+
+---

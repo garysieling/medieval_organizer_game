@@ -4443,6 +4443,12 @@ impl Game {
     /// worth the name bargains it down; a strong one may stand against
     /// a summons - and pay for it when the next writ comes double.
     pub fn edict_tick(&mut self, tick: u64) {
+        // word rides ahead of the bailiff: the village hears the writ's
+        // coming a few days before it lands - time to gather, to bargain,
+        // or to hide the grain
+        if tick % 120 == 76 {
+            self.log.push(format!("t{}: word on the road - the bailiff rides this way. A writ comes down in a few days.", tick));
+        }
         if tick % 120 != 80 { return; }
         let kind = (tick / 120) % 3;
         // the debt counts the defiances - a summons reads it before the

@@ -4636,6 +4636,9 @@ impl Game {
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
         self.villagers.push(v);
+        // the parallel rolls grow with the roster or the next lookup panics
+        self.was_sick.push(false);
+        self.died_on.push(None);
         self.log.push(format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
     }
 
@@ -4645,6 +4648,7 @@ impl Game {
         for &b in &self.building_entities.clone() {
             let full = self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home
+                    && bb.occupants.len() < bb.capacity as usize
                     && bb.occupants.iter().filter(|&&o|
                         self.world.get_component::<Kid>(o).is_none()
                         && !villager::is_dead(&self.world, o)).count() >= 2)
@@ -4667,8 +4671,20 @@ impl Game {
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
-        desires::add_grievance(&mut self.world, v, desires::Problem::NoHome, tick + 60);
         self.villagers.push(v);
+        // the parallel rolls grow with the roster or the next lookup panics
+        self.was_sick.push(false);
+        self.died_on.push(None);
+        // a roof if one's going: spare beds fill before anyone's a
+        // stranger long; otherwise a bed is the first thing on their mind
+        let room = self.building_entities.iter().copied().find(|&b|
+            self.world.get_component::<Building>(b)
+                .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < bb.capacity as usize)
+                .unwrap_or(false));
+        match room {
+            Some(h) => self.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(v),
+            None => desires::add_grievance(&mut self.world, v, desires::Problem::NoHome, tick + 60),
+        }
         self.log.push(format!("t{}: a stranger settles - {} has come to town.", tick, vill_name(self.villagers.len() - 1)));
     }
 
@@ -12300,9 +12316,11 @@ mod growth_tests {
         g.maybe_migrant(30);
         assert_eq!(g.villagers.len(), n + 1);
         let m = *g.villagers.last().unwrap();
-        // trade in hand, and the first thing on their mind is a bed
+        // trade in hand, and a roof if one's going (a bed want otherwise)
         assert!(g.world.get_component::<Craft>(m).is_some());
-        assert!(desires::problems_of(&g.world, m, g.tick).contains(&desires::Problem::NoHome));
+        let housed = household::home_of(&g.world, m).is_some();
+        let wants_bed = desires::problems_of(&g.world, m, g.tick).contains(&desires::Problem::NoHome);
+        assert!(housed || wants_bed, "a spare bed or the want of one");
         assert!(g.log.iter().any(|l| l.contains("settles")), "{:?}", g.log.last());
     }
 }

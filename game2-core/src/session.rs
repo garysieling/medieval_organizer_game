@@ -5843,7 +5843,9 @@ impl Game {
     /// Villagers carrying an unmet Want::Love and no sweetheart yet
     pub fn lonely_hearts(&self) -> Vec<Entity> {
         self.villagers.iter().copied().filter(|&v| {
-            !villager::is_dead(&self.world, v)
+            // the grave and the lock-up take no suitors - no bonds
+            // written to a cell, no heart sent courting from one
+            !crate::game::dungeon::unavailable(&self.world, v)
             // the roles keep their own rounds; a heart called to market
             // would never wander home again
             && self.world.get_component::<TownRole>(v).is_none()

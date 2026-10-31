@@ -599,3 +599,22 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** information-infrastructure, petition-machinery, gag-rule, movement-press, samizdat, church-pulpits, broadcast-networks, brand-symbols, silence-death, indymedia, tactical-freeze, tufekci, suppression-backfire, streisand
 
 ---
+### ROUND 2: Movement Internal Structure — Decisions, Meetings, Training (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement Sociology / Participatory Democracy / Movement Pedagogy
+**Output:** wiki/literature-reviews/organizing-internal-structure.md
+**Yield:**
+- Freeman's structurelessness problem: informal elites are inevitable and unaccountable; rap groups founder when they try to act; the fix is accountable delegated roles, not hierarchy
+- Snow et al. frame alignment taxonomy (bridging/amplification/extension/transformation) — alignment is a necessary, ongoing condition for participation; maps directly onto Framing grumbles
+- Polletta: failures come from modeling democracy on friendship/tutelage; consensus = commitment + slowness + splinter-risk, majority = speed + permanent minority, spokescouncils = the scaling unlock
+- Highlander/Citizenship Schools as the leadership multiplier: noncharismatic teachers, hidden venues, train-the-trainer replication (37 Sea Island schools → ~100k trained under SCLC)
+- 6 mechanics: alignment-as-participation-gate, seats-as-accountability/shadow elite, decision rules, frame work as meeting action, train-the-trainer, hidden schools
+
+**Key Sources:**
+- Freeman "Tyranny of Structurelessness" (1970/72) - A+
+- Snow, Rochford, Worden & Benford, ASR 51(4) 1986 (6.5k citations) - A+
+- Polletta *Freedom Is an Endless Meeting* (2002) + consensus encyclopedia entry - A
+- King Institute Highlander records; J. Am. Hist. CEP study; HEQ Highlander pedagogy - A
+
+**Confidence:** High
+**Tags:** internal-structure, tyranny-of-structurelessness, informal-elites, delegation, frame-alignment, snow-benford, consensus, majority-vote, spokescouncil, participatory-democracy, polletta, highlander, citizenship-schools, septima-clark, train-the-trainer, meeting-craft

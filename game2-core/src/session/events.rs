@@ -1161,6 +1161,10 @@ impl Game {
                     if !near { continue; }
                     let occ: Vec<Entity> = self.world.get_component::<household::Building>(h)
                         .map(|b| b.occupants.clone()).unwrap_or_default();
+                    // a glazed home shows in its folk's light - done once
+                    if occ.iter().next()
+                        .map(|&o| desires::is_satisfied(&self.world, o, Want::Joy, tick))
+                        .unwrap_or(false) { continue; }
                     for o in occ {
                         if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }
                         if let Some(hl) = self.world.get_component_mut::<Health>(o) {

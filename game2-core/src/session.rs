@@ -751,6 +751,8 @@ pub struct Approach {
     pub stuck: u32,              // frames without headway
 }
 const CHAT_BUBBLE_SECS: u32 = 2;
+/// What the collector keeps for himself when the takings ride out
+const COLLECTOR_FLOAT: f32 = 40.0;
 /// How near two people must be to chat in passing (tiles), how many days
 /// before the same pair chat again, and how much a chat counts for (a fifth
 /// of a conversation: +0.01 to the relationship)
@@ -6057,6 +6059,16 @@ impl Game {
             if !self.travels.iter().any(|t| t.who == c) {
                 if let Some(target) = livelihood::tax_due(&self.world, c, tick) {
                     self.send(c, Goal::CollectTax(target));
+                }
+            }
+            // and rides out with the takings: the lord's cut is the
+            // lord's, not a purse that swells forever - he keeps a
+            // float for his own days
+            if tick % 60 == 45 {
+                let gold = self.world.get_component::<Purse>(c).map(|p| p.gold).unwrap_or(0.0);
+                if gold > COLLECTOR_FLOAT {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold = COLLECTOR_FLOAT; }
+                    self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, gold - COLLECTOR_FLOAT));
                 }
             }
         }

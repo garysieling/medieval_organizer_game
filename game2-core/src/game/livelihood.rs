@@ -286,7 +286,9 @@ pub fn tax_round(world: &mut World, collector: Entity, roster: &[Entity], start_
 pub fn restock_trader(world: &mut World, stall: Entity, seed: u64) {
     const EXOTICS: [&str; 8] = ["cloth", "paper", "ink", "pigment",
         "hops", "grapes", "wine", "spirits"];
-    let good = EXOTICS[(seed % EXOTICS.len() as u64) as usize];
+    // the seed's a tick and the calls come every RESTOCK days: index on
+    // the count of restocks, not the day, or half the cart never lands
+    let good = EXOTICS[((seed / TRADER_RESTOCK_DAYS) as usize) % EXOTICS.len()];
     if let Some(b) = world.get_component_mut::<Building>(stall) {
         household::add_stock(b, good, 1);
     }

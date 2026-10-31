@@ -2248,9 +2248,9 @@ impl Game {
 
         // herb patches: wild tufts out in the meadow past the wall, weighted
         // to what cures - the herb-wife keeps them picked over
-        const PATCH_HERBS: [&str; 12] = ["willow_bark", "yarrow", "sage", "willow_bark",
+        const PATCH_HERBS: [&str; 13] = ["willow_bark", "yarrow", "sage", "willow_bark",
             "yarrow", "sage", "chamomile", "lavender", "willow_bark", "yarrow",
-            "peppermint", "mugwort"];
+            "peppermint", "mugwort", "feverfew"];
         let in_wall = |x: i32, y: i32| (wall.0..=wall.2).contains(&x) && (wall.1..=wall.3).contains(&y);
         let herb_sites: Vec<(i32, i32)> = (0..map.height as i32)
             .flat_map(|y| (0..map.width as i32).map(move |x| (x, y)))
@@ -3895,30 +3895,43 @@ impl Game {
         // keep a few cures on the shelf while there's a raw herb to brew
         if herbology::remedies_on_hand(&self.world, her) < 5
             && herbology::brew_from_stock(&mut self.world, her, hut).is_some() { return; }
-        // shelves and stocks both thin? out to the nearest ready patch
+        // shelves and stocks both thin? out to the nearest ready patch.
+        // Only what she can brew counts toward stocked - a tincture herb
+        // without the spirit to steep it is stock, not remedy, and
+        // shouldn't keep her home from the picking. But when there's
+        // nothing ready to pick, stocked or not, she walks home fed
+        let spirits = self.world.get_component::<Building>(hut)
+            .map(|b| b.stock.get("spirits").copied().unwrap_or(0) > 0).unwrap_or(false);
         let raw: u32 = self.world.get_component::<Building>(hut)
             .map(|b| herbology::medicinal_herbs().iter()
+                .filter(|(_, prep, _)| *prep != herbology::PrepMethod::Tincture || spirits)
                 .map(|(n, _, _)| b.stock.get(*n).copied().unwrap_or(0)).sum()).unwrap_or(0);
-        if raw >= 6 {
-            // stocked up and still out in the meadow? she walks home at
-            // the end of the day rather than camp by the last patch -
-            // but not hungry, or the walk west fights the pull to food
-            let fed = self.world.get_component::<Hunger>(her).map(|h| h.value >= 30.0).unwrap_or(true);
-            if fed {
-                if let (Some(hp), Some(p)) = (self.world.get_component::<Pos>(hut).copied(),
-                                              self.world.get_component::<Pos>(her).copied()) {
-                    let far = (p.x - hp.x).abs() + (p.y - hp.y).abs() > 4.0;
-                    if far { self.send(her, Goal::HeadHome(hut)); }
-                }
+        if raw < 6 {
+            let hp = self.world.get_component::<Pos>(hut).copied();
+            // nearest ready patch first, and the next if she can't walk
+            // it - a tuft she can't reach keeps no wise woman in town
+            let mut picks: Vec<(usize, i32)> = self.herb_patches.iter().enumerate()
+                .filter(|(_, p)| tick >= p.next_ready)
+                .map(|(i, p)| (i,
+                    hp.map(|h| ((h.x - p.tile.0 as f32).abs() + (h.y - p.tile.1 as f32).abs()) as i32)
+                        .unwrap_or(0)))
+                .collect();
+            picks.sort_by_key(|(_, d)| *d);
+            for (i, _) in picks {
+                if self.send_forage(her, i) { return; }
             }
-            return;
         }
-        let hp = self.world.get_component::<Pos>(hut).copied();
-        let pick = self.herb_patches.iter().enumerate()
-            .filter(|(_, p)| tick >= p.next_ready)
-            .min_by_key(|(_, p)| hp.map(|h| ((h.x - p.tile.0 as f32).abs() + (h.y - p.tile.1 as f32).abs()) as i32).unwrap_or(0))
-            .map(|(i, _)| i);
-        if let Some(i) = pick { self.send_forage(her, i); }
+        // stocked up or nothing pickable - she walks home at the end of
+        // the day rather than camp by the last patch, but not hungry,
+        // or the walk west fights the pull to food
+        let fed = self.world.get_component::<Hunger>(her).map(|h| h.value >= 30.0).unwrap_or(true);
+        if fed {
+            if let (Some(hp), Some(p)) = (self.world.get_component::<Pos>(hut).copied(),
+                                          self.world.get_component::<Pos>(her).copied()) {
+                let far = (p.x - hp.x).abs() + (p.y - hp.y).abs() > 4.0;
+                if far { self.send(her, Goal::HeadHome(hut)); }
+            }
+        }
     }
 
     /// The fold's day: the grazing point drifts, shearing comes round
@@ -5746,10 +5759,12 @@ impl Game {
                     .map(|v| (v * livelihood::DRINK_EXCISE).round())
                     .unwrap_or(0.0);
                 if excise > 0.0 {
-                    if let Some(p) = self.world.get_component_mut::<Purse>(target) {
-                        p.gold = (p.gold - excise).max(0.0);
-                    }
-                    if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += excise; }
+                    // he takes what the purse can bear, no more - the
+                    // lord can't coin what isn't there
+                    let paid = self.world.get_component::<Purse>(target)
+                        .map(|p| p.gold.min(excise)).unwrap_or(0.0);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(target) { p.gold -= paid; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += paid; }
                     let name = self.villagers.iter().position(|v| *v == target)
                         .map(|i| vill_name(i)).unwrap_or("you");
                     self.log.push(format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));

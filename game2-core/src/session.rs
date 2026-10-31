@@ -603,6 +603,7 @@ const LEGEND_Y: i32 = 627;
 /// dead, and not someone on their way to food
 fn makes_room(world: &World, v: Entity) -> bool {
     !villager::is_dead(world, v)
+        && world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none()
         && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
 }
 
@@ -2910,7 +2911,7 @@ impl Game {
             let step = 0.6 / ticks_per_frame as f32;
             for v in villagers.iter() {
                 let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
-                if idle && !villager::is_dead(world, *v) {
+                if idle && !crate::game::dungeon::unavailable(world, *v) {
                     if let Some(p) = world.get_component_mut::<Pos>(*v) {
                         let wob = ((tick + *v as u64) % 8) as f32;
                         if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
@@ -2949,7 +2950,7 @@ impl Game {
             let market_has = world.get_component::<villager::FoodSource>(self.market_food)
                 .map(|f| f.servings > 0).unwrap_or(false);
             for v in villagers.iter() {
-                if villager::is_dead(world, *v) { continue; }
+                if crate::game::dungeon::unavailable(world, *v) { continue; }
                 let vdata = world.get_component::<Villager>(*v);
                 let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
                 let target_food = vdata.and_then(|x| x.target_food);
@@ -3508,7 +3509,7 @@ impl Game {
         // those who've arrived stand at their spot (no strolling off mid-meeting);
         // a dead invitee's grave stays where they died, it doesn't keep walking
         for (i, v) in m.invited.iter().enumerate() {
-            if villager::is_dead(&self.world, *v) { continue; }
+            if crate::game::dungeon::unavailable(&self.world, *v) { continue; }
             let Some(p) = self.world.get_component_mut::<Pos>(*v) else { continue };
             match &mut m.paths[i] {
                 Some(path) if !path.is_empty() => {
@@ -3524,7 +3525,7 @@ impl Game {
         // arrived at their spot, and alive - a dead invitee never counts as
         // having attended even if they got there before dying
         let arrived = |m: &Meeting, world: &World, i: usize| {
-            !villager::is_dead(world, m.invited[i]) && m.paths[i].as_ref().map(|p| p.is_empty()).unwrap_or(false)
+            !crate::game::dungeon::unavailable(world, m.invited[i]) && m.paths[i].as_ref().map(|p| p.is_empty()).unwrap_or(false)
         };
         match m.talk_from {
             None => {
@@ -3650,6 +3651,8 @@ impl Game {
     /// Send `who` walking toward `goal` (a person, a shop or a tile).
     /// Returns whether a way was found - otherwise nothing happens
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
+        // the held take no errands - the jailer's rounds aren't theirs
+        if self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some() { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
@@ -4144,7 +4147,7 @@ impl Game {
         self.sanctioned.retain(|(_, _, until)| tick < *until);
         // the most-grieved soul in the village
         let target = self.villagers.iter().copied()
-            .filter(|&v| !villager::is_dead(&self.world, v)
+            .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
                 && self.world.get_component::<TownRole>(v).is_none())
             .map(|v| (v, self.world.get_component::<InnerLife>(v)
                 .map(|l| l.grievances.iter().filter(|(_, u)| tick < *u).count()).unwrap_or(0)))
@@ -4384,7 +4387,7 @@ impl Game {
                 // a summons: one of the village's own for 'questioning' -
                 // a strong org can stand against it
                 let mark = self.villagers.iter().copied()
-                    .filter(|&v| !villager::is_dead(&self.world, v)
+                    .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
                         && self.world.get_component::<TownRole>(v).is_none())
                     .max_by_key(|&v| self.world.get_component::<InnerLife>(v)
                         .map(|l| l.grievances.len()).unwrap_or(0));
@@ -4761,9 +4764,11 @@ impl Game {
                 let _ = household::take_stock(b, "grain", 1);
             }
         }
-        // and everyone's a little hungrier for it
+        // and everyone's a little hungrier for it - except the dead and
+        // the held, whose hunger isn't theirs to feel
         if tick % 10 == 0 {
             for &v in &self.villagers.clone() {
+                if crate::game::dungeon::unavailable(&self.world, v) { continue; }
                 if let Some(h) = self.world.get_component_mut::<Hunger>(v) {
                     if h.value > 8.0 { h.value -= 8.0; }
                 }
@@ -4780,7 +4785,9 @@ impl Game {
             // looks for who to blame
             if self.lord_esteem > 0.5 {
                 if tick % 60 == 10 {
-                    for v in self.villagers.iter().take(6).copied().collect::<Vec<_>>() {
+                    for v in self.villagers.iter().copied()
+                        .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).take(6)
+                        .collect::<Vec<_>>() {
                         desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
                         if let Some(h) = self.world.get_component_mut::<Hunger>(v) {
                             h.value = (h.value + 15.0).min(100.0);
@@ -5551,7 +5558,7 @@ impl Game {
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
             let v = villagers[i];
-            if villager::is_dead(&self.world, v) { continue; }
+            if crate::game::dungeon::unavailable(&self.world, v) { continue; }
             // hunger comes first: a starving person abandons any errand
             // to look for food - even one already under way
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
@@ -6373,6 +6380,8 @@ impl Game {
                             }
                             // every crackdown can still take someone
                             if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
+                                // hauled off mid-errand: whatever they were doing is dropped
+                                self.travels.retain(|t| t.who != taken);
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
                                     .unwrap_or("someone");
                                 msg += &format!(" {} is taken.", tn);
@@ -6869,6 +6878,12 @@ impl Game {
     /// walking is done - arrival triggers the trade, the chat, the gather.
     pub fn agent_command(&mut self, seat: usize, cmd: AgentCmd) -> Result<(), String> {
         let who = self.seats.get(seat).map(|s| s.player).ok_or_else(|| "no such seat".to_string())?;
+        // the held can only stand down - walks, errands and gathers all
+        // pass the jailer first
+        if self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some()
+            && !matches!(cmd, AgentCmd::Idle) {
+            return Err("held - the cell allows no errands".into());
+        }
         match cmd {
             AgentCmd::Idle => { self.travels.retain(|t| t.who != who); Ok(()) }
             AgentCmd::GoTo { x, y } => {
@@ -11496,6 +11511,23 @@ mod campaign_dungeon_tests {
         g.seats[0].ctx_actions.push(CtxAct::Petition);
         for _ in 0..4 { g.ctx_act_at(0, 2); }
         assert!(g.log.iter().any(|l| l.contains("walks free")), "{:?}", g.log);
+    }
+
+    #[test]
+    fn test_the_cell_holds_them_they_dont_live_their_lives() {
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        let at = g.world.get_component::<Pos>(v).copied().unwrap();
+        let hunger = g.world.get_component::<Hunger>(v).unwrap().value;
+        g.world.add_component(v, crate::game::dungeon::Imprisoned { since: g.tick, charge: "sedition".into() });
+        // the held take no errands
+        assert!(!g.send(v, Goal::Wander));
+        // days pass: they don't stroll off, don't hunger in the cell
+        for _ in 0..600 { g.update(); }
+        let now = g.world.get_component::<Pos>(v).copied().unwrap();
+        assert_eq!((at.x, at.y), (now.x, now.y), "the held stand where the guards left them");
+        assert_eq!(g.world.get_component::<Hunger>(v).unwrap().value, hunger,
+            "the castle feeds its prisoners - no starving where they stand");
     }
 }
 

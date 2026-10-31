@@ -82,12 +82,15 @@ pub fn is_dead(world: &World, e: Entity) -> bool {
     world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
 }
 
-/// Hunger rises each tick (the dead no longer hunger)
+/// Hunger rises each tick (the dead no longer hunger, and the held are
+/// fed at the castle's charge - they can't seek, so letting them hunger
+/// would starve them where they stand)
 pub struct HungerSystem;
 impl System for HungerSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Hunger>() {
-            if is_dead(world, e) { continue; }
+            if is_dead(world, e)
+                || world.get_component::<crate::game::dungeon::Imprisoned>(e).is_some() { continue; }
             if let Some(h) = world.get_component_mut::<Hunger>(e) {
                 h.value = (h.value - 1.0).max(0.0);
             }
@@ -120,7 +123,9 @@ impl System for SeekFoodSystem {
             .collect();
 
         for v in villagers {
-            if is_dead(world, v) { continue; }
+            // the held can't seek: they take what the jailer gives
+            if is_dead(world, v)
+                || world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() { continue; }
             let hunger = match world.get_component::<Hunger>(v) {
                 Some(h) => h.value,
                 None => continue,

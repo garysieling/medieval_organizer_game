@@ -1631,6 +1631,9 @@ pub struct Game {
     pub cellar: Option<Entity>,
     pub cheeses: Vec<u64>,
     pub cellar_trait: &'static str,
+    /// The lord's estimate of the org's power - lags the truth, updated
+    /// only by what he sees
+    pub lord_esteem: f32,
 }
 
 /// A wild mushroom patch: what it is stays hidden until it's in the pan.
@@ -2053,6 +2056,7 @@ impl Game {
         world.add_component(player, Pos { x: 10.0, y: 10.0 }); // player has a position
         let org = world.create_entity();
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+        world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
         pets::adopt(&mut world, dog, villagers[0]);
         let cat = pets::spawn_pet(&mut world, "Mog", Species::Cat, PetRole::Hunting);
@@ -2332,6 +2336,7 @@ impl Game {
             cellar,
             cheeses: vec![],
             cellar_trait,
+            lord_esteem: 0.0,
         }
     }
 
@@ -2972,6 +2977,11 @@ impl Game {
                 found = " The talk splinters by trade.".into();
             }
         }
+        // a meeting in the street is power spent: the lord notices a
+        // full kitchen - and a thin one
+        self.record_power(if invited.len() >= 3 {
+            crate::sim::organized_power::ActionQuality::Transformational
+        } else { crate::sim::organized_power::ActionQuality::Overreach });
         format!("House meeting - {} came. {}{}", invited.len(), outcome, found)
     }
 
@@ -3860,6 +3870,28 @@ impl Game {
         }
     }
 
+    /// People power: it builds as the org spends it and atrophies when
+    /// idle - and the lord's estimate lags behind the truth, for he only
+    /// learns what the street shows him
+    pub fn power_tick(&mut self, tick: u64) {
+        if tick % 7 != 3 { return; }
+        let capacity = {
+            if let Some(p) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                crate::sim::organized_power::step_idle(p,
+                    &crate::sim::organized_power::PowerParams { atrophy_rate: 0.02, ..Default::default() });
+                p.capacity
+            } else { 0.0 }
+        };
+        // the lord's estimate creeps toward what's shown - perceived, not raw
+        self.lord_esteem += (capacity - self.lord_esteem) * 0.08;
+    }
+
+    /// An org action in the street: power builds as it's spent
+    pub fn record_power(&mut self, q: crate::sim::organized_power::ActionQuality) {
+        let org = self.org;
+        crate::sim::organized_power::record_action(&mut self.world, org, q);
+    }
+
     /// The day's work leaves its smell: the fold, the smoke, the cut.
     /// The rain washes everyone clean.
     pub fn smell_tick(&mut self, tick: u64) {
@@ -4087,6 +4119,10 @@ impl Game {
             let (an, bn) = (self.name_of(a), self.name_of(b));
             self.log.push(format!("t{}: {} brought {} and {} together{}.", tick, who, an, bn,
                 if feuded { " - a match the families won't like" } else { "" }));
+            // a brokered match is power shown in the street
+            if let Some(pe) = broker {
+                if pe == self.player { self.record_power(crate::sim::organized_power::ActionQuality::Transactional); }
+            }
             self.say(a, "Come, I want you to meet someone.", TALK_BUBBLE_SECS);
         } else {
             self.match_tried.push((a, b, tick + 30));
@@ -4205,7 +4241,18 @@ impl Game {
             Goal::CollectTax(target) => {
                 let Some(c) = self.collector else { return };
                 if villager::is_dead(&self.world, target) { return; }
-                let taken = livelihood::collect_tax(&mut self.world, c, target, tick);
+                // the lord's reply turns on his estimate of the org:
+                // a stranger he squeezes, a power he negotiates, a force
+                // he passes by
+                if target == self.player && self.lord_esteem > 0.6 {
+                    self.log.push(format!("t{}: the collector passes you by - the lord knows an organized man when he sees one.", tick));
+                    return;
+                }
+                let taken = livelihood::collect_tax(&mut self.world, c, target, tick)
+                    * if target == self.player && self.lord_esteem > 0.3 {
+                        self.log.push(format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
+                        0.5
+                    } else { 1.0 };
                 self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
                 if target == self.player {
                     self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
@@ -4412,6 +4459,8 @@ impl Game {
         self.cheese_tick(tick);
         // the day's work leaves its smell - unless the rain washes it off
         self.smell_tick(tick);
+        // power atrophies; the lord's estimate creeps toward the truth
+        self.power_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -6896,6 +6945,43 @@ mod smell_tests {
         let farmer = g.villagers.iter().copied().find(|&v|
             g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Farmer).unwrap_or(false)).unwrap();
         assert!(g.smells_of(farmer).is_none(), "a farmer smells of nothing much");
+    }
+}
+
+#[cfg(test)]
+mod power_tests {
+    use super::*;
+
+    fn capacity(g: &Game) -> f32 {
+        g.world.get_component::<crate::sim::organized_power::OrganizedPower>(g.org)
+            .map(|p| p.capacity).unwrap_or(0.0)
+    }
+
+    #[test]
+    fn test_power_builds_as_its_spent_and_atrophies_idle() {
+        let mut g = Game::new();
+        assert_eq!(capacity(&g), 0.0, "you're nobody until you've shown power");
+        g.record_power(crate::sim::organized_power::ActionQuality::Transformational);
+        g.record_power(crate::sim::organized_power::ActionQuality::Transformational);
+        let high = capacity(&g);
+        assert!(high > 0.2, "meetings in the street build it");
+        for t in (3..60).step_by(7) { g.power_tick(t); }
+        assert!(capacity(&g) < high, "power atrophies when idle - unlike gold");
+    }
+
+    #[test]
+    fn test_the_lords_estimate_lags_and_shifts_the_tax() {
+        let mut g = Game::new();
+        // a strong org takes weeks to register with the lord
+        for _ in 0..10 { g.record_power(crate::sim::organized_power::ActionQuality::Transformational); }
+        assert!(capacity(&g) > 1.0);
+        for t in (3..200).step_by(7) { g.power_tick(t); }
+        assert!(g.lord_esteem > 0.6, "eventually the lord learns");
+        // and then the collector passes the player by
+        g.world.get_component_mut::<Purse>(g.player).unwrap().gold = 100.0;
+        g.arrive(g.collector.unwrap(), Goal::CollectTax(g.player));
+        assert_eq!(g.world.get_component::<Purse>(g.player).unwrap().gold, 100.0,
+            "a force is passed by");
     }
 }
 

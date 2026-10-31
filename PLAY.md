@@ -120,6 +120,10 @@ triple for a wheel well past its year. And the day's work leaves its
 smell: the shepherd smells of the fold, the beekeeper of smoke and wax,
 the herb-wife of bitter herbs - a suitor's suit falls flat if they
 haven't had a rain in a while, but the rain washes everyone clean.
+Power builds as you spend it: a full kitchen meeting shows the street
+you're somebody, and the lord's estimate of you lags behind the truth -
+a stranger he squeezes, a power he negotiates, a force his collector
+passes by.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -32,27 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F14. Perceived-power matrix — power recognizes power
-
-*`sprint-7-organizing-power.md`; `sim/organized_power.rs` exists.*
-
-**What.** Every org holds an estimate of every other's power, updated by
-*visible* actions; demands are ignored, negotiated, or repressed based
-on the estimate — not raw truth.
-
-**Spec.** `power_estimate: HashMap<(Entity,Entity), f32>`; +on visible
-actions (meetings held, sanctions landed, bread distributed), decay when
-idle (power atrophies — unlike gold). Knight/lord replies to the player's
-org switch on the estimate: ignore → negotiate → concede/repress. The
-classic organizer arc becomes playable: you're nobody until you've shown
-power in the street. **Size: M.**
-
----
-
-
-## Wave 3 — The world outside (roads, travelers, and the far powers)
-
-
 ### F19. The roving pedlar
 
 *Brainstorm "roving pots-and-pans seller"; reuses `traveller_path`

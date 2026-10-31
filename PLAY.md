@@ -95,7 +95,9 @@ master dies the bench passes - to the senior apprentice, else kin under
 the roof, else a journeyman with no shop - and the lord takes his fifth
 of what was left. And the kids grow up: errands run become bonds, and on
 the day they come of age they take up the trade of whoever kept them
-busiest.
+busiest. The map learns where people walk too - feet wear the ground
+in, a well-trodden way is quicker underfoot, and the path to the
+herb-wife's hut shows where the sick keep going.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

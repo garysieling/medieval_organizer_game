@@ -92,6 +92,12 @@ pub const ATTEND_MIN_TIE: f32 = 0.15;
 /// A campaign lapses when it goes two cadences without meeting
 pub const LAPSE_CADENCES: u64 = 2;
 
+/// The campaign an org is running, if any (one org, one fight)
+pub fn campaign_of(world: &World, org: Entity) -> Option<Entity> {
+    world.query::<Campaign>().into_iter()
+        .find(|&e| world.get_component::<Campaign>(e).map(|c| c.org == org).unwrap_or(false))
+}
+
 /// One member's ballot: the issue they want the campaign to take up
 /// (None = no stake, abstained), and whether the winning framing sits
 /// right with them

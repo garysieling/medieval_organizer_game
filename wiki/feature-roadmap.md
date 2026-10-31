@@ -32,24 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F22. Sky events — comets, eclipses, solstices
-
-*Brainstorm "astrology/sky events"; pre-loads F23.*
-
-**What.** A celestial calendar: solstices anchor festivals (F15); rare
-comets/eclipses are *interpreted* — villagers draw omens matching their
-problems (the fearful see doom, the priest sees warning, the herb-wife
-sees a gathering-night).
-
-**Spec.** `SkyEvent { kind, tick }` seeded sparse; on trigger, each
-villager samples an `Omen` from their wants/problems → one-line bubbles
-across the map (a crowd of small opinions, not a modal). Priest can
-`counsel` on omens (calm vs inflame — feeds `sim/fundamentalism.rs`).
-The night the comet rides over the walls should be a screenshot people
-share. **Size: S-M.**
-
----
-
 ### F23. The disclosure — a Galileo-style showdown
 
 *`sprint-7-galileo-showdown.md`; climax of F21/F22/printmaker threads.*

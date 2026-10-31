@@ -4635,6 +4635,15 @@ impl Game {
     /// ones whose bond runs deep
     pub fn care_tick(&mut self, tick: u64) {
         if tick % 7 != 2 { return; }
+        // a bonded pet comforts its own distress, no visitor needed - and
+        // the pet needs no Pos, it lives at its owner's side by definition
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if desires::problems_of(&self.world, v, tick).is_empty() { continue; }
+            if pets::comforting_pet(&self.world, v).is_some() {
+                desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
+            }
+        }
         for &v in &self.villagers.clone() {
             let Some(cond) = self.world.get_component::<villager::Condition>(v)
                 .map(|c| c.kind) else { continue };
@@ -4651,18 +4660,7 @@ impl Game {
                     .filter(|r| r.from != v && r.other == v)
                     .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|r| r.from));
-            let Some(checker) = checker else {
-                // no one comes to check on them - but a bonded pet still
-                // comforts, if it's near enough to lean on
-                if let Some(pet) = pets::comforting_pet(&self.world, v) {
-                    let close = self.world.get_component::<Pos>(pet)
-                        .zip(self.world.get_component::<Pos>(v))
-                        .map(|(pp, vp)| (pp.x - vp.x).abs() + (pp.y - vp.y).abs() < 6.0)
-                        .unwrap_or(false);
-                    if close { desires::satisfy(&mut self.world, v, Want::Joy, tick + 8); }
-                }
-                continue;
-            };
+            let Some(checker) = checker else { continue };
             // the visit: a bond kept warm, and the walk there counted
             relationships::record_interaction(&mut self.world, checker, relationships::Interaction {
                 other: v, kind: relationships::InteractionKind::Conversation, intensity: 1.2 });

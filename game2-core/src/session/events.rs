@@ -778,6 +778,33 @@ impl Game {
                     self.say(v, "Did you hear?", CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::NewsCrier => {
+                // the news gives them something to talk about: everyone
+                // in earshot goes home with a day's more to say to the
+                // one they talk to most
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    // the news goes home to their closest living bond -
+                    // the dead hear no gossip, and the record keeps its kind honest
+                    let partner = self.world.query::<crate::game::relationships::Relationship>().iter()
+                        .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                        .filter(|rr| (rr.from == v || rr.other == v)
+                            && !villager::is_dead(&self.world, if rr.from == v { rr.other } else { rr.from }))
+                        .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+                        .map(|rr| if rr.from == v { rr.other } else { rr.from });
+                    if let Some(to) = partner {
+                        crate::game::relationships::record_interaction(&mut self.world, v,
+                            crate::game::relationships::Interaction {
+                                other: to, kind: crate::game::relationships::InteractionKind::Conversation,
+                                intensity: 0.2 });
+                    }
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1523,6 +1550,39 @@ mod tests {
             assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny went for the sheet");
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::BalladMonger), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The news gives them something to talk about - bonds pick up a
+    /// day's talk in earshot of his bell
+    #[test]
+    fn test_the_news_sets_the_street_talking() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Unrest] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::NewsCrier);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::NewsCrier && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::NewsCrier).and_then(|r| r.at).unwrap();
+            // give a listener a bond to take the talk home to
+            let a = g.villagers.iter().copied().find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let b = g.villagers.iter().copied().find(|&v| !villager::is_dead(&g.world, v) && v != a).unwrap();
+            g.world.get_component_mut::<Pos>(a).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(a).unwrap().y = at.1 as f32;
+            let bond = g.world.create_entity();
+            g.world.add_component(bond, crate::game::relationships::Relationship {
+                from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
+                strength: 0.5, interactions: 0 });
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the news-crier")),
+                "the frame shows the crier on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let talks = g.world.get_component::<crate::game::relationships::Relationship>(bond)
+                .map(|r| r.interactions).unwrap_or(0);
+            assert!(talks > 0, "the street talked on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::NewsCrier), "he moved on from {:?}", st);
         }
     }
 

@@ -7664,15 +7664,18 @@ impl View {
         // contextual actions: after the inspector, so the ones that live on
         // the card's bottom edge (Seat/Strike) stay visible. Meet sits on
         // the campaign's FIGHT line, the rest under the main buttons
-        for (b, reason) in m.ctx.iter().map(|a| ctx_button(*a))
-            .zip(&m.ctx_blocked).collect::<Vec<_>>() {
+        // two passes: the buttons first, then any greyed reason on hover -
+        // drawn last so a neighbouring button or status line can't cover it
+        let ctx_btns: Vec<(Button, Option<&String>)> = m.ctx.iter().map(|a| ctx_button(*a))
+            .zip(m.ctx_blocked.iter()).map(|(b, r)| (b, r.as_ref())).collect();
+        for (b, reason) in &ctx_btns {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            draw_button(&mut buf, &b, hover, reason.is_some());
-            // a greyed-out button always says why, same as the main row -
-            // level with the button, not below it: Meet/March sit on the
-            // campaign's own rows and the status text owns the space below
-            if let Some(r) = &reason {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 200, 140, 120);
+            draw_button(&mut buf, b, hover, reason.is_some());
+        }
+        for (b, reason) in &ctx_btns {
+            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
+            if let Some(r) = reason.filter(|_| hover) {
+                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 255, 180, 140);
             }
         }
 

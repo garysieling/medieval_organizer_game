@@ -786,6 +786,10 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
         CtxAct::Strike => Button { label: "Strike".into(), key: ' ', x: UI_X as i32 + 212, y: 438, w: 62, h: 16, color: (150, 60, 60) },
+        // demands to the collector share the card's bottom row; the
+        // prisoner's petition sits where the seat button would
+        CtxAct::Townhall => Button { label: "Demands".into(), key: ' ', x: UI_X as i32 + 146, y: 422, w: 62, h: 16, color: (150, 60, 60) },
+        CtxAct::Petition => Button { label: "Petition".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (140, 80, 80) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -1570,6 +1574,10 @@ pub enum CtxAct {
     Delegate,
     /// Ballot the picked member's trade: nine of ten, or a public failure
     Strike,
+    /// Put the campaign's demands to the collector, in public
+    Townhall,
+    /// Keep pressing for the prisoner's release
+    Petition,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -3143,7 +3151,12 @@ impl Game {
         };
         let pe = self.seats[seat].player; act_talk(&mut self.world, pe, v);
         self.say(v, &said, TALK_BUBBLE_SECS);
-        format!("{}: \"{}\"", did, said)
+        // a blow-off leaves them hollow: a real talk coaches them back
+        let coached = if self.world.get_component::<crate::game::actions::Demoralized>(v).is_some()
+            && crate::game::actions::coach(&mut self.world, pe, v, self.tick) {
+            " You talk the helplessness out of them."
+        } else { "" };
+        format!("{}: \"{}\"{}", did, said, coached)
     }
 
     /// Distance from the player to villager `who`, in tiles
@@ -6138,13 +6151,21 @@ impl Game {
             if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
                 let v = self.villagers[self.seats[seat].selected_target];
                 if !crate::game::villager::is_dead(&self.world, v) {
-                    let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
-                        .map(|o| o.members.contains(&v)).unwrap_or(false);
-                    if is_member {
-                        self.seats[seat].ctx_actions.push(CtxAct::Delegate);
-                    }
-                    if self.world.get_component::<Craft>(v).is_some() {
-                        self.seats[seat].ctx_actions.push(CtxAct::Strike);
+                    if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
+                        // someone's inside: the way out is pressure
+                        self.seats[seat].ctx_actions.push(CtxAct::Petition);
+                    } else {
+                        let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
+                            .map(|o| o.members.contains(&v)).unwrap_or(false);
+                        if is_member {
+                            self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                        }
+                        if self.world.get_component::<Craft>(v).is_some() {
+                            self.seats[seat].ctx_actions.push(CtxAct::Strike);
+                        }
+                        if Some(v) == self.collector {
+                            self.seats[seat].ctx_actions.push(CtxAct::Townhall);
+                        }
                     }
                 }
             }
@@ -6292,6 +6313,18 @@ impl Game {
                             _ => format!("{} march in the street - beneath notice, for now.", n),
                         };
                         if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
+                        // a crackdown takes the loudest - and the cause
+                        // becomes a prisoner
+                        if r == Some(crate::game::reactions::Reaction::Crackdown) {
+                            if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
+                                let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
+                                    .unwrap_or("someone");
+                                msg += &format!(" {} is taken.", tn);
+                                self.world.add_component(c, crate::game::dungeon::ReleaseCampaign {
+                                    prisoner: taken, pressure: 0.0 });
+                                self.toasts.push((format!("{} is taken", tn), tick + 40));
+                            }
+                        }
                         msg
                     }
                     None => "You call a march - and nobody comes. The street stays empty.".into(),
@@ -6310,6 +6343,38 @@ impl Game {
                             if out.called { "The trade stands together." } else { "Less than nine of ten: it fails in public." })
                     }
                     None => "Nobody of the trade to ballot.".into(),
+                }
+            }
+            CtxAct::Townhall => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
+                let Some(target) = self.collector else { return };
+                use crate::game::actions::{townhall, TargetResponse};
+                match townhall(&mut self.world, c, target, tick) {
+                    Some(out) => match out.response {
+                        TargetResponse::Carries => {
+                            self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
+                            format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
+                        }
+                        TargetResponse::Deflects =>
+                            format!("The Reeve sends regards and a clerk. {} went home hollow.", out.turnout.len()),
+                        TargetResponse::Refuses =>
+                            format!("The doors stay shut on {} voices. They go home hollow.", out.turnout.len()),
+                    },
+                    None => "Nobody turns out for the townhall.".into(),
+                }
+            }
+            CtxAct::Petition => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
+                crate::game::dungeon::press(&mut self.world, c, 0.3);
+                // the hold: what the state spends to keep them inside
+                if crate::game::dungeon::release_check(&mut self.world, c, 1.0) {
+                    let name = NAMES[self.seats[seat].selected_target];
+                    self.toasts.push((format!("{} walks free", name), tick + 40));
+                    format!("The letters don't stop - and the cell opens. {} walks free.", name)
+                } else {
+                    let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(c)
+                        .map(|r| r.pressure).unwrap_or(0.0);
+                    format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
                 }
             }
         };
@@ -6430,7 +6495,10 @@ impl Game {
         }).collect();
         let org = world.get_component::<Organization>(self.seats[seat].org).unwrap();
         let members: Vec<String> = org.members.iter()
-            .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| NAMES[i].to_string()))
+            .filter_map(|m| self.villagers.iter().position(|v| v == m).map(|i| {
+                let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(*m).is_some();
+                format!("{}{}", NAMES[i], if held { " (held)" } else { "" })
+            }))
             .collect();
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
             .map(|o| o.issues.iter().map(|t| desires::issue_name(t.clone())).collect()).unwrap_or_default();
@@ -11280,5 +11348,44 @@ mod campaign_tests {
         g.seats[0].ctx_actions.push(CtxAct::March);
         g.ctx_act_at(0, 1);
         assert!(g.log.last().unwrap().contains("march in the street"), "{:?}", g.log.last());
+    }
+}
+
+#[cfg(test)]
+mod campaign_dungeon_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_knights_take_the_loudest_and_the_letters_bring_them_home() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..4] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..4].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        // name villagers[0] the turnout coordinator, bond the rest to him
+        g.seats[0].selected_target = 0;
+        g.seats[0].picked = true;
+        g.seats[0].ctx_actions.push(CtxAct::Delegate);
+        g.ctx_act_at(0, 0);
+        for &v in &g.villagers[1..4] {
+            for _ in 0..3 {
+                crate::game::relationships::record_interaction(&mut g.world, v,
+                    crate::game::relationships::Interaction {
+                        other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+            }
+        }
+        // a real crowd draws the knights, and they take the loudest
+        g.seats[0].ctx_actions.push(CtxAct::March);
+        g.ctx_act_at(0, 1);
+        let last = g.log.last().unwrap().clone();
+        assert!(last.contains("knights come out") && last.contains("is taken"), "{}", last);
+        // then the letters bring him home
+        g.seats[0].ctx_actions.push(CtxAct::Petition);
+        for _ in 0..4 { g.ctx_act_at(0, 2); }
+        assert!(g.log.iter().any(|l| l.contains("walks free")), "{:?}", g.log);
     }
 }

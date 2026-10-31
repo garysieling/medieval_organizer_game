@@ -8213,13 +8213,15 @@ mod stay_home_tests {
         }).collect();
         // a stray is being far from the store AND from your own house for
         // days on end - an errand out and back isn't one
-        let mut run = [0u64; NAMES.len()];
+        let mut run = vec![0u64; NAMES.len()];
         let (mut worst, mut who_was_it) = (0u64, 0usize);
         let mut last = 0;
         while game.tick < 1500 {
             game.update();
             if game.tick == last { continue; }
             last = game.tick;
+            // the roster grows: births and newcomers take index 32, 33...
+            run.resize(game.villagers.len(), 0);
             for (i, v) in game.villagers.iter().enumerate() {
                 // the dead lie where they fell - a grave isn't a stray
                 if villager::is_dead(&game.world, *v) { run[i] = 0; continue; }
@@ -8234,9 +8236,18 @@ mod stay_home_tests {
                 let (wx0, wy0, wx1, wy1) = game.town_wall;
                 let outside = p.x < wx0 as f32 - 4.0 || p.x > wx1 as f32 + 4.0
                     || p.y < wy0 as f32 - 4.0 || p.y > wy1 as f32 + 4.0;
+                // newcomers (born or settled mid-run) have no slot in the
+                // snapshot - look theirs up live
+                let home = homes.get(i).copied().flatten()
+                    .or_else(|| household::home_of(&game.world, *v)
+                        .and_then(|h| game.world.get_component::<Pos>(h)).map(|p| *p));
+                let post = posts.get(i).copied().flatten()
+                    .or_else(|| game.world.get_component::<Craft>(*v)
+                        .and_then(|c| c.workplace)
+                        .and_then(|b| game.world.get_component::<Pos>(b)).map(|p| *p));
                 let adrift = outside
-                    && homes[i].map(|hp| d(hp) > 4.0).unwrap_or(true)
-                    && posts[i].map(|pp| d(pp) > 4.0).unwrap_or(true);
+                    && home.map(|hp| d(hp) > 4.0).unwrap_or(true)
+                    && post.map(|pp| d(pp) > 4.0).unwrap_or(true);
                 run[i] = if adrift { run[i] + 1 } else { 0 };
                 if run[i] > worst { (worst, who_was_it) = (run[i], i); }
             }
@@ -10810,11 +10821,13 @@ mod food_reach_tests {
         // out of eating reach (1 tile) of the store: on main they sat at zero
         // hunger for up to 75 days in a row while it held ~480 servings
         let mut game = Game::new();
-        let (mut last, mut run, mut worst, mut who) = (0, [0u64; NAMES.len()], 0u64, 0usize);
+        let (mut last, mut run, mut worst, mut who) = (0, vec![0u64; NAMES.len()], 0u64, 0usize);
         while game.tick < 720 {
             game.update();
             if game.tick == last { continue; }
             last = game.tick;
+            // the roster grows: births and newcomers take index 32, 33...
+            run.resize(game.villagers.len(), 0);
             for (k, &v) in game.villagers.iter().enumerate() {
                 // the dead keep their last hunger (zero, if they starved): this
                 // test is about the living being able to reach the store

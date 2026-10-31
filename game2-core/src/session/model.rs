@@ -175,4 +175,6 @@ pub struct UiModel {
     pub gardens: Vec<(f32, f32, f32)>,
     /// Something riding over the walls tonight
     pub sky: Option<String>,
+    /// The painted halls - color is clout that fades
+    pub painted: Vec<(f32, f32)>,
 }

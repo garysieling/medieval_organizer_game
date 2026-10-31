@@ -7064,10 +7064,31 @@ impl Game {
         }).collect();
         let satchel = self.world.get_component::<Satchel>(who)
             .map(|s| s.goods.iter().map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some();
+        // the political layer: every banner you march under (membership
+        // or leadership - a villager can hold more than one), and what
+        // each fights for. "-" marks a seat's placeholder org, not a cause
+        let mut orgs: Vec<String> = vec![];
+        let mut campaigns: Vec<String> = vec![];
+        for e in self.world.query::<Organization>().iter() {
+            let Some(o) = self.world.get_component::<Organization>(*e) else { continue };
+            if o.name == "-" || !(o.members.contains(&who) || o.leader == who) { continue; }
+            orgs.push(o.name.clone());
+            if let Some(issue) = crate::game::campaign::campaign_of(&self.world, *e)
+                .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                .map(|c| c.issue.clone()) {
+                campaigns.push(issue);
+            }
+        }
+        // the fire on the wind: burning tiles close enough to matter
+        let burning: Vec<(f32, f32)> = self.fire.burning.keys()
+            .filter(|&&(x, y)| ((x as f32 - p.x).powi(2) + (y as f32 - p.y).powi(2)).sqrt() < 12.0)
+            .map(|&(x, y)| (x as f32, y as f32)).collect();
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
             near, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
+            held, orgs, campaigns, burning,
         })
     }
 

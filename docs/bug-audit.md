@@ -112,8 +112,8 @@ Items are removed from this list as their PRs land.
 
 ## P4 — agent/network surface gaps
 
-- [ ] **W-091** `AgentObs` carries no fire/burning field — driven agents can walk into flames.
-- [ ] **W-092** `AgentObs` carries no org/campaign/membership fields — bots can't see the political layer at all.
+- [x] ~~**W-091** `AgentObs` carries no fire/burning field — driven agents can walk into flames.~~ (fixed)
+- [x] ~~**W-092** `AgentObs` carries no org/campaign/membership fields — bots can't see the political layer at all.~~ (fixed)
 - [ ] **W-093** `AgentCmd` has no organizing verbs — a bot can never found an org, join, meet, march, or petition; agents can't reach the win state.
 - [x] ~~**W-094** `free_villager` assigns by index, not role — bots can claim the priest or the tax collector (documented in `docs/multiplayer-round2.md`).~~ (fixed)
 - [x] ~~**W-095** `game_bots` sends `token: None` every run — bots can't reclaim their villager across restarts (documented).~~ (fixed)

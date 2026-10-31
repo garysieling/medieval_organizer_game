@@ -125,7 +125,10 @@ you're somebody, and the lord's estimate of you lags behind the truth -
 a stranger he squeezes, a power he negotiates, a force his collector
 passes by. And every few weeks a pedlar comes up the road - pots, pins,
 and word of the next village - pitches his stall of oddities at the
-market, trades gossip both ways, and moves on.
+market, trades gossip both ways, and moves on. The perfumer keeps the
+still too - marigold and lavender under it, scent out at twenty gold a
+flask - and a dab of it smells of roses for days, no smell at all to a
+suitor's nose.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

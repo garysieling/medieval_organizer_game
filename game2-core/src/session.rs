@@ -1849,6 +1849,12 @@ impl Game {
                 && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
             .unwrap_or(swap2);
         adult_vocs[swap3] = Vocation::Weaver;
+        // and the still: the gardens' flowers need somewhere to go
+        let swap4 = adult_vocs.iter().rposition(|&v| v != Vocation::Farmer && v != Vocation::Shepherd
+                && v != Vocation::Beekeeper && v != Vocation::Weaver
+                && adult_vocs.iter().filter(|&&x| x == v).count() > 1)
+            .unwrap_or(swap3);
+        adult_vocs[swap4] = Vocation::Perfumer;
         for &v in &adult_vocs { if !vocs_present.contains(&v) { vocs_present.push(v); } }
         let mut shop_kinds: Vec<BuildingKind> = vec![];
         for v in vocs_present {
@@ -3937,11 +3943,16 @@ impl Game {
             let kind = kind.or_else(|| if Some(v) == self.herbologist { Some("bitter herbs") } else { None });
             if let Some(kind) = kind {
                 if let Some(s) = self.world.get_component_mut::<Smell>(v) {
-                    s.intensity = (s.intensity + 0.15).min(1.0);
-                    s.kind = kind;
+                    // perfume lingers under the work-smell but doesn't grow
+                    if s.kind != "roses" {
+                        s.intensity = (s.intensity + 0.15).min(1.0);
+                        s.kind = kind;
+                    }
                 } else {
                     self.world.add_component(v, Smell { intensity: 0.15, kind });
                 }
+            } else if let Some(s) = self.world.get_component_mut::<Smell>(v) {
+                if s.kind == "roses" { s.intensity = (s.intensity - 0.02).max(0.0); }
             }
         }
     }
@@ -4116,8 +4127,10 @@ impl Game {
             .filter(|w| self.world.get_component::<InnerLife>(b).map(|lb| lb.wants.contains(w)).unwrap_or(false))
             .count()).unwrap_or(0);
         let feuded = self.rel_kind(a, b) == Some(relationships::RelKind::Rival);
-        // and smell tells on a suitor: "she smells of the fold"
-        let smelly = self.smells_of(a).is_some() || self.smells_of(b).is_some();
+        // and smell tells on a suitor: "she smells of the fold" - a dab
+        // of perfume, though, is no smell at all
+        let smelly = [a, b].iter().any(|&v|
+            self.smells_of(v).map(|k| k != "roses").unwrap_or(false));
         if smelly { self.say(a, "...you smell of the work, friend.", CHAT_BUBBLE_SECS); }
         let spark = 0.5 + shared as f32 * 0.1 - if feuded { 0.15 } else { 0.0 }
             - if smelly { 0.15 } else { 0.0 };
@@ -4219,6 +4232,14 @@ impl Game {
                     let _ = household::buy_at_shop(&mut self.world, seller, who, good, qty);
                 } else {
                     let _ = livelihood::trade_person(&mut self.world, who, seller, good, qty);
+                }
+                // a dab of perfume: the buyer smells of roses for days
+                if good == "perfume" {
+                    if let Some(s) = self.world.get_component_mut::<Smell>(who) {
+                        s.kind = "roses"; s.intensity = 0.8;
+                    } else {
+                        self.world.add_component(who, Smell { kind: "roses", intensity: 0.8 });
+                    }
                 }
             }
             Goal::BuyAt(shop, good, want) => {
@@ -7142,6 +7163,39 @@ mod pedlar_tests {
 }
 
 #[cfg(test)]
+mod perfume_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_perfumer_keeps_the_still() {
+        let g = Game::new();
+        let p = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Perfumer).unwrap_or(false));
+        assert!(p.is_some(), "a perfumer keeps the still");
+        assert_eq!(vocation::inputs(Vocation::Perfumer), &["marigold", "lavender"]);
+        assert_eq!(vocation::output(Vocation::Perfumer), Some("perfume"));
+    }
+
+    #[test]
+    fn test_a_dab_of_perfume_smells_of_roses() {
+        let mut g = Game::new();
+        let buyer = g.villagers[0];
+        let shop = g.building_entities.iter().copied().find(|&b|
+            g.world.get_component::<Building>(b).map(|bb| bb.worker.is_some()).unwrap_or(false)).unwrap();
+        // stock the shelf, give the buyer a purse, and let them buy
+        g.world.get_component_mut::<Building>(shop).unwrap()
+            .stock.insert("perfume".to_string(), 2);
+        g.world.get_component_mut::<Purse>(buyer).unwrap().gold = 30.0;
+        g.arrive(buyer, Goal::BuyFrom(shop, "perfume", 1));
+        assert_eq!(g.smells_of(buyer), Some("roses"), "the buyer smells of roses");
+        // and perfume is no smell at all to the heart-helper
+        let smelly = [buyer].iter().any(|&v|
+            g.smells_of(v).map(|k| k != "roses").unwrap_or(false));
+        assert!(!smelly, "a dab of roses counts for a clean suitor");
+    }
+}
+
+#[cfg(test)]
 mod season_tests {
     use super::*;
 
@@ -7345,6 +7399,11 @@ mod chat_tests {
         let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
         let before = trust(&game, game.player, v);
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 1.0, y: vy };
+        // only some meetings get a bubble - pad the ledger so Bram's pair
+        // lands on the remark roll whatever came before it
+        while (game.last_chat.len() + v as usize + game.tick as usize) % 3 != 0 {
+            game.last_chat.push(((v, v), 0));
+        }
         game.chat_in_passing();
         assert!(game.bubbles.iter().any(|b| b.0 == v), "Bram should say something as you pass");
         assert!((trust(&game, game.player, v) - before - 0.01).abs() < 1e-4, "a chat in passing is worth +0.01");
@@ -7647,6 +7706,7 @@ mod action_log_tests {
         let recruit = game.log.last().unwrap().clone();
         assert!(recruit.starts_with("t3: Can't recruit") && !recruit.contains("influence)"), "{}", recruit);
 
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 20.0;
         game.act(2);
         let invest = game.log.last().unwrap().clone();
         assert!(invest.starts_with("t3: Invested 10 gold") && !invest.contains("influence"), "{}", invest);

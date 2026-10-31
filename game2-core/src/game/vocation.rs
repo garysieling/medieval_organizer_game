@@ -40,6 +40,9 @@ pub enum Vocation {
     Beekeeper,
     /// Works the loom: the shepherd's wool in, village cloth out
     Weaver,
+    /// The petit-bourgeois: garden flowers distilled to scent - a
+    /// luxury that counters the smell of honest work
+    Perfumer,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -131,6 +134,7 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
         Vocation::Toolmaker => &["wood", "stone"],
         Vocation::Tailor => &["cloth"],
         Vocation::Weaver => &["wool"],
+        Vocation::Perfumer => &["marigold", "lavender"],
         Vocation::Glazier => &["sand", "pigment"],
         Vocation::Printmaker => &["paper", "ink"],
         Vocation::Mason => &["stone"],
@@ -156,6 +160,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Shepherd => Some("milk"),
         Vocation::Beekeeper => Some("honey"),
         Vocation::Weaver => Some("cloth"),
+        Vocation::Perfumer => Some("perfume"),
     }
 }
 
@@ -190,6 +195,8 @@ pub fn price(good: &str) -> f32 {
         "pigment" => 5.0,
         "bread" => 5.0,
         "cloth" => 6.0,
+        "perfume" => 20.0,
+        "marigold" | "lavender" => 1.0,
         "security" => 8.0,
         "glass" => 10.0,
         "garments" => 14.0,
@@ -215,6 +222,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Shepherd => "the fold",
         Vocation::Beekeeper => "the apiary",
         Vocation::Weaver => "the loom house",
+        Vocation::Perfumer => "the perfumery",
     }
 }
 
@@ -234,6 +242,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Shepherd => "Shepherd",
         Vocation::Beekeeper => "Beekeeper",
         Vocation::Weaver => "Weaver",
+        Vocation::Perfumer => "Perfumer",
     }
 }
 
@@ -333,6 +342,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("work the loom", "wool in, cloth out"),
             a("buy wool at the fold", "the shepherd keeps them supplied"),
             a("sell cloth", "a bolt for the tailor when it's cut"),
+        ],
+        Vocation::Perfumer => vec![
+            a("distill the flowers", "marigold and lavender under the still"),
+            a("sell scent", "a luxury that counters honest work's smell"),
+            a("buy garden stock", "a bunch of marigold for the still"),
         ],
     }
 }

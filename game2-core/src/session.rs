@@ -716,6 +716,10 @@ const APPROACH_STUCK_FRAMES: u32 = FPS;
 /// The courier's pace along the road (tiles a frame): a day's ride each way
 const TRAVELLER_SPEED: f32 = 4.0 / FPS as f32;
 
+/// Days the ink-maker's cauldron smokes on the meadow: the boil, the
+/// crusts, the drip test, and the grinding, all rolled into one stay for now
+const INK_BOIL_DAYS: u64 = 5;
+
 /// Walking over to someone to talk to or recruit them
 pub struct Approach {
     pub who: usize,              // villager index
@@ -1391,6 +1395,20 @@ pub struct Circus {
     pub camp: (i32, i32),
 }
 
+/// The ink-maker: once a year or so he walks the road in and boils his
+/// linseed oil down to varnish on the meadow outside the gate - the law
+/// and the fire both want that trade out there (Encyclopedie: "a wide
+/// space such as a garden"). Then lampblack goes into the pot, and the
+/// print shop gets ink the road used to have to bring.
+pub struct InkBoiler {
+    pub e: Entity,
+    pub path: Vec<(i32, i32)>,
+    /// Some(day) while his cauldron smokes on the meadow until
+    pub working_until: Option<u64>,
+    /// The meadow tile the cauldron stands on
+    pub camp: (i32, i32),
+}
+
 /// The roving pedlar: walks the road in, pitches his stall at the
 /// market with goods nothing local supplies, trades gossip both ways,
 /// and leaves. He's the game's newspaper.
@@ -1634,6 +1652,10 @@ pub struct Game {
     pub circus: Option<Circus>,
     /// Day the next circus is due
     pub next_circus: u64,
+    /// The ink-maker, when he's boiling on the meadow
+    pub ink_boiler: Option<InkBoiler>,
+    /// Day the next ink-maker is due
+    pub next_ink_boiler: u64,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: std::collections::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
@@ -2489,6 +2511,8 @@ impl Game {
             next_pedlar: 60 + seed % 60,
             circus: None,
             next_circus: 300 + seed % 180,
+            ink_boiler: None,
+            next_ink_boiler: 400 + seed % 200,
             derelict: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
@@ -3027,6 +3051,7 @@ impl Game {
             self.advance_minstrel();
             self.advance_pedlar();
             self.advance_circus();
+            self.advance_ink_boiler();
             // the flock grazes: the animals drift about the day's grazing point
             for (ai, &a) in self.flock.iter().enumerate() {
                 if let Some(p) = self.world.get_component_mut::<Pos>(a) {
@@ -5336,6 +5361,8 @@ impl Game {
         if self.pedlar.is_none() && tick >= self.next_pedlar { self.spawn_pedlar(); }
         // and a circus camps outside the walls every year or so
         if self.circus.is_none() && tick >= self.next_circus { self.spawn_circus(); }
+        // and the ink-maker boils his oil where the law wants it: outside
+        if self.ink_boiler.is_none() && tick >= self.next_ink_boiler { self.spawn_ink_boiler(); }
         // the collector walks his round
         if let Some(c) = self.collector {
             if !self.travels.iter().any(|t| t.who == c) {
@@ -5660,6 +5687,63 @@ impl Game {
         }
     }
 
+    /// The ink-maker comes up the road and pitches his cauldron on the
+    /// meadow outside the gate - where the law wants a fire like his
+    pub fn spawn_ink_boiler(&mut self) {
+        let e = self.world.create_entity();
+        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        // a clear spot beyond the south wall, off the circus's patch
+        let camp = self.map.nearest_buildable(self.town_wall.0 + 8, self.town_wall.3 + 4)
+            .unwrap_or((24, 30));
+        let path = self.map.walk_path(start, camp).unwrap_or_default();
+        self.ink_boiler = Some(InkBoiler { e, path, working_until: None, camp });
+        self.log.push(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick));
+    }
+
+    /// One frame of the ink-maker's visit: walk out to the meadow, work
+    /// the cauldron a few days, then the road takes him back
+    pub fn advance_ink_boiler(&mut self) {
+        let Some(mut b) = self.ink_boiler.take() else { return };
+        if b.working_until.is_none() {
+            let Some(p) = self.world.get_component_mut::<Pos>(b.e) else { return };
+            if b.path.is_empty() {
+                b.working_until = Some(self.tick + INK_BOIL_DAYS);
+                self.say(b.e, "The oil takes its time - bring your crusts when it spits.", TALK_BUBBLE_SECS * 2);
+            } else {
+                let (nx, ny) = (b.path[0].0 as f32, b.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; b.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.ink_boiler = Some(b);
+        } else if self.tick <= b.working_until.unwrap() {
+            self.ink_boiler = Some(b); // the pot's on
+        } else {
+            // the varnish's made: pack up and walk off
+            if let Some(p) = self.world.get_component_mut::<Pos>(b.e).copied() {
+                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                if b.path.is_empty() {
+                    b.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                }
+                if b.path.is_empty() {
+                    self.world.destroy_entity(b.e);
+                    self.next_ink_boiler = self.tick + 250 + self.rng.next() % 200;
+                    self.log.push(format!("t{}: the ink-maker's moved on, smelling of his trade.", self.tick));
+                    return;
+                }
+                let p = self.world.get_component_mut::<Pos>(b.e).unwrap();
+                let (nx, ny) = (b.path[0].0 as f32, b.path[0].1 as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; b.path.remove(0); }
+                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+            }
+            self.ink_boiler = Some(b);
+        }
+    }
+
     /// The roving pedlar comes up the road
     pub fn spawn_pedlar(&mut self) {
         let e = self.world.create_entity();
@@ -5971,6 +6055,12 @@ impl Game {
             if let Some(p) = world.get_component::<Pos>(c.e) {
                 people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the circus".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            }
+        }
+        if let Some(b) = &self.ink_boiler {
+            if let Some(p) = world.get_component::<Pos>(b.e) {
+                people.push(PersonV { e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the ink-boiler".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
         for &(x, y) in &self.gulls {
@@ -8386,6 +8476,56 @@ mod circus_tests {
             assert!(g.log.iter().any(|l| l.contains("run off with the circus")),
                 "the road takes the one it tempted");
         }
+    }
+}
+
+#[cfg(test)]
+mod ink_boiler_tests {
+    use super::*;
+
+    #[test]
+    fn test_he_pitches_outside_the_walls() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        assert!(g.ink_boiler.is_some());
+        // walk him out to the meadow
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        let b = g.ink_boiler.as_ref().unwrap();
+        assert!(b.working_until.is_some(), "the cauldron's set up");
+        // the law wants a fire like his beyond the south wall
+        assert!(b.camp.1 > g.town_wall.3, "he boils outside the gate, not in the street");
+        assert!(!g.log.iter().any(|l| l.is_empty()));
+    }
+
+    #[test]
+    fn test_the_road_takes_him_too() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        for _ in 0..600 {
+            if g.ink_boiler.as_ref().map(|b| b.path.is_empty() && b.working_until.is_some()).unwrap_or(false) { break; }
+            g.advance_ink_boiler();
+        }
+        // run him past his boiling days
+        g.tick = 100;
+        for _ in 0..2000 {
+            g.advance_ink_boiler();
+            if g.ink_boiler.is_none() { break; }
+        }
+        assert!(g.ink_boiler.is_none(), "the road takes him");
+        assert!(g.next_ink_boiler > g.tick, "he'll be back in a year or so");
+    }
+
+    #[test]
+    fn test_he_shows_up_on_the_map() {
+        let mut g = Game::new();
+        g.spawn_ink_boiler();
+        let e = g.ink_boiler.as_ref().unwrap().e;
+        let model = g.ui_model();
+        assert!(model.people.iter().any(|p| p.e == e && matches!(p.kind, PKind::Traveller)),
+            "the ink-maker is on the map the moment he's spawned, not just his speech bubble");
     }
 }
 

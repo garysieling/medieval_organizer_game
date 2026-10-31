@@ -31,29 +31,6 @@ lower-risk, and lay groundwork later items reuse.
 ## Wave 1 — The cottage economy (animals, plants, and the people who tend them)
 
 
-### F4. Physic garden & cottage gardens
-
-*Brainstorm "house gardens and community gardens"; feeds F1 herbs and
-F20 perfume flowers.*
-
-**What.** Some homes get a garden bed (soil-tinted tile strip beside the
-house). Occupants tend it; it yields kitchen herbs (food want variety),
-feverfew/marigold patches the herb-wife may harvest with permission, and
-flowers.
-
-**Spec.** `struct Garden { beds: Vec<GardenBed { plant, growth } }` on
-`BuildingKind::Home`. Tending is a short `Activity::Tending` idle-break;
-growth fills like crops. Harvest adds `food` or named `flower`/`herb`
-goods to house stock. The herb-wife's forage search includes gardens
-only if an occupant's trust > threshold (otherwise they're "her flowers,
-not the common's"). `Want::Garden`-flavored `Joy` satisfaction when
-tending. **Size: S-M.**
-
----
-
-
-
-
 ### F8. Wool → cloth: the weaver and the tailor's local supply
 
 *`sprint-4-textiles.md`; completes F2's chain.*

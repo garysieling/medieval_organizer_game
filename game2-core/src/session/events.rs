@@ -434,10 +434,11 @@ impl Game {
                     if !near { continue; }
                     // his work's already done on their kit: no second penny
                     if desires::is_satisfied(&self.world, v, Want::BetterTools, tick) { continue; }
+                    // no penny, no mend
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !pays { continue; }
                     desires::satisfy(&mut self.world, v, Want::BetterTools, tick + 30);
-                    if let Some(p) = self.world.get_component_mut::<Purse>(v) {
-                        if p.gold > 1.0 { p.gold -= 1.0; }
-                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                 }
             }
             EventId::KnifeGrinder => {
@@ -457,10 +458,11 @@ impl Game {
                     // his wheel only earns off a working blade
                     if self.world.get_component::<crate::game::vocation::Craft>(v).is_none() { continue; }
                     if desires::is_satisfied(&self.world, v, Want::BetterTools, tick) { continue; }
+                    // no penny, no edge - the poorest keep their dull steel
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    if !pays { continue; }
                     desires::satisfy(&mut self.world, v, Want::BetterTools, tick + 45);
-                    if let Some(p) = self.world.get_component_mut::<Purse>(v) {
-                        if p.gold > 1.0 { p.gold -= 1.0; }
-                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                 }
             }
             EventId::Hailstorm => {

@@ -1321,6 +1321,9 @@ pub struct Meeting {
 const MEETING_WALK: f32 = 2.5 / FPS as f32;
 const GATHER_FRAMES: u32 = 20 * FPS;
 const LINE_FRAMES: u32 = 2 * FPS;
+/// How long the knights hold the streets after a crackdown: a posting is
+/// a tour, not a life sentence - they ride home in a month
+const GUARD_TOUR: u64 = 30;
 /// What the player says to open the meeting, between rounds, and to close it
 const MEETING_PROMPTS: [&str; 3] = [
     "Thanks for coming. What's on your minds?",
@@ -1636,6 +1639,10 @@ pub struct Game {
     pub town_wall: (i32, i32, i32, i32),
     /// The watch standing just inside each gate
     pub guards: Vec<(f32, f32)>,
+    /// Knights posted to the streets after a crackdown, tagged with the
+    /// org they stand over - gone when that org's tour is done, unlike
+    /// the gate watch that stands all year
+    pub posted: Vec<(Entity, f32, f32)>,
     /// The priest by the church
     pub priest: (f32, f32),
     /// The courier's road to the rivals' village and back (empty if there is none)
@@ -2516,6 +2523,7 @@ impl Game {
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             guards,
+            posted: vec![],
             priest,
             traveller_path,
             gulls,
@@ -4495,6 +4503,24 @@ impl Game {
         }
     }
 
+    /// The king's patience has a length: posted guards stand their tour,
+    /// then ride home - the streets are the village's again, and a
+    /// crackdown that comes after has to post them fresh
+    pub fn guards_tick(&mut self, tick: u64) {
+        for seat in 0..self.seats.len() {
+            let org = self.seats[seat].org;
+            let stood_down = self.world.get_component::<crate::game::reactions::GuardsPosted>(org)
+                .map(|g| tick >= g.since + GUARD_TOUR).unwrap_or(false);
+            if !stood_down { continue; }
+            self.world.remove_component::<crate::game::reactions::GuardsPosted>(org);
+            // they stand where they were posted no more: this org's
+            // knights ride home (another's may still be on their tour;
+            // the gate watch is a different corps entirely)
+            self.posted.retain(|&(o, _, _)| o != org);
+            self.log.push(format!("t{}: the knights ride home - the tour is done.", tick));
+        }
+    }
+
     /// What a cause leaves on people fades on its own clock: a season
     /// cools a moral shock (reactions::cool_off), a month dulls a
     /// blow-off (actions::lifts_with_time). Coaching is still the fast
@@ -5570,6 +5596,8 @@ impl Game {
         self.martyr_tick(tick);
         // and the castle's prisoners wait on the org's answer
         self.dungeon_tick(tick);
+        // and the posted knights stand only their tour
+        self.guards_tick(tick);
         // and the marks a cause leaves fade on their own clock
         self.marks_tick(tick);
         let mut rng = Rng(self.rng.next());
@@ -6383,8 +6411,9 @@ impl Game {
                             // can see them - once; posted guards stay posted
                             if !posted_before {
                                 let (px, py) = self.player_pos_at(seat);
-                                self.guards.push((px + 1.5, py));
-                                self.guards.push((px - 1.5, py));
+                                let o = self.seats[seat].org;
+                                self.posted.push((o, px + 1.5, py));
+                                self.posted.push((o, px - 1.5, py));
                             }
                             // a campaign that keeps drawing the knights gets
                             // a rule written against it - the movement
@@ -6403,8 +6432,23 @@ impl Game {
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
                                     .unwrap_or("someone");
                                 msg += &format!(" {} is taken.", tn);
-                                self.world.add_component(taken, crate::game::dungeon::ReleaseCampaign {
-                                    pressure: 0.0 });
+                                // the release effort is a campaign of its own:
+                                // the issue is a person now, not a grievance
+                                let rc = crate::game::dungeon::found_release_campaign(&mut self.world,
+                                    self.seats[seat].org, taken, tick);
+                                // those who watched *them* hauled off - a friend
+                                // of the taken, not just anyone in the crowd -
+                                // sign on for their release, no organizing needed
+                                let scene = [taken];
+                                let mut signed = 0usize;
+                                for &v in &self.villagers.clone() {
+                                    if crate::game::reactions::witness(&mut self.world, v,
+                                            &"the prisoners".to_string(), &scene, tick)
+                                        && crate::game::dungeon::join(&mut self.world, rc, v) {
+                                        signed += 1;
+                                    }
+                                }
+                                if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
                                 self.toasts.push((format!("{} is taken", tn), tick + 40));
                             }
                         }
@@ -6533,7 +6577,8 @@ impl Game {
         let (px, py) = self.player_pos_at(seat);
         people.push(PersonV { e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
-        for (i, &(x, y)) in self.guards.iter().enumerate() {
+        for (i, (x, y)) in self.guards.iter().copied()
+            .chain(self.posted.iter().map(|p| (p.1, p.2))).enumerate() {
             people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         }
@@ -11557,6 +11602,45 @@ mod campaign_dungeon_tests {
     }
 
     #[test]
+    fn test_the_taken_get_a_release_campaign_and_their_friends_sign_on() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..4] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..4].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        // the loudest leads, and a bystander loves him enough to feel the take
+        for &v in &g.villagers[1..4] {
+            for _ in 0..3 {
+                crate::game::relationships::record_interaction(&mut g.world, v,
+                    crate::game::relationships::Interaction {
+                        other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+            }
+        }
+        let friend = g.villagers[6];
+        for _ in 0..3 {
+            crate::game::relationships::record_interaction(&mut g.world, friend,
+                crate::game::relationships::Interaction {
+                    other: g.villagers[0], kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+        }
+        g.seats[0].ctx_actions.push(CtxAct::March);
+        g.ctx_act_at(0, 0);
+        let prisoner = g.villagers.iter().copied()
+            .find(|&v| g.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some())
+            .expect("the crackdown takes the loudest");
+        // the cause becomes a person: a campaign of their own
+        let rc = g.world.get_component::<crate::game::dungeon::ReleaseOf>(prisoner)
+            .map(|r| r.campaign).expect("a release campaign stands for the taken");
+        assert!(g.world.get_component::<crate::game::campaign::Campaign>(rc).is_some());
+        // and the ones who loved them sign on without an invite
+        assert!(g.world.get_component::<Organization>(g.org).unwrap().members.contains(&friend),
+            "the friend signs on for the release");
+    }
+
+    #[test]
     fn test_you_cant_talk_a_man_out_of_a_cell() {
         let mut g = Game::new();
         // stand him beside the player, then the knights take him
@@ -11572,6 +11656,30 @@ mod campaign_dungeon_tests {
         assert_eq!(g.disabled_reason(1).as_deref(), Some("in the dungeon"));
         g.act(0);
         assert!(g.log.last().unwrap().contains("in the dungeon"), "{:?}", g.log.last());
+    }
+
+    #[test]
+    fn test_the_knights_ride_home_when_the_tour_is_done() {
+        let mut g = Game::new();
+        g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 10 });
+        g.posted.push((g.org, 15.0, 16.0));
+        g.posted.push((g.org, 14.0, 16.0));
+        // another org's knights still stand their own tour
+        let other = g.world.create_entity();
+        g.posted.push((other, 20.0, 20.0));
+        // mid-tour they stand their ground
+        g.guards_tick(20);
+        assert!(g.world.get_component::<crate::game::reactions::GuardsPosted>(g.org).is_some());
+        assert_eq!(g.posted.len(), 3);
+        // the tour done, they ride out - the posting and the street both
+        // clear, but only theirs: another org's knights keep their own tour
+        g.guards_tick(40);
+        assert!(g.world.get_component::<crate::game::reactions::GuardsPosted>(g.org).is_none());
+        assert_eq!(g.posted.len(), 1);
+        assert_eq!(g.posted[0].0, other);
+        // the gate watch, though, stands all year
+        assert!(!g.guards.is_empty());
+        assert!(g.log.iter().any(|l| l.contains("knights ride home")), "{:?}", g.log);
     }
 }
 

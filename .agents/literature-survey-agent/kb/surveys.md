@@ -945,3 +945,25 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High (bands are priors; all four docs flag calibration-over-ensemble as next step)
 **Tags:** fun, supply-chain, factorio, civ5, majesty, rimworld, stardew, settlers2, balance-testing, playtesting, telemetry, schreiber, sirlin, storytelling, freytag, kishotenketsu, drama-management, operant-conditioning, skinner, reward-schedules, sdt, balance-tester
+
+---
+
+### USER-REQUESTED: Victorian Diseases (big research pass)
+**Date Completed:** 2026-10-31
+**Domain:** Historical Epidemiology / History of Public Health (Britain 1837–1901)
+**Output:** wiki/literature-reviews/victorian-diseases.md
+**Yield:**
+- Full disease roster with period names: consumption/phthisis (TB, #1 killer ~15% of deaths 1848–72), Asiatic cholera (4 epidemics: 1831/1848/1854/1866), typhoid ("the filth disease"), typhus ("putrid/jail/camp fever"), scarlatina, diphtheria ("strangling angel"/"quinsy"), smallpox ("speckled monster"), measles, whooping cough, la grippe (Russian flu 1889–94, R0~2.1, attack ~60%, CFR 0.1–0.28%), fenland ague (vivax malaria, relapsing), childbed fever, summer diarrhoea, rickets, and the occupational set (phossy jaw, miner's phthisis/"the dust", sweeps' cancer, byssinosis)
+- Transmission-route taxonomy is the core translation: contact/droplet vs waterborne (Snow's "mode of communication") vs vector vs occupational — the sim already has `effluent`/`pit_water` tiles, a ready-made Broad Street mechanic
+- Era arc: miasma era → Chadwick 1842 report → PH Act 1848 (non-compulsory, failed) → Great Stink 1858 → Bazalgette sewers (built 1859–75, still in use) → PH Act 1875; germ theory (Pasteur/Lister 1867/Koch 1882) lands late
+- Social/organizing finds: compulsory Vaccination Acts (1853/1871) → Anti-Compulsory Vaccination League + conscience clause victory; **Leicester Method** = movement-built alternative institution (notify→isolate→quarantine→disinfect→compensate); matchgirls' strike 1888 grew out of phossy jaw; ergot-style blame dynamics have Victorian twins (Irish blamed for typhus, railways for cholera)
+- Naming table for in-code diseases: "flu"→"la grippe"/"the influenza", "the fever"→"scarlatina", "bad belly"→"the gripes", "saint anthony's fire" keeps its name
+- 8 mechanics proposed: zymotic roster (DiseaseKind enum), real incubation (Stage::Latent already exists, unused), waterborne route via effluent, seasonal fever calendar, differential immunity+relapse, crowding/class exposure modifier, occupational trade-exposure, epidemic blame/grievance
+
+**Key Sources:**
+- Mooney (SHM 2007), Hardy *Epidemic Streets* (OUP 1993) - A+
+- Snow 1849 (primary), Farr nosology 1842 (primary), Lancet 1890 anti-vax report (primary) - A+
+- GRO mortality data (UKDA SN 5705), Brody et al. Lancet, Valtierra PNAS 2010, CampOP, typhus/phthisis Medical History papers - A
+
+**Confidence:** High
+**Tags:** victorian, disease, epidemiology, cholera, tuberculosis, consumption, phthisis, typhoid, typhus, scarlatina, diphtheria, smallpox, ague, rickets, phossy-jaw, miasma, germ-theory, john-snow, broad-street, bazalgette, chadwick, public-health, vaccination, anti-vaccination, leicester-method, farr, zymotic, nosology

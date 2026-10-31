@@ -688,3 +688,23 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** secret-societies, oaths, carbonari, fenian, irb, mau-mau, oathing, counter-oathing, triads, tolpuddle, freemasonry, clandestine, infiltration, le-caron, ritual-drift, dual-org, cover-function, costly-signaling
 
 ---
+
+### ROUND 2: The Dungeon — Imprisonment & Release Campaigns (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Prison Organizing / Recruitment Sociology
+**Output:** wiki/literature-reviews/organizing-prisons-and-release.md
+**Yield:**
+- Jasper & Poulsen moral shocks: strangers recruit via broadcast condensing symbols — a second channel beside network recruitment (the bystander mechanic)
+- Prisoner-as-organizer: Dunlop 1909 invented the hunger strike over status; Attica's 28-demand manifesto as inside-organizing; jailhouse-lawyer track
+- All-losing state responses: force-feeding = propaganda gift, Cat-and-Mouse Act = revolving-door absurdity + fugitives, hold-without-process = legitimacy drain
+- Amnesty adoption model: prisoner-as-charter, pressure = volume × time + elite prestige multiplier, response latency as a stat
+- 5 mechanics: Imprisoned-as-active-state, moral-shock stranger recruitment, jailer's dilemma, release-campaign pressure accumulator, adoption-as-charter
+
+**Key Sources:**
+- Jasper & Poulsen, Social Problems 42(4) 1995 - A+
+- UK Parliament / London Museum suffragette prison record - A/A+
+- Attica manifesto (Freedom Archives primary) + CR-CL/Race&Class historiography - A
+- Amnesty archive (AI@50, 1981 handbook, Urgent Action) - A
+
+**Confidence:** High
+**Tags:** imprisonment, dungeon, hunger-strike, force-feeding, cat-and-mouse, moral-shocks, condensing-symbols, jasper-poulsen, stranger-recruitment, attica, jailhouse-lawyer, amnesty, prisoner-of-conscience, release-campaign, pressure-accumulator, adoption-groups

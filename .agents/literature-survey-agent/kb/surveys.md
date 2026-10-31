@@ -688,3 +688,52 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** secret-societies, oaths, carbonari, fenian, irb, mau-mau, oathing, counter-oathing, triads, tolpuddle, freemasonry, clandestine, infiltration, le-caron, ritual-drift, dual-org, cover-function, costly-signaling
 
 ---
+
+### ROUND 3.5: The Faith-Power Interface (USER-REQUESTED, w/ Foucault comparison)
+**Date Completed:** 2026-10-31
+**Domain:** Sociology of Religion / Colonial Sociology / Institutional Power
+**Output:** wiki/literature-reviews/organizing-faith-and-power.md
+**Yield:**
+- Intermediary-class theory (Tilly brokerage, Fanon comprador, Weber routinization of charisma as THE co-option mechanism, Niebuhr church-sect drift, Gramsci hegemony, Stark religious economy)
+- Second Temple Judaism as complete typology: Sadducees (collaborator→destroyed), Pharisees (ambiguous intermediary→survived as rabbinic Judaism), Jesus movement (prophetic→captured by empire), Essenes (exit→archive), Zealots (revolt→annihilation)
+- Plantation intermediaries: drivers as structurally dual role (Genovese mediator thesis); paternalism bargain (legitimating ideology as contested resource - slaves weaponized the frame)
+- Slave Bible 1807 (literal redaction: 90% OT/50% NT cut, Exodus removed - faith-as-info-weapon); the double-edge church (Vesey/Turner/Montgomery on the same infrastructure)
+- Imperial co-option toolkit: Constantinian settlement (ur-case), Holy Synod, millet system, patronato, indirect rule, mission-educated comprador class → co-option backfire (Nkrumah/Mandela/Kenyatta were mission-schooled), state churches as controlled opposition, colonial communal categories
+- FOUCAULT: pastoral power→examination lineage; sovereign vs disciplinary; carceral continuum; church-as-intermediary = disciplinary institution avant la lettre; movements need counter-institutions producing counter-subjects
+- 6 mechanics: broker class, incorporation offers, redacted canon, paternalism bargain, disciplinary institutions layer, broker dilemmas
+
+**Key Sources:**
+- Niebuhr *Social Sources of Denominationalism* - A
+- Foucault (D&P, Madness, pastoral power) - A+
+- Genovese *Roll Jordan Roll* + driver scholarship - A
+- Slave Bible collections scholarship - A
+- Mission-education/intermediary-intellectual studies - A
+
+**Confidence:** High
+**Tags:** faith-power, intermediaries, brokers, co-option, pharisees, sadducees, plantation-drivers, paternalism, slave-bible, constantine, millet, indirect-rule, mission-schools, church-sect, foucault, pastoral-power, disciplinary-institutions, routinization-of-charisma
+
+---
+
+### ROUND 3.5: Critical Pedagogy & Movement Education (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Critical Pedagogy / Popular Education / Movement Schools
+**Output:** wiki/literature-reviews/organizing-critical-pedagogy.md
+**Yield:**
+- Author list: Freire, Boal, Horton/Highlander, hooks, Illich, Bourdieu&Passeron, Gramsci, Gutiérrez/liberation theology, Fals-Borda PAR, Giroux/McLaren, Rancière (counter-point), Du Bois, Dewey
+- 8 key insights: education never neutral (form teaches first); oppressor-within as deepest domination layer; praxis loop; community-teachers-only rule (organic intellectuals); agency not information as product; counter-institutions produce counter-subjects; research=organizing (PAR); embodied rehearsal (spect-actor)
+- Internal tensions documented: Freire vs Rancière (liberating teacher paradox), Freire vs Illich (transform vs dissolve), Horton vs Freire (practice vs theory)
+- 6 mechanics: internalized_domination stat, praxis loop skill growth, community-teacher requirement, spect-actor rehearsal, movement schools building, oppressor-within flip risk
+
+**Key Sources:**
+- Freire *Pedagogy of the Oppressed* - A+
+- Boal *Theatre of the Oppressed* - A+
+- Horton/Freire *We Make the Road by Walking* + Highlander historiography - A
+- Illich, Bourdieu&Passeron, Gramsci - A+
+- Gutiérrez + BEC scholarship - A
+- Fals-Borda PAR scholarship - A
+- Citizenship School records (~80% registration) - A
+
+**Confidence:** High
+**Tags:** critical-pedagogy, freire, boal, theatre-of-oppressed, highlander, citizenship-schools, septima-clark, illich, bourdieu, gramsci, organic-intellectuals, liberation-theology, becs, fals-borda, par, hooks, ranciere, conscientization, praxis, movement-schools, subject-production
+
+---

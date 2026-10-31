@@ -84,6 +84,8 @@ pub enum Problem {
     LongWinter,
     /// The hermit's want: the dark keeps them
     TheDark,
+    /// What they watched and can't unsee - the hanging's weight
+    Grief,
 }
 
 /// One secret a person can share: a want or a problem
@@ -179,6 +181,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::WritBorne) => "the bailiff's writ",
         Reveal::Problem(Problem::LongWinter) => "the long winter",
         Reveal::Problem(Problem::TheDark) => "the dark",
+        Reveal::Problem(Problem::Grief) => "the grief",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -235,6 +238,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the bailiff's writ" => "the bailiff's writ".into(),
         "the long winter" => "the long winter".into(),
         "the dark" => "the dark".into(),
+        "the grief" => "the grief".into(),
         _ => tag,
     }
 }
@@ -281,6 +285,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::WritBorne => "a writ came down from the castle".into(),
         Problem::LongWinter => "the winter runs long and the stores run thin".into(),
         Problem::TheDark => "the dark keeps me".into(),
+        Problem::Grief => "I watched it and can't unsee it".into(),
     }
 }
 
@@ -321,6 +326,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::WritBorne) => (format!("{} bore the writ", name), "Sealed by the castle. No arguing with wax.".into()),
         Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are thin", name), "Second winter running. The barrel knows it.".into()),
         Reveal::Problem(Problem::TheDark) => (format!("{} keeps to the dark", name), "The village is loud with light. Down here it's honest.".into()),
+        Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
     }
 }
 

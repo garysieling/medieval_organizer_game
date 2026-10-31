@@ -32,20 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F35. The dark cap: the gibbet (optional)
-
-*Brainstorm "Guillotine — maybe; the violent end of the spectrum."*
-
-**What.** The top of F13's ladder, gated and rare: execution exists only
-for the lord/occupying power (the village never votes it) — a permanent
-death, mass grief, and a martyr whose grave becomes a rallying site
-(graves already render). A defeat-condition texture, not a player tool.
-
-**Spec.** Only via `LordEdict` repression at max escalation (F25).
-Deliberately grim and rare; flag to disable. **Size: S.**
-
----
-
 ## Wave 5 — Meta & quality (work in when convenient)
 
 - **F36. Perf/batch pass** — flock + villagers > 40 entities: batch

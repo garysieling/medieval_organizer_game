@@ -1721,6 +1721,8 @@ pub struct Game {
     pub hermit: Option<Entity>,
     /// Whether the player's first body's gone - the work goes on
     pub player_passed: bool,
+    /// The martyr's grave - where they hanged the one who said no
+    pub martyr_grave: Option<(i32, i32)>,
 }
 
 /// A letter, traveling - durable word that crosses distance
@@ -2502,6 +2504,7 @@ impl Game {
             letters: vec![],
             cave_pos: Some((36, 33)),
             player_passed: false,
+            martyr_grave: None,
         }
     }
 
@@ -4085,6 +4088,9 @@ impl Game {
     pub fn edict_tick(&mut self, tick: u64) {
         if tick % 120 != 80 { return; }
         let kind = (tick / 120) % 3;
+        // the debt counts the defiances - a summons reads it before the
+        // writ's own weight consumes it
+        let debt = self.repression_debt;
         let mult = if self.repression_debt > 0 { let m = 1 + self.repression_debt; self.repression_debt = 0; m } else { 1 };
         // the org's answer rides its standing with the lord
         let bargained = self.lord_esteem > 0.5;
@@ -4127,7 +4133,23 @@ impl Game {
                 if let Some(m) = mark {
                     let member = self.world.get_component::<Organization>(self.org)
                         .map(|o| o.members.contains(&m)).unwrap_or(false);
-                    if member && self.lord_esteem > 0.7 {
+                    if member && self.lord_esteem > 0.7 && debt >= 2 {
+                        // the third defiance: the bailiff doesn't come back
+                        // alone - a writ at max repression is a gibbet
+                        let name = self.name_of(m);
+                        self.world.add_component(m, villager::Dead);
+                        if let Some(p) = self.world.get_component::<Pos>(m) {
+                            self.martyr_grave = Some((p.x.round() as i32, p.y.round() as i32));
+                        }
+                        self.repression_debt = 0;
+                        self.log.push(format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
+                        // mass grief: everyone saw it
+                        for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
+                            if !villager::is_dead(&self.world, v) {
+                                desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 60);
+                            }
+                        }
+                    } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
                         self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty.", tick, self.name_of(m)));
                     } else {
@@ -4143,6 +4165,23 @@ impl Game {
             if !villager::is_dead(&self.world, v) {
                 desires::add_grievance(&mut self.world, v, desires::Problem::WritBorne, tick + 30);
             }
+        }
+    }
+
+    /// The martyr's grave: they gather there, and the remembering is a
+    /// kind of organizing no castle can stamp out
+    pub fn martyr_tick(&mut self, tick: u64) {
+        let Some(_) = self.martyr_grave else { return };
+        if tick % 30 != 20 { return; }
+        // a vigil: the org's members keep the grave, and it makes them
+        for v in self.villagers.iter().take(5).copied().collect::<Vec<_>>() {
+            if !villager::is_dead(&self.world, v) {
+                desires::satisfy(&mut self.world, v, Want::Faith, tick + 15);
+            }
+        }
+        self.record_power(crate::sim::organized_power::ActionQuality::Transactional);
+        if tick % 90 == 20 {
+            self.log.push(format!("t{}: they keep a vigil at the martyr's grave.", tick));
         }
     }
 
@@ -5150,6 +5189,8 @@ impl Game {
         self.fisher_tick(tick);
         // and if the player's gone, the work goes on in another pair of hands
         self.continuation_tick(tick);
+        // and the martyr's grave keeps its vigil
+        self.martyr_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -8409,6 +8450,42 @@ mod continuation_tests {
         g.continuation_tick(1);
         assert!(g.log.iter().any(|l| l.contains("the work dies with them")));
         assert!(g.player_passed);
+    }
+}
+
+#[cfg(test)]
+mod gibbet_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_third_defiance_is_a_gibbet() {
+        let mut g = Game::new();
+        g.lord_esteem = 0.8;
+        let m = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        for p in [desires::Problem::Broke, desires::Problem::Blamed,
+                  desires::Problem::WritBorne, desires::Problem::LongWinter,
+                  desires::Problem::ShortChanged] {
+            desires::add_grievance(&mut g.world, m, p, 100);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
+        g.repression_debt = 2; // the third writ
+        g.edict_tick(320); // summons day
+        assert!(villager::is_dead(&g.world, m), "the bailiff comes back with knights");
+        assert!(g.martyr_grave.is_some(), "a martyr's grave");
+        assert!(g.log.iter().any(|l| l.contains("hanged for the defiance")));
+    }
+
+    #[test]
+    fn test_the_vigil_keeps_the_grave() {
+        let mut g = Game::new();
+        g.martyr_grave = Some((15, 15));
+        let before = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(g.org)
+            .map(|p| p.capacity).unwrap_or(0.0);
+        g.martyr_tick(20);
+        let after = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(g.org)
+            .map(|p| p.capacity).unwrap_or(0.0);
+        assert!(after > before, "the remembering is a kind of organizing");
     }
 }
 

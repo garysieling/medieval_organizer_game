@@ -80,6 +80,20 @@ fn main() {
         if tick == 120 { spawn_weather(&mut world, Weather::Drought, 0.8, 30); println!("EVENT: drought"); }
         if tick == 200 { spawn_weather(&mut world, Weather::Frost, 0.6, 15); println!("EVENT: frost"); }
 
+        // the weather bites: frost and heat take it out of them
+        let bite: f32 = world.query::<game2_core::sim::weather::CurrentWeather>().iter()
+            .filter_map(|&e| world.get_component::<game2_core::sim::weather::CurrentWeather>(e))
+            .map(game2_core::sim::weather::health_effect).sum();
+        if bite != 0.0 {
+            for v in world.query::<game2_core::sim::illness::Health>() {
+                if let Some(h) = world.get_component_mut::<game2_core::sim::illness::Health>(v) {
+                    // the weather wears them down but never finishes the job -
+                    // illness and hunger are for that
+                    h.condition = (h.condition + bite).clamp(0.1, 1.0);
+                }
+            }
+        }
+
         // Player actions each 10 ticks
         if tick % 10 == 0 && tick > 0 {
             let target = villagers[(tick / 10) as usize % 5];

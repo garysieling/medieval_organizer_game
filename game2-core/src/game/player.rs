@@ -58,6 +58,10 @@ pub const TALK_MAINTENANCE: f32 = 0.1;
 /// TALK_MAINTENANCE - a catch-up that keeps an old friendship from fading.
 pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    if world.get_component::<crate::game::villager::Dead>(target).is_some() {
+        return ActionResult { success: false, influence_change: 0.0,
+            description: "You can't talk with the dead.".into() };
+    }
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });

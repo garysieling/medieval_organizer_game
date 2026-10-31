@@ -35,6 +35,12 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-048** `sim::illness::apply_treatment` never called — no illness is ever treated in the live sim.~~ (partially stale — live curing runs via `herbology::apply_efficacy`; dead `apply_treatment` deleted)
 - [x] ~~**W-049** `herbology` `knows_cure`/`treats_illness`/`herb_tree` never called — the apothecary never cures a patient.~~ (stale — all wired transitively: `knows_cure`←`brew_from_stock`, `treats_illness`/`herb_tree`←`medicinal_herbs`, used by the SeekRemedy path)
 - [x] ~~**W-050** `jobs` `work_tick`/`sells_goods` never called — the jobs system never ticks (verify whether vocation/livelihood replaced it and jobs.rs should go).~~ (stale — both run inside `JobSystem`, scheduled by the `game_loop` driver)
+- [x] ~~**W-053** `succession` `spawn_lineage`/`succession_crisis` never called — a succession crisis can never trigger.~~ (fixed — orphaned `succession` module deleted; the session's own succession_tick handles the living one)
+- [x] ~~**W-054** `trade_routes` `route_should_form`/`spawn_route`/`spawn_caravan`/`trade_tick` never called — no caravans or routes ever form.~~ (fixed — orphaned `trade_routes` module deleted; no routes ever formed)
+- [x] ~~**W-055** `warfare` `spawn_conflict`/`conflict_effects` never called — conflicts can't start or resolve.~~ (fixed — orphaned `warfare` module deleted; no conflicts ever started)
+- [x] ~~**W-056** `military::army_power` never called (`resolve_battle` has a single caller) — battles can't be fought or lost.~~ (fixed — orphaned `military` module deleted with `resolve_battle`'s only caller)
+- [x] ~~**W-057** `tech_tree::can_research` never called — research is never gated; `next_researchable` has one caller, verify it's live.~~ (stale — `can_research` runs via `research`/`next_researchable`, exercised by the demo bins and the tech view)
+
 - [x] ~~**W-058** `world::spawn_world` never called — an alternate world-gen path abandoned in place.~~ (fixed — deleted the abandoned `spawn_world` path)
 - [x] ~~**W-059** `terrain::spawn_terrain` never called — `Terrain::generate_country` won; remove or wire.~~ (fixed — `spawn_terrain` deleted; `Terrain::generate_country` is the one path)
 - [x] ~~**W-060** `factions::spawn_faction` never called — factions can never spawn.~~ (fixed — orphaned `factions` module deleted; nothing ever constructed a Faction)
@@ -55,6 +61,7 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-076** `trails::movement_cost` never called — worn trails don't make walking cheaper.~~ (fixed)
 - [x] ~~**W-077** `community::exert_influence` never called — org influence is never spent through the community module.~~ (stale — the session spends through `OrganizedPower`; `InfluenceSystem`/`exert_influence` is the bin-scoped community API)
 - [x] ~~**W-078** `climate::rain_effect` never called — rain has no effect on crops/soil through the intended hook.~~ (stale — `rain_effect` runs via `climate_multiplier`, which the demo/sim bins consult for food)
+- [x] ~~**W-079** `weather::health_effect` never called — weather doesn't touch health.~~ (fixed — `full_session` applies each active weather's health bite to every Health each tick)
 - [x] ~~**W-080** `contracts` `run`/`setup` never called — the contract engine never runs; `seal_aid_pact`/`breach` are text-game-only paths.~~ (fixed — `ContractSystem` scheduled in the contracts_demo driver; a fulfilled contract now credits reputation live)
 
 ## P3 — dead infra/ui code and duplicated drift-risk paths

@@ -123,7 +123,9 @@ haven't had a rain in a while, but the rain washes everyone clean.
 Power builds as you spend it: a full kitchen meeting shows the street
 you're somebody, and the lord's estimate of you lags behind the truth -
 a stranger he squeezes, a power he negotiates, a force his collector
-passes by.
+passes by. And every few weeks a pedlar comes up the road - pots, pins,
+and word of the next village - pitches his stall of oddities at the
+market, trades gossip both ways, and moves on.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

@@ -39,11 +39,6 @@ lower-risk, and lay groundwork later items reuse.
   skills-vocations-plan's phase 5).
 - **F37. Debug/telemetry overlay** — trails heatmap, power matrix,
   economy prices over time; the tuning panel lit reviews ask for.
-- **F38. Save-scenario pack** — "the fever year", "the circus winter",
-  "the widow's shop" as seeded scenario presets (reuses `infra/save_load.rs`
-  checkpoints).
-- **F39. WASM build pass** — per `wasm-compilation.md`, for the sister
-  build.
 - **F40. Sound** — ambient loop + event chimes; last per backlog priority.
 
 ---

@@ -54,6 +54,18 @@ pub struct Smell {
     pub kind: &'static str,
 }
 
+/// A thing made to outlast its maker: a lute, a window, a fine toolset -
+/// named, owned, and passed down. It gathers stories the way a person does.
+#[derive(Debug)]
+pub struct Heirloom {
+    pub maker: Entity,
+    pub owner: Entity,
+    pub name: &'static str,
+    pub born_tick: u64,
+    /// What it's been through: "played at the feast of the Harvest Home"
+    pub stories: Vec<String>,
+}
+
 /// Whether an entity has died: either its `Health` has hit 0, or it was
 /// marked dead (e.g. by the windowed game after removing `Health`).
 /// Entities with neither are never counted as dead.

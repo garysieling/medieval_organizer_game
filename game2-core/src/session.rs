@@ -1711,6 +1711,8 @@ pub struct Game {
     pub harsh_winter: bool,
     /// (building, the day it was painted) - color is clout that fades
     pub painted: Vec<(Entity, u64)>,
+    /// The things made to outlast their makers - item entities
+    pub heirlooms: Vec<Entity>,
 }
 
 /// How a village keeps its accounts
@@ -2450,6 +2452,7 @@ impl Game {
             repression_debt: 0,
             harsh_winter: false,
             painted: vec![],
+            heirlooms: vec![],
         }
     }
 
@@ -4093,6 +4096,58 @@ impl Game {
         }
     }
 
+    /// Now and then a maker makes a thing to outlast them - a lute, a
+    /// window, a fine toolset - and it gathers stories the way a person
+    /// does, and passes to kin when the hands that held it stop.
+    pub fn heirloom_tick(&mut self, tick: u64) {
+        // the dead pass their things on: a bequest picks kin
+        for &item in &self.heirlooms.clone() {
+            let Some(h) = self.world.get_component::<villager::Heirloom>(item)
+                .map(|h| (h.owner, h.name)) else { continue };
+            let (owner, name) = h;
+            if !villager::is_dead(&self.world, owner) { continue; }
+            // kin first: someone under the same roof
+            let kin = household::home_of(&self.world, owner)
+                .and_then(|home| self.world.get_component::<Building>(home)
+                    .map(|b| b.occupants.iter().copied()
+                        .find(|&o| o != owner && !villager::is_dead(&self.world, o))));
+            let Some(kin) = kin.flatten() else { continue };
+            if let Some(h) = self.world.get_component_mut::<villager::Heirloom>(item) {
+                h.owner = kin;
+                h.stories.push(format!("passed from the dead, day {}", tick));
+            }
+            self.log.push(format!("t{}: {} by old hands passes to {} - a thing made to outlast.",
+                tick, name, self.name_of(kin)));
+            self.say(kin, "It's mine now. I'd rather have them back.", CHAT_BUBBLE_SECS);
+        }
+        if tick % 90 != 60 { return; }
+        // a masterwork: the surest hands in the village lay one down
+        let maker = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter_map(|v| self.world.get_component::<Craft>(v)
+                .map(|c| (v, c.vocation, c.skill)))
+            .filter(|(_, voc, s)| *s > 0.7 && matches!(voc,
+                Vocation::Luthier | Vocation::Glazier | Vocation::Toolmaker | Vocation::Weaver | Vocation::Tailor))
+            .max_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(v, voc, _)| (v, voc));
+        let Some((maker, voc)) = maker else { return };
+        // no hoarding: a maker's masterwork is a once-a-lifetime thing
+        if self.heirlooms.iter().any(|&i| self.world.get_component::<villager::Heirloom>(i)
+            .map(|h| h.maker == maker).unwrap_or(false)) { return; }
+        let name = match voc {
+            Vocation::Luthier => "a lute",
+            Vocation::Glazier => "a window",
+            Vocation::Toolmaker => "a fine toolset",
+            Vocation::Weaver => "a woven hanging",
+            _ => "a keepsake",
+        };
+        let item = self.world.create_entity();
+        self.world.add_component(item, villager::Heirloom {
+            maker, owner: maker, name, born_tick: tick, stories: vec![] });
+        self.heirlooms.push(item);
+        self.log.push(format!("t{}: {} lays down {} - a thing made to outlast its maker.", tick, self.name_of(maker), name));
+    }
+
     /// The painter's trade: a pot of paint becomes a bright hall -
     /// color that fades with the seasons, so the work comes round again.
     /// The org's hall painted is a power claim the street can see.
@@ -4878,6 +4933,8 @@ impl Game {
         self.winter_tick(tick);
         // and the painter lays color on the village's halls
         self.painter_tick(tick);
+        // and now and then a maker makes a thing to outlast them
+        self.heirloom_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -7945,6 +8002,48 @@ mod painter_tests {
         g.painted.push((g.building_entities[0], 10));
         g.painter_tick(400);
         assert!(g.painted.is_empty(), "the seasons take the color back");
+    }
+}
+
+#[cfg(test)]
+mod heirloom_tests {
+    use super::*;
+
+    #[test]
+    fn test_a_maker_lays_down_a_masterwork() {
+        let mut g = Game::new();
+        // a sure pair of hands
+        let maker = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c|
+                matches!(c.vocation, Vocation::Luthier | Vocation::Glazier | Vocation::Toolmaker
+                    | Vocation::Weaver | Vocation::Tailor)).unwrap_or(false)).unwrap();
+        g.world.get_component_mut::<Craft>(maker).unwrap().skill = 0.9;
+        g.heirloom_tick(60);
+        assert!(!g.heirlooms.is_empty(), "a thing made to outlast its maker");
+        let h = g.world.get_component::<villager::Heirloom>(g.heirlooms[0]).unwrap();
+        assert_eq!(h.maker, maker);
+        assert_eq!(h.owner, maker, "the maker keeps it first");
+    }
+
+    #[test]
+    fn test_the_dead_pass_their_things_on() {
+        let mut g = Game::new();
+        let owner = g.villagers[0];
+        let item = g.world.create_entity();
+        g.world.add_component(item, villager::Heirloom {
+            maker: owner, owner, name: "a lute", born_tick: 10, stories: vec![] });
+        g.heirlooms.push(item);
+        // someone under the same roof inherits
+        let home = household::home_of(&g.world, owner).unwrap();
+        let kin = g.world.get_component::<Building>(home).unwrap()
+            .occupants.iter().copied().find(|&o| o != owner).unwrap();
+        g.world.get_component_mut::<Health>(owner).unwrap().condition = 0.0;
+        g.arrive(owner, Goal::Wander); // a tick to mark him dead? no - die directly
+        g.world.add_component(owner, villager::Dead);
+        g.heirloom_tick(11);
+        let h = g.world.get_component::<villager::Heirloom>(item).unwrap();
+        assert_eq!(h.owner, kin, "a bequest picks kin");
+        assert!(!h.stories.is_empty(), "it gathers the story of the passing");
     }
 }
 

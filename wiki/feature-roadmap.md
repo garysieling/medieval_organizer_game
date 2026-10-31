@@ -32,22 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F28. Heirloom objects — things with history
-
-*`sprint-7-luthiery-and-minstrels.md` (instruments as items w/ maker,
-wood, age); glazier/luthier "masterwork" actions already exist.*
-
-**What.** Masterwork outputs (a lute, a window, a fine tool set) become
-named `Heirloom { maker, owner-lineage, quality, story-tags }` items that
-persist through deaths (F12 inheritance), accrue stories (played at the
-feast of X), and can be lost/sold/bequeathed — grief over an object.
-
-**Spec.** Item entity + `Heirloom` component; inspector shows lineage
-("made by old Berta, played at the winter feast"); bequest picks kin.
-Makes "a window to be remembered by" literally true. **Size: M.**
-
----
-
 ### F29. Letters & the written word
 
 *`writing-materials-bookmaking.md` review; printmaker synergy.*

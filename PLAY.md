@@ -152,7 +152,10 @@ who to blame. The herb-wife's hut looks very different in a hard
 winter. The painter keeps the paint shop too - pigment and wood in,
 color on the halls - and a painted hall is a power claim the street
 can see, bright for a season until it fades and the work comes round
-again.
+again. And now and then a sure pair of hands lays down a thing made to
+outlast them - a lute, a window, a fine toolset - and it gathers
+stories the way a person does, and passes to kin when the hands that
+held it stop.
 
 Everyone carries secret **wants** and **problems**. Talk and house
 meetings can draw them out; parallel complaints make people likelier to

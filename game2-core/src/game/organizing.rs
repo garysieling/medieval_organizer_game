@@ -151,7 +151,9 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
             members_present += 1;
         }
     }
-    // everyone who came learns meeting craft a little
+    // everyone who came learns meeting craft a little; running it teaches
+    // the leader agitation - working the room
+    crate::game::org_skills::practice(world, leader, crate::game::org_skills::OrgSkill::Agitation, crate::game::org_skills::MEETING_PRACTICE);
     for &a in attendees {
         if a != leader && !is_dead(world, a) {
             crate::game::org_skills::practice(world, a, crate::game::org_skills::OrgSkill::HouseMeeting, crate::game::org_skills::MEETING_PRACTICE);

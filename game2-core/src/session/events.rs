@@ -915,8 +915,10 @@ impl Game {
                     .filter(|(d, _)| *d < 8).min_by_key(|(d, _)| *d).map(|(_, v)| v);
                 if let (Some(f), Some(b)) = (fold, buyer) {
                     let (fx, fy) = self.world.get_component::<Pos>(f).map(|p| (p.x, p.y)).unwrap_or((at.0 as f32, at.1 as f32));
-                    crate::game::livestock::spawn_animal(&mut self.world,
+                    let e = crate::game::livestock::spawn_animal(&mut self.world,
                         crate::game::livestock::LivestockKind::Sheep, f, fx + 1.0, fy + 1.0);
+                    // onto the flock's roll too - a sheep you can't see is no sheep
+                    self.flock.push(e);
                     if let Some(p) = self.world.get_component_mut::<Purse>(b) { p.gold -= 3.0; }
                     self.say(b, "Good ewe, that one.", CHAT_BUBBLE_SECS);
                 }
@@ -2048,6 +2050,8 @@ mod tests {
             stage::run_days(&mut g, 1);
             assert!(g.world.query::<crate::game::livestock::Livestock>().len() > sheep0,
                 "the fold grew on {:?}", st);
+            // and she's on the flock's roll - the frame and the grazing know her
+            assert!(g.flock.len() > 0, "she's on the roll on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Drover), "the drove moved on from {:?}", st);
         }

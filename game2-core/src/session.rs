@@ -1725,6 +1725,17 @@ pub struct Game {
     pub martyr_grave: Option<(i32, i32)>,
 }
 
+/// A saved scenario: a village already mid-story when you walk in
+#[derive(Debug, Clone, Copy)]
+pub enum Scenario {
+    /// The year the fever took hold - sickness already in the walls
+    FeverYear,
+    /// The year the circus came in a hard winter - wonders and thin stores
+    CircusWinter,
+    /// A shop stands derelict, a widow weighs the keeping of it
+    WidowsShop,
+}
+
 /// A letter, traveling - durable word that crosses distance
 #[derive(Debug)]
 pub struct Letter {
@@ -2506,6 +2517,46 @@ impl Game {
             player_passed: false,
             martyr_grave: None,
         }
+    }
+
+    /// A village already mid-story: one of the saved scenarios - the
+    /// fever year, the circus winter, the widow's shop
+    pub fn new_scenario(s: Scenario) -> Game {
+        let mut g = Game::new_seeded(MAP_SEED);
+        match s {
+            Scenario::FeverYear => {
+                // the fever's already in three beds when you arrive
+                for (i, &v) in g.villagers.iter().take(3).enumerate() {
+                    let d = g.world.create_entity();
+                    g.world.add_component(d, Disease {
+                        patient: v, name: "the fever".into(),
+                        stage: crate::sim::illness::Stage::Moderate,
+                        severity: 0.6 - i as f32 * 0.1, contagious: true });
+                }
+                g.log.push(format!("t{}: the fever year - it's already in three beds.", g.tick));
+            }
+            Scenario::CircusWinter => {
+                // a hard winter, and the tents already pitched outside
+                g.tick = 400; // inside the harsh window
+                g.spawn_circus();
+                g.log.push("t400: the circus winter - wonders, and thin stores.".to_string());
+            }
+            Scenario::WidowsShop => {
+                // a shop stands derelict, a widow weighs the keeping of it
+                let b = g.building_entities.iter().copied().find(|&b|
+                    g.world.get_component::<Building>(b)
+                        .map(|bb| bb.worker.is_some() && matches!(bb.kind, household::BuildingKind::Shop(_)))
+                        .unwrap_or(false));
+                if let Some(b) = b {
+                    if let Some(w) = g.world.get_component::<Building>(b).and_then(|bb| bb.worker) {
+                        g.world.add_component(w, villager::Dead);
+                        g.succession_tick(1);
+                        g.log.push("t1: the widow's shop - who's to keep it now?".to_string());
+                    }
+                }
+            }
+        }
+        g
     }
 
     pub fn ticks_per_frame(&self) -> u32 {
@@ -8486,6 +8537,39 @@ mod gibbet_tests {
         let after = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(g.org)
             .map(|p| p.capacity).unwrap_or(0.0);
         assert!(after > before, "the remembering is a kind of organizing");
+    }
+}
+
+#[cfg(test)]
+mod scenario_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_fever_year_opens_in_three_beds() {
+        let g = Game::new_scenario(Scenario::FeverYear);
+        let fevered = g.world.query::<Disease>().iter()
+            .filter(|&&d| g.world.get_component::<Disease>(d)
+                .map(|dd| dd.name == "the fever").unwrap_or(false)).count();
+        assert_eq!(fevered, 3, "the fever's already in three beds");
+        assert!(g.log.iter().any(|l| l.contains("the fever year")));
+    }
+
+    #[test]
+    fn test_the_circus_winter_opens_harsh() {
+        let mut g = Game::new_scenario(Scenario::CircusWinter);
+        assert!(g.circus.is_some(), "the tents are already pitched");
+        g.winter_tick(g.tick);
+        assert!(g.harsh_winter, "a hard winter");
+    }
+
+    #[test]
+    fn test_the_widows_shop_stands_derelict() {
+        let g = Game::new_scenario(Scenario::WidowsShop);
+        assert!(g.log.iter().any(|l| l.contains("the widow's shop")));
+        // and someone's weighing the keeping of it
+        let any_derelict = g.building_entities.iter().any(|&b|
+            g.world.get_component::<Building>(b).map(|bb| household::derelict(bb)).unwrap_or(false));
+        assert!(any_derelict, "a shop stands derelict");
     }
 }
 

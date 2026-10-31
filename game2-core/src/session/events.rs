@@ -1123,6 +1123,28 @@ impl Game {
                     g.2 += 0.02;
                 }
             }
+            EventId::Tanner => {
+                // mind the smell: honest work, but the tan-pit's reek
+                // hangs on whoever stands near his vats a while
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut nipped = 0;
+                for &v in &self.villagers.clone() {
+                    if nipped >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 6)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    // the fold's smell already hangs on a shepherd - a
+                    // tanner's reek can't tell him anything new
+                    let already = self.world.get_component::<crate::game::vocation::Craft>(v)
+                        .map(|c| c.vocation == crate::game::vocation::Vocation::Shepherd).unwrap_or(false);
+                    if already { continue; }
+                    desires::add_grievance(&mut self.world, v, desires::Problem::Smelly, tick + 15);
+                    self.say(v, "Mind the smell - it's honest work!", CHAT_BUBBLE_SECS);
+                    nipped += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2587,6 +2609,34 @@ mod tests {
                 "the beds grew on {:?}", st);
             stage::run_days(&mut g, 7);
             assert!(g.rare.iter().all(|r| r.id != EventId::LimeBurner), "his kiln cooled from {:?}", st);
+        }
+    }
+
+    /// Mind the smell: the tan-pit's reek hangs on whoever stands near
+    /// his vats - the frame shows the tanner's trade first
+    #[test]
+    fn test_the_reek_hangs_on_the_near() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Tanner);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Tanner && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Tanner).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the tanner")),
+                "the frame shows the vats on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().any(|(p, u)| *p == desires::Problem::Smelly && g.tick <= *u))
+                .unwrap_or(false), "the reek hung on her on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Tanner), "the vats packed out from {:?}", st);
         }
     }
 

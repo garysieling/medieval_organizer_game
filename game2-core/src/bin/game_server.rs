@@ -185,6 +185,9 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
             Ok(tungstenite::Message::Text(t)) => {
                 let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
                 let mut s = server.lock().unwrap();
+                // reclaimed while the message waited: the seat has a new
+                // driver - don't run this conn's stale command on it
+                if conn.lock().unwrap().dead { break; }
                 let (seat, kind) = { let c = conn.lock().unwrap(); (c.seat, c.kind) };
                 conn.lock().unwrap().last_active = Instant::now();
                 match cm {

@@ -1728,6 +1728,18 @@ pub struct Game {
     pub path_cache: std::collections::HashMap<((i32, i32), (i32, i32)), Option<Vec<(i32, i32)>>>,
     /// The tick the cache was born on - a day older and it's stale
     pub path_tick: u64,
+    /// The audio cue queue: drained per frame into the UiModel
+    pub sfx: Vec<SfxCue>,
+}
+
+/// An audio cue: the sim raises these, the audio layer maps them to
+/// sound - a kind, a place, an intensity
+#[derive(Debug, Clone)]
+pub struct SfxCue {
+    pub kind: &'static str,
+    pub x: f32,
+    pub y: f32,
+    pub intensity: f32,
 }
 
 /// A saved scenario: a village already mid-story when you walk in
@@ -2523,6 +2535,7 @@ impl Game {
             martyr_grave: None,
             path_cache: std::collections::HashMap::new(),
             path_tick: u64::MAX,
+            sfx: vec![],
         }
     }
 
@@ -2741,6 +2754,8 @@ impl Game {
     /// ticks villagers keep strolling
     pub fn update(&mut self) {
         let ticks_per_frame = self.ticks_per_frame();
+        // the soundscape resets each frame: cues live exactly one read
+        self.sfx.clear();
         // sim advance: one tick = one day, throttled by frame count
         self.frame_n += 1;
         let mut ticked = false;
@@ -3553,6 +3568,12 @@ impl Game {
         }
     }
 
+    /// Raise an audio cue: a kind, a place, an intensity - the audio
+    /// layer turns it into sound
+    pub fn emit_sfx(&mut self, kind: &'static str, x: f32, y: f32, intensity: f32) {
+        self.sfx.push(SfxCue { kind, x, y, intensity });
+    }
+
     /// The BFS is the game's hot line - a path's the same all day, so
     /// remember it until the map might have moved
     fn walk_memo(&mut self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
@@ -4278,6 +4299,27 @@ impl Game {
             if !villager::is_dead(&self.world, v) {
                 desires::add_grievance(&mut self.world, v, desires::Problem::WritBorne, tick + 30);
             }
+        }
+    }
+
+    /// The soundscape's cues: the ambient bed (rain falling, the smithy
+    /// ringing on a workday) and the moments worth a sound of their own
+    pub fn sfx_tick(&mut self, tick: u64) {
+        // the ambient bed: rain when it falls, the smithy's rhythm on a
+        // workday - quiet state cues the audio layer keeps under it all
+        if self.precip.is_some() && tick % 20 == 0 {
+            self.emit_sfx("rain", 20.0, 15.0, 0.4);
+        }
+        if tick % 40 == 10 {
+            self.emit_sfx("anvil", 19.0, 19.0, 0.3); // the smithy's rhythm
+        }
+        // the moments: a festival hums, a comet hushes, the hanging's
+        // grim - the big things get a cue of their own where they happen
+        if tick % 90 == 45 {
+            self.emit_sfx("festival", 16.0, 16.0, 0.9);
+        }
+        if let Some((_, until)) = self.sky {
+            if until == tick + 2 { self.emit_sfx("wonder", 20.0, 5.0, 0.7); }
         }
     }
 
@@ -5284,6 +5326,8 @@ impl Game {
         self.power_tick(tick);
         // and now and then something rides over the walls
         self.sky_tick(tick);
+        // and the soundscape's cues rise with the days
+        self.sfx_tick(tick);
         // and a truth sits unsaid somewhere, ripening
         self.discovery_tick(tick);
         // and the castle sends its writs on a season's turn
@@ -5961,6 +6005,7 @@ impl Game {
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             debug_lines: self.telemetry_lines(),
+            sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
         }
     }
 
@@ -8668,6 +8713,34 @@ mod perf_tests {
         g.walk_memo((10, 10), (15, 15));
         assert_eq!(g.path_tick, 1, "the cache turned over");
         assert_eq!(g.path_cache.len(), 1, "fresh, not accumulated");
+    }
+}
+
+#[cfg(test)]
+mod sfx_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_soundscape_raises_its_cues() {
+        let mut g = Game::new();
+        g.sfx_tick(45); // a feast day
+        assert!(g.sfx.iter().any(|c| c.kind == "festival"), "the festival hums");
+        // rain's a cue while it falls
+        g.precip = Some(crate::sim::precipitation::PrecipKind::Rain);
+        g.sfx.clear();
+        g.sfx_tick(20);
+        assert!(g.sfx.iter().any(|c| c.kind == "rain"), "the bed keeps the weather");
+    }
+
+    #[test]
+    fn test_cues_reach_the_scene() {
+        let mut g = Game::new();
+        g.emit_sfx("wonder", 20.0, 5.0, 0.7);
+        let m = g.ui_model();
+        assert!(m.sfx.iter().any(|k| k == "wonder"), "the cue's on the scene for the audio layer");
+        // and a frame later it's gone - cues live exactly one read
+        g.update();
+        assert!(g.sfx.is_empty(), "the queue resets");
     }
 }
 

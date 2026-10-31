@@ -181,4 +181,6 @@ pub struct UiModel {
     pub cave: Option<(f32, f32)>,
     /// The tuning panel's gauge lines, for the debug overlay
     pub debug_lines: Vec<String>,
+    /// The audio cues this frame raised, for the sound layer
+    pub sfx: Vec<String>,
 }

@@ -3865,8 +3865,11 @@ impl Game {
                 let r = self.shepherd.filter(|&sh| self.pets.iter().any(|(e, s, _)| *s == Species::Dog
                     && self.world.get_component::<Pet>(*e).map(|p| p.owner == Some(sh)).unwrap_or(false)))
                     .map(|_| 4).unwrap_or(7);
-                self.graze_at = ((fp.x + self.rng.around(r) as f32).clamp(1.0, self.map.width as f32 - 2.0),
-                                 (fp.y + self.rng.around(r) as f32).clamp(1.0, self.map.height as f32 - 2.0));
+                // the flock grazes around where it actually is - strays
+                // pull the middle away from the fold's gate
+                let (cx, cy) = livestock::centroid(&self.world, fold).unwrap_or((fp.x, fp.y));
+                self.graze_at = ((cx + self.rng.around(r) as f32).clamp(1.0, self.map.width as f32 - 2.0),
+                                 (cy + self.rng.around(r) as f32).clamp(1.0, self.map.height as f32 - 2.0));
             }
             self.next_graze = tick + 2 + self.rng.below(3) as u64;
         }

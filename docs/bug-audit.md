@@ -74,7 +74,7 @@ Items are removed from this list as their PRs land.
 - [ ] **W-061** `traits::spawn_personality` never called — `personality_from_seed` is used instead; two personality paths coexist.
 - [ ] **W-062** `tea` `spawn_tea`/`drink_tea` never called — tea exists only in its module.
 - [ ] **W-063** `textiles` `spawn_textile`/`comfort_level` never called.
-- [ ] **W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.
+- [x] ~~**W-064** `livestock::centroid` never called — flock centre is never computed; check the fold's drift/graze logic.~~ (fixed — the graze point centres on the flock)
 - [x] ~~**W-065** `household::stock_room` never called.~~ (stale — called by `add_stock` at household.rs:80)
 - [x] ~~**W-066** `livelihood::has_role` never called.~~ (fixed — answers the two Herbologist checks in session.rs)
 - [ ] **W-067** `vocation` `is_service`/`options_for`/`skill_gain` never called — skills may never grow through the intended path.

@@ -9,7 +9,7 @@
 //! scene's a serialized UiModel; the canvas draws it.
 
 use wasm_bindgen::prelude::*;
-use game2_core::session::{Game, Scenario};
+use game2_core::session::{Game, Scenario, Command};
 
 /// A wasm-held Game: the browser ticks it and asks for the scene
 #[wasm_bindgen]
@@ -51,6 +51,16 @@ impl WasmGame {
         self.game.tick
     }
 
+    /// One input toward the player's character: a serialized `Command`,
+    /// the same enum the websocket protocol carries - the page plays the
+    /// same game the window and the ws client do
+    pub fn command(&mut self, json: &str) -> bool {
+        match serde_json::from_str::<Command>(json) {
+            Ok(c) => { self.game.command(c); true }
+            Err(_) => false,
+        }
+    }
+
     /// The tuning panel's lines, for a debug readout
     pub fn telemetry(&self) -> String {
         self.game.telemetry_lines().join("\n")
@@ -60,4 +70,18 @@ impl WasmGame {
 #[wasm_bindgen(start)]
 pub fn start() {
     // The page constructs a WasmGame and ticks it - nothing to boot here
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_the_page_can_play_not_just_watch() {
+        let mut g = WasmGame::new();
+        assert!(!g.game.paused);
+        assert!(g.command("\"TogglePause\""), "a real Command parses");
+        assert!(g.game.paused, "the input reached the sim");
+        assert!(!g.command("\"NotACommand\""), "garbage is refused");
+    }
 }

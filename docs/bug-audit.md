@@ -25,7 +25,6 @@ Items are removed from this list as their PRs land.
 - [x] ~~**W-032** `Sympathized` entries never decay — a moral shock marks a villager woke forever.~~ (fixed)
 - [x] ~~**W-033** `Imprisoned` has no natural release path — only Petition frees; if the org lapses or dies it's a life sentence.~~ (fixed — pressure gathers a little every day; a prisoner walks alone in ~50 days)
 - [x] ~~**W-034** `actions::Demoralized` never expires on its own — a hollow member stays hollow until the organizer Talks to them; check intended vs stuck.~~ (fixed)
-- [ ] **W-035** `NAMES[i]` indexing assumes `villagers.len() <= 31` — any spawn path that pushes past 31 villagers (migrants, births) panics on name lookup.
 - [ ] **W-036** `action_menu` (text game) has none of the new ctx verbs — no Meet/March/Strike/Townhall/Petition/Delegate/Matchmake/PairUp/Errand; text UI and GUI have drifted apart.
 - [ ] **W-037** `player::market_day` only fires in `bin/game.rs` — the market-day purse event has no GUI/session equivalent.
 - [ ] **W-038** `balance_test` driver never exercises March/Petition/Delegate/etc. — balance runs can't see the newest verbs' effects.

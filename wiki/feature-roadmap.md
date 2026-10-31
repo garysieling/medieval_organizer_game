@@ -32,21 +32,6 @@ lower-risk, and lay groundwork later items reuse.
 
 
 
-### F32. Caves — the monochrome under
-
-*Brainstorm "caves — underground is monochromatic."*
-
-**What.** One cave mouth on the map edge: a desaturated mini-layer for
-mushrooms (F5's best patch), a hermit (a `TownRole` recluse with rare
-lore), ore the toolmaker's inputs could one day come from. Deliberately
-small: a place, not a system.
-
-**Spec.** `Cave` building/zone; entities inside drawn desaturated;
-hermit gives one big want/problem ("the dark keeps me") and one piece
-of true herb lore. Cheap mystery. **Size: S-M.**
-
----
-
 ### F33. Death & continuation — the player is the org
 
 *Brainstorm "death & continuation — on death, a cutscene, then continue

@@ -189,3 +189,14 @@ Every mechanic must trace to:
 - OR established game design pattern (with citation)
 
 ---
+
+### Pattern: Prison History → Dungeon-as-Venue Mechanics
+**Academic Source:** Jasper & Poulsen moral shocks (Social Problems 1995); suffragette prison record (UK Parliament, primary); Attica manifesto + historiography; Amnesty adoption-group model
+**Game Mechanic:** `Imprisoned` as an active state (demands/strike/petition); moral-shock stranger recruitment (second channel beside network ties); jailer's-dilemma response table; release-campaign pressure accumulator with elite-prestige multiplier
+**Implementation:** proposed for game2-core/src/game/dungeon.rs + reactions.rs (C5-C6 of wiki/campaign-plan.md)
+**Simplification:** 4-option jailer response table instead of real policy space; pressure = actions × time + prestige sum; shock broadcast = radius + tag-intersection roll
+**Educational Value:** Why arresting organizers backfires; how prisoners keep organizing; why persistence beats spectacle for release
+**Fun Factor:** The jailer's every option loses when the movement is ready — players learn to plan for the arrest, not avoid it
+**Tags:** organizing, prison, dungeon, moral-shocks, release-campaign, bystander-recruitment
+
+---

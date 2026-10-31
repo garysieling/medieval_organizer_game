@@ -734,6 +734,30 @@ impl Game {
                     }
                 }
             }
+            EventId::Puppeteer => {
+                // Noah's flood and the devil's due: the kids are
+                // enthralled for free; the grown-ups who watch over
+                // their heads drop a penny in the hat
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near || desires::is_satisfied(&self.world, v, Want::Joy, tick) { continue; }
+                    let feels_it = self.world.get_component::<desires::InnerLife>(v)
+                        .map(|l| l.wants.contains(&Want::Joy)).unwrap_or(false);
+                    if !feels_it { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
+                    // kids get the front row for free; the rest pay the hat
+                    if self.world.get_component::<crate::game::vocation::Kid>(v).is_none() {
+                        let spare = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                        if spare {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                        }
+                    }
+                }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -1416,6 +1440,39 @@ mod tests {
                 "the bear lifted her on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::BearWard), "they moved on from {:?}", st);
+        }
+    }
+
+    /// Noah's flood enthralled them: the kids are lifted for free, and
+    /// the frame shows the booth first
+    #[test]
+    fn test_the_puppet_show_enthralls_the_kids() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Puppeteer);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Puppeteer && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Puppeteer).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
+            // she's a kid for the front row: no hat money changes hands
+            g.world.add_component(v, crate::game::vocation::Kid);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a puppeteer")),
+                "the frame shows the booth on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick),
+                "the show enthralled her on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold == 10.0,
+                "the front row was free on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Puppeteer), "he moved on from {:?}", st);
         }
     }
 

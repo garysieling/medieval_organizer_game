@@ -1293,6 +1293,35 @@ impl Game {
                 }
                 if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
             }
+            EventId::Alchemist => {
+                // I buy strange things. Strange things only. - two gold
+                // for whatever odd's in your satchel, whatever it is
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut bought = 0;
+                for &v in &self.villagers.clone() {
+                    if bought >= 2 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    // something, actually - a zero-count entry's a story,
+                    // not a strange thing to sell
+                    let good = self.world.get_component::<crate::game::livelihood::Satchel>(v)
+                        .and_then(|s| s.goods.iter().find(|(_, &n)| n > 0)
+                            .map(|(k, _)| k.clone()));
+                    let Some(g) = good else { continue };
+                    if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
+                        if let Some(n) = s.goods.get_mut(&g) {
+                            *n = n.saturating_sub(1);
+                            if *n == 0 { s.goods.remove(&g); }
+                        }
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold += 2.0; }
+                    self.say(v, "Strange. Just what I'm after.", CHAT_BUBBLE_SECS);
+                    bought += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -2946,6 +2975,39 @@ mod tests {
                 "forearmed on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Astrologer), "his charts rolled up on {:?}", st);
+        }
+    }
+
+    /// Strange things only: he takes whatever odd's in the satchel for
+    /// two gold - the frame shows his flasks first
+    #[test]
+    fn test_the_strange_thing_sells() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Alchemist);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Alchemist && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Alchemist).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<crate::game::livelihood::Satchel>(v)
+                .unwrap().goods.insert("witch's hazel".into(), 1);
+            let gold0 = g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the alchemist")),
+                "the frame shows his flasks on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                .map(|s| s.goods.is_empty()).unwrap_or(false),
+                "the strange thing's gone on {:?}", st);
+            assert!(g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) > gold0,
+                "he paid for it on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Alchemist), "his flasks packed up on {:?}", st);
         }
     }
 

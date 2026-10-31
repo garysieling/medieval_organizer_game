@@ -21,7 +21,7 @@ use crate::game::livelihood::Purse;
 use crate::game::pets::{self, Species, PetRole};
 use crate::game::villager::{self, Pos};
 use crate::sim::illness::Health;
-use super::{Game, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS};
+use super::{Game, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
 
 /// Which of the hundred
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -427,7 +427,7 @@ impl Game {
                 // kit for a penny - once, not a penny a day for the same pot
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
-                    if villager::is_dead(&self.world, v) { continue; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
@@ -446,7 +446,7 @@ impl Game {
                 // the sparks for free - the show's the thing they remember
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {
-                    if villager::is_dead(&self.world, v) { continue; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
@@ -463,6 +463,27 @@ impl Game {
                     if !pays { continue; }
                     desires::satisfy(&mut self.world, v, Want::BetterTools, tick + 45);
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                }
+            }
+            EventId::RagAndBone => {
+                // a coin for the poorest rag-bundle in reach - one a day,
+                // so a rich street sees him push an empty cart by
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let poorest = self.villagers.iter().copied()
+                    .filter(|&v| !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<Pos>(v)
+                            .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                            .unwrap_or(false)
+                        && self.world.get_component::<Purse>(v).map(|p| p.gold < 8.0).unwrap_or(false))
+                    .min_by(|&a, &b| {
+                        let ga = self.world.get_component::<Purse>(a).map(|p| p.gold).unwrap_or(0.0);
+                        let gb = self.world.get_component::<Purse>(b).map(|p| p.gold).unwrap_or(0.0);
+                        ga.partial_cmp(&gb).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                if let Some(v) = poorest {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold += 1.0; }
+                    self.say(v, "For the rags? Bless you, mister.", CHAT_BUBBLE_SECS);
                 }
             }
             EventId::Hailstorm => {
@@ -630,6 +651,37 @@ mod tests {
             // and the road takes him when his days are done
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::KnifeGrinder), "the road took him on {:?}", st);
+        }
+    }
+
+    /// The rag man pays the poorest in reach, and leaves the rich street
+    /// empty-handed - staged poor and flush alike, the frame shows him too
+    #[test]
+    fn test_the_ragman_pays_the_poorest() {
+        for st in [stage::Stage::Unrest, stage::Stage::Flush] {
+            let mut g = stage::staged(st);
+            // a rag-seller worth his coin: poor and standing by the market
+            let seller = g.villagers[0];
+            g.world.get_component_mut::<Purse>(seller).unwrap().gold = 1.0;
+            g.force_event(EventId::RagAndBone);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::RagAndBone && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::RagAndBone).and_then(|r| r.at).unwrap();
+            // stand her near his pitch
+            g.world.get_component_mut::<Pos>(seller).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(seller).unwrap().y = at.1 as f32;
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the rag-and-bone man")),
+                "the frame shows the rag man on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let gold = g.world.get_component::<Purse>(seller).unwrap().gold;
+            // the staged flush was overridden to a penny for her - the
+            // point stands either way: her rags earned
+            assert!(gold > 1.0, "her rags earned on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::RagAndBone), "he moved on from {:?}", st);
         }
     }
 

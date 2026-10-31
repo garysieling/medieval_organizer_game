@@ -6332,6 +6332,11 @@ impl Game {
                         // a crackdown takes the loudest - and the cause
                         // becomes a prisoner
                         if r == Some(crate::game::reactions::Reaction::Crackdown) {
+                            // the knights stand in the streets where everyone
+                            // can see them
+                            let (px, py) = self.player_pos_at(seat);
+                            self.guards.push((px + 1.5, py));
+                            self.guards.push((px - 1.5, py));
                             if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
                                 let tn = self.villagers.iter().position(|v| *v == taken).map(|i| NAMES[i])
                                     .unwrap_or("someone");
@@ -6406,9 +6411,19 @@ impl Game {
         let mut people: Vec<PersonV> = vec![];
         for (i, v) in self.villagers.iter().enumerate() {
             let Some(p) = world.get_component::<Pos>(*v) else { continue };
+            // what the cause has done to them, read over their head:
+            // taken (in the dungeon), hollow (a blow-off to coach),
+            // woke (moved by the cause - recruitable)
+            let cause_mark = if world.get_component::<crate::game::dungeon::Imprisoned>(*v).is_some() {
+                " (taken)"
+            } else if world.get_component::<crate::game::actions::Demoralized>(*v).is_some() {
+                " (hollow)"
+            } else if world.get_component::<crate::game::reactions::Sympathized>(*v).is_some() {
+                " (woke)"
+            } else { "" };
             people.push(PersonV {
                 e: *v, kind: PKind::Villager(i), pos: (p.x, p.y),
-                label: Some(villager_label(i).to_string()),
+                label: Some(format!("{}{}", villager_label(i), cause_mark)),
                 dead: villager::is_dead(world, *v),
                 kid: world.get_component::<Kid>(*v).is_some(),
                 selected: self.seats[seat].selected_target == i && self.seats[seat].picked,
@@ -6664,6 +6679,8 @@ impl Game {
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
             return InspectorV { fig: None, dead: true, died_day: Some(day), lines };
         }
+        let org_members = world.get_component::<Organization>(self.seats[seat].org)
+            .map(|o| o.members.clone()).unwrap_or_default();
         let occ = desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into());
         lines.push(Line { x: 60, y: 342,
             text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
@@ -6712,7 +6729,16 @@ impl Game {
             let nature = world.get_component::<AttachmentHistory>(v)
                 .map(|a| nature_word(crate::sim::psychology::infer_style(a)))
                 .unwrap_or("just folk");
-            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}", nature, activity_text(vil.activity)), rgb: (200, 160, 160) });
+            // where they stand with the cause: inside it, woken by it,
+            // hollowed out by a blow-off, or taken for it
+            let cause = if world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
+                " \u{00b7} taken"
+            } else if world.get_component::<crate::game::actions::Demoralized>(v).is_some() {
+                " \u{00b7} hollow"
+            } else if world.get_component::<crate::game::reactions::Sympathized>(v).is_some() {
+                " \u{00b7} woke"
+            } else if org_members.contains(&v) { " \u{00b7} with you" } else { "" };
+            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, activity_text(vil.activity), cause), rgb: (200, 160, 160) });
         }
         InspectorV { fig: Some(i), dead: false, died_day: None, lines }
     }
@@ -11403,5 +11429,42 @@ mod campaign_dungeon_tests {
         g.seats[0].ctx_actions.push(CtxAct::Petition);
         for _ in 0..4 { g.ctx_act_at(0, 2); }
         assert!(g.log.iter().any(|l| l.contains("walks free")), "{:?}", g.log);
+    }
+}
+
+#[cfg(test)]
+mod campaign_visual_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_woken_sign_on_without_being_convinced() {
+        let mut g = Game::new();
+        for &v in &g.villagers[..4] {
+            desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+        g.maybe_found_campaign(0).unwrap();
+        // a stranger saw the march and felt the cause wake in them - but
+        // they don't know the organizer from a hole in the wall
+        let stranger = g.villagers[5];
+        g.world.add_component(stranger, crate::game::reactions::Sympathized {
+            issues: vec![("the taxes".into(), 1)] });
+        let before = g.world.get_component::<Organization>(g.org).unwrap().members.len();
+        let (pe, oe) = (g.player, g.org);
+        let r = crate::game::player::act_recruit(&mut g.world, pe, oe, stranger);
+        assert!(r.success, "the woken sign on without a bond: {}", r.description);
+        assert_eq!(g.world.get_component::<Organization>(g.org).unwrap().members.len(), before + 1);
+        // and the map reads them over their heads
+        let m = g.ui_model();
+        let pv = m.people.iter().find(|p| p.e == stranger).unwrap();
+        assert!(pv.label.as_deref().unwrap_or("").contains("(woke)"), "{:?}", pv.label);
+        // and the card reads them too, once they're picked
+        g.seats[0].selected_target = 5;
+        g.seats[0].picked = true;
+        let insp = g.villager_inspector_at(0);
+        assert!(insp.lines.iter().any(|l| l.text.contains("woke")), "{:?}", insp.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
     }
 }

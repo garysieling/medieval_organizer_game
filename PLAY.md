@@ -243,6 +243,7 @@ cargo run --bin agent_task    # real Ollama AI task
 cargo run --bin gary_review   # vision-alignment check
 cargo run --bin playtest      # goal-oriented tests
 cargo run --bin fun_score     # rubric scoring
+cargo run --bin balance_test 400 42  # balance test: 400 days, seed 42, exit 1 on red flags
 ```
 
 ## Research & Documentation

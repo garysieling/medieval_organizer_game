@@ -6316,28 +6316,30 @@ impl Game {
         }
         // the cause meets on its cadence and marches on the streets: the
         // buttons show once a campaign exists; seats go to the picked member
-        if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some() {
+        let cause = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some();
+        if cause {
             self.seats[seat].ctx_actions.push(CtxAct::Meet);
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
             self.seats[seat].ctx_actions.push(CtxAct::March);
-            if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
-                let v = self.villagers[self.seats[seat].selected_target];
-                if !crate::game::villager::is_dead(&self.world, v) {
-                    if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
-                        // someone's inside: the way out is pressure
-                        self.seats[seat].ctx_actions.push(CtxAct::Petition);
-                    } else {
-                        let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
-                            .map(|o| o.members.contains(&v)).unwrap_or(false);
-                        if is_member {
-                            self.seats[seat].ctx_actions.push(CtxAct::Delegate);
-                        }
-                        if self.world.get_component::<Craft>(v).is_some() {
-                            self.seats[seat].ctx_actions.push(CtxAct::Strike);
-                        }
-                        if Some(v) == self.collector {
-                            self.seats[seat].ctx_actions.push(CtxAct::Townhall);
-                        }
+        }
+        if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
+            let v = self.villagers[self.seats[seat].selected_target];
+            if !crate::game::villager::is_dead(&self.world, v) {
+                if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
+                    // someone's inside: the way out is pressure - the
+                    // letters go on whether the cause still marches or not
+                    self.seats[seat].ctx_actions.push(CtxAct::Petition);
+                } else if cause {
+                    let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
+                        .map(|o| o.members.contains(&v)).unwrap_or(false);
+                    if is_member {
+                        self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                    }
+                    if self.world.get_component::<Craft>(v).is_some() {
+                        self.seats[seat].ctx_actions.push(CtxAct::Strike);
+                    }
+                    if Some(v) == self.collector {
+                        self.seats[seat].ctx_actions.push(CtxAct::Townhall);
                     }
                 }
             }

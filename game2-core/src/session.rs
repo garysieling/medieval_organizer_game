@@ -7289,6 +7289,8 @@ impl Game {
                 derelict: self.derelict.contains(&i), smoke: i < 3 })
             .collect();
         let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {
+            // the dead don't talk - a bubble over a grave is ghost chatter
+            if villager::is_dead(world, *e) { return None; }
             let p = world.get_component::<Pos>(*e)?;
             let name = self.villagers.iter().position(|v| *v == *e).map(|i| vill_name(i).to_string())
                 .or_else(|| self.rivals.iter().position(|r| *r == *e).map(|i| RIVAL_NAMES[i].to_string()));

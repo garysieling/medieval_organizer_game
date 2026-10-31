@@ -17,8 +17,6 @@ Items are removed from this list as their PRs land.
 
 
 
-- [ ] **W-005** `dungeon::found_release_campaign` is never called — no release campaign is ever founded; `ReleaseOf`/`ReleaseCampaign`-by-founding are dead state.
-- [ ] **W-006** `dungeon::join` is never called — "the sympathetic sign on without an invite" can't happen; release efforts only grow by Petition clicks.
 - [ ] **W-007** `campaign::set_cadence` is never called outside tests — meeting cadence is frozen at founding; the `due` flag can't be influenced.
 - [ ] **W-008** `AgentCmd::Eat` may never actually eat — documented in `docs/multiplayer-round2.md` ("paths to the market but never explicitly eats"); verify hunger resolves for driven agents.
 - [ ] **W-009** `game2-web` `WasmGame` exposes no input — `tick`/`scene`/`day`/`telemetry` only; no `command()` binding, so the browser client can only watch, never play.

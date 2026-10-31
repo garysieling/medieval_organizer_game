@@ -527,9 +527,13 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near || self.letters.iter().any(|&(f, _, _)| f == v) { continue; }
+                    // he writes for the illiterate - the lettered write their own
+                    if self.literate(v) { continue; }
+                    // and only to the living - the dead can't be written to
                     let partner = self.world.query::<crate::game::relationships::Relationship>().iter()
                         .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
-                        .filter(|rr| rr.from == v || rr.other == v)
+                        .filter(|rr| (rr.from == v || rr.other == v)
+                            && !villager::is_dead(&self.world, if rr.from == v { rr.other } else { rr.from }))
                         .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
                         .map(|rr| if rr.from == v { rr.other } else { rr.from });
                     let Some(to) = partner else { continue; };

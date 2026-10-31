@@ -506,6 +506,15 @@ impl Game {
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                 }
             }
+            EventId::RatCatcher => {
+                // his terrier earns: while he's about the store loses
+                // nothing to vermin - the servings that weren't gnawed,
+                // and his sack counts them
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    f.servings += 2;
+                }
+                if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 1; }
+            }
             EventId::Hailstorm => {
                 // the day it falls batters: gardens shredded, everyone stung
                 if self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0 { return; }
@@ -549,6 +558,13 @@ impl Game {
                     *due = (*due).max(tick + 150);
                 }
                 self.log.push(format!("t{}: every flue's clean to the cap - the sweep earned his soot.", tick));
+            }
+            EventId::RatCatcher => {
+                // a cleared larder holds: the rat plague's far off
+                if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::RatPlague) {
+                    *due = (*due).max(tick + 150);
+                }
+                self.log.push(format!("t{}: a sack of rats for the road - the larder breathes easier.", tick));
             }
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides
@@ -734,6 +750,34 @@ mod tests {
                 "the chimney fire's pushed off ({before} -> {after}, tick {}) on {:?}", g.tick, st);
             assert!(g.log.iter().any(|l| l.contains("flue")), "the log says why");
             assert!(g.rare.iter().all(|r| r.id != EventId::ChimneySweep), "he moved on from {:?}", st);
+        }
+    }
+
+    /// The rat-catcher's terrier earns: the store loses nothing while he
+    /// works, and the plague's pushed off when he's gone
+    #[test]
+    fn test_the_ratcatcher_clears_the_larder() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let plague_before = g.next_rare.iter().find(|(i, _)| *i == EventId::RatPlague).map(|(_, d)| *d).unwrap();
+            g.force_event(EventId::RatCatcher);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::RatCatcher && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the rat-catcher")),
+                "the frame shows the catcher on {:?}", st);
+            stage::run_days(&mut g, 2);
+            // his sack fills: the day's tally rides in aux (the servings
+            // net out against a hungry village, but his work shows here)
+            assert!(g.rare.iter().find(|r| r.id == EventId::RatCatcher).map(|r| r.aux).unwrap_or(0) > 0,
+                "his terrier earned on {:?}", st);
+            stage::run_days(&mut g, 4);
+            let after = g.next_rare.iter().find(|(i, _)| *i == EventId::RatPlague).map(|(_, d)| *d).unwrap();
+            assert!(after > g.tick + 100 || after > plague_before,
+                "the plague's pushed off ({plague_before} -> {after}) on {:?}", st);
+            assert!(g.rare.iter().all(|r| r.id != EventId::RatCatcher), "he moved on from {:?}", st);
         }
     }
 

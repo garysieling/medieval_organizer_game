@@ -391,6 +391,7 @@ fn is_town_note(entry: &str) -> bool {
         || entry.contains("a pedlar") || entry.contains("pedlar's moved on")
         || entry.contains("rides over the walls") || entry.contains("circus")
         || entry.contains("bailiff's writ") || entry.contains("a summons")
+        || entry.contains("winter") || entry.contains("thin tempers")
 }
 
 /// The log entries to show, newest first: every event, but only the latest
@@ -1687,6 +1688,9 @@ pub struct Game {
     pub cured: u32,
     /// What the castle's owed after a defied writ - the next one lands double
     pub repression_debt: u32,
+    /// Whether the winter's running long this year - every other winter
+    /// is a harsh one, and the village either pulls together or apart
+    pub harsh_winter: bool,
 }
 
 /// How a village keeps its accounts
@@ -2416,6 +2420,7 @@ impl Game {
             disclosure_made: false,
             cured: 0,
             repression_debt: 0,
+            harsh_winter: false,
         }
     }
 
@@ -4059,6 +4064,70 @@ impl Game {
         }
     }
 
+    /// Every other winter runs long: the snow keeps falling, the store
+    /// thins, and the village either pulls together - an org worth the
+    /// name shares what it has - or pulls apart, and looks for who to
+    /// blame. The herb-wife's hut looks very different in a hard winter.
+    pub fn winter_tick(&mut self, tick: u64) {
+        let was = self.harsh_winter;
+        self.harsh_winter = tick % 730 >= 400 && tick % 730 <= 545;
+        if self.harsh_winter && !was {
+            self.log.push(format!("t{}: the winter sets in hard - and looks to stay.", tick));
+        }
+        if !self.harsh_winter { return; }
+        // the snow keeps on
+        if self.precip.is_none() { self.precip = Some(crate::sim::precipitation::PrecipKind::Flurries); }
+        // the store thins
+        if tick % 5 == 0 {
+            if let Some(b) = self.world.get_component_mut::<Building>(self.market_food) {
+                let _ = household::take_stock(b, "grain", 1);
+            }
+        }
+        // and everyone's a little hungrier for it
+        if tick % 10 == 0 {
+            for &v in &self.villagers.clone() {
+                if let Some(h) = self.world.get_component_mut::<Hunger>(v) {
+                    if h.value > 8.0 { h.value -= 8.0; }
+                }
+            }
+        }
+        // the long winter is a grievance everyone shares
+        if tick % 30 == 10 {
+            for v in self.villagers.iter().take(4).copied().collect::<Vec<_>>() {
+                if !villager::is_dead(&self.world, v) {
+                    desires::add_grievance(&mut self.world, v, desires::Problem::LongWinter, tick + 40);
+                }
+            }
+            // an org worth the name shares what it has - a weak village
+            // looks for who to blame
+            if self.lord_esteem > 0.5 {
+                if tick % 60 == 10 {
+                    for v in self.villagers.iter().take(6).copied().collect::<Vec<_>>() {
+                        desires::satisfy(&mut self.world, v, Want::Joy, tick + 15);
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(v) {
+                            h.value = (h.value + 15.0).min(100.0);
+                        }
+                    }
+                    self.record_power(crate::sim::organized_power::ActionQuality::Transformational);
+                    self.log.push(format!("t{}: the village pulls together - the org shares out what it has.", tick));
+                }
+            } else {
+                // someone to blame: the herb-wife first, then the
+                // heart-helper, then any role that isn't them
+                let scapegoat = self.herbologist
+                    .or(self.matchmaker)
+                    .or(self.collector)
+                    .filter(|&v| !villager::is_dead(&self.world, v));
+                if let Some(s) = scapegoat {
+                    desires::add_grievance(&mut self.world, s, desires::Problem::Blamed, tick + 45);
+                    if tick % 60 == 10 {
+                        self.log.push(format!("t{}: thin stores make thin tempers - they're saying things of the herb-wife.", tick));
+                    }
+                }
+            }
+        }
+    }
+
     /// The disclosure: a truth sits unsaid until it ripens, then it
     /// comes out - and the power it threatens answers. A strong org
     /// shields the discoverer; a weak one leaves him to the ladder.
@@ -4744,6 +4813,8 @@ impl Game {
         self.discovery_tick(tick);
         // and the castle sends its writs on a season's turn
         self.edict_tick(tick);
+        // and every other winter runs long and tests the village
+        self.winter_tick(tick);
         let mut rng = Rng(self.rng.next());
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -7727,6 +7798,53 @@ mod edict_tests {
         assert!(g.repression_debt > 0, "the defiance will be paid for");
         assert!(!g.travels.iter().any(|t| t.who == m && matches!(t.goal, Goal::Exile)),
             "he stays - for now");
+    }
+}
+
+#[cfg(test)]
+mod winter_tests {
+    use super::*;
+
+    #[test]
+    fn test_the_winter_runs_long_and_the_store_thins() {
+        let mut g = Game::new();
+        g.winter_tick(400);
+        assert!(g.harsh_winter, "every other winter's a hard one");
+        assert!(g.log.iter().any(|l| l.contains("sets in hard")));
+        if let Some(b) = g.world.get_component_mut::<Building>(g.market_food) {
+            household::add_stock(b, "grain", 20);
+        }
+        for t in (400..410).step_by(5) { g.winter_tick(t); }
+        let grain = g.world.get_component::<Building>(g.market_food)
+            .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0);
+        assert!(grain < 20, "the stores run thin");
+    }
+
+    #[test]
+    fn test_a_weak_village_looks_for_who_to_blame() {
+        let mut g = Game::new();
+        g.lord_esteem = 0.0;
+        let herb = g.herbologist.unwrap();
+        for t in (400..500).step_by(30) { g.winter_tick(t); } // 400,430,460,490 - all %30==10 in the window
+        assert!(desires::problems_of(&g.world, herb, 500).contains(&desires::Problem::Blamed),
+            "the herb-wife's hut looks different in a hard winter");
+    }
+
+    #[test]
+    fn test_an_org_worth_the_name_pulls_together() {
+        let mut g = Game::new();
+        g.lord_esteem = 0.6;
+        for v in g.villagers.iter().take(6).copied().collect::<Vec<_>>() {
+            if let Some(h) = g.world.get_component_mut::<Hunger>(v) { h.value = 40.0; }
+        }
+        // tick 1150: 1150 % 730 = 420 (in the harsh window), 1150 % 60 = 10 (the share-out day)
+        g.winter_tick(1150);
+        assert!(g.log.iter().any(|l| l.contains("pulls together")),
+            "an org shares what it has");
+        // and the herb-wife takes no blame for a shared winter
+        let herb = g.herbologist.unwrap();
+        assert!(!desires::problems_of(&g.world, herb, 1150).contains(&desires::Problem::Blamed),
+            "belonging is the counterweight");
     }
 }
 

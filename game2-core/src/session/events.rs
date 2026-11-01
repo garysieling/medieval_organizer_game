@@ -2429,6 +2429,25 @@ impl Game {
                 self.log.push(format!("t{}: the old oak falls - a crack like thunder in the night, and she's down. The wood splits up fair.", self.tick));
                 self.toasts.push(("The old oak falls".into(), self.tick + 40));
             }
+            EventId::CoinHoard => {
+                // the spade rings on a pot: a rolled finder's purse
+                // fills, and the whole street asks whose it really is
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&v) = able.get((roll as usize / 5) % able.len().max(1)) {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                        p.gold += 5.0;
+                    }
+                    self.say(v, "The spade rang on something... it's a pot. It's full of them!", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a coin hoard - a pot of old silver turned up in the field, and whose it is nobody'll say loud.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a pot of old silver turned up - and walked off before anyone could claim it.", self.tick));
+                }
+                self.toasts.push(("A coin hoard".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5143,6 +5162,22 @@ mod tests {
                     .and_then(|s| s.goods.get("wood").copied()).unwrap_or(0)).sum();
             assert!(wood1 > wood0 || g.building_entities.is_empty(), "the wood split up on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("old oak")), "the fall was told on {:?}", st);
+        }
+    }
+
+    /// A coin hoard: the spade rings on a pot of old silver, and a
+    /// rolled finder's purse fills
+    #[test]
+    fn test_the_spade_rings() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let gold0: f32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
+            g.force_event(EventId::CoinHoard);
+            let gold1: f32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
+            assert!(gold1 > gold0 || g.villagers.is_empty(), "the pot filled a purse on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("coin hoard") || l.contains("silver")), "the find was told on {:?}", st);
         }
     }
 

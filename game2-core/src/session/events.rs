@@ -2153,6 +2153,35 @@ impl Game {
                 self.log.push(format!("t{}: a deer in the fields - a doe at dawn, grazing the beds slow, and the folk watch from the hedge.", self.tick));
                 self.toasts.push(("A deer in the fields".into(), self.tick + 40));
             }
+            EventId::CrowsMob => {
+                // a mob drops on the larder where there's grain to be
+                // had - the folk throw stones and the crows laugh
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.stock.values().any(|&q| q > 0)).unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
+                    let mut sorted: Vec<String> = self.world.get_component::<household::Building>(h)
+                        .map(|b| b.stock.iter().filter(|(_g, q)| **q > 0)
+                            .map(|(g, _)| g.clone()).collect()).unwrap_or_default();
+                    sorted.sort();
+                    if let Some(g) = sorted.first() {
+                        if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                            household::take_stock(&mut b, &g.clone(), 2);
+                        }
+                    }
+                    self.log.push(format!("t{}: a mob of crows - they drop on the village in a black storm, and rise laughing.", self.tick));
+                } else {
+                    // nothing stocked: they strip a bed instead
+                    if !self.gardens.is_empty() {
+                        let gi = (roll as usize / 3) % self.gardens.len();
+                        self.gardens[gi].2 *= 0.6;
+                    }
+                    self.log.push(format!("t{}: a mob of crows - they drop on the beds and strip what they find.", self.tick));
+                }
+                self.toasts.push(("A mob of crows".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4616,6 +4645,17 @@ mod tests {
             assert!(watched || g.building_entities.is_empty(), "the mice learned quiet on {:?}", st);
             stage::run_days(&mut g, 32);
             assert!(g.rare.iter().all(|r| r.id != EventId::OwlInTower), "she's gone on {:?}", st);
+        }
+    }
+
+    /// A mob of crows: they drop on the larders or the beds, and rise
+    /// laughing
+    #[test]
+    fn test_the_black_storm() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CrowsMob);
+            assert!(g.log.iter().any(|l| l.contains("crows")), "the mob was told on {:?}", st);
         }
     }
 

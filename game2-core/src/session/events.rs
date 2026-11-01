@@ -1951,6 +1951,12 @@ impl Game {
                 self.log.push(format!("t{}: a mirage - a city of towers hangs on the horizon, and melts when you look twice.", self.tick));
                 self.toasts.push(("A mirage".into(), self.tick + 40));
             }
+            EventId::WolfAtFold => {
+                // the wolf's in the fold now - the flock scatters and
+                // some are lost, the same way the night-run does it
+                self.wolf_night(self.tick);
+                self.toasts.push(("Wolf at the fold!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4165,6 +4171,19 @@ mod tests {
                 || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
                 "the marvel of it on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("mirage")), "the towers were told on {:?}", st);
+        }
+    }
+
+    /// A wolf at the fold: the flock scatters and some are lost - the
+    /// same way the night-run does it
+    #[test]
+    fn test_the_wolfs_in_the_fold() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let flock0 = g.flock.len();
+            g.force_event(EventId::WolfAtFold);
+            assert!(g.log.iter().any(|l| l.contains("wolf")), "the wolf was told on {:?}", st);
+            assert!(g.flock.len() < flock0 || flock0 == 0, "the flock scattered on {:?}", st);
         }
     }
 

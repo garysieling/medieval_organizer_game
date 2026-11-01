@@ -1961,6 +1961,15 @@ impl Game {
                 self.rng = keep;
                 self.toasts.push(("Wolf at the fold!".into(), self.tick + 40));
             }
+            EventId::FoxInYard => {
+                // a hen gone and the house grieves her - the same way
+                // the fox night does it, on a spare stream so the
+                // event's rolls don't shift the village's own dice
+                let keep = Rng(self.rng.0);
+                self.fox_night(self.tick);
+                self.rng = keep;
+                self.toasts.push(("A fox in the yard!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4188,6 +4197,19 @@ mod tests {
             g.force_event(EventId::WolfAtFold);
             assert!(g.log.iter().any(|l| l.contains("wolf")), "the wolf was told on {:?}", st);
             assert!(g.flock.len() < flock0 || flock0 == 0, "the flock scattered on {:?}", st);
+        }
+    }
+
+    /// A fox in the yard: a hen's gone and the house grieves her -
+    /// the same way the fox night does it
+    #[test]
+    fn test_the_fox_takes_her() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let hens0 = g.hens.len();
+            g.force_event(EventId::FoxInYard);
+            assert!(g.hens.len() <= hens0, "the yard's lighter on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("fox")), "the fox was told on {:?}", st);
         }
     }
 

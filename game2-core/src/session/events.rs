@@ -1525,6 +1525,41 @@ impl Game {
                     traded += 1;
                 }
             }
+            EventId::Potter => {
+                // pots and crocks, a jug that doesn't weep: a penny a
+                // crock, and a good pot keeps the stew right - the house
+                // that owns one eats the better for it
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let homes: Vec<Entity> = self.world.query::<household::Building>().iter().copied()
+                    .filter(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false))
+                    .collect();
+                let mut sold = 0;
+                for h in homes {
+                    if sold >= 2 { break; }
+                    let near = self.world.get_component::<Pos>(h)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    let buyer = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)
+                                && self.world.get_component::<Purse>(o).map(|p| p.gold >= 1.0).unwrap_or(false)));
+                    let Some(o) = buyer else { continue };
+                    // the crock has to fit the shelf before the penny goes
+                    let fits = self.world.get_component_mut::<household::Building>(h)
+                        .map(|b| household::add_stock(b, "crock", 1) > 0).unwrap_or(false);
+                    if !fits { continue; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold -= 1.0; }
+                    for o in self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default() {
+                        if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }
+                        desires::satisfy(&mut self.world, o, Want::GoodFood, tick + 10);
+                    }
+                    sold += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3431,6 +3466,39 @@ mod tests {
             assert!(*b.stock.get("candle").unwrap_or(&0) > 0, "light for the dark on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::CandleMaker), "his dipper packed up on {:?}", st);
+        }
+    }
+
+    /// A jug that doesn't weep: a penny a crock and the house eats the
+    /// better for it - the frame shows his wheel first
+    #[test]
+    fn test_the_crock_holds_the_stew() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Potter);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Potter && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Potter).and_then(|r| r.at).unwrap();
+            let h = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).unwrap();
+            g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // someone home to buy a crock
+            let k = villager::spawn_villager(&mut g.world, at.0 as f32, at.1 as f32);
+            g.world.add_component(k, Health { condition: 0.5, immunity: 0.5 });
+            g.world.add_component(k, Purse { gold: 5.0 });
+            g.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(k);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the potter")),
+                "the frame shows his wheel on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(*g.world.get_component::<household::Building>(h).unwrap()
+                .stock.get("crock").unwrap_or(&0) > 0, "a jug that doesn't weep on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Potter), "his wheel moved on from {:?}", st);
         }
     }
 

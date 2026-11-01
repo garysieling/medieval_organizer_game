@@ -14,6 +14,7 @@ use game2_core::game::dialogue_trees::{backstory, village_library};
 use game2_core::game::traits::Trait;
 use game2_core::session::NAMES;
 
+const ROMAN: [&str; 6] = ["", "II", "III", "IV", "V", "VI"];
 const IDEOLOGIES: [&str; 4] = ["laborer", "merchant", "clergy", "lord"];
 const STATUSES: [&str; 5] = ["well", "sick", "hungry", "grieving", "drunk"];
 const ALL_TRAITS: [Trait; 8] = [
@@ -37,7 +38,11 @@ const RELATIONS: [Relation; 5] = [
 fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
     let mut roster = Vec::with_capacity(n);
     for i in 0..n {
-        let name = NAMES[i % NAMES.len()];
+        // Past the end of the name list, a second Aldric is "Aldric II"
+        let name = match i / NAMES.len() {
+            0 => NAMES[i].to_string(),
+            k => format!("{} {}", NAMES[i % NAMES.len()], ROMAN.get(k).copied().unwrap_or("the Younger")),
+        };
         let ideology = IDEOLOGIES[rng.below(IDEOLOGIES.len())];
 
         // 1 to 3 distinct traits
@@ -58,7 +63,7 @@ fn generate_roster(n: usize, rng: &mut Rng) -> Vec<Speaker> {
         }
 
         roster.push(Speaker {
-            name: name.to_string(),
+            name,
             traits,
             ideology,
             status,
@@ -121,6 +126,11 @@ fn main() -> io::Result<()> {
                 i += 1;
             }
         }
+    }
+
+    if num_characters < 2 {
+        eprintln!("dialogue_gen: need at least 2 characters to hold a conversation (got -n {})", num_characters);
+        std::process::exit(2);
     }
 
     let mut rng = Rng::new(seed);

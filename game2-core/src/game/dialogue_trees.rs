@@ -303,7 +303,7 @@ const SICK_STUNG: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.5, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["A fine friend thou art."],
+            lines: &["Cough on someone else, then."],
             then: None, end: Some(WalksOff),
         },
         Reply {
@@ -518,13 +518,13 @@ const CLERIC_GREET: Exchange = Exchange {
             criteria: &[Has("self:status:sick")], weight: 0.9, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:sickness"],
             lines: &["A prayer for me, father - this cough won't quit.", "Father, pray for my house."],
-            then: Some(CLERIC_PRAYER), end: None,
+            then: Some(CLERIC_PRAYS_SICK), end: None,
         },
         Reply {
             criteria: &[Has("self:status:grieving")], weight: 0.9, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:grief"],
             lines: &["Pray for him, father - he was taken sudden."],
-            then: Some(CLERIC_PRAYER), end: None,
+            then: Some(CLERIC_PRAYS_GRIEF), end: None,
         },
         Reply {
             criteria: &[], weight: 0.6, bias: &[(Proud, 1.5)],
@@ -555,29 +555,31 @@ const CLERIC_PARISH: Exchange = Exchange {
     ],
 };
 
-const CLERIC_PRAYER: Exchange = Exchange {
-    act: Act::Remark,
-    concepts: &["concern:faith", "concern:grief", "concern:sickness"],
-    calls: &["It's the little one mostly - she burns with fever.", "He was buried by the yew, father."],
+// The cleric answers the plea - the parishioner's lines sit in the
+// replies, the cleric's in the calls
+const CLERIC_PRAYS_SICK: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["concern:faith", "concern:sickness"],
+    calls: &["I'll pray for thy mending, child - and send the herb-wife round.", "Rest and prayers, child - I'll come by."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.0, bias: &[(Pious, 1.5), (Kind, 1.3)],
-            act: Act::Remark, concepts: &["concern:faith"],
-            lines: &["The saints watch over her. I'll light a candle.", "Rest and prayers, child - I'll come by."],
-            then: Some(CLERIC_THANKS), end: None,
+            act: Act::Farewell, concepts: &["concern:faith", "farewell"],
+            lines: &["Thank thee, father.", "Bless thee, father - that's a comfort."],
+            then: None, end: Some(Farewell),
         },
     ],
 };
 
-const CLERIC_THANKS: Exchange = Exchange {
-    act: Act::Remark,
-    concepts: &["concern:faith"],
-    calls: &["Thank thee, father."],
+const CLERIC_PRAYS_GRIEF: Exchange = Exchange {
+    act: Act::Answer,
+    concepts: &["concern:faith", "concern:grief"],
+    calls: &["I'll say a mass for him. He rests easy by the yew.", "The saints have him now, child. I'll light a candle."],
     replies: &[
         Reply {
-            criteria: &[], weight: 1.0, bias: &[],
-            act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Go with the saints, {other}."],
+            criteria: &[], weight: 1.0, bias: &[(Pious, 1.5), (Kind, 1.3)],
+            act: Act::Farewell, concepts: &["concern:faith", "farewell"],
+            lines: &["Thank thee, father.", "Bless thee, father - he'd have liked that."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -711,19 +713,22 @@ const RIVAL_END: Exchange = Exchange {
 };
 
 /// The example library, ordered most-likely-specific first; the cascade
-/// sorts by criterion count and keeps this order on ties.
+/// sorts by criterion count and keeps this order on ties. One's own lot
+/// leads, then one's calling (a priest calling on the sick speaks as a
+/// priest - his tree carries their "pray for me" forks), then the other's
+/// lot.
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: None },
-        DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],
-            root: &VISIT_GREET, rejoin: None },
         DialogueTree { name: "a_death_in_the_house", criteria: &[Has("self:status:grieving")],
             root: &GRIEF_GREET, rejoin: None },
-        DialogueTree { name: "condolence_call", criteria: &[Has("other:status:grieving")],
-            root: &CONDOLE_GREET, rejoin: None },
         DialogueTree { name: "the_cleric_blesses", criteria: &[Has("self:ideology:clergy")],
             root: &CLERIC_GREET, rejoin: None },
+        DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],
+            root: &VISIT_GREET, rejoin: None },
+        DialogueTree { name: "condolence_call", criteria: &[Has("other:status:grieving")],
+            root: &CONDOLE_GREET, rejoin: None },
         DialogueTree { name: "asking_the_father", criteria: &[Has("other:ideology:clergy")],
             root: &FATHER_GREET, rejoin: None },
         DialogueTree { name: "old_scores", criteria: &[Has("pair:relation:rival")],

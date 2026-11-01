@@ -388,7 +388,7 @@ pub fn converse_with(
             // or dry up entirely at the generic tail
             match trees.next() {
                 Some(t) => { tr.trees_walked.push(t.name); node = Some(t.rejoin.unwrap_or(t.root)); node_tree = t.name; }
-                None => tr.ending = Some(Ending::Exhausted),
+                None => { tr.ending = Some(Ending::Exhausted); break; }
             }
             continue;
         };
@@ -404,7 +404,7 @@ pub fn converse_with(
             // generic tree if there is one, else the talk dries up
             match trees.next() {
                 Some(t) => { tr.trees_walked.push(t.name); node = Some(t.rejoin.unwrap_or(t.root)); node_tree = t.name; }
-                None => tr.ending = Some(Ending::Exhausted),
+                None => { tr.ending = Some(Ending::Exhausted); break; }
             }
             continue;
         }
@@ -418,7 +418,12 @@ pub fn converse_with(
             let mut sampled: Vec<usize> = vec![];
             let mut w = weights.clone();
             for _ in 0..2.min(pool.len()) {
-                let i = rng.weighted(&w);
+                let i = if w.iter().any(|x| *x > 0.0) {
+                    rng.weighted(&w)
+                } else {
+                    // only zero-weight forks remain: take the first unoffered one
+                    match (0..pool.len()).find(|i| !sampled.contains(i)) { Some(i) => i, None => break }
+                };
                 sampled.push(i);
                 w[i] = 0.0;
             }
@@ -514,12 +519,16 @@ const LAST_PULL: f32 = 2.5;
 const OLD_PULL: f32 = 1.5;
 const QUESTION_SCORE: f32 = 3.0;
 
+/// How much each statement already made damps an attendee's next bid
+const QUIET_PULL: f32 = 0.6;
+
 /// Run a house meeting's talk: the organizer opens with a question, then
 /// each round the attendee whose best bid weighs heaviest speaks - an
 /// answer to the open question, a response to the last speaker (agree or
 /// push back, by temperament), or a revival of an earlier statement that
 /// touches something they care about. Whoever spoke last sits the round
-/// out. Returns the full record, organizer's question included.
+/// out, and nobody answers their own words. Returns the full record,
+/// organizer's question included.
 pub fn run_meeting<'a>(
     organizer: &Speaker,
     attendees: &[&Speaker],
@@ -553,13 +562,20 @@ pub fn run_meeting<'a>(
             for (t, m) in [(Trait::Gregarious, 1.5), (Trait::Proud, 0.8), (Trait::Ambitious, 1.2)] {
                 if sp.traits.contains(&t) { score *= m; }
             }
+            // Whoever has held the floor less pulls harder: a meeting
+            // hears from everyone, not just the loudest two
+            let spoken = record.iter().filter(|r| r.speaker == i).count();
+            score /= 1.0 + QUIET_PULL * spoken as f32;
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
+                if s.speaker == i { continue; } // nor revive your own words
                 let open_q = si == 0 && question_open;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
                     else { OLD_PULL };
                 for l in pool {
+                    // agreement answers a claim, not a question
+                    if l.act == Act::Agree && s.act == Act::Question { continue; }
                     let overlap = l.concepts.iter().any(|c| s.concepts.contains(c));
                     if !overlap && !open_q { continue; }
                     // an open question invites any contribution, but lines
@@ -745,6 +761,50 @@ mod tests {
             if idx > 1 {
                 assert_ne!(stmt.speaker, statements[idx - 1].speaker, "Speaker cannot speak consecutively");
             }
+        }
+    }
+
+    #[test]
+    fn test_meeting_never_answers_self_or_agrees_with_a_question() {
+        for seed in 0..200 {
+            let organizer = Speaker::new("Reeve");
+            let mut a = Speaker::new("Eliza");
+            a.status.push("sick");
+            let mut b = Speaker::new("Bram");
+            b.ideology = "clergy";
+            let c = Speaker::new("Corvin");
+            let (pa, pb, pc) = (meeting_pool(&a), meeting_pool(&b), meeting_pool(&c));
+            let pools: Vec<&[MeetingLine]> = vec![&pa, &pb, &pc];
+            let mut rng = Rng::new(seed);
+            let rec = run_meeting(&organizer, &[&a, &b, &c], &MEET_PROMPT, &pools, &mut rng);
+            for s in rec.iter().skip(1) {
+                let target = &rec[s.replying_to.unwrap()];
+                assert_ne!(target.speaker, s.speaker, "seed {}: answered own words: {:?}", seed, s.text);
+                assert!(!(s.act == Act::Agree && target.act == Act::Question),
+                    "seed {}: agreed with a question: {:?}", seed, s.text);
+            }
+        }
+    }
+
+    #[test]
+    fn test_cleric_keeps_cleric_voice() {
+        // The cleric is the caller: he must never be the one saying "father"
+        let library = village_library();
+        let mut cleric = Speaker::new("Anselm");
+        cleric.ideology = "clergy";
+        for status in ["sick", "grieving"] {
+            let mut flock = Speaker::new("Bram");
+            flock.status.push(status);
+            let mut pleaded = false;
+            for seed in 0..100 {
+                let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, &mut Rng::new(seed));
+                assert_eq!(tr.trees_walked[0], "the_cleric_blesses");
+                for t in tr.turns.iter().filter(|t| t.speaker == 0) {
+                    assert!(!t.text.contains("father"), "seed {}: cleric said {:?}", seed, t.text);
+                }
+                pleaded |= tr.turns.iter().any(|t| t.speaker == 1 && (t.text.starts_with("Pray") || t.text.starts_with("A prayer")));
+            }
+            assert!(pleaded, "a {} parishioner should reach the pray-for-me fork", status);
         }
     }
 }

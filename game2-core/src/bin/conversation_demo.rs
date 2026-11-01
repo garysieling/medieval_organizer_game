@@ -41,7 +41,7 @@ fn main() {
     println!("Backstory - {}: {}", aldric.name, backstory(&aldric));
     println!("Relation: Acquaintance\n");
 
-    let mut rng = Rng::new(101);
+    let mut rng = Rng::new(102);
     let tr = converse(&eliza, &aldric, Relation::Acquaintance, &library, &mut rng);
     println!("Trees walked in cascade: {:?}", tr.trees_walked);
     println!("Outcome: {:?}\n", tr.ending.unwrap_or(Ending::Exhausted));

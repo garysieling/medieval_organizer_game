@@ -158,7 +158,11 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
             let senior_shop = world.get_component::<Craft>(senior).and_then(|c| c.workplace);
             if let Some(b) = senior_shop {
                 if let Some(bb) = world.get_component_mut::<Building>(b) {
-                    household::add_stock(bb, good, to_senior as u32);
+                    let fit = household::add_stock(bb, good, to_senior as u32);
+                    // his shelf too full reads as glut like anyone's
+                    if fit < to_senior as u32 {
+                        crate::game::goods::nudge(world, good, crate::game::goods::GLUT_NUDGE);
+                    }
                 }
             }
             let pay = to_senior * crate::game::goods::worth_at(world, good) * 0.5;

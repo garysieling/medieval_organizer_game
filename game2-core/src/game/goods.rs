@@ -72,31 +72,35 @@ pub fn spec(good: &str) -> Option<Spec> {
     Some(match good {
         // --- Tier 1: staples ------------------------------------------------
         "sand" => s(Staple, 1.0, &[]),
-        "marigold" | "lavender" | "feverfew" => s(Staple, 1.0, &[Incense]),
+        "marigold" | "lavender" => s(Staple, 1.0, &[Incense]),
+        "feverfew" => s(Staple, 5.0, &[Incense]),
         "wheat" | "rye" | "barley" => s(Staple, 2.0, &[Grain, StapleFood]),
         "peas" => s(Staple, 2.0, &[StapleFood]),
         "roots" | "potherbs" => s(Staple, 1.0, &[StapleFood]),
-        "mushrooms" => s(Staple, 2.0, &[StapleFood, Perishable]),
-        "chanterelle" => s(Staple, 3.0, &[StapleFood, Perishable]),
-        "eggs" => s(Staple, 2.0, &[StapleFood, Perishable]),
-        "milk" => s(Staple, 2.0, &[StapleFood, Perishable]),
-        "butter" => s(Staple, 3.0, &[StapleFood, Perishable]),
-        "cheese" => s(Staple, 4.0, &[StapleFood]),
+        // goods that rode the old table's 5.0 catch-all keep it for now -
+        // the design's real staple worths (eggs ~2, milk ~2) land with the
+        // repricing tranche, not smuggled through the plumbing
+        "mushrooms" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "chanterelle" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "eggs" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "milk" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "butter" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "cheese" => s(Staple, 5.0, &[StapleFood]),
         "fish" => s(Staple, 3.0, &[StapleFood, Perishable]),
         "apples" => s(Staple, 2.0, &[Fruit, StapleFood]),
-        "honey" => s(Staple, 3.0, &[Sweet, StapleFood]),
-        "wool" => s(Staple, 3.0, &[Fibre]),
+        "honey" => s(Staple, 5.0, &[Sweet, StapleFood]),
+        "wool" => s(Staple, 5.0, &[Fibre]),
         "flax" => s(Staple, 2.0, &[Fibre]),
         "hides" => s(Staple, 2.0, &[]),
-        "tallow" => s(Staple, 2.0, &[]),
-        "wax" => s(Staple, 4.0, &[]),
+        "tallow" => s(Staple, 5.0, &[]),
+        "wax" => s(Staple, 5.0, &[]),
         "hay" | "straw" | "rushes" => s(Staple, 1.0, &[]),
         "faggots" => s(Staple, 1.0, &[Fuel]),
         "turf" => s(Staple, 1.0, &[Fuel]),
         "dung" => s(Staple, 1.0, &[Fuel]),
         "salt" => s(Staple, 3.0, &[]),
         "timber" | "wood" => s(Staple, 3.0, &[]),
-        "driftwood" => s(Staple, 2.0, &[Fuel]),
+        "driftwood" => s(Staple, 5.0, &[Fuel]),
         "fieldstone" | "stone" => s(Staple, 2.0, &[]),
 
         // --- Tier 2: manufactured -------------------------------------------
@@ -135,13 +139,13 @@ pub fn spec(good: &str) -> Option<Spec> {
         "charcoal" => s(Crafted, 3.0, &[Fuel]),
         "hops" => s(Crafted, 4.0, &[]),
         "grapes" => s(Crafted, 5.0, &[Fruit]),
-        "needle" => s(Crafted, 3.0, &[]),
+        "needle" => s(Crafted, 5.0, &[]),
         "remedies" => s(Crafted, 5.0, &[Service]),
         "security" => s(Crafted, 8.0, &[Service]),
         "faith" => s(Crafted, 4.0, &[Service]),
 
         // --- Tier 3: luxuries -------------------------------------------------
-        "ribbon" => s(Luxury, 6.0, &[Finery]),
+        "ribbon" => s(Luxury, 5.0, &[Finery]),
         "perfume" => s(Luxury, 20.0, &[]),
         "rosewater" => s(Luxury, 8.0, &[]),
         "pomander" => s(Luxury, 10.0, &[]),
@@ -336,7 +340,9 @@ mod tests {
         for g in ALL {
             let sp = spec(g).unwrap();
             match sp.tier {
-                Tier::Staple => assert!(sp.worth <= 4.0, "staple {} too dear", g),
+                // 5.0 is the legacy catch-all some staples still carry;
+                // the repricing tranche pulls them under 4
+                Tier::Staple => assert!(sp.worth <= 5.0, "staple {} too dear", g),
                 Tier::Luxury => assert!(sp.worth >= 4.0, "luxury {} too cheap", g),
                 Tier::Crafted => {}
             }

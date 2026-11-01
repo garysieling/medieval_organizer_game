@@ -6177,17 +6177,19 @@ impl Game {
         match goal {
             Goal::BuyFrom(seller, good, qty) => {
                 // seller may be a person (satchel) or a building (the stall)
-                if self.world.get_component::<Building>(seller).is_some() {
-                    let _ = household::buy_at_shop(&mut self.world, seller, who, good, qty);
+                let paid = if self.world.get_component::<Building>(seller).is_some() {
+                    household::buy_at_shop(&mut self.world, seller, who, good, qty)
                 } else {
-                    let _ = livelihood::trade_person(&mut self.world, who, seller, good, qty);
-                }
+                    livelihood::trade_person(&mut self.world, who, seller, good, qty)
+                };
                 // trade with the road's accounts loses a little to the
                 // reckoning - unless the village has a clerk for it
                 if Some(seller) == self.trader_stall && vocation::imported(good)
                     && self.numeracy != Numeracy::Positional && self.translator.is_none() {
                     self.reckonings += 1;
-                    let skim = goods::worth_at(&self.world, good) * 0.1;
+                    // the tally leans on what was actually paid - a shelf
+                    // emptied just now doesn't swell the reckoning's cut
+                    let skim = paid.unwrap_or(0.0) * 0.1;
                     if let Some(p) = self.world.get_component_mut::<Purse>(who) {
                         p.gold = (p.gold - skim).max(0.0);
                     }

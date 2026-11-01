@@ -5222,7 +5222,7 @@ impl Game {
         // a bench only seats so many; the rest drink standing and keep
         // their own counsel
         sitting.truncate(TAVERN_BENCH);
-        if sitting.len() < 2 { return; }
+        if sitting.is_empty() { return; }
         // the register, so the night's company is the night's company
         self.tavern_table.retain(|&(_, d)| tick.saturating_sub(d) < 30);
         for &v in &sitting {
@@ -5233,7 +5233,10 @@ impl Game {
         // a cup goes down at the bench. This is the keeper's whole till:
         // he laid the barrel in at the wholesale cut and it leaves his
         // shelf at the street price, one cup at a time. The thirsty buy
-        // cheapest-first, same as they would walking to the brewery
+        // cheapest-first, same as they would walking to the brewery.
+        // Only those who actually bought a cup are company at the
+        // bench - a dry patron owes the keeper nothing and gets nothing
+        let mut served: Vec<Entity> = Vec::new();
         for &v in &sitting.clone() {
             if desires::is_satisfied(&self.world, v, Want::Drink, tick) { continue; }
             let pour = ["ale", "beer", "wine", "spirits"].into_iter().find(|&g| {
@@ -5246,6 +5249,7 @@ impl Game {
             let Some(pour) = pour else { continue };
             if household::buy_at_shop(&mut self.world, tavern, v, pour, 1).is_none() { continue; }
             desires::satisfy(&mut self.world, v, Want::Drink, tick + 60);
+            served.push(v);
             // drunk at the bench, not carried home in the bag
             if let Some(sa) = self.world.get_component_mut::<Satchel>(v) {
                 if let Some(q) = sa.goods.get_mut(pour) { *q = q.saturating_sub(1); }
@@ -5255,22 +5259,22 @@ impl Game {
                 self.say(v, "One more won't hurt.", CHAT_BUBBLE_SECS);
             }
         }
-        // and the company. Everyone who shared the bench today has met
+        // and the company. Everyone who bought a cup today has met
         // everyone else who did, which is how strangers in a village
         // stop being strangers. What the drink turns into when it turns
         // bad is the AlehouseBrawl event's business, not a second
         // mechanism's - it looks for the drunks this bench makes
         use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
-        for i in 0..sitting.len() {
-            for j in (i + 1)..sitting.len() {
-                record_interaction(&mut self.world, sitting[i], Interaction {
-                    other: sitting[j], kind: InteractionKind::Conversation, intensity: CHAT_INTENSITY });
+        for i in 0..served.len() {
+            for j in (i + 1)..served.len() {
+                record_interaction(&mut self.world, served[i], Interaction {
+                    other: served[j], kind: InteractionKind::Conversation, intensity: CHAT_INTENSITY });
             }
             // an evening in company is an evening not spent alone
-            desires::satisfy(&mut self.world, sitting[i], Want::Joy, tick + 20);
+            desires::satisfy(&mut self.world, served[i], Want::Joy, tick + 20);
         }
         // the keeper hears all of it - that's the trade
-        for &v in &sitting {
+        for &v in &served {
             record_interaction(&mut self.world, keeper, Interaction {
                 other: v, kind: InteractionKind::Conversation, intensity: CHAT_INTENSITY });
         }
@@ -5683,7 +5687,14 @@ impl Game {
                 .unwrap_or(false));
         match room {
             Some(h) => self.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(v),
-            None => desires::add_grievance(&mut self.world, v, desires::Problem::NoHome, tick + 60),
+            None => {
+                desires::add_grievance(&mut self.world, v, desires::Problem::NoHome, tick + 60);
+                // roofless and newly arrived: give them the want so
+                // `want_shopping` can send them to the tavern for a bed
+                if let Some(life) = self.world.get_component_mut::<InnerLife>(v) {
+                    life.wants.push(Want::Shelter);
+                }
+            }
         }
         self.log.push(format!("t{}: a stranger settles - {} has come to town.", tick, vill_name(self.villagers.len() - 1)));
     }
@@ -14720,5 +14731,77 @@ mod tavern_tests {
         assert!(g.world.get_component::<Building>(tavern).unwrap()
             .stock.values().all(|&q| q == 0), "no keeper, no barrel, no bench");
         assert!(g.tavern_table.is_empty());
+    }
+
+    /// A lone soul at the bench is still a customer - the pairwise
+    /// company is a separate thing from the sale
+    #[test]
+    fn test_a_lone_patron_still_buys_a_cup() {
+        let mut g = Game::new();
+        let tavern = g.tavern.unwrap();
+        let k = keeper(&g);
+        g.world.get_component_mut::<Building>(tavern).unwrap().stock.insert("ale".into(), 6);
+        let v = g.villagers.iter().copied()
+            .find(|&v| v != k && g.world.get_component::<Kid>(v).is_none()).unwrap();
+        clear_green(&mut g, &[v, k]);
+        seat(&mut g, v);
+        g.world.get_component_mut::<Purse>(v).unwrap().gold = 50.0;
+        g.world.get_component_mut::<InnerLife>(v).unwrap().satisfied.clear();
+        let till = g.world.get_component::<Purse>(k).unwrap().gold;
+        g.tavern_tick(3); // odd tick: the table, no lay-in
+        assert!(desires::is_satisfied(&g.world, v, Want::Drink, 3),
+            "one patron is still a patron");
+        assert!(g.world.get_component::<Purse>(k).unwrap().gold > till,
+            "and the keeper still takes his coin");
+    }
+
+    /// Patrons who bought nothing - dry shelf or empty purse - aren't
+    /// company. The bench's social effects follow the coin, not the seat
+    #[test]
+    fn test_a_dry_patron_gains_no_company() {
+        let mut g = Game::new();
+        let tavern = g.tavern.unwrap();
+        let k = keeper(&g);
+        g.world.get_component_mut::<Building>(tavern).unwrap().stock.insert("ale".into(), 6);
+        let pair: Vec<Entity> = g.villagers.iter().copied()
+            .filter(|&v| v != k && g.world.get_component::<Kid>(v).is_none()).take(2).collect();
+        clear_green(&mut g, &[pair[0], pair[1], k]);
+        for &v in &pair {
+            seat(&mut g, v);
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 0.0;
+            g.world.get_component_mut::<InnerLife>(v).unwrap().satisfied.clear();
+        }
+        g.tavern_tick(3); // odd tick: the table, no lay-in
+        for &v in &pair {
+            assert!(!desires::is_satisfied(&g.world, v, Want::Joy, 3),
+                "no cup, no company");
+        }
+        assert!(find_relationship(&g.world, pair[0], pair[1]).is_none(),
+            "two empty purses at the same table are still strangers");
+        assert!(find_relationship(&g.world, k, pair[0]).is_none(),
+            "and the keeper hears nothing from a dry patron");
+    }
+
+    /// A migrant turned away for want of a spare bed should actually ask
+    /// for one - the grievance alone never sent anyone to the tavern
+    #[test]
+    fn test_a_roofless_migrant_wants_a_bed() {
+        let mut g = Game::new();
+        // fill every home past capacity so the newcomer finds no room
+        let filler = g.villagers[0];
+        for &be in &g.building_entities.clone() {
+            if let Some(b) = g.world.get_component_mut::<Building>(be) {
+                if b.kind == BuildingKind::Home {
+                    while b.occupants.len() < 4 { b.occupants.push(filler); }
+                }
+            }
+        }
+        let before = g.villagers.len();
+        g.maybe_migrant(5);
+        let newcomer = *g.villagers.last().unwrap();
+        assert_eq!(g.villagers.len(), before + 1);
+        assert!(household::home_of(&g.world, newcomer).is_none(), "no room was found");
+        assert!(g.world.get_component::<InnerLife>(newcomer).unwrap()
+            .wants.contains(&Want::Shelter), "so they want a bed");
     }
 }

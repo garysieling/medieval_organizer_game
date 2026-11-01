@@ -1722,7 +1722,11 @@ impl Game {
                 // the year's release: the ground works again, the melt
                 // refills the well - but a thaw isn't a flood, it stops
                 // short of the drowning line - and the folk feel spring
-                self.land.pit_water = (self.land.pit_water + 0.05).min(0.6);
+                // a thaw refills, never drains - a pit already past the
+                // line is a flood's work, not a thaw's
+                if self.land.pit_water < 0.6 {
+                    self.land.pit_water = (self.land.pit_water + 0.05).min(0.6);
+                }
                 for g in self.gardens.iter_mut() { g.2 += 0.03; }
                 let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
                     .unwrap_or(tick);

@@ -567,6 +567,9 @@ impl Game {
                 // day, carried to whoever their strongest bond is
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 let mut wrote = 0;
+                // one pass over every bond covers the whole queue of
+                // customers - a scan per villager repeated the whole map
+                let bonds = crate::game::relationships::bond_map(&self.world);
                 for &v in &self.villagers.clone() {
                     if wrote >= 2 { break; }
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
@@ -577,7 +580,7 @@ impl Game {
                     // he writes for the illiterate - the lettered write their own
                     if self.literate(v) { continue; }
                     // and only to the living - the dead can't be written to
-                    let partner = self.world.query::<crate::game::relationships::Relationship>().iter()
+                    let partner = bonds.get(&v).into_iter().flatten()
                         .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
                         .filter(|rr| (rr.from == v || rr.other == v)
                             && !villager::is_dead(&self.world, if rr.from == v { rr.other } else { rr.from }))
@@ -1663,6 +1666,8 @@ impl Game {
                 // in earshot goes home with a day's more to say to the
                 // one they talk to most
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                // one pass over every bond serves the whole crowd
+                let bonds = crate::game::relationships::bond_map(&self.world);
                 for &v in &self.villagers.clone() {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     let near = self.world.get_component::<Pos>(v)
@@ -1671,7 +1676,7 @@ impl Game {
                     if !near { continue; }
                     // the news goes home to their closest living bond -
                     // the dead hear no gossip, and the record keeps its kind honest
-                    let partner = self.world.query::<crate::game::relationships::Relationship>().iter()
+                    let partner = bonds.get(&v).into_iter().flatten()
                         .filter_map(|&r| self.world.get_component::<crate::game::relationships::Relationship>(r))
                         .filter(|rr| (rr.from == v || rr.other == v)
                             && !villager::is_dead(&self.world, if rr.from == v { rr.other } else { rr.from }))
@@ -2858,9 +2863,13 @@ impl Game {
                 match kid {
                     Some(v) if self.rare_roll(id) % 3 != 0 => {
                         // off the roster, and every index that pointed at
-                        // the line shifts home with it
+                        // the line shifts home with it - the parallel
+                        // rolls (was_sick, died_on) shift too, or they'd
+                        // hang the wrong records on everyone after him
                         let idx = self.villagers.iter().position(|&x| x == v).unwrap();
                         self.villagers.remove(idx);
+                        self.was_sick.remove(idx);
+                        self.died_on.remove(idx);
                         for seat in self.seats.iter_mut() {
                             if seat.selected_target > idx { seat.selected_target -= 1; }
                             else if seat.selected_target == idx {
@@ -2966,11 +2975,14 @@ impl Game {
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides;
                 // a heart behind bars is no heart to him
+                let mut bond_n: std::collections::HashMap<Entity, usize> = std::collections::HashMap::new();
+                self.world.iter::<crate::game::relationships::Relationship>(|_, r| {
+                    *bond_n.entry(r.from).or_default() += 1;
+                    if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
+                });
                 let mark = self.lonely_hearts().into_iter()
                     .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v))
-                    .min_by_key(|&v| self.world.query::<crate::game::relationships::Relationship>().iter()
-                        .filter(|&&r| self.world.get_component::<crate::game::relationships::Relationship>(r)
-                            .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count());
+                    .min_by_key(|&v| bond_n.get(&v).copied().unwrap_or(0));
                 if let Some(m) = mark {
                     let name = self.name_of(m);
                     let pet = pets::spawn_pet(&mut self.world, "Pilgrim", Species::Dog, PetRole::Companion);
@@ -2985,11 +2997,14 @@ impl Game {
             EventId::StrayCat => {
                 // the loneliest hearth takes her in - cats decide too;
                 // a hearth behind bars is no hearth to her
+                let mut bond_n: std::collections::HashMap<Entity, usize> = std::collections::HashMap::new();
+                self.world.iter::<crate::game::relationships::Relationship>(|_, r| {
+                    *bond_n.entry(r.from).or_default() += 1;
+                    if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
+                });
                 let mark = self.lonely_hearts().into_iter()
                     .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v))
-                    .min_by_key(|&v| self.world.query::<crate::game::relationships::Relationship>().iter()
-                        .filter(|&&r| self.world.get_component::<crate::game::relationships::Relationship>(r)
-                            .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count());
+                    .min_by_key(|&v| bond_n.get(&v).copied().unwrap_or(0));
                 if let Some(m) = mark {
                     let name = self.name_of(m);
                     // a village cat earns her keep - Hunting puts her

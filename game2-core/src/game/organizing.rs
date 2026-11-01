@@ -33,7 +33,7 @@ pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneO
 
     // Their network: the people they know, by kind of tie (not counting the organizer)
     let mut kinds: Vec<(RelKind, usize)> = vec![];
-    for r in world.query::<Relationship>() {
+    for r in crate::game::relationships::bonds_of(world, citizen) {
         let Some(r) = world.get_component::<Relationship>(r) else { continue };
         let other = if r.from == citizen { r.other } else if r.other == citizen { r.from } else { continue };
         if other == organizer || r.kind == RelKind::Stranger { continue; }

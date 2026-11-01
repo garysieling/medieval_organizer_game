@@ -17,6 +17,9 @@ type ComponentStorage = HashMap<Entity, Box<dyn Any + Send>>;
 pub struct World {
     next_entity: Entity,
     storages: HashMap<TypeId, ComponentStorage>,
+    /// Singleton data keyed by type rather than by entity: caches and
+    /// indices the systems share (e.g. the relationship pair index).
+    resources: HashMap<TypeId, Box<dyn Any + Send>>,
 }
 
 impl World {
@@ -25,6 +28,7 @@ impl World {
         Self {
             next_entity: 0,
             storages: HashMap::new(),
+            resources: HashMap::new(),
         }
     }
 
@@ -86,6 +90,45 @@ impl World {
             }
             None => Vec::new(),
         }
+    }
+
+    /// Call `f` once per (entity, component) pair of type T, in arbitrary
+    /// order. Unlike query() nothing is collected or sorted - for passes
+    /// where order doesn't matter and the caller accumulates.
+    pub fn iter<T: Any + Send>(&self, mut f: impl FnMut(Entity, &T)) {
+        if let Some(storage) = self.storages.get(&TypeId::of::<T>()) {
+            for (e, c) in storage.iter() {
+                if let Some(c) = c.downcast_ref::<T>() { f(*e, c); }
+            }
+        }
+    }
+
+    /// The first entity whose component T satisfies `pred`, in arbitrary
+    /// order. Unlike query() this allocates nothing and skips the sort -
+    /// for hot lookups where any match will do.
+    pub fn find<T: Any + Send>(&self, mut pred: impl FnMut(Entity, &T) -> bool) -> Option<Entity> {
+        self.storages.get(&TypeId::of::<T>())?.iter()
+            .find(|(e, c)| c.downcast_ref::<T>().map(|c| pred(**e, c)).unwrap_or(false))
+            .map(|(e, _)| *e)
+    }
+
+    /// Store world-level singleton data, keyed by type.
+    pub fn insert_resource<T: Any + Send>(&mut self, res: T) {
+        self.resources.insert(TypeId::of::<T>(), Box::new(res));
+    }
+
+    /// Read the resource of type T, if one's stored.
+    pub fn resource<T: Any + Send>(&self) -> Option<&T> {
+        self.resources.get(&TypeId::of::<T>())?.downcast_ref()
+    }
+
+    /// The resource of type T, created from Default if absent.
+    pub fn resource_or_default<T: Any + Send + Default>(&mut self) -> &mut T {
+        self.resources
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(T::default()))
+            .downcast_mut()
+            .unwrap()
     }
 
     /// Total number of live entities (approx: highest id issued)

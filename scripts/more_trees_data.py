@@ -50,7 +50,7 @@ MORE_DATA = [
                 "criteria": [], "weight": 0.5, "bias": [("Hotheaded", 3.0)],
                 "act": "PushBack", "concepts": ["concern:sickness"],
                 "lines": [
-                    "A fine friend thou art when someone's throat burns.",
+                    "I'll not catch my death for thy pride.",
                     "Breathe elsewhere then, knave.",
                     "Stay in thy own yard if thou'rt frightened.",
                 ],
@@ -487,14 +487,30 @@ MORE_DATA = [
         ],
         "replies": [
             {
-                "criteria": [], "weight": 1.0, "bias": [],
-                "act": "Answer", "concepts": ["concern:sickness", "concern:grief"],
+                "criteria": [("Has(\"self:status:sick\")")], "weight": 1.0, "bias": [],
+                "act": "Answer", "concepts": ["concern:sickness"],
                 "lines": [
                     "It is the little one, father - she burns with fever.",
                     "This cough won't leave me, and our store of grain is thin.",
+                ],
+                "then": "CLERIC_COMFORT", "end": None
+            },
+            {
+                "criteria": [("Has(\"self:status:grieving\")")], "weight": 1.0, "bias": [],
+                "act": "Answer", "concepts": ["concern:grief"],
+                "lines": [
                     "We buried my brother last week, and grief hollows my chest.",
                 ],
                 "then": "CLERIC_COMFORT", "end": None
+            },
+            {
+                "criteria": [], "weight": 0.4, "bias": [],
+                "act": "Farewell", "concepts": ["farewell"],
+                "lines": [
+                    "I must be on my way, {other}. Fare well.",
+                    "The sun climbs high; chores call me. Good day.",
+                ],
+                "then": None, "end": "Farewell"
             }
         ]
     },

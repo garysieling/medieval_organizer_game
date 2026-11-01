@@ -227,7 +227,7 @@ const SICK_STUNG: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["A fine friend thou art when someone's throat burns.", "Breathe elsewhere then, knave.", "Stay in thy own yard if thou'rt frightened.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
+            lines: &["I'll not catch my death for thy pride.", "Breathe elsewhere then, knave.", "Stay in thy own yard if thou'rt frightened.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -499,9 +499,21 @@ const CLERIC_PRAYER: Exchange = Exchange {
     calls: &["The Lord comfort thee, child. Tell me of thy affliction.", "Speak, child - my prayers and candles are with thee.", "Open thy heart; what sorrow weighs upon thee?", "How dost thou find the road today, {other}?"],
     replies: &[
         Reply {
-            criteria: &[], weight: 1.00, bias: &[],
-            act: Act::Answer, concepts: &["concern:sickness", "concern:grief"],
-            lines: &["It is the little one, father - she burns with fever.", "This cough won't leave me, and our store of grain is thin.", "We buried my brother last week, and grief hollows my chest.", "We do what we can with the strength Heaven gives."],
+            criteria: &[Has("self:status:sick")], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:sickness"],
+            lines: &[
+                "It's the little one mostly - she burns with fever.",
+                "This cough won't leave me, father, and the store is thin.",
+            ],
+            then: Some(CLERIC_COMFORT), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:grief"],
+            lines: &[
+                "He went in the night, father, and I never said farewell.",
+                "The house is so quiet, father. I can't bear the quiet.",
+            ],
             then: Some(CLERIC_COMFORT), end: None,
         },
         Reply {
@@ -2374,6 +2386,14 @@ pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {
 /// The full dialogue library: 30 circumstance and vocation trees plus smalltalk tail
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
+        // A cleric calling on the sick or the bereaved outranks the lay
+        // visit, so the "pray for me" forks are reachable
+        DialogueTree { name: "the_cleric_visits_the_sick",
+            criteria: &[Has("self:ideology:clergy"), Has("other:status:sick")],
+            root: &CLERIC_GREET, rejoin: Some(&VISIT_CARE) },
+        DialogueTree { name: "the_cleric_consoles",
+            criteria: &[Has("self:ideology:clergy"), Has("other:status:grieving")],
+            root: &CLERIC_GREET, rejoin: Some(&CONDOLE_OFFER) },
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: Some(&SICK_EXCUSE) },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],

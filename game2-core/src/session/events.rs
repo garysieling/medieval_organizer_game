@@ -1795,6 +1795,19 @@ impl Game {
                 }
                 self.toasts.push(("Lightning!".into(), self.tick + 40));
             }
+            EventId::LateFrost => {
+                // a killing frost out of season: the gardens are nipped
+                // in a night, and the patches die back a full month
+                for g in self.gardens.iter_mut() { g.2 *= 0.6; }
+                for p in self.mush_patches.iter_mut() {
+                    p.next_ready = p.next_ready.max(self.tick + 30);
+                }
+                // a forager mid-walk turns home - the patch his errand
+                // was for is black under the frost
+                self.travels.retain(|t| !matches!(t.goal, Goal::ForageShroom(_)));
+                self.log.push(format!("t{}: a late frost - white on the beds in the morning, the shoots black.", self.tick));
+                self.toasts.push(("A late frost".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -3821,6 +3834,25 @@ mod tests {
             let hit = before.iter().zip(after.iter()).any(|(b, a)| a < b);
             assert!(hit || g.villagers.is_empty(), "the bolt picked one on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("lightning")), "the strike was told on {:?}", st);
+        }
+    }
+
+    /// A late frost: the beds are nipped in a night and the patches die
+    /// back a month
+    #[test]
+    fn test_white_on_the_beds() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            for x in g.gardens.iter_mut() { x.2 = x.2.max(1.0); }
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            g.force_event(EventId::LateFrost);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 < growth0 || g.gardens.is_empty(), "the beds were nipped on {:?}", st);
+            if !g.mush_patches.is_empty() {
+                assert!(g.mush_patches.iter().all(|p| p.next_ready >= g.tick + 29),
+                    "the patches died back on {:?}", st);
+            }
+            assert!(g.log.iter().any(|l| l.contains("late frost")), "the frost was told on {:?}", st);
         }
     }
 

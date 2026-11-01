@@ -2376,7 +2376,9 @@ impl Game {
                     self.world.get_component::<household::Building>(be)
                         .map(|bb| bb.kind == household::BuildingKind::Home
                             && bb.occupants.len() < 4
-                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                            && bb.occupants.iter().any(|&o| self.villagers.contains(&o)
+                                && !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)))
                         .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
@@ -5090,6 +5092,26 @@ mod tests {
             assert!(kids1 > kids0 || g.building_entities.is_empty(), "the basket's inside on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("foundling")), "the basket was told on {:?}", st);
         }
+    }
+
+    /// The basket's not laid at a door nobody can answer - a house of
+    /// captives takes no foundling in
+    #[test]
+    fn test_the_basket_needs_a_door_open() {
+        let mut g = stage::staged(stage::Stage::Ordinary);
+        let occ: Vec<Entity> = g.building_entities.iter().copied()
+            .flat_map(|be| g.world.get_component::<household::Building>(be)
+                .map(|b| b.occupants.clone()).unwrap_or_default())
+            .collect();
+        assert!(!occ.is_empty(), "the staged village has hearth-folk");
+        for &o in &occ {
+            g.world.add_component(o, crate::game::dungeon::CastleHeld { since: 0 });
+        }
+        let kids0 = g.villagers.len();
+        g.force_event(EventId::Foundling);
+        assert_eq!(g.villagers.len(), kids0, "no foundling landed at a captive door");
+        assert!(g.log.iter().any(|l| l.contains("no door to lay her")),
+            "the basket found no door");
     }
 
     /// A quarrel in the square: two tempers meet, the street watches,

@@ -2268,11 +2268,16 @@ impl Game {
             }
             EventId::CartOverturns => {
                 // the wheel finds the rut: a rolled home's load spills
-                // on the road and the driver takes the loss
+                // on the road and the driver takes the loss - and no
+                // driver means no cart, so the home needs someone about
                 let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
                     self.world.get_component::<household::Building>(be)
                         .map(|bb| bb.kind == household::BuildingKind::Home
-                            && bb.stock.values().any(|&q| q > 0)).unwrap_or(false)).collect();
+                            && bb.stock.values().any(|&q| q > 0)
+                            && bb.occupants.iter().any(|&o|
+                                !villager::is_dead(&self.world, o)
+                                    && !crate::game::dungeon::unavailable(&self.world, o)))
+                        .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
                     let mut sorted: Vec<String> = self.world.get_component::<household::Building>(h)
@@ -2290,7 +2295,8 @@ impl Game {
                             !villager::is_dead(&self.world, o)
                                 && !crate::game::dungeon::unavailable(&self.world, o)));
                     if let Some(d) = driver {
-                        desires::add_grievance(&mut self.world, d, desires::Problem::Loss, self.tick + 20);
+                        // the spilled load's picked off the road, not wolf-taken
+                        desires::add_grievance(&mut self.world, d, desires::Problem::Robbed, self.tick + 20);
                         self.say(d, "The wheel found the rut - the whole load's in the mud!", CHAT_BUBBLE_SECS);
                     }
                     self.log.push(format!("t{}: a cart overturns - the wheel found the rut and the load's in the mud.", self.tick));

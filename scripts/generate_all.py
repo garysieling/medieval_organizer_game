@@ -70,18 +70,21 @@ def main():
     for var_name, concept, lines in MEETING_POOLS:
         pool_var_names.append((var_name, concept))
         rendered_pools.append(f"const {var_name}: &[MeetingLine] = &[")
+        concepts = [concept]
+        if concept == "concern:grief":
+            concepts.append("concern:sickness")
         for line in lines:
             rendered_pools.append("    MeetingLine {")
-            rendered_pools.append(f"        act: Act::Remark, concepts: {concepts_slice([concept])}, bias: &[],")
+            rendered_pools.append(f"        act: Act::Remark, concepts: {concepts_slice(concepts)}, bias: &[],")
             rendered_pools.append(f"        lines: {lines_slice([line])},")
             rendered_pools.append("    },")
         rendered_pools.append("];\n")
 
     # Common meeting lines
     meet_common_lines = [
-        ("Agree", ["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons"],
+        ("Agree", ["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons", "concern:grief"],
          ["Aye, there is the truth of it.", "{other} has the right of it.", "It is so - my house has felt the same.", "Well spoken, neighbor; we stand with thee."]),
-        ("PushBack", ["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons"],
+        ("PushBack", ["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons", "concern:grief"],
          ["Talk is cheap - who will lift a hand to do aught about it?", "And what wouldst thou have the village do, {other}?", "We have argued this before and accomplished nothing."]),
         ("Remark", ["concern:harvest"],
          ["If the harvest is sound, we will weather the winter.", "We'll need every willing pair of hands in the valley."]),
@@ -89,6 +92,8 @@ def main():
          ["Safe roads bring trade and bread into every cottage.", "The ditch by the bridge must be dug out."]),
         ("Remark", ["concern:fuel"],
          ["Cold stones freeze the spirit; we must gather kindling together.", "The common wood has brushwood enough for all if shared."]),
+        ("Remark", ["concern:grief", "concern:sickness"],
+         ["The parish mourns with those who have lost kin.", "A neighbor's visit and warm broth bring comfort to an empty room."]),
     ]
     common_pool_code = ["const MEET_COMMON: &[MeetingLine] = &["]
     for act, concepts, lines in meet_common_lines:
@@ -123,7 +128,7 @@ pub fn meeting_pool(speaker: &Speaker) -> Vec<MeetingLine> {
     meet_prompt = """/// A worked-example agenda for a house meeting
 pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {
     text: "What ails the village most, friends? Speak true.",
-    concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons"],
+    concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons", "concern:grief"],
 };
 """
 
@@ -145,11 +150,11 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &FATHER_GREET, rejoin: Some(&FATHER_ASKS) },
         DialogueTree { name: "old_scores", criteria: &[Has("pair:relation:rival")],
             root: &RIVAL_GREET, rejoin: Some(&RIVAL_SNIPE) },
-        DialogueTree { name: "hunger_lean_times", criteria: &[Has("any:status:hungry")],
+        DialogueTree { name: "hunger_lean_times", criteria: &[Has("self:status:hungry")],
             root: &HUNGER_GREET, rejoin: Some(&HUNGER_SHARE) },
-        DialogueTree { name: "cold_hearth_fuel", criteria: &[Has("any:status:cold")],
+        DialogueTree { name: "cold_hearth_fuel", criteria: &[Has("self:status:cold")],
             root: &COLD_GREET, rejoin: Some(&COLD_GATHER) },
-        DialogueTree { name: "morning_after_drunk", criteria: &[Has("any:status:drunk")],
+        DialogueTree { name: "morning_after_drunk", criteria: &[Has("self:status:drunk")],
             root: &DRUNK_GREET, rejoin: Some(&DRUNK_RECALL) },
         DialogueTree { name: "kin_warmth", criteria: &[Has("pair:relation:kin")],
             root: &KIN_GREET, rejoin: Some(&KIN_FAMILY) },
@@ -157,37 +162,37 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &FRIEND_GREET, rejoin: Some(&FRIEND_TRUST) },
         DialogueTree { name: "stranger_road", criteria: &[Has("pair:relation:stranger")],
             root: &STRANGER_GREET, rejoin: Some(&STRANGER_PATH) },
-        DialogueTree { name: "smith_forge", criteria: &[Has("any:status:smith")],
+        DialogueTree { name: "smith_forge", criteria: &[Has("other:status:smith")],
             root: &SMITH_GREET, rejoin: Some(&SMITH_WORK) },
-        DialogueTree { name: "miller_grain", criteria: &[Has("any:status:miller")],
+        DialogueTree { name: "miller_grain", criteria: &[Has("other:status:miller")],
             root: &MILLER_GREET, rejoin: Some(&MILLER_GRIST) },
-        DialogueTree { name: "baker_hearth", criteria: &[Has("any:status:baker")],
+        DialogueTree { name: "baker_hearth", criteria: &[Has("other:status:baker")],
             root: &BAKER_GREET, rejoin: Some(&BAKER_BREAD) },
-        DialogueTree { name: "weaver_wool", criteria: &[Has("any:status:weaver")],
+        DialogueTree { name: "weaver_wool", criteria: &[Has("other:status:weaver")],
             root: &WEAVER_GREET, rejoin: Some(&WEAVER_FLEECE) },
-        DialogueTree { name: "carpenter_wood", criteria: &[Has("any:status:carpenter")],
+        DialogueTree { name: "carpenter_wood", criteria: &[Has("other:status:carpenter")],
             root: &CARPENTER_GREET, rejoin: Some(&CARPENTER_BEAMS) },
-        DialogueTree { name: "mason_stone", criteria: &[Has("any:status:mason")],
+        DialogueTree { name: "mason_stone", criteria: &[Has("other:status:mason")],
             root: &MASON_GREET, rejoin: Some(&MASON_WALL) },
-        DialogueTree { name: "shepherd_fold", criteria: &[Has("any:status:shepherd")],
+        DialogueTree { name: "shepherd_fold", criteria: &[Has("other:status:shepherd")],
             root: &SHEPHERD_GREET, rejoin: Some(&SHEPHERD_EWES) },
-        DialogueTree { name: "brewer_ale", criteria: &[Has("any:status:brewer")],
+        DialogueTree { name: "brewer_ale", criteria: &[Has("other:status:brewer")],
             root: &BREWER_GREET, rejoin: Some(&BREWER_MASH) },
-        DialogueTree { name: "beekeeper_hive", criteria: &[Has("any:status:beekeeper")],
+        DialogueTree { name: "beekeeper_hive", criteria: &[Has("other:status:beekeeper")],
             root: &BEEKEEPER_GREET, rejoin: Some(&BEEKEEPER_HONEY) },
-        DialogueTree { name: "herb_apothecary", criteria: &[Has("any:status:herb_wife")],
+        DialogueTree { name: "herb_apothecary", criteria: &[Has("other:status:herb_wife")],
             root: &HERB_GREET, rejoin: Some(&HERB_DRAUGHT) },
-        DialogueTree { name: "merchant_trade", criteria: &[Has("any:ideology:merchant")],
+        DialogueTree { name: "merchant_trade", criteria: &[Has("other:ideology:merchant")],
             root: &MERCHANT_GREET, rejoin: Some(&MERCHANT_WARES) },
-        DialogueTree { name: "lord_manor", criteria: &[Has("any:ideology:lord")],
+        DialogueTree { name: "lord_manor", criteria: &[Has("other:ideology:lord")],
             root: &LORD_GREET, rejoin: Some(&LORD_LEASES) },
-        DialogueTree { name: "fisher_river", criteria: &[Has("any:status:fisher")],
+        DialogueTree { name: "fisher_river", criteria: &[Has("other:status:fisher")],
             root: &FISHER_GREET, rejoin: Some(&FISHER_CURRENT) },
-        DialogueTree { name: "charcoal_pit", criteria: &[Has("any:status:charcoal_burner")],
+        DialogueTree { name: "charcoal_pit", criteria: &[Has("other:status:charcoal_burner")],
             root: &CHARCOAL_GREET, rejoin: Some(&CHARCOAL_SMOKE) },
-        DialogueTree { name: "elder_wisdom", criteria: &[Has("any:status:elder")],
+        DialogueTree { name: "elder_wisdom", criteria: &[Has("self:status:elder")],
             root: &ELDER_GREET, rejoin: Some(&ELDER_WINTERS) },
-        DialogueTree { name: "newborn_cradle", criteria: &[Has("any:status:newborn")],
+        DialogueTree { name: "newborn_cradle", criteria: &[Has("self:status:newborn")],
             root: &NEWBORN_GREET, rejoin: Some(&NEWBORN_JOY) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },

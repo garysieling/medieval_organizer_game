@@ -98,11 +98,11 @@ An AI evaluator or reviewer should grade the conversations against the rubric be
 - **Turns Count:** 6
 
 ```text
-Aldric     [Greet in friendship_bonds  ]: "Dost thou remember the winter we hauled the great oak?"
+Aldric     [Greet in friendship_bonds  ]: "Greetings, old comrade! How goes the day's labor?"
 Marga      [Greet in friendship_bonds  ]: "God bless thy steps this day, Aldric."
 Aldric     [Question in friendship_bonds  ]: "Can I count on thy team when we haul the heavy timber?"
 Marga      [Answer in friendship_bonds  ]: "Aye, we were waist-deep in mud until midnight saving the sacks!"
-Aldric     [Remark in friendship_bonds  ]: "We have shared crusts and sweat for twenty years now."
+Aldric     [Remark in friendship_bonds  ]: "A good day's toil makes the evening bread sweet."
 Marga      [Farewell in friendship_bonds  ]: "Fair day, Aldric - peace on thy household."
 ```
 
@@ -132,7 +132,7 @@ Bram       [Farewell in visiting_the_sick ]: "May the road be kind under thy boo
 - **Turns Count:** 2
 
 ```text
-Aldric     [Greet in friendship_bonds  ]: "Greetings, old comrade! How goes the day's labor?"
+Aldric     [Greet in friendship_bonds  ]: "A hearty good morrow to thee, Wystan!"
 Wystan     [Farewell in friendship_bonds  ]: "We will speak more of this later. God keep thee."
 ```
 
@@ -146,7 +146,7 @@ Wystan     [Farewell in friendship_bonds  ]: "We will speak more of this later. 
 - **Turns Count:** 4
 
 ```text
-Aldric     [Greet in asking_the_father ]: "Greetings, holy father - I seek thy pastoral ear."
+Aldric     [Greet in asking_the_father ]: "Well met on this lane, neighbor."
 Eliza      [Greet in asking_the_father ]: "The saints keep thee, Aldric. What weighs on thee?"
 Aldric     [Question in asking_the_father ]: "Can the church spare a peck of grain for the hungry children, father?"
 Eliza      [Farewell in asking_the_father ]: "I must be on my way, Aldric. Fare well."
@@ -157,13 +157,13 @@ Eliza      [Farewell in asking_the_father ]: "I must be on my way, Aldric. Fare 
 - **Backstory A:** Aldric holds the manor's leases. They never miss a service.
 - **Backstory B:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 - **Relation:** Kin
-- **Trees Cascade:** ["hunger_lean_times"]
+- **Trees Cascade:** ["kin_warmth"]
 - **Ending:** Farewell
 - **Turns Count:** 2
 
 ```text
-Aldric     [Greet in hunger_lean_times ]: "Greetings, Dagny. Hast thou found anything to put in the pot?"
-Dagny      [Farewell in hunger_lean_times ]: "God's peace be upon thy cottage, Aldric."
+Aldric     [Greet in kin_warmth        ]: "Greetings, brother! It does my heart good to see thy face."
+Dagny      [Farewell in kin_warmth        ]: "I must be on my way, Aldric. Fare well."
 ```
 
 ### Conversation #06: Eliza and Gisela
@@ -176,9 +176,9 @@ Dagny      [Farewell in hunger_lean_times ]: "God's peace be upon thy cottage, A
 - **Turns Count:** 4
 
 ```text
-Eliza      [Greet in visiting_the_sick ]: "Does the fever ease when the sun warms the cottage?"
+Eliza      [Greet in visiting_the_sick ]: "Well met on this lane, neighbor."
 Gisela     [Answer in visiting_the_sick ]: "The sweat broke at dawn and the fever feels a little lighter."
-Eliza      [Question in visiting_the_sick ]: "Dost thou have grain left in the bin?"
+Eliza      [Question in visiting_the_sick ]: "Is there aught thou needest brought to the cottage?"
 Gisela     [Farewell in visiting_the_sick ]: "God's peace be upon thy cottage, Eliza."
 ```
 
@@ -192,9 +192,9 @@ Gisela     [Farewell in visiting_the_sick ]: "God's peace be upon thy cottage, E
 - **Turns Count:** 4
 
 ```text
-Eliza      [Greet in the_cleric_blesses]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Eliza      [Greet in the_cleric_blesses]: "Blessings on thee, Aelfric."
 Aelfric    [Greet in the_cleric_blesses]: "Blessings on thy holy house as well."
-Eliza      [Remark in the_cleric_blesses]: "Dost thou find peace in thy daily labor, child?"
+Eliza      [Remark in the_cleric_blesses]: "Remember that honest work in the field is a holy prayer."
 Aelfric    [Farewell in the_cleric_blesses]: "Fare thee well until our paths cross again."
 ```
 
@@ -208,13 +208,13 @@ Aelfric    [Farewell in the_cleric_blesses]: "Fare thee well until our paths cro
 - **Turns Count:** 8
 
 ```text
-Eliza      [Greet in the_cleric_blesses]: "God's grace light upon thy steps, Aldric."
+Eliza      [Greet in the_cleric_blesses]: "The peace of the saints be with thee, child."
 Aldric     [Greet in the_cleric_blesses]: "Peace be with thee, good priest."
-Eliza      [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
+Eliza      [Remark in the_cleric_blesses]: "A good day's toil makes the evening bread sweet."
 Aldric     [Agree in the_cleric_blesses]: "Thou hast spoken the plain heart of the matter."
 Eliza      [Remark in morning_after_drunk]: "My purse is six silver pennies lighter than when dusk fell."
 Aldric     [PushBack in morning_after_drunk]: "Thou'rt jumping to conclusions like a startled hare."
-Eliza      [Remark in morning_after_drunk]: "Bread and pickled onions, that's what the stomach needs."
+Eliza      [Remark in morning_after_drunk]: "The plough handles won't hold themselves, headache or no."
 Aldric     [Farewell in morning_after_drunk]: "May the road be kind under thy boots."
 ```
 
@@ -228,9 +228,9 @@ Aldric     [Farewell in morning_after_drunk]: "May the road be kind under thy bo
 - **Turns Count:** 8
 
 ```text
-Eliza      [Greet in the_cleric_blesses]: "God's grace light upon thy steps, Wystan."
+Eliza      [Greet in the_cleric_blesses]: "Good morrow to thee, Wystan."
 Wystan     [Remark in the_cleric_blesses]: "Time will tell what comes of this."
-Eliza      [Remark in the_cleric_blesses]: "Remember that honest work in the field is a holy prayer."
+Eliza      [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Wystan     [Agree in the_cleric_blesses]: "The season has been lean, father, but faith sustains us."
 Eliza      [Remark in morning_after_drunk]: "Did I truly challenge the smith to a wrestling match at midnight?"
 Wystan     [Agree in morning_after_drunk]: "It was a merry night, though the morning pays the reckoning."
@@ -248,7 +248,7 @@ Wystan     [Farewell in morning_after_drunk]: "May the road be kind under thy bo
 - **Turns Count:** 6
 
 ```text
-Eliza      [Greet in visiting_the_sick ]: "I heard the sickness took thy household - how is it?"
+Eliza      [Greet in visiting_the_sick ]: "How dost thou fare today, Gisela?"
 Gisela     [Answer in visiting_the_sick ]: "The night was hard, but the morning brings a little ease."
 Eliza      [Question in visiting_the_sick ]: "Dost thou have grain left in the bin?"
 Gisela     [Answer in visiting_the_sick ]: "A little bread or salt, if thou canst spare it."
@@ -270,7 +270,7 @@ Bram       [Greet in the_sickness      ]: "Morrow, Dagny. Don't stand too close 
 Dagny      [Question in the_sickness      ]: "Is it the ague that took the miller's lad?"
 Bram       [Answer in the_sickness      ]: "My lungs feel like wet wool on a rainy morning."
 Dagny      [Remark in the_sickness      ]: "Time will tell what comes of this."
-Bram       [Remark in the_sickness      ]: "Does the fever ease when the sun warms the cottage?"
+Bram       [Remark in the_sickness      ]: "Thou'rt kind, Dagny. The saints remember a neighborly hand."
 Dagny      [Farewell in the_sickness      ]: "Fare thee well until our paths cross again."
 ```
 
@@ -308,7 +308,7 @@ Bram       [Answer in the_sickness      ]: "There is no one else to fetch water 
 Eliza      [Agree in the_sickness      ]: "A poor man's bed is a luxury he can rarely afford."
 Bram       [Question in asking_the_father ]: "Can the church spare a peck of grain for the hungry children, father?"
 Eliza      [Answer in asking_the_father ]: "The truth of it is plain for any eye to see."
-Bram       [Remark in asking_the_father ]: "Thank thee, father - that lifts a great stone from my mind."
+Bram       [Remark in asking_the_father ]: "A good day's toil makes the evening bread sweet."
 Eliza      [Farewell in asking_the_father ]: "Fare thee well until our paths cross again."
 ```
 
@@ -356,9 +356,9 @@ Marga      [Farewell in friendship_bonds  ]: "The sun climbs high; chores call m
 - **Turns Count:** 4
 
 ```text
-Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Eliza."
+Corvin     [Greet in the_cleric_blesses]: "Good morrow to thee, Eliza."
 Eliza      [Remark in the_cleric_blesses]: "We shall see how the wind blows tomorrow."
-Corvin     [Remark in the_cleric_blesses]: "Dost thou find peace in thy daily labor, child?"
+Corvin     [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Eliza      [Farewell in the_cleric_blesses]: "Fare thee well until our paths cross again."
 ```
 
@@ -372,9 +372,9 @@ Eliza      [Farewell in the_cleric_blesses]: "Fare thee well until our paths cro
 - **Turns Count:** 4
 
 ```text
-Corvin     [Greet in the_cleric_blesses]: "The peace of the saints be with thee, child."
+Corvin     [Greet in the_cleric_blesses]: "God's grace light upon thy steps, Aelfric."
 Aelfric    [Remark in the_cleric_blesses]: "We shall see how the wind blows tomorrow."
-Corvin     [Remark in the_cleric_blesses]: "Dost thou find peace in thy daily labor, child?"
+Corvin     [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Aelfric    [Farewell in the_cleric_blesses]: "I will see thee at the Sunday bell, father."
 ```
 
@@ -388,7 +388,7 @@ Aelfric    [Farewell in the_cleric_blesses]: "I will see thee at the Sunday bell
 - **Turns Count:** 4
 
 ```text
-Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Marga."
+Corvin     [Greet in the_cleric_blesses]: "The peace of the saints be with thee, child."
 Marga      [Greet in the_cleric_blesses]: "Blessings on thy holy house as well."
 Corvin     [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Marga      [Farewell in the_cleric_blesses]: "God's peace be upon thy cottage, Corvin."
@@ -404,7 +404,7 @@ Marga      [Farewell in the_cleric_blesses]: "God's peace be upon thy cottage, C
 - **Turns Count:** 4
 
 ```text
-Corvin     [Greet in visiting_the_sick ]: "Peace to this cottage, Gisela. How goes the fever?"
+Corvin     [Greet in visiting_the_sick ]: "How dost thou fare today, Gisela?"
 Gisela     [PushBack in visiting_the_sick ]: "I have weathered worse than a common cough."
 Corvin     [Question in visiting_the_sick ]: "Dost thou have grain left in the bin?"
 Gisela     [Farewell in visiting_the_sick ]: "God's peace be upon thy cottage, Corvin."
@@ -420,9 +420,9 @@ Gisela     [Farewell in visiting_the_sick ]: "God's peace be upon thy cottage, C
 - **Turns Count:** 8
 
 ```text
-Corvin     [Greet in the_cleric_blesses]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Corvin     [Greet in the_cleric_blesses]: "God's grace light upon thy steps, Dagny."
 Dagny      [Greet in the_cleric_blesses]: "And on thee, father."
-Corvin     [Remark in the_cleric_blesses]: "Remember that honest work in the field is a holy prayer."
+Corvin     [Remark in the_cleric_blesses]: "The hours slip by as the sun climbs."
 Dagny      [Agree in the_cleric_blesses]: "I try to walk uprightly before God and my neighbors."
 Corvin     [Remark in hunger_lean_times ]: "We boiled a pot of turnip tops and barley chaff this noon."
 Dagny      [Agree in hunger_lean_times ]: "We have a sack of roots in the cellar. Let us divide it."
@@ -440,7 +440,7 @@ Dagny      [Farewell in hunger_lean_times ]: "Fare thee well until our paths cro
 - **Turns Count:** 6
 
 ```text
-Dagny      [Greet in visiting_the_sick ]: "I heard the sickness took thy household - how is it?"
+Dagny      [Greet in visiting_the_sick ]: "Peace to this cottage, Hob. How goes the fever?"
 Hob        [PushBack in visiting_the_sick ]: "Nay, I see it differently, mark me."
 Dagny      [Question in visiting_the_sick ]: "Is there aught thou needest brought to the cottage?"
 Hob        [Answer in visiting_the_sick ]: "A little bread or salt, if thou canst spare it."
@@ -458,7 +458,7 @@ Hob        [Farewell in visiting_the_sick ]: "May the road be kind under thy boo
 - **Turns Count:** 2
 
 ```text
-Dagny      [Greet in hunger_lean_times ]: "Hast thou a handful of barley meal to spare for the pot?"
+Dagny      [Greet in hunger_lean_times ]: "Good morrow, Aldric. A hollow belly makes for a slow step."
 Aldric     [Farewell in hunger_lean_times ]: "May the road be kind under thy boots."
 ```
 
@@ -472,7 +472,7 @@ Aldric     [Farewell in hunger_lean_times ]: "May the road be kind under thy boo
 - **Turns Count:** 6
 
 ```text
-Dagny      [Greet in visiting_the_sick ]: "How dost thou fare today, Hob?"
+Dagny      [Greet in visiting_the_sick ]: "Peace to this cottage, Hob. How goes the fever?"
 Hob        [PushBack in visiting_the_sick ]: "I have weathered worse than a common cough."
 Dagny      [Question in visiting_the_sick ]: "Is there aught thou needest brought to the cottage?"
 Hob        [Answer in visiting_the_sick ]: "A jug of fresh well water would be a godsend."
@@ -490,7 +490,7 @@ Hob        [Farewell in visiting_the_sick ]: "May the road be kind under thy boo
 - **Turns Count:** 2
 
 ```text
-Dagny      [Greet in asking_the_father ]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Dagny      [Greet in asking_the_father ]: "A word with thee, father, if thou canst spare a moment."
 Corvin     [Farewell in asking_the_father ]: "I must be on my way, Dagny. Fare well."
 ```
 
@@ -504,7 +504,7 @@ Corvin     [Farewell in asking_the_father ]: "I must be on my way, Dagny. Fare w
 - **Turns Count:** 2
 
 ```text
-Dagny      [Greet in asking_the_father ]: "Good morrow, father."
+Dagny      [Greet in asking_the_father ]: "A word with thee, father, if thou canst spare a moment."
 Eliza      [Farewell in asking_the_father ]: "I must be on my way, Dagny. Fare well."
 ```
 
@@ -580,7 +580,7 @@ Hob        [Answer in the_sickness      ]: "Half the north lane is coughing into
 Dagny      [Agree in the_sickness      ]: "May the affliction pass thee lightly."
 Hob        [Remark in old_scores        ]: "Thy lot still owes mine three groats, whatever lies thou tellest."
 Dagny      [PushBack in old_scores        ]: "My fence stands straighter than thy crooked word."
-Hob        [Remark in old_scores        ]: "We are done here."
+Hob        [Remark in old_scores        ]: "Take thy shadow off my land."
 Dagny      [Farewell in old_scores        ]: "Aye. Done."
 ```
 
@@ -610,7 +610,7 @@ Aldric     [Farewell in the_sickness      ]: "My chores call me away."
 - **Turns Count:** 4
 
 ```text
-Marga      [Greet in visiting_the_sick ]: "Peace to this cottage, Gisela. How goes the fever?"
+Marga      [Greet in visiting_the_sick ]: "How dost thou fare today, Gisela?"
 Gisela     [Answer in visiting_the_sick ]: "The sweat broke at dawn and the fever feels a little lighter."
 Marga      [Question in visiting_the_sick ]: "Dost thou have grain left in the bin?"
 Gisela     [Farewell in visiting_the_sick ]: "We have enough for today. Pray for my children."
@@ -626,7 +626,7 @@ Gisela     [Farewell in visiting_the_sick ]: "We have enough for today. Pray for
 - **Turns Count:** 6
 
 ```text
-Marga      [Greet in visiting_the_sick ]: "I heard the sickness took thy household - how is it?"
+Marga      [Greet in visiting_the_sick ]: "Good morrow to thee, Hob."
 Hob        [Answer in visiting_the_sick ]: "The sweat broke at dawn and the fever feels a little lighter."
 Marga      [Question in visiting_the_sick ]: "Dost thou have grain left in the bin?"
 Hob        [Answer in visiting_the_sick ]: "A jug of fresh well water would be a godsend."
@@ -644,9 +644,9 @@ Hob        [Farewell in visiting_the_sick ]: "Fare thee well until our paths cro
 - **Turns Count:** 6
 
 ```text
-Marga      [Greet in visiting_the_sick ]: "Does the fever ease when the sun warms the cottage?"
+Marga      [Greet in visiting_the_sick ]: "Good morrow to thee, Bram."
 Bram       [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the plain truth."
-Marga      [Question in visiting_the_sick ]: "Dost thou have grain left in the bin?"
+Marga      [Question in visiting_the_sick ]: "Does the fever ease when the sun warms the cottage?"
 Bram       [Answer in visiting_the_sick ]: "A jug of fresh well water would be a godsend."
 Marga      [Remark in visiting_the_sick ]: "Rest easy; the parish will not let thee freeze."
 Bram       [Farewell in visiting_the_sick ]: "Fare thee well until our paths cross again."
@@ -676,11 +676,11 @@ Wystan     [Farewell in friendship_bonds  ]: "Until next time, neighbor."
 - **Turns Count:** 6
 
 ```text
-Marga      [Greet in friendship_bonds  ]: "Well met, true friend! The sun shines brighter when thou'rt near."
+Marga      [Greet in friendship_bonds  ]: "Good morrow to thee, Wystan."
 Wystan     [Greet in friendship_bonds  ]: "Good day, partner! We'll weather whatever comes."
 Marga      [Question in friendship_bonds  ]: "Dost thou recall the summer the mill dam broke?"
 Wystan     [Answer in friendship_bonds  ]: "Thy word is better than gold; count on my team anytime."
-Marga      [Remark in friendship_bonds  ]: "Thy word has never failed me, Wystan."
+Marga      [Remark in friendship_bonds  ]: "We have shared crusts and sweat for twenty years now."
 Wystan     [Farewell in friendship_bonds  ]: "Fare thee well until our paths cross again."
 ```
 
@@ -700,7 +700,7 @@ Gisela     [Answer in the_sickness      ]: "The calves won't feed themselves, fe
 Eliza      [Agree in the_sickness      ]: "Aye, there is truth in what thou sayest."
 Gisela     [Question in asking_the_father ]: "Must the tithe stand full when the granary is half empty, father?"
 Eliza      [Answer in asking_the_father ]: "The church will share its grain, child - none shall starve at the door."
-Gisela     [Remark in asking_the_father ]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Gisela     [Remark in asking_the_father ]: "Thy counsel is wise, father. We will trust in Providence."
 Eliza      [Farewell in asking_the_father ]: "The Lord preserve thy hearth and thy children."
 ```
 
@@ -718,7 +718,7 @@ Gisela     [Greet in the_sickness      ]: "*cough* Good morrow, Aelfric."
 Aelfric    [Agree in the_sickness      ]: "Aye, there is truth in what thou sayest."
 Gisela     [Answer in the_sickness      ]: "I'd rest in the straw if the chores would do themselves."
 Aelfric    [Remark in the_sickness      ]: "Aye, words have weight in a small village."
-Gisela     [Remark in the_sickness      ]: "Bless thee for thinking of our small house."
+Gisela     [Remark in the_sickness      ]: "A good day's toil makes the evening bread sweet."
 Aelfric    [Farewell in the_sickness      ]: "Fare thee well until our paths cross again."
 ```
 
@@ -734,9 +734,9 @@ Aelfric    [Farewell in the_sickness      ]: "Fare thee well until our paths cro
 ```text
 Gisela     [Greet in the_sickness      ]: "*cough* Good morrow, Wystan."
 Wystan     [PushBack in the_sickness      ]: "Nay, I see it differently, mark me."
-Gisela     [Remark in the_sickness      ]: "It is not the black pestilence, keep thy wits about thee."
+Gisela     [Remark in the_sickness      ]: "A little cough won't kill an honest worker."
 Wystan     [Agree in the_sickness      ]: "Thou hast spoken the plain heart of the matter."
-Gisela     [Remark in the_sickness      ]: "Does the fever ease when the sun warms the cottage?"
+Gisela     [Remark in the_sickness      ]: "A good day's toil makes the evening bread sweet."
 Wystan     [Farewell in the_sickness      ]: "The village stands together or it falls. Fare well."
 ```
 
@@ -752,9 +752,9 @@ Wystan     [Farewell in the_sickness      ]: "The village stands together or it 
 ```text
 Gisela     [Greet in the_sickness      ]: "A heavy morning, neighbor. My limbs are like lead."
 Eliza      [PushBack in the_sickness      ]: "Keep thy distance, neighbor. I have no wish to catch it."
-Gisela     [Remark in the_sickness      ]: "A little cough won't kill an honest worker."
+Gisela     [Remark in the_sickness      ]: "It is not the black pestilence, keep thy wits about thee."
 Eliza      [Agree in the_sickness      ]: "Thou hast right of it. I spoke too quick."
-Gisela     [Remark in the_sickness      ]: "Bless thee for thinking of our small house."
+Gisela     [Remark in the_sickness      ]: "The hours slip by as the sun climbs."
 Eliza      [Farewell in the_sickness      ]: "The village stands together or it falls. Fare well."
 ```
 
@@ -784,7 +784,7 @@ Dagny      [Farewell in the_sickness      ]: "God grant thee strength for the da
 - **Turns Count:** 2
 
 ```text
-Wystan     [Greet in asking_the_father ]: "Greetings, holy father - I seek thy pastoral ear."
+Wystan     [Greet in asking_the_father ]: "Good morrow, father."
 Aelfric    [Farewell in asking_the_father ]: "The sun climbs high; chores call me. Good day."
 ```
 
@@ -798,7 +798,7 @@ Aelfric    [Farewell in asking_the_father ]: "The sun climbs high; chores call m
 - **Turns Count:** 2
 
 ```text
-Wystan     [Greet in asking_the_father ]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Wystan     [Greet in asking_the_father ]: "Greetings, holy father - I seek thy pastoral ear."
 Aelfric    [Farewell in asking_the_father ]: "I must be on my way, Wystan. Fare well."
 ```
 
@@ -812,7 +812,7 @@ Aelfric    [Farewell in asking_the_father ]: "I must be on my way, Wystan. Fare 
 - **Turns Count:** 4
 
 ```text
-Wystan     [Greet in asking_the_father ]: "A word with thee, father, if thou canst spare a moment."
+Wystan     [Greet in asking_the_father ]: "Well met on this lane, neighbor."
 Corvin     [Greet in asking_the_father ]: "Well met, friend, under the open sky."
 Wystan     [Question in asking_the_father ]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
 Corvin     [Farewell in asking_the_father ]: "I must be on my way, Wystan. Fare well."
@@ -828,7 +828,7 @@ Corvin     [Farewell in asking_the_father ]: "I must be on my way, Wystan. Fare 
 - **Turns Count:** 4
 
 ```text
-Wystan     [Greet in asking_the_father ]: "Greetings, holy father - I seek thy pastoral ear."
+Wystan     [Greet in asking_the_father ]: "Well met on this lane, neighbor."
 Aelfric    [Greet in asking_the_father ]: "Always, child. Speak freely in the sight of God."
 Wystan     [Question in asking_the_father ]: "Will the parish altar provide candles for our sick neighbor, father?"
 Aelfric    [Farewell in asking_the_father ]: "The sun climbs high; chores call me. Good day."
@@ -844,7 +844,7 @@ Aelfric    [Farewell in asking_the_father ]: "The sun climbs high; chores call m
 - **Turns Count:** 4
 
 ```text
-Wystan     [Greet in asking_the_father ]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Wystan     [Greet in asking_the_father ]: "Good morrow, father."
 Corvin     [Greet in asking_the_father ]: "The saints keep thee, Wystan. What weighs on thee?"
 Wystan     [Question in asking_the_father ]: "Can the church spare a peck of grain for the hungry children, father?"
 Corvin     [Farewell in asking_the_father ]: "Until next time, neighbor."
@@ -860,9 +860,9 @@ Corvin     [Farewell in asking_the_father ]: "Until next time, neighbor."
 - **Turns Count:** 4
 
 ```text
-Aelfric    [Greet in the_cleric_blesses]: "God's grace light upon thy steps, Wystan."
+Aelfric    [Greet in the_cleric_blesses]: "Well met on this lane, neighbor."
 Wystan     [Remark in the_cleric_blesses]: "We shall see how the wind blows tomorrow."
-Aelfric    [Remark in the_cleric_blesses]: "Remember that honest work in the field is a holy prayer."
+Aelfric    [Remark in the_cleric_blesses]: "A good day's toil makes the evening bread sweet."
 Wystan     [Farewell in the_cleric_blesses]: "God's peace be upon thy cottage, Aelfric."
 ```
 
@@ -876,9 +876,9 @@ Wystan     [Farewell in the_cleric_blesses]: "God's peace be upon thy cottage, A
 - **Turns Count:** 4
 
 ```text
-Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee, child."
+Aelfric    [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
 Aldric     [Greet in the_cleric_blesses]: "And on thee, father."
-Aelfric    [Remark in the_cleric_blesses]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Aelfric    [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Aldric     [Farewell in the_cleric_blesses]: "Pray for our harvest, father. Fair day."
 ```
 
@@ -887,19 +887,19 @@ Aldric     [Farewell in the_cleric_blesses]: "Pray for our harvest, father. Fair
 - **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 - **Backstory B:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 - **Relation:** Acquaintance
-- **Trees Cascade:** ["the_cleric_blesses", "hunger_lean_times"]
+- **Trees Cascade:** ["the_cleric_blesses", "morning_after_drunk"]
 - **Ending:** Farewell
 - **Turns Count:** 8
 
 ```text
-Aelfric    [Greet in the_cleric_blesses]: "Blessings on thee, Dagny."
+Aelfric    [Greet in the_cleric_blesses]: "Good morrow to thee, Dagny."
 Dagny      [Greet in the_cleric_blesses]: "Well met, friend, under the open sky."
-Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy daily labor, child?"
+Aelfric    [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Dagny      [Agree in the_cleric_blesses]: "We keep as best we can, father. The toil is hard."
-Aelfric    [Remark in hunger_lean_times ]: "The children went to sleep crying with empty bellies last night."
-Dagny      [Agree in hunger_lean_times ]: "Come by our hearth; there is pottage enough for two more bowls."
-Aelfric    [Remark in hunger_lean_times ]: "Hast thou a handful of barley meal to spare for the pot?"
-Dagny      [Farewell in hunger_lean_times ]: "The earth will feed us yet. Go gently, Aelfric."
+Aelfric    [Remark in morning_after_drunk]: "My purse is six silver pennies lighter than when dusk fell."
+Dagny      [Agree in morning_after_drunk]: "Aye, and the fiddler laughed so hard his bow went flying."
+Aelfric    [Remark in morning_after_drunk]: "The hours slip by as the sun climbs."
+Dagny      [Farewell in morning_after_drunk]: "No more brown ale for thee until Sunday! Fare well."
 ```
 
 ### Conversation #49: Aelfric and Eliza
@@ -912,9 +912,9 @@ Dagny      [Farewell in hunger_lean_times ]: "The earth will feed us yet. Go gen
 - **Turns Count:** 8
 
 ```text
-Aelfric    [Greet in the_cleric_blesses]: "God's grace light upon thy steps, Eliza."
+Aelfric    [Greet in the_cleric_blesses]: "Blessings on thee, Eliza."
 Eliza      [Greet in the_cleric_blesses]: "Blessings on thy holy house as well."
-Aelfric    [Remark in the_cleric_blesses]: "Good morrow, father - canst thou spare a moment for pastoral counsel?"
+Aelfric    [Remark in the_cleric_blesses]: "The hours slip by as the sun climbs."
 Eliza      [Agree in the_cleric_blesses]: "Aye, there is truth in what thou sayest."
 Aelfric    [Question in asking_the_father ]: "Must the tithe stand full when the granary is half empty, father?"
 Eliza      [Answer in asking_the_father ]: "We do what we can with the strength Heaven gives."
@@ -932,7 +932,7 @@ Eliza      [Farewell in asking_the_father ]: "Go in peace, Aelfric, and love thy
 - **Turns Count:** 4
 
 ```text
-Aelfric    [Greet in the_cleric_blesses]: "Blessings on thee, Eliza."
+Aelfric    [Greet in the_cleric_blesses]: "Good morrow to thee, Eliza."
 Eliza      [Greet in the_cleric_blesses]: "Peace be with thee, good priest."
 Aelfric    [Remark in the_cleric_blesses]: "How fares thy house in these lean weeks, child?"
 Eliza      [Farewell in the_cleric_blesses]: "I will see thee at the Sunday bell, father."

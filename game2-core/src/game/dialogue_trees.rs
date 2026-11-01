@@ -202,7 +202,7 @@ const SMALL_GREET: Exchange = Exchange {
 const SICK_THANKS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:sickness", "aid"],
-    calls: &["Thou'rt kind, {other}. The saints remember a neighborly hand.", "My thanks. A warm bowl does more than herbs.", "Bless thee for thinking of our small house.", "Does the fever ease when the sun warms the cottage?"],
+    calls: &["Thou'rt kind, {other}. The saints remember a neighborly hand.", "My thanks. A warm bowl does more than herbs.", "Bless thee for thinking of our small house.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -216,7 +216,7 @@ const SICK_THANKS: Exchange = Exchange {
 const SICK_STUNG: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:sickness"],
-    calls: &["It is not the black pestilence, keep thy wits about thee.", "As thou wilt, then - step wide if thou must.", "A little cough won't kill an honest worker.", "Does the fever ease when the sun warms the cottage?"],
+    calls: &["It is not the black pestilence, keep thy wits about thee.", "As thou wilt, then - step wide if thou must.", "A little cough won't kill an honest worker.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Kind, 1.5)],
@@ -348,7 +348,7 @@ const VISIT_CARE: Exchange = Exchange {
 const VISIT_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:sickness"],
-    calls: &["How dost thou fare today, {other}?", "I heard the sickness took thy household - how is it?", "Peace to this cottage, {other}. How goes the fever?", "Does the fever ease when the sun warms the cottage?"],
+    calls: &["How dost thou fare today, {other}?", "I heard the sickness took thy household - how is it?", "Peace to this cottage, {other}. How goes the fever?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -368,7 +368,7 @@ const VISIT_GREET: Exchange = Exchange {
 const GRIEF_CLOSE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief"],
-    calls: &["Thank thee for listening, {other} - it lightens the heart.", "It does a body good to speak his name aloud.", "The house feels less empty when a neighbor sits a spell.", "Does the quiet cottage weigh heavy upon thy spirit?"],
+    calls: &["Thank thee for listening, {other} - it lightens the heart.", "It does a body good to speak his name aloud.", "The house feels less empty when a neighbor sits a spell.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -382,7 +382,7 @@ const GRIEF_CLOSE: Exchange = Exchange {
 const GRIEF_ASK: Exchange = Exchange {
     act: Act::Answer,
     concepts: &["concern:grief", "aid"],
-    calls: &["A loaf of bread would not go amiss, {other}.", "A few split logs, if thou hast any seasoned oak.", "Someone to watch the sheep for an afternoon.", "Does the quiet cottage weigh heavy upon thy spirit?"],
+    calls: &["A loaf of bread would not go amiss, {other}.", "A few split logs, if thou hast any seasoned oak.", "Someone to watch the sheep for an afternoon.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -422,7 +422,7 @@ const GRIEF_OPENS: Exchange = Exchange {
 const GRIEF_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
-    calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "Does the quiet cottage weigh heavy upon thy spirit?"],
+    calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.40, bias: &[(Kind, 2.0), (Pious, 1.5)],
@@ -442,7 +442,7 @@ const GRIEF_GREET: Exchange = Exchange {
 const CONDOLE_OFFER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief", "aid"],
-    calls: &["If thou needest aught at all, say but the word.", "We have flour and eggs; let us share with thy house.", "My sons can plough thy furrow until thou'rt ready.", "Does the quiet cottage weigh heavy upon thy spirit?"],
+    calls: &["If thou needest aught at all, say but the word.", "We have flour and eggs; let us share with thy house.", "My sons can plough thy furrow until thou'rt ready.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -462,7 +462,7 @@ const CONDOLE_OFFER: Exchange = Exchange {
 const CONDOLE_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
-    calls: &["I was deeply grieved to hear of thy loss, {other}.", "The village stands beside thee in this dark trial.", "God's mercy comfort thee in thy sorrow, neighbor.", "Does the quiet cottage weigh heavy upon thy spirit?"],
+    calls: &["I was deeply grieved to hear of thy loss, {other}.", "The village stands beside thee in this dark trial.", "God's mercy comfort thee in thy sorrow, neighbor.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -482,7 +482,7 @@ const CONDOLE_GREET: Exchange = Exchange {
 const CLERIC_COMFORT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["The saints watch over thy cottage. I will come by with holy water and draughts.", "Rest by the hearth, child - I'll light a candle and pray for thy household.", "Cast thy burdens before the altar; the Lord does not forget the meek.", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["The saints watch over thy cottage. I will come by with holy water and draughts.", "Rest by the hearth, child - I'll light a candle and pray for thy household.", "Cast thy burdens before the altar; the Lord does not forget the meek.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -516,7 +516,7 @@ const CLERIC_PRAYER: Exchange = Exchange {
 const CLERIC_PARISH: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["How fares thy house in these lean weeks, child?", "Dost thou find peace in thy daily labor, child?", "Remember that honest work in the field is a holy prayer.", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["How fares thy house in these lean weeks, child?", "Dost thou find peace in thy daily labor, child?", "Remember that honest work in the field is a holy prayer.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Pious, 1.5)],
@@ -536,7 +536,7 @@ const CLERIC_PARISH: Exchange = Exchange {
 const CLERIC_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:faith"],
-    calls: &["Blessings on thee, {other}.", "The peace of the saints be with thee, child.", "God's grace light upon thy steps, {other}.", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["Blessings on thee, {other}.", "The peace of the saints be with thee, child.", "God's grace light upon thy steps, {other}.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Pious, 2.0)],
@@ -568,7 +568,7 @@ const CLERIC_GREET: Exchange = Exchange {
 const FATHER_THANKS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["Thank thee, father - that lifts a great stone from my mind.", "Thy counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["Thank thee, father - that lifts a great stone from my mind.", "Thy counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -602,7 +602,7 @@ const FATHER_ASKS: Exchange = Exchange {
 const FATHER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:faith"],
-    calls: &["Good morrow, father.", "A word with thee, father, if thou canst spare a moment.", "Greetings, holy father - I seek thy pastoral ear.", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["Good morrow, father.", "A word with thee, father, if thou canst spare a moment.", "Greetings, holy father - I seek thy pastoral ear.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Kind, 1.3)],
@@ -622,7 +622,7 @@ const FATHER_GREET: Exchange = Exchange {
 const RIVAL_END: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["feud"],
-    calls: &["We are done here.", "I have looked upon thy face long enough.", "Take thy shadow off my land.", "Dost thou still claim the ditch on my side of the hedge?"],
+    calls: &["We are done here.", "I have looked upon thy face long enough.", "Take thy shadow off my land.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -636,7 +636,7 @@ const RIVAL_END: Exchange = Exchange {
 const RIVAL_BITE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["feud"],
-    calls: &["Make me.", "Come closer and say that to my beard.", "Thou'rt all mouth and no marrow.", "Dost thou still claim the ditch on my side of the hedge?"],
+    calls: &["Make me.", "Come closer and say that to my beard.", "Thou'rt all mouth and no marrow.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 0.80, bias: &[],
@@ -702,7 +702,7 @@ const RIVAL_GREET: Exchange = Exchange {
 const HUNGER_HOPE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:food"],
-    calls: &["If the rye crop ripens before the frost, we'll see another spring.", "They say the monastery may open its tithe barn if hunger deepens.", "We have boiled nettles and wild leeks before, and survived.", "Hast thou a handful of barley meal to spare for the pot?"],
+    calls: &["If the rye crop ripens before the frost, we'll see another spring.", "They say the monastery may open its tithe barn if hunger deepens.", "We have boiled nettles and wild leeks before, and survived.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -716,7 +716,7 @@ const HUNGER_HOPE: Exchange = Exchange {
 const HUNGER_SHARE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:food", "aid"],
-    calls: &["We boiled a pot of turnip tops and barley chaff this noon.", "My store bin has nothing but dust and two dried apples.", "The children went to sleep crying with empty bellies last night.", "Hast thou a handful of barley meal to spare for the pot?"],
+    calls: &["We boiled a pot of turnip tops and barley chaff this noon.", "My store bin has nothing but dust and two dried apples.", "The children went to sleep crying with empty bellies last night.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Kind, 2.0)],
@@ -736,7 +736,7 @@ const HUNGER_SHARE: Exchange = Exchange {
 const HUNGER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:food"],
-    calls: &["Good morrow, {other}. A hollow belly makes for a slow step.", "Well met, friend, though the times are thin and hard.", "Greetings, {other}. Hast thou found anything to put in the pot?", "Hast thou a handful of barley meal to spare for the pot?"],
+    calls: &["Good morrow, {other}. A hollow belly makes for a slow step.", "Well met, friend, though the times are thin and hard.", "Greetings, {other}. Hast thou found anything to put in the pot?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -756,7 +756,7 @@ const HUNGER_GREET: Exchange = Exchange {
 const COLD_FIRE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:fuel"],
-    calls: &["The kindling caught! Sweet smoke rises up the chimney at last.", "Blow on the embers gently - the dry twigs are taking flame.", "Ah, blessed warmth! My stiff fingers can move again.", "Can we gather dry brushwood together in the common woods?"],
+    calls: &["The kindling caught! Sweet smoke rises up the chimney at last.", "Blow on the embers gently - the dry twigs are taking flame.", "Ah, blessed warmth! My stiff fingers can move again.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -790,7 +790,7 @@ const COLD_GATHER: Exchange = Exchange {
 const COLD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:fuel"],
-    calls: &["Brrr! Good morrow, {other}. The rime frost is inside the thatch.", "Well met, neighbor. My breath freezes right before my nose.", "Greetings, {other}. The wind blows straight through the cottage wattles.", "Can we gather dry brushwood together in the common woods?"],
+    calls: &["Brrr! Good morrow, {other}. The rime frost is inside the thatch.", "Well met, neighbor. My breath freezes right before my nose.", "Greetings, {other}. The wind blows straight through the cottage wattles.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -898,7 +898,7 @@ const KIN_FAMILY: Exchange = Exchange {
 const KIN_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "family"],
-    calls: &["Well met, cousin {other}!", "Good morrow, kin! How fares the old cottage?", "Greetings, brother! It does my heart good to see thy face.", "How fares our sister's household down by the green?"],
+    calls: &["Well met, cousin {other}!", "Good morrow, kin! How fares the old cottage?", "Greetings, brother! It does my heart good to see thy face.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -918,7 +918,7 @@ const KIN_GREET: Exchange = Exchange {
 const FRIEND_PART: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["friendship"],
-    calls: &["A good friend is worth more than a pouch of silver.", "We have shared crusts and sweat for twenty years now.", "Thy word has never failed me, {other}.", "Dost thou remember the winter we hauled the great oak?"],
+    calls: &["A good friend is worth more than a pouch of silver.", "We have shared crusts and sweat for twenty years now.", "Thy word has never failed me, {other}.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -952,7 +952,7 @@ const FRIEND_TRUST: Exchange = Exchange {
 const FRIEND_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "friendship"],
-    calls: &["A hearty good morrow to thee, {other}!", "Well met, true friend! The sun shines brighter when thou'rt near.", "Greetings, old comrade! How goes the day's labor?", "Dost thou remember the winter we hauled the great oak?"],
+    calls: &["A hearty good morrow to thee, {other}!", "Well met, true friend! The sun shines brighter when thou'rt near.", "Greetings, old comrade! How goes the day's labor?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -972,7 +972,7 @@ const FRIEND_GREET: Exchange = Exchange {
 const STRANGER_PASS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["stranger"],
-    calls: &["Keep to the beaten track; the marshes to the east are treacherous.", "The alehouse by the bridge offers straw beds if thou hast coin.", "The parish watch keeps guard after the curfew bell.", "What brings thy footsteps into our quiet parish?"],
+    calls: &["Keep to the beaten track; the marshes to the east are treacherous.", "The alehouse by the bridge offers straw beds if thou hast coin.", "The parish watch keeps guard after the curfew bell.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1006,7 +1006,7 @@ const STRANGER_PATH: Exchange = Exchange {
 const STRANGER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "stranger"],
-    calls: &["Halt there, traveler. What brings thee through our parish?", "Good day, stranger. Thou'rt far from the king's highway.", "Peace be upon thy journey, traveler. Who art thou?", "What brings thy footsteps into our quiet parish?"],
+    calls: &["Halt there, traveler. What brings thee through our parish?", "Good day, stranger. Thou'rt far from the king's highway.", "Peace be upon thy journey, traveler. Who art thou?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1026,7 +1026,7 @@ const STRANGER_GREET: Exchange = Exchange {
 const SMITH_IRON: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:smith"],
-    calls: &["Good Spanish iron rings clear; bad slag thuds like lead.", "A hammer needs an eye that sees the bend before it strikes.", "The quench tub hisses when the blade has its proper temper.", "Is the hearth hot enough to weld the iron tyre?"],
+    calls: &["Good Spanish iron rings clear; bad slag thuds like lead.", "A hammer needs an eye that sees the bend before it strikes.", "The quench tub hisses when the blade has its proper temper.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1060,7 +1060,7 @@ const SMITH_WORK: Exchange = Exchange {
 const SMITH_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:smith"],
-    calls: &["Good morrow, smith! The sparks are flying bright today.", "Well met, master smith! The sound of thy forge wakes the village.", "Hail to the forge, {other}! Sweating by the bellows already?", "Is the hearth hot enough to weld the iron tyre?"],
+    calls: &["Good morrow, smith! The sparks are flying bright today.", "Well met, master smith! The sound of thy forge wakes the village.", "Hail to the forge, {other}! Sweating by the bellows already?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1080,7 +1080,7 @@ const SMITH_GREET: Exchange = Exchange {
 const MILLER_TOLL: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:miller"],
-    calls: &["One scoop in twenty is the customary multure, no more, no less.", "The millstones were freshly dressed with the chisel last Pentecost.", "Fine white flour for white loaves, coarse bran for the byre.", "Will the mill race freeze if the frost sharpens tonight?"],
+    calls: &["One scoop in twenty is the customary multure, no more, no less.", "The millstones were freshly dressed with the chisel last Pentecost.", "Fine white flour for white loaves, coarse bran for the byre.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1114,7 +1114,7 @@ const MILLER_GRIST: Exchange = Exchange {
 const MILLER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:miller"],
-    calls: &["Good morrow, miller! The roar of thy weir echoes down the valley.", "Well met, {other}! Flour dusts thy coat like fresh snow.", "Hail to the mill, {other}! Is the grist running smooth?", "Will the mill race freeze if the frost sharpens tonight?"],
+    calls: &["Good morrow, miller! The roar of thy weir echoes down the valley.", "Well met, {other}! Flour dusts thy coat like fresh snow.", "Hail to the mill, {other}! Is the grist running smooth?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1134,7 +1134,7 @@ const MILLER_GREET: Exchange = Exchange {
 const BAKER_CRUST: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:baker"],
-    calls: &["A well-swept oven floor gives the sweetest crust in the parish.", "Yeast from the brewer's ale makes the dough rise twice as high.", "Golden loaves on the wooden board - the glory of the harvest.", "Are the loaves golden brown on the oven bricks?"],
+    calls: &["A well-swept oven floor gives the sweetest crust in the parish.", "Yeast from the brewer's ale makes the dough rise twice as high.", "Golden loaves on the wooden board - the glory of the harvest.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1168,7 +1168,7 @@ const BAKER_BREAD: Exchange = Exchange {
 const BAKER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:baker"],
-    calls: &["Good morrow, baker! Thy chimney breathes the sweetest air in town.", "Well met, {other}! The smell of fresh crust drew me from the lane.", "Hail, master of the peel! Has the first batch risen?", "Are the loaves golden brown on the oven bricks?"],
+    calls: &["Good morrow, baker! Thy chimney breathes the sweetest air in town.", "Well met, {other}! The smell of fresh crust drew me from the lane.", "Hail, master of the peel! Has the first batch risen?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1188,7 +1188,7 @@ const BAKER_GREET: Exchange = Exchange {
 const WEAVER_CLOTH: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:weaver"],
-    calls: &["Tight warp and even weft make a cloth that sheds the rain.", "Madder root gives a brave red, but woad blues last thirty years.", "A warm woolen blanket keeps the winter chills from the cradle.", "How many yards of wool cloth come off the loom today?"],
+    calls: &["Tight warp and even weft make a cloth that sheds the rain.", "Madder root gives a brave red, but woad blues last thirty years.", "A warm woolen blanket keeps the winter chills from the cradle.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1222,7 +1222,7 @@ const WEAVER_FLEECE: Exchange = Exchange {
 const WEAVER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:weaver"],
-    calls: &["Good morrow, weaver! The click-clack of thy loom is steady today.", "Well met, {other}! Surrounded by skeins of dyed wool, I see.", "Hail to the loom, neighbor! How runs the shuttle this morning?", "How many yards of wool cloth come off the loom today?"],
+    calls: &["Good morrow, weaver! The click-clack of thy loom is steady today.", "Well met, {other}! Surrounded by skeins of dyed wool, I see.", "Hail to the loom, neighbor! How runs the shuttle this morning?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1242,7 +1242,7 @@ const WEAVER_GREET: Exchange = Exchange {
 const CARPENTER_PEGS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:carpenter"],
-    calls: &["Heart of oak and seasoned ash will outlast three generations.", "An auger hole drilled straight needs only a split hazel peg to hold.", "Cedar smells sweet in a chest, but elm makes the stoutest wheel hubs.", "Canst thou hew a sturdy axle-tree for my cart?"],
+    calls: &["Heart of oak and seasoned ash will outlast three generations.", "An auger hole drilled straight needs only a split hazel peg to hold.", "Cedar smells sweet in a chest, but elm makes the stoutest wheel hubs.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1276,7 +1276,7 @@ const CARPENTER_BEAMS: Exchange = Exchange {
 const CARPENTER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:carpenter"],
-    calls: &["Good morrow, carpenter! Shavings and sawdust fly thick today.", "Well met, {other}! The scent of fresh-cut pine is in the lane.", "Hail to the woodwright! Has the new timber arrived from the coppice?", "Canst thou hew a sturdy axle-tree for my cart?"],
+    calls: &["Good morrow, carpenter! Shavings and sawdust fly thick today.", "Well met, {other}! The scent of fresh-cut pine is in the lane.", "Hail to the woodwright! Has the new timber arrived from the coppice?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1296,7 +1296,7 @@ const CARPENTER_GREET: Exchange = Exchange {
 const MASON_LIME: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:mason"],
-    calls: &["Hot slaked lime and sharp sand bond tighter than the quarry itself.", "A drystone foundation keeps the rot out of the lowest timbers.", "Granite breaks the chisel, but limestone yields to an honest stroke.", "Will the limestone mortar hold against the river damp?"],
+    calls: &["Hot slaked lime and sharp sand bond tighter than the quarry itself.", "A drystone foundation keeps the rot out of the lowest timbers.", "Granite breaks the chisel, but limestone yields to an honest stroke.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1330,7 +1330,7 @@ const MASON_WALL: Exchange = Exchange {
 const MASON_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:mason"],
-    calls: &["Good morrow, mason! The ringing of thy hammer on stone echoes far.", "Well met, {other}! White rock dust on thy leather apron.", "Hail to the stone-cutter! Setting foundations today?", "Will the limestone mortar hold against the river damp?"],
+    calls: &["Good morrow, mason! The ringing of thy hammer on stone echoes far.", "Well met, {other}! White rock dust on thy leather apron.", "Hail to the stone-cutter! Setting foundations today?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1350,7 +1350,7 @@ const MASON_GREET: Exchange = Exchange {
 const SHEPHERD_PASTURE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:shepherd"],
-    calls: &["The upland turf is sweet and short; the ewes grow fat on it.", "The sheepfold dung will enrich the barley fields when autumn comes.", "A good dog is worth three hired hands on the open hills.", "Did the herd dog drive the stray lambs from the briars?"],
+    calls: &["The upland turf is sweet and short; the ewes grow fat on it.", "The sheepfold dung will enrich the barley fields when autumn comes.", "A good dog is worth three hired hands on the open hills.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1384,7 +1384,7 @@ const SHEPHERD_EWES: Exchange = Exchange {
 const SHEPHERD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:shepherd"],
-    calls: &["Good morrow, shepherd! Bleating ewes fill the morning air.", "Well met, {other}! Cloaked in wool and leaning on thy crook.", "Hail, drover of the flock! How fare the sheep on the commons?", "Did the herd dog drive the stray lambs from the briars?"],
+    calls: &["Good morrow, shepherd! Bleating ewes fill the morning air.", "Well met, {other}! Cloaked in wool and leaning on thy crook.", "Hail, drover of the flock! How fare the sheep on the commons?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1404,7 +1404,7 @@ const SHEPHERD_GREET: Exchange = Exchange {
 const BREWER_CUP: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:brewer"],
-    calls: &["Clear spring water and sound malt make an ale fit for a baron.", "An ale-stake hung with green boughs means a fresh barrel is tapped.", "A tankard at sundown washes the harvest dust from the throat.", "Has the barley mash cooled enough to pitch the yeast?"],
+    calls: &["Clear spring water and sound malt make an ale fit for a baron.", "An ale-stake hung with green boughs means a fresh barrel is tapped.", "A tankard at sundown washes the harvest dust from the throat.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1438,7 +1438,7 @@ const BREWER_MASH: Exchange = Exchange {
 const BREWER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:brewer"],
-    calls: &["Good morrow, brewer! Warm steam rises over thy brew-house.", "Well met, {other}! The rich scent of mash drifts through the lane.", "Hail to the tapster! Tapping a fresh barrel this morning?", "Has the barley mash cooled enough to pitch the yeast?"],
+    calls: &["Good morrow, brewer! Warm steam rises over thy brew-house.", "Well met, {other}! The rich scent of mash drifts through the lane.", "Hail to the tapster! Tapping a fresh barrel this morning?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1458,7 +1458,7 @@ const BREWER_GREET: Exchange = Exchange {
 const BEEKEEPER_SWARM: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:beekeeper"],
-    calls: &["Sweet yellow wax makes the church tapers that burn without smoke.", "The clover blossoms give the clearest honey in the valley.", "Bees love a quiet tongue and a gentle step among the skeps.", "Are the worker bees flying strong to the heather hills?"],
+    calls: &["Sweet yellow wax makes the church tapers that burn without smoke.", "The clover blossoms give the clearest honey in the valley.", "Bees love a quiet tongue and a gentle step among the skeps.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1492,7 +1492,7 @@ const BEEKEEPER_HONEY: Exchange = Exchange {
 const BEEKEEPER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:beekeeper"],
-    calls: &["Good morrow, beekeeper! The apiary hums like an organ in the sunshine.", "Well met, {other}! Straw skeps standing tidy in the garden rows.", "Hail, master of the hives! Smoking the bees this morning?", "Are the worker bees flying strong to the heather hills?"],
+    calls: &["Good morrow, beekeeper! The apiary hums like an organ in the sunshine.", "Well met, {other}! Straw skeps standing tidy in the garden rows.", "Hail, master of the hives! Smoking the bees this morning?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1512,7 +1512,7 @@ const BEEKEEPER_GREET: Exchange = Exchange {
 const HERB_SALVE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:herb_wife"],
-    calls: &["Dried elder flowers and mint leaves keep the ague away in winter.", "Yarrow leaves stop a blood-cut faster than cobwebs.", "The roots must be gathered in the dark of the moon for full virtue.", "What root will soothe a racking cough in the chest?"],
+    calls: &["Dried elder flowers and mint leaves keep the ague away in winter.", "Yarrow leaves stop a blood-cut faster than cobwebs.", "The roots must be gathered in the dark of the moon for full virtue.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1546,7 +1546,7 @@ const HERB_DRAUGHT: Exchange = Exchange {
 const HERB_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:herb_wife"],
-    calls: &["Good morrow, wise woman {other}! Bunches of herbs hang drying everywhere.", "Well met, herb-wife! Thy basket is full of green leaves from the fen.", "Hail, healer of the sick! Gathering roots in the dew?", "What root will soothe a racking cough in the chest?"],
+    calls: &["Good morrow, wise woman {other}! Bunches of herbs hang drying everywhere.", "Well met, herb-wife! Thy basket is full of green leaves from the fen.", "Hail, healer of the sick! Gathering roots in the dew?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1566,7 +1566,7 @@ const HERB_GREET: Exchange = Exchange {
 const MERCHANT_BARTER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:merchant"],
-    calls: &["A good trade leaves both men smiling when hands are struck.", "Silver coin or salted hams - sound goods are always welcome.", "The road is long, but fair trade makes every mile worthwhile.", "What exchange dost thou ask for a bag of sea salt?"],
+    calls: &["A good trade leaves both men smiling when hands are struck.", "Silver coin or salted hams - sound goods are always welcome.", "The road is long, but fair trade makes every mile worthwhile.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1600,7 +1600,7 @@ const MERCHANT_WARES: Exchange = Exchange {
 const MERCHANT_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:merchant"],
-    calls: &["Good morrow, trader! Thy pack mules are laden heavy from the highway.", "Well met, merchant! What exotic wares bringest thou to our valley?", "Hail to the traveling merchant! How stood the roads through the forest?", "What exchange dost thou ask for a bag of sea salt?"],
+    calls: &["Good morrow, trader! Thy pack mules are laden heavy from the highway.", "Well met, merchant! What exotic wares bringest thou to our valley?", "Hail to the traveling merchant! How stood the roads through the forest?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1620,7 +1620,7 @@ const MERCHANT_GREET: Exchange = Exchange {
 const LORD_PETITION: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:rents"],
-    calls: &["The manor must maintain the bridge if the peasants are to bring in the harvest.", "A good lord shears his sheep but does not flay the skin.", "The court rolls show every customary right since the grandfather's time.", "Will the lord's bailiff hear our plea concerning the hail damage?"],
+    calls: &["The manor must maintain the bridge if the peasants are to bring in the harvest.", "A good lord shears his sheep but does not flay the skin.", "The court rolls show every customary right since the grandfather's time.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1654,7 +1654,7 @@ const LORD_LEASES: Exchange = Exchange {
 const LORD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:rents"],
-    calls: &["Good morrow to the manor's steward. We come on village business.", "Well met, sir. We seek speech concerning the leases and tallies.", "Greetings, lord's man. The tenants have gathered to speak.", "Will the lord's bailiff hear our plea concerning the hail damage?"],
+    calls: &["Good morrow to the manor's steward. We come on village business.", "Well met, sir. We seek speech concerning the leases and tallies.", "Greetings, lord's man. The tenants have gathered to speak.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1674,7 +1674,7 @@ const LORD_GREET: Exchange = Exchange {
 const FISHER_NETS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:fisher"],
-    calls: &["Trout leap in the shallows when the evening mayflies hatch.", "Wicker eel pots set in the weir reeds yield a fat catch by dawn.", "A fisherman knows every deep hole and eddy between here and the bridge.", "Did the willow fish-pots take any eels at the weir?"],
+    calls: &["Trout leap in the shallows when the evening mayflies hatch.", "Wicker eel pots set in the weir reeds yield a fat catch by dawn.", "A fisherman knows every deep hole and eddy between here and the bridge.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1708,7 +1708,7 @@ const FISHER_CURRENT: Exchange = Exchange {
 const FISHER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:fisher"],
-    calls: &["Good morrow, riverman! Thy boots are wet to the knee.", "Well met, {other}! Mending thy linen gill-nets on the bank?", "Hail, fisher of the weir! Any fish in the basket today?", "Did the willow fish-pots take any eels at the weir?"],
+    calls: &["Good morrow, riverman! Thy boots are wet to the knee.", "Well met, {other}! Mending thy linen gill-nets on the bank?", "Hail, fisher of the weir! Any fish in the basket today?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1728,7 +1728,7 @@ const FISHER_GREET: Exchange = Exchange {
 const CHARCOAL_COALS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:charcoal"],
-    calls: &["Slow heat with no open flame turns dense oak into pure black coal.", "Black dust in the beard and lungs, but the smith's forge cannot live without us.", "A charcoal stack needs watching through three nights of vigil.", "How burns the earth-covered pit mound in the clearing?"],
+    calls: &["Slow heat with no open flame turns dense oak into pure black coal.", "Black dust in the beard and lungs, but the smith's forge cannot live without us.", "A charcoal stack needs watching through three nights of vigil.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1762,7 +1762,7 @@ const CHARCOAL_SMOKE: Exchange = Exchange {
 const CHARCOAL_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:charcoal"],
-    calls: &["Good morrow, charcoal burner! Smoke drifts thick from the deep wood.", "Well met, {other}! Black as an imp from tending the pits.", "Hail, master of the kiln! How burns the timber mound?", "How burns the earth-covered pit mound in the clearing?"],
+    calls: &["Good morrow, charcoal burner! Smoke drifts thick from the deep wood.", "Well met, {other}! Black as an imp from tending the pits.", "Hail, master of the kiln! How burns the timber mound?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1782,7 +1782,7 @@ const CHARCOAL_GREET: Exchange = Exchange {
 const ELDER_BLESS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["elder"],
-    calls: &["Lords come and go, but the plough and the furrow remain.", "Listen to the land; it was here before us and will keep our graves.", "Kindness to thy neighbor is the best hedge against misfortune.", "Dost thou recall how the great freeze broke forty years ago?"],
+    calls: &["Lords come and go, but the plough and the furrow remain.", "Listen to the land; it was here before us and will keep our graves.", "Kindness to thy neighbor is the best hedge against misfortune.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1816,7 +1816,7 @@ const ELDER_WINTERS: Exchange = Exchange {
 const ELDER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "elder"],
-    calls: &["Good morrow to thee, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm thy joints?", "Greetings, mother of the village! How fares thy health today?", "Dost thou recall how the great freeze broke forty years ago?"],
+    calls: &["Good morrow to thee, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm thy joints?", "Greetings, mother of the village! How fares thy health today?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1836,7 +1836,7 @@ const ELDER_GREET: Exchange = Exchange {
 const NEWBORN_GIFT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["family"],
-    calls: &["May the little one grow tall as an ash and hardy as an oak.", "A baby's cry in the cottage banishes the winter gloom.", "The parish grows by another soul; blessed be the hearth.", "How fares our sister's household down by the green?"],
+    calls: &["May the little one grow tall as an ash and hardy as an oak.", "A baby's cry in the cottage banishes the winter gloom.", "The parish grows by another soul; blessed be the hearth.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1870,7 +1870,7 @@ const NEWBORN_JOY: Exchange = Exchange {
 const NEWBORN_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "family"],
-    calls: &["Joy to thy household, {other}! I heard a newborn babe has arrived!", "Good morrow, new mother! How fares the precious child?", "Blessings on the cradle, {other}! What a joyous day for our lane!", "How fares our sister's household down by the green?"],
+    calls: &["Joy to thy household, {other}! I heard a newborn babe has arrived!", "Good morrow, new mother! How fares the precious child?", "Blessings on the cradle, {other}! What a joyous day for our lane!", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -2134,27 +2134,27 @@ const MEET_FUEL: &[MeetingLine] = &[
 
 const MEET_GRIEF: &[MeetingLine] = &[
     MeetingLine {
-        act: Act::Remark, concepts: &["concern:grief"], bias: &[],
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
         lines: &["We buried two souls this season; the churchyard grows crowded."],
     },
     MeetingLine {
-        act: Act::Remark, concepts: &["concern:grief"], bias: &[],
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
         lines: &["The sorrow in our cottages weighs heavier than the taxes."],
     },
     MeetingLine {
-        act: Act::Remark, concepts: &["concern:grief"], bias: &[],
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
         lines: &["A grieving house should be supported with food and wood by neighbors."],
     },
     MeetingLine {
-        act: Act::Remark, concepts: &["concern:grief"], bias: &[],
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
         lines: &["Let the parish pray together for those who have gone before us."],
     },
     MeetingLine {
-        act: Act::Remark, concepts: &["concern:grief"], bias: &[],
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
         lines: &["The tolling bell reminds every family that life is fragile."],
     },
     MeetingLine {
-        act: Act::Remark, concepts: &["concern:grief"], bias: &[],
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
         lines: &["When a hearth is left cold by death, we must rekindle hope together."],
     },
 ];
@@ -2266,11 +2266,11 @@ const MEET_COMMONS: &[MeetingLine] = &[
 
 const MEET_COMMON: &[MeetingLine] = &[
     MeetingLine {
-        act: Act::Agree, concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons"], bias: &[],
+        act: Act::Agree, concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons", "concern:grief"], bias: &[],
         lines: &["Aye, there is the truth of it.", "{other} has the right of it.", "It is so - my house has felt the same.", "Well spoken, neighbor; we stand with thee."],
     },
     MeetingLine {
-        act: Act::PushBack, concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons"], bias: &[],
+        act: Act::PushBack, concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest", "concern:fuel", "concern:bridge", "concern:commons", "concern:grief"], bias: &[],
         lines: &["Talk is cheap - who will lift a hand to do aught about it?", "And what wouldst thou have the village do, {other}?", "We have argued this before and accomplished nothing."],
     },
     MeetingLine {
@@ -2284,6 +2284,10 @@ const MEET_COMMON: &[MeetingLine] = &[
     MeetingLine {
         act: Act::Remark, concepts: &["concern:fuel"], bias: &[],
         lines: &["Cold stones freeze the spirit; we must gather kindling together.", "The common wood has brushwood enough for all if shared."],
+    },
+    MeetingLine {
+        act: Act::Remark, concepts: &["concern:grief", "concern:sickness"], bias: &[],
+        lines: &["The parish mourns with those who have lost kin.", "A neighbor's visit and warm broth bring comfort to an empty room."],
     },
 ];
 
@@ -2310,7 +2314,7 @@ pub fn meeting_pool(speaker: &Speaker) -> Vec<MeetingLine> {
 /// A worked-example agenda for a house meeting
 pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {
     text: "What ails the village most, friends? Speak true.",
-    concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons"],
+    concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons", "concern:grief"],
 };
 
 /// The full dialogue library: 30 circumstance and vocation trees plus smalltalk tail
@@ -2330,11 +2334,11 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &FATHER_GREET, rejoin: Some(&FATHER_ASKS) },
         DialogueTree { name: "old_scores", criteria: &[Has("pair:relation:rival")],
             root: &RIVAL_GREET, rejoin: Some(&RIVAL_SNIPE) },
-        DialogueTree { name: "hunger_lean_times", criteria: &[Has("any:status:hungry")],
+        DialogueTree { name: "hunger_lean_times", criteria: &[Has("self:status:hungry")],
             root: &HUNGER_GREET, rejoin: Some(&HUNGER_SHARE) },
-        DialogueTree { name: "cold_hearth_fuel", criteria: &[Has("any:status:cold")],
+        DialogueTree { name: "cold_hearth_fuel", criteria: &[Has("self:status:cold")],
             root: &COLD_GREET, rejoin: Some(&COLD_GATHER) },
-        DialogueTree { name: "morning_after_drunk", criteria: &[Has("any:status:drunk")],
+        DialogueTree { name: "morning_after_drunk", criteria: &[Has("self:status:drunk")],
             root: &DRUNK_GREET, rejoin: Some(&DRUNK_RECALL) },
         DialogueTree { name: "kin_warmth", criteria: &[Has("pair:relation:kin")],
             root: &KIN_GREET, rejoin: Some(&KIN_FAMILY) },
@@ -2342,37 +2346,37 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &FRIEND_GREET, rejoin: Some(&FRIEND_TRUST) },
         DialogueTree { name: "stranger_road", criteria: &[Has("pair:relation:stranger")],
             root: &STRANGER_GREET, rejoin: Some(&STRANGER_PATH) },
-        DialogueTree { name: "smith_forge", criteria: &[Has("any:status:smith")],
+        DialogueTree { name: "smith_forge", criteria: &[Has("other:status:smith")],
             root: &SMITH_GREET, rejoin: Some(&SMITH_WORK) },
-        DialogueTree { name: "miller_grain", criteria: &[Has("any:status:miller")],
+        DialogueTree { name: "miller_grain", criteria: &[Has("other:status:miller")],
             root: &MILLER_GREET, rejoin: Some(&MILLER_GRIST) },
-        DialogueTree { name: "baker_hearth", criteria: &[Has("any:status:baker")],
+        DialogueTree { name: "baker_hearth", criteria: &[Has("other:status:baker")],
             root: &BAKER_GREET, rejoin: Some(&BAKER_BREAD) },
-        DialogueTree { name: "weaver_wool", criteria: &[Has("any:status:weaver")],
+        DialogueTree { name: "weaver_wool", criteria: &[Has("other:status:weaver")],
             root: &WEAVER_GREET, rejoin: Some(&WEAVER_FLEECE) },
-        DialogueTree { name: "carpenter_wood", criteria: &[Has("any:status:carpenter")],
+        DialogueTree { name: "carpenter_wood", criteria: &[Has("other:status:carpenter")],
             root: &CARPENTER_GREET, rejoin: Some(&CARPENTER_BEAMS) },
-        DialogueTree { name: "mason_stone", criteria: &[Has("any:status:mason")],
+        DialogueTree { name: "mason_stone", criteria: &[Has("other:status:mason")],
             root: &MASON_GREET, rejoin: Some(&MASON_WALL) },
-        DialogueTree { name: "shepherd_fold", criteria: &[Has("any:status:shepherd")],
+        DialogueTree { name: "shepherd_fold", criteria: &[Has("other:status:shepherd")],
             root: &SHEPHERD_GREET, rejoin: Some(&SHEPHERD_EWES) },
-        DialogueTree { name: "brewer_ale", criteria: &[Has("any:status:brewer")],
+        DialogueTree { name: "brewer_ale", criteria: &[Has("other:status:brewer")],
             root: &BREWER_GREET, rejoin: Some(&BREWER_MASH) },
-        DialogueTree { name: "beekeeper_hive", criteria: &[Has("any:status:beekeeper")],
+        DialogueTree { name: "beekeeper_hive", criteria: &[Has("other:status:beekeeper")],
             root: &BEEKEEPER_GREET, rejoin: Some(&BEEKEEPER_HONEY) },
-        DialogueTree { name: "herb_apothecary", criteria: &[Has("any:status:herb_wife")],
+        DialogueTree { name: "herb_apothecary", criteria: &[Has("other:status:herb_wife")],
             root: &HERB_GREET, rejoin: Some(&HERB_DRAUGHT) },
-        DialogueTree { name: "merchant_trade", criteria: &[Has("any:ideology:merchant")],
+        DialogueTree { name: "merchant_trade", criteria: &[Has("other:ideology:merchant")],
             root: &MERCHANT_GREET, rejoin: Some(&MERCHANT_WARES) },
-        DialogueTree { name: "lord_manor", criteria: &[Has("any:ideology:lord")],
+        DialogueTree { name: "lord_manor", criteria: &[Has("other:ideology:lord")],
             root: &LORD_GREET, rejoin: Some(&LORD_LEASES) },
-        DialogueTree { name: "fisher_river", criteria: &[Has("any:status:fisher")],
+        DialogueTree { name: "fisher_river", criteria: &[Has("other:status:fisher")],
             root: &FISHER_GREET, rejoin: Some(&FISHER_CURRENT) },
-        DialogueTree { name: "charcoal_pit", criteria: &[Has("any:status:charcoal_burner")],
+        DialogueTree { name: "charcoal_pit", criteria: &[Has("other:status:charcoal_burner")],
             root: &CHARCOAL_GREET, rejoin: Some(&CHARCOAL_SMOKE) },
-        DialogueTree { name: "elder_wisdom", criteria: &[Has("any:status:elder")],
+        DialogueTree { name: "elder_wisdom", criteria: &[Has("self:status:elder")],
             root: &ELDER_GREET, rejoin: Some(&ELDER_WINTERS) },
-        DialogueTree { name: "newborn_cradle", criteria: &[Has("any:status:newborn")],
+        DialogueTree { name: "newborn_cradle", criteria: &[Has("self:status:newborn")],
             root: &NEWBORN_GREET, rejoin: Some(&NEWBORN_JOY) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },

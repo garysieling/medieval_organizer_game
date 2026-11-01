@@ -891,4 +891,31 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_house_meeting_grief_participates_after_question_pull() {
+        let organizer = Speaker::new("Reeve");
+        let a = Speaker::new("Eliza");
+        let mut b = Speaker::new("Bram");
+        b.status.push("grieving");
+        let pool_a = meeting_pool(&a);
+        let pool_b = meeting_pool(&b);
+        let pools: Vec<&[MeetingLine]> = vec![&pool_a, &pool_b];
+        let attendees = [&a, &b];
+
+        let mut saw_grief_after_q = false;
+        for seed in 0..50 {
+            let mut rng = Rng::new(seed);
+            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
+            // Check if any statement with index >= 3 (after initial answers) contains concern:grief
+            for stmt in statements.iter().skip(3) {
+                if stmt.concepts.contains(&"concern:grief") {
+                    saw_grief_after_q = true;
+                    break;
+                }
+            }
+            if saw_grief_after_q { break; }
+        }
+        assert!(saw_grief_after_q, "Grieving attendee must be able to contribute concern:grief after question pull");
+    }
 }

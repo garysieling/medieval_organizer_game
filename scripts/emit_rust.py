@@ -315,30 +315,30 @@ def augment_exchange(ex):
 
     # Ensure calls has at least 4 lines with contextual matching
     if len(calls) < 4:
-        added = CONTEXT_CALLS.get(c_topic)
-        if added:
-            for l in added:
-                if l not in calls and len(calls) < 4:
-                    calls.append(l)
-        if len(calls) < 4:
-            if ex["act"] == "Question":
+        if ex["act"] == "Question":
+            added = CONTEXT_CALLS.get(c_topic)
+            if added:
+                for l in added:
+                    if l not in calls and len(calls) < 4:
+                        calls.append(l)
+            if len(calls) < 4:
                 calls.extend([
                     "How dost thou find the road today, {other}?",
                     "What news dost thou bring from the parish lane?",
                     "Dost thou think the weather will hold for our chores?",
                 ])
-            elif ex["act"] == "Greet":
-                calls.extend([
-                    "Good morrow to thee, {other}.",
-                    "Well met on this lane, neighbor.",
-                    "A peaceful day to thee, {other}.",
-                ])
-            else:
-                calls.extend([
-                    "The hours slip by as the sun climbs.",
-                    "A good day's toil makes the evening bread sweet.",
-                    "We do what we must while daylight lasts.",
-                ])
+        elif ex["act"] == "Greet":
+            calls.extend([
+                "Good morrow to thee, {other}.",
+                "Well met on this lane, neighbor.",
+                "A peaceful day to thee, {other}.",
+            ])
+        else:
+            calls.extend([
+                "The hours slip by as the sun climbs.",
+                "A good day's toil makes the evening bread sweet.",
+                "We do what we must while daylight lasts.",
+            ])
     calls = calls[:5]
     ex["calls"] = calls
 

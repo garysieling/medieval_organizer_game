@@ -433,6 +433,26 @@ impl Game {
             EventId::StrayCat => {
                 self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
             }
+            EventId::ProdigalSon => {
+                if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
+                // the fatted calf: a rolled home feasts him home, and
+                // the tales start before the soup's even cold
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                        .unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                    for &o in self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                        if villager::is_dead(&self.world, o) { continue; }
+                        desires::satisfy(&mut self.world, o, Want::Joy, self.tick + 30);
+                    }
+                }
+                self.log.push(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick));
+                self.toasts.push(("A prodigal returns".into(), self.tick + 40));
+            }
             EventId::KnifeGrinder => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
                 self.log.push(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name));
@@ -1902,19 +1922,25 @@ impl Game {
                 }
             }
             EventId::ProdigalSon => {
-                // the road glitters in his tales: a pair of listeners a
-                // day feel its pull while he stays
-                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
-                    .unwrap_or(tick);
+                // the tales are the talk of the street: a pair of
+                // listeners a day get the lift of it, and they talk
+                // it over between themselves
                 let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
                     !villager::is_dead(&self.world, v)
                         && !crate::game::dungeon::unavailable(&self.world, v)).collect();
                 let roll = self.rare_roll(id);
                 if !able.is_empty() {
                     let off = (roll as usize / 3) % able.len();
+                    let mut pair: Vec<Entity> = vec![];
                     for i in 0..able.len().min(2) {
                         let v = able[(off + i) % able.len()];
-                        desires::add_grievance(&mut self.world, v, desires::Problem::Tempted, until);
+                        desires::satisfy(&mut self.world, v, Want::Joy, tick + 10);
+                        pair.push(v);
+                    }
+                    if pair.len() == 2 {
+                        use crate::game::relationships::{Interaction, InteractionKind};
+                        crate::game::relationships::record_interaction(&mut self.world, pair[0],
+                            Interaction { other: pair[1], kind: InteractionKind::Conversation, intensity: 0.3 });
                     }
                 }
             }
@@ -2024,25 +2050,6 @@ impl Game {
             EventId::BerryYear => {
                 self.log.push(format!("t{}: a berry year - the hedges are black with them, and the kids' mouths are stained already.", self.tick));
                 self.toasts.push(("A berry year".into(), self.tick + 40));
-            }
-            EventId::ProdigalSon => {
-                // the fatted calf: a rolled home feasts him home, and
-                // the tales start before the soup's even cold
-                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
-                    self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.kind == household::BuildingKind::Home
-                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
-                        .unwrap_or(false)).collect();
-                let roll = self.rare_roll(id);
-                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
-                    for &o in self.world.get_component::<household::Building>(h)
-                        .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
-                        if villager::is_dead(&self.world, o) { continue; }
-                        desires::satisfy(&mut self.world, o, Want::Joy, self.tick + 30);
-                    }
-                }
-                self.log.push(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick));
-                self.toasts.push(("A prodigal returns".into(), self.tick + 40));
             }
             EventId::FouledWell => {
                 self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
@@ -5529,10 +5536,8 @@ mod tests {
             g.force_event(EventId::ProdigalSon);
             for _ in 0..40 { g.advance_rare(); if g.rare.iter().any(|r| r.id == EventId::ProdigalSon && r.until.is_some()) { break; } }
             stage::run_days(&mut g, 2);
-            let tempted = g.villagers.iter().any(|&v| g.world.get_component::<desires::InnerLife>(v)
-                .map(|l| l.grievances.iter().any(|(p, u)| *p == desires::Problem::Tempted && g.tick <= *u))
-                .unwrap_or(false));
-            assert!(tempted || g.villagers.is_empty(), "the road glittered on {:?}", st);
+            let lifted = g.villagers.iter().any(|&v| desires::is_satisfied(&g.world, v, Want::Joy, g.tick));
+            assert!(lifted || g.villagers.is_empty(), "the tales lifted them on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("prodigal")), "the return was told on {:?}", st);
         }
     }

@@ -6117,8 +6117,13 @@ impl Game {
             let (stepx, stepy) = if d <= stride { (nx, ny) } else { (p.x + dx / d * stride, p.y + dy / d * stride) };
             // never step somewhere they can't stand: a wall in the way
             // aborts the errand rather than leaving them walking into it
-            // (and starving on the spot) forever
-            if !self.map.passable(stepx.round() as i32, stepy.round() as i32) { t.path.clear(); continue; }
+            // (and starving on the spot) forever - an exile aborting at
+            // the rocks still takes the road, else he stands banished
+            // and breathing at the border until hunger does it
+            if !self.map.passable(stepx.round() as i32, stepy.round() as i32) {
+                if matches!(t.goal, Goal::Exile) { arrived.push((t.who, t.goal.clone())); }
+                t.path.clear(); continue;
+            }
             p.x = stepx; p.y = stepy;
             let nt = (p.x.round() as i32, p.y.round() as i32);
             if nt != ot {
@@ -6623,10 +6628,11 @@ impl Game {
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
             // hunger comes first: a starving person abandons any errand
             // to look for food - even one already under way. And looking
-            // means walking: the store has the day's meal
+            // means walking: the store has the day's meal - except the
+            // exile's road, which no belly's free to abandon
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
             if hungry {
-                self.travels.retain(|t| t.who != v);
+                self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::Exile));
                 let at_store = self.world.get_component::<Pos>(self.market_food)
                     .zip(self.world.get_component::<Pos>(v))
                     .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
@@ -9065,8 +9071,12 @@ mod stay_home_tests {
             // the roster grows: births and newcomers take index 32, 33...
             run.resize(game.villagers.len(), 0);
             for (i, v) in game.villagers.iter().enumerate() {
-                // the dead lie where they fell - a grave isn't a stray
+                // the dead lie where they fell - a grave isn't a stray;
+                // and the held are at the castle, not wandering - hauled
+                // off mid-errand they stand where they were taken, but
+                // they're in custody, not adrift
                 if villager::is_dead(&game.world, *v) { run[i] = 0; continue; }
+                if crate::game::dungeon::unavailable(&game.world, *v) { run[i] = 0; continue; }
                 if game.travels.iter().any(|t| t.who == *v)
                     || game.world.get_component::<OddJob>(*v).is_some()
                     || Some(*v) == game.collector { run[i] = 0; continue; }

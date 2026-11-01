@@ -748,6 +748,38 @@ Condensed per-stream log; full per-source ratings live in each review's Key Sour
 
 ---
 
+### Game AI / Interactive Narrative — Dialogue Systems (2026-11-01)
+
+#### Ruskin - "Rule Databases for Contextual Dialogue and Game Logic" (GDC 2012)
+**Type:** Industry Talk (Valve)
+**Domain:** Game AI, Dialogue
+**Rating:** B (industry, shipped at scale in Left 4 Dead 2 / DOTA 2)
+**Relevance:** Criteria-matched response rules; most-criteria-wins specificity ordering; generic rules as fallback
+**Used In:** dialogue-systems.md; conversation.rs specificity cascade
+
+#### Mateas & Stern - Façade architecture (CMU-CS-02-198; AIIDE 2005; TIDSE 2003)
+**Type:** Academic Papers
+**Domain:** Interactive Drama, Game AI
+**Rating:** A
+**Relevance:** Beats + joint dialog behaviors; drama management; discourse acts (respond to the act, not the words)
+**Used In:** dialogue-systems.md; conversation.rs Act enum + meeting threading
+
+#### McCoy, Treanor, Samuel et al. - Comme il Faut / Prom Week (T-CIAIG 2014; FDG 2011; AIIDE 2013)
+**Type:** Academic Papers
+**Domain:** Social Simulation, Game AI
+**Rating:** A
+**Relevance:** Social exchanges; ~5000 social considerations weight (not gate) actions from traits/status/relationships; separate act/accept evaluation
+**Used In:** dialogue-systems.md; conversation.rs trait_bias weighting
+
+#### Evans & Short - Versu (2014)
+**Type:** Academic/Industry (published system + write-ups)
+**Domain:** Interactive Narrative
+**Rating:** B
+**Relevance:** Quips with prerequisites and once-only exclusivity; pooled authored content, procedural selection
+**Used In:** dialogue-systems.md; conversation.rs used-line exclusivity -> smalltalk exhaustion ending
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

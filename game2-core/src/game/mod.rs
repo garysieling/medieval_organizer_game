@@ -34,3 +34,5 @@ pub mod org_skills;
 pub mod actions;
 pub mod reactions;
 pub mod dungeon;
+pub mod conversation;
+pub mod dialogue_trees;

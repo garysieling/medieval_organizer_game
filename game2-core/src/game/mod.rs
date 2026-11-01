@@ -18,6 +18,7 @@ pub mod traits;
 pub mod feuds;
 pub mod music;
 pub mod terrain;
+pub mod landforms;
 pub mod tilemap;
 pub mod pets;
 pub mod herbology;

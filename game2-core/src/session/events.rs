@@ -1988,9 +1988,16 @@ impl Game {
                         && self.world.get_component::<crate::game::vocation::Kid>(v).is_some()).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&k) = kids.get((roll as usize / 5) % kids.len().max(1)) {
-                    // her roster index rides in aux for the homecoming
-                    let idx = self.villagers.iter().position(|v| *v == k).unwrap_or(0) as u64;
-                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = idx + 1; }
+                    // the kid herself rides in aux - a roster shift can't
+                    // send the wrong one home
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = k as u64 + 1; }
+                    // she's gone: walked to the wood's edge while the
+                    // village searches
+                    let wood = self.mush_patches.first().map(|p| p.tile).unwrap_or((2, 2));
+                    if let Some(p) = self.world.get_component_mut::<Pos>(k) {
+                        p.x = wood.0 as f32;
+                        p.y = wood.1 as f32;
+                    }
                     let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
                         .unwrap_or(self.tick + 2 * 80);
                     if let Some(hh) = household::home_of(&self.world, k) {
@@ -2507,22 +2514,34 @@ impl Game {
             EventId::LostChild => {
                 // she turns up at the wood's edge, hungry and sorry:
                 // the house's worry lifts and her belly's the worse for it
-                let idx = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0);
-                let k = if idx > 0 { self.villagers.get((idx - 1) as usize).copied() } else { None };
+                let eid = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0);
+                let k = if eid > 0 { Some((eid - 1) as Entity) } else { None };
+                let k = k.filter(|k| self.villagers.contains(k));
                 if let Some(k) = k {
-                    if let Some(h) = self.world.get_component_mut::<Health>(k) {
-                        if h.condition > 0.05 {
-                            h.condition = (h.condition - 0.05).max(0.05);
+                    if villager::is_dead(&self.world, k) {
+                        // the search found her too late - no homecoming to give
+                        self.log.push(format!("t{}: they found her at the wood's edge, but the dark had kept her.", tick));
+                    } else {
+                        if let Some(h) = self.world.get_component_mut::<Health>(k) {
+                            if h.condition > 0.05 {
+                                h.condition = (h.condition - 0.05).max(0.05);
+                            }
                         }
-                    }
-                    if let Some(hh) = household::home_of(&self.world, k) {
-                        for &o in self.world.get_component::<household::Building>(hh)
-                            .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
-                            if o == k || villager::is_dead(&self.world, o) { continue; }
-                            desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
+                        // she walks back in the door she left
+                        if let Some(hh) = household::home_of(&self.world, k) {
+                            let home_tile = self.world.get_component::<Pos>(hh).copied();
+                            if let (Some(p), Some(ht)) = (self.world.get_component_mut::<Pos>(k), home_tile) {
+                                p.x = ht.x;
+                                p.y = ht.y;
+                            }
+                            for &o in self.world.get_component::<household::Building>(hh)
+                                .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                                if o == k || villager::is_dead(&self.world, o) { continue; }
+                                desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
+                            }
                         }
+                        self.log.push(format!("t{}: she's come out of the wood, hungry and sorry - a night in the dark is the end of it.", tick));
                     }
-                    self.log.push(format!("t{}: she's come out of the wood, hungry and sorry - a night in the dark is the end of it.", tick));
                 } else {
                     self.log.push(format!("t{}: the late one came home at last.", tick));
                 }

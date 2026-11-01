@@ -85,8 +85,17 @@ pub fn add_relationship(world: &mut World, r: Relationship) -> Entity {
     let key = pair_key(r.from, r.other);
     world.add_component(e, r);
     // the earliest bond keeps the pair's slot - the scan order always
-    // favoured the first record made, so the index does too
-    world.resource_or_default::<RelIndex>().by_pair.entry(key).or_insert(e);
+    // favoured the first record made, so the index does too. A handmade
+    // bond added bare (unindexed) still counts: without the scan below a
+    // later indexed bond would shadow an earlier one and find_relationship
+    // would read a different kind and strength than it used to
+    let mut lowest = e;
+    world.iter::<Relationship>(|o, rr| {
+        if o != e && pair_key(rr.from, rr.other) == key && o < lowest { lowest = o; }
+    });
+    world.resource_or_default::<RelIndex>().by_pair.entry(key)
+        .and_modify(|cur| { if lowest < *cur { *cur = lowest; } })
+        .or_insert(lowest);
     e
 }
 
@@ -309,6 +318,27 @@ mod tests {
         let r = world.get_component::<Relationship>(e).unwrap();
         assert!(r.strength > -0.3, "strength should have decayed back above the rivalry threshold");
         assert_ne!(r.kind, RelKind::Rival, "kind should be re-inferred once strength decays out of rivalry range");
+    }
+
+    #[test]
+    fn a_handmade_bond_keeps_its_place_when_a_bond_is_indexed_later() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        // a bond added bare - the index never sees it made
+        let early = world.create_entity();
+        world.add_component(early, Relationship {
+            from: a, other: b, kind: RelKind::Family, strength: 0.8, interactions: 0,
+        });
+        // then an indexed bond lands on the same pair - a duplicate, the
+        // way a second Family or a stray record can be
+        let later = add_relationship(&mut world, Relationship {
+            from: b, other: a, kind: RelKind::Acquaintance, strength: 0.1, interactions: 1,
+        });
+        assert_eq!(find_relationship(&world, a, b), Some(early),
+            "the earliest record still wins the pair, indexed or not");
+        assert_eq!(find_relationship(&world, b, a), Some(early));
+        assert_ne!(later, early, "the new bond still exists, it just doesn't own the pair");
     }
 
     #[test]

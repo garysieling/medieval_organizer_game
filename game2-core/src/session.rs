@@ -1713,6 +1713,10 @@ pub struct Game {
     pub paused: bool,
     pub speed: u32,   // 1=normal 2=fast 4=turbo
     pub log: Vec<String>,
+    /// Lines trimmed off the log's front so far - a cursor into "every
+    /// line ever pushed" is `log_dropped + index into log`, so readers
+    /// that pace the log (the balance harness) survive a trim
+    pub log_dropped: usize,
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     pub meeting: Option<Meeting>,
@@ -2669,6 +2673,7 @@ impl Game {
             speed: 1,
             log: vec!["Welcome to the village.".into(),
                 format!("The village keeps {}.", vocation::trade_name(drink_voc))],
+            log_dropped: 0,
             bubbles: vec![],
             meeting: None,
             near: vec![],
@@ -3064,10 +3069,10 @@ impl Game {
         // villagers separate if too close (no clustering). Positions and
         // who-may-yield are snapshotted once for the whole pair pass - the
         // roster keeps every grave, so per-pair component lookups grew
-        // quadratically over a long game. A push is a fraction of a tile
-        // per frame, so deciding off frame-start positions drifts nothing
-        // the eye can see.
-        let pos_now: Vec<Option<Pos>> = villagers.iter().map(|v| world.get_component::<Pos>(*v).copied()).collect();
+        // quadratically over a long game. Pushes write back into the
+        // snapshot too, so later pairs read exactly what the old per-pair
+        // lookups would have - the pass is faster, not different.
+        let mut pos_now: Vec<Option<Pos>> = villagers.iter().map(|v| world.get_component::<Pos>(*v).copied()).collect();
         let yields: Vec<bool> = villagers.iter().map(|v| makes_room(world, *v)).collect();
         for i in 0..villagers.len() {
             for j in (i+1)..villagers.len() {
@@ -3086,9 +3091,11 @@ impl Game {
                     // the store pushed each other out of reach and starved
                     if yields[i] {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
+                        if let Some(p) = &mut pos_now[i] { p.x -= nx; p.y -= ny; }
                     }
                     if yields[j] {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
+                        if let Some(p) = &mut pos_now[j] { p.x += nx; p.y += ny; }
                     }
                 }
             }
@@ -3331,7 +3338,9 @@ impl Game {
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);
         // the log is a rolling window - the oldest lines drop in blocks
         if self.log.len() > LOG_MAX {
-            self.log.drain(..self.log.len() - LOG_TRIM_TO);
+            let dropped = self.log.len() - LOG_TRIM_TO;
+            self.log.drain(..dropped);
+            self.log_dropped += dropped;
         }
         // movement is still processed while paused, but relationships and
         // last_chat shouldn't change while the day isn't advancing
@@ -11966,6 +11975,8 @@ mod log_priority_tests {
             "the log keeps only its recent window: {}", game.log.len());
         assert_eq!(game.log.last().unwrap(), &format!("t{}: a line", LOG_MAX + 5000),
             "and what it keeps is the newest end");
+        assert_eq!(game.log_dropped + game.log.len(), LOG_MAX + 5000 + 2,
+            "dropped + kept accounts for every line written");
     }
 }
 

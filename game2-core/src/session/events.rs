@@ -2109,6 +2109,22 @@ impl Game {
                 }
                 self.toasts.push(("A bee tree".into(), self.tick + 40));
             }
+            EventId::DeerInFields => {
+                // a doe at dawn: she grazes one bed down to the stalks,
+                // and the folk stand at the hedge to watch her all the
+                // same - the lord's deer, best left alone
+                let roll = self.rare_roll(id);
+                if !self.gardens.is_empty() {
+                    let gi = (roll as usize / 5) % self.gardens.len();
+                    self.gardens[gi].2 *= 0.5;
+                }
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 10);
+                }
+                self.log.push(format!("t{}: a deer in the fields - a doe at dawn, grazing the beds slow, and the folk watch from the hedge.", self.tick));
+                self.toasts.push(("A deer in the fields".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4520,6 +4536,22 @@ mod tests {
                     .and_then(|b| b.stock.get("honey").copied()).unwrap_or(0)).sum();
             assert!(honey1 > honey0 || g.building_entities.is_empty(), "the combs came back on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("bee tree")), "the find was told on {:?}", st);
+        }
+    }
+
+    /// A deer in the fields: she grazes a bed down and the folk watch
+    /// from the hedge all the same
+    #[test]
+    fn test_the_doe_at_dawn() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::DeerInFields);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the folk watched from the hedge on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("deer")), "the doe was told on {:?}", st);
         }
     }
 

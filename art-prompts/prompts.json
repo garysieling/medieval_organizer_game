@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 412,
-  "est_total_usd": 71.93
+  "count": 520,
+  "est_total_usd": 88.49
  },
  "prompts": [
   {
@@ -331,6 +331,1174 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
+  },
+  {
+   "id": "event-alehouse-brawl-93c2a390",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event alehouse brawl",
+   "prompt": "small game UI icon of two tankards clashing, spilled ale, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-assize-e947c98c",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event assize",
+   "prompt": "small game UI icon of weighing scales with a loaf and a tankard, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-aurora-26ad8ff2",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event aurora",
+   "prompt": "small game UI icon of green aurora ribbons over a village at night, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-blood-moon-933be15c",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event blood moon",
+   "prompt": "small game UI icon of large red moon over rooftops, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-cellar-thief-c53befce",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event cellar thief",
+   "prompt": "small game UI icon of dark figure slipping out of a cellar door with a sack, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-dark-noon-1a67a84e",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event dark noon",
+   "prompt": "small game UI icon of black disc of an eclipse over a pale sky, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-drought-b56bee44",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event drought",
+   "prompt": "small game UI icon of cracked dry earth under a pale sun, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-first-snow-acd8aa20",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event first snow",
+   "prompt": "small game UI icon of first thin snowflakes over a cottage, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-flood-c05a7fca",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event flood",
+   "prompt": "small game UI icon of brown river water risen over a bank, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-foundling-icn-b425f819",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event foundling icn",
+   "prompt": "small game UI icon of basket with a swaddled bundle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-hailstorm-480c176f",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event hailstorm",
+   "prompt": "small game UI icon of white hailstones bouncing off a roof, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-heat-wave-9572e189",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event heat wave",
+   "prompt": "small game UI icon of shimmering heat lines over dry crops, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-indian-summer-99a3c218",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event indian summer",
+   "prompt": "small game UI icon of golden warm haze over autumn fields, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-late-frost-04a5d118",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event late frost",
+   "prompt": "small game UI icon of white frost on a green sprout, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-lightning-717fe433",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event lightning",
+   "prompt": "small game UI icon of a single lightning bolt striking a field, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-lost-child-icn-6cabe3bc",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event lost child icn",
+   "prompt": "small game UI icon of small empty shoe beside a path, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-meteor-shower-2155f2df",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event meteor shower",
+   "prompt": "small game UI icon of streaking meteors in a night sky, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-mirage-544deb21",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event mirage",
+   "prompt": "small game UI icon of shimmering false city on the horizon, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-quarrel-icn-0f42edb5",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event quarrel icn",
+   "prompt": "small game UI icon of two raised fists face to face, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-thaw-03f09edb",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event thaw",
+   "prompt": "small game UI icon of dripping icicle melting into a puddle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-thief-icn-3efd606e",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event thief icn",
+   "prompt": "small game UI icon of shadowed hand lifting a jar, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "event-windstorm-418a5877",
+   "tier": "p0",
+   "group": "events/icons",
+   "title": "event windstorm",
+   "prompt": "small game UI icon of bent trees and flying thatch in wind, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "person-alchemist-bef87a38",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person alchemist",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: alchemist in a stained robe, odd vials at his belt",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-astrologer-afc40fb9",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person astrologer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: astrologer with a star chart and brass astrolabe",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-ballad-monger-3360c29b",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person ballad monger",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: ballad-monger holding up printed broadside sheets",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-barber-surgeon-df1f165e",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person barber surgeon",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: barber-surgeon with basin and fleam, rolled sleeves",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-bear-ward-1e856d2c",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person bear ward",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: bear-ward leading a muzzled brown bear on a rope",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-bookseller-f8a14b40",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person bookseller",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: bookseller with a tray of small bound volumes",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-candle-maker-1ed97164",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person candle maker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: candle-maker carrying a dipper frame hung with candles",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-charcoal-burner-7a809ad9",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person charcoal burner",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: charcoal-burner in a soot-stained smock, coal bag",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-cheese-monger-471640e6",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person cheese monger",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: cheese-monger carrying a whole round cheese",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-chimney-sweep-147c0c45",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person chimney sweep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: sooty chimney sweep with brush and rods",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-corn-factor-74c9d07f",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person corn factor",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: corn-factor with a grain measure and a tally stick",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-deserter-5a915a3a",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person deserter",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: ragged deserter, half-worn soldier's coat, wary look",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-dowser-b7a4c6e8",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person dowser",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: water-diviner with a forked hazel wand held out before him",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-drover-d88e9e19",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person drover",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: drover with a long stick guiding a knot of sheep",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-eggler-fff186f1",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person eggler",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: eggler with a basket of eggs and a butter crock",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-farrier-15211a23",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person farrier",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: farrier with a hoof pick and a horseshoe held high",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-fish-hawker-c6f39d13",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person fish hawker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: fish-hawker with a creel basket of silver fish",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-fortune-teller-3871e5b8",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person fortune teller",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: fortune-teller in bright shawls, palm held out",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-friar-05090490",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person friar",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: wandering friar in a brown habit, bare feet",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-glazier-825c4950",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person glazier",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: glazier carrying a leaded glass pane and a glass-cutter",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-horse-coper-f589dd8a",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person horse coper",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: horse-coper holding a halter, appraising look",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-juggler-648c61fc",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person juggler",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: juggler tossing three knives, one foot up",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-knife-grinder-c2e64688",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person knife grinder",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: knife-grinder at a foot-treadle grindstone, sparks",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-leper-band-ab5dbc5c",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person leper band",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: two hooded lepers with a clapper and begging bowl",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-lime-burner-3d6786db",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person lime burner",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: lime-burner with a grey dust coat and lime shovel",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-messenger-9de51221",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person messenger",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: messenger in a badge, letter held out before him",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-midwife-93716dbd",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person midwife",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: midwife with a basket of linen and herbs",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-news-crier-a3cdb92b",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person news crier",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town crier with a bell and a scroll",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-pardoner-458f75f1",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person pardoner",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: pardoner flourishing a sealed parchment indulgence",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-pilgrims-a85a2c1f",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person pilgrims",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: three weary pilgrims with staffs and scallop badges",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-potter-f5ae2bb4",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person potter",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling potter with a crate of crocks and jugs",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-prodigal-85c46ee5",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person prodigal",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travel-worn returned son, staff and a hopeful look",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-puppeteer-8e1164bd",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person puppeteer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: puppeteer beside a small striped puppet booth",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-quack-1eed98cf",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person quack",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: medicine-show quack holding a small bottled elixir",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-quiet-preacher-807ea247",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person quiet preacher",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: plain-clothed hedge preacher, hands open, no vestments",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-rag-and-bone-9a8f8269",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person rag and bone",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: rag-and-bone man with a sack of rags over his shoulder",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-rat-catcher-b5896b6b",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person rat catcher",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: rat-catcher with a terrier and a pole of dead rats",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-recruiter-e05e45f8",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person recruiter",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: recruiting sergeant in a sash, coin purse held out",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-refugee-family-840ef997",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person refugee family",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: refugee family: mother, father, two children, bundled goods",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-relic-seller-d365ff06",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person relic seller",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: relic-seller holding a tiny sealed reliquary box",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-salt-seller-45d3b501",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person salt seller",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: salt-seller with a sack and a cup of white salt",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-scribe-04af103c",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person scribe",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: itinerant scribe with a writing slope and quill case",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-sowgelder-d8c11272",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person sowgelder",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: pig man with a small knife roll and a patient air",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-spice-merchant-73b0d6e1",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person spice merchant",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: spice merchant with bright packets of pepper and cloves",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-tanner-10a4c752",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person tanner",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: tanner with rolled hides on his shoulder, stained apron",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-thatcher-18a5afa8",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person thatcher",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: thatcher with a bundle of reed and a leggett tool",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-tinker-4b896082",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person tinker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: itinerant tinker with a pack of kettles and pots on his back",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-tooth-drawer-0b1b80eb",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person tooth drawer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling tooth-drawer holding up iron pincers",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-well-digger-a2f0fdfc",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person well digger",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: well-digger with a shovel and rope over his shoulder",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-wine-merchant-78ca70b9",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person wine merchant",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: wine merchant with a small cask and a tasting cup",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-wool-merchant-cfd9d219",
+   "tier": "p0",
+   "group": "events/visitors",
+   "title": "person wool merchant",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: wool merchant in a good cloak, scale in hand",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
    "id": "icon-build-66e1be52",
@@ -3776,6 +4944,566 @@
    },
    "est_cost_usd": 0.06,
    "notes": "middle tier, same subject as the rd_pro cottages-set"
+  },
+  {
+   "id": "creature-barn-owl-370292b9",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature barn owl",
+   "prompt": "single isometric medieval village asset: white-faced barn owl perched on a roof beam",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-bear-ca84a91c",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature bear",
+   "prompt": "single isometric medieval village asset: large muzzled dancing bear on a rope",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-bee-swarm-177702e4",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature bee swarm",
+   "prompt": "single isometric medieval village asset: a swarm of bees around a hollow tree trunk",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-caterpillar-12ce0588",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature caterpillar",
+   "prompt": "single isometric medieval village asset: fat green caterpillar on a leaf",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-crow-mob-2ed76027",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature crow mob",
+   "prompt": "single isometric medieval village asset: a mob of crows settling on a field",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-deer-f8c2574a",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature deer",
+   "prompt": "single isometric medieval village asset: red deer doe grazing in a crop field",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-fox-2c3b295b",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature fox",
+   "prompt": "single isometric medieval village asset: red fox slinking near a hen run",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-hawk-b744f4d7",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature hawk",
+   "prompt": "single isometric medieval village asset: stooping hawk with wings tucked, mid-dive",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-leaping-fish-843be811",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature leaping fish",
+   "prompt": "single isometric medieval village asset: silver fish leaping in the shallows",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-locust-cloud-4dd62189",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature locust cloud",
+   "prompt": "single isometric medieval village asset: a dense cloud of locusts over a field",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-rat-swarm-5e3c0f7c",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature rat swarm",
+   "prompt": "single isometric medieval village asset: a mob of rats pouring across the ground",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-starling-flock-07340765",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature starling flock",
+   "prompt": "single isometric medieval village asset: a wheeling murmuration of starlings",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-truffle-pig-0bbf1e76",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature truffle pig",
+   "prompt": "single isometric medieval village asset: pig nosing the ground under an oak",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-wild-boar-9b0281f5",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature wild boar",
+   "prompt": "single isometric medieval village asset: wild boar rooting in a furrow",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "creature-wolf-5ced6e05",
+   "tier": "p1",
+   "group": "events/creatures",
+   "title": "creature wolf",
+   "prompt": "single isometric medieval village asset: grey wolf at a sheep pen, crouched",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-bee-tree-34b1891c",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop bee tree",
+   "prompt": "single isometric medieval village asset: hollow oak with bees at a knothole, honeycomb edge",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-berry-bush-5e26658a",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop berry bush",
+   "prompt": "single isometric medieval village asset: hedge bush heavy with dark berries",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-cart-overturned-c4cb62df",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop cart overturned",
+   "prompt": "single isometric medieval village asset: overturned handcart spilling sacks on a lane",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-chimney-fire-970adb03",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop chimney fire",
+   "prompt": "single isometric medieval village asset: cottage chimney with smoke and a lick of flame",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-coin-hoard-e85e92a7",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop coin hoard",
+   "prompt": "single isometric medieval village asset: half-buried clay pot spilling old silver coins",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-driftwood-b198f8cc",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop driftwood",
+   "prompt": "single isometric medieval village asset: driftwood, a broken barrel and rope on a river strand",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-drowned-pond-6b657733",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop drowned pond",
+   "prompt": "single isometric medieval village asset: village pond with a small ring of ripples and a dropped basket",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-fallen-oak-ebc01cad",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop fallen oak",
+   "prompt": "single isometric medieval village asset: giant old oak fallen across a lane, split trunk",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-fouled-well-94e47dad",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop fouled well",
+   "prompt": "single isometric medieval village asset: village well with green scum on the water",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-foundling-392f9353",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop foundling",
+   "prompt": "single isometric medieval village asset: wrapped infant in a basket on a church doorstep",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-granary-leak-80ff4545",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop granary leak",
+   "prompt": "single isometric medieval village asset: grain store with wet sacks and drips from the eaves",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-herb-clump-8d0fdd85",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop herb clump",
+   "prompt": "single isometric medieval village asset: clump of flowering medicinal herbs by a hedge",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-honey-tree-1005bf37",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop honey tree",
+   "prompt": "single isometric medieval village asset: tree hung with dripping wild honeycomb",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-lost-child-8ce6b3c2",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop lost child",
+   "prompt": "single isometric medieval village asset: small child's dropped toy at a wood's edge",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-mushroom-cluster-821374d1",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop mushroom cluster",
+   "prompt": "single isometric medieval village asset: cluster of wild mushrooms under a tree",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-old-stones-da323661",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop old stones",
+   "prompt": "single isometric medieval village asset: ancient dressed stones half-buried in a furrow",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-quarrel-c0db3dfa",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop quarrel",
+   "prompt": "single isometric medieval village asset: two villagers face to face, fists up, small crowd",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-spring-976657d8",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop spring",
+   "prompt": "single isometric medieval village asset: fresh spring bubbling up between rocks, clear water",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-storm-leavings-3cac0d57",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop storm leavings",
+   "prompt": "single isometric medieval village asset: scattered planks and a staved barrel after a storm",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "prop-truffle-fc7567c7",
+   "tier": "p1",
+   "group": "events/props",
+   "title": "prop truffle",
+   "prompt": "single isometric medieval village asset: black truffle in leaf litter, a hand reaching",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
   },
   {
    "id": "festival-autumn-equinox-b75eb313",

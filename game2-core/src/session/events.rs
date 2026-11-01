@@ -1760,6 +1760,17 @@ impl Game {
                     }
                 }
             }
+            EventId::DarkNoon => {
+                // the sun goes out at midday: the prayers go up through
+                // the dark, and the beds get no sun for the day
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, until);
+                }
+                for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.02).max(0.0); }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1834,6 +1845,10 @@ impl Game {
             EventId::BloodMoon => {
                 self.log.push(format!("t{}: a blood moon - the moon hangs red over the village, and the prayers go up.", self.tick));
                 self.toasts.push(("A blood moon".into(), self.tick + 40));
+            }
+            EventId::DarkNoon => {
+                self.log.push(format!("t{}: a dark noon - the sun goes out at midday, and the chickens go to roost.", self.tick));
+                self.toasts.push(("Dark noon".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -4061,6 +4076,25 @@ mod tests {
                 "the prayers went up on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::BloodMoon), "the moon's the moon again on {:?}", st);
+        }
+    }
+
+    /// A dark noon: the sun goes out at midday, the prayers go up and
+    /// the beds get no sun - one day, then the light's back
+    #[test]
+    fn test_the_sun_goes_out() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::DarkNoon);
+            assert!(g.rare.iter().any(|r| r.id == EventId::DarkNoon), "the day went dark");
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Faith, g.tick)),
+                "the prayers went up on {:?}", st);
+            stage::run_days(&mut g, 2);
+            assert!(g.rare.iter().all(|r| r.id != EventId::DarkNoon), "the light came back on {:?}", st);
         }
     }
 

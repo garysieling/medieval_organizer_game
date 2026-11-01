@@ -17,9 +17,20 @@ pub struct Imprisoned {
     pub charge: String,
 }
 
-/// Can't take part: dead or in the dungeon (the two ways off the rolls)
+/// Held at the castle on a writ: off the rolls while the org raises the
+/// ransom or the ladder climbs. Not an org cell - no guard tour frees
+/// them early, and the ransom walk home isn't the jailer's errand
+#[derive(Debug)]
+pub struct CastleHeld {
+    pub since: u64,
+}
+
+/// Can't take part: dead, in the dungeon, or held at the castle (the
+/// ways off the rolls)
 pub fn unavailable(world: &World, e: Entity) -> bool {
-    is_dead(world, e) || world.get_component::<Imprisoned>(e).is_some()
+    is_dead(world, e)
+        || world.get_component::<Imprisoned>(e).is_some()
+        || world.get_component::<CastleHeld>(e).is_some()
 }
 
 /// The crackdown takes the loudest one: after knights are posted, arrest

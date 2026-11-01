@@ -5046,8 +5046,12 @@ impl Game {
                         self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
                         for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
                         // taken to the castle - held, not gone: the org
-                        // ransoms them or the ladder climbs
+                        // ransoms them or the ladder climbs. Held while
+                        // the walk out lasts too - the errand they were
+                        // on is spent with the writ
                         self.dungeon.push((m, tick));
+                        self.world.add_component(m, crate::game::dungeon::CastleHeld { since: tick });
+                        self.travels.retain(|t| t.who != m);
                         self.send(m, Goal::Exile);
                     }
                 }
@@ -5108,11 +5112,16 @@ impl Game {
             self.dungeon.retain(|(e, _)| *e != who);
             let name = self.name_of(who);
             if ransomed {
+                self.world.remove_component::<crate::game::dungeon::CastleHeld>(who);
+                // the walk out is spent with the ransom - else the exile
+                // leg outruns the pardon and arrives a driving-out
+                self.travels.retain(|t| t.who != who);
                 self.log.push(format!("t{}: the org pays the ransom - {} walks home.", tick, name));
                 if let Some(home) = household::home_of(&self.world, who).or(Some(self.market_food)) {
                     self.send(who, Goal::HeadHome(home));
                 }
             } else {
+                self.world.remove_component::<crate::game::dungeon::CastleHeld>(who);
                 self.world.add_component(who, villager::Dead);
                 if let Some(i) = self.villagers.iter().position(|&x| x == who) {
                     self.died_on[i] = Some(tick);
@@ -11084,6 +11093,29 @@ mod dungeon_tests {
         assert!(g.log.iter().any(|l| l.contains("pays the ransom")));
         let res = g.world.get_component::<PlayerCharacter>(g.player).unwrap().resources;
         assert_eq!(res, 30.0, "the purse answers for its own");
+    }
+
+    #[test]
+    fn test_the_ransomed_dont_walk_off_the_world() {
+        let mut g = Game::new();
+        let m = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<TownRole>(v).is_none()).unwrap();
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
+        g.world.get_component_mut::<PlayerCharacter>(g.player).unwrap().resources = 50.0;
+        g.dungeon.push((m, 10));
+        g.world.add_component(m, crate::game::dungeon::CastleHeld { since: 10 });
+        assert!(g.send(m, Goal::Exile), "the writ marches them out");
+        // the ransom comes mid-march: the walk out is still live when the
+        // cell's paid - the exile leg can't arrive a driving-out
+        g.dungeon_tick(50);
+        assert!(!villager::is_dead(&g.world, m), "the ransomed live");
+        assert!(g.world.get_component::<crate::game::dungeon::CastleHeld>(m).is_none(),
+            "the castle lets go");
+        assert!(g.travels.iter().all(|t| t.who != m || !matches!(t.goal, Goal::Exile)),
+            "the walk out is spent");
+        // and the exile leg can't finish what the pardon stopped
+        g.advance_travels();
+        assert!(!villager::is_dead(&g.world, m), "the pardoned don't die at the edge");
     }
 
     #[test]

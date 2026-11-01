@@ -1483,20 +1483,40 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     if !near { continue; }
-                    let has_tallow = self.world.get_component::<household::Building>(h)
+                    let first_able = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)));
+                    let Some(o) = first_able else { continue };
+                    // wax bought, tallow taken: whatever fat's on their
+                    // shelf goes in his pot for a coin - most homes have
+                    // none, and then he just sells the light
+                    let tallow = self.world.get_component::<household::Building>(h)
                         .map(|b| *b.stock.get("tallow").unwrap_or(&0) > 0).unwrap_or(false);
-                    if !has_tallow { continue; }
-                    if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
-                        household::take_stock(b, "tallow", 1);
-                        household::add_stock(b, "candle", 2);
+                    let buyer = self.world.get_component::<Purse>(o)
+                        .map(|p| p.gold >= 1.0).unwrap_or(false);
+                    let mut done = false;
+                    if tallow {
+                        // the candles have to land before the tallow goes
+                        if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                            if household::add_stock(b, "candle", 2) > 0 {
+                                household::take_stock(b, "tallow", 1);
+                                done = true;
+                            }
+                        }
+                        if done {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold += 1.0; }
+                        }
+                    } else if buyer {
+                        // he dips his own wax and sells the light for a penny
+                        if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                            if household::add_stock(b, "candle", 2) > 0 { done = true; }
+                        }
+                        if done {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold -= 1.0; }
+                        }
                     }
-                    let first = self.world.get_component::<household::Building>(h)
-                        .and_then(|b| b.occupants.first().copied())
-                        .filter(|&o| !villager::is_dead(&self.world, o)
-                            && !crate::game::dungeon::unavailable(&self.world, o));
-                    if let Some(o) = first {
-                        if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold += 1.0; }
-                    }
+                    if !done { continue; }
                     for o in self.world.get_component::<household::Building>(h)
                         .map(|b| b.occupants.clone()).unwrap_or_default() {
                         if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }

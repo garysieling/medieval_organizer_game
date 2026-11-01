@@ -527,8 +527,8 @@ const QUIET_PULL: f32 = 0.6;
 /// answer to the open question, a response to the last speaker (agree or
 /// push back, by temperament), or a revival of an earlier statement that
 /// touches something they care about. Whoever spoke last sits the round
-/// out, and nobody answers their own words. Returns the full record,
-/// organizer's question included.
+/// out, nobody answers their own words, and nobody answers the same
+/// statement twice. Returns the full record, organizer's question included.
 pub fn run_meeting<'a>(
     organizer: &Speaker,
     attendees: &[&Speaker],
@@ -569,13 +569,15 @@ pub fn run_meeting<'a>(
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
                 if s.speaker == i { continue; } // nor revive your own words
+                // one say per statement: no agreeing with what you just pushed back on
+                if record.iter().any(|r| r.speaker == i && r.replying_to == Some(si)) { continue; }
                 let open_q = si == 0 && question_open;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
                     else { OLD_PULL };
                 for l in pool {
-                    // agreement answers a claim, not a question
-                    if l.act == Act::Agree && s.act == Act::Question { continue; }
+                    // agreement and retort answer a claim, not a question
+                    if matches!(l.act, Act::Agree | Act::PushBack) && s.act == Act::Question { continue; }
                     let overlap = l.concepts.iter().any(|c| s.concepts.contains(c));
                     if !overlap && !open_q { continue; }
                     // an open question invites any contribution, but lines
@@ -765,7 +767,7 @@ mod tests {
     }
 
     #[test]
-    fn test_meeting_never_answers_self_or_agrees_with_a_question() {
+    fn test_meeting_never_answers_self_twice_or_agrees_with_a_question() {
         for seed in 0..200 {
             let organizer = Speaker::new("Reeve");
             let mut a = Speaker::new("Eliza");
@@ -780,8 +782,54 @@ mod tests {
             for s in rec.iter().skip(1) {
                 let target = &rec[s.replying_to.unwrap()];
                 assert_ne!(target.speaker, s.speaker, "seed {}: answered own words: {:?}", seed, s.text);
-                assert!(!(s.act == Act::Agree && target.act == Act::Question),
-                    "seed {}: agreed with a question: {:?}", seed, s.text);
+                assert!(!(matches!(s.act, Act::Agree | Act::PushBack) && target.act == Act::Question),
+                    "seed {}: agreed or retorted to a question: {:?}", seed, s.text);
+            }
+            for (k, s) in rec.iter().enumerate().skip(1) {
+                assert!(!rec[1..k].iter().any(|o| o.speaker == s.speaker && o.replying_to == s.replying_to),
+                    "seed {}: answered the same statement twice: {:?}", seed, s.text);
+            }
+        }
+    }
+
+    #[test]
+    fn test_fall_through_never_greets_again() {
+        // Falling into a second tree joins it mid-talk - nobody says
+        // good morrow twice
+        let library = village_library();
+        let mut sick = Speaker::new("Hob");
+        sick.status.push("sick");
+        let mut priest = Speaker::new("Anselm");
+        priest.ideology = "clergy";
+        let mut mourner = Speaker::new("Gisela");
+        mourner.status.push("grieving");
+        let mut sick_priest = priest.clone();
+        sick_priest.status.push("sick");
+        let pairs = [(&sick, &priest), (&priest, &sick), (&sick, &mourner), (&priest, &mourner), (&sick_priest, &mourner)];
+        for rel in [Relation::Acquaintance, Relation::Rival] {
+            for (a, b) in pairs {
+                for seed in 0..100 {
+                    let tr = converse(a, b, rel, &library, &mut Rng::new(seed));
+                    for t in tr.turns.iter().skip(2) {
+                        assert_ne!(t.act, Act::Greet, "seed {}: {:?} greeted again: {:?}", seed, tr.trees_walked, t.text);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_father_answers_the_question_asked() {
+        let library = village_library();
+        let mut priest = Speaker::new("Anselm");
+        priest.ideology = "clergy";
+        let flock = Speaker::new("Bram");
+        for seed in 0..100 {
+            let tr = converse(&flock, &priest, Relation::Acquaintance, &library, &mut Rng::new(seed));
+            for w in tr.turns.windows(2) {
+                if w[0].act != Act::Question { continue; }
+                if w[0].text.contains("dead walk") { assert!(w[1].text.contains("dreams"), "seed {}: {:?}", seed, w[1].text); }
+                if w[0].text.contains("tithe") { assert!(w[1].text.contains("tithe"), "seed {}: {:?}", seed, w[1].text); }
             }
         }
     }

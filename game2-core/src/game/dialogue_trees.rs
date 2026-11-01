@@ -58,8 +58,8 @@ const SMALL_CHAT: Exchange = Exchange {
     concepts: &["smalltalk", "weather"],
     calls: &[
         "Looks like rain again, doesn't it?",
-        "Cold wind off the moor this morning.",
-        "They say the harvest'll be thin this year.",
+        "Sky's black over the moor - rain by noon, I'd say.",
+        "Smell that? There's rain coming.",
     ],
     replies: &[
         Reply {
@@ -319,20 +319,30 @@ const VISIT_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:sickness"],
     calls: &["How dost thou fare, {other}?", "I heard the sickness took thee - how is it?"],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.0, bias: &[],
-            act: Act::Answer, concepts: &["concern:sickness"],
-            lines: &["Poorly, if thou'lt have the truth.", "Weak as a kitten, but here I am."],
-            then: Some(VISIT_CARE), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.6, bias: &[(Proud, 2.0)],
-            act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["It'll pass. Don't fuss."],
-            then: Some(VISIT_CARE), end: None,
-        },
-    ],
+    replies: VISIT_ANSWERS,
+};
+
+const VISIT_ANSWERS: &[Reply] = &[
+    Reply {
+        criteria: &[], weight: 1.0, bias: &[],
+        act: Act::Answer, concepts: &["concern:sickness"],
+        lines: &["Poorly, if thou'lt have the truth.", "Weak as a kitten, but here I am."],
+        then: Some(VISIT_CARE), end: None,
+    },
+    Reply {
+        criteria: &[], weight: 0.6, bias: &[(Proud, 2.0)],
+        act: Act::PushBack, concepts: &["concern:sickness"],
+        lines: &["It'll pass. Don't fuss."],
+        then: Some(VISIT_CARE), end: None,
+    },
+];
+
+// Joined mid-talk: already greeted, so straight to the sickness
+const VISIT_REJOIN: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["concern:sickness"],
+    calls: &["But thy sickness, {other} - how is it, truly?", "And the cough - is it any better?"],
+    replies: VISIT_ANSWERS,
 };
 
 const VISIT_CARE: Exchange = Exchange {
@@ -380,26 +390,36 @@ const GRIEF_GREET: Exchange = Exchange {
         "{other}. Forgive me - the house is quiet since he passed.",
         "Morrow, {other}. It is a hard week.",
     ],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.4, bias: &[(Kind, 2.0), (Pious, 1.3)],
-            act: Act::Agree, concepts: &["concern:grief"],
-            lines: &["He was a good man. I'm sorry for it.", "The saints rest him."],
-            then: Some(GRIEF_OPENS), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.6, bias: &[],
-            act: Act::Remark, concepts: &["concern:grief"],
-            lines: &["I'm - I'm sorry. I've not the words."],
-            then: Some(GRIEF_OPENS), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.7, bias: &[(Kind, 1.3)],
-            act: Act::Question, concepts: &["concern:grief", "aid"],
-            lines: &["Is there aught thou needest fetched?"],
-            then: Some(GRIEF_ASK), end: None,
-        },
-    ],
+    replies: GRIEF_ANSWERS,
+};
+
+const GRIEF_ANSWERS: &[Reply] = &[
+    Reply {
+        criteria: &[], weight: 1.4, bias: &[(Kind, 2.0), (Pious, 1.3)],
+        act: Act::Agree, concepts: &["concern:grief"],
+        lines: &["He was a good man. I'm sorry for it.", "The saints rest him."],
+        then: Some(GRIEF_OPENS), end: None,
+    },
+    Reply {
+        criteria: &[], weight: 0.6, bias: &[],
+        act: Act::Remark, concepts: &["concern:grief"],
+        lines: &["I'm - I'm sorry. I've not the words."],
+        then: Some(GRIEF_OPENS), end: None,
+    },
+    Reply {
+        criteria: &[], weight: 0.7, bias: &[(Kind, 1.3)],
+        act: Act::Question, concepts: &["concern:grief", "aid"],
+        lines: &["Is there aught thou needest fetched?"],
+        then: Some(GRIEF_ASK), end: None,
+    },
+];
+
+// Joined mid-talk: no second good-morrow
+const GRIEF_REJOIN: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["concern:grief"],
+    calls: &["And the house is so quiet since he passed, {other}.", "It's been a hard week, {other}, since we buried him."],
+    replies: GRIEF_ANSWERS,
 };
 
 const GRIEF_OPENS: Exchange = Exchange {
@@ -460,20 +480,30 @@ const CONDOLE_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
     calls: &["I was sorry to hear of thy loss, {other}.", "The village grieves with thee."],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.0, bias: &[],
-            act: Act::Agree, concepts: &["concern:grief"],
-            lines: &["Thou'rt kind to say it.", "It means much, {other}."],
-            then: Some(CONDOLE_OFFER), end: None,
-        },
-        Reply {
-            criteria: &[], weight: 0.5, bias: &[(Proud, 2.0)],
-            act: Act::PushBack, concepts: &["concern:grief"],
-            lines: &["We manage."],
-            then: Some(CONDOLE_OFFER), end: None,
-        },
-    ],
+    replies: CONDOLE_ANSWERS,
+};
+
+const CONDOLE_ANSWERS: &[Reply] = &[
+    Reply {
+        criteria: &[], weight: 1.0, bias: &[],
+        act: Act::Agree, concepts: &["concern:grief"],
+        lines: &["Thou'rt kind to say it.", "It means much, {other}."],
+        then: Some(CONDOLE_OFFER), end: None,
+    },
+    Reply {
+        criteria: &[], weight: 0.5, bias: &[(Proud, 2.0)],
+        act: Act::PushBack, concepts: &["concern:grief"],
+        lines: &["We manage."],
+        then: Some(CONDOLE_OFFER), end: None,
+    },
+];
+
+// Joined mid-talk: no fresh greeting
+const CONDOLE_REJOIN: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["concern:grief"],
+    calls: &["I was sorry to hear of thy loss, {other}.", "And I'm sorry for thy loss, {other} - truly."],
+    replies: CONDOLE_ANSWERS,
 };
 
 const CONDOLE_OFFER: Exchange = Exchange {
@@ -589,25 +619,57 @@ const FATHER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:faith"],
     calls: &["Good morrow, father.", "A word with thee, father, if thou'lt spare it."],
-    replies: &[
-        Reply {
-            criteria: &[], weight: 1.0, bias: &[(Kind, 1.3)],
-            act: Act::Greet, concepts: &["concern:faith"],
-            lines: &["The saints keep thee, {other}. What is it?", "Always, child. Speak."],
-            then: Some(FATHER_ASKS), end: None,
-        },
-    ],
+    replies: FATHER_HEARS,
 };
 
-const FATHER_ASKS: Exchange = Exchange {
+// Which way the father bids them speak picks the question, so each
+// question meets its own answer
+const FATHER_HEARS: &[Reply] = &[
+    Reply {
+        criteria: &[], weight: 1.0, bias: &[(Kind, 1.3)],
+        act: Act::Answer, concepts: &["concern:faith"],
+        lines: &["The saints keep thee, {other}. What is it?"],
+        then: Some(FATHER_ASKS_DREAMS), end: None,
+    },
+    Reply {
+        criteria: &[], weight: 1.0, bias: &[(Kind, 1.3)],
+        act: Act::Answer, concepts: &["concern:faith"],
+        lines: &["Always, child. Speak."],
+        then: Some(FATHER_ASKS_TITHE), end: None,
+    },
+];
+
+// Joined mid-talk: no second good-morrow
+const FATHER_REJOIN: Exchange = Exchange {
     act: Act::Question,
     concepts: &["concern:faith"],
-    calls: &["Is it true the dead walk in dreams to warn us?", "Must the miller's tithe stand when the mill's half idle?"],
+    calls: &["While I have thee, father - a question.", "Father, might I ask thee something?"],
+    replies: FATHER_HEARS,
+};
+
+const FATHER_ASKS_DREAMS: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["concern:faith"],
+    calls: &["Is it true the dead walk in dreams to warn us?"],
     replies: &[
         Reply {
             criteria: &[], weight: 1.0, bias: &[],
             act: Act::Answer, concepts: &["concern:faith"],
-            lines: &["The dreams of the grieving are their own counsel, child.", "The tithe stands - but I'll speak for thee at the manor."],
+            lines: &["The dreams of the grieving are their own counsel, child."],
+            then: Some(FATHER_THANKS), end: None,
+        },
+    ],
+};
+
+const FATHER_ASKS_TITHE: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["concern:faith"],
+    calls: &["Must the miller's tithe stand when the mill's half idle?"],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:faith"],
+            lines: &["The tithe stands - but I'll speak for thee at the manor."],
             then: Some(FATHER_THANKS), end: None,
         },
     ],
@@ -722,17 +784,17 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: None },
         DialogueTree { name: "a_death_in_the_house", criteria: &[Has("self:status:grieving")],
-            root: &GRIEF_GREET, rejoin: None },
+            root: &GRIEF_GREET, rejoin: Some(&GRIEF_REJOIN) },
         DialogueTree { name: "the_cleric_blesses", criteria: &[Has("self:ideology:clergy")],
-            root: &CLERIC_GREET, rejoin: None },
+            root: &CLERIC_GREET, rejoin: Some(&CLERIC_PARISH) },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],
-            root: &VISIT_GREET, rejoin: None },
+            root: &VISIT_GREET, rejoin: Some(&VISIT_REJOIN) },
         DialogueTree { name: "condolence_call", criteria: &[Has("other:status:grieving")],
-            root: &CONDOLE_GREET, rejoin: None },
+            root: &CONDOLE_GREET, rejoin: Some(&CONDOLE_REJOIN) },
         DialogueTree { name: "asking_the_father", criteria: &[Has("other:ideology:clergy")],
-            root: &FATHER_GREET, rejoin: None },
+            root: &FATHER_GREET, rejoin: Some(&FATHER_REJOIN) },
         DialogueTree { name: "old_scores", criteria: &[Has("pair:relation:rival")],
-            root: &RIVAL_GREET, rejoin: None },
+            root: &RIVAL_GREET, rejoin: Some(&RIVAL_SNIPE) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },
     ]

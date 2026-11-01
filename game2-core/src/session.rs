@@ -4931,7 +4931,13 @@ impl Game {
                     .map(|b| b.occupants.iter().copied().find(|&o|
                         !villager::is_dead(&self.world, o)
                         && !crate::game::dungeon::unavailable(&self.world, o)
-                        && !self.travels.iter().any(|t| t.who == o)))
+                        && !self.travels.iter().any(|tr| tr.who == o)
+                        // only a hand close enough to reach the bed in a
+                        // short walk can be sent - else the errand dies
+                        // on send and the crop stands unharvested
+                        && self.world.get_component::<Pos>(o)
+                            .map(|p| (p.x.round() as i32 - t.0).abs() + (p.y.round() as i32 - t.1).abs() <= 16)
+                            .unwrap_or(false)))
                     .flatten();
                 occ.map(|o| (i, *t, o))
             }).collect();
@@ -4996,7 +5002,7 @@ impl Game {
                 .find(|&o| !villager::is_dead(&self.world, o)
                     && !crate::game::dungeon::unavailable(&self.world, o)
                     && hp.and_then(|hp| self.world.get_component::<Pos>(o)
-                        .map(|op| ((op.x - hp.x).abs() + (op.y - hp.y).abs()) <= 3.0)).unwrap_or(false)
+                        .map(|op| ((op.x - hp.x).abs() + (op.y - hp.y).abs()) <= 5.0)).unwrap_or(false)
                     && self.world.get_component::<Hunger>(o).map(|hu| hu.value < 40.0).unwrap_or(false)) {
                 let meal = crate::game::goods::slot_goods(crate::game::goods::Tag::StapleFood)
                     .into_iter().find(|&g| self.world.get_component::<Building>(h)

@@ -2469,6 +2469,17 @@ impl Game {
                 self.log.push(format!("t{}: old stones - the plow turned up someone's old work, and who laid them nobody knows.", self.tick));
                 self.toasts.push(("Old stones".into(), self.tick + 40));
             }
+            EventId::SpringBubbles => {
+                // new water: the pit's head rises where it's low - a
+                // spring can't flood a full pit, only feed a dry one
+                if self.land.pit_water < 0.5 {
+                    self.land.pit_water = (self.land.pit_water + 0.1).min(0.5);
+                }
+                // a spring doesn't trim a bed that's already run high
+                for g in self.gardens.iter_mut() { g.2 += 0.1; }
+                self.log.push(format!("t{}: a spring bubbles up - cold sweet water out of the ground where none ran before.", self.tick));
+                self.toasts.push(("A spring bubbles up".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5257,6 +5268,20 @@ mod tests {
                     .and_then(|s| s.goods.get("stone").copied()).unwrap_or(0)).sum();
             assert!(stone > 0 || g.villagers.is_empty(), "the stone went into hands on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("old stones")), "the find was told on {:?}", st);
+        }
+    }
+
+    /// A spring bubbles up: cold sweet water out of the ground - the
+    /// pit's head rises where it's low, and the beds drink
+    #[test]
+    fn test_cold_sweet_water() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.land.pit_water = 0.3;
+            g.force_event(EventId::SpringBubbles);
+            assert!(g.land.pit_water > 0.3, "the spring fed the water on {:?}", st);
+            assert!(g.land.pit_water <= 0.5, "the spring doesn't flood on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("spring")), "the water was told on {:?}", st);
         }
     }
 

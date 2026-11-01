@@ -1975,6 +1975,32 @@ impl Game {
                 }
                 self.toasts.push(("A fox in the yard!".into(), self.tick + 40));
             }
+            EventId::HawkStoops => {
+                // a hen gone off the green in daylight - the same take
+                // the fox night does, but the folk see the shadow fall
+                let hens_at = |w: &crate::engine::ecs::World, h|
+                    crate::game::livestock::flock(w, h).iter().any(|&a|
+                        w.get_component::<crate::game::livestock::Livestock>(a)
+                            .map(|l| l.kind == crate::game::livestock::LivestockKind::Hen).unwrap_or(false));
+                if self.hen_houses.iter().any(|&h| hens_at(&self.world, h)) {
+                    let h = *self.hen_houses.iter().find(|&&h| hens_at(&self.world, h)).unwrap();
+                    if let Some(&a) = crate::game::livestock::flock(&self.world, h).first() {
+                        self.world.destroy_entity(a);
+                        self.hens.retain(|&e| e != a);
+                        self.log.push(format!("t{}: a hawk stoops - a shadow falls on the green, and a hen's gone with it.", self.tick));
+                        // the folk see the shadow fall - the house grieves
+                        // her the same as the night's take
+                        if let Some(&occ) = self.world.get_component::<household::Building>(h)
+                            .and_then(|b| b.occupants.first()) {
+                            desires::add_grievance(&mut self.world, occ, desires::Problem::Loss, self.tick + 90);
+                            self.say(occ, "The hawk took her, clean off the green.", CHAT_BUBBLE_SECS);
+                        }
+                    }
+                } else {
+                    self.log.push(format!("t{}: a hawk stoops on the green - and finds the yard empty.", self.tick));
+                }
+                self.toasts.push(("A hawk stoops!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4215,6 +4241,19 @@ mod tests {
             g.force_event(EventId::FoxInYard);
             assert!(g.hens.len() <= hens0, "the yard's lighter on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("fox")), "the fox was told on {:?}", st);
+        }
+    }
+
+    /// A hawk stoops: a shadow falls on the green and a hen's gone
+    /// with it - or the yard's empty and it wheels off
+    #[test]
+    fn test_the_shadow_falls() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let hens0 = g.hens.len();
+            g.force_event(EventId::HawkStoops);
+            assert!(g.hens.len() <= hens0, "the yard's lighter on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("hawk")), "the stoop was told on {:?}", st);
         }
     }
 

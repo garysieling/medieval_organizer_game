@@ -1354,6 +1354,41 @@ impl Game {
                     dosed += 1;
                 }
             }
+            EventId::Midwife => {
+                // babies caught, mothers kept: a home with little ones
+                // gets her tending a day - the small one's stronger for
+                // her hands and the house feels the blessing
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut tended = 0;
+                for &v in &self.villagers.clone() {
+                    if tended >= 1 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let Some(h) = household::home_of(&self.world, v) else { continue };
+                    let near = self.world.get_component::<Pos>(h)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    let occ: Vec<Entity> = self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default();
+                    // she comes where there's a small one to tend - a
+                    // held child can't take her hands, and neither can a ghost
+                    let has_kid = occ.iter().any(|&o|
+                        self.world.get_component::<crate::game::vocation::Kid>(o).is_some()
+                            && !villager::is_dead(&self.world, o)
+                            && !crate::game::dungeon::unavailable(&self.world, o));
+                    if !has_kid { continue; }
+                    for o in occ {
+                        if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }
+                        if self.world.get_component::<crate::game::vocation::Kid>(o).is_some() {
+                            if let Some(hl) = self.world.get_component_mut::<Health>(o) {
+                                hl.condition = (hl.condition + 0.03).min(1.0);
+                            }
+                        }
+                        desires::satisfy(&mut self.world, o, Want::Joy, tick + 10);
+                    }
+                    tended += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3070,6 +3105,40 @@ mod tests {
             assert!(cond1 != cond0, "the bottle did something on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Quack), "his cart rolled on from {:?}", st);
+        }
+    }
+
+    /// Babies caught, mothers kept: a home with a small one gets her
+    /// tending - the frame shows her basket first
+    #[test]
+    fn test_the_blessing_on_the_house() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Midwife);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Midwife && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Midwife).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)
+                    && household::home_of(&g.world, v).is_some()).unwrap();
+            let h = household::home_of(&g.world, v).unwrap();
+            g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // a small one in the house for her to tend
+            let k = villager::spawn_villager(&mut g.world, at.0 as f32, at.1 as f32);
+            g.world.add_component(k, Health { condition: 0.5, immunity: 0.5 });
+            g.world.add_component(k, crate::game::vocation::Kid);
+            g.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(k);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the midwife")),
+                "the frame shows her basket on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Health>(k).map(|x| x.condition).unwrap_or(0.0) > 0.5,
+                "her hands helped the small one on {:?}", st);
+            stage::run_days(&mut g, 6);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Midwife), "she moved on from {:?}", st);
         }
     }
 

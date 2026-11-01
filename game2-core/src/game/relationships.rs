@@ -6,15 +6,15 @@ use std::collections::HashMap;
 
 /// Pair index: unordered entity pair -> the earliest Relationship
 /// entity between them. find_relationship consults it only while the
-/// index is provably complete: `bonds_indexed` counts every bond folded
-/// in, and once it trails the live component count a bare add_component
-/// has slipped a bond past the index - lookups then fall back to a scan
-/// and the next add_relationship rebuilds in one pass.
+/// index is provably complete: `rev` tracks the storage's own mutation
+/// revision, so any bond change the index didn't fold - a bare
+/// add_component, a removal - leaves it behind, and lookups fall back
+/// to a scan until the next indexed bond rebuilds it in one pass.
 #[derive(Default)]
 struct RelIndex {
     by_pair: HashMap<(Entity, Entity), Entity>,
-    /// Bonds folded into by_pair so far (== live count while complete)
-    bonds_indexed: usize,
+    /// World::mutation_rev::<Relationship> the index last folded through
+    rev: u64,
 }
 
 fn pair_key(a: Entity, b: Entity) -> (Entity, Entity) {
@@ -22,20 +22,19 @@ fn pair_key(a: Entity, b: Entity) -> (Entity, Entity) {
 }
 
 /// One pass over every live bond -> earliest entity per pair, marked
-/// complete. Runs when a bare add_component put bonds the index never
-/// saw into the world - rare outside hand-built test setups.
+/// complete. Runs when a bare component change put bonds the index
+/// never saw into the world - rare outside hand-built test setups.
 fn rebuild_index(world: &mut World) {
     let mut by_pair: HashMap<(Entity, Entity), Entity> = HashMap::new();
-    let mut n = 0usize;
     world.iter::<Relationship>(|e, r| {
-        n += 1;
         by_pair.entry(pair_key(r.from, r.other))
             .and_modify(|cur| { if e < *cur { *cur = e; } })
             .or_insert(e);
     });
+    let rev = world.mutation_rev::<Relationship>();
     let idx = world.resource_or_default::<RelIndex>();
     idx.by_pair = by_pair;
-    idx.bonds_indexed = n;
+    idx.rev = rev;
 }
 
 /// The lowest-id live Relationship matching `pred` - the answer a sorted
@@ -113,16 +112,16 @@ pub fn add_relationship(world: &mut World, r: Relationship) -> Entity {
     let e = world.create_entity();
     let key = pair_key(r.from, r.other);
     world.add_component(e, r);
-    let live = world.component_count::<Relationship>();
-    let indexed = world.resource::<RelIndex>().map(|i| i.bonds_indexed).unwrap_or(0);
-    if indexed + 1 == live {
+    let rev = world.mutation_rev::<Relationship>();
+    let indexed_rev = world.resource::<RelIndex>().map(|i| i.rev).unwrap_or(0);
+    if indexed_rev + 1 == rev {
         // the index was complete before this bond - fold it in. An
         // existing entry already holds the pair's earliest bond, and e
         // is the newest id, so or_insert keeps the ordering a sorted
         // scan always favoured
         let idx = world.resource_or_default::<RelIndex>();
         idx.by_pair.entry(key).or_insert(e);
-        idx.bonds_indexed = live;
+        idx.rev = rev;
     } else {
         // a bare add_component slipped bonds past the index - rebuild
         // once rather than scan per insert
@@ -165,7 +164,7 @@ pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<E
     if let Some(idx) = world.resource::<RelIndex>() {
         // a complete index answers in O(1); a stale one defers to the
         // scan, since an unindexed bond could predate any indexed entry
-        if idx.bonds_indexed == world.component_count::<Relationship>() {
+        if idx.rev == world.mutation_rev::<Relationship>() {
             return match idx.by_pair.get(&pair_key(from, other)) {
                 // the entry only counts if the entity still holds this
                 // bond - a destroyed relationship leaves a stale key
@@ -371,6 +370,31 @@ mod tests {
             "the earliest record still wins the pair, indexed or not");
         assert_eq!(find_relationship(&world, b, a), Some(early));
         assert_ne!(later, early, "the new bond still exists, it just doesn't own the pair");
+    }
+
+    #[test]
+    fn an_indexed_removal_and_a_bare_add_still_resolves() {
+        // remove an indexed bond and add a bare one elsewhere: coverage
+        // changed under the index - the bare bond can't go invisible
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let c = world.create_entity();
+        let d = world.create_entity();
+        let ab = add_relationship(&mut world, Relationship {
+            from: a, other: b, kind: RelKind::Friend, strength: 0.5, interactions: 3,
+        });
+        world.remove_component::<Relationship>(ab);
+        let cd = world.create_entity();
+        world.add_component(cd, Relationship {
+            from: c, other: d, kind: RelKind::Friend, strength: 0.9, interactions: 9,
+        });
+        assert_eq!(find_relationship(&world, c, d), Some(cd),
+            "the bare bond resolves, so a second interaction lands on it");
+        let e = record_interaction(&mut world, c, Interaction {
+            other: d, kind: InteractionKind::Conversation, intensity: 1.0 });
+        assert_eq!(e, cd, "no duplicate bond gets created for the pair");
+        assert_eq!(world.get_component::<Relationship>(cd).unwrap().interactions, 10);
     }
 
     #[test]

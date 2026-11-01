@@ -20,6 +20,10 @@ pub struct World {
     /// Singleton data keyed by type rather than by entity: caches and
     /// indices the systems share (e.g. the relationship pair index).
     resources: HashMap<TypeId, Box<dyn Any + Send>>,
+    /// Per-type structural revision: bumped whenever a component of that
+    /// type is added or removed. An index that stored a revision behind
+    /// the current one no longer provably covers that storage.
+    mutation_rev: HashMap<TypeId, u64>,
 }
 
 impl World {
@@ -29,6 +33,7 @@ impl World {
             next_entity: 0,
             storages: HashMap::new(),
             resources: HashMap::new(),
+            mutation_rev: HashMap::new(),
         }
     }
 
@@ -45,6 +50,7 @@ impl World {
             .entry(TypeId::of::<T>())
             .or_default()
             .insert(entity, Box::new(component));
+        *self.mutation_rev.entry(TypeId::of::<T>()).or_default() += 1;
     }
 
     /// Get a component for an entity
@@ -66,15 +72,20 @@ impl World {
     /// Remove a component from an entity
     pub fn remove_component<T: Any + Send>(&mut self, entity: Entity) -> bool {
         if let Some(storage) = self.storages.get_mut(&TypeId::of::<T>()) {
-            return storage.remove(&entity).is_some();
+            if storage.remove(&entity).is_some() {
+                *self.mutation_rev.entry(TypeId::of::<T>()).or_default() += 1;
+                return true;
+            }
         }
         false
     }
 
     /// Destroy an entity and all its components
     pub fn destroy_entity(&mut self, entity: Entity) {
-        for storage in self.storages.values_mut() {
-            storage.remove(&entity);
+        for (tid, storage) in self.storages.iter_mut() {
+            if storage.remove(&entity).is_some() {
+                *self.mutation_rev.entry(*tid).or_default() += 1;
+            }
         }
     }
 
@@ -115,6 +126,13 @@ impl World {
     /// Live components of type T. O(1) - the storage's own length.
     pub fn component_count<T: Any + Send>(&self) -> usize {
         self.storages.get(&TypeId::of::<T>()).map(|s| s.len()).unwrap_or(0)
+    }
+
+    /// How many times type T's storage has structurally changed (add,
+    /// remove, destroy) - an index that folded at an older revision
+    /// can't claim to cover what's live now.
+    pub fn mutation_rev<T: Any + Send>(&self) -> u64 {
+        self.mutation_rev.get(&TypeId::of::<T>()).copied().unwrap_or(0)
     }
 
     /// Store world-level singleton data, keyed by type.

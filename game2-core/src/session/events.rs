@@ -1397,6 +1397,9 @@ impl Game {
                     .find(|&b| self.world.get_component::<household::Building>(b)
                         .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
                 if let Some(f) = fold {
+                    // his tending calms the fold - a brewing wolf night
+                    // settles while his hands are on the stock
+                    self.wolf_coming = false;
                     if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::WolfAtFold) {
                         // past the pack's own scheduling window - it
                         // always moves, never pulls a near wolf closer

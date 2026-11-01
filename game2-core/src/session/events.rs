@@ -1848,6 +1848,16 @@ impl Game {
                     }
                 }
             }
+            EventId::FishRun => {
+                // six days the river gives: the day's catch goes on
+                // the market's baskets, where folk actually eat
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    f.servings += 2;
+                    // the catch rides in aux - a hungry village eats it
+                    // the same day, so the tally's the honest signal
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 2; }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1942,6 +1952,10 @@ impl Game {
             EventId::OwlInTower => {
                 self.log.push(format!("t{}: an owl's moved into the tower - the mice had best learn quiet ways.", self.tick));
                 self.toasts.push(("An owl in the tower".into(), self.tick + 40));
+            }
+            EventId::FishRun => {
+                self.log.push(format!("t{}: a fish run - the reach is alive with them, thick enough to grab with two hands.", self.tick));
+                self.toasts.push(("A fish run".into(), self.tick + 40));
             }
             EventId::CaterpillarYear => {
                 self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
@@ -4656,6 +4670,22 @@ mod tests {
             let mut g = stage::staged(st);
             g.force_event(EventId::CrowsMob);
             assert!(g.log.iter().any(|l| l.contains("crows")), "the mob was told on {:?}", st);
+        }
+    }
+
+    /// A fish run: the reach is alive with them and the baskets fill
+    /// while it lasts - six days, then the river's quiet again
+    #[test]
+    fn test_the_reach_is_alive() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::FishRun);
+            assert!(g.rare.iter().any(|r| r.id == EventId::FishRun), "the run's on");
+            stage::run_days(&mut g, 3);
+            let catch = g.rare.iter().find(|r| r.id == EventId::FishRun).map(|r| r.aux).unwrap_or(0);
+            assert!(catch > 0, "the catch went on the baskets on {:?}", st);
+            stage::run_days(&mut g, 7);
+            assert!(g.rare.iter().all(|r| r.id != EventId::FishRun), "the river's quiet on {:?}", st);
         }
     }
 

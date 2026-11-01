@@ -129,6 +129,19 @@ Completed task task_16: Add a comment to main.rs
 
 ---
 
+### Task: RD set-styles in the art prompt generator
+**Date:** 2026-11-01
+**Type:** feature
+**Files Changed:**
+- scripts/generate_art_prompts.py (sheets/sprites group + more ui_panel + more inventory_items + smoke entry)
+- art-prompts/prompts.{json,md}, art-prompts/smoke/prompts.{json,md} (regenerated)
+
+**Outcome:** Success - PR pending
+**Notes:** RD's three set-styles turn one $0.18 call into a whole matched batch: `rd_pro__spritesheet` (64-256px, grid of same-style assets/poses), `rd_pro__ui_panel` and `rd_pro__inventory_items` (both 256x256 ONLY - other sizes fail). `cost()` falls back to `PRICE[style.split("__")[0]]` so unlisted rd_pro__* styles price at $0.18 automatically. Stable ids hash group+slug+prompt+req only - changing `notes` does not break the done-state dedup.
+**Patterns Used:** one call -> matched grid over many single-asset calls; tier sheets under their group's neighbors
+
+---
+
 ### Task: Wide/Shallow Dialogue Expansion (1000+ Responses)
 **Date:** 2026-11-01
 **Type:** feature

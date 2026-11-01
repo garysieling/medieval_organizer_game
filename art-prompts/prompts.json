@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 520,
-  "est_total_usd": 88.49
+  "count": 537,
+  "est_total_usd": 91.55
  },
  "prompts": [
   {
@@ -2264,7 +2264,7 @@
     "num_images": 1
    },
    "est_cost_usd": 0.18,
-   "notes": ""
+   "notes": "ui_panel draws a matched chrome set; slice per element"
   },
   {
    "id": "ui-end-screen-c3c99989",
@@ -2282,6 +2282,36 @@
    "notes": ""
   },
   {
+   "id": "ui-hud-bar-7a7d8edb",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui hud bar",
+   "prompt": "game HUD strip: resource counters with icon slots, meter frames, season and date display, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-inventory-grid-ccb897f8",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui inventory grid",
+   "prompt": "empty inventory grid panel with item slots and a character paper-doll frame, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
    "id": "ui-log-box-637d32e2",
    "tier": "p0",
    "group": "icons/ui",
@@ -2294,7 +2324,7 @@
     "num_images": 1
    },
    "est_cost_usd": 0.18,
-   "notes": ""
+   "notes": "ui_panel draws a matched chrome set; slice per element"
   },
   {
    "id": "ui-panel-e028fe6e",
@@ -2309,7 +2339,7 @@
     "num_images": 1
    },
    "est_cost_usd": 0.18,
-   "notes": ""
+   "notes": "ui_panel draws a matched chrome set; slice per element"
   },
   {
    "id": "ui-title-keyart-8651a36f",
@@ -2327,6 +2357,21 @@
    "notes": ""
   },
   {
+   "id": "ui-ui-kit-8349cf27",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui ui kit",
+   "prompt": "complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
    "id": "ui-villager-card-c74542c4",
    "tier": "p0",
    "group": "icons/ui",
@@ -2339,7 +2384,22 @@
     "num_images": 1
    },
    "est_cost_usd": 0.18,
-   "notes": ""
+   "notes": "ui_panel draws a matched chrome set; slice per element"
+  },
+  {
+   "id": "ui-window-set-b4b2586c",
+   "tier": "p0",
+   "group": "icons/ui",
+   "title": "ui window set",
+   "prompt": "set of matching medieval game windows: title bar, dialog box, tooltip, modal frame, game UI element",
+   "request": {
+    "prompt_style": "rd_pro__ui_panel",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "ui_panel draws a matched chrome set; slice per element"
   },
   {
    "id": "icon-heavy-rain-aa8537ee",
@@ -5694,6 +5754,51 @@
    "notes": ""
   },
   {
+   "id": "food-sheet-4fe809ed",
+   "tier": "p1",
+   "group": "icons/goods",
+   "title": "food sheet",
+   "prompt": "inventory item sheet: bread loaf, cheese wheel, ale mug, honey jar, dried fish, egg basket, milk jug, apples, pottage bowl, turnips, peas, fuel faggot bundle",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "kitchen-garden and hearth foods, plus the fuel goods"
+  },
+  {
+   "id": "materials-sheet-40a5650d",
+   "tier": "p1",
+   "group": "icons/goods",
+   "title": "materials sheet",
+   "prompt": "inventory item sheet: log, dressed stone block, sand pile, pigment pot, cloth bolt, glass pane, paper sheet, ink pot, wool ball, tanned hide, candle, clay brick",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "raw and crafted materials for the production chains"
+  },
+  {
+   "id": "tools-sheet-cf25b75b",
+   "tier": "p1",
+   "group": "icons/goods",
+   "title": "tools sheet",
+   "prompt": "inventory item sheet: sickle, hoe, hammer, saw, chisel, axe, mallet, needle and thread, quill, trowel, smith's tongs, wood plane",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "vocation workshop tools; include_downloadable_data returns the item atlas"
+  },
+  {
    "id": "scene-church-service-9079504c",
    "tier": "p1",
    "group": "scenes",
@@ -5872,6 +5977,141 @@
    },
    "est_cost_usd": 0.18,
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
+  },
+  {
+   "id": "sheet-cottage-construction-fb3f2687",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet cottage construction",
+   "prompt": "isometric medieval cottage construction stages: foundation stones, timber frame, half-roofed, finished thatch, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-cottage-seasons-7db62d5d",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet cottage seasons",
+   "prompt": "the same isometric medieval cottage in four seasons: spring green, summer lush, autumn gold, winter snow, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-crop-growth-3e1490f8",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet crop growth",
+   "prompt": "isometric wheat field patch growth stages: bare soil, green shoots, half-grown, ripe golden heads, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-farm-animals-a628136d",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet farm animals",
+   "prompt": "small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-guard-poses-866c3f01",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet guard poses",
+   "prompt": "small medieval town guard with spear: standing, marching, ready stance, saluting, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-tree-growth-1e90f5de",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet tree growth",
+   "prompt": "isometric oak tree growth stages: sapling, young tree, mature, ancient, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-villager-poses-5af51f87",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet villager poses",
+   "prompt": "small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-villager-variants-d8068ffd",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet villager variants",
+   "prompt": "small chibi medieval peasant villagers, varied tunic colours and hair, front view, full body, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "sheet-visitor-pack-7cf1ab2d",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet visitor pack",
+   "prompt": "small chibi travelling medieval figures: pedlar with pack, pilgrim with staff, friar in habit, minstrel with lute, beggar with bowl, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "one call returns the whole grid; slice per cell"
   },
   {
    "id": "culture-african-house-0e29aad6",
@@ -7248,6 +7488,21 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
+  },
+  {
+   "id": "future-goods-sheet-c7eb0b49",
+   "tier": "p2",
+   "group": "future/goods",
+   "title": "future goods sheet",
+   "prompt": "inventory item sheet: cheese wheel, wine bottle, ale mug, honey jar, perfume bottle, mushroom basket, dried herb bundle, dried fish, pasta noodles, wool ball, milk jug, egg basket, mead bottle, cider jug",
+   "request": {
+    "prompt_style": "rd_pro__inventory_items",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "atlas alternative to the good-* calls above; include_downloadable_data returns the item atlas"
   },
   {
    "id": "good-ale-208ec286",

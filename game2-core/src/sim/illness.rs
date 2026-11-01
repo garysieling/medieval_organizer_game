@@ -30,6 +30,12 @@ pub enum DiseaseKind {
     Consumption,
     /// "the sweats" - sweating sickness
     Sweats,
+    /// "the cholera" - Asiatic cholera; foul water, kills in days
+    Cholera,
+    /// "the slow fever" - typhoid; foul water, a long hot month
+    Typhoid,
+    /// "the flux" - dysentery; foul water, the summer sickness
+    Dysentery,
 }
 
 impl DiseaseKind {
@@ -42,6 +48,9 @@ impl DiseaseKind {
             DiseaseKind::Gripes => "the gripes",
             DiseaseKind::Consumption => "consumption",
             DiseaseKind::Sweats => "the sweats",
+            DiseaseKind::Cholera => "the cholera",
+            DiseaseKind::Typhoid => "the slow fever",
+            DiseaseKind::Dysentery => "the flux",
         }
     }
 
@@ -55,12 +64,27 @@ impl DiseaseKind {
             DiseaseKind::Gripes => 1,      // the death-cap waits a day to tell
             DiseaseKind::Consumption => 0, // the slow kind - no acute onset
             DiseaseKind::Sweats => 2,
+            DiseaseKind::Cholera => 1,     // hours to a few days - terrifyingly fast
+            DiseaseKind::Typhoid => 10,    // a week or three before it shows
+            DiseaseKind::Dysentery => 2,
         }
     }
 
-    /// Whether it passes villager to villager. The poisonings never do.
+    /// How it travels. Snow's lesson: the waterborne kinds ride the well,
+    /// not the neighbour - they can't be caught by standing too close.
+    pub fn route(self) -> Route {
+        match self {
+            DiseaseKind::Influenza | DiseaseKind::ScarletFever
+            | DiseaseKind::Sweats | DiseaseKind::Consumption => Route::Contact,
+            DiseaseKind::Cholera | DiseaseKind::Typhoid | DiseaseKind::Dysentery => Route::Water,
+            DiseaseKind::Ergotism | DiseaseKind::Gripes => Route::Ingested,
+        }
+    }
+
+    /// Whether it passes villager to villager by proximity. The waterborne
+    /// kinds spread through the reach instead; the poisonings never spread.
     pub fn contagious(self) -> bool {
-        matches!(self, DiseaseKind::Influenza | DiseaseKind::ScarletFever | DiseaseKind::Sweats)
+        self.route() == Route::Contact
     }
 
     /// Immunity beating it teaches the body. Poisons teach nothing; the
@@ -73,8 +97,22 @@ impl DiseaseKind {
             DiseaseKind::Gripes => 0.0,
             DiseaseKind::Consumption => 0.1,
             DiseaseKind::Sweats => 0.4,
+            DiseaseKind::Cholera => 0.4,
+            DiseaseKind::Typhoid => 0.8,
+            DiseaseKind::Dysentery => 0.1,
         }
     }
+}
+
+/// How a disease travels between the sick and the well
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Route {
+    /// Breathed, coughed, touched - passes neighbour to neighbour
+    Contact,
+    /// Carried in foul water - the reach does the spreading
+    Water,
+    /// Swallowed - something eaten, not caught
+    Ingested,
 }
 
 /// A disease progressing through compartments

@@ -1892,6 +1892,15 @@ impl Game {
                     }
                 }
             }
+            EventId::BerryYear => {
+                // a fortnight of loaded hedges: the kids strip them and
+                // the baskets come to the market a little each day - the
+                // tally rides in aux, hungry mouths take it same-day
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    f.servings += 1;
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 1; }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1994,6 +2003,10 @@ impl Game {
             EventId::HerbFlush => {
                 self.log.push(format!("t{}: a flush of herbs - the hedge is thick with simples, worth the picking while it lasts.", self.tick));
                 self.toasts.push(("A flush of herbs".into(), self.tick + 40));
+            }
+            EventId::BerryYear => {
+                self.log.push(format!("t{}: a berry year - the hedges are black with them, and the kids' mouths are stained already.", self.tick));
+                self.toasts.push(("A berry year".into(), self.tick + 40));
             }
             EventId::FouledWell => {
                 self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
@@ -5406,6 +5419,22 @@ mod tests {
             assert!(stocked > 0 || g.herb_hut.is_none(), "the hut's shelf filled on {:?}", st);
             stage::run_days(&mut g, 11);
             assert!(g.rare.iter().all(|r| r.id != EventId::HerbFlush), "the flush's gone on {:?}", st);
+        }
+    }
+
+    /// A berry year: the hedges are black with them and the baskets
+    /// come to the market - a fortnight, then the picking's done
+    #[test]
+    fn test_the_hedges_are_black() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::BerryYear);
+            assert!(g.rare.iter().any(|r| r.id == EventId::BerryYear), "the year's on");
+            stage::run_days(&mut g, 3);
+            let picked = g.rare.iter().find(|r| r.id == EventId::BerryYear).map(|r| r.aux).unwrap_or(0);
+            assert!(picked > 0, "the baskets came in on {:?}", st);
+            stage::run_days(&mut g, 15);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BerryYear), "the picking's done on {:?}", st);
         }
     }
 

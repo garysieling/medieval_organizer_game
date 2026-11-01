@@ -1335,7 +1335,11 @@ impl Game {
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
-                    if !near || !pays { continue; }
+                    // a whole body gains nothing from the dose - he
+                    // sells to the ailing, not the hale
+                    let ails = self.world.get_component::<Health>(v)
+                        .map(|h| h.condition < 1.0).unwrap_or(false);
+                    if !near || !pays || !ails { continue; }
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
                     // every bottle's its own brew
                     let brew = (self.rare_roll(id) ^ (v as u64).wrapping_mul(0x9E3779B9)) % 4;

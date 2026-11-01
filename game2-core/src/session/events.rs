@@ -2295,9 +2295,10 @@ impl Game {
                 }
             }
             EventId::StrayDog => {
-                // the loneliest heart takes him in - the dog decides
+                // the loneliest heart takes him in - the dog decides;
+                // a heart behind bars is no heart to him
                 let mark = self.lonely_hearts().into_iter()
-                    .filter(|&v| !villager::is_dead(&self.world, v))
+                    .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v))
                     .min_by_key(|&v| self.world.query::<crate::game::relationships::Relationship>().iter()
                         .filter(|&&r| self.world.get_component::<crate::game::relationships::Relationship>(r)
                             .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count());

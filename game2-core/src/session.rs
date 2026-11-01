@@ -5974,7 +5974,11 @@ impl Game {
         self.hens.retain(|&e| e != a);
         let name = self.world.get_component::<Building>(h).map(|b| b.name.clone()).unwrap_or_else(|| "the yard".into());
         self.log.push(format!("t{}: a fox got into {} - a hen gone in the night.", tick, name));
-        if let Some(&occ) = self.world.get_component::<Building>(h).and_then(|b| b.occupants.first()) {
+        // the house grieves her through whoever can feel it - the
+        // held and the dead take no grief
+        if let Some(&occ) = self.world.get_component::<Building>(h)
+            .and_then(|b| b.occupants.iter().find(|&&o|
+                !crate::game::dungeon::unavailable(&self.world, o))) {
             desires::add_grievance(&mut self.world, occ, desires::Problem::Loss, tick + 90);
             self.say(occ, "The fox took her. Best hen I had.", CHAT_BUBBLE_SECS);
         }

@@ -1939,6 +1939,10 @@ impl Game {
                 self.log.push(format!("t{}: a wild boar's rooting about the beds - keep clear of her, she's no fool's game.", self.tick));
                 self.toasts.push(("A wild boar".into(), self.tick + 40));
             }
+            EventId::OwlInTower => {
+                self.log.push(format!("t{}: an owl's moved into the tower - the mice had best learn quiet ways.", self.tick));
+                self.toasts.push(("An owl in the tower".into(), self.tick + 40));
+            }
             EventId::CaterpillarYear => {
                 self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
                 self.toasts.push(("A caterpillar year".into(), self.tick + 40));
@@ -4594,6 +4598,24 @@ mod tests {
             assert!(growth1 < growth0 || g.gardens.is_empty(), "she rooted the beds on {:?}", st);
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::WildBoar), "she moved off on {:?}", st);
+        }
+    }
+
+    /// An owl in the tower: her watch keeps the vermin off the whole
+    /// village while she holds - thirty days, then she's gone
+    #[test]
+    fn test_the_owl_keeps_the_mice_off() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::OwlInTower);
+            assert!(g.rare.iter().any(|r| r.id == EventId::OwlInTower), "she's in the tower");
+            stage::run_days(&mut g, 3);
+            // the larders hold where her watch stands: the rat-toll
+            // machinery counts no toll while she hunts
+            let watched = g.building_entities.iter().all(|&be| g.cat_watches(be));
+            assert!(watched || g.building_entities.is_empty(), "the mice learned quiet on {:?}", st);
+            stage::run_days(&mut g, 32);
+            assert!(g.rare.iter().all(|r| r.id != EventId::OwlInTower), "she's gone on {:?}", st);
         }
     }
 

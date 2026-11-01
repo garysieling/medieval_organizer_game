@@ -4539,6 +4539,10 @@ impl Game {
 
     /// Does a hunting cat walk this building's yard? Vermin keep away
     fn cat_watches(&self, building: Entity) -> bool {
+        // the tower owl hunts the whole village while she's up
+        if self.rare.iter().any(|r| r.id == crate::session::events::EventId::OwlInTower && !r.leaving) {
+            return true;
+        }
         let Some(b) = self.world.get_component::<Building>(building) else { return false };
         b.occupants.iter().any(|&occ| self.pets.iter().any(|(e, s, _)| {
             *s == Species::Cat && self.world.get_component::<Pet>(*e)

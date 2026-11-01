@@ -833,4 +833,89 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_dialogue_expansion_exceeds_1000_responses_and_is_clean() {
+        let library = village_library();
+        let mut total_responses = 0;
+        let mut visited_exchanges = HashSet::new();
+
+        fn walk_ex(ex: &Exchange, count: &mut usize, visited: &mut HashSet<*const Exchange>) {
+            let ptr = ex as *const Exchange;
+            if !visited.insert(ptr) { return; }
+            *count += ex.calls.len();
+            for r in ex.replies {
+                *count += r.lines.len();
+                if let Some(next) = &r.then {
+                    walk_ex(next, count, visited);
+                }
+            }
+        }
+
+        for tree in &library {
+            walk_ex(tree.root, &mut total_responses, &mut visited_exchanges);
+            if let Some(rej) = tree.rejoin {
+                walk_ex(rej, &mut total_responses, &mut visited_exchanges);
+            }
+        }
+
+        let test_speaker = Speaker::new("Aldric");
+        let pool = meeting_pool(&test_speaker);
+        for m in &pool {
+            total_responses += m.lines.len();
+        }
+
+        assert!(
+            total_responses >= 1000,
+            "Dialogue library must contain at least 1000 responses, found {}",
+            total_responses
+        );
+
+        // Verify zero sensitive / slur words across all visited exchanges and lines
+        let forbidden = ["faggot", "retard", "nigger", "cunt", "whore", "slut", "bitch"];
+        for ex_ptr in &visited_exchanges {
+            let ex = unsafe { &**ex_ptr };
+            for c in ex.calls {
+                let lower = c.to_lowercase();
+                for f in &forbidden {
+                    assert!(!lower.contains(f), "Forbidden word '{}' found in call: {}", f, c);
+                }
+            }
+            for r in ex.replies {
+                for l in r.lines {
+                    let lower = l.to_lowercase();
+                    for f in &forbidden {
+                        assert!(!lower.contains(f), "Forbidden word '{}' found in line: {}", f, l);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_house_meeting_grief_participates_after_question_pull() {
+        let organizer = Speaker::new("Reeve");
+        let a = Speaker::new("Eliza");
+        let mut b = Speaker::new("Bram");
+        b.status.push("grieving");
+        let pool_a = meeting_pool(&a);
+        let pool_b = meeting_pool(&b);
+        let pools: Vec<&[MeetingLine]> = vec![&pool_a, &pool_b];
+        let attendees = [&a, &b];
+
+        let mut saw_grief_after_q = false;
+        for seed in 0..50 {
+            let mut rng = Rng::new(seed);
+            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
+            // Check if any statement with index >= 3 (after initial answers) contains concern:grief
+            for stmt in statements.iter().skip(3) {
+                if stmt.concepts.contains(&"concern:grief") {
+                    saw_grief_after_q = true;
+                    break;
+                }
+            }
+            if saw_grief_after_q { break; }
+        }
+        assert!(saw_grief_after_q, "Grieving attendee must be able to contribute concern:grief after question pull");
+    }
 }

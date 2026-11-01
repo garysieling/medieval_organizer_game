@@ -36,6 +36,9 @@ pub enum DiseaseKind {
     Typhoid,
     /// "the flux" - dysentery; foul water, the summer sickness
     Dysentery,
+    /// "the ague" - fenland malaria; the marsh's autumn visitor, always
+    /// coming back
+    Ague,
 }
 
 impl DiseaseKind {
@@ -51,6 +54,7 @@ impl DiseaseKind {
             DiseaseKind::Cholera => "the cholera",
             DiseaseKind::Typhoid => "the slow fever",
             DiseaseKind::Dysentery => "the flux",
+            DiseaseKind::Ague => "the ague",
         }
     }
 
@@ -67,6 +71,16 @@ impl DiseaseKind {
             DiseaseKind::Cholera => 1,     // hours to a few days - terrifyingly fast
             DiseaseKind::Typhoid => 10,    // a week or three before it shows
             DiseaseKind::Dysentery => 2,
+            DiseaseKind::Ague => 10,       // a fortnight's brewing, tertian
+        }
+    }
+
+    /// The part of the year it rides in on, if it has one (day-of-year
+    /// window on the 365-day cycle)
+    pub fn season(self) -> Option<(u32, u32)> {
+        match self {
+            DiseaseKind::Ague => Some((240, 310)), // the autumn marsh fever
+            _ => None,
         }
     }
 
@@ -78,6 +92,7 @@ impl DiseaseKind {
             | DiseaseKind::Sweats | DiseaseKind::Consumption => Route::Contact,
             DiseaseKind::Cholera | DiseaseKind::Typhoid | DiseaseKind::Dysentery => Route::Water,
             DiseaseKind::Ergotism | DiseaseKind::Gripes => Route::Ingested,
+            DiseaseKind::Ague => Route::Vector,
         }
     }
 
@@ -100,6 +115,7 @@ impl DiseaseKind {
             DiseaseKind::Cholera => 0.4,
             DiseaseKind::Typhoid => 0.8,
             DiseaseKind::Dysentery => 0.1,
+            DiseaseKind::Ague => 0.05, // the marsh always sends it back
         }
     }
 }
@@ -113,6 +129,8 @@ pub enum Route {
     Water,
     /// Swallowed - something eaten, not caught
     Ingested,
+    /// Carried by what bites - the marsh air, not the neighbour
+    Vector,
 }
 
 /// A disease progressing through compartments
@@ -186,6 +204,10 @@ impl crate::engine::ecs::System for IllnessSystem {
                 Some(dis) => (dis.patient, dis.stage, dis.severity, dis.kind),
                 None => continue,
             };
+            // the half-starved fight it worse: hunger halves what their
+            // immune system can clear - malnutrition is a symptom too
+            let hungry = world.get_component::<crate::game::villager::Hunger>(patient)
+                .map(|hh| hh.value < 40.0).unwrap_or(false);
             let Some(h) = world.get_component_mut::<Health>(patient) else {
                 world.destroy_entity(d); // patient is gone
                 continue;
@@ -219,7 +241,7 @@ impl crate::engine::ecs::System for IllnessSystem {
                 world.destroy_entity(d); // the disease killed them
                 continue;
             }
-            let severity = (severity - h.immunity * IMMUNE_RATE).max(0.0);
+            let severity = (severity - h.immunity * IMMUNE_RATE * if hungry { 0.5 } else { 1.0 }).max(0.0);
             if let Some(dis) = world.get_component_mut::<Disease>(d) {
                 dis.severity = severity;
                 dis.stage = stage_for(severity);
@@ -249,40 +271,49 @@ pub struct Exposure(pub f32);
 /// The latent don't shed - a brewing sickness keeps its secret.
 fn spread_contagion(world: &mut World) {
     use crate::game::villager::Pos;
-    let mut sources = vec![]; // (position, severity, kind)
+    let mut sources = vec![]; // (position, severity, kind, patient)
     let mut sick = vec![];
     for d in world.query::<Disease>() {
         let Some(dis) = world.get_component::<Disease>(d) else { continue };
         sick.push(dis.patient);
         if !dis.contagious || dis.stage == Stage::Recovering || dis.stage == Stage::Latent { continue; }
         if let Some(p) = world.get_component::<Pos>(dis.patient) {
-            sources.push(((p.x, p.y), dis.severity, dis.kind));
+            sources.push(((p.x, p.y), dis.severity, dis.kind, dis.patient));
         }
     }
     for e in world.query::<Health>() {
         if sick.contains(&e) { continue; }
         if crate::game::villager::is_dead(world, e) { continue; } // the dead don't catch it
         let Some(p) = world.get_component::<Pos>(e).map(|p| (p.x, p.y)) else { continue };
+        let home = crate::game::household::home_of(world, e);
         let near: Vec<_> = sources.iter()
-            .filter(|((x, y), _, _)| (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE)
+            .filter(|((x, y), _, _, _)| (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE)
             .collect();
-        let dose: f32 = near.iter().map(|(_, sev, _)| sev * EXPOSURE_RATE).sum();
+        // under one roof the dose doubles - the fever respects the rent
+        let dose: f32 = near.iter().map(|(_, sev, _, src)| {
+            let crowding = if home.is_some() && home == crate::game::household::home_of(world, *src) { 2.0 } else { 1.0 };
+            sev * EXPOSURE_RATE * crowding
+        }).sum();
         if dose == 0.0 && world.get_component::<Exposure>(e).is_none() { continue; }
         if world.get_component::<Exposure>(e).is_none() {
             world.add_component(e, Exposure::default());
         }
-        let immunity = world.get_component::<Health>(e).map(|h| h.immunity).unwrap_or(0.0);
+        // hunger halves what their body can resist
+        let hungry = world.get_component::<crate::game::villager::Hunger>(e)
+            .map(|hh| hh.value < 40.0).unwrap_or(false);
+        let immunity = world.get_component::<Health>(e).map(|h| h.immunity).unwrap_or(0.0)
+            * if hungry { 0.5 } else { 1.0 };
         let exposure = world.get_component_mut::<Exposure>(e).unwrap();
         exposure.0 = exposure.0 * EXPOSURE_RETAINED + dose;
         if exposure.0 <= immunity { continue; }
         exposure.0 = 0.0;
         // catch the worst case they were exposed to, a little weakened -
         // and brewing its own incubation from scratch
-        let (_, sev, kind) = near.iter()
+        let (_, sev, kind, _) = near.iter()
             .max_by(|a, b| a.1.total_cmp(&b.1))
             .copied()
             .cloned()
-            .unwrap_or(((0.0, 0.0), 0.0, DiseaseKind::Influenza));
+            .unwrap_or(((0.0, 0.0), 0.0, DiseaseKind::Influenza, 0));
         let severity = sev * TRANSMITTED_SEVERITY;
         if severity < 0.1 { continue; } // too weak to take hold
         let d = world.create_entity();
@@ -529,5 +560,49 @@ mod tests {
             let got = w.get_component::<Health>(p).unwrap().immunity;
             assert!((got - want).abs() < 0.01, "{:?} should leave immunity {}, got {}", kind, want, got);
         }
+    }
+
+    #[test]
+    fn test_the_hungry_catch_it_first() {
+        use crate::game::villager::Hunger;
+        let mut w = World::new();
+        let zero = villager_at(&mut w, 0.0, 0.6);
+        let fed = villager_at(&mut w, 1.0, 0.6);
+        let starved = villager_at(&mut w, -1.0, 0.6);
+        w.add_component(starved, Hunger { value: 10.0 });
+        w.add_component(fed, Hunger { value: 90.0 });
+        infect(&mut w, zero, true);
+        for _ in 0..10 { IllnessSystem.run(&mut w); }
+        assert!(is_sick(&w, starved), "hunger halves resistance - the starved fall first");
+        assert!(!is_sick(&w, fed), "the fed hold out through brief contact");
+    }
+
+    #[test]
+    fn test_the_same_roof_doubles_the_dose() {
+        use crate::game::household::{Building, BuildingKind};
+        use std::collections::HashMap;
+        let mut w = World::new();
+        // two houses: the sick one shares hers, the neighbour's alone
+        let sick_own = villager_at(&mut w, 0.0, 0.9);
+        let family = villager_at(&mut w, 0.0, 0.9);
+        let lodger = villager_at(&mut w, 3.0, 0.9);
+        let h1 = w.create_entity();
+        w.add_component(h1, Building { kind: BuildingKind::Home, name: "home".into(),
+            occupants: vec![sick_own, family], worker: None, overseer: None,
+            stock: HashMap::new(), capacity: 0 });
+        let h2 = w.create_entity();
+        w.add_component(h2, Building { kind: BuildingKind::Home, name: "home".into(),
+            occupants: vec![lodger], worker: None, overseer: None,
+            stock: HashMap::new(), capacity: 0 });
+        // sanity: the fabricated home registers for both occupants
+        assert_eq!(crate::game::household::home_of(&w, family), Some(h1));
+        assert_eq!(crate::game::household::home_of(&w, sick_own), Some(h1));
+        assert_eq!(crate::game::household::home_of(&w, lodger), Some(h2));
+        infect(&mut w, sick_own, true);
+        // family soaks the doubled household dose (~16 ticks to the
+        // threshold); the lodger at the range's edge needs ~30
+        for _ in 0..18 { IllnessSystem.run(&mut w); }
+        assert!(is_sick(&w, family), "sharing a roof with the sick doubles the dose");
+        assert!(!is_sick(&w, lodger), "the lodger at the range's edge holds out");
     }
 }

@@ -4734,6 +4734,26 @@ impl Game {
                     self.world.add_component(d, Disease::new(kind, v, severity));
                 }
             }
+            // the ague rides the autumn air off the marshes: homes by the
+            // river shake with it when the season turns, and it keeps
+            // coming back - beating it barely teaches the body
+            if let Some((s0, s1)) = DiseaseKind::Ague.season() {
+                if (s0 as u64..=s1 as u64).contains(&(tick % 365)) {
+                    for v in self.villagers.clone() {
+                        if villager::is_dead(&self.world, v) || disease_of(&self.world, v).is_some() { continue; }
+                        let Some(hp) = household::home_of(&self.world, v)
+                            .and_then(|h| self.world.get_component::<Pos>(h).copied()) else { continue };
+                        let marshy = (0..self.map.height as i32)
+                            .flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
+                            .any(|(x, y)| self.map.get(x, y) == Some(Tile::River)
+                                && (x as f32 - hp.x).abs() + (y as f32 - hp.y).abs() < 8.0);
+                        if marshy && self.rng.below(1000) < 30 {
+                            let d = self.world.create_entity();
+                            self.world.add_component(d, Disease::new(DiseaseKind::Ague, v, 0.25));
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -9957,6 +9977,29 @@ mod land_tests {
             .expect("there's a reach");
         let e = g.land.effluent.get(&nearest).copied().unwrap_or(0.0);
         assert!(e > 0.15, "the sick pour it back fouler");
+    }
+
+    #[test]
+    fn test_the_autumn_marsh_sends_the_ague() {
+        let mut g = Game::new();
+        // a home right on the river - the marsh's own doorstep
+        let v = g.villagers[0];
+        let river = (0..g.map.height as i32).flat_map(|y| (0..g.map.width as i32).map(move |x| (x, y)))
+            .find(|&(x, y)| g.map.get(x, y) == Some(Tile::River)).expect("there's a river");
+        let home = household::home_of(&g.world, v).expect("villager 0 has a home");
+        if let Some(hp) = g.world.get_component_mut::<Pos>(home) {
+            hp.x = river.0 as f32; hp.y = (river.1 - 1) as f32;
+        }
+        // out of season the marsh keeps its shakes
+        for _ in 0..60 { g.land_tick(100); }
+        assert!(g.world.query::<Disease>().iter().all(|&d|
+            g.world.get_component::<Disease>(d).map(|dd| dd.kind != DiseaseKind::Ague).unwrap_or(true)),
+            "the ague waits for autumn");
+        // in season, it comes calling
+        for _ in 0..400 { g.land_tick(247); }
+        assert!(g.world.query::<Disease>().iter().any(|&d|
+            g.world.get_component::<Disease>(d).map(|dd| dd.kind == DiseaseKind::Ague).unwrap_or(false)),
+            "the autumn marsh should send the ague");
     }
 
     #[test]

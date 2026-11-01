@@ -6751,7 +6751,7 @@ impl Game {
                             // and actually home - the bundle has to be
                             // under the roof to warm it
                             && hp.and_then(|hp| self.world.get_component::<Pos>(o)
-                                .map(|op| (op.x - hp.x).abs() + (op.y - hp.y).abs() <= 5.0)).unwrap_or(false)
+                                .map(|op| (op.x - hp.x).abs() + (op.y - hp.y).abs() <= 7.0)).unwrap_or(false)
                             && self.world.get_component::<Satchel>(o)
                                 .map(|s| s.goods.get(g).copied().unwrap_or(0) > 0).unwrap_or(false))
                             .map(|o| (o, g)))
@@ -6774,11 +6774,13 @@ impl Game {
                             }
                         }
                         // and a cold house does something about it: a free
-                        // hand goes out for a bundle tomorrow
+                        // hand goes out for a bundle tomorrow - never a
+                        // villager a seat steers, that errand's theirs to give
                         if let Some(hand) = occupants.iter().copied().find(|&o|
                             !villager::is_dead(&self.world, o)
                             && !crate::game::dungeon::unavailable(&self.world, o)
-                            && !self.travels.iter().any(|t| t.who == o)) {
+                            && !self.travels.iter().any(|t| t.who == o)
+                            && !self.seats.iter().any(|s| s.player == o)) {
                             if let Some(op) = self.world.get_component::<Pos>(hand).copied() {
                                 if let Some(t) = self.gather_site("faggots", op) {
                                     self.send_gather(hand, "faggots", t);

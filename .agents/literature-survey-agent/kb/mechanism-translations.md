@@ -288,3 +288,36 @@ Every mechanic must trace to:
 **Tags:** disease, blame, grievance, scapegoat, miasma-minded
 
 ---
+
+---
+
+### Pattern: Specificity Cascade (most criteria wins)
+**Academic Source:** Ruskin GDC 2012 - Valve's shipped rule database (L4D2, DOTA 2)
+**Game Mechanic:** Dialogue library = many trees with entry criteria on world facts (sick, clergy, rival...). Sort matches by criterion count; walk the most specific; when it ends, fall through to the next-most-specific. Generic smalltalk at criterion count 0 is the always-on tail
+**Implementation:** `Facts`/`Criterion` on `DialogueTree`; `matches()` + sort by `criteria.len()`
+**Simplification:** Single specificity score (count), no per-criterion weights
+**Educational Value:** Why rule databases replaced if/else chains for barks in industry
+**Fun Factor:** A fevered priest and a hungry laborer genuinely say different things to the same greeting
+**Tags:** dialogue, ruskin, specificity, criteria, fallback, cascade
+
+---
+
+### Pattern: Trait-Biased Forks (social considerations)
+**Academic Source:** CiF social considerations (McCoy et al., ~5000 considerations in Prom Week)
+**Game Mechanic:** Reply forks carry base weight; speaker traits multiply it (Hotheaded x3 sharp replies, Proud x3 brush-offs, Gregarious x2 questions). Weighted random pick among criteria-eligible forks - bias the distribution, never hard-decide
+**Implementation:** `Reply.weight` x `Reply.trait_bias` product over `Speaker.traits`
+**Simplification:** One multiplier per (trait, fork) pair, no cumulative social state
+**Educational Value:** Why deterministic personality reads as robotic; variance is the humanity
+**Fun Factor:** Same question, different village - the hothead snaps, the proud brush off
+**Tags:** dialogue, cif, prom-week, traits, weights, social-considerations
+
+---
+
+### Pattern: Quip Exclusivity -> Exhaustion Ending
+**Academic Source:** Versu quips (Evans & Short) - once-only lines per social practice
+**Game Mechanic:** A picked reply's line variants are consumed for the conversation; a node with nothing new to offer yields a `Smalltalk`/`Exhausted` ending, not a repeat. Conversations end by running out of material
+**Implementation:** `used: HashSet<usize>` of line indices per exchange visit
+**Simplification:** Per-conversation memory only; nothing carries between meetings yet
+**Educational Value:** Real talk has a finite shelf; endings should be emergent
+**Fun Factor:** The talk dries up and they walk off - feels like a person, not a jukebox
+**Tags:** dialogue, versu, exclusivity, exhaustion, endings, smalltalk

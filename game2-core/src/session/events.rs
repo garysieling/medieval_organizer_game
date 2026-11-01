@@ -1877,6 +1877,28 @@ impl Game {
                     }
                 }
             }
+            EventId::HerbFlush => {
+                // ten days of gather: the hedge is thick with simples -
+                // a pair of satchels fills a little each day while it
+                // holds, what room's left and no more
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                let roll = self.rare_roll(id);
+                if !able.is_empty() {
+                    let off = (roll as usize / 3) % able.len();
+                    for i in 0..able.len().min(2) {
+                        let v = able[(off + i) % able.len()];
+                        if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
+                            let held: u32 = s.goods.values().sum();
+                            let room = crate::game::livelihood::SATCHEL_CAP.saturating_sub(held);
+                            if room > 0 {
+                                *s.goods.entry("herbs".into()).or_insert(0) += 1;
+                            }
+                        }
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1975,6 +1997,10 @@ impl Game {
             EventId::FishRun => {
                 self.log.push(format!("t{}: a fish run - the reach is alive with them, thick enough to grab with two hands.", self.tick));
                 self.toasts.push(("A fish run".into(), self.tick + 40));
+            }
+            EventId::HerbFlush => {
+                self.log.push(format!("t{}: a flush of herbs - the hedge is thick with simples, worth the picking while it lasts.", self.tick));
+                self.toasts.push(("A flush of herbs".into(), self.tick + 40));
             }
             EventId::FouledWell => {
                 self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
@@ -5369,6 +5395,24 @@ mod tests {
                 g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
             assert!(gold1 > gold0 || g.villagers.is_empty(), "the apothecary paid on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("truffle") || l.contains("oak-leaves")), "the find was told on {:?}", st);
+        }
+    }
+
+    /// A flush of herbs: the hedge is thick with simples, and the
+    /// satchels fill while it lasts - ten days, then it's gone
+    #[test]
+    fn test_the_hedge_is_thick() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::HerbFlush);
+            assert!(g.rare.iter().any(|r| r.id == EventId::HerbFlush), "the flush's on");
+            stage::run_days(&mut g, 3);
+            let herbs: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("herbs").copied()).unwrap_or(0)).sum();
+            assert!(herbs > 0 || g.villagers.is_empty(), "the satchels filled on {:?}", st);
+            stage::run_days(&mut g, 11);
+            assert!(g.rare.iter().all(|r| r.id != EventId::HerbFlush), "the flush's gone on {:?}", st);
         }
     }
 

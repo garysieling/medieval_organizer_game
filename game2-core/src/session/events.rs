@@ -430,6 +430,9 @@ impl Game {
             EventId::StrayDog => {
                 self.log.push(format!("t{}: a stray dog hangs about the market, ribs showing.", self.tick));
             }
+            EventId::StrayCat => {
+                self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
+            }
             EventId::KnifeGrinder => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
                 self.log.push(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name));
@@ -2305,6 +2308,26 @@ impl Game {
                     self.log.push(format!("t{}: the stray won't go - {} has a dog now.", tick, name));
                 } else {
                     self.log.push(format!("t{}: the stray drifts on down the road.", tick));
+                }
+            }
+            EventId::StrayCat => {
+                // the loneliest hearth takes her in - cats decide too
+                let mark = self.lonely_hearts().into_iter()
+                    .filter(|&v| !villager::is_dead(&self.world, v))
+                    .min_by_key(|&v| self.world.query::<crate::game::relationships::Relationship>().iter()
+                        .filter(|&&r| self.world.get_component::<crate::game::relationships::Relationship>(r)
+                            .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count());
+                if let Some(m) = mark {
+                    let name = self.name_of(m);
+                    // a village cat earns her keep - Hunting puts her
+                    // vermin watch to work, not just her company
+                    let pet = pets::spawn_pet(&mut self.world, "Tib", Species::Cat, PetRole::Hunting);
+                    pets::adopt(&mut self.world, pet, m);
+                    self.pets.push((pet, Species::Cat, (0.7, 0.4)));
+                    desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
+                    self.log.push(format!("t{}: the cat's made her choice - {} has a cat now.", tick, name));
+                } else {
+                    self.log.push(format!("t{}: the cat slips off the way she came.", tick));
                 }
             }
             _ => {}
@@ -4254,6 +4277,28 @@ mod tests {
             g.force_event(EventId::HawkStoops);
             assert!(g.hens.len() <= hens0, "the yard's lighter on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("hawk")), "the stoop was told on {:?}", st);
+        }
+    }
+
+    /// The stray cat hangs about the market, then makes her choice -
+    /// the loneliest hearth takes her in
+    #[test]
+    fn test_the_cat_makes_her_choice() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::StrayCat);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::StrayCat && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            assert!(g.rare.iter().any(|r| r.id == EventId::StrayCat), "she's about");
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| matches!(p.kind, PKind::Pet(Species::Cat))),
+                "the frame shows the cat on {:?}", st);
+            stage::run_days(&mut g, 8);
+            assert!(g.rare.iter().all(|r| r.id != EventId::StrayCat), "she chose on {:?}", st);
+            assert!(g.pets.iter().any(|&(_, sp, _)| sp == Species::Cat)
+                || g.log.iter().any(|l| l.contains("slips off")), "she stayed or slipped on {:?}", st);
         }
     }
 

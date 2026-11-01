@@ -27,7 +27,7 @@ use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
 use crate::ui::weather_fx;
-use crate::sim::illness::{Health, Disease, DiseaseKind, Stage, IllnessSystem};
+use crate::sim::illness::{self, Health, Disease, DiseaseKind, Stage, IllnessSystem};
 #[allow(unused_imports)] // only the tests name attachment styles now
 use crate::sim::psychology::{AttachmentHistory, AttachmentStyle};
 use crate::sim::community::{Citizen, Organization};
@@ -4648,6 +4648,9 @@ impl Game {
                 *e = (*e + 0.004).min(1.0);
             }
         }
+        // but the river washes a little clean each day - foul water
+        // clears once the village stops pouring in
+        for e in self.land.effluent.values_mut() { *e = (*e - 0.0008).max(0.0); }
         // the thresholds - each lands on the folk who feel it, as commons
         let n = self.land.tree_cover.len().max(1) as f32;
         let mean_cover: f32 = self.land.tree_cover.values().sum::<f32>() / n;
@@ -4684,6 +4687,51 @@ impl Game {
                     if near {
                         desires::add_grievance(&mut self.world, v, desires::Problem::StinkingReach, tick + 30);
                     }
+                }
+            }
+            // foul water does worse than stink - the village drinks the
+            // reach, and the reach gives back what the village poured in.
+            // Each waterborne case fouls it further: Snow's loop
+            for v in self.villagers.clone() {
+                if villager::is_dead(&self.world, v) { continue; }
+                let home_pos = household::home_of(&self.world, v)
+                    .and_then(|h| self.world.get_component::<Pos>(h).copied());
+                // the waterborne sick pour it back - the foulest they
+                // touch is the tile of the reach nearest home
+                let water_sick = self.world.query::<Disease>().iter().any(|&d| {
+                    self.world.get_component::<Disease>(d)
+                        .map(|dd| dd.patient == v && dd.kind.route() == illness::Route::Water
+                            && dd.stage != Stage::Recovering)
+                        .unwrap_or(false)
+                });
+                if water_sick {
+                    if let Some(hp) = home_pos {
+                        if let Some(&(x, y)) = self.reach.iter()
+                            .min_by_key(|&&(x, y)| ((x as f32 - hp.x).abs() + (y as f32 - hp.y).abs()) as i32) {
+                            let e = self.land.effluent.entry((x, y)).or_insert(0.0);
+                            *e = (*e + 0.01).min(1.0);
+                        }
+                    }
+                }
+                // already carrying something - the water waits its turn
+                if disease_of(&self.world, v).is_some() { continue; }
+                let Some(hp) = home_pos else { continue };
+                let load = self.land.effluent.iter()
+                    .filter(|(&(x, y), &e)| e >= 0.5
+                        && (x as f32 - hp.x).abs() + (y as f32 - hp.y).abs() < 6.0)
+                    .map(|(_, &e)| e).fold(0.0f32, f32::max);
+                if load >= 0.5 && self.rng.below(1000) < (load * 60.0) as i32 {
+                    // fouler water carries the fouler fevers
+                    let kind = if load >= 0.8 && self.rng.below(100) < 40 { DiseaseKind::Cholera }
+                        else if load >= 0.6 && self.rng.below(100) < 30 { DiseaseKind::Typhoid }
+                        else { DiseaseKind::Dysentery };
+                    let severity = match kind {
+                        DiseaseKind::Cholera => 0.55 + load * 0.3,
+                        DiseaseKind::Typhoid => 0.45 + load * 0.2,
+                        _ => 0.3 + load * 0.2,
+                    };
+                    let d = self.world.create_entity();
+                    self.world.add_component(d, Disease::new(kind, v, severity));
                 }
             }
         }
@@ -9046,7 +9094,11 @@ mod illness_tests {
         // is the log line, not whether he's still down with it
         assert!(game.log.iter().any(|l| l.contains("Bram is taken with la grippe")), "the log should say who fell ill");
         while game.tick < 600 { game.update(); }
-        assert!(game.villagers.iter().all(|v| !is_sick(&game.world, *v)), "the flu should have run its course by day 600");
+        // la grippe itself runs its course - whatever else the village
+        // caught meanwhile is another story
+        assert!(game.world.query::<Disease>().iter().all(|&d|
+            game.world.get_component::<Disease>(d).map(|dd| dd.kind != DiseaseKind::Influenza).unwrap_or(true)),
+            "la grippe should have run its course by day 600");
         assert!(game.log.iter().any(|l| l.contains("recovered from la grippe")), "the log should say who recovered");
     }
 }
@@ -9862,6 +9914,49 @@ mod land_tests {
             .any(|t| g.land.effluent.get(&t).copied().unwrap_or(0.0) > 0.2);
         assert!(!upstream_dirty, "the stink never travels upriver");
         let _ = wx0;
+    }
+
+    #[test]
+    fn test_foul_water_brings_the_waterborne_sickness() {
+        let mut g = Game::new();
+        // foul the water beside a home - the reach giving back what it got
+        let v = g.villagers[0];
+        let hp = household::home_of(&g.world, v)
+            .and_then(|h| g.world.get_component::<Pos>(h).copied()).expect("villager 0 has a home");
+        g.land.effluent.insert((hp.x.round() as i32 + 1, hp.y.round() as i32), 0.9);
+        for _ in 0..300 { g.land_tick(2); }
+        let waterborne = g.world.query::<Disease>().iter().any(|&d|
+            g.world.get_component::<Disease>(d)
+                .map(|dd| dd.kind.route() == illness::Route::Water).unwrap_or(false));
+        assert!(waterborne, "foul water should sicken somebody");
+    }
+
+    #[test]
+    fn test_clean_water_carries_no_sickness() {
+        let mut g = Game::new();
+        for _ in 0..100 { g.land_tick(2); }
+        assert!(g.world.query::<Disease>().iter().all(|&d|
+            g.world.get_component::<Disease>(d)
+                .map(|dd| dd.kind.route() != illness::Route::Water).unwrap_or(true)),
+            "clean water sicks no one");
+    }
+
+    #[test]
+    fn test_the_water_sick_foul_the_reach_further() {
+        let mut g = Game::new();
+        let v = g.villagers[0];
+        let home = household::home_of(&g.world, v)
+            .and_then(|h| g.world.get_component::<Pos>(h).copied()).expect("villager 0 has a home");
+        let d = g.world.create_entity();
+        g.world.add_component(d, Disease::new(DiseaseKind::Cholera, v, 0.7));
+        // lands on the foul-water check; no accretion day, so what climbs
+        // is what the sick poured back
+        g.land_tick(2);
+        let nearest = g.reach.iter().copied()
+            .min_by_key(|&(x, y)| ((x as f32 - home.x).abs() + (y as f32 - home.y).abs()) as i32)
+            .expect("there's a reach");
+        let e = g.land.effluent.get(&nearest).copied().unwrap_or(0.0);
+        assert!(e > 0.15, "the sick pour it back fouler");
     }
 
     #[test]
@@ -11740,7 +11835,8 @@ mod log_priority_tests {
         let mut game = Game::new();
         while game.tick < 600 { game.update(); }
         let shown: Vec<&String> = visible_log(&game.log).into_iter().take(8).collect();
-        assert!(shown.iter().any(|e| e.contains("grippe")), "by day 600 the grippe has scrolled away: {:?}", shown);
+        assert!(shown.iter().any(|e| e.contains("is taken with") || e.contains("recovered from")),
+            "by day 600 the sickness has scrolled away: {:?}", shown);
     }
 }
 

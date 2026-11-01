@@ -1783,7 +1783,10 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)).collect();
                 if let Some(&v) = able.get((self.rare_roll(id) as usize / 7) % able.len().max(1)) {
                     if let Some(h) = self.world.get_component_mut::<Health>(v) {
-                        h.condition = (h.condition - 0.25).max(0.05);
+                        // a strike only takes - the floor never heals
+                        if h.condition > 0.05 {
+                            h.condition = (h.condition - 0.25).max(0.05);
+                        }
                     }
                     self.say(v, "...", CHAT_BUBBLE_SECS);
                     self.log.push(format!("t{}: lightning strikes the village - one of them's knocked flat where it lands.", self.tick));

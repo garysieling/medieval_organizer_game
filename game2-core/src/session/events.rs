@@ -2374,7 +2374,7 @@ impl Game {
                     self.world.get_component::<household::Building>(be)
                         .map(|bb| bb.kind == household::BuildingKind::Home
                             && bb.occupants.len() < 4
-                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                            && bb.name != "a foreign house" && bb.name != "the herb hut")
                         .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {

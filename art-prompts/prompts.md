@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-520 prompts, est. $88.49 USD at list prices.
+537 prompts, est. $91.55 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -193,12 +193,16 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ui-button-c5bf7b01 | wooden game button, unpressed, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
+| ui-button-c5bf7b01 | wooden game button, unpressed, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-end-screen-c3c99989 | quiet dusk view of a medieval village, lamps lit, end-of-game mood | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
-| ui-log-box-637d32e2 | long thin parchment scroll log box, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
-| ui-panel-e028fe6e | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
+| ui-hud-bar-7a7d8edb | game HUD strip: resource counters with icon slots, meter frames, season and date display, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-inventory-grid-ccb897f8 | empty inventory grid panel with item slots and a character paper-doll frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-log-box-637d32e2 | long thin parchment scroll log box, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-panel-e028fe6e | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-title-keyart-8651a36f | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
-| ui-villager-card-c74542c4 | character card panel with portrait frame and stat rows, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
+| ui-ui-kit-8349cf27 | complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-villager-card-c74542c4 | character card panel with portrait frame and stat rows, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-window-set-b4b2586c | set of matching medieval game windows: title bar, dialog box, tooltip, modal frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 
 ## P0 - needed now (replaces assets the game already draws) / icons/weather
 
@@ -577,6 +581,14 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | decor-wreath-2455375b | single isometric medieval village asset: evergreen wreath with candles | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 | decor-yule-log-0557bc95 | single isometric medieval village asset: decorated yule log with holly | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 
+## P1 - fills gaps in shipped features / icons/goods
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| food-sheet-4fe809ed | inventory item sheet: bread loaf, cheese wheel, ale mug, honey jar, dried fish, egg basket, milk jug, apples, pottage bowl, turnips, peas, fuel faggot bundle | rd_pro__inventory_items | 256x256 | 1 | 0.18 | kitchen-garden and hearth foods, plus the fuel goods |
+| materials-sheet-40a5650d | inventory item sheet: log, dressed stone block, sand pile, pigment pot, cloth bolt, glass pane, paper sheet, ink pot, wool ball, tanned hide, candle, clay brick | rd_pro__inventory_items | 256x256 | 1 | 0.18 | raw and crafted materials for the production chains |
+| tools-sheet-cf25b75b | inventory item sheet: sickle, hoe, hammer, saw, chisel, axe, mallet, needle and thread, quill, trowel, smith's tongs, wood plane | rd_pro__inventory_items | 256x256 | 1 | 0.18 | vocation workshop tools; include_downloadable_data returns the item atlas |
+
 ## P1 - fills gaps in shipped features / scenes
 
 | id | prompt | style | size | n | est $ | notes |
@@ -593,6 +605,20 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | scene-storm-damage-8f1e1470 | single isometric medieval village asset, wide lively scene: storm-torn village, fallen branch, damaged roof | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
 | scene-tax-day-3f0a13b6 | single isometric medieval village asset, wide lively scene: tax collector at the market with guards, villagers queueing | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
 | scene-wedding-f978b435 | single isometric medieval village asset, wide lively scene: village wedding outside the church, flower petals | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
+
+## P1 - fills gaps in shipped features / sheets/sprites
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| sheet-cottage-construction-fb3f2687 | isometric medieval cottage construction stages: foundation stones, timber frame, half-roofed, finished thatch, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-cottage-seasons-7db62d5d | the same isometric medieval cottage in four seasons: spring green, summer lush, autumn gold, winter snow, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-crop-growth-3e1490f8 | isometric wheat field patch growth stages: bare soil, green shoots, half-grown, ripe golden heads, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-farm-animals-a628136d | small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-guard-poses-866c3f01 | small medieval town guard with spear: standing, marching, ready stance, saluting, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-tree-growth-1e90f5de | isometric oak tree growth stages: sapling, young tree, mature, ancient, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-villager-poses-5af51f87 | small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-villager-variants-d8068ffd | small chibi medieval peasant villagers, varied tunic colours and hair, front view, full body, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-visitor-pack-7cf1ab2d | small chibi travelling medieval figures: pedlar with pack, pilgrim with staff, friar in habit, minstrel with lute, beggar with bowl, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
 
 ## P2 - future features and cultures / cultures/african
 
@@ -789,6 +815,7 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
+| future-goods-sheet-c7eb0b49 | inventory item sheet: cheese wheel, wine bottle, ale mug, honey jar, perfume bottle, mushroom basket, dried herb bundle, dried fish, pasta noodles, wool ball, milk jug, egg basket, mead bottle, cider jug | rd_pro__inventory_items | 256x256 | 1 | 0.18 | atlas alternative to the good-* calls above; include_downloadable_data returns the item atlas |
 | good-ale-208ec286 | small game item icon of foaming ale mug | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
 | good-cheese-bc48db84 | small game item icon of cheese wheel | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
 | good-cider-18fa52ea | small game item icon of jug of cider | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |

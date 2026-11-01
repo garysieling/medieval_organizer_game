@@ -1140,6 +1140,15 @@ Tell me which mode you want to enter, and I'll guide you through the process.
 - **Done:** DiseaseKind enum + Victorian names + per-kind incubation/immunity (PR #297); Route enum + waterborne kinds (cholera/slow fever/flux) + effluent Broad Street mechanic + Snow feedback loop + effluent decay (PR #406); ague as Route::Vector seasonal marsh fever (days 240-310) + crowding doubles dose + hunger halves immunity (PR #410); epidemic scapegoating - Blamed grievance lands on herb-wife or newest face when 2+ symptomatic (PR #411)
 - **Remaining:** occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), Vaccination Act as oppression event + Leicester Method as player counter-institution, true TB/seasonal table generalized over FLU_DAY/ergot gates.
 
+### [ ] Goods & Market Economy Overhaul (barter, hidden worths, 3-tier goods web)
+- **Status:** In Progress (design landed 2026-11-01)
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-11-01
+- **Requested by:** Gary
+- **Output:** wiki/software-design/goods-market-economy.md
+- **Notes:** Barter-first trading (goods-for-goods + "a penny to boot"), intrinsic worth hidden from the UI (you hear "2 roots for 3 eggs", never a number), three tiers (staples / manufactured / luxuries), AtS-style ingredient-slot recipe web so no single missing good stalls a trade, muted scarcity drift bounded 0.6-1.8, cottage industries selling their own goods at door and market. ~30 new goods; "wood"/"stone" de-troped to timber+faggots / fieldstone. 19 implementation tranches ordered preparatory-first in the design doc. Open questions flagged for Gary: salt sourcing (import vs salt-pan), meat/pigs, drift bounds.
+
 ### [ ] Implement IAF Organizing Model Mechanics (encounter menu, research phase, leader economics, accountability assembly)
 - **Status:** Pending
 - **Priority:** High

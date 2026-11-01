@@ -1985,6 +1985,7 @@ impl Game {
                 // the house wears the worry while the village searches
                 let kids: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
                     !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
                         && self.world.get_component::<crate::game::vocation::Kid>(v).is_some()).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&k) = kids.get((roll as usize / 5) % kids.len().max(1)) {
@@ -2003,7 +2004,8 @@ impl Game {
                     if let Some(hh) = household::home_of(&self.world, k) {
                         for &o in self.world.get_component::<household::Building>(hh)
                             .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
-                            if o == k || villager::is_dead(&self.world, o) { continue; }
+                            if o == k || villager::is_dead(&self.world, o)
+                                || crate::game::dungeon::unavailable(&self.world, o) { continue; }
                             desires::add_grievance(&mut self.world, o, desires::Problem::Grief, until);
                         }
                     }
@@ -2566,6 +2568,9 @@ impl Game {
                     if villager::is_dead(&self.world, k) {
                         // the search found her too late - no homecoming to give
                         self.log.push(format!("t{}: they found her at the wood's edge, but the dark had kept her.", tick));
+                    } else if crate::game::dungeon::unavailable(&self.world, k) {
+                        // the castle holds her - no wood-road homecoming either
+                        self.log.push(format!("t{}: the search ended - she's held where folk can't fetch her home.", tick));
                     } else {
                         if let Some(h) = self.world.get_component_mut::<Health>(k) {
                             if h.condition > 0.05 {
@@ -2581,7 +2586,8 @@ impl Game {
                             }
                             for &o in self.world.get_component::<household::Building>(hh)
                                 .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
-                                if o == k || villager::is_dead(&self.world, o) { continue; }
+                                if o == k || villager::is_dead(&self.world, o)
+                                    || crate::game::dungeon::unavailable(&self.world, o) { continue; }
                                 desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
                             }
                         }
@@ -5049,6 +5055,25 @@ mod tests {
             assert!(g.rare.iter().all(|r| r.id != EventId::LostChild), "she's home on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("wood") || l.contains("lost child")), "it was told on {:?}", st);
         }
+    }
+
+    /// The wood takes no captive: a kid behind the castle's door is
+    /// not the one the roll can send out in the dark
+    #[test]
+    fn test_the_wood_takes_no_captive() {
+        let mut g = stage::staged(stage::Stage::Ordinary);
+        let kids: Vec<Entity> = g.villagers.iter().copied()
+            .filter(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_some())
+            .collect();
+        assert!(!kids.is_empty(), "the staged village has kids");
+        for &k in &kids {
+            g.world.add_component(k, crate::game::dungeon::CastleHeld { since: 0 });
+        }
+        g.force_event(EventId::LostChild);
+        assert!(g.log.iter().any(|l| l.contains("late for supper")),
+            "no kid was sent to the wood");
+        assert!(g.rare.iter().find(|r| r.id == EventId::LostChild)
+            .map(|r| r.aux).unwrap_or(0) == 0, "no captive rides the aux");
     }
 
     /// A foundling: a babe in a basket on a rolled home's step - one

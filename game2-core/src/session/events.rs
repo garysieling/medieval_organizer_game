@@ -2448,6 +2448,28 @@ impl Game {
                 }
                 self.toasts.push(("A coin hoard".into(), self.tick + 40));
             }
+            EventId::OldStones => {
+                // the plow turns up someone's old work: stone for the
+                // robbing, and a marvel to touch - who laid them, and
+                // what were they for?
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                        .unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::add_stock(&mut b, "stone", 3);
+                    }
+                }
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 10);
+                }
+                self.log.push(format!("t{}: old stones - the plow turned up someone's old work, and who laid them nobody knows.", self.tick));
+                self.toasts.push(("Old stones".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5178,6 +5200,40 @@ mod tests {
                 g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
             assert!(gold1 > gold0 || g.villagers.is_empty(), "the pot filled a purse on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("coin hoard") || l.contains("silver")), "the find was told on {:?}", st);
+        }
+    }
+
+    /// Old stones: the plow turns up someone's old work - stone for
+    /// the robbing and a marvel to touch
+    #[test]
+    fn test_who_laid_them() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let stone0: u32 = g.building_entities.iter().map(|&be|
+                g.world.get_component::<household::Building>(be)
+                    .and_then(|b| b.stock.get("stone").copied()).unwrap_or(0)).sum();
+            g.force_event(EventId::OldStones);
+            let stone1: u32 = g.building_entities.iter().map(|&be|
+                g.world.get_component::<household::Building>(be)
+                    .and_then(|b| b.stock.get("stone").copied()).unwrap_or(0)).sum();
+            assert!(stone1 > stone0 || g.building_entities.is_empty(), "the stones were robbed on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("old stones")), "the find was told on {:?}", st);
+        }
+    }
+
+    /// Old stones: the plow turns up someone's old work - a marvel to
+    /// touch, and the stock of it lands somewhere safe
+    #[test]
+    fn test_somebody_built_here() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::OldStones);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the marvel of it on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("old stones")), "the find was told on {:?}", st);
         }
     }
 

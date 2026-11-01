@@ -2213,7 +2213,8 @@ impl Game {
                         self.log.push(format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name));
                         for &o in self.world.get_component::<household::Building>(h)
                             .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
-                            if villager::is_dead(&self.world, o) { continue; }
+                            if villager::is_dead(&self.world, o)
+                                || crate::game::dungeon::unavailable(&self.world, o) { continue; }
                             // her own hearth's burned out, not a wolf's take
                             desires::add_grievance(&mut self.world, o, desires::Problem::NoHome, self.tick + 30);
                         }
@@ -4731,6 +4732,25 @@ mod tests {
                 "the fire's lit on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("chimney fire")), "the fire was told on {:?}", st);
         }
+    }
+
+    /// The hearth-grief lands on a house that can feel it - the held
+    /// see no smoke
+    #[test]
+    fn test_the_smoke_skips_the_held() {
+        let mut g = stage::staged(stage::Stage::Ordinary);
+        let held: Vec<Entity> = g.building_entities.iter().copied()
+            .flat_map(|be| g.world.get_component::<household::Building>(be)
+                .map(|b| b.occupants.clone()).unwrap_or_default())
+            .collect();
+        assert!(!held.is_empty(), "the staged village has hearth-folk");
+        for &o in &held {
+            g.world.add_component(o, crate::game::dungeon::CastleHeld { since: 0 });
+        }
+        g.force_event(EventId::ChimneyFire);
+        assert!(held.iter().all(|&o| g.world.get_component::<desires::InnerLife>(o)
+            .map(|l| l.grievances.iter().all(|(p, _)| *p != desires::Problem::NoHome))
+            .unwrap_or(true)), "no hearth-grief lands on the held");
     }
 
     /// The stray dog picks the loneliest heart and stays

@@ -4188,6 +4188,13 @@ impl Game {
         }
         if tick % 90 == 75 && self.fox_coming { self.fox_coming = false; self.fox_night(tick); }
         let Some(fold) = self.fold else { return };
+        // the byre gives back what the flock drops: a week of leavings,
+        // dried, burns as good as a faggot when the wood runs thin
+        if tick % 7 == 1 {
+            if let Some(b) = self.world.get_component_mut::<Building>(fold) {
+                household::add_stock(b, "dung", 1);
+            }
+        }
         // move the grazing point every few days; a sheepdog keeps it tight
         if tick >= self.next_graze {
             if let Some(fp) = self.world.get_component::<Pos>(fold).copied() {
@@ -6724,6 +6731,66 @@ impl Game {
         self.sanction_tick(tick);
         // and the year has its feast days
         self.festival_tick(tick);
+        // winter hearths burn a bundle every few days - faggots, turf,
+        // the dry leavings, charcoal off the road; a house with nothing
+        // to burn eats cold, and that's a trouble the village can hear
+        if tick % 360 >= 270 && tick % 3 == 0 {
+            for &h in &self.building_entities.clone() {
+                let Some(b) = self.world.get_component::<Building>(h) else { continue };
+                if b.kind != household::BuildingKind::Home { continue; }
+                let occupants = b.occupants.clone();
+                let fuel = crate::game::goods::slot_goods(crate::game::goods::Tag::Fuel)
+                    .into_iter().find(|&g| b.stock.get(g).copied().unwrap_or(0) > 0);
+                // else the house burns what its folk carry home - a
+                // bundle in the satchel keeps the hearth same as a stack
+                let hp = self.world.get_component::<Pos>(h).copied();
+                let carried = if fuel.is_none() {
+                    crate::game::goods::slot_goods(crate::game::goods::Tag::Fuel).into_iter()
+                        .find_map(|g| occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                            // and actually home - the bundle has to be
+                            // under the roof to warm it
+                            && hp.and_then(|hp| self.world.get_component::<Pos>(o)
+                                .map(|op| (op.x - hp.x).abs() + (op.y - hp.y).abs() <= 7.0)).unwrap_or(false)
+                            && self.world.get_component::<Satchel>(o)
+                                .map(|s| s.goods.get(g).copied().unwrap_or(0) > 0).unwrap_or(false))
+                            .map(|o| (o, g)))
+                } else { None };
+                match fuel.or(carried.map(|(_, g)| g)) {
+                    Some(g) => {
+                        if let Some((o, _)) = carried {
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(o) {
+                                *s.goods.get_mut(g).unwrap() -= 1;
+                            }
+                        } else if let Some(b) = self.world.get_component_mut::<Building>(h) {
+                            household::take_stock(b, g, 1);
+                        }
+                    }
+                    None => {
+                        for &o in &occupants {
+                            if !villager::is_dead(&self.world, o) {
+                                desires::add_grievance(&mut self.world, o,
+                                    desires::Problem::ColdHearth, tick + 9);
+                            }
+                        }
+                        // and a cold house does something about it: a free
+                        // hand goes out for a bundle tomorrow - never a
+                        // villager a seat steers, that errand's theirs to give
+                        if let Some(hand) = occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                            && !crate::game::dungeon::unavailable(&self.world, o)
+                            && !self.travels.iter().any(|t| t.who == o)
+                            && !self.seats.iter().any(|s| s.player == o)) {
+                            if let Some(op) = self.world.get_component::<Pos>(hand).copied() {
+                                if let Some(t) = self.gather_site("faggots", op) {
+                                    self.send_gather(hand, "faggots", t);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // the gardens fill in a little more each week
         self.garden_tick(tick);
         // and the kitchen pot: staples off the garden beds feed the
@@ -6953,6 +7020,16 @@ impl Game {
                 .min_by_key(|&(x, y)| dist(x, y)),
             "sand" => (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
                 .filter(|&(x, y)| self.map.passable(x, y)
+                    && NEIGHBOURS.iter().any(|(dx, dy)| matches!(self.map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River))))
+                .min_by_key(|&(x, y)| dist(x, y)),
+            // faggots come off the same trees as the craft-wood - the
+            // leavings and deadfall, not the timber
+            "faggots" => self.map.trees.iter().copied()
+                .min_by_key(|&(x, y)| dist(x, y)),
+            // turf cuts off the wet ground by the river, same ground the
+            // marsh fevers rise off
+            "turf" => (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
+                .filter(|&(x, y)| self.map.get(x, y) == Some(Tile::Grass) && self.map.passable(x, y)
                     && NEIGHBOURS.iter().any(|(dx, dy)| matches!(self.map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River))))
                 .min_by_key(|&(x, y)| dist(x, y)),
             _ => None,

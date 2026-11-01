@@ -84,6 +84,8 @@ pub enum Problem {
     WritBorne,
     /// The winter runs long and the stores run thin
     LongWinter,
+    /// No fuel for the hearth - the house eats cold all winter
+    ColdHearth,
     /// The hermit's want: the dark keeps them
     TheDark,
     /// What they watched and can't unsee - the hanging's weight
@@ -180,6 +182,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::SourGut) => "the sour gut",
         Reveal::Problem(Problem::DeathDuty) => "the death duty",
         Reveal::Problem(Problem::ThinWood) => "the shrinking wood",
+        Reveal::Problem(Problem::ColdHearth) => "cold hearths",
         Reveal::Problem(Problem::DryPit) => "the drowned pit",
         Reveal::Problem(Problem::StinkingReach) => "the stinking reach",
         Reveal::Problem(Problem::ShortChanged) => "the reckoning that didn't add up",
@@ -294,6 +297,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::Tempted => "the road's calling".into(),
         Problem::WritBorne => "a writ came down from the castle".into(),
         Problem::LongWinter => "the winter runs long and the stores run thin".into(),
+        Problem::ColdHearth => "no fuel for the hearth".into(),
         Problem::TheDark => "the dark keeps me".into(),
         Problem::Grief => "I watched it and can't unsee it".into(),
         Problem::Robbed => "was robbed in the night".into(),
@@ -337,6 +341,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Tempted) => (format!("{}'s feet itch", name), "The road looks shorter from the gate than the days look here.".into()),
         Reveal::Problem(Problem::WritBorne) => (format!("{} bore the writ", name), "Sealed by the castle. No arguing with wax.".into()),
         Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are thin", name), "Second winter running. The barrel knows it.".into()),
+        Reveal::Problem(Problem::ColdHearth) => (format!("{} eats cold", name), "No faggots, no turf, not even the dry leavings. The pot's cold and the bed's colder.".into()),
         Reveal::Problem(Problem::TheDark) => (format!("{} keeps to the dark", name), "The village is loud with light. Down here it's honest.".into()),
         Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
         Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),

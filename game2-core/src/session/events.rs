@@ -1687,12 +1687,15 @@ impl Game {
                 self.land.pit_water = (self.land.pit_water - 0.05).max(0.0);
             }
             EventId::Drought => {
-                // a fortnight dry: the well runs low, the beds wilt for
-                // want of rain, and no patch will fruit while it holds
+                // a fortnight dry: the well runs low, the beds wilt hard
+                // against what the sun would give, and no patch fruits
+                // until the dry's past - not tomorrow, the whole dry
                 self.land.pit_water = (self.land.pit_water - 0.08).max(0.0);
-                for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.02).max(0.0); }
+                for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.6).max(0.0); }
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(self.tick + 1);
                 for p in self.mush_patches.iter_mut() {
-                    p.next_ready = p.next_ready.max(self.tick + 1);
+                    p.next_ready = p.next_ready.max(until);
                 }
             }
             EventId::WineMerchant => {

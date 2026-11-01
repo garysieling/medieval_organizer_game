@@ -2305,6 +2305,32 @@ impl Game {
                 }
                 self.toasts.push(("A cart overturns".into(), self.tick + 40));
             }
+            EventId::DrownedInPond => {
+                // a rolled soul goes to the pond and doesn't come back:
+                // the house grieves her - the funeral machinery sees
+                // her from there
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&v) = able.get((roll as usize / 5) % able.len().max(1)) {
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = 0.0;
+                    }
+                    let house = household::home_of(&self.world, v);
+                    if let Some(hh) = house {
+                        for &o in self.world.get_component::<household::Building>(hh)
+                            .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                            if o == v || villager::is_dead(&self.world, o) { continue; }
+                            desires::add_grievance(&mut self.world, o, desires::Problem::Grief, self.tick + 60);
+                        }
+                    }
+                    self.log.push(format!("t{}: drowned in the pond - they pulled her out at the shallows, too late.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a body in the pond - nobody of ours, thank the saints.", self.tick));
+                }
+                self.toasts.push(("Drowned in the pond".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4856,6 +4882,20 @@ mod tests {
             let mut g = stage::staged(st);
             g.force_event(EventId::CartOverturns);
             assert!(g.log.iter().any(|l| l.contains("cart overturns")), "the spill was told on {:?}", st);
+        }
+    }
+
+    /// Drowned in the pond: a rolled soul doesn't come back from the
+    /// shallows, and her house grieves her
+    #[test]
+    fn test_the_shallows_took_her() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let alive0 = g.villagers.iter().filter(|&&v| !villager::is_dead(&g.world, v)).count();
+            g.force_event(EventId::DrownedInPond);
+            let alive1 = g.villagers.iter().filter(|&&v| !villager::is_dead(&g.world, v)).count();
+            assert!(alive1 < alive0 || alive0 == 0, "the pond took one on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("drowned") || l.contains("pond")), "the drowning was told on {:?}", st);
         }
     }
 

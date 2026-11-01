@@ -2196,6 +2196,30 @@ impl Game {
                 }
                 self.toasts.push(("A mob of crows".into(), self.tick + 40));
             }
+            EventId::ChimneyFire => {
+                // a rolled home's flue catches - the fire ticks and
+                // spreads the way any fire does, and the house grieves
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
+                    if let Some(p) = self.world.get_component::<Pos>(h).copied() {
+                        self.fire.ignite(&self.map, p.x.round() as i32, p.y.round() as i32);
+                    }
+                    let name = self.world.get_component::<household::Building>(h)
+                        .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
+                    self.log.push(format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name));
+                    for &o in self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                        if villager::is_dead(&self.world, o) { continue; }
+                        desires::add_grievance(&mut self.world, o, desires::Problem::Loss, self.tick + 30);
+                    }
+                } else {
+                    self.log.push(format!("t{}: a chimney fire - smoke gone wrong, but the neighbors put it out.", self.tick));
+                }
+                self.toasts.push(("A chimney fire!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4686,6 +4710,19 @@ mod tests {
             assert!(catch > 0, "the catch went on the baskets on {:?}", st);
             stage::run_days(&mut g, 7);
             assert!(g.rare.iter().all(|r| r.id != EventId::FishRun), "the river's quiet on {:?}", st);
+        }
+    }
+
+    /// A chimney fire: smoke gone wrong at a rolled home, the fire
+    /// lit for real, and the house grieves it
+    #[test]
+    fn test_smoke_gone_wrong() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::ChimneyFire);
+            assert!(g.fire.active() || g.building_entities.is_empty(),
+                "the fire's lit on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("chimney fire")), "the fire was told on {:?}", st);
         }
     }
 

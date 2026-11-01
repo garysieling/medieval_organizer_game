@@ -1953,8 +1953,12 @@ impl Game {
             }
             EventId::WolfAtFold => {
                 // the wolf's in the fold now - the flock scatters and
-                // some are lost, the same way the night-run does it
+                // some are lost, the same way the night-run does it.
+                // run it on a spare stream so the event's rolls don't
+                // shift the village's own dice
+                let keep = Rng(self.rng.0);
                 self.wolf_night(self.tick);
+                self.rng = keep;
                 self.toasts.push(("Wolf at the fold!".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }

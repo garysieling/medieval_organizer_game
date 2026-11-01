@@ -541,7 +541,7 @@ pub fn run_meeting<'a>(
     let mut record: Vec<Statement> = vec![Statement {
         speaker: usize::MAX, // the organizer isn't an attendee
         act: Act::Question,
-        text: format!("{}: {}", organizer.name, prompt.text),
+        text: prompt.text.replace("{org}", &organizer.name),
         concepts: prompt.concepts.to_vec(),
         replying_to: None,
     }];
@@ -568,19 +568,25 @@ pub fn run_meeting<'a>(
             for (si, s) in record.iter().enumerate() {
                 if si == 0 && !question_open { continue; }
                 if s.speaker == i { continue; } // nor take up your own earlier point
+                // nor answer the same statement twice
+                if record.iter().any(|r| r.speaker == i && r.replying_to == Some(si)) { continue; }
                 let open_q = si == 0;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
                     else { OLD_PULL };
                 for l in pool {
-                    // Agreement or pushback can only reply to a fellow attendee's statement, not the organizer's opening question
-                    if open_q && (l.act == Act::Agree || l.act == Act::PushBack) {
+                    // Agreement, pushback or a challenging question can only reply to a fellow attendee's statement, not the organizer's opening question
+                    if open_q && matches!(l.act, Act::Agree | Act::PushBack | Act::Question) {
                         continue;
                     }
-                    // Nobody says "aye, that's so" to a challenge aimed at their own point
-                    let challenged = s.act == Act::PushBack
-                        && s.replying_to.is_some_and(|t| record[t].speaker == i);
-                    if challenged && l.act == Act::Agree {
+                    // "Aye, that's so" answers a claim, not a question
+                    if s.act == Act::Question && l.act == Act::Agree {
+                        continue;
+                    }
+                    // Nobody says "aye, that's so" to a reply aimed at their own point:
+                    // not to a challenge of it, nor to praise of it
+                    let about_own_point = s.replying_to.is_some_and(|t| record[t].speaker == i);
+                    if about_own_point && l.act == Act::Agree {
                         continue;
                     }
                     let overlap = l.concepts.iter().any(|c| s.concepts.contains(c));
@@ -876,6 +882,55 @@ mod tests {
                     && tr.turns.iter().any(|t| t.speaker == 1 && t.act == Act::Answer)
             });
             assert!(prayed, "a {} parishioner never reaches the cleric's prayer", status);
+        }
+    }
+    #[test]
+    fn test_meeting_attendee_answers_a_statement_once() {
+        for rec in meeting_records(0..100) {
+            let mut seen = HashSet::new();
+            for stmt in rec.iter().skip(1) {
+                assert!(seen.insert((stmt.speaker, stmt.replying_to)),
+                    "attendee answered the same statement twice: {:?}", stmt.text);
+            }
+        }
+    }
+
+    #[test]
+    fn test_meeting_nobody_agrees_with_a_question() {
+        for rec in meeting_records(0..100) {
+            for stmt in rec.iter().skip(1) {
+                let target = &rec[stmt.replying_to.unwrap()];
+                if target.act == Act::Question {
+                    assert_ne!(stmt.act, Act::Agree, "agreed with a question: {:?} -> {:?}", target.text, stmt.text);
+                }
+                let about_own_point = target.replying_to.is_some_and(|t| rec[t].speaker == stmt.speaker);
+                if about_own_point {
+                    assert_ne!(stmt.act, Act::Agree, "agreed with a reply to own point: {:?} -> {:?}", target.text, stmt.text);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_meeting_opening_is_the_question_alone() {
+        let rec = &meeting_records(0..1)[0];
+        assert_eq!(rec[0].text, MEET_PROMPT.text.replace("{org}", "Reeve"));
+    }
+
+    #[test]
+    fn test_cleric_call_opens_on_the_trouble() {
+        let library = village_library();
+        let mut cleric = Speaker::new("Anselm");
+        cleric.ideology = "clergy";
+        for (status, concern) in [("sick", "concern:sickness"), ("grieving", "concern:grief")] {
+            let mut flock = Speaker::new("Bram");
+            flock.status.push(status);
+            for seed in 0..50 {
+                let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, &mut Rng::new(seed));
+                let talked_of_it = tr.turns.iter().any(|t| t.speaker == 1 && t.concepts.contains(&concern));
+                let proud_refusal = tr.turns.get(1).is_some_and(|t| t.act == Act::PushBack);
+                assert!(talked_of_it || proud_refusal, "a cleric's call on a {} house never touched it: {:?}", status, tr.lines());
+            }
         }
     }
 }

@@ -58,8 +58,8 @@ const SMALL_CHAT: Exchange = Exchange {
     concepts: &["smalltalk", "weather"],
     calls: &[
         "Looks like rain again, doesn't it?",
-        "Cold wind off the moor this morning.",
-        "Gray clouds gathering over the hill.",
+        "Wind's off the moor - there's rain in it.",
+        "Gray clouds gathering over the hill. Rain by noon.",
     ],
     replies: &[
         Reply {
@@ -535,6 +535,37 @@ const CLERIC_GREET: Exchange = Exchange {
     ],
 };
 
+/// A cleric's call on a sick or bereaved house opens on the trouble
+/// itself, so the parishioner's answer is always about it
+const CLERIC_CALL: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "concern:faith"],
+    calls: &[
+        "Peace on this house, {other}. I came as soon as I heard.",
+        "I've come to sit with thee a while, {other}, and pray.",
+    ],
+    replies: &[
+        Reply {
+            criteria: &[Has("self:status:sick")], weight: 1.0, bias: &[(Pious, 1.5)],
+            act: Act::Question, concepts: &["concern:faith", "concern:sickness"],
+            lines: &["Bless thee for coming, father. Wilt thou pray the fever off me?", "The fever's bad tonight, father. Pray with me."],
+            then: Some(CLERIC_PRAYER), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 1.0, bias: &[(Pious, 1.5)],
+            act: Act::Question, concepts: &["concern:faith", "concern:grief"],
+            lines: &["Will he rest easy, father? Pray that he does.", "Say the words for him, father - I can't, not yet."],
+            then: Some(CLERIC_PRAYER), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.4, bias: &[(Proud, 2.5)],
+            act: Act::PushBack, concepts: &["concern:faith"],
+            lines: &["Prayers won't mend this, father."],
+            then: Some(CLERIC_COMFORT), end: None,
+        },
+    ],
+};
+
 const CLERIC_PARISH: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
@@ -588,7 +619,7 @@ const CLERIC_COMFORT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
     calls: &[
-        "The saints watch over thy house. I will come by with draughts and broth.",
+        "The saints watch over thy house. I will come by with bread and broth.",
         "Rest by the hearth, child - I'll light a candle and pray for thy house.",
     ],
     replies: &[
@@ -745,10 +776,10 @@ pub fn village_library() -> Vec<DialogueTree> {
         // visit, so the "pray for me" forks are reachable
         DialogueTree { name: "the_cleric_visits_the_sick",
             criteria: &[Has("self:ideology:clergy"), Has("other:status:sick")],
-            root: &CLERIC_GREET, rejoin: None },
+            root: &CLERIC_CALL, rejoin: None },
         DialogueTree { name: "the_cleric_consoles",
             criteria: &[Has("self:ideology:clergy"), Has("other:status:grieving")],
-            root: &CLERIC_GREET, rejoin: None },
+            root: &CLERIC_CALL, rejoin: None },
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: None },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],
@@ -785,7 +816,13 @@ const MEET_COMMON: &[MeetingLine] = &[
         act: Act::PushBack,
         concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest"],
         bias: &[(Hotheaded, 2.5)],
-        lines: &["Talk's cheap - who'll do aught about it?", "And what wouldst thou have us do, {other}?"],
+        lines: &["Talk's cheap - who'll do aught about it?"],
+    },
+    MeetingLine {
+        act: Act::Question,
+        concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:harvest"],
+        bias: &[(Hotheaded, 2.5)],
+        lines: &["And what wouldst thou have us do, {other}?"],
     },
     MeetingLine {
         act: Act::Remark,

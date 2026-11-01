@@ -100,7 +100,7 @@ An AI evaluator or reviewer should grade the conversations against the rubric be
 ```text
 Aldric     [Greet in village_smalltalk ]: "Well met, Marga."
 Marga      [Greet in village_smalltalk ]: "And to thee, Aldric."
-Aldric     [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Aldric     [Remark in village_smalltalk ]: "Wind's off the moor - there's rain in it."
 Marga      [PushBack in village_smalltalk ]: "Rain? It's the driest year in memory."
 Aldric     [Remark in village_smalltalk ]: "Even so, we'll manage."
 Marga      [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
@@ -124,7 +124,7 @@ Marga      [Farewell in village_smalltalk ]: "Fair day to thee, Aldric."
 ```text
 Aldric     [Greet in village_smalltalk ]: "A fair day to thee, Wystan."
 Wystan     [Remark in village_smalltalk ]: "Aye. What is it?"
-Aldric     [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Aldric     [Remark in village_smalltalk ]: "Wind's off the moor - there's rain in it."
 Wystan     [Question in village_smalltalk ]: "And how fares thy folk?"
 Aldric     [Answer in village_smalltalk ]: "Well enough, thank thee."
 Wystan     [Agree in village_smalltalk ]: "Long may it last."
@@ -148,7 +148,7 @@ Wystan     [Farewell in village_smalltalk ]: "Go well, Aldric."
 ```text
 Aldric     [Greet in village_smalltalk ]: "A fair day to thee, Marga."
 Marga      [Remark in village_smalltalk ]: "Aye. What is it?"
-Aldric     [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Aldric     [Remark in village_smalltalk ]: "Wind's off the moor - there's rain in it."
 Marga      [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
 Aldric     [Remark in village_smalltalk ]: "Even so, we'll manage."
 Marga      [Farewell in village_smalltalk ]: "On thy way then, and mine."
@@ -211,17 +211,17 @@ Marga      [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father.
 - **Backstory A:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 - **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 - **Relation:** Acquaintance
-- **Trees Cascade:** ["the_cleric_visits_the_sick", "visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Eliza      [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
-Gisela     [Greet in the_cleric_visits_the_sick]: "And on thee, father."
-Eliza      [Remark in the_cleric_visits_the_sick]: "How fares thy house, child?"
-Gisela     [Agree in the_cleric_visits_the_sick]: "We keep as we can, father."
-Eliza      [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Gisela     [Farewell in visiting_the_sick ]: "Just a prayer, Eliza."
+Eliza      [Greet in the_cleric_visits_the_sick]: "I've come to sit with thee a while, Gisela, and pray."
+Gisela     [Question in the_cleric_visits_the_sick]: "Bless thee for coming, father. Wilt thou pray the fever off me?"
+Eliza      [Question in the_cleric_visits_the_sick]: "The Lord comfort thee, child. Tell me of thy affliction."
+Gisela     [Answer in the_cleric_visits_the_sick]: "It's the little one mostly - she burns with fever."
+Eliza      [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with bread and broth."
+Gisela     [Farewell in the_cleric_visits_the_sick]: "Thank thee, father - thy blessing is a great comfort."
 ```
 
 ### Conversation #08: Eliza and Corvin
@@ -250,10 +250,10 @@ Corvin     [Farewell in the_cleric_blesses]: "Pray for us, father."
 - **Turns Count:** 4
 
 ```text
-Eliza      [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
-Hob        [Remark in the_cleric_visits_the_sick]: "Morrow, father."
-Eliza      [Remark in the_cleric_visits_the_sick]: "How fares thy house, child?"
-Hob        [Farewell in the_cleric_visits_the_sick]: "Pray for us, father."
+Eliza      [Greet in the_cleric_visits_the_sick]: "I've come to sit with thee a while, Hob, and pray."
+Hob        [PushBack in the_cleric_visits_the_sick]: "Prayers won't mend this, father."
+Eliza      [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with bread and broth."
+Hob        [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
 ```
 
 ### Conversation #10: Eliza and Dagny
@@ -270,7 +270,7 @@ Eliza      [Greet in the_cleric_blesses]: "Blessings on thee, Dagny."
 Dagny      [Remark in the_cleric_blesses]: "Morrow, father."
 Eliza      [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
 Dagny      [Agree in the_cleric_blesses]: "The season's been lean, father."
-Eliza      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Eliza      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill. Rain by noon."
 Dagny      [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
 Eliza      [Remark in village_smalltalk ]: "Aye, the year'll turn."
 Dagny      [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
@@ -380,7 +380,7 @@ Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
 Aldric     [Greet in the_cleric_blesses]: "Blessings on thy house as well."
 Corvin     [Remark in the_cleric_blesses]: "How fares thy house, child?"
 Aldric     [Agree in the_cleric_blesses]: "We keep as we can, father."
-Corvin     [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Corvin     [Remark in village_smalltalk ]: "Wind's off the moor - there's rain in it."
 Aldric     [Agree in village_smalltalk ]: "It'll be a wet week, mark me."
 Corvin     [Remark in village_smalltalk ]: "Even so, we'll manage."
 Aldric     [Agree in village_smalltalk ]: "Aye, we've seen worse."
@@ -411,17 +411,17 @@ Aelfric    [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father.
 - **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 - **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 - **Relation:** Stranger
-- **Trees Cascade:** ["the_cleric_visits_the_sick", "visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Corvin     [Greet in the_cleric_visits_the_sick]: "Blessings on thee, Gisela."
-Gisela     [Greet in the_cleric_visits_the_sick]: "And on thee, father."
-Corvin     [Remark in the_cleric_visits_the_sick]: "How fares thy house, child?"
-Gisela     [Agree in the_cleric_visits_the_sick]: "We keep as we can, father."
-Corvin     [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Gisela     [Farewell in visiting_the_sick ]: "Just a prayer, Corvin."
+Corvin     [Greet in the_cleric_visits_the_sick]: "Peace on this house, Gisela. I came as soon as I heard."
+Gisela     [Question in the_cleric_visits_the_sick]: "Bless thee for coming, father. Wilt thou pray the fever off me?"
+Corvin     [Question in the_cleric_visits_the_sick]: "The Lord comfort thee, child. Tell me of thy affliction."
+Gisela     [Answer in the_cleric_visits_the_sick]: "It's the little one mostly - she burns with fever."
+Corvin     [Remark in the_cleric_visits_the_sick]: "Rest by the hearth, child - I'll light a candle and pray for thy house."
+Gisela     [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
 ```
 
 ### Conversation #19: Corvin and Hob
@@ -434,11 +434,11 @@ Gisela     [Farewell in visiting_the_sick ]: "Just a prayer, Corvin."
 - **Turns Count:** 6
 
 ```text
-Corvin     [Greet in the_cleric_visits_the_sick]: "Blessings on thee, Hob."
-Hob        [Question in the_cleric_visits_the_sick]: "Father, pray for my house."
+Corvin     [Greet in the_cleric_visits_the_sick]: "Peace on this house, Hob. I came as soon as I heard."
+Hob        [Question in the_cleric_visits_the_sick]: "The fever's bad tonight, father. Pray with me."
 Corvin     [Question in the_cleric_visits_the_sick]: "The Lord comfort thee, child. Tell me of thy affliction."
 Hob        [Answer in the_cleric_visits_the_sick]: "It's the little one mostly - she burns with fever."
-Corvin     [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with draughts and broth."
+Corvin     [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with bread and broth."
 Hob        [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
 ```
 
@@ -456,7 +456,7 @@ Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
 Aldric     [Greet in the_cleric_blesses]: "And on thee, father."
 Corvin     [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
 Aldric     [Agree in the_cleric_blesses]: "The season's been lean, father."
-Corvin     [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Corvin     [Remark in village_smalltalk ]: "Gray clouds gathering over the hill. Rain by noon."
 Aldric     [Farewell in village_smalltalk ]: "I should get on. Fair day to thee."
 ```
 
@@ -606,7 +606,7 @@ Hob        [Greet in the_sickness      ]: "*cough* Good morrow, Aldric."
 Aldric     [Agree in the_sickness      ]: "Poor thing - get thee to bed."
 Hob        [Answer in the_sickness      ]: "There's no one else to fetch the water."
 Aldric     [Agree in the_sickness      ]: "We rub along or we don't eat, that's the truth of it."
-Hob        [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Hob        [Remark in village_smalltalk ]: "Wind's off the moor - there's rain in it."
 Aldric     [Question in village_smalltalk ]: "And how fares thy folk?"
 Hob        [Answer in village_smalltalk ]: "Well enough, thank thee."
 Aldric     [Farewell in village_smalltalk ]: "Give them my best. Fare well."
@@ -694,7 +694,7 @@ Eliza      [Farewell in asking_the_father ]: "Go in peace, Marga."
 ```text
 Marga      [Greet in village_smalltalk ]: "Good morrow to thee, Wystan."
 Wystan     [Remark in village_smalltalk ]: "Aye. What is it?"
-Marga      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Marga      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill. Rain by noon."
 Wystan     [Agree in village_smalltalk ]: "The thatch won't thank it."
 Marga      [Remark in village_smalltalk ]: "Even so, we'll manage."
 Wystan     [Farewell in village_smalltalk ]: "I'll not keep thee. Go well."
@@ -804,7 +804,7 @@ Gisela     [Greet in the_sickness      ]: "Morrow, Wystan. Don't stand too close
 Wystan     [Agree in the_sickness      ]: "Thou shouldst be by the fire, not out here."
 Gisela     [Answer in the_sickness      ]: "There's no one else to fetch the water."
 Wystan     [Agree in the_sickness      ]: "We rub along or we don't eat, that's the truth of it."
-Gisela     [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Gisela     [Remark in village_smalltalk ]: "Wind's off the moor - there's rain in it."
 Wystan     [Agree in village_smalltalk ]: "The thatch won't thank it."
 Gisela     [Remark in village_smalltalk ]: "Aye, the year'll turn."
 Wystan     [Farewell in village_smalltalk ]: "On thy way then, and mine."
@@ -840,7 +840,7 @@ Bram       [Farewell in visiting_the_sick ]: "Just a prayer, Gisela."
 ```text
 Wystan     [Greet in village_smalltalk ]: "A fair day to thee, Aldric."
 Aldric     [Remark in village_smalltalk ]: "Morrow."
-Wystan     [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Wystan     [Remark in village_smalltalk ]: "Gray clouds gathering over the hill. Rain by noon."
 Aldric     [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
 Wystan     [Remark in village_smalltalk ]: "Even so, we'll manage."
 Aldric     [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
@@ -953,54 +953,18 @@ Corvin     [Farewell in asking_the_father ]: "Go in peace, Aelfric."
 - **Relation:** Acquaintance
 - **Trees Cascade:** ["the_cleric_visits_the_sick"]
 - **Ending:** Farewell
-- **Turns Count:** 4
+- **Turns Count:** 6
 
 ```text
-Aelfric    [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
-Hob        [Greet in the_cleric_visits_the_sick]: "And on thee, father."
-Aelfric    [Remark in the_cleric_visits_the_sick]: "Dost thou find peace in thy labor, child?"
-Hob        [Farewell in the_cleric_visits_the_sick]: "Pray for us, father."
+Aelfric    [Greet in the_cleric_visits_the_sick]: "I've come to sit with thee a while, Hob, and pray."
+Hob        [Question in the_cleric_visits_the_sick]: "Bless thee for coming, father. Wilt thou pray the fever off me?"
+Aelfric    [Question in the_cleric_visits_the_sick]: "Speak, child - my prayers and candles are with thee."
+Hob        [Answer in the_cleric_visits_the_sick]: "This cough won't leave me, father, and the store is thin."
+Aelfric    [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with bread and broth."
+Hob        [Farewell in the_cleric_visits_the_sick]: "Thank thee, father - thy blessing is a great comfort."
 ```
 
-### Conversation #48: Aelfric and Aldric
-- **Speakers:** Aelfric (clergy) & Aldric (lord)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
-- **Relation:** Kin
-- **Trees Cascade:** ["the_cleric_blesses", "village_smalltalk"]
-- **Ending:** Farewell
-- **Turns Count:** 10
-
-```text
-Aelfric    [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
-Aldric     [Greet in the_cleric_blesses]: "And on thee, father."
-Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
-Aldric     [Agree in the_cleric_blesses]: "We keep as we can, father."
-Aelfric    [Remark in village_smalltalk ]: "Looks like rain again, doesn't it?"
-Aldric     [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
-Aelfric    [Remark in village_smalltalk ]: "Aye, the year'll turn."
-Aldric     [Agree in village_smalltalk ]: "Aye, we've seen worse."
-Aelfric    [Remark in village_smalltalk ]: "They say the miller's a knave and no mistake."
-Aldric     [Farewell in village_smalltalk ]: "A tale for another day - I must away."
-```
-
-### Conversation #49: Aelfric and Wystan
-- **Speakers:** Aelfric (clergy) & Wystan (merchant)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
-- **Relation:** Kin
-- **Trees Cascade:** ["the_cleric_blesses"]
-- **Ending:** Farewell
-- **Turns Count:** 4
-
-```text
-Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
-Wystan     [Greet in the_cleric_blesses]: "Blessings on thy house as well."
-Aelfric    [Remark in the_cleric_blesses]: "How fares thy house, child?"
-Wystan     [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father."
-```
-
-### Conversation #50: Aelfric and Hob
+### Conversation #48: Aelfric and Hob
 - **Speakers:** Aelfric (clergy) & Hob (merchant)
 - **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 - **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
@@ -1010,12 +974,50 @@ Wystan     [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father.
 - **Turns Count:** 6
 
 ```text
-Aelfric    [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
-Hob        [Question in the_cleric_visits_the_sick]: "A prayer for me, father - this cough won't quit."
+Aelfric    [Greet in the_cleric_visits_the_sick]: "I've come to sit with thee a while, Hob, and pray."
+Hob        [Question in the_cleric_visits_the_sick]: "Bless thee for coming, father. Wilt thou pray the fever off me?"
 Aelfric    [Question in the_cleric_visits_the_sick]: "Speak, child - my prayers and candles are with thee."
 Hob        [Answer in the_cleric_visits_the_sick]: "This cough won't leave me, father, and the store is thin."
-Aelfric    [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with draughts and broth."
+Aelfric    [Remark in the_cleric_visits_the_sick]: "Rest by the hearth, child - I'll light a candle and pray for thy house."
 Hob        [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
+```
+
+### Conversation #49: Aelfric and Eliza
+- **Speakers:** Aelfric (clergy) & Eliza (clergy)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
+- **Relation:** Friend
+- **Trees Cascade:** ["the_cleric_blesses", "asking_the_father"]
+- **Ending:** Farewell
+- **Turns Count:** 8
+
+```text
+Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
+Eliza      [Greet in the_cleric_blesses]: "And on thee, father."
+Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
+Eliza      [Agree in the_cleric_blesses]: "The season's been lean, father."
+Aelfric    [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
+Aelfric    [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
+Eliza      [Farewell in asking_the_father ]: "Go in peace, Aelfric."
+```
+
+### Conversation #50: Aelfric and Bram
+- **Speakers:** Aelfric (clergy) & Bram (lord)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Relation:** Friend
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
+- **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Aelfric    [Greet in the_cleric_visits_the_sick]: "I've come to sit with thee a while, Bram, and pray."
+Bram       [Question in the_cleric_visits_the_sick]: "The fever's bad tonight, father. Pray with me."
+Aelfric    [Question in the_cleric_visits_the_sick]: "The Lord comfort thee, child. Tell me of thy affliction."
+Bram       [Answer in the_cleric_visits_the_sick]: "This cough won't leave me, father, and the store is thin."
+Aelfric    [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with bread and broth."
+Bram       [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
 ```
 
 ## Benchmark Summary

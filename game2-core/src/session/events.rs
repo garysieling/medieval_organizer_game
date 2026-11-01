@@ -1771,6 +1771,28 @@ impl Game {
                 }
                 for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.02).max(0.0); }
             }
+            EventId::WindStorm => {
+                // two days of wind: the beds flatten in it, and the
+                // thatch tears loose off one roof a day
+                for g in self.gardens.iter_mut() { g.2 *= 0.8; }
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
+                    // the tear takes thatch off the roof - a home with
+                    // none stocked still loses it: the roof goes thin
+                    let took = if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::take_stock(&mut b, "thatch", 1)
+                    } else { 0 };
+                    if took == 0 {
+                        for &v in &self.villagers.clone() {
+                            if household::home_of(&self.world, v) != Some(h) { continue; }
+                            desires::add_grievance(&mut self.world, v, desires::Problem::ThinWood, self.tick + 30);
+                        }
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1849,6 +1871,10 @@ impl Game {
             EventId::DarkNoon => {
                 self.log.push(format!("t{}: a dark noon - the sun goes out at midday, and the chickens go to roost.", self.tick));
                 self.toasts.push(("Dark noon".into(), self.tick + 40));
+            }
+            EventId::WindStorm => {
+                self.log.push(format!("t{}: a windstorm - the thatch is tearing and the trees bend double.", self.tick));
+                self.toasts.push(("A windstorm".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -4095,6 +4121,24 @@ mod tests {
                 "the prayers went up on {:?}", st);
             stage::run_days(&mut g, 2);
             assert!(g.rare.iter().all(|r| r.id != EventId::DarkNoon), "the light came back on {:?}", st);
+        }
+    }
+
+    /// A windstorm: the beds flatten and the thatch tears - two days
+    /// of it, then the wind lies down
+    #[test]
+    fn test_the_thatch_tears() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            for x in g.gardens.iter_mut() { x.2 = x.2.max(1.0); }
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            g.force_event(EventId::WindStorm);
+            assert!(g.rare.iter().any(|r| r.id == EventId::WindStorm), "the wind came up");
+            stage::run_days(&mut g, 1);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 < growth0 || g.gardens.is_empty(), "the beds flattened on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::WindStorm), "the wind lay down on {:?}", st);
         }
     }
 

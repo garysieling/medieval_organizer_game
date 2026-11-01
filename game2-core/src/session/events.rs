@@ -1444,6 +1444,29 @@ impl Game {
                     }
                 }
             }
+            EventId::HorseCop => {
+                // sound wind and mostly honest - he buys a head off the
+                // fold a day, at a dealer's price: three gold, which is
+                // cheap, and everyone knows it
+                let fold = self.world.query::<household::Building>().iter().copied()
+                    .find(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+                if let Some(f) = fold {
+                    let head = self.flock.iter().copied()
+                        .find(|&a| self.world.get_component::<crate::game::livestock::Livestock>(a)
+                            .map(|l| l.fold == f).unwrap_or(false));
+                    let shepherd = self.world.get_component::<household::Building>(f)
+                        .and_then(|b| b.worker.or(b.overseer))
+                        .filter(|&w| !villager::is_dead(&self.world, w)
+                            && !crate::game::dungeon::unavailable(&self.world, w));
+                    if let (Some(a), Some(s)) = (head, shepherd) {
+                        self.flock.retain(|&x| x != a);
+                        self.world.destroy_entity(a);
+                        if let Some(p) = self.world.get_component_mut::<Purse>(s) { p.gold += 3.0; }
+                        self.say(s, "Sound wind, and mostly honest!", CHAT_BUBBLE_SECS);
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3284,6 +3307,42 @@ mod tests {
                 "sound stock from here out on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Farrier), "his anvil packed up on {:?}", st);
+        }
+    }
+
+    /// Sound wind and mostly honest - he buys a head off the fold a
+    /// day at a dealer's price, and the shepherd takes the coin
+    #[test]
+    fn test_the_dealers_price() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let shepherd = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let fold = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false)).unwrap();
+            g.world.get_component_mut::<household::Building>(fold).unwrap().worker = Some(shepherd);
+            if g.flock.is_empty() {
+                let e = crate::game::livestock::spawn_animal(&mut g.world,
+                    crate::game::livestock::LivestockKind::Sheep, fold, 21.0, 21.0);
+                g.flock.push(e);
+            }
+            let flock0 = g.flock.len();
+            let gold0 = g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0);
+            g.force_event(EventId::HorseCop);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::HorseCop && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the horse-coper")),
+                "the frame shows his string on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.flock.len() < flock0, "a head left the fold on {:?}", st);
+            assert!(g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0) > gold0,
+                "the dealer's price paid on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::HorseCop), "his string moved on from {:?}", st);
         }
     }
 

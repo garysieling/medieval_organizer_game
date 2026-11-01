@@ -2565,6 +2565,34 @@ impl Game {
                 }
                 self.toasts.push(("A truffle".into(), self.tick + 40));
             }
+            EventId::StormWashUp => {
+                // the reach gives back what the storm took elsewhere:
+                // driftwood and a barrel on the strand - into hands
+                // that can use them, what room's left and no more
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                let roll = self.rare_roll(id);
+                if !able.is_empty() {
+                    // driftwood only - wood's the leavings hands can use
+                    let off = (roll as usize / 3) % able.len();
+                    for i in 0..able.len().min(3) {
+                        let v = able[(off + i) % able.len()];
+                        if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
+                            let held = s.goods.get("wood").copied().unwrap_or(0);
+                            let room = crate::game::livelihood::SATCHEL_CAP.saturating_sub(held);
+                            if room > 0 {
+                                *s.goods.entry("wood".into()).or_insert(0) += 1;
+                            }
+                        }
+                    }
+                    self.say(able[off], "The reach gives back - driftwood and a barrel on the strand!", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a storm's leavings - the reach gives back driftwood and a barrel, and the strand's picked clean by noon.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a storm's leavings on the strand - nobody to pick them.", self.tick));
+                }
+                self.toasts.push(("A storm's leavings".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5435,6 +5463,24 @@ mod tests {
             assert!(picked > 0, "the baskets came in on {:?}", st);
             stage::run_days(&mut g, 15);
             assert!(g.rare.iter().all(|r| r.id != EventId::BerryYear), "the picking's done on {:?}", st);
+        }
+    }
+
+    /// A storm's leavings: the reach gives back - driftwood and a
+    /// barrel on the strand, picked clean by noon
+    #[test]
+    fn test_the_reach_gives_back() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let goods0: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .map(|s| s.goods.values().sum()).unwrap_or(0)).sum();
+            g.force_event(EventId::StormWashUp);
+            let goods1: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .map(|s| s.goods.values().sum()).unwrap_or(0)).sum();
+            assert!(goods1 > goods0 || g.villagers.is_empty(), "the strand was picked on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("leavings")), "the strand was told on {:?}", st);
         }
     }
 

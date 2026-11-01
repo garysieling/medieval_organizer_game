@@ -3942,6 +3942,7 @@ impl Game {
 
     /// Walk `who` to tile `t` carrying `goal` (shared by the forage sends)
     fn send_tile_walk(&mut self, who: Entity, t: (i32, i32), goal: Goal, max_d: i32) -> bool {
+        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > max_d { return false; }
         match self.walk_memo((from.x.round() as i32, from.y.round() as i32), t) {
@@ -5981,6 +5982,9 @@ impl Game {
 
     /// Send `who` to gather `good` at tile `t`
     pub fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
+        // the held take no errands - a forage is no freer a walk than
+        // the others
+        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         // gathers get the forage-errand reach: wood and stone have no
         // other source, and the craft can't wait on a near tree

@@ -1132,10 +1132,10 @@ Tell me which mode you want to enter, and I'll guide you through the process.
 - **Remaining:** UK spycops inquiry (richest modern infiltration record), INCITE! "The Revolution Will Not Be Funded" (NGO-ization/co-option critique), platform-manipulation research (DFRLab), Color Revolution rollback scholarship (authoritarian learning)
 
 ### [ ] Implement Victorian Disease Realism (disease kinds, incubation, waterborne spread)
-- **Status:** Partially Completed (3 tranches merged, 2026-11-01)
+- **Status:** Partially Completed (4 tranches merged, 2026-11-01)
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-31
 - **Output:** wiki/literature-reviews/victorian-diseases.md
-- **Done:** DiseaseKind enum + Victorian names + per-kind incubation/immunity (PR #297); Route enum + waterborne kinds (cholera/slow fever/flux) + effluent Broad Street mechanic + Snow feedback loop + effluent decay (PR #406); ague as Route::Vector seasonal marsh fever (days 240-310) + crowding doubles dose + hunger halves immunity (PR #410)
-- **Remaining:** occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), epidemic blame/scapegoat events beyond the ergot pattern, Vaccination Act as oppression event + Leicester Method as player counter-institution, true TB/ague relapse components, seasonal table generalized over FLU_DAY/ergot gates.
+- **Done:** DiseaseKind enum + Victorian names + per-kind incubation/immunity (PR #297); Route enum + waterborne kinds (cholera/slow fever/flux) + effluent Broad Street mechanic + Snow feedback loop + effluent decay (PR #406); ague as Route::Vector seasonal marsh fever (days 240-310) + crowding doubles dose + hunger halves immunity (PR #410); epidemic scapegoating - Blamed grievance lands on herb-wife or newest face when 2+ symptomatic (PR #411)
+- **Remaining:** occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), Vaccination Act as oppression event + Leicester Method as player counter-institution, true TB/ague relapse components, seasonal table generalized over FLU_DAY/ergot gates.

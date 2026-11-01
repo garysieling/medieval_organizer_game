@@ -63,6 +63,11 @@ pub enum Vocation {
     /// Hoops and staves: the barrels every brewer, vintner and pedlar
     /// stores and ships in
     Cooper,
+    /// Keeps the tavern on the green: brews nothing, buys everything -
+    /// the alehouse's ale, the brewery's beer, the vintner's firkin and
+    /// the still's measure all come in at his door and go out by the cup.
+    /// What he sells of his own is the bench, the fire and the bed
+    Taverner,
 }
 
 /// The PMC postings that aren't working-class vocations
@@ -159,6 +164,9 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
         Vocation::Distiller => &["wine"],
         Vocation::Cooper => &["wood"],
         Vocation::Perfumer => &["marigold", "lavender", "spirits"],
+        // the taverner's stock-in-trade comes off the drink trades'
+        // shelves, not out of a vat - see Game::tavern_tick
+        Vocation::Taverner => &[],
         _ => &[],
     }
 }
@@ -188,6 +196,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Vintner => Some("wine"),
         Vocation::Distiller => Some("spirits"),
         Vocation::Cooper => Some("casks"),
+        Vocation::Taverner => Some("lodging"),
     }
 }
 
@@ -244,6 +253,7 @@ pub fn price(good: &str) -> f32 {
         "hops" => 4.0,
         "grapes" => 5.0,
         "casks" => 8.0,
+        "lodging" => 6.0,
         _ => 5.0,
     }
 }
@@ -272,6 +282,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Vintner => "the vintner's",
         Vocation::Distiller => "the distillery",
         Vocation::Cooper => "the cooper's",
+        Vocation::Taverner => "the tavern",
     }
 }
 
@@ -299,6 +310,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Vintner => "Vintner",
         Vocation::Distiller => "Distiller",
         Vocation::Cooper => "Cooper",
+        Vocation::Taverner => "Taverner",
     }
 }
 
@@ -438,6 +450,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("raise a barrel", "staves bound in iron hoops"),
             a("re-hoop", "a slack cask weeps its keeper's profit"),
             a("sell casks", "no brewer or vintner works without them"),
+        ],
+        Vocation::Taverner => vec![
+            a("lay in a barrel", "buy the drink trades out and tap it here"),
+            a("keep the bench", "the fire, the table, and everyone's business"),
+            a("let a bed", "a traveller pays for a roof and a straw tick"),
         ],
     }
 }

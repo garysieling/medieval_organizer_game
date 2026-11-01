@@ -1455,6 +1455,60 @@ const BREWER_GREET: Exchange = Exchange {
     ],
 };
 
+const TAVERNER_RECKONING: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["trade:taverner"],
+    calls: &["A man's reckoning on the slate grows longer than his memory of it.", "Two measures on the slate and a third if thou singest for it.", "The bench by the fire is the warmest seat in the parish, and it costs nothing.", "I hear every quarrel in this village twice - once drunk and once sober."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["Chalk it up and I will square it at Michaelmas. Fare well.", "Thou keepest an honest house, taverner. Good day.", "Keep the bench warm; I will be back before dark.", "May thy slate be short and thy barrel long. Farewell.", "God's peace on thy threshold, {other}."],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const TAVERNER_BARREL: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["trade:taverner"],
+    calls: &["What is on tap tonight - the alewife's small ale or the brewer's October?", "Didst thou lay in a firkin off the vintner before the frost?", "Is there a bed to be had, or must I lie in the straw with the carters?", "What does a measure cost a man who has walked twelve miles for it?"],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Answer, concepts: &["trade:taverner"],
+            lines: &["Small ale from the alehouse this morning, and it will be sour by Friday - drink it now.", "I bought the brewer out at three farthings the measure and I pour it at a penny. That is the whole of my trade.", "There is a tick of clean straw above the kitchen and a bolt on the door. Sixpence.", "Four pence, and the fire is free, and so is everything thou wilt hear beside it."],
+            then: Some(TAVERNER_RECKONING), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const TAVERNER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "trade:taverner"],
+    calls: &["Good morrow, taverner! The ale-stake is out, so there is something in the barrel.", "Well met, {other}! Thy bench is full before noon again.", "Hail the keeper of the one table in this village. Is the fire lit?", "A peaceful day to thee, {other}."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Greet, concepts: &["trade:taverner"],
+            lines: &["Morrow, {other}! Sit where thou likest, the far end is dry.", "Well met! I brew nothing and I sell everything - come in.", "Greetings! A thirsty throat and a civil tongue are all this house asks.", "God bless thy steps this day, {other}.", "Well met, friend, under the open sky."],
+            then: Some(TAVERNER_BARREL), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
 const BEEKEEPER_SWARM: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:beekeeper"],
@@ -2362,6 +2416,8 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &SHEPHERD_GREET, rejoin: Some(&SHEPHERD_EWES) },
         DialogueTree { name: "brewer_ale", criteria: &[Has("other:status:brewer")],
             root: &BREWER_GREET, rejoin: Some(&BREWER_MASH) },
+        DialogueTree { name: "taverner_bench", criteria: &[Has("other:status:taverner")],
+            root: &TAVERNER_GREET, rejoin: Some(&TAVERNER_BARREL) },
         DialogueTree { name: "beekeeper_hive", criteria: &[Has("other:status:beekeeper")],
             root: &BEEKEEPER_GREET, rejoin: Some(&BEEKEEPER_HONEY) },
         DialogueTree { name: "herb_apothecary", criteria: &[Has("other:status:herb_wife")],
@@ -2421,6 +2477,7 @@ pub fn backstory(s: &Speaker) -> String {
             "mason" => "They cut freestone and build field walls.".into(),
             "shepherd" => "They herd ewes and lambs on the common pasture.".into(),
             "brewer" => "They brew ale and tend the village vats.".into(),
+            "taverner" => "They keep the tavern on the green and buy the drink trades out by the barrel.".into(),
             "beekeeper" => "They keep straw skeps in the clover meadow.".into(),
             "herb_wife" => "They gather roots and brew fever draughts.".into(),
             "fisher" => "They set eel traps in the river current.".into(),

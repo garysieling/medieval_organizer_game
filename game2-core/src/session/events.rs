@@ -1825,6 +1825,17 @@ impl Game {
                 self.log.push(format!("t{}: a late frost - white on the beds in the morning, the shoots black.", self.tick));
                 self.toasts.push(("A late frost".into(), self.tick + 40));
             }
+            EventId::FirstSnow => {
+                // the year's turning marked: the kids' wonder at the
+                // first flakes, and the melt feeds the well a little
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    if self.world.get_component::<crate::game::vocation::Kid>(v).is_none() { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
+                }
+                self.log.push(format!("t{}: the first snow - white on the roofs, the kids out in it early.", self.tick));
+                self.toasts.push(("The first snow".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -3892,6 +3903,24 @@ mod tests {
                 "the warm stretch sat easy on {:?}", st);
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::IndianSummer), "the year turned on {:?}", st);
+        }
+    }
+
+    /// The first snow: white on the roofs, the kids out in it early,
+    /// and the melt feeds the well a little
+    #[test]
+    fn test_the_kids_out_early() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let kid = g.villagers.iter().copied()
+                .find(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_some()
+                    && !villager::is_dead(&g.world, v));
+            g.force_event(EventId::FirstSnow);
+            if let Some(k) = kid {
+                assert!(desires::is_satisfied(&g.world, k, Want::Joy, g.tick),
+                    "the wonder of it on {:?}", st);
+            }
+            assert!(g.log.iter().any(|l| l.contains("first snow")), "the turning was told on {:?}", st);
         }
     }
 

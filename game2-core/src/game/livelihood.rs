@@ -439,8 +439,8 @@ pub fn tax_round(world: &mut World, collector: Entity, roster: &[Entity], start_
 
 /// The trader's stall restocks one imported good a turn
 pub fn restock_trader(world: &mut World, stall: Entity, seed: u64) {
-    const EXOTICS: [&str; 9] = ["cloth", "paper", "ink", "pigment",
-        "hops", "grapes", "wine", "spirits", "charcoal"];
+    const EXOTICS: [&str; 12] = ["cloth", "paper", "ink", "pigment",
+        "hops", "grapes", "wine", "spirits", "charcoal", "salt", "spice", "silk"];
     // the seed's a tick and the calls come every RESTOCK days: index on
     // the count of restocks, not the day, or half the cart never lands
     let good = EXOTICS[((seed / TRADER_RESTOCK_DAYS) as usize) % EXOTICS.len()];

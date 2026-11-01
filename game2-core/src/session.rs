@@ -6741,9 +6741,23 @@ impl Game {
                 let occupants = b.occupants.clone();
                 let fuel = crate::game::goods::slot_goods(crate::game::goods::Tag::Fuel)
                     .into_iter().find(|&g| b.stock.get(g).copied().unwrap_or(0) > 0);
-                match fuel {
+                // else the house burns what its folk carry home - a
+                // bundle in the satchel keeps the hearth same as a stack
+                let carried = if fuel.is_none() {
+                    crate::game::goods::slot_goods(crate::game::goods::Tag::Fuel).into_iter()
+                        .find_map(|g| occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                            && self.world.get_component::<Satchel>(o)
+                                .map(|s| s.goods.get(g).copied().unwrap_or(0) > 0).unwrap_or(false))
+                            .map(|o| (o, g)))
+                } else { None };
+                match fuel.or(carried.map(|(_, g)| g)) {
                     Some(g) => {
-                        if let Some(b) = self.world.get_component_mut::<Building>(h) {
+                        if let Some((o, _)) = carried {
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(o) {
+                                *s.goods.get_mut(g).unwrap() -= 1;
+                            }
+                        } else if let Some(b) = self.world.get_component_mut::<Building>(h) {
                             household::take_stock(b, g, 1);
                         }
                     }
@@ -6987,6 +7001,16 @@ impl Game {
                 .min_by_key(|&(x, y)| dist(x, y)),
             "sand" => (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
                 .filter(|&(x, y)| self.map.passable(x, y)
+                    && NEIGHBOURS.iter().any(|(dx, dy)| matches!(self.map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River))))
+                .min_by_key(|&(x, y)| dist(x, y)),
+            // faggots come off the same trees as the craft-wood - the
+            // leavings and deadfall, not the timber
+            "faggots" => self.map.trees.iter().copied()
+                .min_by_key(|&(x, y)| dist(x, y)),
+            // turf cuts off the wet ground by the river, same ground the
+            // marsh fevers rise off
+            "turf" => (0..self.map.height as i32).flat_map(|y| (0..self.map.width as i32).map(move |x| (x, y)))
+                .filter(|&(x, y)| self.map.get(x, y) == Some(Tile::Grass) && self.map.passable(x, y)
                     && NEIGHBOURS.iter().any(|(dx, dy)| matches!(self.map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River))))
                 .min_by_key(|&(x, y)| dist(x, y)),
             _ => None,

@@ -1422,8 +1422,12 @@ impl Game {
                     .find(|&b| self.world.get_component::<household::Building>(b)
                         .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
                 if let Some(f) = fold {
+                    // no hooves, no shoes - an emptied fold buys nothing
+                    let stock = self.flock.iter().any(|&a|
+                        self.world.get_component::<crate::game::livestock::Livestock>(a)
+                            .map(|l| l.fold == f).unwrap_or(false));
                     let shod = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0;
-                    if !shod {
+                    if stock && !shod {
                         let shepherd = self.world.get_component::<household::Building>(f)
                             .and_then(|b| b.worker.or(b.overseer))
                             .filter(|&w| !villager::is_dead(&self.world, w)
@@ -1431,9 +1435,8 @@ impl Game {
                                 && self.world.get_component::<Purse>(w).map(|p| p.gold >= 2.0).unwrap_or(false));
                         if let Some(s) = shepherd {
                             if let Some(p) = self.world.get_component_mut::<Purse>(s) { p.gold -= 2.0; }
-                            if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(s) {
-                                l.grievances.retain(|(p, _)| *p != desires::Problem::Loss);
-                            }
+                            // sound stock from here out - new iron can't
+                            // undo a loss already taken
                             desires::satisfy(&mut self.world, s, Want::Security, tick + 20);
                             self.say(s, "Hear that ring of iron!", CHAT_BUBBLE_SECS);
                             if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
@@ -3258,7 +3261,15 @@ mod tests {
                 }
             }
             g.world.get_component_mut::<Purse>(shepherd).unwrap().gold = 10.0;
-            desires::add_grievance(&mut g.world, shepherd, desires::Problem::Loss, g.tick + 30);
+            // stock on the fold for him to shoe
+            let fold_e = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false)).unwrap();
+            if g.flock.is_empty() {
+                let e = crate::game::livestock::spawn_animal(&mut g.world,
+                    crate::game::livestock::LivestockKind::Sheep, fold_e, 21.0, 21.0);
+                g.flock.push(e);
+            }
             g.force_event(EventId::Farrier);
             for _ in 0..2000 {
                 if g.rare.iter().any(|r| r.id == EventId::Farrier && r.until.is_some()) { break; }
@@ -3269,9 +3280,8 @@ mod tests {
                 "the frame shows his anvil on {:?}", st);
             stage::run_days(&mut g, 1);
             assert_eq!(g.world.get_component::<Purse>(shepherd).unwrap().gold, 8.0, "his two gold went for the shoes");
-            assert!(g.world.get_component::<desires::InnerLife>(shepherd)
-                .map(|l| l.grievances.iter().all(|(p, _)| *p != desires::Problem::Loss))
-                .unwrap_or(false), "the shod stock doesn't founder on {:?}", st);
+            assert!(desires::is_satisfied(&g.world, shepherd, Want::Security, g.tick),
+                "sound stock from here out on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Farrier), "his anvil packed up on {:?}", st);
         }

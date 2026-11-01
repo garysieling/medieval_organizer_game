@@ -1322,6 +1322,38 @@ impl Game {
                     bought += 1;
                 }
             }
+            EventId::Quack => {
+                // cures all: a penny a dose - most bottles ease (the
+                // believing does the work), now and then the batch
+                // itself's bad and the belly pays for it
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let mut dosed = 0;
+                for &v in &self.villagers.clone() {
+                    if dosed >= 3 { break; }
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
+                    // a whole body gains nothing from the dose - he
+                    // sells to the ailing, not the hale
+                    let ails = self.world.get_component::<Health>(v)
+                        .map(|h| h.condition < 1.0).unwrap_or(false);
+                    if !near || !pays || !ails { continue; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    // every bottle's its own brew
+                    let brew = (self.rare_roll(id) ^ (v as u64).wrapping_mul(0x9E3779B9)) % 4;
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        if brew != 0 {
+                            h.condition = (h.condition + 0.04).min(1.0);
+                        } else {
+                            h.condition = (h.condition - 0.04).max(0.01);
+                            self.say(v, "...the belly doesn't sit right.", CHAT_BUBBLE_SECS);
+                        }
+                    }
+                    dosed += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3008,6 +3040,36 @@ mod tests {
                 "he paid for it on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Alchemist), "his flasks packed up on {:?}", st);
+        }
+    }
+
+    /// Cures all: a penny a dose and the bottle does what it does -
+    /// the frame shows his cart first
+    #[test]
+    fn test_the_bottle_does_what_it_does() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Quack);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Quack && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::Quack).and_then(|r| r.at).unwrap();
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
+            let cond0 = g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the quack")),
+                "the frame shows his cart on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Purse>(v).unwrap().gold < 10.0, "her penny bought the dose");
+            let cond1 = g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0);
+            assert!(cond1 != cond0, "the bottle did something on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Quack), "his cart rolled on from {:?}", st);
         }
     }
 

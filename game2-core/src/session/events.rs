@@ -2385,6 +2385,30 @@ impl Game {
                 }
                 self.toasts.push(("A foundling".into(), self.tick + 40));
             }
+            EventId::Quarrel => {
+                // two tempers meet in the square: the whole street
+                // hears it, and neither side walks away sweet
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()).collect();
+                let roll = self.rare_roll(id);
+                if able.len() >= 2 {
+                    let a = able[(roll as usize / 3) % able.len()];
+                    let b = able[(roll as usize / 3 + 1) % able.len()];
+                    use crate::game::relationships::{Interaction, InteractionKind};
+                    crate::game::relationships::record_interaction(&mut self.world, a,
+                        Interaction { other: b, kind: InteractionKind::Conflict, intensity: 0.4 });
+                    crate::game::relationships::record_interaction(&mut self.world, b,
+                        Interaction { other: a, kind: InteractionKind::Conflict, intensity: 0.4 });
+                    self.say(a, "You want a piece of me?!", CHAT_BUBBLE_SECS);
+                    self.say(b, "Say that again, I dare you!", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a quarrel in the square - shouting, and the whole street turned out to watch.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: words were had in the square - nothing came of it.", self.tick));
+                }
+                self.toasts.push(("A quarrel in the square".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5040,6 +5064,24 @@ mod tests {
                 g.world.get_component::<crate::game::vocation::Kid>(v).is_some()).count();
             assert!(kids1 > kids0 || g.building_entities.is_empty(), "the basket's inside on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("foundling")), "the basket was told on {:?}", st);
+        }
+    }
+
+    /// A quarrel in the square: two tempers meet, the street watches,
+    /// and neither side walks away sweet
+    #[test]
+    fn test_the_street_turned_out() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let conflicts0 = g.world.query::<crate::game::relationships::Relationship>().iter()
+                .filter(|&&e| g.world.get_component::<crate::game::relationships::Relationship>(e)
+                    .map(|r| r.strength < 0.0).unwrap_or(false)).count();
+            g.force_event(EventId::Quarrel);
+            let conflicts1 = g.world.query::<crate::game::relationships::Relationship>().iter()
+                .filter(|&&e| g.world.get_component::<crate::game::relationships::Relationship>(e)
+                    .map(|r| r.strength < 0.0).unwrap_or(false)).count();
+            assert!(conflicts1 > conflicts0 || g.villagers.len() < 2, "tempers met on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("quarrel")), "the scene was told on {:?}", st);
         }
     }
 

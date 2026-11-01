@@ -4188,6 +4188,13 @@ impl Game {
         }
         if tick % 90 == 75 && self.fox_coming { self.fox_coming = false; self.fox_night(tick); }
         let Some(fold) = self.fold else { return };
+        // the byre gives back what the flock drops: a week of leavings,
+        // dried, burns as good as a faggot when the wood runs thin
+        if tick % 7 == 1 {
+            if let Some(b) = self.world.get_component_mut::<Building>(fold) {
+                household::add_stock(b, "dung", 1);
+            }
+        }
         // move the grazing point every few days; a sheepdog keeps it tight
         if tick >= self.next_graze {
             if let Some(fp) = self.world.get_component::<Pos>(fold).copied() {
@@ -6724,6 +6731,33 @@ impl Game {
         self.sanction_tick(tick);
         // and the year has its feast days
         self.festival_tick(tick);
+        // winter hearths burn a bundle every few days - faggots, turf,
+        // the dry leavings, charcoal off the road; a house with nothing
+        // to burn eats cold, and that's a trouble the village can hear
+        if tick % 360 >= 270 && tick % 3 == 0 {
+            for &h in &self.building_entities.clone() {
+                let Some(b) = self.world.get_component::<Building>(h) else { continue };
+                if b.kind != household::BuildingKind::Home { continue; }
+                let occupants = b.occupants.clone();
+                let fuel = crate::game::goods::slot_goods(crate::game::goods::Tag::Fuel)
+                    .into_iter().find(|&g| b.stock.get(g).copied().unwrap_or(0) > 0);
+                match fuel {
+                    Some(g) => {
+                        if let Some(b) = self.world.get_component_mut::<Building>(h) {
+                            household::take_stock(b, g, 1);
+                        }
+                    }
+                    None => {
+                        for &o in &occupants {
+                            if !villager::is_dead(&self.world, o) {
+                                desires::add_grievance(&mut self.world, o,
+                                    desires::Problem::ColdHearth, tick + 9);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // the gardens fill in a little more each week
         self.garden_tick(tick);
         // and the kitchen pot: staples off the garden beds feed the

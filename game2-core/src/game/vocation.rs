@@ -201,7 +201,7 @@ pub fn is_drink(good: &str) -> bool {
 /// Whether the good can be gathered from the land itself rather than
 /// bought (wood from the trees, stone from the rocks, sand off the shore)
 pub fn gatherable(good: &str) -> bool {
-    matches!(good, "wood" | "stone" | "sand")
+    matches!(good, "wood" | "stone" | "sand" | "faggots" | "turf" | "driftwood")
 }
 
 /// Whether the good only comes in on the road (the trader's stock) -
@@ -209,7 +209,7 @@ pub fn gatherable(good: &str) -> bool {
 /// water of life the apothecaries bring
 pub fn imported(good: &str) -> bool {
     matches!(good, "cloth" | "paper" | "ink" | "pigment"
-        | "hops" | "grapes" | "wine" | "spirits")
+        | "hops" | "grapes" | "wine" | "spirits" | "charcoal" | "salt" | "spice" | "silk")
 }
 
 /// Everyday price of a good or service, in gold

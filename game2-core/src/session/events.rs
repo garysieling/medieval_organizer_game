@@ -1370,10 +1370,12 @@ impl Game {
                     if !near { continue; }
                     let occ: Vec<Entity> = self.world.get_component::<household::Building>(h)
                         .map(|b| b.occupants.clone()).unwrap_or_default();
-                    // she comes where there's a small one to tend
+                    // she comes where there's a small one to tend - a
+                    // held child can't take her hands, and neither can a ghost
                     let has_kid = occ.iter().any(|&o|
                         self.world.get_component::<crate::game::vocation::Kid>(o).is_some()
-                            && !villager::is_dead(&self.world, o));
+                            && !villager::is_dead(&self.world, o)
+                            && !crate::game::dungeon::unavailable(&self.world, o));
                     if !has_kid { continue; }
                     for o in occ {
                         if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }

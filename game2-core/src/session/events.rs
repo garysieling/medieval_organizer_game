@@ -1389,6 +1389,31 @@ impl Game {
                     tended += 1;
                 }
             }
+            EventId::Sowgelder => {
+                // beasts tended: his hands go over the fold - the stock
+                // stands the stronger for it, and the wolves' day gets
+                // pushed off while the doctored herd holds its scent
+                let fold = self.world.query::<household::Building>().iter().copied()
+                    .find(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+                if let Some(f) = fold {
+                    // his tending calms the fold - a brewing wolf night
+                    // settles while his hands are on the stock
+                    self.wolf_coming = false;
+                    if let Some((_, due)) = self.next_rare.iter_mut().find(|(i, _)| *i == EventId::WolfAtFold) {
+                        // past the pack's own scheduling window - it
+                        // always moves, never pulls a near wolf closer
+                        *due = (*due).max(tick + 500);
+                    }
+                    let shepherd = self.world.get_component::<household::Building>(f)
+                        .and_then(|b| b.worker.or(b.overseer))
+                        .filter(|&w| !villager::is_dead(&self.world, w)
+                            && !crate::game::dungeon::unavailable(&self.world, w));
+                    if let Some(s) = shepherd {
+                        desires::satisfy(&mut self.world, s, Want::Security, tick + 15);
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3139,6 +3164,47 @@ mod tests {
                 "her hands helped the small one on {:?}", st);
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::Midwife), "she moved on from {:?}", st);
+        }
+    }
+
+    /// Beasts tended: the doctored fold holds the wolves off, and the
+    /// shepherd sleeps the easier - the frame shows his crook first
+    #[test]
+    fn test_the_doctored_fold_holds_the_wolves_off() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let shepherd = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let fold = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+            let fold = match fold {
+                Some(f) => { g.world.get_component_mut::<household::Building>(f).unwrap().worker = Some(shepherd); f }
+                None => {
+                    let f = g.world.create_entity();
+                    g.world.add_component(f, Pos { x: 20.0, y: 20.0 });
+                    g.world.add_component(f, household::Building {
+                        kind: household::BuildingKind::Pasture, name: "the fold".into(),
+                        occupants: vec![], worker: Some(shepherd), overseer: None,
+                        stock: Default::default(), capacity: 0 });
+                    f
+                }
+            };
+            let _ = fold;
+            g.force_event(EventId::Sowgelder);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Sowgelder && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let due0 = g.next_rare.iter().find(|(i, _)| *i == EventId::WolfAtFold).map(|(_, d)| *d).unwrap_or(0);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the pig man")),
+                "the frame shows his crook on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let due1 = g.next_rare.iter().find(|(i, _)| *i == EventId::WolfAtFold).map(|(_, d)| *d).unwrap_or(0);
+            assert!(due1 > due0, "the wolves' day pushed off on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Sowgelder), "he moved his crook on from {:?}", st);
         }
     }
 

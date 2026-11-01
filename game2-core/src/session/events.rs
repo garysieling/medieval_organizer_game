@@ -2411,13 +2411,12 @@ impl Game {
             }
             EventId::OldOakFalls => {
                 // she was older than the church: the landmark's gone,
-                // but the wood splits up fair - firewood to every hearth
-                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
-                    self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
-                for h in homes {
-                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
-                        household::add_stock(&mut b, "wood", 2);
+                // but the wood splits up fair - a share into every
+                // satchel, where a craftsman's hands can use it
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
+                        *s.goods.entry("wood".into()).or_insert(0) += 1;
                     }
                 }
                 if let Some(&v) = self.villagers.iter().find(|&&v|
@@ -5110,13 +5109,13 @@ mod tests {
     fn test_the_landmark_comes_down() {
         for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
             let mut g = stage::staged(st);
-            let wood0: u32 = g.building_entities.iter().map(|&be|
-                g.world.get_component::<household::Building>(be)
-                    .and_then(|b| b.stock.get("wood").copied()).unwrap_or(0)).sum();
+            let wood0: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("wood").copied()).unwrap_or(0)).sum();
             g.force_event(EventId::OldOakFalls);
-            let wood1: u32 = g.building_entities.iter().map(|&be|
-                g.world.get_component::<household::Building>(be)
-                    .and_then(|b| b.stock.get("wood").copied()).unwrap_or(0)).sum();
+            let wood1: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("wood").copied()).unwrap_or(0)).sum();
             assert!(wood1 > wood0 || g.building_entities.is_empty(), "the wood split up on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("old oak")), "the fall was told on {:?}", st);
         }

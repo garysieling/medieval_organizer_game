@@ -568,12 +568,12 @@ const CLERIC_GREET: Exchange = Exchange {
 const FATHER_THANKS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["Thank thee, father - that lifts a great stone from my mind.", "Thy counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "The church altar is always open to the weary soul."],
+    calls: &["Thank thee, father - that lifts a great stone from my mind.", "Thy counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "Thy blessing gives me heart to face the coming week, father."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Go in peace, {other}, and love thy neighbors.", "The Lord preserve thy hearth and thy children.", "Walk in the light, child. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
+            lines: &["Go in peace, {other}, and love thy neighbors.", "The Lord preserve thy hearth and thy children.", "Walk in the light, child. Fare well.", "My prayers go with thee, {other}."],
             then: None, end: Some(Farewell),
         },
     ],

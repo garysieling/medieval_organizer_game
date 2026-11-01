@@ -309,7 +309,7 @@ Eliza      [Agree in the_sickness      ]: "A poor man's bed is a luxury he can r
 Bram       [Question in asking_the_father ]: "Can the church spare a peck of grain for the hungry children, father?"
 Eliza      [Answer in asking_the_father ]: "Holy candles and broth shall be brought to their bedside this very day."
 Bram       [Remark in asking_the_father ]: "Thank thee, father - that lifts a great stone from my mind."
-Eliza      [Farewell in asking_the_father ]: "God's peace be upon thy cottage, Bram."
+Eliza      [Farewell in asking_the_father ]: "The Lord preserve thy hearth and thy children."
 ```
 
 ### Conversation #14: Bram and Aldric
@@ -700,8 +700,8 @@ Gisela     [Answer in the_sickness      ]: "The calves won't feed themselves, fe
 Eliza      [Agree in the_sickness      ]: "Aye, there is truth in what thou sayest."
 Gisela     [Question in asking_the_father ]: "Must the tithe stand full when the granary is half empty, father?"
 Eliza      [Answer in asking_the_father ]: "We do what we can with the strength Heaven gives."
-Gisela     [Remark in asking_the_father ]: "The church altar is always open to the weary soul."
-Eliza      [Farewell in asking_the_father ]: "The Lord preserve thy hearth and thy children."
+Gisela     [Remark in asking_the_father ]: "Thy blessing gives me heart to face the coming week, father."
+Eliza      [Farewell in asking_the_father ]: "My prayers go with thee, Gisela."
 ```
 
 ### Conversation #37: Gisela and Aelfric
@@ -919,7 +919,7 @@ Eliza      [Agree in the_cleric_blesses]: "Aye, there is truth in what thou saye
 Aelfric    [Question in asking_the_father ]: "Must the tithe stand full when the granary is half empty, father?"
 Eliza      [Answer in asking_the_father ]: "The church will share its grain, child - none shall starve at the door."
 Aelfric    [Remark in asking_the_father ]: "Thank thee, father - that lifts a great stone from my mind."
-Eliza      [Farewell in asking_the_father ]: "Go in peace, Aelfric, and love thy neighbors."
+Eliza      [Farewell in asking_the_father ]: "The Lord preserve thy hearth and thy children."
 ```
 
 ### Conversation #50: Aelfric and Eliza

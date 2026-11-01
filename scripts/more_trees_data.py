@@ -586,6 +586,7 @@ MORE_DATA = [
             "Thank thee, father - that lifts a great stone from my mind.",
             "Thy counsel is wise, father. We will trust in Providence.",
             "The church has been our refuge through many a cold year.",
+            "Thy blessing gives me heart to face the coming week, father.",
         ],
         "replies": [
             {
@@ -595,6 +596,7 @@ MORE_DATA = [
                     "Go in peace, {other}, and love thy neighbors.",
                     "The Lord preserve thy hearth and thy children.",
                     "Walk in the light, child. Fare well.",
+                    "My prayers go with thee, {other}.",
                 ],
                 "then": None, "end": "Farewell"
             }

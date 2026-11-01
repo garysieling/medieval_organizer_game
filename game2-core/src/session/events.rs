@@ -1735,6 +1735,16 @@ impl Game {
                     desires::satisfy(&mut self.world, v, Want::Joy, until);
                 }
             }
+            EventId::Aurora => {
+                // two nights of sky-fire: folk take it for a sign, and
+                // the praying comes easy while the sky burns
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, until);
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1801,6 +1811,10 @@ impl Game {
             EventId::Thaw => {
                 self.log.push(format!("t{}: the thaw - the roofs drip and the ground's soft for the working.", self.tick));
                 self.toasts.push(("The thaw".into(), self.tick + 40));
+            }
+            EventId::Aurora => {
+                self.log.push(format!("t{}: the aurora - the sky burns red and green, and the folk watch from their doors.", self.tick));
+                self.toasts.push(("The aurora".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -3964,6 +3978,25 @@ mod tests {
                 "the folk felt spring on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Thaw), "the melt was done on {:?}", st);
+        }
+    }
+
+    /// The aurora: the sky burns and the praying comes easy while it
+    /// lasts - two nights, then the sky's the sky again
+    #[test]
+    fn test_the_sky_burns() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::Aurora);
+            assert!(g.rare.iter().any(|r| r.id == EventId::Aurora), "the sky caught fire");
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Faith, g.tick)),
+                "the sign was taken on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Aurora), "the sky's the sky again on {:?}", st);
         }
     }
 

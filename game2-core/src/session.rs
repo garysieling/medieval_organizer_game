@@ -37,6 +37,7 @@ use crate::game::relationships;
 use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, TownRole, Vocation};
 use crate::game::desires::{self, InnerLife, Known, Organizer, Problem, Want};
 use crate::game::household::{self, Building, BuildingKind};
+use crate::game::goods;
 use crate::game::livelihood::{self, OddJob, Purse, Satchel};
 use crate::game::fire::Fire;
 use crate::game::herbology::{self, Apothecary};
@@ -1976,6 +1977,9 @@ impl Game {
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
         let climate = climate::spawn_climate(&mut world);
+        // the felt-worth ledger rides beside the climate - what the
+        // shelves show leans what a swap is worth, quietly
+        goods::spawn_worths(&mut world);
         // tell the sim where the tile edge is, or its fixed bound pinches
         // anyone homed past the old 33-tile map
         world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
@@ -2850,9 +2854,9 @@ impl Game {
             ("stock.bread", bread),
             ("stock.food", food),
             ("env.tree_cover", tree_cover as f64),
-            ("price.grain", vocation::price("grain") as f64),
-            ("price.wood", vocation::price("wood") as f64),
-            ("price.fish", vocation::price("fish") as f64),
+            ("price.grain", goods::worth_at(&self.world, "grain") as f64),
+            ("price.wood", goods::worth_at(&self.world, "wood") as f64),
+            ("price.fish", goods::worth_at(&self.world, "fish") as f64),
             ("winter.harsh", if self.harsh_winter { 1.0 } else { 0.0 }),
         ]
     }
@@ -4958,7 +4962,7 @@ impl Game {
             let age = tick - self.cheeses[0];
             if age > 60 {
                 self.cheeses.remove(0);
-                let worth = vocation::price("cheese") * 3.0 * (1.0 + age as f32 / 60.0);
+                let worth = goods::worth_at(&self.world, "cheese") * 3.0 * (1.0 + age as f32 / 60.0);
                 if let Some(sh) = self.shepherd {
                     if let Some(p) = self.world.get_component_mut::<Purse>(sh) { p.gold += worth; }
                 }
@@ -6173,18 +6177,21 @@ impl Game {
         match goal {
             Goal::BuyFrom(seller, good, qty) => {
                 // seller may be a person (satchel) or a building (the stall)
-                if self.world.get_component::<Building>(seller).is_some() {
-                    let _ = household::buy_at_shop(&mut self.world, seller, who, good, qty);
+                let paid = if self.world.get_component::<Building>(seller).is_some() {
+                    household::buy_at_shop(&mut self.world, seller, who, good, qty)
                 } else {
-                    let _ = livelihood::trade_person(&mut self.world, who, seller, good, qty);
-                }
+                    livelihood::trade_person(&mut self.world, who, seller, good, qty)
+                };
                 // trade with the road's accounts loses a little to the
                 // reckoning - unless the village has a clerk for it
                 if Some(seller) == self.trader_stall && vocation::imported(good)
                     && self.numeracy != Numeracy::Positional && self.translator.is_none() {
                     self.reckonings += 1;
+                    // the tally leans on what was actually paid - a shelf
+                    // emptied just now doesn't swell the reckoning's cut
+                    let skim = paid.unwrap_or(0.0) * 0.1;
                     if let Some(p) = self.world.get_component_mut::<Purse>(who) {
-                        p.gold = (p.gold - vocation::price(good) * 0.1).max(0.0);
+                        p.gold = (p.gold - skim).max(0.0);
                     }
                     if self.reckonings % 3 == 0 {
                         desires::add_grievance(&mut self.world, who, desires::Problem::ShortChanged, tick + 40);
@@ -6302,7 +6309,7 @@ impl Game {
                     .and_then(|b| self.world.get_component::<Building>(b))
                     .map(|b| b.stock.iter()
                         .filter(|(g, _)| vocation::is_drink(g))
-                        .map(|(g, q)| vocation::price(g) * *q as f32).sum::<f32>())
+                        .map(|(g, q)| goods::worth_at(&self.world, g) * *q as f32).sum::<f32>())
                     .map(|v| (v * livelihood::DRINK_EXCISE).round())
                     .unwrap_or(0.0);
                 if excise > 0.0 {
@@ -6527,6 +6534,8 @@ impl Game {
     /// The town's business each day: work, errands, the tax round, the
     /// trader's restock, the odd minstrel, a tune in the street
     pub fn livelihood_tick(&mut self, tick: u64) {
+        // the felt worths slide a little back toward ordinary each day
+        goods::drift(&mut self.world);
         // market day, once a month: the org's members sell their work and
         // the purse sees its share of the takings
         if tick % 30 == 20 {
@@ -6767,7 +6776,7 @@ impl Game {
         let gold = self.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0);
         for (w, good) in WANT_GOODS {
             if !wants.contains(&w) || desires::is_satisfied(&self.world, v, w, tick) { continue; }
-            if gold < vocation::price(good) { continue; }
+            if gold < goods::worth_at(&self.world, good) { continue; }
             if let Some(shop) = livelihood::shop_for(&self.world, good, pos) {
                 return Some(Goal::BuyAt(shop, good, Some(w)));
             }
@@ -7945,7 +7954,7 @@ impl Game {
                 text: format!("lives here: {}", if names.is_empty() { "no one".into() } else { names.join(", ") }),
                 rgb: (190, 190, 210) });
         }
-        let offers = household::on_offer(b);
+        let offers = household::on_offer_at(&self.world, b);
         let stock_line = offers.iter().take(3).map(|(g, q, _)| format!("{} {}", g, q))
             .collect::<Vec<_>>().join(" \u{00b7} ");
         lines.push(Line { x: 18, y: 390,

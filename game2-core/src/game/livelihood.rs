@@ -138,6 +138,11 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
         if let Some(bb) = world.get_component_mut::<Building>(b) {
             leftover = made - household::add_stock(bb, good, made as u32) as f32;
         }
+        // a shelf too full to take the day's work leans the good a
+        // little cheap - the glut reads on the ledger, not the street
+        if leftover > 0.0 {
+            crate::game::goods::nudge(world, good, crate::game::goods::GLUT_NUDGE);
+        }
     }
     if leftover > 0.0 {
         if let Some(s) = world.get_component_mut::<Satchel>(e) {
@@ -153,10 +158,14 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
             let senior_shop = world.get_component::<Craft>(senior).and_then(|c| c.workplace);
             if let Some(b) = senior_shop {
                 if let Some(bb) = world.get_component_mut::<Building>(b) {
-                    household::add_stock(bb, good, to_senior as u32);
+                    let fit = household::add_stock(bb, good, to_senior as u32);
+                    // his shelf too full reads as glut like anyone's
+                    if fit < to_senior as u32 {
+                        crate::game::goods::nudge(world, good, crate::game::goods::GLUT_NUDGE);
+                    }
                 }
             }
-            let pay = to_senior * vocation::price(good) * 0.5;
+            let pay = to_senior * crate::game::goods::worth_at(world, good) * 0.5;
             if let Some(p) = world.get_component_mut::<Purse>(senior) { p.gold -= pay.min(p.gold); }
             if let Some(p) = world.get_component_mut::<Purse>(e) { p.gold += pay; }
         }
@@ -233,7 +242,7 @@ pub fn trade_person(world: &mut World, buyer: Entity, seller: Entity, good: &str
     if crate::game::villager::is_dead(world, buyer) || crate::game::villager::is_dead(world, seller) {
         return None;
     }
-    let cost = vocation::price(good) * qty as f32;
+    let cost = crate::game::goods::worth_at(world, good) * qty as f32;
     let afford = world.get_component::<Purse>(buyer).map(|p| p.gold).unwrap_or(0.0);
     if afford < cost { return None; }
     let have = world.get_component::<Satchel>(seller)

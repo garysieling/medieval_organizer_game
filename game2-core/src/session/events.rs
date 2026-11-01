@@ -1628,7 +1628,7 @@ impl Game {
                 // days on its rind - to the shepherd who made it
                 if self.cellar.is_none() || self.cheeses.is_empty() { return; }
                 let age = tick - self.cheeses[0];
-                let worth = crate::game::vocation::price("cheese") * 2.0 * (1.0 + age as f32 / 60.0);
+                let worth = crate::game::goods::worth_at(&self.world, "cheese") * 2.0 * (1.0 + age as f32 / 60.0);
                 self.cheeses.remove(0);
                 let shepherd = self.shepherd
                     .filter(|&s| !villager::is_dead(&self.world, s)
@@ -2726,7 +2726,7 @@ impl Game {
             .filter_map(|be| self.world.get_component::<household::Building>(be)
                 .map(|b| (be, b.stock.iter()
                     .filter(|(g, _)| crate::game::vocation::is_drink(g))
-                    .map(|(g, q)| crate::game::vocation::price(g) * *q as f32).sum::<f32>())))
+                    .map(|(g, q)| crate::game::goods::worth_at(&self.world, g) * *q as f32).sum::<f32>())))
             .filter(|(_, v)| *v >= 20.0)
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(be, _)| be);

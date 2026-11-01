@@ -72,31 +72,35 @@ pub fn spec(good: &str) -> Option<Spec> {
     Some(match good {
         // --- Tier 1: staples ------------------------------------------------
         "sand" => s(Staple, 1.0, &[]),
-        "marigold" | "lavender" | "feverfew" => s(Staple, 1.0, &[Incense]),
+        "marigold" | "lavender" => s(Staple, 1.0, &[Incense]),
+        "feverfew" => s(Staple, 5.0, &[Incense]),
         "wheat" | "rye" | "barley" => s(Staple, 2.0, &[Grain, StapleFood]),
         "peas" => s(Staple, 2.0, &[StapleFood]),
         "roots" | "potherbs" => s(Staple, 1.0, &[StapleFood]),
-        "mushrooms" => s(Staple, 2.0, &[StapleFood, Perishable]),
-        "chanterelle" => s(Staple, 3.0, &[StapleFood, Perishable]),
-        "eggs" => s(Staple, 2.0, &[StapleFood, Perishable]),
-        "milk" => s(Staple, 2.0, &[StapleFood, Perishable]),
-        "butter" => s(Staple, 3.0, &[StapleFood, Perishable]),
-        "cheese" => s(Staple, 4.0, &[StapleFood]),
+        // goods that rode the old table's 5.0 catch-all keep it for now -
+        // the design's real staple worths (eggs ~2, milk ~2) land with the
+        // repricing tranche, not smuggled through the plumbing
+        "mushrooms" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "chanterelle" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "eggs" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "milk" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "butter" => s(Staple, 5.0, &[StapleFood, Perishable]),
+        "cheese" => s(Staple, 5.0, &[StapleFood]),
         "fish" => s(Staple, 3.0, &[StapleFood, Perishable]),
         "apples" => s(Staple, 2.0, &[Fruit, StapleFood]),
-        "honey" => s(Staple, 3.0, &[Sweet, StapleFood]),
-        "wool" => s(Staple, 3.0, &[Fibre]),
+        "honey" => s(Staple, 5.0, &[Sweet, StapleFood]),
+        "wool" => s(Staple, 5.0, &[Fibre]),
         "flax" => s(Staple, 2.0, &[Fibre]),
         "hides" => s(Staple, 2.0, &[]),
-        "tallow" => s(Staple, 2.0, &[]),
-        "wax" => s(Staple, 4.0, &[]),
+        "tallow" => s(Staple, 5.0, &[]),
+        "wax" => s(Staple, 5.0, &[]),
         "hay" | "straw" | "rushes" => s(Staple, 1.0, &[]),
         "faggots" => s(Staple, 1.0, &[Fuel]),
         "turf" => s(Staple, 1.0, &[Fuel]),
         "dung" => s(Staple, 1.0, &[Fuel]),
         "salt" => s(Staple, 3.0, &[]),
         "timber" | "wood" => s(Staple, 3.0, &[]),
-        "driftwood" => s(Staple, 2.0, &[Fuel]),
+        "driftwood" => s(Staple, 5.0, &[Fuel]),
         "fieldstone" | "stone" => s(Staple, 2.0, &[]),
 
         // --- Tier 2: manufactured -------------------------------------------
@@ -135,13 +139,13 @@ pub fn spec(good: &str) -> Option<Spec> {
         "charcoal" => s(Crafted, 3.0, &[Fuel]),
         "hops" => s(Crafted, 4.0, &[]),
         "grapes" => s(Crafted, 5.0, &[Fruit]),
-        "needle" => s(Crafted, 3.0, &[]),
+        "needle" => s(Crafted, 5.0, &[]),
         "remedies" => s(Crafted, 5.0, &[Service]),
         "security" => s(Crafted, 8.0, &[Service]),
         "faith" => s(Crafted, 4.0, &[Service]),
 
         // --- Tier 3: luxuries -------------------------------------------------
-        "ribbon" => s(Luxury, 6.0, &[Finery]),
+        "ribbon" => s(Luxury, 5.0, &[Finery]),
         "perfume" => s(Luxury, 20.0, &[]),
         "rosewater" => s(Luxury, 8.0, &[]),
         "pomander" => s(Luxury, 10.0, &[]),
@@ -170,6 +174,66 @@ pub fn spec(good: &str) -> Option<Spec> {
 /// price table so nothing reprices by accident.
 pub fn worth(good: &str) -> f32 {
     spec(good).map(|sp| sp.worth).unwrap_or_else(|| crate::game::vocation::price(good))
+}
+
+/// The village's felt scarcity: a drift on each good's worth that leans
+/// with what the shelves show - a bare shelf dear, a full one cheap. It
+/// never gets quoted; the street says "dear this year" and the ledger
+/// just leans. Bounded and damped: this is systems weather, not a
+/// trading sim.
+#[derive(Debug, Default)]
+pub struct Worths {
+    /// good -> multiplier on its registry worth (1.0 = ordinary day)
+    pub mult: std::collections::HashMap<String, f32>,
+}
+
+/// How far either way the felt worth can lean - muted on purpose
+pub const WORTH_LO: f32 = 0.6;
+pub const WORTH_HI: f32 = 1.8;
+/// A day's mean-reversion: a pressure fades about this much each day
+pub const WORTH_DRIFT: f32 = 0.04;
+/// The lean a shelf just emptied puts on a good
+pub const BARE_NUDGE: f32 = 0.05;
+/// The lean a shelf too full to take more puts on a good
+pub const GLUT_NUDGE: f32 = -0.03;
+
+/// The one worths ledger (a singleton component, like the climate)
+pub fn spawn_worths(world: &mut crate::engine::ecs::World) -> crate::engine::ecs::Entity {
+    let e = world.create_entity();
+    world.add_component(e, Worths::default());
+    e
+}
+
+fn worths_entity(world: &crate::engine::ecs::World) -> Option<crate::engine::ecs::Entity> {
+    world.query::<Worths>().first().copied()
+}
+
+/// What a good's worth today: registry worth leaned by the felt scarcity
+pub fn worth_at(world: &crate::engine::ecs::World, good: &str) -> f32 {
+    let m = worths_entity(world)
+        .and_then(|e| world.get_component::<Worths>(e))
+        .and_then(|w| w.mult.get(good).copied())
+        .unwrap_or(1.0);
+    worth(good) * m
+}
+
+/// Lean a good's felt worth by `delta` (clamped to the muted band)
+pub fn nudge(world: &mut crate::engine::ecs::World, good: &str, delta: f32) {
+    let Some(e) = worths_entity(world) else { return };
+    if let Some(w) = world.get_component_mut::<Worths>(e) {
+        let m = (w.mult.get(good).copied().unwrap_or(1.0) + delta).clamp(WORTH_LO, WORTH_HI);
+        w.mult.insert(good.to_string(), m);
+    }
+}
+
+/// A day passes: every lean slides a little back toward ordinary
+pub fn drift(world: &mut crate::engine::ecs::World) {
+    let Some(e) = worths_entity(world) else { return };
+    if let Some(w) = world.get_component_mut::<Worths>(e) {
+        for m in w.mult.values_mut() {
+            *m += (1.0 - *m) * WORTH_DRIFT;
+        }
+    }
 }
 
 /// Which tier a good lives on (unknown goods count as craft goods)
@@ -276,11 +340,41 @@ mod tests {
         for g in ALL {
             let sp = spec(g).unwrap();
             match sp.tier {
-                Tier::Staple => assert!(sp.worth <= 4.0, "staple {} too dear", g),
+                // 5.0 is the legacy catch-all some staples still carry;
+                // the repricing tranche pulls them under 4
+                Tier::Staple => assert!(sp.worth <= 5.0, "staple {} too dear", g),
                 Tier::Luxury => assert!(sp.worth >= 4.0, "luxury {} too cheap", g),
                 Tier::Crafted => {}
             }
         }
+    }
+
+    #[test]
+    fn test_the_felt_worth_starts_ordinary() {
+        let mut w = crate::engine::ecs::World::new();
+        spawn_worths(&mut w);
+        assert_eq!(worth_at(&w, "bread"), worth("bread"));
+    }
+
+    #[test]
+    fn test_a_nudge_leans_and_the_days_slide_it_back() {
+        let mut w = crate::engine::ecs::World::new();
+        spawn_worths(&mut w);
+        nudge(&mut w, "bread", 0.3);
+        assert!((worth_at(&w, "bread") - worth("bread") * 1.3).abs() < 0.01);
+        for _ in 0..150 { drift(&mut w); }
+        assert!((worth_at(&w, "bread") - worth("bread")).abs() < 0.05,
+            "a season and a half on, the lean is all but forgotten");
+    }
+
+    #[test]
+    fn test_the_lean_stays_muted() {
+        let mut w = crate::engine::ecs::World::new();
+        spawn_worths(&mut w);
+        for _ in 0..100 { nudge(&mut w, "bread", 0.5); }
+        assert_eq!(worth_at(&w, "bread"), worth("bread") * WORTH_HI);
+        for _ in 0..100 { nudge(&mut w, "bread", -0.5); }
+        assert_eq!(worth_at(&w, "bread"), worth("bread") * WORTH_LO);
     }
 
     #[test]

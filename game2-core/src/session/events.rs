@@ -2409,6 +2409,25 @@ impl Game {
                 }
                 self.toasts.push(("A quarrel in the square".into(), self.tick + 40));
             }
+            EventId::OldOakFalls => {
+                // she was older than the church: the landmark's gone,
+                // but the wood splits up fair - firewood to every hearth
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
+                for h in homes {
+                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::add_stock(&mut b, "wood", 2);
+                    }
+                }
+                if let Some(&v) = self.villagers.iter().find(|&&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)) {
+                    self.say(v, "She was older than the church...", CHAT_BUBBLE_SECS);
+                }
+                self.log.push(format!("t{}: the old oak falls - a crack like thunder in the night, and she's down. The wood splits up fair.", self.tick));
+                self.toasts.push(("The old oak falls".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5082,6 +5101,24 @@ mod tests {
                     .map(|r| r.strength < 0.0).unwrap_or(false)).count();
             assert!(conflicts1 > conflicts0 || g.villagers.len() < 2, "tempers met on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("quarrel")), "the scene was told on {:?}", st);
+        }
+    }
+
+    /// The old oak falls: a crack like thunder, the landmark's gone,
+    /// and the wood splits up fair to every hearth
+    #[test]
+    fn test_the_landmark_comes_down() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let wood0: u32 = g.building_entities.iter().map(|&be|
+                g.world.get_component::<household::Building>(be)
+                    .and_then(|b| b.stock.get("wood").copied()).unwrap_or(0)).sum();
+            g.force_event(EventId::OldOakFalls);
+            let wood1: u32 = g.building_entities.iter().map(|&be|
+                g.world.get_component::<household::Building>(be)
+                    .and_then(|b| b.stock.get("wood").copied()).unwrap_or(0)).sum();
+            assert!(wood1 > wood0 || g.building_entities.is_empty(), "the wood split up on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("old oak")), "the fall was told on {:?}", st);
         }
     }
 

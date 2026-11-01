@@ -384,6 +384,17 @@ fn is_weather_note(entry: &str) -> bool {
 /// deaths out of view
 const LOG_TOWN_SHOWN: usize = 3;
 
+/// How many log lines the session keeps at most. A line or three lands
+/// each day, so uncapped the log grew without bound over a long game -
+/// and every frame's model used to clone all of it. The window only
+/// shows the recent end; harnesses and tests read days or weeks back,
+/// far under this floor.
+const LOG_MAX: usize = 16384;
+
+/// Overflow trims down to this, so the trim is a rare memmove instead of
+/// a per-line churn.
+const LOG_TRIM_TO: usize = 12288;
+
 /// Is this log entry routine town business?
 fn is_town_note(entry: &str) -> bool {
     entry.contains(" is now a ") || entry.contains("has come to town")
@@ -1702,6 +1713,10 @@ pub struct Game {
     pub paused: bool,
     pub speed: u32,   // 1=normal 2=fast 4=turbo
     pub log: Vec<String>,
+    /// Lines trimmed off the log's front so far - a cursor into "every
+    /// line ever pushed" is `log_dropped + index into log`, so readers
+    /// that pace the log (the balance harness) survive a trim
+    pub log_dropped: usize,
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     pub meeting: Option<Meeting>,
@@ -2605,8 +2620,7 @@ impl Game {
             });
             if let Some(m) = master {
                 world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
-                let rel = world.create_entity();
-                world.add_component(rel, relationships::Relationship {
+                relationships::add_relationship(&mut world, relationships::Relationship {
                     from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.4, interactions: 3 });
             }
         }
@@ -2659,6 +2673,7 @@ impl Game {
             speed: 1,
             log: vec!["Welcome to the village.".into(),
                 format!("The village keeps {}.", vocation::trade_name(drink_voc))],
+            log_dropped: 0,
             bubbles: vec![],
             meeting: None,
             near: vec![],
@@ -3051,15 +3066,20 @@ impl Game {
             if now.is_some() { self.rainbow_from = None; }
             self.precip = now;
         }
-        // villagers separate if too close (no clustering)
+        // villagers separate if too close (no clustering). Positions and
+        // who-may-yield are snapshotted once for the whole pair pass - the
+        // roster keeps every grave, so per-pair component lookups grew
+        // quadratically over a long game. Pushes write back into the
+        // snapshot too, so later pairs read exactly what the old per-pair
+        // lookups would have - the pass is faster, not different.
+        let mut pos_now: Vec<Option<Pos>> = villagers.iter().map(|v| world.get_component::<Pos>(*v).copied()).collect();
+        let yields: Vec<bool> = villagers.iter().map(|v| makes_room(world, *v)).collect();
         for i in 0..villagers.len() {
             for j in (i+1)..villagers.len() {
-                let (ax, ay, bx, by) = {
-                    let pa = world.get_component::<Pos>(villagers[i]);
-                    let pb = world.get_component::<Pos>(villagers[j]);
-                    match (pa, pb) { (Some(a), Some(b)) => (a.x, a.y, b.x, b.y), _ => continue }
-                };
-                let dx = bx - ax; let dy = by - ay;
+                // two fixtures (graves, the held) never yield to each other
+                if !yields[i] && !yields[j] { continue; }
+                let (Some(a), Some(b)) = (pos_now[i], pos_now[j]) else { continue };
+                let dx = b.x - a.x; let dy = b.y - a.y;
                 let d2 = dx*dx + dy*dy;
                 if d2 < 9.0 && d2 > 0.001 {
                     let d = d2.sqrt();
@@ -3069,11 +3089,13 @@ impl Game {
                     // anyone shoved who's going for food: the push reaches 3
                     // tiles but eating needs 1, so two hungry villagers at
                     // the store pushed each other out of reach and starved
-                    if makes_room(world, villagers[i]) {
+                    if yields[i] {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[i]) { p.x -= nx; p.y -= ny; }
+                        if let Some(p) = &mut pos_now[i] { p.x -= nx; p.y -= ny; }
                     }
-                    if makes_room(world, villagers[j]) {
+                    if yields[j] {
                         if let Some(p) = world.get_component_mut::<Pos>(villagers[j]) { p.x += nx; p.y += ny; }
+                        if let Some(p) = &mut pos_now[j] { p.x += nx; p.y += ny; }
                     }
                 }
             }
@@ -3314,6 +3336,12 @@ impl Game {
         }
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);
+        // the log is a rolling window - the oldest lines drop in blocks
+        if self.log.len() > LOG_MAX {
+            let dropped = self.log.len() - LOG_TRIM_TO;
+            self.log.drain(..dropped);
+            self.log_dropped += dropped;
+        }
         // movement is still processed while paused, but relationships and
         // last_chat shouldn't change while the day isn't advancing
         if !self.paused { self.chat_in_passing(); }
@@ -5487,6 +5515,10 @@ impl Game {
                 desires::satisfy(&mut self.world, v, Want::Joy, tick + 8);
             }
         }
+        // one pass over every bond for the whole round of check-ins -
+        // a scan per afflicted villager multiplied by every bond in the
+        // village, which grew without bound over a long game
+        let bonds = relationships::bond_map(&self.world);
         for &v in &self.villagers.clone() {
             let Some(cond) = self.world.get_component::<villager::Condition>(v)
                 .map(|c| c.kind) else { continue };
@@ -5499,7 +5531,7 @@ impl Game {
                         .find(|&o| o != v && !villager::is_dead(&self.world, o)
                             && !crate::game::dungeon::unavailable(&self.world, o))))
                 .flatten()
-                .or_else(|| self.world.query::<relationships::Relationship>().iter()
+                .or_else(|| bonds.get(&v).into_iter().flatten()
                     .filter_map(|&r| self.world.get_component::<relationships::Relationship>(r))
                     .filter(|r| r.from != v && r.other == v
                         && !villager::is_dead(&self.world, r.from)
@@ -5564,8 +5596,8 @@ impl Game {
             && self.world.get_component::<relationships::Relationship>(v).is_none());
         let Some(writer) = writer else { return };
         // someone they think of: the kindest bond they have, or a lover
-        let to = self.world.query::<relationships::Relationship>().iter()
-            .filter_map(|&r| self.world.get_component::<relationships::Relationship>(r))
+        let to = relationships::bonds_of(&self.world, writer).into_iter()
+            .filter_map(|r| self.world.get_component::<relationships::Relationship>(r))
             .filter(|r| r.from == writer)
             .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
             .map(|r| r.other);
@@ -5985,18 +6017,16 @@ impl Game {
 
     /// Does `v` stand in any relationship of `kind`?
     pub fn has_rel(&self, kind: relationships::RelKind, v: Entity) -> bool {
-        self.world.query::<relationships::Relationship>().iter().any(|&r| {
-            let r = self.world.get_component::<relationships::Relationship>(r).unwrap();
+        self.world.find::<relationships::Relationship>(|_, r| {
             r.kind == kind && (r.from == v || r.other == v)
-        })
+        }).is_some()
     }
 
     /// The relationship standing between `a` and `b`, if any
     fn rel_kind(&self, a: Entity, b: Entity) -> Option<relationships::RelKind> {
-        self.world.query::<relationships::Relationship>().iter().find_map(|&r| {
-            let r = self.world.get_component::<relationships::Relationship>(r).unwrap();
-            if (r.from == a && r.other == b) || (r.from == b && r.other == a) { Some(r.kind) } else { None }
-        })
+        relationships::find_relationship(&self.world, a, b)
+            .and_then(|e| self.world.get_component::<relationships::Relationship>(e))
+            .map(|r| r.kind)
     }
 
     fn name_of(&self, e: Entity) -> String {
@@ -6036,8 +6066,7 @@ impl Game {
             ^ (tick / 30).wrapping_mul(83492791)) % 1000;
         if (roll as f32) / 1000.0 < spark {
             for (x, y) in [(a, b), (b, a)] {
-                let rel = self.world.create_entity();
-                self.world.add_component(rel, relationships::Relationship {
+                relationships::add_relationship(&mut self.world, relationships::Relationship {
                     from: x, other: y, kind: relationships::RelKind::Lover, strength: 0.6, interactions: 1 });
             }
             desires::satisfy(&mut self.world, a, desires::Want::Love, tick + 365);
@@ -6896,15 +6925,18 @@ impl Game {
             }
         } else {
             // the tents fold - and the road takes the one it most tempted
+            let mut bond_n: std::collections::HashMap<Entity, usize> = std::collections::HashMap::new();
+            self.world.iter::<relationships::Relationship>(|_, r| {
+                *bond_n.entry(r.from).or_default() += 1;
+                if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
+            });
             let mark = self.villagers.iter().copied()
                 .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v) && !org.contains(&v)
                     && self.world.get_component::<TownRole>(v).is_none()
                     && desires::problems_of(&self.world, v, tick).contains(&desires::Problem::Tempted))
                 .min_by_key(|&v| {
                     // the loneliest goes: fewest bonds is the lightest tie
-                    self.world.query::<relationships::Relationship>().iter()
-                        .filter(|&&r| self.world.get_component::<relationships::Relationship>(r)
-                            .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count()
+                    bond_n.get(&v).copied().unwrap_or(0)
                 });
             if let Some(m) = mark {
                 let name = self.name_of(m);
@@ -7369,8 +7401,7 @@ impl Game {
                 match master {
                     Some(m) => {
                         self.world.get_component_mut::<Craft>(v).unwrap().master = Some(m);
-                        let rel = self.world.create_entity();
-                        self.world.add_component(rel, relationships::Relationship {
+                        relationships::add_relationship(&mut self.world, relationships::Relationship {
                             from: v, other: m, kind: relationships::RelKind::Apprentice, strength: 0.3, interactions: 1 });
                         let mi = self.villagers.iter().position(|x| *x == m).unwrap();
                         format!("You pair {} with {} - he'll learn faster now.", vill_name(self.seats[seat].selected_target), vill_name(mi))
@@ -7829,7 +7860,9 @@ impl Game {
             paused: self.paused, speed: self.speed,
             stones: self.stones.clone(), buildings, people, bubbles,
             toasts: self.toasts.iter().filter(|(_, until)| self.tick < *until).map(|(m, _)| m.clone()).collect(),
-            log: self.log.clone(),
+            // only the lines the window would show - cloning the whole
+            // history every frame was the model's biggest copy
+            log: visible_log(&self.log).into_iter().cloned().collect(),
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),
@@ -8792,7 +8825,7 @@ impl View {
         const LOG_CHARS: usize = 43;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 8;
         let mut row = 0;
-        'log: for entry in visible_log(&m.log) {
+        'log: for entry in &m.log {
             let (r, g, b) = log_colour(entry);
             // "day 120" in dim grey, then the message in its colour
             let (day, msg) = log_parts(entry);
@@ -11930,6 +11963,20 @@ mod log_priority_tests {
         let shown: Vec<&String> = visible_log(&game.log).into_iter().take(8).collect();
         assert!(shown.iter().any(|e| e.contains("is taken with") || e.contains("recovered from")),
             "by day 600 the sickness has scrolled away: {:?}", shown);
+    }
+
+    #[test]
+    fn test_the_log_is_bounded_over_a_long_game() {
+        let mut game = Game::new();
+        // a running tap of lines, far past the cap
+        for t in 1..=(LOG_MAX + 5000) { game.log.push(format!("t{}: a line", t)); }
+        game.update();
+        assert!(game.log.len() <= LOG_MAX,
+            "the log keeps only its recent window: {}", game.log.len());
+        assert_eq!(game.log.last().unwrap(), &format!("t{}: a line", LOG_MAX + 5000),
+            "and what it keeps is the newest end");
+        assert_eq!(game.log_dropped + game.log.len(), LOG_MAX + 5000 + 2,
+            "dropped + kept accounts for every line written");
     }
 }
 

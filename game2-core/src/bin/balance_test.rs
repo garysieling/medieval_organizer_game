@@ -146,7 +146,7 @@ fn main() {
     game.speed = 4; // turbo: days tick ~4x faster headless, same sim
 
     let mut record = RunRecord { seed, days, samples: vec![] };
-    let mut log_read = 0usize; // cursor into game.log - lines we've already taken
+    let mut log_read = 0usize; // cursor over every line ever pushed: log_dropped + index into game.log - the trim can't strand it
     let mut last_tick = game.tick;
     let mut last_campaign_day = 0u64;
     // a generous frame budget: ~ticks_per_frame per day plus slack for the
@@ -158,9 +158,13 @@ fn main() {
         if game.frame_n % driver::DRIVE_EVERY as u32 == 0 { drive_organizer(&mut game, 0, &mut last_campaign_day); }
         if game.tick != last_tick {
             last_tick = game.tick;
-            let events: Vec<String> = game.log[log_read.min(game.log.len())..]
+            // the log trims its front in blocks; the absolute cursor still
+            // lands on the first line we haven't taken (or the window's
+            // start if a trim outran it - only the trimmed lines are lost)
+            let off = log_read.saturating_sub(game.log_dropped).min(game.log.len());
+            let events: Vec<String> = game.log[off..]
                 .iter().map(|l| l.splitn(2, ": ").nth(1).unwrap_or(l).to_string()).collect();
-            log_read = game.log.len();
+            log_read = game.log_dropped + game.log.len();
             record.samples.push(DaySample { tick: game.tick, gauges: game.telemetry().iter()
                 .map(|(k, v)| (k.to_string(), *v)).collect(), events });
         }

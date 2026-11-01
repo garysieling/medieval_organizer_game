@@ -8,7 +8,7 @@
 use game2_core::engine::ecs::{Entity, Scheduler, World};
 use game2_core::game::organizing::living_leader;
 use game2_core::game::pets::{self, Pet, PetRole, Species};
-use game2_core::game::relationships::{Relationship, RelKind};
+use game2_core::game::relationships::{self, Relationship, RelKind};
 use game2_core::game::villager::{self, Hunger};
 use game2_core::sim::climate::{self, Climate, Season, SeasonSystem};
 use game2_core::sim::community::{Citizen, InfluenceSystem, Organization};
@@ -55,8 +55,7 @@ fn main() {
     // Eliza's attachment figure is Aldric; Bram and Dagny are close friends
     world.add_component(villagers[1], Bond { target: villagers[0], security: 0.8 });
     for (a, b, strength) in [(0, 2, 0.7), (2, 4, 0.6), (3, 4, 0.4)] {
-        let r = world.create_entity();
-        world.add_component(r, Relationship { from: villagers[a], other: villagers[b], kind: RelKind::Friend, strength, interactions: 8 });
+        relationships::add_relationship(&mut world, Relationship { from: villagers[a], other: villagers[b], kind: RelKind::Friend, strength, interactions: 8 });
     }
     // Aldric, the old guild leader, goes into the winter with a wasting
     // sickness his body can't fight

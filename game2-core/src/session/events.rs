@@ -1802,6 +1802,9 @@ impl Game {
                 for p in self.mush_patches.iter_mut() {
                     p.next_ready = p.next_ready.max(self.tick + 30);
                 }
+                // a forager mid-walk turns home - the patch his errand
+                // was for is black under the frost
+                self.travels.retain(|t| !matches!(t.goal, Goal::ForageShroom(_)));
                 self.log.push(format!("t{}: a late frost - white on the beds in the morning, the shoots black.", self.tick));
                 self.toasts.push(("A late frost".into(), self.tick + 40));
             }

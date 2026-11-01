@@ -1780,8 +1780,16 @@ impl Game {
                         .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
-                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
-                        household::take_stock(&mut b, "wood", 1);
+                    // the tear takes thatch off the roof - a home with
+                    // none stocked still loses it: the roof goes thin
+                    let took = if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::take_stock(&mut b, "thatch", 1)
+                    } else { 0 };
+                    if took == 0 {
+                        for &v in &self.villagers.clone() {
+                            if household::home_of(&self.world, v) != Some(h) { continue; }
+                            desires::add_grievance(&mut self.world, v, desires::Problem::ThinWood, self.tick + 30);
+                        }
                     }
                 }
             }

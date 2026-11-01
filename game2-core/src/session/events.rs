@@ -2319,7 +2319,9 @@ impl Game {
                             .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count());
                 if let Some(m) = mark {
                     let name = self.name_of(m);
-                    let pet = pets::spawn_pet(&mut self.world, "Tib", Species::Cat, PetRole::Companion);
+                    // a village cat earns her keep - Hunting puts her
+                    // vermin watch to work, not just her company
+                    let pet = pets::spawn_pet(&mut self.world, "Tib", Species::Cat, PetRole::Hunting);
                     pets::adopt(&mut self.world, pet, m);
                     self.pets.push((pet, Species::Cat, (0.7, 0.4)));
                     desires::satisfy(&mut self.world, m, Want::Love, tick + 60);

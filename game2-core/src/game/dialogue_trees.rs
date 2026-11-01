@@ -745,10 +745,10 @@ pub fn village_library() -> Vec<DialogueTree> {
         // visit, so the "pray for me" forks are reachable
         DialogueTree { name: "the_cleric_visits_the_sick",
             criteria: &[Has("self:ideology:clergy"), Has("other:status:sick")],
-            root: &CLERIC_GREET, rejoin: Some(&CLERIC_PARISH) },
+            root: &CLERIC_GREET, rejoin: Some(&VISIT_CARE) },
         DialogueTree { name: "the_cleric_consoles",
             criteria: &[Has("self:ideology:clergy"), Has("other:status:grieving")],
-            root: &CLERIC_GREET, rejoin: Some(&CLERIC_PARISH) },
+            root: &CLERIC_GREET, rejoin: Some(&CONDOLE_OFFER) },
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: Some(&SICK_EXCUSE) },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],

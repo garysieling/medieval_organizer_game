@@ -904,4 +904,39 @@ mod tests {
             assert!(prayed, "a {} parishioner never reaches the cleric's prayer", status);
         }
     }
+
+    #[test]
+    fn test_cleric_console_reachable_for_sick_and_grieving_parishioner() {
+        // the_cleric_visits_the_sick and the_cleric_consoles tie on criterion
+        // count when the listener is both sick and grieving. If they shared
+        // CLERIC_PARISH as their rejoin, falling through to the second tied
+        // tree asked the same generic parish question twice and the grief
+        // thread was never reached. Each now rejoins into its own
+        // topic-appropriate exchange (VISIT_CARE / CONDOLE_OFFER).
+        let library = village_library();
+        let mut cleric = Speaker::new("Anselm");
+        cleric.ideology = "clergy";
+        let mut flock = Speaker::new("Bram");
+        flock.status.push("sick");
+        flock.status.push("grieving");
+
+        // "the_cleric_visits_the_sick" always wins the tie and supplies the
+        // root; "the_cleric_consoles" can only ever appear via its own
+        // rejoin (advance_to_rejoin skipping past the first tree). So any
+        // turn tagged with that tree name must come from that rejoin
+        // exchange - which must carry grief content, not the generic,
+        // grief-less CLERIC_PARISH small talk.
+        let mut saw_the_cleric_consoles_rejoin = false;
+        for seed in 0..50 {
+            let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, &mut Rng::new(seed));
+            // speaker 0 (the cleric) opens the rejoin exchange with its `calls`
+            // line; that's the line whose concepts identify which exchange it is.
+            for t in tr.turns.iter().filter(|t| t.tree == "the_cleric_consoles" && t.speaker == 0) {
+                saw_the_cleric_consoles_rejoin = true;
+                assert!(t.concepts.contains(&"concern:grief"),
+                    "the_cleric_consoles' rejoin opened without grief content: {:?}", t);
+            }
+        }
+        assert!(saw_the_cleric_consoles_rejoin, "the_cleric_consoles' rejoin was never reached across 50 seeds");
+    }
 }

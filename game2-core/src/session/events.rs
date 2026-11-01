@@ -2493,7 +2493,13 @@ impl Game {
                     for i in 0..able.len().min(2) {
                         let v = able[(off + i) % able.len()];
                         if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
-                            *s.goods.entry("honey".into()).or_insert(0) += 2;
+                            // a satchel holds ten: the combs fill what
+                            // room's left, they don't overflow it
+                            let held: u32 = s.goods.values().sum();
+                            let room = crate::game::livelihood::SATCHEL_CAP.saturating_sub(held);
+                            if room > 0 {
+                                *s.goods.entry("honey".into()).or_insert(0) += room.min(2);
+                            }
                         }
                     }
                     if let Some(h) = self.world.get_component_mut::<Health>(able[off]) {

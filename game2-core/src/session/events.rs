@@ -1871,6 +1871,16 @@ impl Game {
                 self.log.push(format!("t{}: the first snow - white on the roofs, the kids out in it early.", self.tick));
                 self.toasts.push(("The first snow".into(), self.tick + 40));
             }
+            EventId::MeteorShower => {
+                // a night of falling stars: the whole village stops and
+                // watches the sky, and the wonder of it sits easy after
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
+                }
+                self.log.push(format!("t{}: a meteor shower - the sky rains stars, and nobody's eyes are anywhere else.", self.tick));
+                self.toasts.push(("Falling stars!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -3997,6 +4007,22 @@ mod tests {
                 "the sign was taken on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Aurora), "the sky's the sky again on {:?}", st);
+        }
+    }
+
+    /// A meteor shower: the sky rains stars and nobody's eyes are
+    /// anywhere else - the wonder of it sits easy after
+    #[test]
+    fn test_the_sky_rains_stars() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::MeteorShower);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the wonder of it on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("meteor")), "the shower was told on {:?}", st);
         }
     }
 

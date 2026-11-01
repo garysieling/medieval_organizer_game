@@ -2368,9 +2368,14 @@ impl Game {
             EventId::Foundling => {
                 // a babe in a basket on the step: a rolled home takes
                 // her in, and whose she is is the street's new talk
+                // a real village roof with a bed to spare: a foreign
+                // house or a hut with no room can't take her
                 let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
                     self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.len() < 4
+                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                        .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
                     self.spawn_kid(h, self.tick);

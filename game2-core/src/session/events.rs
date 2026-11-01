@@ -1833,7 +1833,6 @@ impl Game {
                     if self.world.get_component::<crate::game::vocation::Kid>(v).is_none() { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
                 }
-                self.land.pit_water = (self.land.pit_water + 0.05).min(1.0);
                 self.log.push(format!("t{}: the first snow - white on the roofs, the kids out in it early.", self.tick));
                 self.toasts.push(("The first snow".into(), self.tick + 40));
             }
@@ -3916,9 +3915,7 @@ mod tests {
             let kid = g.villagers.iter().copied()
                 .find(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_some()
                     && !villager::is_dead(&g.world, v));
-            let water0 = g.land.pit_water;
             g.force_event(EventId::FirstSnow);
-            assert!(g.land.pit_water > water0 || water0 >= 1.0, "the melt fed the well on {:?}", st);
             if let Some(k) = kid {
                 assert!(desires::is_satisfied(&g.world, k, Want::Joy, g.tick),
                     "the wonder of it on {:?}", st);

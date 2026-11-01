@@ -2063,6 +2063,16 @@ impl Game {
                 self.log.push(format!("t{}: locusts - the air's alive with them, and where they pass there's nothing green.", self.tick));
                 self.toasts.push(("Locusts!".into(), self.tick + 40));
             }
+            EventId::Starlings => {
+                // the sky writes itself: the whole village stops to
+                // watch the shape of it, and the wonder sits easy after
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
+                }
+                self.log.push(format!("t{}: a murmuration - ten thousand wings writing on the sky, and nobody's eyes are on their work.", self.tick));
+                self.toasts.push(("A murmuration".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4440,6 +4450,22 @@ mod tests {
             }
             stage::run_days(&mut g, 11);
             assert!(g.rare.iter().all(|r| r.id != EventId::CaterpillarYear), "the creep passed on {:?}", st);
+        }
+    }
+
+    /// A murmuration: ten thousand wings writing on the sky, and the
+    /// wonder of it sits easy after
+    #[test]
+    fn test_the_sky_writes_itself() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::Starlings);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the wonder of it on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("murmuration")), "the wings were told on {:?}", st);
         }
     }
 

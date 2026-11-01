@@ -1823,6 +1823,11 @@ impl Game {
                     }
                 }
             }
+            EventId::CaterpillarYear => {
+                // ten days of the slow creep: the beds get eaten a
+                // little a day - not the locusts' hour, but it adds up
+                for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.15).max(0.0); }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1909,6 +1914,16 @@ impl Game {
             EventId::RatPlague => {
                 self.log.push(format!("t{}: a plague of rats - they're in the thatch, the larders, everywhere.", self.tick));
                 self.toasts.push(("A plague of rats".into(), self.tick + 40));
+            }
+            EventId::CaterpillarYear => {
+                self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
+                self.toasts.push(("A caterpillar year".into(), self.tick + 40));
+                // the kids have sport of it while the grown-ups fret
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    if self.world.get_component::<crate::game::vocation::Kid>(v).is_none() { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
+                }
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -4378,6 +4393,31 @@ mod tests {
                     "the patches were eaten back on {:?}", st);
             }
             assert!(g.log.iter().any(|l| l.contains("locust")), "the cloud was told on {:?}", st);
+        }
+    }
+
+    /// A caterpillar year: the leaves are lacework while the creep
+    /// holds, the kids have the sport of it, and it passes
+    #[test]
+    fn test_the_leaves_are_lacework() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            for x in g.gardens.iter_mut() { x.2 = x.2.max(1.0); }
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            let kid = g.villagers.iter().copied()
+                .find(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_some()
+                    && !villager::is_dead(&g.world, v));
+            g.force_event(EventId::CaterpillarYear);
+            assert!(g.rare.iter().any(|r| r.id == EventId::CaterpillarYear), "the creep's in");
+            stage::run_days(&mut g, 2);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 < growth0 || g.gardens.is_empty(), "the beds were eaten on {:?}", st);
+            if let Some(k) = kid {
+                assert!(desires::is_satisfied(&g.world, k, Want::Joy, g.tick),
+                    "the kids had the sport on {:?}", st);
+            }
+            stage::run_days(&mut g, 11);
+            assert!(g.rare.iter().all(|r| r.id != EventId::CaterpillarYear), "the creep passed on {:?}", st);
         }
     }
 

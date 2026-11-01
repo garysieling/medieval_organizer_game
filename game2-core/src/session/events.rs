@@ -1796,6 +1796,26 @@ impl Game {
                     }
                 }
             }
+            EventId::RatPlague => {
+                // the rats' own ten days: every larder pays them one
+                // day's toll where no cat walks - the tally goes in aux
+                for &be in &self.building_entities.clone() {
+                    if self.cat_watches(be) { continue; }
+                    let good = self.world.get_component::<household::Building>(be)
+                        .and_then(|b| b.stock.iter()
+                            .find(|(g, q)| **q > 0 && matches!(g.as_str(),
+                                "wheat"|"flour"|"bread"|"barley"|"oats"|"grain"))
+                            .or_else(|| b.stock.iter().find(|(_g, q)| **q > 0))
+                            .map(|(g, _)| g.clone()));
+                    let Some(g) = good else { continue };
+                    let took = if let Some(mut b) = self.world.get_component_mut::<household::Building>(be) {
+                        household::take_stock(&mut b, &g, 1)
+                    } else { 0 };
+                    if took > 0 {
+                        if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 1; }
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1878,6 +1898,10 @@ impl Game {
             EventId::WindStorm => {
                 self.log.push(format!("t{}: a windstorm - the thatch is tearing and the trees bend double.", self.tick));
                 self.toasts.push(("A windstorm".into(), self.tick + 40));
+            }
+            EventId::RatPlague => {
+                self.log.push(format!("t{}: a plague of rats - they're in the thatch, the larders, everywhere.", self.tick));
+                self.toasts.push(("A plague of rats".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -4299,6 +4323,23 @@ mod tests {
             assert!(g.rare.iter().all(|r| r.id != EventId::StrayCat), "she chose on {:?}", st);
             assert!(g.pets.iter().any(|&(_, sp, _)| sp == Species::Cat)
                 || g.log.iter().any(|l| l.contains("slips off")), "she stayed or slipped on {:?}", st);
+        }
+    }
+
+    /// A plague of rats: every larder pays them where no cat walks,
+    /// the tally grows, and the swarm's gone when its ten days are out
+    #[test]
+    fn test_the_rats_own_ten_days() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::RatPlague);
+            assert!(g.rare.iter().any(|r| r.id == EventId::RatPlague), "the swarm's in");
+            stage::run_days(&mut g, 3);
+            let toll = g.rare.iter().find(|r| r.id == EventId::RatPlague).map(|r| r.aux).unwrap_or(0);
+            assert!(toll > 0 || g.building_entities.iter().all(|&be| g.cat_watches(be)),
+                "the larders paid on {:?}", st);
+            stage::run_days(&mut g, 12);
+            assert!(g.rare.iter().all(|r| r.id != EventId::RatPlague), "the swarm's gone on {:?}", st);
         }
     }
 

@@ -2452,20 +2452,17 @@ impl Game {
                 // the plow turns up someone's old work: stone for the
                 // robbing, and a marvel to touch - who laid them, and
                 // what were they for?
-                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
-                    self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.kind == household::BuildingKind::Home
-                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
-                        .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
-                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
-                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
-                        household::add_stock(&mut b, "stone", 3);
-                    }
-                }
-                for &v in &self.villagers.clone() {
+                for (i, &v) in self.villagers.clone().iter().enumerate() {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 10);
+                    // good stone's good stone: a share into satchels,
+                    // where the masons can draw it - a shelf can't
+                    if i as u64 % 2 == roll % 2 {
+                        if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
+                            *s.goods.entry("stone".into()).or_insert(0) += 1;
+                        }
+                    }
                 }
                 self.log.push(format!("t{}: old stones - the plow turned up someone's old work, and who laid them nobody knows.", self.tick));
                 self.toasts.push(("Old stones".into(), self.tick + 40));
@@ -5209,14 +5206,14 @@ mod tests {
     fn test_who_laid_them() {
         for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
             let mut g = stage::staged(st);
-            let stone0: u32 = g.building_entities.iter().map(|&be|
-                g.world.get_component::<household::Building>(be)
-                    .and_then(|b| b.stock.get("stone").copied()).unwrap_or(0)).sum();
+            let stone0: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("stone").copied()).unwrap_or(0)).sum();
             g.force_event(EventId::OldStones);
-            let stone1: u32 = g.building_entities.iter().map(|&be|
-                g.world.get_component::<household::Building>(be)
-                    .and_then(|b| b.stock.get("stone").copied()).unwrap_or(0)).sum();
-            assert!(stone1 > stone0 || g.building_entities.is_empty(), "the stones were robbed on {:?}", st);
+            let stone1: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("stone").copied()).unwrap_or(0)).sum();
+            assert!(stone1 > stone0 || g.villagers.is_empty(), "the stones were robbed on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("old stones")), "the find was told on {:?}", st);
         }
     }
@@ -5233,6 +5230,10 @@ mod tests {
             assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
                 || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
                 "the marvel of it on {:?}", st);
+            let stone: u32 = g.villagers.iter().map(|&o|
+                g.world.get_component::<crate::game::livelihood::Satchel>(o)
+                    .and_then(|s| s.goods.get("stone").copied()).unwrap_or(0)).sum();
+            assert!(stone > 0 || g.villagers.is_empty(), "the stone went into hands on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("old stones")), "the find was told on {:?}", st);
         }
     }

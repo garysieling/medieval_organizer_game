@@ -2266,6 +2266,45 @@ impl Game {
                 }
                 self.toasts.push(("A granary leak".into(), self.tick + 40));
             }
+            EventId::CartOverturns => {
+                // the wheel finds the rut: a rolled home's load spills
+                // on the road and the driver takes the loss - and no
+                // driver means no cart, so the home needs someone about
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.stock.values().any(|&q| q > 0)
+                            && bb.occupants.iter().any(|&o|
+                                !villager::is_dead(&self.world, o)
+                                    && !crate::game::dungeon::unavailable(&self.world, o)))
+                        .unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
+                    let mut sorted: Vec<String> = self.world.get_component::<household::Building>(h)
+                        .map(|b| b.stock.iter().filter(|(_g, q)| **q > 0)
+                            .map(|(g, _)| g.clone()).collect()).unwrap_or_default();
+                    sorted.sort();
+                    if let Some(g) = sorted.first() {
+                        if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                            household::take_stock(&mut b, &g.clone(), 3);
+                        }
+                    }
+                    // the driver takes it hard
+                    let driver = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)));
+                    if let Some(d) = driver {
+                        // the spilled load's picked off the road, not wolf-taken
+                        desires::add_grievance(&mut self.world, d, desires::Problem::Robbed, self.tick + 20);
+                        self.say(d, "The wheel found the rut - the whole load's in the mud!", CHAT_BUBBLE_SECS);
+                    }
+                    self.log.push(format!("t{}: a cart overturns - the wheel found the rut and the load's in the mud.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a cart overturns on the road - nothing much in her to spill.", self.tick));
+                }
+                self.toasts.push(("A cart overturns".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4806,6 +4845,17 @@ mod tests {
                 .map(|f| f.servings).unwrap_or(0);
             assert!(food1 < food0, "the stock spoiled on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("granary leak")), "the leak was told on {:?}", st);
+        }
+    }
+
+    /// A cart overturns: the wheel finds the rut, the load's in the
+    /// mud, and the driver takes the loss
+    #[test]
+    fn test_the_wheel_finds_the_rut() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CartOverturns);
+            assert!(g.log.iter().any(|l| l.contains("cart overturns")), "the spill was told on {:?}", st);
         }
     }
 

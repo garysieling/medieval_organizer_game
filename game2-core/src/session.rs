@@ -5318,7 +5318,7 @@ impl Game {
         };
         // the purse and the standing pass; the influence is theirs to make
         let (res, standing) = self.world.get_component::<PlayerCharacter>(self.player)
-            .map(|p| (p.resources, p.standing)).unwrap_or((0.0, 0.0));
+            .map(|p| (p.resources, p.influence)).unwrap_or((0.0, 0.0));
         self.world.add_component(succ, PlayerCharacter {
             name: self.name_of(succ), influence: standing * 0.5,
             authority: 0.0, resources: res, standing,
@@ -10777,6 +10777,20 @@ mod continuation_tests {
         assert_eq!(g.player, succ, "the deepest bond takes it up");
         assert!(g.log.iter().any(|l| l.contains("the work goes on")));
         assert!(g.world.get_component::<PlayerCharacter>(succ).is_some());
+    }
+
+    #[test]
+    fn test_the_standing_passes_half_on() {
+        let mut g = Game::new();
+        let succ = g.villagers[5];
+        g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(succ);
+        g.world.get_component_mut::<PlayerCharacter>(g.player).unwrap().influence = 1.6;
+        g.world.add_component(g.player, villager::Dead);
+        g.continuation_tick(1);
+        assert_eq!(g.player, succ);
+        let p = g.world.get_component::<PlayerCharacter>(succ).unwrap();
+        assert!((p.influence - 0.8).abs() < 1e-5,
+            "the standing passes half on - got {}", p.influence);
     }
 
     #[test]

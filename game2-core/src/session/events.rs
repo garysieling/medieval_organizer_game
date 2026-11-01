@@ -2076,9 +2076,15 @@ impl Game {
             EventId::BeeTree => {
                 // honey for the taking: a rolled home's larder gains
                 // the combs, and the finder pays the stings for them
+                // an empty house keeps no bees: only homes with someone
+                // living and about can bring the combs back
                 let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
                     self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.iter().any(|&o|
+                                !villager::is_dead(&self.world, o)
+                                    && !crate::game::dungeon::unavailable(&self.world, o)))
+                        .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
                     if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
@@ -2086,7 +2092,9 @@ impl Game {
                     }
                     // the combs come dear: the finder pays the stings
                     let occ = self.world.get_component::<household::Building>(h)
-                        .and_then(|b| b.occupants.first().copied());
+                        .and_then(|b| b.occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)));
                     if let Some(o) = occ {
                         if let Some(hl) = self.world.get_component_mut::<Health>(o) {
                             if hl.condition > 0.05 {

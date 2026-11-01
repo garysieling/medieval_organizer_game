@@ -4922,8 +4922,24 @@ impl Game {
     pub fn garden_tick(&mut self, tick: u64) {
         if tick % 7 != 5 { return; }
         for (_, _, g, _) in self.gardens.iter_mut() { *g = (*g + 0.2).min(1.2); }
-        // the herb-wife tends a full garden her folk don't begrudge her -
-        // the pickings go on her shelf rather than the house's
+        // a full kitchen bed gets picked by its own folk - the pot
+        // waits on nobody's charity
+        let kitchen_picks: Vec<(usize, (i32, i32), Entity)> = self.gardens.iter().enumerate()
+            .filter(|(_, (_, _, g, kitchen))| *kitchen && *g >= 1.0)
+            .filter_map(|(i, (home, t, _, _))| {
+                let occ = self.world.get_component::<Building>(*home)
+                    .map(|b| b.occupants.iter().copied().find(|&o|
+                        !villager::is_dead(&self.world, o)
+                        && !crate::game::dungeon::unavailable(&self.world, o)
+                        && !self.travels.iter().any(|t| t.who == o)))
+                    .flatten();
+                occ.map(|o| (i, *t, o))
+            }).collect();
+        for (gi, t, occ) in kitchen_picks {
+            self.send_tile_walk(occ, t, Goal::TendGarden(gi), 16);
+        }
+        // the herb-wife tends a full herb garden her folk don't begrudge
+        // her - the pickings go on her shelf rather than the house's
         if let Some(her) = self.herbologist {
             let thin = self.herb_hut.map(|hut| {
                 self.world.get_component::<Building>(hut)
@@ -4973,9 +4989,15 @@ impl Game {
                     }
                 }
             }
-            // a hungry one at home takes a staple off the shelf
+            // a hungry one at home takes a staple off the shelf - home
+            // meaning under the roof tonight, not just on the lease
+            let hp = self.world.get_component::<Pos>(h).copied();
             if let Some(occ) = occupants.into_iter()
-                .find(|&o| self.world.get_component::<Hunger>(o).map(|hu| hu.value < 40.0).unwrap_or(false)) {
+                .find(|&o| !villager::is_dead(&self.world, o)
+                    && !crate::game::dungeon::unavailable(&self.world, o)
+                    && hp.and_then(|hp| self.world.get_component::<Pos>(o)
+                        .map(|op| ((op.x - hp.x).abs() + (op.y - hp.y).abs()) <= 3.0)).unwrap_or(false)
+                    && self.world.get_component::<Hunger>(o).map(|hu| hu.value < 40.0).unwrap_or(false)) {
                 let meal = crate::game::goods::slot_goods(crate::game::goods::Tag::StapleFood)
                     .into_iter().find(|&g| self.world.get_component::<Building>(h)
                         .map(|b| b.stock.get(g).copied().unwrap_or(0) > 0).unwrap_or(false));

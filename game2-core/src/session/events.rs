@@ -1849,16 +1849,13 @@ impl Game {
                 }
             }
             EventId::FishRun => {
-                // six days the river gives: the run fills every basket
-                // - a rolled home takes the day's catch
-                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
-                    self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
-                let roll = self.rare_roll(id);
-                if let Some(&h) = homes.get((roll as usize / 5) % homes.len().max(1)) {
-                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
-                        household::add_stock(&mut b, "fish", 2);
-                    }
+                // six days the river gives: the day's catch goes on
+                // the market's baskets, where folk actually eat
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    f.servings += 2;
+                    // the catch rides in aux - a hungry village eats it
+                    // the same day, so the tally's the honest signal
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 2; }
                 }
             }
             EventId::WineMerchant => {
@@ -4685,10 +4682,8 @@ mod tests {
             g.force_event(EventId::FishRun);
             assert!(g.rare.iter().any(|r| r.id == EventId::FishRun), "the run's on");
             stage::run_days(&mut g, 3);
-            let fish: u32 = g.building_entities.iter().map(|&be|
-                g.world.get_component::<household::Building>(be)
-                    .and_then(|b| b.stock.get("fish").copied()).unwrap_or(0)).sum();
-            assert!(fish > 0 || g.building_entities.is_empty(), "the baskets filled on {:?}", st);
+            let catch = g.rare.iter().find(|r| r.id == EventId::FishRun).map(|r| r.aux).unwrap_or(0);
+            assert!(catch > 0, "the catch went on the baskets on {:?}", st);
             stage::run_days(&mut g, 7);
             assert!(g.rare.iter().all(|r| r.id != EventId::FishRun), "the river's quiet on {:?}", st);
         }

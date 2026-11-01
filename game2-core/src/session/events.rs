@@ -1610,6 +1610,27 @@ impl Game {
                     self.say(s, "The older the better - fine rind!", CHAT_BUBBLE_SECS);
                 }
             }
+            EventId::Messenger => {
+                // a letter, is there one here called-? news rides in for
+                // one of them - most times a kind word from far off, and
+                // now and then the word a man never wants
+                let delivered = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0;
+                if delivered { return; }
+                let v = self.villagers.iter().copied().find(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v));
+                let Some(v) = v else { return };
+                if self.rare_roll(id) % 5 != 0 {
+                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
+                    self.say(v, "A letter for you - your sister's well!", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a messenger rides in - a letter, and glad word with it.", tick));
+                } else {
+                    desires::add_grievance(&mut self.world, v, desires::Problem::Loss, tick + 30);
+                    self.say(v, "A letter for you - I'm sorry to carry it.", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a messenger rides in - the letter brings no joy.", tick));
+                }
+                if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3626,6 +3647,33 @@ mod tests {
                 "a monger's price paid on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::CheeseMonger), "his rounds rolled on from {:?}", st);
+        }
+    }
+
+    /// A letter, is there one here called-? news rides in for one of
+    /// them - the frame shows his horse first
+    #[test]
+    fn test_the_letter_rides_in() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::Messenger);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Messenger && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a messenger")),
+                "the frame shows his horse on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let moved = desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.world.get_component::<desires::InnerLife>(v)
+                    .map(|l| l.grievances.iter().any(|(p, _)| *p == desires::Problem::Loss))
+                    .unwrap_or(false);
+            assert!(moved, "the letter found its man on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Messenger), "he rode on from {:?}", st);
         }
     }
 

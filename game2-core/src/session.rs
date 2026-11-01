@@ -1818,8 +1818,9 @@ pub struct Game {
     /// What the collector owes the lord: levies and excise in hand,
     /// separate from his own purse - it rides out on the remittance
     pub takings: f32,
-    /// (home, bed tile, growth) - kitchen gardens beside the cottages
-    pub gardens: Vec<(Entity, (i32, i32), f32)>,
+    /// (home, bed tile, growth, kitchen-bed) - kitchen gardens beside
+    /// the cottages: herbs on one, roots and peas for the pot on the next
+    pub gardens: Vec<(Entity, (i32, i32), f32, bool)>,
     /// The cheese cellar, the wheels aging in it (start ticks), its character
     pub cellar: Option<Entity>,
     pub cheeses: Vec<u64>,
@@ -2287,14 +2288,17 @@ impl Game {
             .filter(|&b| world.get_component::<Building>(b)
                 .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false))
             .take(6).collect();
-        let mut gardens: Vec<(Entity, (i32, i32), f32)> = vec![];
+        let mut gardens: Vec<(Entity, (i32, i32), f32, bool)> = vec![];
         for home in homes_for_gardens {
             if let Some(hp) = world.get_component::<Pos>(home).copied() {
                 let (hx, hy) = (hp.x.round() as i32, hp.y.round() as i32);
                 if let Some(bed) = [(hx + 2, hy), (hx - 2, hy), (hx, hy + 2), (hx, hy - 2),
                                     (hx + 2, hy + 1), (hx - 2, hy - 1)]
                     .iter().copied().find(|&(x, y)| map.passable(x, y)) {
-                    gardens.push((home, bed, (gardens.len() as f32 * 0.3) % 0.9));
+                    // every other bed keeps a kitchen garden - roots and
+                    // peas for the pot beside the herb-wife's flowers
+                    let kitchen = gardens.len() % 2 == 1;
+                    gardens.push((home, bed, (gardens.len() as f32 * 0.3) % 0.9, kitchen));
                 }
             }
         }
@@ -3881,7 +3885,7 @@ impl Game {
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
-            Goal::TendGarden(i) => self.gardens.get(*i).map(|(_, t, _)| *t),
+            Goal::TendGarden(i) => self.gardens.get(*i).map(|(_, t, _, _)| *t),
             Goal::Exile => {
                 // the nearest edge of the world
                 self.world.get_component::<Pos>(who).copied().and_then(|from| {
@@ -4917,7 +4921,7 @@ impl Game {
     /// don't begrudge her - her flowers, not the commons
     pub fn garden_tick(&mut self, tick: u64) {
         if tick % 7 != 5 { return; }
-        for (_, _, g) in self.gardens.iter_mut() { *g = (*g + 0.2).min(1.2); }
+        for (_, _, g, _) in self.gardens.iter_mut() { *g = (*g + 0.2).min(1.2); }
         // the herb-wife tends a full garden her folk don't begrudge her -
         // the pickings go on her shelf rather than the house's
         if let Some(her) = self.herbologist {
@@ -4930,15 +4934,57 @@ impl Game {
             if thin && !villager::is_dead(&self.world, her)
                 && !self.travels.iter().any(|t| t.who == her) {
                 let pick = self.gardens.iter().enumerate()
-                    .filter(|(_, (home, _, g))| *g >= 1.0 && self.world.get_component::<Building>(*home)
+                    .filter(|(_, (home, _, g, kitchen))| !kitchen && *g >= 1.0 && self.world.get_component::<Building>(*home)
                         .map(|b| b.occupants.iter().all(|&o| {
                             self.world.get_component::<InnerLife>(o)
                                 .map(|l| l.grievances.is_empty()).unwrap_or(true)
                         })).unwrap_or(false))
                     .map(|(i, _)| i).next();
                 if let Some(gi) = pick {
-                    if let Some((_, t, _)) = self.gardens.get(gi).copied() {
+                    if let Some((_, t, _, _)) = self.gardens.get(gi).copied() {
                         self.send_tile_walk(her, t, Goal::TendGarden(gi), 16);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The kitchen pot: a hungry soul at home takes a staple off the
+    /// shelf the way they take an egg off the hens, and once a week a
+    /// house with peas, roots and potherbs in the cupboard boils them
+    /// down to pottage - the poor table's whole dinner
+    pub fn kitchen_tick(&mut self, tick: u64) {
+        for &h in &self.building_entities.clone() {
+            let (kind, occupants) = match self.world.get_component::<Building>(h) {
+                Some(b) => (b.kind, b.occupants.clone()),
+                None => continue,
+            };
+            if kind != household::BuildingKind::Home { continue; }
+            // the pot: peas + roots + potherbs down to two of pottage
+            if tick % 7 == 3 {
+                let can = self.world.get_component::<Building>(h)
+                    .map(|b| ["peas", "roots", "potherbs"].iter()
+                        .all(|g| b.stock.get(*g).copied().unwrap_or(0) > 0))
+                    .unwrap_or(false);
+                if can {
+                    if let Some(b) = self.world.get_component_mut::<Building>(h) {
+                        for g in ["peas", "roots", "potherbs"] { household::take_stock(b, g, 1); }
+                        household::add_stock(b, "pottage", 2);
+                    }
+                }
+            }
+            // a hungry one at home takes a staple off the shelf
+            if let Some(occ) = occupants.into_iter()
+                .find(|&o| self.world.get_component::<Hunger>(o).map(|hu| hu.value < 40.0).unwrap_or(false)) {
+                let meal = crate::game::goods::slot_goods(crate::game::goods::Tag::StapleFood)
+                    .into_iter().find(|&g| self.world.get_component::<Building>(h)
+                        .map(|b| b.stock.get(g).copied().unwrap_or(0) > 0).unwrap_or(false));
+                if let Some(g) = meal {
+                    if let Some(b) = self.world.get_component_mut::<Building>(h) {
+                        if household::take_stock(b, g, 1) > 0 {
+                            if let Some(hu) = self.world.get_component_mut::<Hunger>(occ) { hu.value = (hu.value + 25.0).min(100.0); }
+                            self.say(occ, "a bite from the pot", CHAT_BUBBLE_SECS);
+                        }
                     }
                 }
             }
@@ -6431,10 +6477,14 @@ impl Game {
             Goal::TendGarden(gi) => {
                 // weeding and picking: the bed yields into the house's
                 // stock, and the tending itself is a small joy
-                if let Some((home, _, g)) = self.gardens.get_mut(gi) {
+                if let Some((home, _, g, kitchen)) = self.gardens.get_mut(gi) {
                     if *g >= 1.0 {
                         *g = 0.0;
-                        let good = if tick % 2 == 0 { "marigold" } else { "feverfew" };
+                        // a kitchen bed comes up roots, potherbs and peas
+                        // in turn; a herb bed keeps its flowers
+                        let good = if *kitchen {
+                            ["roots", "potherbs", "peas"][(tick / 7 % 3) as usize]
+                        } else if tick % 2 == 0 { "marigold" } else { "feverfew" };
                         if let Some(b) = self.world.get_component_mut::<Building>(*home) {
                             household::add_stock(b, good, 1);
                         }
@@ -6648,6 +6698,9 @@ impl Game {
         self.festival_tick(tick);
         // the gardens fill in a little more each week
         self.garden_tick(tick);
+        // and the kitchen pot: staples off the garden beds feed the
+        // hungry at home, and a week's peas and roots become pottage
+        self.kitchen_tick(tick);
         // and the circus, while it camps, works its pull
         self.circus_tick(tick);
         // the oil boils, the crusts fry, and the black goes in
@@ -7940,7 +7993,7 @@ impl Game {
             burning: self.fire.burning.keys().map(|&(x, y)| (x as f32, y as f32)).collect(),
             scorched: self.fire.scorched.keys().map(|&(x, y)| (x as f32, y as f32)).collect(),
             gardens: self.gardens.iter()
-                .map(|&(_, (x, y), g)| (x as f32, y as f32, g.min(1.0))).collect(),
+                .map(|&(_, (x, y), g, _)| (x as f32, y as f32, g.min(1.0))).collect(),
             sky: self.sky.map(|(k, _)| k.to_string()),
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
@@ -10255,7 +10308,7 @@ mod garden_tests {
     fn test_the_cottages_have_gardens() {
         let g = Game::new();
         assert!(g.gardens.len() >= 4, "some homes keep a bed");
-        for (home, _, _) in &g.gardens {
+        for (home, _, _, _) in &g.gardens {
             assert_eq!(g.world.get_component::<Building>(*home).unwrap().kind,
                 household::BuildingKind::Home);
         }
@@ -10281,6 +10334,42 @@ mod garden_tests {
         let g0 = g.gardens[0].2;
         g.garden_tick(5);
         assert!(g.gardens[0].2 > g0, "it grows between pickings");
+    }
+
+    #[test]
+    fn test_a_kitchen_bed_grows_dinner_not_flowers() {
+        let mut g = Game::new();
+        // every other bed keeps a kitchen garden
+        let gi = g.gardens.iter().position(|(_, _, _, k)| *k)
+            .expect("some beds are kitchen beds");
+        g.gardens[gi].2 = 1.0;
+        let home = g.gardens[gi].0;
+        g.tick = 0;
+        g.arrive(g.villagers[0], Goal::TendGarden(gi));
+        let b = g.world.get_component::<Building>(home).unwrap();
+        let pot = b.stock.get("roots").copied().unwrap_or(0)
+            + b.stock.get("potherbs").copied().unwrap_or(0)
+            + b.stock.get("peas").copied().unwrap_or(0);
+        assert_eq!(pot, 1, "a kitchen bed gives the pot, not the still");
+        assert_eq!(b.stock.get("marigold").copied().unwrap_or(0)
+            + b.stock.get("feverfew").copied().unwrap_or(0), 0);
+    }
+
+    #[test]
+    fn test_the_pot_turns_three_staples_into_pottage() {
+        let mut g = Game::new();
+        let home = g.building_entities.iter().copied().find(|&b| {
+            g.world.get_component::<Building>(b)
+                .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)
+        }).unwrap();
+        {
+            let b = g.world.get_component_mut::<Building>(home).unwrap();
+            for good in ["peas", "roots", "potherbs"] { household::add_stock(b, good, 1); }
+        }
+        g.kitchen_tick(3); // pot day
+        let b = g.world.get_component::<Building>(home).unwrap();
+        assert_eq!(b.stock.get("pottage").copied().unwrap_or(0), 2);
+        assert_eq!(b.stock.get("peas").copied().unwrap_or(0), 0);
     }
 }
 

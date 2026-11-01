@@ -3090,7 +3090,7 @@ mod tests {
         // a garden worth battering
         if g.gardens.is_empty() {
             let home = g.building_entities[0];
-            g.gardens.push((home, (15, 20), 0.8));
+            g.gardens.push((home, (15, 20), 0.8, false));
         }
         let before: Vec<f32> = g.gardens.iter().map(|g| g.2).collect();
         g.force_event(EventId::Hailstorm);
@@ -3223,7 +3223,7 @@ mod tests {
             let mut g = stage::staged(st);
             if g.gardens.is_empty() {
                 let home = g.building_entities[0];
-                g.gardens.push((home, (15, 20), 0.5));
+                g.gardens.push((home, (15, 20), 0.5, false));
             }
             let growth0: f32 = g.gardens.iter().map(|g| g.2).sum();
             g.force_event(EventId::Dowser);

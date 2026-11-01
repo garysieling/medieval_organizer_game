@@ -180,7 +180,7 @@ impl Game {
             gold_total: self.villagers.iter()
                 .filter(|&&v| !villager::is_dead(&self.world, v))
                 .filter_map(|&v| self.world.get_component::<Purse>(v).map(|p| p.gold)).sum(),
-            gardens: self.gardens.iter().map(|&(_, t, g)| (t.0, t.1, g)).collect(),
+            gardens: self.gardens.iter().map(|&(_, t, g, _)| (t.0, t.1, g)).collect(),
             burning: self.fire.burning.keys().copied().collect(),
             scorched: self.fire.scorched.keys().copied().collect(),
         }

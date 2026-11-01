@@ -1962,12 +1962,17 @@ impl Game {
                 self.toasts.push(("Wolf at the fold!".into(), self.tick + 40));
             }
             EventId::FoxInYard => {
-                // a hen gone and the house grieves her - the same way
-                // the fox night does it, on a spare stream so the
-                // event's rolls don't shift the village's own dice
-                let keep = Rng(self.rng.0);
-                self.fox_night(self.tick);
-                self.rng = keep;
+                if self.hens.is_empty() {
+                    // the fox is seen all the same - nothing for it here
+                    self.log.push(format!("t{}: a fox slinks through the yard in the night - nothing for it here.", self.tick));
+                } else {
+                    // a hen gone and the house grieves her - the same
+                    // way the fox night does it, on a spare stream so
+                    // the event's rolls don't shift the village's dice
+                    let keep = Rng(self.rng.0);
+                    self.fox_night(self.tick);
+                    self.rng = keep;
+                }
                 self.toasts.push(("A fox in the yard!".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }

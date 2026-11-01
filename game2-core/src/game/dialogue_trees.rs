@@ -29,7 +29,7 @@ const SMALL_FADE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[(Proud, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I take my leave.", "Enough chatter. Good day.", "My day is waiting.", "I have no leisure to stand about, {other}.", "My chores call me away."],
+            lines: &["I take my leave.", "Enough chatter. Good day.", "My day is waiting.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -75,7 +75,7 @@ const SMALL_GOSSIP: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["A tale for another hour - I must away.", "The sun climbs high; I have chores to finish.", "Walk with God, {other}, I cannot linger.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["A tale for another hour - I must away.", "The sun climbs high; I have chores to finish.", "Walk with God, {other}, I cannot linger.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -115,7 +115,7 @@ const SMALL_FARES: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Give my best to thy household. Fare well.", "God keep thy folk in peace, {other}.", "I must see to my own broth. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Give my best to thy household. Fare well.", "God keep thy folk in peace, {other}.", "I must see to my own broth. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -135,7 +135,7 @@ const SMALL_VOLLEY: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.70, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I'll not keep thee standing in the wind. Go well.", "On thy way then, and mine. Fair day.", "Until the church bell rings, neighbor.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["I'll not keep thee standing in the wind. Go well.", "On thy way then, and mine. Fair day.", "Until the church bell rings, neighbor.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -167,7 +167,7 @@ const SMALL_CHAT: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Well, I had best be about my chores.", "I should get on before the bell strikes.", "Fair day to thee, {other}.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Well, I had best be about my chores.", "I should get on before the bell strikes.", "Fair day to thee, {other}.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -193,7 +193,7 @@ const SMALL_GREET: Exchange = Exchange {
         Reply {
             criteria: &[Lacks("pair:relation:friend"), Lacks("pair:relation:kin")], weight: 0.25, bias: &[(Proud, 3.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I have no time for idle talk today.", "Work is waiting at the barn, {other}.", "I walk on business, neighbor.", "I have no leisure to stand about, {other}.", "My chores call me away."],
+            lines: &["I have no time for idle talk today.", "Work is waiting at the barn, {other}.", "I walk on business, neighbor.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -202,12 +202,12 @@ const SMALL_GREET: Exchange = Exchange {
 const SICK_THANKS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:sickness", "aid"],
-    calls: &["Thou'rt kind, {other}. The saints remember a neighborly hand.", "My thanks. A warm bowl does more than herbs.", "Bless thee for thinking of our small house.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Thou'rt kind, {other}. The saints remember a neighborly hand.", "My thanks. A warm bowl does more than herbs.", "Bless thee for thinking of our small house.", "Rest by the hearth and let the fever break in peace."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Think nothing of it. We look after our own.", "Rest quiet by the coals. I'll check on thee tomorrow.", "The village stands together or it falls. Fare well.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Think nothing of it. We look after our own.", "Rest quiet by the coals. I'll check on thee tomorrow.", "The village stands together or it falls. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -216,7 +216,7 @@ const SICK_THANKS: Exchange = Exchange {
 const SICK_STUNG: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:sickness"],
-    calls: &["It is not the black pestilence, keep thy wits about thee.", "As thou wilt, then - step wide if thou must.", "A little cough won't kill an honest worker.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["It is not the black pestilence, keep thy wits about thee.", "As thou wilt, then - step wide if thou must.", "A little cough won't kill an honest worker.", "Rest by the hearth and let the fever break in peace."],
     replies: &[
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Kind, 1.5)],
@@ -227,7 +227,7 @@ const SICK_STUNG: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["A fine friend thou art when someone's throat burns.", "Breathe elsewhere then, knave.", "Stay in thy own yard if thou'rt frightened.", "I have no leisure to stand about, {other}.", "My chores call me away."],
+            lines: &["A fine friend thou art when someone's throat burns.", "Breathe elsewhere then, knave.", "Stay in thy own yard if thou'rt frightened.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -253,7 +253,7 @@ const SICK_ANSWER: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[(Stingy, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be away before the air catches me too.", "Mind thy cup and bowl. Good day.", "I have no leisure to stand about, {other}.", "My chores call me away.", "I must walk on; fair day."],
+            lines: &["I must be away before the air catches me too.", "Mind thy cup and bowl. Good day.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -279,7 +279,7 @@ const SICK_EXCUSE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Rest when thou canst, {other}. Fair day.", "God grant thee strength for the day's toil.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["Rest when thou canst, {other}. Fair day.", "God grant thee strength for the day's toil.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -314,12 +314,12 @@ const SICK_GREET: Exchange = Exchange {
 const VISIT_PROMISE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["aid"],
-    calls: &["It is done - look for it by sundown.", "I'll have my girl bring the loaf before dark.", "Rest easy; the parish will not let thee freeze.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["It is done - look for it by sundown.", "I'll have my girl bring the loaf before dark.", "Rest easy; the parish will not let thee freeze.", "We do what we must while daylight holds."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Thou'rt a true neighbor, {other}.", "The blessing of Heaven on thy roof.", "I'll repay the kindness when my legs mend.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Thou'rt a true neighbor, {other}.", "The blessing of Heaven on thy roof.", "I'll repay the kindness when my legs mend.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -339,7 +339,7 @@ const VISIT_CARE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.60, bias: &[(Pious, 1.5)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Just a prayer at the church altar, {other}.", "We have enough for today. Pray for my children.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["Just a prayer at the church altar, {other}.", "We have enough for today. Pray for my children.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -348,7 +348,7 @@ const VISIT_CARE: Exchange = Exchange {
 const VISIT_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:sickness"],
-    calls: &["How dost thou fare today, {other}?", "I heard the sickness took thy household - how is it?", "Peace to this cottage, {other}. How goes the fever?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["How dost thou fare today, {other}?", "I heard the sickness took thy household - how is it?", "Peace to this cottage, {other}. How goes the fever?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -359,7 +359,7 @@ const VISIT_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.60, bias: &[(Proud, 2.0)],
             act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["It will pass. We do not need fussing over.", "I have weathered worse than a common cough.", "Nay, I see it differently, mark me.", "That is not the way the elders told it.", "Thou'rt jumping to conclusions like a startled hare."],
+            lines: &["It will pass. We do not need fussing over.", "I have weathered worse than a common cough.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
             then: Some(VISIT_CARE), end: None,
         },
     ],
@@ -368,12 +368,12 @@ const VISIT_GREET: Exchange = Exchange {
 const GRIEF_CLOSE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief"],
-    calls: &["Thank thee for listening, {other} - it lightens the heart.", "It does a body good to speak his name aloud.", "The house feels less empty when a neighbor sits a spell.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Thank thee for listening, {other} - it lightens the heart.", "It does a body good to speak his name aloud.", "The house feels less empty when a neighbor sits a spell.", "The sorrow will ease as the seasons turn and heal."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Any hour, {other}. My door is always unlatched.", "We do not forget those who walked this lane with us.", "May holy angels watch over thy sleep tonight.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Any hour, {other}. My door is always unlatched.", "We do not forget those who walked this lane with us.", "May holy angels watch over thy sleep tonight.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -382,18 +382,18 @@ const GRIEF_CLOSE: Exchange = Exchange {
 const GRIEF_ASK: Exchange = Exchange {
     act: Act::Answer,
     concepts: &["concern:grief", "aid"],
-    calls: &["A loaf of bread would not go amiss, {other}.", "A few split logs, if thou hast any seasoned oak.", "Someone to watch the sheep for an afternoon.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["A loaf of bread would not go amiss, {other}.", "A few split logs, if thou hast any seasoned oak.", "Someone to watch the sheep for an afternoon.", "The sorrow will ease as the seasons turn and heal."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["aid", "farewell"],
-            lines: &["It is done. Look for my boy with the basket by dusk.", "I will bring it myself before sunset, friend.", "Leave the sheep to me; mourn in peace.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["It is done. Look for my boy with the basket by dusk.", "I will bring it myself before sunset, friend.", "Leave the sheep to me; mourn in peace.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
         Reply {
             criteria: &[], weight: 0.40, bias: &[(Stingy, 3.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I will see what can be spared from our cellar.", "Times are tight, but I'll see what I can find.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["I will see what can be spared from our cellar.", "Times are tight, but I'll see what I can find.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -413,7 +413,7 @@ const GRIEF_OPENS: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I'll not weary thee with more words. God keep thee.", "Rest thy sorrow in prayer, {other}. Fare well.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["I'll not weary thee with more words. God keep thee.", "Rest thy sorrow in prayer, {other}. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -422,7 +422,7 @@ const GRIEF_OPENS: Exchange = Exchange {
 const GRIEF_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
-    calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["{other}. Forgive me - the house is very still since he passed.", "Morrow, {other}. The bell tolled, and my hearth is dark.", "Well met, friend. The days feel longer than they used to.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.40, bias: &[(Kind, 2.0), (Pious, 1.5)],
@@ -433,7 +433,7 @@ const GRIEF_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.70, bias: &[(Kind, 1.3)],
             act: Act::Question, concepts: &["concern:grief", "aid"],
-            lines: &["Is there any chore I can take off thy shoulders?", "Hast thou eaten a warm bite today, {other}?", "Aye, words have weight in a small village.", "Time will tell what comes of this.", "We shall see how the wind blows tomorrow."],
+            lines: &["Is there any chore I can take off thy shoulders?", "Hast thou eaten a warm bite today, {other}?", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
             then: Some(GRIEF_ASK), end: None,
         },
     ],
@@ -442,18 +442,18 @@ const GRIEF_GREET: Exchange = Exchange {
 const CONDOLE_OFFER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:grief", "aid"],
-    calls: &["If thou needest aught at all, say but the word.", "We have flour and eggs; let us share with thy house.", "My sons can plough thy furrow until thou'rt ready.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["If thou needest aught at all, say but the word.", "We have flour and eggs; let us share with thy house.", "My sons can plough thy furrow until thou'rt ready.", "The sorrow will ease as the seasons turn and heal."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Thou'rt a true soul, {other}. I will remember it.", "Thy kindness brings tears to an old eye. God bless thee.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["Thou'rt a true soul, {other}. I will remember it.", "Thy kindness brings tears to an old eye. God bless thee.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
         Reply {
             criteria: &[], weight: 0.40, bias: &[(Proud, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["We will manage on our own, but thank thee kindly.", "I will not burden thy house with my sorrow.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["We will manage on our own, but thank thee kindly.", "I will not burden thy house with my sorrow.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -462,7 +462,7 @@ const CONDOLE_OFFER: Exchange = Exchange {
 const CONDOLE_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:grief"],
-    calls: &["I was deeply grieved to hear of thy loss, {other}.", "The village stands beside thee in this dark trial.", "God's mercy comfort thee in thy sorrow, neighbor.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["I was deeply grieved to hear of thy loss, {other}.", "The village stands beside thee in this dark trial.", "God's mercy comfort thee in thy sorrow, neighbor.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -473,7 +473,7 @@ const CONDOLE_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Proud, 2.0)],
             act: Act::PushBack, concepts: &["concern:grief"],
-            lines: &["We endure what Heaven sends us.", "Tears do not bring back the dead.", "Nay, I see it differently, mark me.", "That is not the way the elders told it.", "Thou'rt jumping to conclusions like a startled hare."],
+            lines: &["We endure what Heaven sends us.", "Tears do not bring back the dead.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
             then: Some(CONDOLE_OFFER), end: None,
         },
     ],
@@ -482,12 +482,12 @@ const CONDOLE_GREET: Exchange = Exchange {
 const CLERIC_COMFORT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["The saints watch over thy cottage. I will come by with holy water and draughts.", "Rest by the hearth, child - I'll light a candle and pray for thy household.", "Cast thy burdens before the altar; the Lord does not forget the meek.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["The saints watch over thy cottage. I will come by with holy water and draughts.", "Rest by the hearth, child - I'll light a candle and pray for thy household.", "Cast thy burdens before the altar; the Lord does not forget the meek.", "The church altar is always open to the weary soul."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Thank thee, father - thy blessing brings comfort.", "The Lord keep thee, father, and preserve thy voice.", "I will be at the church when the bell sounds.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Thank thee, father - thy blessing brings comfort.", "The Lord keep thee, father, and preserve thy voice.", "I will be at the church when the bell sounds.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -496,18 +496,18 @@ const CLERIC_COMFORT: Exchange = Exchange {
 const CLERIC_PRAYER: Exchange = Exchange {
     act: Act::Question,
     concepts: &["concern:faith", "concern:grief", "concern:sickness"],
-    calls: &["The Lord comfort thee, child. Tell me of thy affliction.", "Speak, child - my prayers and candles are with thee.", "Open thy heart; what sorrow weighs upon thee?", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["The Lord comfort thee, child. Tell me of thy affliction.", "Speak, child - my prayers and candles are with thee.", "Open thy heart; what sorrow weighs upon thee?", "How dost thou find the road today, {other}?"],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["concern:sickness", "concern:grief"],
-            lines: &["It is the little one, father - she burns with fever.", "This cough won't leave me, and our store of grain is thin.", "We buried my brother last week, and grief hollows my chest.", "We do what we can with the strength Heaven gives.", "The truth of it is plain for any eye to see."],
+            lines: &["It is the little one, father - she burns with fever.", "This cough won't leave me, and our store of grain is thin.", "We buried my brother last week, and grief hollows my chest.", "We do what we can with the strength Heaven gives."],
             then: Some(CLERIC_COMFORT), end: None,
         },
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -516,7 +516,7 @@ const CLERIC_PRAYER: Exchange = Exchange {
 const CLERIC_PARISH: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["How fares thy house in these lean weeks, child?", "Dost thou find peace in thy daily labor, child?", "Remember that honest work in the field is a holy prayer.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["How fares thy house in these lean weeks, child?", "Dost thou find peace in thy daily labor, child?", "Remember that honest work in the field is a holy prayer.", "The church altar is always open to the weary soul."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Pious, 1.5)],
@@ -527,7 +527,7 @@ const CLERIC_PARISH: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.70, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I will see thee at the Sunday bell, father.", "Pray for our harvest, father. Fair day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["I will see thee at the Sunday bell, father.", "Pray for our harvest, father. Fair day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -536,7 +536,7 @@ const CLERIC_PARISH: Exchange = Exchange {
 const CLERIC_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:faith"],
-    calls: &["Blessings on thee, {other}.", "The peace of the saints be with thee, child.", "God's grace light upon thy steps, {other}.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Blessings on thee, {other}.", "The peace of the saints be with thee, child.", "God's grace light upon thy steps, {other}.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Pious, 2.0)],
@@ -547,19 +547,19 @@ const CLERIC_GREET: Exchange = Exchange {
         Reply {
             criteria: &[Has("self:status:sick")], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:sickness"],
-            lines: &["A prayer for me, father - this fever won't quit.", "Father, hear my plea; the sickness grips my throat.", "Aye, words have weight in a small village.", "Time will tell what comes of this.", "We shall see how the wind blows tomorrow."],
+            lines: &["A prayer for me, father - this fever won't quit.", "Father, hear my plea; the sickness grips my throat.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
             then: Some(CLERIC_PRAYER), end: None,
         },
         Reply {
             criteria: &[Has("self:status:grieving")], weight: 1.00, bias: &[],
             act: Act::Question, concepts: &["concern:faith", "concern:grief"],
-            lines: &["Pray for him, father - he was taken so sudden.", "A blessing for my sorrowing cottage, father.", "Aye, words have weight in a small village.", "Time will tell what comes of this.", "We shall see how the wind blows tomorrow."],
+            lines: &["Pray for him, father - he was taken so sudden.", "A blessing for my sorrowing cottage, father.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
             then: Some(CLERIC_PRAYER), end: None,
         },
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Proud, 1.5)],
             act: Act::Remark, concepts: &["concern:faith"],
-            lines: &["Morrow, father.", "A fair day to thee, priest.", "Aye, words have weight in a small village.", "Time will tell what comes of this.", "We shall see how the wind blows tomorrow."],
+            lines: &["Morrow, father.", "A fair day to thee, priest.", "Aye, words have weight in a small village.", "Time will tell what comes of this."],
             then: Some(CLERIC_PARISH), end: None,
         },
     ],
@@ -568,12 +568,12 @@ const CLERIC_GREET: Exchange = Exchange {
 const FATHER_THANKS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["Thank thee, father - that lifts a great stone from my mind.", "Thy counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Thank thee, father - that lifts a great stone from my mind.", "Thy counsel is wise, father. We will trust in Providence.", "The church has been our refuge through many a cold year.", "The church altar is always open to the weary soul."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Go in peace, {other}, and love thy neighbors.", "The Lord preserve thy hearth and thy children.", "Walk in the light, child. Fare well.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Go in peace, {other}, and love thy neighbors.", "The Lord preserve thy hearth and thy children.", "Walk in the light, child. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -582,18 +582,18 @@ const FATHER_THANKS: Exchange = Exchange {
 const FATHER_ASKS: Exchange = Exchange {
     act: Act::Question,
     concepts: &["concern:faith"],
-    calls: &["Must the tithe stand full when the granary is half empty, father?", "Can the church spare a peck of grain for the hungry children, father?", "Will the parish altar provide candles for our sick neighbor, father?", "Good morrow, father - canst thou spare a moment for pastoral counsel?"],
+    calls: &["Must the tithe stand full when the granary is half empty, father?", "Can the church spare a peck of grain for the hungry children, father?", "Will the parish altar provide candles for our sick neighbor, father?", "How dost thou find the road today, {other}?"],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["concern:faith"],
-            lines: &["The church will share its grain, child - none shall starve at the door.", "The tithe stands, but I will speak for thy house at the manor court.", "Holy candles and broth shall be brought to their bedside this very day.", "We do what we can with the strength Heaven gives.", "The truth of it is plain for any eye to see."],
+            lines: &["The church will share its grain, child - none shall starve at the door.", "The tithe stands, but I will speak for thy house at the manor court.", "Holy candles and broth shall be brought to their bedside this very day.", "We do what we can with the strength Heaven gives."],
             then: Some(FATHER_THANKS), end: None,
         },
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -602,7 +602,7 @@ const FATHER_ASKS: Exchange = Exchange {
 const FATHER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:faith"],
-    calls: &["Good morrow, father.", "A word with thee, father, if thou canst spare a moment.", "Greetings, holy father - I seek thy pastoral ear.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, father.", "A word with thee, father, if thou canst spare a moment.", "Greetings, holy father - I seek thy pastoral ear.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Kind, 1.3)],
@@ -613,7 +613,7 @@ const FATHER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -622,12 +622,12 @@ const FATHER_GREET: Exchange = Exchange {
 const RIVAL_END: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["feud"],
-    calls: &["We are done here.", "I have looked upon thy face long enough.", "Take thy shadow off my land.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["We are done here.", "I have looked upon thy face long enough.", "Take thy shadow off my land.", "I have no words to waste on a crooked knave."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Aye. Done.", "Until we meet at the boundary ditch.", "Gladly. The sight of thee sours my stomach.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Aye. Done.", "Until we meet at the boundary ditch.", "Gladly. The sight of thee sours my stomach.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -636,18 +636,18 @@ const RIVAL_END: Exchange = Exchange {
 const RIVAL_BITE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["feud"],
-    calls: &["Make me.", "Come closer and say that to my beard.", "Thou'rt all mouth and no marrow.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Make me.", "Come closer and say that to my beard.", "Thou'rt all mouth and no marrow.", "I have no words to waste on a crooked knave."],
     replies: &[
         Reply {
             criteria: &[], weight: 0.80, bias: &[],
             act: Act::Remark, concepts: &["feud"],
-            lines: &["Not worth the breath or the bruise.", "I'll settle this before the magistrate, not in the dirt.", "Get out of my sight, {other}.", "I am done looking at thee.", "Walk away before I lose my patience."],
+            lines: &["Not worth the breath or the bruise.", "I'll settle this before the magistrate, not in the dirt.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
             then: Some(RIVAL_END), end: None,
         },
         Reply {
             criteria: &[], weight: 0.60, bias: &[(Hotheaded, 4.0)],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["Cur! Thou'lt regret those words.", "Keep thy fists to thyself before I break them.", "Get out of my sight, {other}.", "I am done looking at thee.", "Walk away before I lose my patience."],
+            lines: &["Cur! Thou'lt regret those words.", "Keep thy fists to thyself before I break them.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -661,13 +661,13 @@ const RIVAL_SNIPE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["My fence stands straighter than thy crooked word.", "We paid that debt at Michaelmas, as the reeve well knows.", "Thy pasture is mostly thistles anyway.", "Get out of my sight, {other}.", "I am done looking at thee."],
+            lines: &["My fence stands straighter than thy crooked word.", "We paid that debt at Michaelmas, as the reeve well knows.", "Thy pasture is mostly thistles anyway.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
             then: Some(RIVAL_END), end: None,
         },
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["Say that again, if thou darest.", "Thou hast a treacherous tongue in thy skull.", "Get out of my sight, {other}.", "I am done looking at thee.", "Walk away before I lose my patience."],
+            lines: &["Say that again, if thou darest.", "Thou hast a treacherous tongue in thy skull.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
             then: Some(RIVAL_BITE), end: None,
         },
     ],
@@ -681,19 +681,19 @@ const RIVAL_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Greet, concepts: &["feud"],
-            lines: &["{other}.", "I walk where I please in this parish.", "Save thy bile for someone who fears it.", "Get out of my sight, {other}.", "I am done looking at thee."],
+            lines: &["{other}.", "I walk where I please in this parish.", "Save thy bile for someone who fears it.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
             then: Some(RIVAL_SNIPE), end: None,
         },
         Reply {
             criteria: &[], weight: 0.80, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["feud"],
-            lines: &["Still breathing, I see. A great pity for the town.", "The years have only made thee sourer.", "Get out of my sight, {other}.", "I am done looking at thee.", "Walk away before I lose my patience."],
+            lines: &["Still breathing, I see. A great pity for the town.", "The years have only made thee sourer.", "Get out of my sight, {other}.", "Take thy shadow off my path."],
             then: Some(RIVAL_BITE), end: None,
         },
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Proud, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I have nothing to say to thee, scoundrel.", "Out of my way. I don't parley with knaves.", "I have no leisure to stand about, {other}.", "My chores call me away.", "I must walk on; fair day."],
+            lines: &["I have nothing to say to thee, scoundrel.", "Out of my way. I don't parley with knaves.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -702,12 +702,12 @@ const RIVAL_GREET: Exchange = Exchange {
 const HUNGER_HOPE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:food"],
-    calls: &["If the rye crop ripens before the frost, we'll see another spring.", "They say the monastery may open its tithe barn if hunger deepens.", "We have boiled nettles and wild leeks before, and survived.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["If the rye crop ripens before the frost, we'll see another spring.", "They say the monastery may open its tithe barn if hunger deepens.", "We have boiled nettles and wild leeks before, and survived.", "A shared loaf tastes twice as sweet in hard times."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Aye, hold fast. Better days will follow.", "The earth will feed us yet. Go gently, {other}.", "May tomorrow bring a fuller kettle.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Aye, hold fast. Better days will follow.", "The earth will feed us yet. Go gently, {other}.", "May tomorrow bring a fuller kettle.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -716,7 +716,7 @@ const HUNGER_HOPE: Exchange = Exchange {
 const HUNGER_SHARE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:food", "aid"],
-    calls: &["We boiled a pot of turnip tops and barley chaff this noon.", "My store bin has nothing but dust and two dried apples.", "The children went to sleep crying with empty bellies last night.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["We boiled a pot of turnip tops and barley chaff this noon.", "My store bin has nothing but dust and two dried apples.", "The children went to sleep crying with empty bellies last night.", "A shared loaf tastes twice as sweet in hard times."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.20, bias: &[(Kind, 2.0)],
@@ -727,7 +727,7 @@ const HUNGER_SHARE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.60, bias: &[(Stingy, 3.0)],
             act: Act::PushBack, concepts: &["concern:food"],
-            lines: &["Everyone's bin is empty; don't look to my door for bread.", "We each must stretch our own store as best we can.", "I have no leisure to stand about, {other}.", "My chores call me away.", "I must walk on; fair day."],
+            lines: &["Everyone's bin is empty; don't look to my door for bread.", "We each must stretch our own store as best we can.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -736,7 +736,7 @@ const HUNGER_SHARE: Exchange = Exchange {
 const HUNGER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:food"],
-    calls: &["Good morrow, {other}. A hollow belly makes for a slow step.", "Well met, friend, though the times are thin and hard.", "Greetings, {other}. Hast thou found anything to put in the pot?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, {other}. A hollow belly makes for a slow step.", "Well met, friend, though the times are thin and hard.", "Greetings, {other}. Hast thou found anything to put in the pot?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -747,7 +747,7 @@ const HUNGER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Proud, 2.0)],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["We tighten our belts and carry on.", "Talk won't fill the larder. I must seek wild greens.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["We tighten our belts and carry on.", "Talk won't fill the larder. I must seek wild greens.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -756,12 +756,12 @@ const HUNGER_GREET: Exchange = Exchange {
 const COLD_FIRE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:fuel"],
-    calls: &["The kindling caught! Sweet smoke rises up the chimney at last.", "Blow on the embers gently - the dry twigs are taking flame.", "Ah, blessed warmth! My stiff fingers can move again.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["The kindling caught! Sweet smoke rises up the chimney at last.", "Blow on the embers gently - the dry twigs are taking flame.", "Ah, blessed warmth! My stiff fingers can move again.", "Dry kindling keeps the bitter frost outside the thatch."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Bank the coals with ashes so they last till dawn.", "May thy hearth keep hot through the bitter night.", "The fire is life in winter. Fare thee well.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Bank the coals with ashes so they last till dawn.", "May thy hearth keep hot through the bitter night.", "The fire is life in winter. Fare thee well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -781,7 +781,7 @@ const COLD_GATHER: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Stingy, 2.0)],
             act: Act::PushBack, concepts: &["concern:fuel"],
-            lines: &["The bailiff watches the common wood; he will fine us for gathering boughs.", "My own hearth barely has coals to warm an egg.", "I have no leisure to stand about, {other}.", "My chores call me away.", "I must walk on; fair day."],
+            lines: &["The bailiff watches the common wood; he will fine us for gathering boughs.", "My own hearth barely has coals to warm an egg.", "I have no leisure to stand about, {other}.", "I must walk on; fair day."],
             then: None, end: Some(WalksOff),
         },
     ],
@@ -790,7 +790,7 @@ const COLD_GATHER: Exchange = Exchange {
 const COLD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:fuel"],
-    calls: &["Brrr! Good morrow, {other}. The rime frost is inside the thatch.", "Well met, neighbor. My breath freezes right before my nose.", "Greetings, {other}. The wind blows straight through the cottage wattles.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Brrr! Good morrow, {other}. The rime frost is inside the thatch.", "Well met, neighbor. My breath freezes right before my nose.", "Greetings, {other}. The wind blows straight through the cottage wattles.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -801,7 +801,7 @@ const COLD_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.60, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must chop timber before the dark settles in.", "Keep moving or the cold will numb thy toes. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["I must chop timber before the dark settles in.", "Keep moving or the cold will numb thy toes. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -810,12 +810,12 @@ const COLD_GREET: Exchange = Exchange {
 const DRUNK_SOBER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],
-    calls: &["A bucket of icy well water over the skull will clear the cobwebs.", "The plough handles won't hold themselves, headache or no.", "Bread and pickled onions, that's what the stomach needs.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["A bucket of icy well water over the skull will clear the cobwebs.", "The plough handles won't hold themselves, headache or no.", "Bread and pickled onions, that's what the stomach needs.", "We do what we must while daylight holds."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Walk straight, {other}, or the reeve will notice.", "No more brown ale for thee until Sunday! Fare well.", "May the sun be gentle on thy poor eyes today.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Walk straight, {other}, or the reeve will notice.", "No more brown ale for thee until Sunday! Fare well.", "May the sun be gentle on thy poor eyes today.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -824,7 +824,7 @@ const DRUNK_SOBER: Exchange = Exchange {
 const DRUNK_RECALL: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["smalltalk"],
-    calls: &["Did I truly challenge the smith to a wrestling match at midnight?", "They say we sang every verse of the Harvest ballad three times over.", "My purse is six silver pennies lighter than when dusk fell.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Did I truly challenge the smith to a wrestling match at midnight?", "They say we sang every verse of the Harvest ballad three times over.", "My purse is six silver pennies lighter than when dusk fell.", "We do what we must while daylight holds."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[(Gregarious, 2.0)],
@@ -835,7 +835,7 @@ const DRUNK_RECALL: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Pious, 2.0)],
             act: Act::PushBack, concepts: &["smalltalk"],
-            lines: &["Thou made an ungodly spectacle of thyself.", "A shameful racket; the priest shook his head at the doorway.", "Nay, I see it differently, mark me.", "That is not the way the elders told it.", "Thou'rt jumping to conclusions like a startled hare."],
+            lines: &["Thou made an ungodly spectacle of thyself.", "A shameful racket; the priest shook his head at the doorway.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
             then: Some(DRUNK_SOBER), end: None,
         },
     ],
@@ -844,18 +844,18 @@ const DRUNK_RECALL: Exchange = Exchange {
 const DRUNK_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "smalltalk"],
-    calls: &["Oof... good morrow, {other}. Don't shout, I pray thee.", "Well met, friend. My head is hammering like the smith's anvil.", "Ugh, the sunlight is blinding today, {other}.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Oof... good morrow, {other}. Don't shout, I pray thee.", "Well met, friend. My head is hammering like the smith's anvil.", "Ugh, the sunlight is blinding today, {other}.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Answer, concepts: &["smalltalk"],
-            lines: &["Ha! The tavern-keeper's ale had a bite to it, didn't it?", "Thou lookest like a corpse dug up from the wet turf.", "I warned thee that dark brew was brewed for giants.", "We do what we can with the strength Heaven gives.", "The truth of it is plain for any eye to see."],
+            lines: &["Ha! The tavern-keeper's ale had a bite to it, didn't it?", "Thou lookest like a corpse dug up from the wet turf.", "I warned thee that dark brew was brewed for giants.", "We do what we can with the strength Heaven gives."],
             then: Some(DRUNK_RECALL), end: None,
         },
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Sleep it off in the hayloft, {other}.", "Go dunk thy head in the horse trough. Fair day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again.", "God's peace be upon thy cottage, {other}."],
+            lines: &["Sleep it off in the hayloft, {other}.", "Go dunk thy head in the horse trough. Fair day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -864,12 +864,12 @@ const DRUNK_GREET: Exchange = Exchange {
 const KIN_AID: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["aid", "family"],
-    calls: &["Blood is thicker than river mud, {other}.", "Whatever befalls the village, our clan stands shoulder to shoulder.", "Our grandfather laid the hearthstones in both our cottages.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Blood is thicker than river mud, {other}.", "Whatever befalls the village, our clan stands shoulder to shoulder.", "Our grandfather laid the hearthstones in both our cottages.", "We do what we must while daylight holds."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Always, kin. The family latch is never barred to thee.", "God keep our house and hearth safe from storm.", "See thee at Sunday meal, {other}.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Always, kin. The family latch is never barred to thee.", "God keep our house and hearth safe from storm.", "See thee at Sunday meal, {other}.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -889,7 +889,7 @@ const KIN_FAMILY: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -898,7 +898,7 @@ const KIN_FAMILY: Exchange = Exchange {
 const KIN_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "family"],
-    calls: &["Well met, cousin {other}!", "Good morrow, kin! How fares the old cottage?", "Greetings, brother! It does my heart good to see thy face.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Well met, cousin {other}!", "Good morrow, kin! How fares the old cottage?", "Greetings, brother! It does my heart good to see thy face.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -909,7 +909,7 @@ const KIN_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -918,12 +918,12 @@ const KIN_GREET: Exchange = Exchange {
 const FRIEND_PART: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["friendship"],
-    calls: &["A good friend is worth more than a pouch of silver.", "We have shared crusts and sweat for twenty years now.", "Thy word has never failed me, {other}.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["A good friend is worth more than a pouch of silver.", "We have shared crusts and sweat for twenty years now.", "Thy word has never failed me, {other}.", "True fellowship is the richest coin in the parish."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Nor thine me, old friend. Walk safe.", "We will share a cup of cider when the work is done.", "Fair day, {other} - peace on thy household.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Nor thine me, old friend. Walk safe.", "We will share a cup of cider when the work is done.", "Fair day, {other} - peace on thy household.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -932,7 +932,7 @@ const FRIEND_PART: Exchange = Exchange {
 const FRIEND_TRUST: Exchange = Exchange {
     act: Act::Question,
     concepts: &["friendship"],
-    calls: &["Dost thou recall the summer the mill dam broke?", "Can I count on thy team when we haul the heavy timber?", "Hast thou heard any whispers about the new taxes?", "Dost thou remember the winter we hauled the great oak?"],
+    calls: &["Dost thou recall the summer the mill dam broke?", "Can I count on thy team when we haul the heavy timber?", "Hast thou heard any whispers about the new taxes?", "Can I count on thy strong arm when we raise the barn?"],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -943,7 +943,7 @@ const FRIEND_TRUST: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -952,7 +952,7 @@ const FRIEND_TRUST: Exchange = Exchange {
 const FRIEND_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "friendship"],
-    calls: &["A hearty good morrow to thee, {other}!", "Well met, true friend! The sun shines brighter when thou'rt near.", "Greetings, old comrade! How goes the day's labor?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["A hearty good morrow to thee, {other}!", "Well met, true friend! The sun shines brighter when thou'rt near.", "Greetings, old comrade! How goes the day's labor?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -963,7 +963,7 @@ const FRIEND_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -972,12 +972,12 @@ const FRIEND_GREET: Exchange = Exchange {
 const STRANGER_PASS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["stranger"],
-    calls: &["Keep to the beaten track; the marshes to the east are treacherous.", "The alehouse by the bridge offers straw beds if thou hast coin.", "The parish watch keeps guard after the curfew bell.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Keep to the beaten track; the marshes to the east are treacherous.", "The alehouse by the bridge offers straw beds if thou hast coin.", "The parish watch keeps guard after the curfew bell.", "The road is wide enough for all peaceful travelers."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["My thanks for the counsel, villager. I pass in peace.", "Safe travels to thee as well. Good day.", "The highway calls; farewell.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["My thanks for the counsel, villager. I pass in peace.", "Safe travels to thee as well. Good day.", "The highway calls; farewell.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -997,7 +997,7 @@ const STRANGER_PATH: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1006,7 +1006,7 @@ const STRANGER_PATH: Exchange = Exchange {
 const STRANGER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "stranger"],
-    calls: &["Halt there, traveler. What brings thee through our parish?", "Good day, stranger. Thou'rt far from the king's highway.", "Peace be upon thy journey, traveler. Who art thou?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Halt there, traveler. What brings thee through our parish?", "Good day, stranger. Thou'rt far from the king's highway.", "Peace be upon thy journey, traveler. Who art thou?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1017,7 +1017,7 @@ const STRANGER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.50, bias: &[(Proud, 2.0)],
             act: Act::PushBack, concepts: &["stranger"],
-            lines: &["My business is my own, goodman.", "The king's highway is open to every free soul.", "Nay, I see it differently, mark me.", "That is not the way the elders told it.", "Thou'rt jumping to conclusions like a startled hare."],
+            lines: &["My business is my own, goodman.", "The king's highway is open to every free soul.", "Nay, I see it differently, mark me.", "That is not the way the elders told it."],
             then: Some(STRANGER_PASS), end: None,
         },
     ],
@@ -1026,12 +1026,12 @@ const STRANGER_GREET: Exchange = Exchange {
 const SMITH_IRON: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:smith"],
-    calls: &["Good Spanish iron rings clear; bad slag thuds like lead.", "A hammer needs an eye that sees the bend before it strikes.", "The quench tub hisses when the blade has its proper temper.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Good Spanish iron rings clear; bad slag thuds like lead.", "A hammer needs an eye that sees the bend before it strikes.", "The quench tub hisses when the blade has its proper temper.", "The hammer makes the iron obey, neighbor."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Keep the fire roaring, smith. Good day.", "May thy hammer never miss its mark. Fair day.", "I will return for the coulter at sunset.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Keep the fire roaring, smith. Good day.", "May thy hammer never miss its mark. Fair day.", "I will return for the coulter at sunset.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1051,7 +1051,7 @@ const SMITH_WORK: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1060,7 +1060,7 @@ const SMITH_WORK: Exchange = Exchange {
 const SMITH_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:smith"],
-    calls: &["Good morrow, smith! The sparks are flying bright today.", "Well met, master smith! The sound of thy forge wakes the village.", "Hail to the forge, {other}! Sweating by the bellows already?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, smith! The sparks are flying bright today.", "Well met, master smith! The sound of thy forge wakes the village.", "Hail to the forge, {other}! Sweating by the bellows already?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1071,7 +1071,7 @@ const SMITH_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1080,12 +1080,12 @@ const SMITH_GREET: Exchange = Exchange {
 const MILLER_TOLL: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:miller"],
-    calls: &["One scoop in twenty is the customary multure, no more, no less.", "The millstones were freshly dressed with the chisel last Pentecost.", "Fine white flour for white loaves, coarse bran for the byre.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["One scoop in twenty is the customary multure, no more, no less.", "The millstones were freshly dressed with the chisel last Pentecost.", "Fine white flour for white loaves, coarse bran for the byre.", "The millpond water never turns the wheel twice."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Keep the wheel turning, miller. Fair day.", "Mind thou dost not spill my meal on the floorboards.", "Until harvest time, master of the water.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Keep the wheel turning, miller. Fair day.", "Mind thou dost not spill my meal on the floorboards.", "Until harvest time, master of the water.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1105,7 +1105,7 @@ const MILLER_GRIST: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1114,7 +1114,7 @@ const MILLER_GRIST: Exchange = Exchange {
 const MILLER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:miller"],
-    calls: &["Good morrow, miller! The roar of thy weir echoes down the valley.", "Well met, {other}! Flour dusts thy coat like fresh snow.", "Hail to the mill, {other}! Is the grist running smooth?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, miller! The roar of thy weir echoes down the valley.", "Well met, {other}! Flour dusts thy coat like fresh snow.", "Hail to the mill, {other}! Is the grist running smooth?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1125,7 +1125,7 @@ const MILLER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1134,12 +1134,12 @@ const MILLER_GREET: Exchange = Exchange {
 const BAKER_CRUST: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:baker"],
-    calls: &["A well-swept oven floor gives the sweetest crust in the parish.", "Yeast from the brewer's ale makes the dough rise twice as high.", "Golden loaves on the wooden board - the glory of the harvest.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["A well-swept oven floor gives the sweetest crust in the parish.", "Yeast from the brewer's ale makes the dough rise twice as high.", "Golden loaves on the wooden board - the glory of the harvest.", "Flour and salt and yeast - the holy trinity of the table."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["The smell of thy loaves is a blessing to the lane. Fare well.", "May thy oven never grow cold, baker.", "I take my warm crust home to the children. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["The smell of thy loaves is a blessing to the lane. Fare well.", "May thy oven never grow cold, baker.", "I take my warm crust home to the children. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1159,7 +1159,7 @@ const BAKER_BREAD: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1168,7 +1168,7 @@ const BAKER_BREAD: Exchange = Exchange {
 const BAKER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:baker"],
-    calls: &["Good morrow, baker! Thy chimney breathes the sweetest air in town.", "Well met, {other}! The smell of fresh crust drew me from the lane.", "Hail, master of the peel! Has the first batch risen?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, baker! Thy chimney breathes the sweetest air in town.", "Well met, {other}! The smell of fresh crust drew me from the lane.", "Hail, master of the peel! Has the first batch risen?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1179,7 +1179,7 @@ const BAKER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1188,12 +1188,12 @@ const BAKER_GREET: Exchange = Exchange {
 const WEAVER_CLOTH: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:weaver"],
-    calls: &["Tight warp and even weft make a cloth that sheds the rain.", "Madder root gives a brave red, but woad blues last thirty years.", "A warm woolen blanket keeps the winter chills from the cradle.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Tight warp and even weft make a cloth that sheds the rain.", "Madder root gives a brave red, but woad blues last thirty years.", "A warm woolen blanket keeps the winter chills from the cradle.", "The pattern grows one thread at a time on the loom."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy shuttle fly true and never break a thread.", "I will return when the piece comes off the frame. Fare well.", "Good cloth is true wealth. Good day, weaver.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy shuttle fly true and never break a thread.", "I will return when the piece comes off the frame. Fare well.", "Good cloth is true wealth. Good day, weaver.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1213,7 +1213,7 @@ const WEAVER_FLEECE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1222,7 +1222,7 @@ const WEAVER_FLEECE: Exchange = Exchange {
 const WEAVER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:weaver"],
-    calls: &["Good morrow, weaver! The click-clack of thy loom is steady today.", "Well met, {other}! Surrounded by skeins of dyed wool, I see.", "Hail to the loom, neighbor! How runs the shuttle this morning?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, weaver! The click-clack of thy loom is steady today.", "Well met, {other}! Surrounded by skeins of dyed wool, I see.", "Hail to the loom, neighbor! How runs the shuttle this morning?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1233,7 +1233,7 @@ const WEAVER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1242,12 +1242,12 @@ const WEAVER_GREET: Exchange = Exchange {
 const CARPENTER_PEGS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:carpenter"],
-    calls: &["Heart of oak and seasoned ash will outlast three generations.", "An auger hole drilled straight needs only a split hazel peg to hold.", "Cedar smells sweet in a chest, but elm makes the stoutest wheel hubs.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Heart of oak and seasoned ash will outlast three generations.", "An auger hole drilled straight needs only a split hazel peg to hold.", "Cedar smells sweet in a chest, but elm makes the stoutest wheel hubs.", "True timber bends to no man's haste."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy adze stay sharp, carpenter. Fare well.", "I will look for the cart axle on Friday. Good day.", "Stout timber makes a sturdy home. Walk in peace.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy adze stay sharp, carpenter. Fare well.", "I will look for the cart axle on Friday. Good day.", "Stout timber makes a sturdy home. Walk in peace.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1267,7 +1267,7 @@ const CARPENTER_BEAMS: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1276,7 +1276,7 @@ const CARPENTER_BEAMS: Exchange = Exchange {
 const CARPENTER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:carpenter"],
-    calls: &["Good morrow, carpenter! Shavings and sawdust fly thick today.", "Well met, {other}! The scent of fresh-cut pine is in the lane.", "Hail to the woodwright! Has the new timber arrived from the coppice?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, carpenter! Shavings and sawdust fly thick today.", "Well met, {other}! The scent of fresh-cut pine is in the lane.", "Hail to the woodwright! Has the new timber arrived from the coppice?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1287,7 +1287,7 @@ const CARPENTER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1296,12 +1296,12 @@ const CARPENTER_GREET: Exchange = Exchange {
 const MASON_LIME: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:mason"],
-    calls: &["Hot slaked lime and sharp sand bond tighter than the quarry itself.", "A drystone foundation keeps the rot out of the lowest timbers.", "Granite breaks the chisel, but limestone yields to an honest stroke.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Hot slaked lime and sharp sand bond tighter than the quarry itself.", "A drystone foundation keeps the rot out of the lowest timbers.", "Granite breaks the chisel, but limestone yields to an honest stroke.", "A stone set plumb stands against every gale."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy plumb-line hang true, mason. Fair day.", "Stone stands when all else fades. Farewell.", "I will bring the ox-cart for the rubble tomorrow.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy plumb-line hang true, mason. Fair day.", "Stone stands when all else fades. Farewell.", "I will bring the ox-cart for the rubble tomorrow.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1321,7 +1321,7 @@ const MASON_WALL: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1330,7 +1330,7 @@ const MASON_WALL: Exchange = Exchange {
 const MASON_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:mason"],
-    calls: &["Good morrow, mason! The ringing of thy hammer on stone echoes far.", "Well met, {other}! White rock dust on thy leather apron.", "Hail to the stone-cutter! Setting foundations today?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, mason! The ringing of thy hammer on stone echoes far.", "Well met, {other}! White rock dust on thy leather apron.", "Hail to the stone-cutter! Setting foundations today?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1341,7 +1341,7 @@ const MASON_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1350,12 +1350,12 @@ const MASON_GREET: Exchange = Exchange {
 const SHEPHERD_PASTURE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:shepherd"],
-    calls: &["The upland turf is sweet and short; the ewes grow fat on it.", "The sheepfold dung will enrich the barley fields when autumn comes.", "A good dog is worth three hired hands on the open hills.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["The upland turf is sweet and short; the ewes grow fat on it.", "The sheepfold dung will enrich the barley fields when autumn comes.", "A good dog is worth three hired hands on the open hills.", "The bell-wether leads the flock safely to fold."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Keep thy eye on the brushwood, shepherd. Fair day.", "May the flock prosper and the wolves stay distant.", "Good grazing to thy flock, neighbor.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Keep thy eye on the brushwood, shepherd. Fair day.", "May the flock prosper and the wolves stay distant.", "Good grazing to thy flock, neighbor.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1375,7 +1375,7 @@ const SHEPHERD_EWES: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1384,7 +1384,7 @@ const SHEPHERD_EWES: Exchange = Exchange {
 const SHEPHERD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:shepherd"],
-    calls: &["Good morrow, shepherd! Bleating ewes fill the morning air.", "Well met, {other}! Cloaked in wool and leaning on thy crook.", "Hail, drover of the flock! How fare the sheep on the commons?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, shepherd! Bleating ewes fill the morning air.", "Well met, {other}! Cloaked in wool and leaning on thy crook.", "Hail, drover of the flock! How fare the sheep on the commons?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1395,7 +1395,7 @@ const SHEPHERD_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1404,12 +1404,12 @@ const SHEPHERD_GREET: Exchange = Exchange {
 const BREWER_CUP: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:brewer"],
-    calls: &["Clear spring water and sound malt make an ale fit for a baron.", "An ale-stake hung with green boughs means a fresh barrel is tapped.", "A tankard at sundown washes the harvest dust from the throat.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Clear spring water and sound malt make an ale fit for a baron.", "An ale-stake hung with green boughs means a fresh barrel is tapped.", "A tankard at sundown washes the harvest dust from the throat.", "A foaming mug cheers the tired ploughman at sundown."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy vats never sour, brewer. Fair day.", "I will bring my pewter mug at sundown. Farewell.", "A good brew makes neighbors into brothers. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy vats never sour, brewer. Fair day.", "I will bring my pewter mug at sundown. Farewell.", "A good brew makes neighbors into brothers. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1429,7 +1429,7 @@ const BREWER_MASH: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1438,7 +1438,7 @@ const BREWER_MASH: Exchange = Exchange {
 const BREWER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:brewer"],
-    calls: &["Good morrow, brewer! Warm steam rises over thy brew-house.", "Well met, {other}! The rich scent of mash drifts through the lane.", "Hail to the tapster! Tapping a fresh barrel this morning?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, brewer! Warm steam rises over thy brew-house.", "Well met, {other}! The rich scent of mash drifts through the lane.", "Hail to the tapster! Tapping a fresh barrel this morning?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1449,7 +1449,7 @@ const BREWER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1458,12 +1458,12 @@ const BREWER_GREET: Exchange = Exchange {
 const BEEKEEPER_SWARM: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:beekeeper"],
-    calls: &["Sweet yellow wax makes the church tapers that burn without smoke.", "The clover blossoms give the clearest honey in the valley.", "Bees love a quiet tongue and a gentle step among the skeps.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Sweet yellow wax makes the church tapers that burn without smoke.", "The clover blossoms give the clearest honey in the valley.", "Bees love a quiet tongue and a gentle step among the skeps.", "The wax is sweet and the honey flows clear."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy hives thrive through the winter, beekeeper. Fair day.", "I will buy a jar of comb at Michaelmas. Farewell.", "The little workers teach us all to labor together. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy hives thrive through the winter, beekeeper. Fair day.", "I will buy a jar of comb at Michaelmas. Farewell.", "The little workers teach us all to labor together. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1483,7 +1483,7 @@ const BEEKEEPER_HONEY: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1492,7 +1492,7 @@ const BEEKEEPER_HONEY: Exchange = Exchange {
 const BEEKEEPER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:beekeeper"],
-    calls: &["Good morrow, beekeeper! The apiary hums like an organ in the sunshine.", "Well met, {other}! Straw skeps standing tidy in the garden rows.", "Hail, master of the hives! Smoking the bees this morning?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, beekeeper! The apiary hums like an organ in the sunshine.", "Well met, {other}! Straw skeps standing tidy in the garden rows.", "Hail, master of the hives! Smoking the bees this morning?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1503,7 +1503,7 @@ const BEEKEEPER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1512,12 +1512,12 @@ const BEEKEEPER_GREET: Exchange = Exchange {
 const HERB_SALVE: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:herb_wife"],
-    calls: &["Dried elder flowers and mint leaves keep the ague away in winter.", "Yarrow leaves stop a blood-cut faster than cobwebs.", "The roots must be gathered in the dark of the moon for full virtue.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Dried elder flowers and mint leaves keep the ague away in winter.", "Yarrow leaves stop a blood-cut faster than cobwebs.", "The roots must be gathered in the dark of the moon for full virtue.", "Nature holds a remedy for every mortal ache."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Thy knowledge has saved many a soul in this town. Fare well.", "I will brew the tea as thou biddest. Good day.", "May the earth yield its medicine to thee. Farewell.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Thy knowledge has saved many a soul in this town. Fare well.", "I will brew the tea as thou biddest. Good day.", "May the earth yield its medicine to thee. Farewell.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1537,7 +1537,7 @@ const HERB_DRAUGHT: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1546,7 +1546,7 @@ const HERB_DRAUGHT: Exchange = Exchange {
 const HERB_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:herb_wife"],
-    calls: &["Good morrow, wise woman {other}! Bunches of herbs hang drying everywhere.", "Well met, herb-wife! Thy basket is full of green leaves from the fen.", "Hail, healer of the sick! Gathering roots in the dew?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, wise woman {other}! Bunches of herbs hang drying everywhere.", "Well met, herb-wife! Thy basket is full of green leaves from the fen.", "Hail, healer of the sick! Gathering roots in the dew?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1557,7 +1557,7 @@ const HERB_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1566,12 +1566,12 @@ const HERB_GREET: Exchange = Exchange {
 const MERCHANT_BARTER: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:merchant"],
-    calls: &["A good trade leaves both men smiling when hands are struck.", "Silver coin or salted hams - sound goods are always welcome.", "The road is long, but fair trade makes every mile worthwhile.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["A good trade leaves both men smiling when hands are struck.", "Silver coin or salted hams - sound goods are always welcome.", "The road is long, but fair trade makes every mile worthwhile.", "The pack mules know every turn of the king's road."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Fair journey on the highway, trader. Good day.", "May thy pack horses stay sure-footed on the ridge.", "Until the spring fair, merchant. Fare well.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Fair journey on the highway, trader. Good day.", "May thy pack horses stay sure-footed on the ridge.", "Until the spring fair, merchant. Fare well.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1591,7 +1591,7 @@ const MERCHANT_WARES: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1600,7 +1600,7 @@ const MERCHANT_WARES: Exchange = Exchange {
 const MERCHANT_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:merchant"],
-    calls: &["Good morrow, trader! Thy pack mules are laden heavy from the highway.", "Well met, merchant! What exotic wares bringest thou to our valley?", "Hail to the traveling merchant! How stood the roads through the forest?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, trader! Thy pack mules are laden heavy from the highway.", "Well met, merchant! What exotic wares bringest thou to our valley?", "Hail to the traveling merchant! How stood the roads through the forest?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1611,7 +1611,7 @@ const MERCHANT_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1620,12 +1620,12 @@ const MERCHANT_GREET: Exchange = Exchange {
 const LORD_PETITION: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:rents"],
-    calls: &["The manor must maintain the bridge if the peasants are to bring in the harvest.", "A good lord shears his sheep but does not flay the skin.", "The court rolls show every customary right since the grandfather's time.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["The manor must maintain the bridge if the peasants are to bring in the harvest.", "A good lord shears his sheep but does not flay the skin.", "The court rolls show every customary right since the grandfather's time.", "We do what we must while daylight holds."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["We will see what the manor court decides on Tuesday. Good day.", "May justice be remembered at the high table. Fare well.", "I take my leave of the manor gate. Fair day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["We will see what the manor court decides on Tuesday. Good day.", "May justice be remembered at the high table. Fare well.", "I take my leave of the manor gate. Fair day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1645,7 +1645,7 @@ const LORD_LEASES: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1654,7 +1654,7 @@ const LORD_LEASES: Exchange = Exchange {
 const LORD_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "concern:rents"],
-    calls: &["Good morrow to the manor's steward. We come on village business.", "Well met, sir. We seek speech concerning the leases and tallies.", "Greetings, lord's man. The tenants have gathered to speak.", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow to the manor's steward. We come on village business.", "Well met, sir. We seek speech concerning the leases and tallies.", "Greetings, lord's man. The tenants have gathered to speak.", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1665,7 +1665,7 @@ const LORD_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1674,12 +1674,12 @@ const LORD_GREET: Exchange = Exchange {
 const FISHER_NETS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:fisher"],
-    calls: &["Trout leap in the shallows when the evening mayflies hatch.", "Wicker eel pots set in the weir reeds yield a fat catch by dawn.", "A fisherman knows every deep hole and eddy between here and the bridge.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Trout leap in the shallows when the evening mayflies hatch.", "Wicker eel pots set in the weir reeds yield a fat catch by dawn.", "A fisherman knows every deep hole and eddy between here and the bridge.", "Patience brings more trout than a hasty net."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy nets come up heavy with silver fish. Fair day.", "Mind the river current by the mill dam. Farewell.", "I will bring an eel pie to the festival. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy nets come up heavy with silver fish. Fair day.", "Mind the river current by the mill dam. Farewell.", "I will bring an eel pie to the festival. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1699,7 +1699,7 @@ const FISHER_CURRENT: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1708,7 +1708,7 @@ const FISHER_CURRENT: Exchange = Exchange {
 const FISHER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:fisher"],
-    calls: &["Good morrow, riverman! Thy boots are wet to the knee.", "Well met, {other}! Mending thy linen gill-nets on the bank?", "Hail, fisher of the weir! Any fish in the basket today?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, riverman! Thy boots are wet to the knee.", "Well met, {other}! Mending thy linen gill-nets on the bank?", "Hail, fisher of the weir! Any fish in the basket today?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1719,7 +1719,7 @@ const FISHER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1728,12 +1728,12 @@ const FISHER_GREET: Exchange = Exchange {
 const CHARCOAL_COALS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["trade:charcoal"],
-    calls: &["Slow heat with no open flame turns dense oak into pure black coal.", "Black dust in the beard and lungs, but the smith's forge cannot live without us.", "A charcoal stack needs watching through three nights of vigil.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Slow heat with no open flame turns dense oak into pure black coal.", "Black dust in the beard and lungs, but the smith's forge cannot live without us.", "A charcoal stack needs watching through three nights of vigil.", "Slow burning makes the charcoal hard and sound."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May thy stacks burn true without flaring. Fair day.", "I will tell the smith his coals are ready. Farewell.", "Watch the sparks in the dry brushwood, collier. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May thy stacks burn true without flaring. Fair day.", "I will tell the smith his coals are ready. Farewell.", "Watch the sparks in the dry brushwood, collier. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1753,7 +1753,7 @@ const CHARCOAL_SMOKE: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1762,7 +1762,7 @@ const CHARCOAL_SMOKE: Exchange = Exchange {
 const CHARCOAL_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "trade:charcoal"],
-    calls: &["Good morrow, charcoal burner! Smoke drifts thick from the deep wood.", "Well met, {other}! Black as an imp from tending the pits.", "Hail, master of the kiln! How burns the timber mound?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow, charcoal burner! Smoke drifts thick from the deep wood.", "Well met, {other}! Black as an imp from tending the pits.", "Hail, master of the kiln! How burns the timber mound?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1773,7 +1773,7 @@ const CHARCOAL_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1782,12 +1782,12 @@ const CHARCOAL_GREET: Exchange = Exchange {
 const ELDER_BLESS: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["elder"],
-    calls: &["Lords come and go, but the plough and the furrow remain.", "Listen to the land; it was here before us and will keep our graves.", "Kindness to thy neighbor is the best hedge against misfortune.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["Lords come and go, but the plough and the furrow remain.", "Listen to the land; it was here before us and will keep our graves.", "Kindness to thy neighbor is the best hedge against misfortune.", "Seasons cycle and return as they have always done."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Thy words are gold to my ears, elder. Fair day.", "May God grant thee peace in thy old age. Farewell.", "We will heed thy counsel at the village meeting. Good day.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["Thy words are gold to my ears, elder. Fair day.", "May God grant thee peace in thy old age. Farewell.", "We will heed thy counsel at the village meeting. Good day.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1807,7 +1807,7 @@ const ELDER_WINTERS: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1816,7 +1816,7 @@ const ELDER_WINTERS: Exchange = Exchange {
 const ELDER_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "elder"],
-    calls: &["Good morrow to thee, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm thy joints?", "Greetings, mother of the village! How fares thy health today?", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Good morrow to thee, venerable {other}.", "Well met, grandfather! Sitting in the sunny doorway to warm thy joints?", "Greetings, mother of the village! How fares thy health today?", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1827,7 +1827,7 @@ const ELDER_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1836,12 +1836,12 @@ const ELDER_GREET: Exchange = Exchange {
 const NEWBORN_GIFT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["family"],
-    calls: &["May the little one grow tall as an ash and hardy as an oak.", "A baby's cry in the cottage banishes the winter gloom.", "The parish grows by another soul; blessed be the hearth.", "The hours slip by as the sun climbs.", "A good day's toil makes the evening bread sweet."],
+    calls: &["May the little one grow tall as an ash and hardy as an oak.", "A baby's cry in the cottage banishes the winter gloom.", "The parish grows by another soul; blessed be the hearth.", "A united house can withstand any tempest."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["May the saints guard the cradle day and night. Fair day.", "I will bring goat's milk for the mother. Farewell.", "Joy to thy house, {other}! God bless the babe.", "May the road be kind under thy boots.", "Fare thee well until our paths cross again."],
+            lines: &["May the saints guard the cradle day and night. Fair day.", "I will bring goat's milk for the mother. Farewell.", "Joy to thy house, {other}! God bless the babe.", "May the road be kind under thy boots.", "God's peace be upon thy cottage, {other}."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1861,7 +1861,7 @@ const NEWBORN_JOY: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],
@@ -1870,7 +1870,7 @@ const NEWBORN_JOY: Exchange = Exchange {
 const NEWBORN_GREET: Exchange = Exchange {
     act: Act::Greet,
     concepts: &["greeting", "family"],
-    calls: &["Joy to thy household, {other}! I heard a newborn babe has arrived!", "Good morrow, new mother! How fares the precious child?", "Blessings on the cradle, {other}! What a joyous day for our lane!", "Good morrow to thee, {other}.", "Well met on this lane, neighbor."],
+    calls: &["Joy to thy household, {other}! I heard a newborn babe has arrived!", "Good morrow, new mother! How fares the precious child?", "Blessings on the cradle, {other}! What a joyous day for our lane!", "A peaceful day to thee, {other}."],
     replies: &[
         Reply {
             criteria: &[], weight: 1.00, bias: &[],
@@ -1881,7 +1881,7 @@ const NEWBORN_GREET: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.40, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "We will speak more of this later. God keep thee.", "Until next time, neighbor."],
+            lines: &["I must be on my way, {other}. Fare well.", "The sun climbs high; chores call me. Good day.", "Until next time, neighbor."],
             then: None, end: Some(Farewell),
         },
     ],

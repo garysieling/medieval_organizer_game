@@ -2514,6 +2514,25 @@ impl Game {
                 }
                 self.toasts.push(("A honey tree".into(), self.tick + 40));
             }
+            EventId::Truffle => {
+                // the sow noses it out in the oak-leaves: worth real
+                // coin - a rolled finder's purse feels it same day
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)
+                        && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&v) = able.get((roll as usize / 5) % able.len().max(1)) {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                        p.gold += 3.0;
+                    }
+                    self.say(v, "The sow nosed it out - the apothecary pays dear for these!", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a truffle - the sow nosed it out in the oak-leaves, and the apothecary pays dear for it.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a sow nosed something out in the oak-leaves - gone before anyone saw what.", self.tick));
+                }
+                self.toasts.push(("A truffle".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5334,6 +5353,22 @@ mod tests {
                     .and_then(|s| s.goods.get("honey").copied()).unwrap_or(0)).sum();
             assert!(honey1 > honey0 || g.villagers.is_empty(), "the combs came back on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("honey")), "the tree was told on {:?}", st);
+        }
+    }
+
+    /// A truffle: the sow noses it out in the oak-leaves, and the
+    /// apothecary pays dear for it
+    #[test]
+    fn test_the_sow_noses_it_out() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let gold0: f32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
+            g.force_event(EventId::Truffle);
+            let gold1: f32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
+            assert!(gold1 > gold0 || g.villagers.is_empty(), "the apothecary paid on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("truffle") || l.contains("oak-leaves")), "the find was told on {:?}", st);
         }
     }
 

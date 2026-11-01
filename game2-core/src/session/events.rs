@@ -1745,6 +1745,21 @@ impl Game {
                     desires::satisfy(&mut self.world, v, Want::Faith, until);
                 }
             }
+            EventId::BloodMoon => {
+                // two nights of the red omen: folk pray hard through it
+                // and sleep the worse for the dread of it
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Faith, until);
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        if h.condition > 0.05 {
+                            h.condition = (h.condition - 0.01).max(0.05);
+                        }
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1815,6 +1830,10 @@ impl Game {
             EventId::Aurora => {
                 self.log.push(format!("t{}: the aurora - the sky burns red and green, and the folk watch from their doors.", self.tick));
                 self.toasts.push(("The aurora".into(), self.tick + 40));
+            }
+            EventId::BloodMoon => {
+                self.log.push(format!("t{}: a blood moon - the moon hangs red over the village, and the prayers go up.", self.tick));
+                self.toasts.push(("A blood moon".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -4023,6 +4042,25 @@ mod tests {
                 || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
                 "the wonder of it on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("meteor")), "the shower was told on {:?}", st);
+        }
+    }
+
+    /// A blood moon: the prayers go up and the sleep's the worse for
+    /// the dread - two nights, then the moon's the moon again
+    #[test]
+    fn test_the_moon_hangs_red() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::BloodMoon);
+            assert!(g.rare.iter().any(|r| r.id == EventId::BloodMoon), "the moon turned red");
+            stage::run_days(&mut g, 1);
+            assert!(desires::is_satisfied(&g.world, v, Want::Faith, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Faith, g.tick)),
+                "the prayers went up on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::BloodMoon), "the moon's the moon again on {:?}", st);
         }
     }
 

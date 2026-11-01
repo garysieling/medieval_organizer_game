@@ -2035,6 +2035,17 @@ impl Game {
                 }
                 self.toasts.push(("A hawk stoops!".into(), self.tick + 40));
             }
+            EventId::Locusts => {
+                // the cloud comes down once and strips the beds near
+                // bare - the year's work eaten in an hour
+                for g in self.gardens.iter_mut() { g.2 *= 0.15; }
+                for p in self.mush_patches.iter_mut() {
+                    p.next_ready = p.next_ready.max(self.tick + 60);
+                }
+                self.travels.retain(|t| !matches!(t.goal, Goal::ForageShroom(_)));
+                self.log.push(format!("t{}: locusts - the air's alive with them, and where they pass there's nothing green.", self.tick));
+                self.toasts.push(("Locusts!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4347,6 +4358,26 @@ mod tests {
                 "the larders paid on {:?}", st);
             stage::run_days(&mut g, 12);
             assert!(g.rare.iter().all(|r| r.id != EventId::RatPlague), "the swarm's gone on {:?}", st);
+        }
+    }
+
+    /// Locusts: the cloud comes down and strips the beds near bare,
+    /// and the patches won't fruit for two months
+    #[test]
+    fn test_nothing_green_where_they_pass() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            for x in g.gardens.iter_mut() { x.2 = x.2.max(1.0); }
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            g.force_event(EventId::Locusts);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 < growth0 * 0.5 || g.gardens.is_empty(),
+                "the beds were stripped on {:?}", st);
+            if !g.mush_patches.is_empty() {
+                assert!(g.mush_patches.iter().all(|p| p.next_ready >= g.tick + 59),
+                    "the patches were eaten back on {:?}", st);
+            }
+            assert!(g.log.iter().any(|l| l.contains("locust")), "the cloud was told on {:?}", st);
         }
     }
 

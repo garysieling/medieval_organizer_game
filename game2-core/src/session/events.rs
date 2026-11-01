@@ -1941,6 +1941,16 @@ impl Game {
                 self.log.push(format!("t{}: a meteor shower - the sky rains stars, and nobody's eyes are anywhere else.", self.tick));
                 self.toasts.push(("Falling stars!".into(), self.tick + 40));
             }
+            EventId::Mirage => {
+                // the false city on the horizon: a marvel the whole
+                // village sees and talks of, though nobody walks to it
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 15);
+                }
+                self.log.push(format!("t{}: a mirage - a city of towers hangs on the horizon, and melts when you look twice.", self.tick));
+                self.toasts.push(("A mirage".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4139,6 +4149,22 @@ mod tests {
             assert!(growth1 < growth0 || g.gardens.is_empty(), "the beds flattened on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::WindStorm), "the wind lay down on {:?}", st);
+        }
+    }
+
+    /// A mirage: a city of towers hangs on the horizon and melts when
+    /// you look twice - a marvel to talk of
+    #[test]
+    fn test_the_city_that_isnt() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::Mirage);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the marvel of it on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("mirage")), "the towers were told on {:?}", st);
         }
     }
 

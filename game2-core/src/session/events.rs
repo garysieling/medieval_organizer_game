@@ -1992,9 +1992,11 @@ impl Game {
                         self.hens.retain(|&e| e != a);
                         self.log.push(format!("t{}: a hawk stoops - a shadow falls on the green, and a hen's gone with it.", self.tick));
                         // the folk see the shadow fall - the house grieves
-                        // her the same as the night's take
+                        // her the same as the night's take; the dead
+                        // and the held see nothing
                         if let Some(&occ) = self.world.get_component::<household::Building>(h)
-                            .and_then(|b| b.occupants.first()) {
+                            .and_then(|b| b.occupants.iter().find(|&&o|
+                                !crate::game::dungeon::unavailable(&self.world, o))) {
                             desires::add_grievance(&mut self.world, occ, desires::Problem::Loss, self.tick + 90);
                             self.say(occ, "The hawk took her, clean off the green.", CHAT_BUBBLE_SECS);
                         }
@@ -2311,9 +2313,10 @@ impl Game {
                 }
             }
             EventId::StrayCat => {
-                // the loneliest hearth takes her in - cats decide too
+                // the loneliest hearth takes her in - cats decide too;
+                // a hearth behind bars is no hearth to her
                 let mark = self.lonely_hearts().into_iter()
-                    .filter(|&v| !villager::is_dead(&self.world, v))
+                    .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v))
                     .min_by_key(|&v| self.world.query::<crate::game::relationships::Relationship>().iter()
                         .filter(|&&r| self.world.get_component::<crate::game::relationships::Relationship>(r)
                             .map(|rr| rr.from == v || rr.other == v).unwrap_or(false)).count());
@@ -4278,6 +4281,24 @@ mod tests {
             assert!(g.hens.len() <= hens0, "the yard's lighter on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("hawk")), "the stoop was told on {:?}", st);
         }
+    }
+
+    /// The hawk's grief lands on a hearth that can feel it - the held
+    /// and the dead see nothing fall
+    #[test]
+    fn test_the_shadow_skips_the_held() {
+        let mut g = stage::staged(stage::Stage::Ordinary);
+        let Some(&h) = g.hen_houses.first() else { panic!("no hen house") };
+        let Some(&occ) = g.world.get_component::<household::Building>(h)
+            .and_then(|b| b.occupants.first()) else { panic!("empty hearth") };
+        g.world.add_component(occ, crate::game::dungeon::CastleHeld { since: 0 });
+        let bubbles0 = g.bubbles.len();
+        g.force_event(EventId::HawkStoops);
+        assert!(g.bubbles.iter().skip(bubbles0).all(|b| b.0 != occ),
+            "the held see nothing fall");
+        assert!(g.world.get_component::<desires::InnerLife>(occ)
+            .map(|l| l.grievances.iter().all(|(p, _)| *p != desires::Problem::Loss))
+            .unwrap_or(true), "no grief lands on the held");
     }
 
     /// The stray cat hangs about the market, then makes her choice -

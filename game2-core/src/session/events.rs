@@ -433,6 +433,26 @@ impl Game {
             EventId::StrayCat => {
                 self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
             }
+            EventId::ProdigalSon => {
+                if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
+                // the fatted calf: a rolled home feasts him home, and
+                // the tales start before the soup's even cold
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                        .unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                    for &o in self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                        if villager::is_dead(&self.world, o) { continue; }
+                        desires::satisfy(&mut self.world, o, Want::Joy, self.tick + 30);
+                    }
+                }
+                self.log.push(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick));
+                self.toasts.push(("A prodigal returns".into(), self.tick + 40));
+            }
             EventId::KnifeGrinder => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
                 self.log.push(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name));
@@ -1899,6 +1919,29 @@ impl Game {
                 if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
                     f.servings += 1;
                     if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 1; }
+                }
+            }
+            EventId::ProdigalSon => {
+                // the tales are the talk of the street: a pair of
+                // listeners a day get the lift of it, and they talk
+                // it over between themselves
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                let roll = self.rare_roll(id);
+                if !able.is_empty() {
+                    let off = (roll as usize / 3) % able.len();
+                    let mut pair: Vec<Entity> = vec![];
+                    for i in 0..able.len().min(2) {
+                        let v = able[(off + i) % able.len()];
+                        desires::satisfy(&mut self.world, v, Want::Joy, tick + 10);
+                        pair.push(v);
+                    }
+                    if pair.len() == 2 {
+                        use crate::game::relationships::{Interaction, InteractionKind};
+                        crate::game::relationships::record_interaction(&mut self.world, pair[0],
+                            Interaction { other: pair[1], kind: InteractionKind::Conversation, intensity: 0.3 });
+                    }
                 }
             }
             EventId::WineMerchant => {
@@ -5481,6 +5524,21 @@ mod tests {
                     .map(|s| s.goods.values().sum()).unwrap_or(0)).sum();
             assert!(goods1 > goods0 || g.villagers.is_empty(), "the strand was picked on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("leavings")), "the strand was told on {:?}", st);
+        }
+    }
+
+    /// The prodigal returns: the door that raised him feasts him
+    /// home, and the road glitters in his tales while he stays
+    #[test]
+    fn test_the_road_glittered() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::ProdigalSon);
+            for _ in 0..40 { g.advance_rare(); if g.rare.iter().any(|r| r.id == EventId::ProdigalSon && r.until.is_some()) { break; } }
+            stage::run_days(&mut g, 2);
+            let lifted = g.villagers.iter().any(|&v| desires::is_satisfied(&g.world, v, Want::Joy, g.tick));
+            assert!(lifted || g.villagers.is_empty(), "the tales lifted them on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("prodigal")), "the return was told on {:?}", st);
         }
     }
 

@@ -2250,6 +2250,22 @@ impl Game {
                 }
                 self.toasts.push(("A chimney fire!".into(), self.tick + 40));
             }
+            EventId::GranaryLeak => {
+                // the rain got in: a share of the granary's stock
+                // spoils where the water found it
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    let spoiled = f.servings / 10;
+                    f.servings = f.servings.saturating_sub(spoiled);
+                    if spoiled > 0 {
+                        self.log.push(format!("t{}: a granary leak - the rain found a seam and a tenth of the stock's gone to rot.", self.tick));
+                    } else {
+                        self.log.push(format!("t{}: a granary leak - the rain found a seam, but there's little enough left to spoil.", self.tick));
+                    }
+                } else {
+                    self.log.push(format!("t{}: a granary leak - the rain found a seam.", self.tick));
+                }
+                self.toasts.push(("A granary leak".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4771,6 +4787,25 @@ mod tests {
             assert!(sick, "the sour gut spread on {:?}", st);
             stage::run_days(&mut g, 8);
             assert!(g.rare.iter().all(|r| r.id != EventId::FouledWell), "the well ran clean on {:?}", st);
+        }
+    }
+
+    /// A granary leak: the rain finds a seam and a share of the stock
+    /// goes to rot
+    #[test]
+    fn test_the_rain_finds_a_seam() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            if let Some(f) = g.world.get_component_mut::<villager::FoodSource>(g.market_food) {
+                f.servings = f.servings.max(50);
+            }
+            let food0 = g.world.get_component::<villager::FoodSource>(g.market_food)
+                .map(|f| f.servings).unwrap_or(0);
+            g.force_event(EventId::GranaryLeak);
+            let food1 = g.world.get_component::<villager::FoodSource>(g.market_food)
+                .map(|f| f.servings).unwrap_or(0);
+            assert!(food1 < food0, "the stock spoiled on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("granary leak")), "the leak was told on {:?}", st);
         }
     }
 

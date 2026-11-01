@@ -1414,6 +1414,33 @@ impl Game {
                     }
                 }
             }
+            EventId::Farrier => {
+                // shoes for hooves: two gold a shoeing once a visit -
+                // a shod beast doesn't founder, and the shepherd's mind
+                // rests easy on it
+                let fold = self.world.query::<household::Building>().iter().copied()
+                    .find(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+                if let Some(f) = fold {
+                    let shod = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0;
+                    if !shod {
+                        let shepherd = self.world.get_component::<household::Building>(f)
+                            .and_then(|b| b.worker.or(b.overseer))
+                            .filter(|&w| !villager::is_dead(&self.world, w)
+                                && !crate::game::dungeon::unavailable(&self.world, w)
+                                && self.world.get_component::<Purse>(w).map(|p| p.gold >= 2.0).unwrap_or(false));
+                        if let Some(s) = shepherd {
+                            if let Some(p) = self.world.get_component_mut::<Purse>(s) { p.gold -= 2.0; }
+                            if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(s) {
+                                l.grievances.retain(|(p, _)| *p != desires::Problem::Loss);
+                            }
+                            desires::satisfy(&mut self.world, s, Want::Security, tick + 20);
+                            self.say(s, "Hear that ring of iron!", CHAT_BUBBLE_SECS);
+                            if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = 1; }
+                        }
+                    }
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3205,6 +3232,48 @@ mod tests {
             assert!(due1 > due0, "the wolves' day pushed off on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Sowgelder), "he moved his crook on from {:?}", st);
+        }
+    }
+
+    /// Shoes for hooves: the shepherd pays for sound stock, and a shod
+    /// beast doesn't founder - the frame shows his anvil first
+    #[test]
+    fn test_the_ring_of_iron() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let shepherd = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let fold = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Pasture).unwrap_or(false));
+            match fold {
+                Some(f) => { g.world.get_component_mut::<household::Building>(f).unwrap().worker = Some(shepherd); }
+                None => {
+                    let f = g.world.create_entity();
+                    g.world.add_component(f, Pos { x: 20.0, y: 20.0 });
+                    g.world.add_component(f, household::Building {
+                        kind: household::BuildingKind::Pasture, name: "the fold".into(),
+                        occupants: vec![], worker: Some(shepherd), overseer: None,
+                        stock: Default::default(), capacity: 0 });
+                }
+            }
+            g.world.get_component_mut::<Purse>(shepherd).unwrap().gold = 10.0;
+            desires::add_grievance(&mut g.world, shepherd, desires::Problem::Loss, g.tick + 30);
+            g.force_event(EventId::Farrier);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::Farrier && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the farrier")),
+                "the frame shows his anvil on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert_eq!(g.world.get_component::<Purse>(shepherd).unwrap().gold, 8.0, "his two gold went for the shoes");
+            assert!(g.world.get_component::<desires::InnerLife>(shepherd)
+                .map(|l| l.grievances.iter().all(|(p, _)| *p != desires::Problem::Loss))
+                .unwrap_or(false), "the shod stock doesn't founder on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Farrier), "his anvil packed up on {:?}", st);
         }
     }
 

@@ -2475,7 +2475,8 @@ impl Game {
                 if self.land.pit_water < 0.5 {
                     self.land.pit_water = (self.land.pit_water + 0.1).min(0.5);
                 }
-                for g in self.gardens.iter_mut() { g.2 = (g.2 + 0.1).min(1.0); }
+                // a spring doesn't trim a bed that's already run high
+                for g in self.gardens.iter_mut() { g.2 += 0.1; }
                 self.log.push(format!("t{}: a spring bubbles up - cold sweet water out of the ground where none ran before.", self.tick));
                 self.toasts.push(("A spring bubbles up".into(), self.tick + 40));
             }

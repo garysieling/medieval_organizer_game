@@ -115,7 +115,8 @@ pub fn spec(good: &str) -> Option<Spec> {
         "garments" => s(Crafted, 14.0, &[Finery]),
         "blocks" => s(Crafted, 4.0, &[]),
         "glass" => s(Crafted, 10.0, &[]),
-        "paint" | "pigment" => s(Crafted, 5.0, &[]),
+        "paint" => s(Crafted, 8.0, &[]),
+        "pigment" => s(Crafted, 5.0, &[]),
         "pamphlets" => s(Crafted, 3.0, &[]),
         "playing-cards" => s(Crafted, 4.0, &[]),
         "paper" => s(Crafted, 4.0, &[Writing]),
@@ -222,10 +223,18 @@ mod tests {
 
     #[test]
     fn test_unchanged_goods_keep_their_old_price() {
-        for (g, old) in [("wheat", 2.0), ("bread", 5.0), ("cloth", 6.0),
-                         ("garments", 14.0), ("tools", 15.0), ("lute", 25.0),
-                         ("perfume", 20.0), ("spirits", 25.0), ("ale", 4.0),
-                         ("beer", 7.0), ("wine", 12.0)] {
+        // every good the old table priced by name keeps its number; goods
+        // that rode the 5.0 catch-all (eggs, milk, honey...) get their own
+        // worths now - that's the registry doing its job
+        for (g, old) in [("sand", 1.0), ("wheat", 2.0), ("stone", 2.0), ("wood", 3.0),
+                         ("blocks", 4.0), ("paper", 4.0), ("ink", 4.0), ("faith", 4.0),
+                         ("pamphlets", 3.0), ("pigment", 5.0), ("bread", 5.0),
+                         ("cloth", 6.0), ("perfume", 20.0), ("paint", 8.0), ("fish", 3.0),
+                         ("marigold", 1.0), ("lavender", 1.0), ("security", 8.0),
+                         ("glass", 10.0), ("garments", 14.0), ("tools", 15.0),
+                         ("lute", 25.0), ("ale", 4.0), ("beer", 7.0), ("wine", 12.0),
+                         ("spirits", 25.0), ("vinegar", 2.0), ("hops", 4.0),
+                         ("grapes", 5.0), ("casks", 8.0)] {
             assert_eq!(worth(g), old, "{} repriced", g);
             assert_eq!(worth(g), crate::game::vocation::price(g));
         }

@@ -1686,6 +1686,15 @@ impl Game {
                 for g in self.gardens.iter_mut() { g.2 += 0.04; }
                 self.land.pit_water = (self.land.pit_water - 0.05).max(0.0);
             }
+            EventId::Drought => {
+                // a fortnight dry: the well runs low, the beds wilt for
+                // want of rain, and no patch will fruit while it holds
+                self.land.pit_water = (self.land.pit_water - 0.08).max(0.0);
+                for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.02).max(0.0); }
+                for p in self.mush_patches.iter_mut() {
+                    p.next_ready = p.next_ready.max(self.tick + 1);
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1736,6 +1745,10 @@ impl Game {
             EventId::HeatWave => {
                 self.log.push(format!("t{}: a heat wave settles in - the stones are hot to the hand.", self.tick));
                 self.toasts.push(("A heat wave".into(), self.tick + 40));
+            }
+            EventId::Drought => {
+                self.log.push(format!("t{}: a drought - the sky's forgotten rain, and the well knows it.", self.tick));
+                self.toasts.push(("A drought".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -3725,6 +3738,22 @@ mod tests {
             assert!(g.land.pit_water < water0, "the well's head dropped on {:?}", st);
             stage::run_days(&mut g, 6);
             assert!(g.rare.iter().all(|r| r.id != EventId::HeatWave), "the heat lifted on {:?}", st);
+        }
+    }
+
+    /// A drought: the well runs low and the beds wilt while the sky
+    /// forgets rain - and the dry lifts when its fortnight's out
+    #[test]
+    fn test_the_sky_forgets_rain() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let water0 = g.land.pit_water;
+            g.force_event(EventId::Drought);
+            assert!(g.rare.iter().any(|r| r.id == EventId::Drought), "the dry settled in");
+            stage::run_days(&mut g, 1);
+            assert!(g.land.pit_water < water0, "the well ran low on {:?}", st);
+            stage::run_days(&mut g, 15);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Drought), "the rain remembered on {:?}", st);
         }
     }
 

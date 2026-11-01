@@ -141,3 +141,18 @@ Completed task task_16: Add a comment to main.rs
 **Patterns Used:** one call -> matched grid over many single-asset calls; tier sheets under their group's neighbors
 
 ---
+
+### Task: Wide/Shallow Dialogue Expansion (1000+ Responses)
+**Date:** 2026-11-01
+**Type:** feature
+**Files Changed:**
+- game2-core/src/game/dialogue_trees.rs (expanded to 30 trees across all vocations, circumstances, and social relations + 10 meeting concern pools, totaling 1,330 authentic responses)
+- game2-core/src/game/conversation.rs (added test_dialogue_expansion_exceeds_1000_responses_and_is_clean verifying 1000+ responses and safety filtering)
+- evidence/dialogue-gen-sample.md (regenerated 50-conversation benchmark with wide variety of vocation and relationship trees)
+- scripts/generate_all.py, scripts/emit_rust.py, scripts/trees_data.py, scripts/more_trees_data.py, scripts/trade_data.py, scripts/vocations_data.py, scripts/meeting_data.py (generator toolchain using Ollama gemma3:4b with strict safety filter)
+
+**Outcome:** Success - 1,330 responses generated, 0 sensitive words, all 699 library tests pass
+**Notes:** Built wide and shallow dialogue option trees covering 14 trades (smith, miller, baker, weaver, carpenter, mason, shepherd, brewer, beekeeper, herb-wife, merchant, lord, fisher, charcoal burner), life circumstances (fever, care, mourning, condolence, hunger, fuel, revelry, elder memories, newborn), relationships (rivalry, kin, friendship, road strangers), and 10 meeting concern pools. Enforced strict sensitivity check disallowing modern or archaic slurs.
+**Patterns Used:** Domain-specific exchange structures, topological static declarations, Ollama gemma3:4b prompt augmentation with safety filter.
+
+---

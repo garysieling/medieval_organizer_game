@@ -276,15 +276,17 @@ impl Game {
         let due: Vec<EventId> = self.next_rare.iter()
             .filter(|(id, d)| tick >= *d && self.rare.iter().all(|r| r.id != *id))
             .map(|(id, _)| *id).collect();
-        for id in due { self.spawn_event(id); }
+        for id in &due { self.spawn_event(*id); }
         // each active event's day; a visitor whose stay's done folds up
+        // (a spell spawned this tick already worked its first day in
+        // spawn_event - a second dose the same day is a lie)
         for idx in 0..self.rare.len() {
             let (id, until, leaving) = {
                 let r = &self.rare[idx]; (r.id, r.until, r.leaving)
             };
             let Some(until) = until else { continue };
             if tick < until {
-                if !leaving { self.event_day(id, tick); }
+                if !leaving && !due.contains(&id) { self.event_day(id, tick); }
             } else if !leaving {
                 self.event_end(id, tick);
                 if matches!(spec(id).kind, EventKind::Visitor) {

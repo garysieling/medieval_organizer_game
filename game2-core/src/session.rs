@@ -6177,11 +6177,46 @@ impl Game {
         match goal {
             Goal::BuyFrom(seller, good, qty) => {
                 // seller may be a person (satchel) or a building (the stall)
-                let paid = if self.world.get_component::<Building>(seller).is_some() {
+                let mut paid = if self.world.get_component::<Building>(seller).is_some() {
                     household::buy_at_shop(&mut self.world, seller, who, good, qty)
                 } else {
                     livelihood::trade_person(&mut self.world, who, seller, good, qty)
                 };
+                // short of coin, a neighbour still swaps: the buyer offers
+                // out of the satchel toward what the ask is worth, and a
+                // few coppers to boot squares it
+                if paid.is_none() && self.world.get_component::<Building>(seller).is_none() {
+                    let want_worth = goods::worth_at(&self.world, good) * qty as f32;
+                    let offer = livelihood::pick_offer(&self.world, who, want_worth, good);
+                    if !offer.is_empty() {
+                        let offer_refs: Vec<(&str, u32)> = offer.iter()
+                            .map(|(g, q)| (g.as_str(), *q)).collect();
+                        if let Some(deal) = livelihood::barter_person(
+                            &mut self.world, who, seller, &[(good, qty)], &offer_refs) {
+                            paid = Some(deal.boot);
+                            let an = self.villagers.iter().position(|v| *v == who).map(vill_name);
+                            let bn = self.villagers.iter().position(|v| *v == seller).map(vill_name);
+                            if let (Some(a), Some(b)) = (an, bn) {
+                                self.log.push(format!("t{}: {} swaps {} with {}.", tick, a,
+                                    livelihood::barter_terms(&offer, &[(good.into(), qty)], deal.boot), b));
+                            }
+                            // the deal lands on the bond: fair swaps warm a
+                            // little, a short sack leaves a mark, generosity
+                            // reads as aid
+                            use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+                            let (kind, who_records) = if deal.fairness < 0.85 {
+                                (InteractionKind::Conflict, seller)
+                            } else if deal.fairness > 1.15 {
+                                (InteractionKind::Aid, who)
+                            } else {
+                                (InteractionKind::Conversation, who)
+                            };
+                            record_interaction(&mut self.world, who_records,
+                                Interaction { other: if who_records == who { seller } else { who },
+                                    kind, intensity: (1.0 - deal.fairness).abs().clamp(0.2, 1.0) });
+                        }
+                    }
+                }
                 // trade with the road's accounts loses a little to the
                 // reckoning - unless the village has a clerk for it
                 if Some(seller) == self.trader_stall && vocation::imported(good)

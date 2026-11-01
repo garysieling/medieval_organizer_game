@@ -1710,9 +1710,12 @@ impl Game {
                 // ripening in, and the gift of the warm stretch sits
                 // easy on the folk
                 for g in self.gardens.iter_mut() { g.2 += 0.05; }
+                // the ease lasts as long as the warm stretch does
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
                 for &v in &self.villagers.clone() {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
-                    desires::satisfy(&mut self.world, v, Want::Joy, tick + 5);
+                    desires::satisfy(&mut self.world, v, Want::Joy, until);
                 }
             }
             EventId::WineMerchant => {

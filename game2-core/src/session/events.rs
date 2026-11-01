@@ -1980,6 +1980,39 @@ impl Game {
                 self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
                 self.toasts.push(("A fouled well".into(), self.tick + 40));
             }
+            EventId::LostChild => {
+                // two days out in the wood: a rolled kid's gone, and
+                // the house wears the worry while the village searches
+                let kids: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && self.world.get_component::<crate::game::vocation::Kid>(v).is_some()).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&k) = kids.get((roll as usize / 5) % kids.len().max(1)) {
+                    // the kid herself rides in aux - a roster shift can't
+                    // send the wrong one home
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = k as u64 + 1; }
+                    // she's gone: walked to the wood's edge while the
+                    // village searches
+                    let wood = self.mush_patches.first().map(|p| p.tile).unwrap_or((2, 2));
+                    if let Some(p) = self.world.get_component_mut::<Pos>(k) {
+                        p.x = wood.0 as f32;
+                        p.y = wood.1 as f32;
+                    }
+                    let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                        .unwrap_or(self.tick + 2 * 80);
+                    if let Some(hh) = household::home_of(&self.world, k) {
+                        for &o in self.world.get_component::<household::Building>(hh)
+                            .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                            if o == k || villager::is_dead(&self.world, o) { continue; }
+                            desires::add_grievance(&mut self.world, o, desires::Problem::Grief, until);
+                        }
+                    }
+                    self.log.push(format!("t{}: a lost child - she's not come in for supper, and the wood's dark already.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a child was late for supper - it gave the village a turn.", self.tick));
+                }
+                self.toasts.push(("A lost child".into(), self.tick + 40));
+            }
             EventId::CaterpillarYear => {
                 self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
                 self.toasts.push(("A caterpillar year".into(), self.tick + 40));
@@ -2477,6 +2510,41 @@ impl Game {
                 } else {
                     for g in self.gardens.iter_mut() { g.2 = (g.2 + 0.3).min(1.0); }
                     self.log.push(format!("t{}: water sings under the meadow - the gardens drink it in.", tick));
+                }
+            }
+            EventId::LostChild => {
+                // she turns up at the wood's edge, hungry and sorry:
+                // the house's worry lifts and her belly's the worse for it
+                let eid = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0);
+                let k = if eid > 0 { Some((eid - 1) as Entity) } else { None };
+                let k = k.filter(|k| self.villagers.contains(k));
+                if let Some(k) = k {
+                    if villager::is_dead(&self.world, k) {
+                        // the search found her too late - no homecoming to give
+                        self.log.push(format!("t{}: they found her at the wood's edge, but the dark had kept her.", tick));
+                    } else {
+                        if let Some(h) = self.world.get_component_mut::<Health>(k) {
+                            if h.condition > 0.05 {
+                                h.condition = (h.condition - 0.05).max(0.05);
+                            }
+                        }
+                        // she walks back in the door she left
+                        if let Some(hh) = household::home_of(&self.world, k) {
+                            let home_tile = self.world.get_component::<Pos>(hh).copied();
+                            if let (Some(p), Some(ht)) = (self.world.get_component_mut::<Pos>(k), home_tile) {
+                                p.x = ht.x;
+                                p.y = ht.y;
+                            }
+                            for &o in self.world.get_component::<household::Building>(hh)
+                                .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                                if o == k || villager::is_dead(&self.world, o) { continue; }
+                                desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
+                            }
+                        }
+                        self.log.push(format!("t{}: she's come out of the wood, hungry and sorry - a night in the dark is the end of it.", tick));
+                    }
+                } else {
+                    self.log.push(format!("t{}: the late one came home at last.", tick));
                 }
             }
             EventId::MushroomFlush => {
@@ -4916,6 +4984,26 @@ mod tests {
             let alive1 = g.villagers.iter().filter(|&&v| !villager::is_dead(&g.world, v)).count();
             assert!(alive1 < alive0 || alive0 == 0, "the pond took one on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("drowned") || l.contains("pond")), "the drowning was told on {:?}", st);
+        }
+    }
+
+    /// A lost child: the house wears the worry while she's out, and
+    /// the homecoming lifts it when the wood lets her go
+    #[test]
+    fn test_the_wood_lets_her_go() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::LostChild);
+            assert!(g.rare.iter().any(|r| r.id == EventId::LostChild), "she's out");
+            stage::run_days(&mut g, 1);
+            let worried = g.villagers.iter().any(|&v| g.world.get_component::<desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().any(|(p, u)| *p == desires::Problem::Grief && g.tick <= *u))
+                .unwrap_or(false));
+            assert!(worried || g.villagers.iter().all(|&v| g.world.get_component::<crate::game::vocation::Kid>(v).is_none()),
+                "the worry wore on {:?}", st);
+            stage::run_days(&mut g, 3);
+            assert!(g.rare.iter().all(|r| r.id != EventId::LostChild), "she's home on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("wood") || l.contains("lost child")), "it was told on {:?}", st);
         }
     }
 

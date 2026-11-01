@@ -1705,6 +1705,19 @@ impl Game {
                 self.land.pit_water = (self.land.pit_water + 0.2).min(1.0);
                 for g in self.gardens.iter_mut() { g.2 += 0.02; }
             }
+            EventId::IndianSummer => {
+                // five warm days out of season: the beds get one more
+                // ripening in, and the gift of the warm stretch sits
+                // easy on the folk
+                for g in self.gardens.iter_mut() { g.2 += 0.05; }
+                // the ease lasts as long as the warm stretch does
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, until);
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1763,6 +1776,10 @@ impl Game {
             EventId::Flood => {
                 self.log.push(format!("t{}: the river comes up - the reach is full and rising.", self.tick));
                 self.toasts.push(("The river's up".into(), self.tick + 40));
+            }
+            EventId::IndianSummer => {
+                self.log.push(format!("t{}: an Indian summer - the year's given back a week of warm.", self.tick));
+                self.toasts.push(("An Indian summer".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -3853,6 +3870,28 @@ mod tests {
                     "the patches died back on {:?}", st);
             }
             assert!(g.log.iter().any(|l| l.contains("late frost")), "the frost was told on {:?}", st);
+        }
+    }
+
+    /// An Indian summer: the beds get one more ripening and the warm
+    /// stretch sits easy on the folk - and the year turns after
+    #[test]
+    fn test_the_year_gives_back() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            g.force_event(EventId::IndianSummer);
+            assert!(g.rare.iter().any(|r| r.id == EventId::IndianSummer), "the warm stretch settled in");
+            stage::run_days(&mut g, 1);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 > growth0 || g.gardens.is_empty(), "the beds ripened on {:?}", st);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the warm stretch sat easy on {:?}", st);
+            stage::run_days(&mut g, 6);
+            assert!(g.rare.iter().all(|r| r.id != EventId::IndianSummer), "the year turned on {:?}", st);
         }
     }
 

@@ -380,14 +380,23 @@ pub fn converse_with(
     // Which fork the answerer takes still steers where the talk goes.
     let (caller, responder) = (0usize, 1usize);
 
+    let advance_to_rejoin = |trees: &mut std::iter::Peekable<std::slice::Iter<&DialogueTree>>| -> Option<(&'static str, &'static Exchange)> {
+        while let Some(t) = trees.next() {
+            if let Some(rej) = t.rejoin {
+                return Some((t.name, rej));
+            }
+        }
+        None
+    };
+
     for _ in 0..MAX_TURNS {
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
         // The floor-holder opens the beat
         let Some((call_t, call)) = fresh_line(ex.calls, &pair[responder].name, &used, rng) else {
-            // Nothing fresh to call with: fall through to the next tree,
+            // Nothing fresh to call with: fall through to the next rejoinable tree,
             // or dry up entirely at the generic tail
-            match trees.next() {
-                Some(t) => { tr.trees_walked.push(t.name); node = Some(t.rejoin.unwrap_or(t.root)); node_tree = t.name; }
+            match advance_to_rejoin(&mut trees) {
+                Some((name, rej)) => { tr.trees_walked.push(name); node = Some(rej); node_tree = name; }
                 None => tr.ending = Some(Ending::Exhausted),
             }
             continue;
@@ -402,8 +411,8 @@ pub fn converse_with(
         if pool.is_empty() {
             // Nothing left to say back: the floor-holder shifts to a more
             // generic tree if there is one, else the talk dries up
-            match trees.next() {
-                Some(t) => { tr.trees_walked.push(t.name); node = Some(t.rejoin.unwrap_or(t.root)); node_tree = t.name; }
+            match advance_to_rejoin(&mut trees) {
+                Some((name, rej)) => { tr.trees_walked.push(name); node = Some(rej); node_tree = name; }
                 None => tr.ending = Some(Ending::Exhausted),
             }
             continue;
@@ -414,13 +423,15 @@ pub fn converse_with(
         // will speak. For a player turn the variants are rolled with the
         // options so the preview is exactly the line they get.
         let (pick, line_t): (usize, &'static str) = if responder == player {
-            // The player sees up to two weighted-sampled options + "leave"
+            // The player sees up to two weighted-sampled options without replacement + "leave"
+            let mut available: Vec<usize> = (0..pool.len()).collect();
             let mut sampled: Vec<usize> = vec![];
-            let mut w = weights.clone();
-            for _ in 0..2.min(pool.len()) {
-                let i = rng.weighted(&w);
-                sampled.push(i);
-                w[i] = 0.0;
+            let target_count = 2.min(pool.len());
+            while sampled.len() < target_count && !available.is_empty() {
+                let avail_weights: Vec<f32> = available.iter().map(|&i| weights[i]).collect();
+                let chosen_avail_idx = rng.weighted(&avail_weights);
+                let chosen_pool_idx = available.remove(chosen_avail_idx);
+                sampled.push(chosen_pool_idx);
             }
             let mut rolled: Vec<(&'static str, Choice)> = vec![];
             for &i in &sampled {
@@ -453,8 +464,8 @@ pub fn converse_with(
         }
         node = match &reply.then {
             Some(next) => Some(next),
-            None => match trees.next() {
-                Some(t) => { tr.trees_walked.push(t.name); node_tree = t.name; Some(t.rejoin.unwrap_or(t.root)) }
+            None => match advance_to_rejoin(&mut trees) {
+                Some((name, rej)) => { tr.trees_walked.push(name); node_tree = name; Some(rej) }
                 // The generic tail keeps drifting: stay on this node until
                 // its material is spent (the small-talk doldrums)
                 None => node,
@@ -555,11 +566,16 @@ pub fn run_meeting<'a>(
             }
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
-                let open_q = si == 0 && question_open;
+                if si == 0 && !question_open { continue; }
+                let open_q = si == 0;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
                     else { OLD_PULL };
                 for l in pool {
+                    // Agreement or pushback can only reply to a fellow attendee's statement, not the organizer's opening question
+                    if open_q && (l.act == Act::Agree || l.act == Act::PushBack) {
+                        continue;
+                    }
                     let overlap = l.concepts.iter().any(|c| s.concepts.contains(c));
                     if !overlap && !open_q { continue; }
                     // an open question invites any contribution, but lines
@@ -745,6 +761,50 @@ mod tests {
             if idx > 1 {
                 assert_ne!(stmt.speaker, statements[idx - 1].speaker, "Speaker cannot speak consecutively");
             }
+        }
+    }
+
+    #[test]
+    fn test_meeting_replies_do_not_agree_with_opener() {
+        let organizer = Speaker::new("Reeve");
+        let a = Speaker::new("Eliza");
+        let b = Speaker::new("Bram");
+        let pool_a = meeting_pool(&a);
+        let pool_b = meeting_pool(&b);
+        let pools: Vec<&[MeetingLine]> = vec![&pool_a, &pool_b];
+        let attendees = [&a, &b];
+
+        for seed in 0..50 {
+            let mut rng = Rng::new(seed);
+            let statements = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
+            // Any statement answering statement 0 (the open question) must NOT be Agree or PushBack
+            for stmt in &statements {
+                if stmt.replying_to == Some(0) {
+                    assert_ne!(stmt.act, Act::Agree, "Should not agree with an open question");
+                    assert_ne!(stmt.act, Act::PushBack, "Should not push back on an open question without raising a point");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_player_choices_no_duplicate_options() {
+        let library = village_library();
+        let a = Speaker::new("Aldric");
+        let player = Speaker::new("Player");
+
+        for seed in 0..50 {
+            let mut rng = Rng::new(seed);
+            converse_with(
+                &a, &player, Relation::Acquaintance, &library, 1,
+                &mut |choices| {
+                    if choices.len() == 2 {
+                        assert_ne!(choices[0].preview, choices[1].preview, "Player choices must be distinct");
+                    }
+                    Some(0)
+                },
+                &mut rng,
+            );
         }
     }
 }

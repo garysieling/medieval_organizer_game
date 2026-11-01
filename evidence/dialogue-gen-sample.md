@@ -486,7 +486,7 @@ Bram       [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 ```text
 Dagny      [Greet in village_smalltalk ]: "Good morrow to thee, Aldric."
 Aldric     [Greet in village_smalltalk ]: "The saints keep thee, Dagny."
-Dagny      [Remark in village_smalltalk ]: "They say the harvest'll be thin this year."
+Dagny      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
 Aldric     [Farewell in village_smalltalk ]: "I should get on. Fair day to thee."
 ```
 
@@ -502,7 +502,7 @@ Aldric     [Farewell in village_smalltalk ]: "I should get on. Fair day to thee.
 ```text
 Dagny      [Greet in village_smalltalk ]: "A fair day to thee, Marga."
 Marga      [Remark in village_smalltalk ]: "Aye. What is it?"
-Dagny      [Remark in village_smalltalk ]: "They say the harvest'll be thin this year."
+Dagny      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
 Marga      [Question in village_smalltalk ]: "And how fares thy folk?"
 Dagny      [Answer in village_smalltalk ]: "We rub along, as ever."
 Marga      [Agree in village_smalltalk ]: "Good to hear it."
@@ -557,37 +557,37 @@ Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 - **Relation:** Rival
 - **Trees Cascade:** ["the_sickness", "asking_the_father"]
 - **Ending:** Farewell
-- **Turns Count:** 10
+- **Turns Count:** 8
 
 ```text
 Hob        [Greet in the_sickness      ]: "Morrow, Eliza. Don't stand too close."
 Eliza      [Agree in the_sickness      ]: "Poor thing - get thee to bed."
 Hob        [Answer in the_sickness      ]: "There's no one else to fetch the water."
 Eliza      [Agree in the_sickness      ]: "We rub along or we don't eat, that's the truth of it."
-Hob        [Greet in asking_the_father ]: "Good morrow, father."
-Eliza      [Greet in asking_the_father ]: "The saints keep thee, Hob. What is it?"
-Hob        [Question in asking_the_father ]: "Is it true the dead walk in dreams to warn us?"
-Eliza      [Answer in asking_the_father ]: "The tithe stands - but I'll speak for thee at the manor."
+Hob        [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
 Hob        [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
 Eliza      [Farewell in asking_the_father ]: "Go in peace, Hob."
 ```
 
-### Conversation #27: Hob and Gisela
-- **Speakers:** Hob (merchant) & Gisela (lord)
+### Conversation #27: Hob and Eliza
+- **Speakers:** Hob (merchant) & Eliza (clergy)
 - **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
-- **Relation:** Kin
-- **Trees Cascade:** ["the_sickness"]
+- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
+- **Relation:** Acquaintance
+- **Trees Cascade:** ["the_sickness", "asking_the_father"]
 - **Ending:** Farewell
-- **Turns Count:** 6
+- **Turns Count:** 8
 
 ```text
-Hob        [Greet in the_sickness      ]: "Morrow, Gisela. Don't stand too close."
-Gisela     [Agree in the_sickness      ]: "Poor thing - get thee to bed."
-Hob        [Answer in the_sickness      ]: "I'd rest if the work'd wait."
-Gisela     [Remark in the_sickness      ]: "I'll send soup round this evening."
-Hob        [Remark in the_sickness      ]: "My thanks, Gisela."
-Gisela     [Farewell in the_sickness      ]: "We look after our own."
+Hob        [Greet in the_sickness      ]: "Morrow, Eliza. Don't stand too close."
+Eliza      [Question in the_sickness      ]: "Is it the sickness going round?"
+Hob        [Answer in the_sickness      ]: "They say the herb-wife's draught helps."
+Eliza      [Agree in the_sickness      ]: "The saints speed thy mending."
+Hob        [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Eliza      [Answer in asking_the_father ]: "The church will share what it has, child - none shall starve at the door."
+Hob        [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
+Eliza      [Farewell in asking_the_father ]: "Go in peace, Hob."
 ```
 
 ### Conversation #28: Hob and Marga
@@ -658,8 +658,8 @@ Bram       [Farewell in the_sickness      ]: "Think nothing of it."
 ```text
 Marga      [Greet in asking_the_father ]: "Good morrow, father."
 Eliza      [Greet in asking_the_father ]: "The saints keep thee, Marga. What is it?"
-Marga      [Question in asking_the_father ]: "Must the miller's tithe stand when the mill's half idle?"
-Eliza      [Answer in asking_the_father ]: "The dreams of the grieving are their own counsel, child."
+Marga      [Question in asking_the_father ]: "Can the parish spare a little grain for the lean weeks, father?"
+Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
 Marga      [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
 Eliza      [Farewell in asking_the_father ]: "Go in peace, Marga."
 ```
@@ -676,8 +676,8 @@ Eliza      [Farewell in asking_the_father ]: "Go in peace, Marga."
 ```text
 Marga      [Greet in asking_the_father ]: "Good morrow, father."
 Eliza      [Greet in asking_the_father ]: "Always, child. Speak."
-Marga      [Question in asking_the_father ]: "Is it true the dead walk in dreams to warn us?"
-Eliza      [Answer in asking_the_father ]: "The dreams of the grieving are their own counsel, child."
+Marga      [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
 Marga      [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
 Eliza      [Farewell in asking_the_father ]: "Go in peace, Marga."
 ```
@@ -694,7 +694,7 @@ Eliza      [Farewell in asking_the_father ]: "Go in peace, Marga."
 ```text
 Marga      [Greet in village_smalltalk ]: "Good morrow to thee, Wystan."
 Wystan     [Remark in village_smalltalk ]: "Aye. What is it?"
-Marga      [Remark in village_smalltalk ]: "They say the harvest'll be thin this year."
+Marga      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
 Wystan     [Agree in village_smalltalk ]: "The thatch won't thank it."
 Marga      [Remark in village_smalltalk ]: "Even so, we'll manage."
 Wystan     [Farewell in village_smalltalk ]: "I'll not keep thee. Go well."
@@ -730,8 +730,8 @@ Gisela     [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 ```text
 Marga      [Greet in asking_the_father ]: "A word with thee, father, if thou'lt spare it."
 Aelfric    [Greet in asking_the_father ]: "The saints keep thee, Marga. What is it?"
-Marga      [Question in asking_the_father ]: "Is it true the dead walk in dreams to warn us?"
-Aelfric    [Answer in asking_the_father ]: "The dreams of the grieving are their own counsel, child."
+Marga      [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Aelfric    [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
 Marga      [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
 Aelfric    [Farewell in asking_the_father ]: "Go in peace, Marga."
 ```
@@ -817,39 +817,39 @@ Wystan     [Farewell in village_smalltalk ]: "On thy way then, and mine."
 - **Relation:** Kin
 - **Trees Cascade:** ["the_sickness", "visiting_the_sick"]
 - **Ending:** Farewell
-- **Turns Count:** 8
+- **Turns Count:** 6
 
 ```text
 Gisela     [Greet in the_sickness      ]: "*cough* Good morrow, Bram."
 Bram       [Agree in the_sickness      ]: "Poor thing - get thee to bed."
 Gisela     [Answer in the_sickness      ]: "I'd rest if the work'd wait."
 Bram       [Agree in the_sickness      ]: "We rub along or we don't eat, that's the truth of it."
-Gisela     [Greet in visiting_the_sick ]: "How dost thou fare, Bram?"
-Bram       [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
 Gisela     [Question in visiting_the_sick ]: "Is there aught thou needest?"
 Bram       [Farewell in visiting_the_sick ]: "Just a prayer, Gisela."
 ```
 
-### Conversation #41: Wystan and Dagny
-- **Speakers:** Wystan (merchant) & Dagny (merchant)
+### Conversation #41: Wystan and Aldric
+- **Speakers:** Wystan (merchant) & Aldric (lord)
 - **Backstory A:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
-- **Backstory B:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
-- **Relation:** Stranger
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Friend
 - **Trees Cascade:** ["village_smalltalk"]
 - **Ending:** Farewell
-- **Turns Count:** 10
+- **Turns Count:** 12
 
 ```text
-Wystan     [Greet in village_smalltalk ]: "A fair day to thee, Dagny."
-Dagny      [Greet in village_smalltalk ]: "The saints keep thee, Wystan."
-Wystan     [Remark in village_smalltalk ]: "Looks like rain again, doesn't it?"
-Dagny      [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
+Wystan     [Greet in village_smalltalk ]: "A fair day to thee, Aldric."
+Aldric     [Remark in village_smalltalk ]: "Morrow."
+Wystan     [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Aldric     [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
 Wystan     [Remark in village_smalltalk ]: "Even so, we'll manage."
-Dagny      [Agree in village_smalltalk ]: "Aye, we've seen worse."
-Wystan     [Remark in village_smalltalk ]: "Folk saw the reeve's cart loaded past dark."
-Dagny      [PushBack in village_smalltalk ]: "Idle tongues, that."
+Aldric     [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
+Wystan     [Remark in village_smalltalk ]: "Didst thou hear who was seen down by the mill?"
+Aldric     [Remark in village_smalltalk ]: "Aye? And what else?"
+Wystan     [Remark in village_smalltalk ]: "They do say the reeve counts twice."
+Aldric     [Agree in village_smalltalk ]: "Well, that's talk enough for one day."
 Wystan     [Remark in village_smalltalk ]: "True enough - the fields don't gossip."
-Dagny      [Farewell in village_smalltalk ]: "Fair day to thee, Wystan."
+Aldric     [Farewell in village_smalltalk ]: "Fair day to thee, Wystan."
 ```
 
 ### Conversation #42: Wystan and Bram
@@ -933,87 +933,89 @@ Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 - **Relation:** Friend
 - **Trees Cascade:** ["the_cleric_blesses", "asking_the_father"]
 - **Ending:** Farewell
-- **Turns Count:** 10
+- **Turns Count:** 8
 
 ```text
 Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
 Corvin     [Greet in the_cleric_blesses]: "And on thee, father."
 Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
 Corvin     [Agree in the_cleric_blesses]: "We keep as we can, father."
-Aelfric    [Greet in asking_the_father ]: "A word with thee, father, if thou'lt spare it."
-Corvin     [Greet in asking_the_father ]: "Always, child. Speak."
-Aelfric    [Question in asking_the_father ]: "Is it true the dead walk in dreams to warn us?"
-Corvin     [Answer in asking_the_father ]: "The tithe stands - but I'll speak for thee at the manor."
+Aelfric    [Question in asking_the_father ]: "Can the parish spare a little grain for the lean weeks, father?"
+Corvin     [Answer in asking_the_father ]: "The church will share what it has, child - none shall starve at the door."
 Aelfric    [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
 Corvin     [Farewell in asking_the_father ]: "Go in peace, Aelfric."
 ```
 
-### Conversation #47: Aelfric and Gisela
-- **Speakers:** Aelfric (clergy) & Gisela (lord)
+### Conversation #47: Aelfric and Hob
+- **Speakers:** Aelfric (clergy) & Hob (merchant)
 - **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
-- **Relation:** Friend
+- **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
+- **Relation:** Acquaintance
 - **Trees Cascade:** ["visiting_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
 Aelfric    [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Gisela     [Answer in visiting_the_sick ]: "Weak as a kitten, but here I am."
+Hob        [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
 Aelfric    [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Gisela     [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
+Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
 Aelfric    [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Gisela     [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
+Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 ```
 
-### Conversation #48: Aelfric and Wystan
-- **Speakers:** Aelfric (clergy) & Wystan (merchant)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["the_cleric_blesses", "village_smalltalk"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
-Wystan     [Greet in the_cleric_blesses]: "Blessings on thy house as well."
-Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
-Wystan     [Agree in the_cleric_blesses]: "The season's been lean, father."
-Aelfric    [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
-Wystan     [Farewell in village_smalltalk ]: "I should get on. Fair day to thee."
-```
-
-### Conversation #49: Aelfric and Wystan
-- **Speakers:** Aelfric (clergy) & Wystan (merchant)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
-- **Relation:** Kin
-- **Trees Cascade:** ["the_cleric_blesses"]
-- **Ending:** Farewell
-- **Turns Count:** 4
-
-```text
-Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
-Wystan     [Greet in the_cleric_blesses]: "Blessings on thy house as well."
-Aelfric    [Remark in the_cleric_blesses]: "How fares thy house, child?"
-Wystan     [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father."
-```
-
-### Conversation #50: Aelfric and Hob
+### Conversation #48: Aelfric and Hob
 - **Speakers:** Aelfric (clergy) & Hob (merchant)
 - **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 - **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 - **Relation:** Stranger
 - **Trees Cascade:** ["visiting_the_sick"]
 - **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Aelfric    [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
+Hob        [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
+Aelfric    [Question in visiting_the_sick ]: "Is there aught thou needest?"
+Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
+Aelfric    [Remark in visiting_the_sick ]: "It's done - look for it by dark."
+Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
+```
+
+### Conversation #49: Aelfric and Eliza
+- **Speakers:** Aelfric (clergy) & Eliza (clergy)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
+- **Relation:** Friend
+- **Trees Cascade:** ["the_cleric_blesses", "asking_the_father"]
+- **Ending:** Farewell
+- **Turns Count:** 8
+
+```text
+Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
+Eliza      [Greet in the_cleric_blesses]: "And on thee, father."
+Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
+Eliza      [Agree in the_cleric_blesses]: "The season's been lean, father."
+Aelfric    [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
+Aelfric    [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
+Eliza      [Farewell in asking_the_father ]: "Go in peace, Aelfric."
+```
+
+### Conversation #50: Aelfric and Bram
+- **Speakers:** Aelfric (clergy) & Bram (lord)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Relation:** Friend
+- **Trees Cascade:** ["visiting_the_sick"]
+- **Ending:** Farewell
 - **Turns Count:** 4
 
 ```text
 Aelfric    [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Hob        [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
+Bram       [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
 Aelfric    [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Hob        [Farewell in visiting_the_sick ]: "Just a prayer, Aelfric."
+Bram       [Farewell in visiting_the_sick ]: "Just a prayer, Aelfric."
 ```
 
 ## Benchmark Summary

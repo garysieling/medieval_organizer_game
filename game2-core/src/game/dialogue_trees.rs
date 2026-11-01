@@ -59,7 +59,7 @@ const SMALL_CHAT: Exchange = Exchange {
     calls: &[
         "Looks like rain again, doesn't it?",
         "Cold wind off the moor this morning.",
-        "They say the harvest'll be thin this year.",
+        "Gray clouds gathering over the hill.",
     ],
     replies: &[
         Reply {
@@ -556,28 +556,40 @@ const CLERIC_PARISH: Exchange = Exchange {
 };
 
 const CLERIC_PRAYER: Exchange = Exchange {
-    act: Act::Remark,
+    act: Act::Question,
     concepts: &["concern:faith", "concern:grief", "concern:sickness"],
-    calls: &["It's the little one mostly - she burns with fever.", "He was buried by the yew, father."],
+    calls: &[
+        "The Lord comfort thee, child. Tell me of thy affliction.",
+        "Speak, child - my prayers and candles are with thee.",
+    ],
     replies: &[
         Reply {
-            criteria: &[], weight: 1.0, bias: &[(Pious, 1.5), (Kind, 1.3)],
-            act: Act::Remark, concepts: &["concern:faith"],
-            lines: &["The saints watch over her. I'll light a candle.", "Rest and prayers, child - I'll come by."],
-            then: Some(CLERIC_THANKS), end: None,
+            criteria: &[], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:sickness", "concern:grief"],
+            lines: &[
+                "It's the little one mostly - she burns with fever.",
+                "This cough won't leave me, father, and the store is thin.",
+            ],
+            then: Some(CLERIC_COMFORT), end: None,
         },
     ],
 };
 
-const CLERIC_THANKS: Exchange = Exchange {
+const CLERIC_COMFORT: Exchange = Exchange {
     act: Act::Remark,
     concepts: &["concern:faith"],
-    calls: &["Thank thee, father."],
+    calls: &[
+        "The saints watch over thy house. I will come by with draughts and broth.",
+        "Rest by the hearth, child - I'll light a candle and pray for thy house.",
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.0, bias: &[],
             act: Act::Farewell, concepts: &["farewell"],
-            lines: &["Go with the saints, {other}."],
+            lines: &[
+                "Thank thee, father - thy blessing is a great comfort.",
+                "The Lord keep thee, father.",
+            ],
             then: None, end: Some(Farewell),
         },
     ],
@@ -600,12 +612,18 @@ const FATHER_GREET: Exchange = Exchange {
 const FATHER_ASKS: Exchange = Exchange {
     act: Act::Question,
     concepts: &["concern:faith"],
-    calls: &["Is it true the dead walk in dreams to warn us?", "Must the miller's tithe stand when the mill's half idle?"],
+    calls: &[
+        "Must the tithe stand full when the store is half empty, father?",
+        "Can the parish spare a little grain for the lean weeks, father?",
+    ],
     replies: &[
         Reply {
             criteria: &[], weight: 1.0, bias: &[],
             act: Act::Answer, concepts: &["concern:faith"],
-            lines: &["The dreams of the grieving are their own counsel, child.", "The tithe stands - but I'll speak for thee at the manor."],
+            lines: &[
+                "The tithe stands, but I will speak for thy house at the manor, child.",
+                "The church will share what it has, child - none shall starve at the door.",
+            ],
             then: Some(FATHER_THANKS), end: None,
         },
     ],
@@ -717,15 +735,15 @@ pub fn village_library() -> Vec<DialogueTree> {
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: None },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],
-            root: &VISIT_GREET, rejoin: None },
+            root: &VISIT_GREET, rejoin: Some(&VISIT_CARE) },
         DialogueTree { name: "a_death_in_the_house", criteria: &[Has("self:status:grieving")],
             root: &GRIEF_GREET, rejoin: None },
         DialogueTree { name: "condolence_call", criteria: &[Has("other:status:grieving")],
-            root: &CONDOLE_GREET, rejoin: None },
+            root: &CONDOLE_GREET, rejoin: Some(&CONDOLE_OFFER) },
         DialogueTree { name: "the_cleric_blesses", criteria: &[Has("self:ideology:clergy")],
             root: &CLERIC_GREET, rejoin: None },
         DialogueTree { name: "asking_the_father", criteria: &[Has("other:ideology:clergy")],
-            root: &FATHER_GREET, rejoin: None },
+            root: &FATHER_GREET, rejoin: Some(&FATHER_ASKS) },
         DialogueTree { name: "old_scores", criteria: &[Has("pair:relation:rival")],
             root: &RIVAL_GREET, rejoin: None },
         DialogueTree { name: "village_smalltalk", criteria: &[],

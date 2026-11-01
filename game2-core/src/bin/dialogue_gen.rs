@@ -123,6 +123,11 @@ fn main() -> io::Result<()> {
         }
     }
 
+    if num_characters < 2 {
+        eprintln!("Error: --characters must be at least 2 to generate distinct-partner conversations.");
+        std::process::exit(1);
+    }
+
     let mut rng = Rng::new(seed);
     let library = village_library();
 

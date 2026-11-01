@@ -6743,10 +6743,15 @@ impl Game {
                     .into_iter().find(|&g| b.stock.get(g).copied().unwrap_or(0) > 0);
                 // else the house burns what its folk carry home - a
                 // bundle in the satchel keeps the hearth same as a stack
+                let hp = self.world.get_component::<Pos>(h).copied();
                 let carried = if fuel.is_none() {
                     crate::game::goods::slot_goods(crate::game::goods::Tag::Fuel).into_iter()
                         .find_map(|g| occupants.iter().copied().find(|&o|
                             !villager::is_dead(&self.world, o)
+                            // and actually home - the bundle has to be
+                            // under the roof to warm it
+                            && hp.and_then(|hp| self.world.get_component::<Pos>(o)
+                                .map(|op| (op.x - hp.x).abs() + (op.y - hp.y).abs() <= 5.0)).unwrap_or(false)
                             && self.world.get_component::<Satchel>(o)
                                 .map(|s| s.goods.get(g).copied().unwrap_or(0) > 0).unwrap_or(false))
                             .map(|o| (o, g)))
@@ -6766,6 +6771,18 @@ impl Game {
                             if !villager::is_dead(&self.world, o) {
                                 desires::add_grievance(&mut self.world, o,
                                     desires::Problem::ColdHearth, tick + 9);
+                            }
+                        }
+                        // and a cold house does something about it: a free
+                        // hand goes out for a bundle tomorrow
+                        if let Some(hand) = occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                            && !crate::game::dungeon::unavailable(&self.world, o)
+                            && !self.travels.iter().any(|t| t.who == o)) {
+                            if let Some(op) = self.world.get_component::<Pos>(hand).copied() {
+                                if let Some(t) = self.gather_site("faggots", op) {
+                                    self.send_gather(hand, "faggots", t);
+                                }
                             }
                         }
                     }

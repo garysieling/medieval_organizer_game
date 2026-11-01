@@ -5337,11 +5337,17 @@ impl Game {
     /// brings up something strange, and the pedlar sells the tale
     pub fn fisher_tick(&mut self, tick: u64) {
         if tick % 7 != 4 { return; }
-        let Some(fisher) = self.villagers.iter().copied().find(|&v|
-            self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Fisher).unwrap_or(false)
-            && !crate::game::dungeon::unavailable(&self.world, v))
+        // the bench makes the fisher: whoever keeps the fish-smoke house
+        // works the river - so the heir takes the catch, and the dead
+        // and the held take none
+        let Some(hut) = self.world.query::<Building>().iter().copied()
+            .find(|&b| self.world.get_component::<Building>(b)
+                .map(|bb| bb.kind == BuildingKind::Shop(Vocation::Fisher)).unwrap_or(false))
         else { return };
-        let Some(hut) = self.world.get_component::<Craft>(fisher).and_then(|c| c.workplace) else { return };
+        let Some(fisher) = self.world.get_component::<Building>(hut)
+            .and_then(|b| b.worker)
+            .filter(|&w| !crate::game::dungeon::unavailable(&self.world, w))
+        else { return };
         // the catch: winter's thin, the rest of the year's fuller
         let catch = if tick % 365 >= 270 { 1 } else { 3 };
         if let Some(b) = self.world.get_component_mut::<Building>(hut) {
@@ -10829,6 +10835,27 @@ mod fisher_tests {
         let fish = g.world.get_component::<Building>(hut).unwrap()
             .stock.get("fish").copied().unwrap_or(0);
         assert_eq!(fish, 0, "the river gives the dead no catch");
+    }
+
+    #[test]
+    fn test_the_heir_works_the_river() {
+        let mut g = Game::new();
+        let fisher = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Fisher).unwrap_or(false));
+        let Some(f) = fisher else { panic!("no fisher") };
+        let hut = g.world.get_component::<Craft>(f).unwrap().workplace.unwrap();
+        g.world.get_component_mut::<Building>(hut).unwrap()
+            .stock.insert("fish".into(), 0);
+        // the bench passes to living hands - the heir needn't carry
+        // the vocation, the river only asks who's behind the bench
+        let heir = g.villagers.iter().copied().find(|&v| v != f
+            && !villager::is_dead(&g.world, v)).unwrap();
+        g.world.get_component_mut::<Building>(hut).unwrap().worker = Some(heir);
+        g.world.add_component(f, villager::Dead);
+        g.fisher_tick(4);
+        let fish = g.world.get_component::<Building>(hut).unwrap()
+            .stock.get("fish").copied().unwrap_or(0);
+        assert!(fish > 0, "the heir works the river");
     }
 }
 

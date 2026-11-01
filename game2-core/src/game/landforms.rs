@@ -149,3 +149,57 @@ fn mixed_seed(seed: u64) -> u64 {
     value ^ (value >> 31)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn terrain_with(shares: (usize, usize, usize), size: usize) -> Terrain {
+        let (water, rock, buildable) = shares;
+        let mut heights = vec![vec![0.0; size]; size];
+        for (index, height) in heights.iter_mut().flatten().enumerate() {
+            *height = if index < water { WATER_LEVEL - 0.01 }
+                else if index < water + rock { ROCK_LEVEL + 0.01 }
+                else if index < water + rock + buildable { (WATER_LEVEL + ROCK_LEVEL) / 2.0 }
+                else { WATER_LEVEL - 0.01 };
+        }
+        Terrain { width: size, height: size, heights, seed: 1 }
+    }
+
+    #[test]
+    fn availability_measures_buildable_water_and_rock_fractions() {
+        let terrain = terrain_with((10, 10, 80), 10);
+        let availability = TerrainAvailability::measure(&terrain);
+        assert!((availability.buildable_fraction - 0.8).abs() < f32::EPSILON);
+        assert!((availability.water_fraction - 0.1).abs() < f32::EPSILON);
+        assert!((availability.rock_fraction - 0.1).abs() < f32::EPSILON);
+        assert!((availability.dry_fraction - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn water_and_rock_dominated_maps_have_no_eligible_profile() {
+        let all_water = terrain_with((100, 0, 0), 10);
+        let all_rock = terrain_with((0, 100, 0), 10);
+        assert_eq!(select_landform(&all_water, 17), None);
+        assert_eq!(select_landform(&all_rock, 17), None);
+    }
+
+    #[test]
+    fn coastal_plain_accepts_its_declared_water_limit() {
+        let availability = TerrainAvailability {
+            buildable_fraction: 0.54,
+            dry_fraction: 0.54,
+            rock_fraction: 0.0,
+            water_fraction: 0.46,
+        };
+        assert!(availability.satisfies(LANDFORMS[0].requirements));
+    }
+
+    #[test]
+    fn selection_is_repeatable_for_the_same_seed() {
+        let terrain = terrain_with((10, 5, 85), 10);
+        let first = select_landform(&terrain, 231);
+        let second = select_landform(&terrain, 231);
+        assert_eq!(first.map(|profile| profile.id), second.map(|profile| profile.id));
+    }
+}
+

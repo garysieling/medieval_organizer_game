@@ -1672,6 +1672,18 @@ impl Game {
                     }
                 }
             }
+            EventId::HeatWave => {
+                // five days of scorch: folk droop in it, the beds ripen
+                // fast in the heat, and the well's head drops day by day
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) { continue; }
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition - 0.01).max(0.05);
+                    }
+                }
+                for g in self.gardens.iter_mut() { g.2 += 0.04; }
+                self.land.pit_water = (self.land.pit_water - 0.05).max(0.0);
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1718,6 +1730,10 @@ impl Game {
                 if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = added; }
                 self.log.push(format!("t{}: a mushroom flush - the wood's full of caps after the rain.", self.tick));
                 self.toasts.push(("Mushrooms!".into(), self.tick + 40));
+            }
+            EventId::HeatWave => {
+                self.log.push(format!("t{}: a heat wave settles in - the stones are hot to the hand.", self.tick));
+                self.toasts.push(("A heat wave".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -3681,6 +3697,32 @@ mod tests {
             assert!(moved, "the letter found its man on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Messenger), "he rode on from {:?}", st);
+        }
+    }
+
+    /// A heat wave: the folk droop, the beds ripen, the well's head
+    /// drops - and the spell lifts when its days are out
+    #[test]
+    fn test_the_stones_are_hot() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            let cond0 = g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0);
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            let water0 = g.land.pit_water;
+            g.force_event(EventId::HeatWave);
+            assert!(g.rare.iter().any(|r| r.id == EventId::HeatWave), "the heat settled in");
+            stage::run_days(&mut g, 1);
+            assert!(g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0) < cond0
+                || g.villagers.iter().all(|&w| g.world.get_component::<Health>(w)
+                    .map(|h| h.condition <= 0.05 + 0.005).unwrap_or(true)),
+                "the folk droop on {:?}", st);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 > growth0 || g.gardens.is_empty(), "the beds ripen on {:?}", st);
+            assert!(g.land.pit_water < water0, "the well's head dropped on {:?}", st);
+            stage::run_days(&mut g, 6);
+            assert!(g.rare.iter().all(|r| r.id != EventId::HeatWave), "the heat lifted on {:?}", st);
         }
     }
 

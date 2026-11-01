@@ -1594,6 +1594,38 @@ impl Game {
                     bought += 1;
                 }
             }
+            EventId::CheeseMonger => {
+                // aged wheels bought, the older the better: two gold a
+                // wheel off the near shelves - he pays like a man who
+                // knows what a rind's worth
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let homes: Vec<Entity> = self.world.query::<household::Building>().iter().copied()
+                    .filter(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false))
+                    .collect();
+                let mut bought = 0;
+                for h in homes {
+                    if bought >= 2 { break; }
+                    let near = self.world.get_component::<Pos>(h)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    let has_cheese = self.world.get_component::<household::Building>(h)
+                        .map(|b| *b.stock.get("cheese").unwrap_or(&0) > 0).unwrap_or(false);
+                    if !has_cheese { continue; }
+                    let first_able = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)));
+                    let Some(o) = first_able else { continue };
+                    if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::take_stock(b, "cheese", 1);
+                    }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold += 2.0; }
+                    self.say(o, "The older the better - fine rind!", CHAT_BUBBLE_SECS);
+                    bought += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3579,6 +3611,38 @@ mod tests {
             assert!(gold1 > gold0, "the coin came back on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Eggler), "his panniers moved on from {:?}", st);
+        }
+    }
+
+    /// Aged wheels bought: two gold a wheel off the shelf, the older
+    /// the better - the frame shows his rounds first
+    #[test]
+    fn test_the_wheel_fetches_two() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CheeseMonger);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::CheeseMonger && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::CheeseMonger).and_then(|r| r.at).unwrap();
+            let h = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).unwrap();
+            g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<household::Building>(h).unwrap().stock.insert("cheese".into(), 1);
+            let gold0: f32 = g.world.get_component::<household::Building>(h).unwrap().occupants.iter()
+                .filter_map(|&o| g.world.get_component::<Purse>(o).map(|p| p.gold)).sum();
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the cheese-monger")),
+                "the frame shows his rounds on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let gold1: f32 = g.world.get_component::<household::Building>(h).unwrap().occupants.iter()
+                .filter_map(|&o| g.world.get_component::<Purse>(o).map(|p| p.gold)).sum();
+            assert!(gold1 > gold0, "the wheel fetched its price on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::CheeseMonger), "his rounds rolled on from {:?}", st);
         }
     }
 

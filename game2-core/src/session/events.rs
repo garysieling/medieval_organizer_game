@@ -2204,16 +2204,23 @@ impl Game {
                         .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
-                    if let Some(p) = self.world.get_component::<Pos>(h).copied() {
-                        self.fire.ignite(&self.map, p.x.round() as i32, p.y.round() as i32);
-                    }
+                    let lit = self.world.get_component::<Pos>(h).copied()
+                        .map(|p| self.fire.ignite(&self.map, p.x.round() as i32, p.y.round() as i32))
+                        .unwrap_or(false);
                     let name = self.world.get_component::<household::Building>(h)
                         .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
-                    self.log.push(format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name));
-                    for &o in self.world.get_component::<household::Building>(h)
-                        .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
-                        if villager::is_dead(&self.world, o) { continue; }
-                        desires::add_grievance(&mut self.world, o, desires::Problem::Loss, self.tick + 30);
+                    if lit {
+                        self.log.push(format!("t{}: a chimney fire - smoke gone wrong at {}, and the neighbors with the buckets.", self.tick, name));
+                        for &o in self.world.get_component::<household::Building>(h)
+                            .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
+                            if villager::is_dead(&self.world, o) { continue; }
+                            // her own hearth's burned out, not a wolf's take
+                            desires::add_grievance(&mut self.world, o, desires::Problem::NoHome, self.tick + 30);
+                        }
+                    } else {
+                        // a scorched or burning house can't catch twice -
+                        // the neighbors beat it out quick this time
+                        self.log.push(format!("t{}: a chimney fire tried at {} - but the neighbors beat it out quick.", self.tick, name));
                     }
                 } else {
                     self.log.push(format!("t{}: a chimney fire - smoke gone wrong, but the neighbors put it out.", self.tick));

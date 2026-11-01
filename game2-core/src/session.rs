@@ -3003,7 +3003,8 @@ impl Game {
             .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
         let recruit_infl_ok = can_recruit(p.0);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
-        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some();
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
+            || self.world.get_component::<crate::game::dungeon::CastleHeld>(target).is_some();
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
         else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
         else if i == 1 && member { Some("already a member".into()) }
@@ -3391,8 +3392,7 @@ impl Game {
         let Some(mut a) = self.seats[seat].approach.take() else { return };
         let who = a.who;
         // they died on the way: nothing to say; hauled off: no one to walk to
-        if villager::is_dead(&self.world, self.villagers[who])
-            || self.world.get_component::<crate::game::dungeon::Imprisoned>(self.villagers[who]).is_some() { return; }
+        if crate::game::dungeon::unavailable(&self.world, self.villagers[who]) { return; }
         if self.dist_to_at(seat, who) <= TALK_DIST {
             // beside them now: take the action on them (act checks it can
             // still be done - they may have joined, or influence slipped)
@@ -3484,7 +3484,7 @@ impl Game {
                 .unwrap_or(false);
             // the shunned aren't asked to sit, and the held aren't around at all
             alive && near && !self.shunned(*v)
-                && self.world.get_component::<crate::game::dungeon::Imprisoned>(*v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, *v)
         }).collect()
     }
 
@@ -7204,7 +7204,7 @@ impl Game {
                     // someone's inside: the way out is pressure - the
                     // letters go on whether the cause still marches or not
                     self.seats[seat].ctx_actions.push(CtxAct::Petition);
-                } else if cause {
+                } else if !crate::game::dungeon::unavailable(&self.world, v) && cause {
                     let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                         .map(|o| o.members.contains(&v)).unwrap_or(false);
                     if is_member {
@@ -7964,7 +7964,8 @@ impl Game {
         let who = self.seats.get(seat).map(|s| s.player).ok_or_else(|| "no such seat".to_string())?;
         // the held can only stand down - walks, errands and gathers all
         // pass the jailer first
-        if self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some()
+        if (self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some()
+            || self.world.get_component::<crate::game::dungeon::CastleHeld>(who).is_some())
             && !matches!(cmd, AgentCmd::Idle) {
             return Err("held - the cell allows no errands".into());
         }
@@ -8087,7 +8088,8 @@ impl Game {
         }).collect();
         let satchel = self.world.get_component::<Satchel>(who)
             .map(|s| s.goods.iter().map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
-        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some();
+        let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some()
+            || self.world.get_component::<crate::game::dungeon::CastleHeld>(who).is_some();
         // the political layer: every banner you march under (membership
         // or leadership - a villager can hold more than one), and what
         // each fights for. "-" marks a seat's placeholder org, not a cause

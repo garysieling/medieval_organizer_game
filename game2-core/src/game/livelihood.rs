@@ -284,16 +284,30 @@ pub fn barter_person(
         return None;
     }
     if want.is_empty() || offer.is_empty() { return None; }
-    let worth_of = |bundle: &[(&str, u32)]| bundle.iter()
+    // bundles can name a good twice - fold them or the stock check and
+    // the subtraction would read different numbers
+    let merge = |bundle: &[(&str, u32)]| -> Vec<(String, u32)> {
+        let mut out: Vec<(String, u32)> = vec![];
+        for (g, q) in bundle {
+            match out.iter_mut().find(|(og, _)| og == g) {
+                Some((_, oq)) => *oq += q,
+                None => out.push((g.to_string(), *q)),
+            }
+        }
+        out
+    };
+    let want = merge(want);
+    let offer = merge(offer);
+    let worth_of = |bundle: &[(String, u32)]| bundle.iter()
         .map(|(g, q)| crate::game::goods::worth_at(world, g) * *q as f32).sum::<f32>();
-    let want_worth = worth_of(want);
-    let offer_worth = worth_of(offer);
+    let want_worth = worth_of(&want);
+    let offer_worth = worth_of(&offer);
     // the goods have to be there to trade
-    let held = |who: Entity, bundle: &[(&str, u32)]| bundle.iter().all(|(g, q)| {
+    let held = |who: Entity, bundle: &[(String, u32)]| bundle.iter().all(|(g, q)| {
         world.get_component::<Satchel>(who)
-            .map(|s| s.goods.get(*g).copied().unwrap_or(0) >= *q).unwrap_or(false)
+            .map(|s| s.goods.get(g.as_str()).copied().unwrap_or(0) >= *q).unwrap_or(false)
     });
-    if !held(seller, want) || !held(buyer, offer) { return None; }
+    if !held(seller, &want) || !held(buyer, &offer) { return None; }
     let gap = offer_worth - want_worth;
     let mut boot = 0.0f32;
     if gap > 0.0 {
@@ -310,34 +324,42 @@ pub fn barter_person(
         if have >= short { boot = short; } else if short > want_worth * BARTER_SLACK { return None; }
     }
     // goods cross the table
-    for (g, q) in offer {
+    for (g, q) in &offer {
         if let Some(s) = world.get_component_mut::<Satchel>(buyer) {
-            *s.goods.get_mut(*g).unwrap() -= q;
+            *s.goods.get_mut(g.as_str()).unwrap() -= q;
         }
         if let Some(s) = world.get_component_mut::<Satchel>(seller) {
-            *s.goods.entry(g.to_string()).or_insert(0) += q;
+            *s.goods.entry(g.clone()).or_insert(0) += q;
         }
     }
-    for (g, q) in want {
+    for (g, q) in &want {
         if let Some(s) = world.get_component_mut::<Satchel>(seller) {
-            *s.goods.get_mut(*g).unwrap() -= q;
+            *s.goods.get_mut(g.as_str()).unwrap() -= q;
         }
         if let Some(s) = world.get_component_mut::<Satchel>(buyer) {
-            *s.goods.entry(g.to_string()).or_insert(0) += q;
+            *s.goods.entry(g.clone()).or_insert(0) += q;
         }
     }
     if boot != 0.0 {
         if let Some(p) = world.get_component_mut::<Purse>(buyer) { p.gold -= boot; }
         if let Some(p) = world.get_component_mut::<Purse>(seller) { p.gold += boot; }
     }
-    Some(Deal { boot, fairness: if want_worth > 0.0 { offer_worth / want_worth } else { 1.0 } })
+    // how fair it reads counts the coin too: a swap squared by the boot
+    // is an even one, whatever the goods alone would say
+    let gave = offer_worth + boot.max(0.0);
+    let got = want_worth + (-boot).max(0.0);
+    Some(Deal { boot, fairness: if got > 0.0 { gave / got } else { 1.0 } })
 }
 
 /// What the buyer's satchel could offer toward `target` worth: cheapest
-/// goods first, never the good being asked for. Takes whole units while
-/// the pile falls short and skips a unit that would overshoot badly -
-/// an offer isn't a gift.
+/// goods first, never the good being asked for. Only what the purse
+/// can't cover needs to come in goods - coppers to boot do the rest.
+/// Takes whole units while the pile falls short, then trims back what
+/// only overshoots.
 pub fn pick_offer(world: &World, buyer: Entity, target: f32, not: &str) -> Vec<(String, u32)> {
+    let purse = world.get_component::<Purse>(buyer).map(|p| p.gold).unwrap_or(0.0);
+    let target = (target - purse).max(0.0);
+    if target <= 0.0 { return vec![]; }
     let mut priced: Vec<(String, u32, f32)> = world.get_component::<Satchel>(buyer)
         .map(|s| s.goods.iter()
             .filter(|(g, q)| g.as_str() != not && **q > 0)
@@ -527,7 +549,8 @@ mod tests {
         assert_eq!(w.get_component::<Satchel>(eggler).unwrap().goods["roots"], 6);
         assert_eq!(w.get_component::<Satchel>(eggler).unwrap().goods["eggs"], 0);
         assert_eq!(w.get_component::<Purse>(eggler).unwrap().gold, 9.0);
-        assert!((deal.fairness - 0.4).abs() < 0.01);
+        // squared by the boot, the deal reads dead even
+        assert!((deal.fairness - 1.0).abs() < 0.01);
     }
 
     #[test]

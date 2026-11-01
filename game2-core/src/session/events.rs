@@ -2158,7 +2158,8 @@ impl Game {
                 // had - the folk throw stones and the crows laugh
                 let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
                     self.world.get_component::<household::Building>(be)
-                        .map(|bb| bb.stock.values().any(|&q| q > 0)).unwrap_or(false)).collect();
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.stock.values().any(|&q| q > 0)).unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
                     let mut sorted: Vec<String> = self.world.get_component::<household::Building>(h)

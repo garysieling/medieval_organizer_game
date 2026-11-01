@@ -131,7 +131,7 @@ pub const LANDFORMS: &[LandformProfile] = &[
 /// Select an eligible profile using the seed, with an open valley fallback.
 /// The eligibility check happens against the generated terrain so maps that
 /// are mostly water or high rock cannot select a settlement-hostile profile.
-pub fn select_landform<'a>(terrain: &Terrain, seed: u64) -> &'a LandformProfile {
+pub fn select_landform(terrain: &Terrain, seed: u64) -> &'static LandformProfile {
     let availability = TerrainAvailability::measure(terrain);
     let eligible: Vec<&LandformProfile> = LANDFORMS
         .iter()
@@ -140,7 +140,7 @@ pub fn select_landform<'a>(terrain: &Terrain, seed: u64) -> &'a LandformProfile 
     if eligible.is_empty() {
         return LANDFORMS.iter().find(|profile| profile.id == "open_valley").unwrap();
     }
-    let index = mixed_seed(seed) as usize % eligible.len();
+    let index = (mixed_seed(seed) % eligible.len() as u64) as usize;
     eligible[index]
 }
 

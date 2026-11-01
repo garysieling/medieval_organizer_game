@@ -112,6 +112,11 @@ impl World {
             .map(|(e, _)| *e)
     }
 
+    /// Live components of type T. O(1) - the storage's own length.
+    pub fn component_count<T: Any + Send>(&self) -> usize {
+        self.storages.get(&TypeId::of::<T>()).map(|s| s.len()).unwrap_or(0)
+    }
+
     /// Store world-level singleton data, keyed by type.
     pub fn insert_resource<T: Any + Send>(&mut self, res: T) {
         self.resources.insert(TypeId::of::<T>(), Box::new(res));

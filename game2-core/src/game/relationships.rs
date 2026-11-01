@@ -4,19 +4,48 @@
 use crate::engine::ecs::{Entity, World};
 use std::collections::HashMap;
 
-/// Pair index: unordered entity pair -> the Relationship entity between
-/// them. find_relationship consults this first (O(1)); entries verify
-/// against the live component so a stale or handmade bond still resolves
-/// by falling back to a scan. Relationships created through
-/// `add_relationship` (or `record_interaction`) index themselves; bonds
-/// added by hand are found by the fallback scan instead.
+/// Pair index: unordered entity pair -> the earliest Relationship
+/// entity between them. find_relationship consults it only while the
+/// index is provably complete: `bonds_indexed` counts every bond folded
+/// in, and once it trails the live component count a bare add_component
+/// has slipped a bond past the index - lookups then fall back to a scan
+/// and the next add_relationship rebuilds in one pass.
 #[derive(Default)]
 struct RelIndex {
     by_pair: HashMap<(Entity, Entity), Entity>,
+    /// Bonds folded into by_pair so far (== live count while complete)
+    bonds_indexed: usize,
 }
 
 fn pair_key(a: Entity, b: Entity) -> (Entity, Entity) {
     (a.min(b), a.max(b))
+}
+
+/// One pass over every live bond -> earliest entity per pair, marked
+/// complete. Runs when a bare add_component put bonds the index never
+/// saw into the world - rare outside hand-built test setups.
+fn rebuild_index(world: &mut World) {
+    let mut by_pair: HashMap<(Entity, Entity), Entity> = HashMap::new();
+    let mut n = 0usize;
+    world.iter::<Relationship>(|e, r| {
+        n += 1;
+        by_pair.entry(pair_key(r.from, r.other))
+            .and_modify(|cur| { if e < *cur { *cur = e; } })
+            .or_insert(e);
+    });
+    let idx = world.resource_or_default::<RelIndex>();
+    idx.by_pair = by_pair;
+    idx.bonds_indexed = n;
+}
+
+/// The lowest-id live Relationship matching `pred` - the answer a sorted
+/// query() + first-match always gave, without the alloc or the sort.
+fn lowest_matching(world: &World, matches: impl Fn(&Relationship) -> bool) -> Option<Entity> {
+    let mut best: Option<Entity> = None;
+    world.iter::<Relationship>(|e, r| {
+        if matches(r) && best.map(|b| e < b).unwrap_or(true) { best = Some(e); }
+    });
+    best
 }
 
 /// A relationship between two entities, stored as its own entity (like
@@ -84,18 +113,21 @@ pub fn add_relationship(world: &mut World, r: Relationship) -> Entity {
     let e = world.create_entity();
     let key = pair_key(r.from, r.other);
     world.add_component(e, r);
-    // the earliest bond keeps the pair's slot - the scan order always
-    // favoured the first record made, so the index does too. A handmade
-    // bond added bare (unindexed) still counts: without the scan below a
-    // later indexed bond would shadow an earlier one and find_relationship
-    // would read a different kind and strength than it used to
-    let mut lowest = e;
-    world.iter::<Relationship>(|o, rr| {
-        if o != e && pair_key(rr.from, rr.other) == key && o < lowest { lowest = o; }
-    });
-    world.resource_or_default::<RelIndex>().by_pair.entry(key)
-        .and_modify(|cur| { if lowest < *cur { *cur = lowest; } })
-        .or_insert(lowest);
+    let live = world.component_count::<Relationship>();
+    let indexed = world.resource::<RelIndex>().map(|i| i.bonds_indexed).unwrap_or(0);
+    if indexed + 1 == live {
+        // the index was complete before this bond - fold it in. An
+        // existing entry already holds the pair's earliest bond, and e
+        // is the newest id, so or_insert keeps the ordering a sorted
+        // scan always favoured
+        let idx = world.resource_or_default::<RelIndex>();
+        idx.by_pair.entry(key).or_insert(e);
+        idx.bonds_indexed = live;
+    } else {
+        // a bare add_component slipped bonds past the index - rebuild
+        // once rather than scan per insert
+        rebuild_index(world);
+    }
     e
 }
 
@@ -130,21 +162,21 @@ pub fn bond_map(world: &World) -> HashMap<Entity, Vec<Entity>> {
 pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<Entity> {
     let matches = |r: &Relationship|
         (r.from == from && r.other == other) || (r.from == other && r.other == from);
-    if let Some(&e) = world.resource::<RelIndex>()
-        .and_then(|idx| idx.by_pair.get(&pair_key(from, other))) {
-        // the entry only counts if the entity still holds this bond - a
-        // destroyed relationship leaves a stale key that the scan settles
-        if world.get_component::<Relationship>(e).map(matches).unwrap_or(false) {
-            return Some(e);
+    if let Some(idx) = world.resource::<RelIndex>() {
+        // a complete index answers in O(1); a stale one defers to the
+        // scan, since an unindexed bond could predate any indexed entry
+        if idx.bonds_indexed == world.component_count::<Relationship>() {
+            return match idx.by_pair.get(&pair_key(from, other)) {
+                // the entry only counts if the entity still holds this
+                // bond - a destroyed relationship leaves a stale key
+                Some(&e) if world.get_component::<Relationship>(e)
+                    .map(&matches).unwrap_or(false) => Some(e),
+                Some(_) => lowest_matching(world, &matches),
+                None => None,
+            };
         }
     }
-    // lowest id wins, same as a sorted query() + first match - keeps the
-    // pick deterministic when a pair somehow holds two bonds
-    let mut best: Option<Entity> = None;
-    world.iter::<Relationship>(|e, r| {
-        if matches(r) && best.map(|b| e < b).unwrap_or(true) { best = Some(e); }
-    });
-    best
+    lowest_matching(world, matches)
 }
 
 /// Record an interaction - relationships evolve emergently. Finds the

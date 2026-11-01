@@ -1879,22 +1879,15 @@ impl Game {
             }
             EventId::HerbFlush => {
                 // ten days of gather: the hedge is thick with simples -
-                // a pair of satchels fills a little each day while it
-                // holds, what room's left and no more
-                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
-                    !villager::is_dead(&self.world, v)
-                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
-                let roll = self.rare_roll(id);
-                if !able.is_empty() {
-                    let off = (roll as usize / 3) % able.len();
-                    for i in 0..able.len().min(2) {
-                        let v = able[(off + i) % able.len()];
-                        if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
-                            let held: u32 = s.goods.values().sum();
-                            let room = crate::game::livelihood::SATCHEL_CAP.saturating_sub(held);
-                            if room > 0 {
-                                *s.goods.entry("herbs".into()).or_insert(0) += 1;
-                            }
+                // the day's pick goes to the herb hut's stock by its
+                // true name, where the herb-wife can actually brew it
+                if let Some(hut) = self.herb_hut {
+                    let herbs = crate::game::herbology::medicinal_herbs();
+                    if !herbs.is_empty() {
+                        let roll = self.rare_roll(id);
+                        let (name, _, _) = herbs[(roll as usize / 3) % herbs.len()];
+                        if let Some(mut b) = self.world.get_component_mut::<household::Building>(hut) {
+                            household::add_stock(&mut b, name, 2);
                         }
                     }
                 }
@@ -5407,10 +5400,10 @@ mod tests {
             g.force_event(EventId::HerbFlush);
             assert!(g.rare.iter().any(|r| r.id == EventId::HerbFlush), "the flush's on");
             stage::run_days(&mut g, 3);
-            let herbs: u32 = g.villagers.iter().map(|&v|
-                g.world.get_component::<crate::game::livelihood::Satchel>(v)
-                    .and_then(|s| s.goods.get("herbs").copied()).unwrap_or(0)).sum();
-            assert!(herbs > 0 || g.villagers.is_empty(), "the satchels filled on {:?}", st);
+            let stocked: u32 = g.herb_hut.map(|h|
+                g.world.get_component::<household::Building>(h)
+                    .map(|b| b.stock.values().sum()).unwrap_or(0)).unwrap_or(0);
+            assert!(stocked > 0 || g.herb_hut.is_none(), "the hut's shelf filled on {:?}", st);
             stage::run_days(&mut g, 11);
             assert!(g.rare.iter().all(|r| r.id != EventId::HerbFlush), "the flush's gone on {:?}", st);
         }

@@ -1867,9 +1867,14 @@ impl Game {
                     !villager::is_dead(&self.world, v)
                         && !crate::game::dungeon::unavailable(&self.world, v)).collect();
                 let roll = self.rare_roll(id);
-                for i in 0..able.len().min(2) {
-                    let v = able[((roll as usize / 3) + i * 5) % able.len().max(1)];
-                    desires::add_grievance(&mut self.world, v, desires::Problem::SourGut, until);
+                if !able.is_empty() {
+                    // two consecutive from the roll's offset - a stride
+                    // that wraps can land on the same soul twice
+                    let off = (roll as usize / 3) % able.len();
+                    for i in 0..able.len().min(2) {
+                        let v = able[(off + i) % able.len()];
+                        desires::add_grievance(&mut self.world, v, desires::Problem::SourGut, until);
+                    }
                 }
             }
             EventId::WineMerchant => {

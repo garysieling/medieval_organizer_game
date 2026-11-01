@@ -211,17 +211,17 @@ Marga      [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father.
 - **Backstory A:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 - **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 - **Relation:** Acquaintance
-- **Trees Cascade:** ["visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick", "visiting_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Eliza      [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Gisela     [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
+Eliza      [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
+Gisela     [Greet in the_cleric_visits_the_sick]: "And on thee, father."
+Eliza      [Remark in the_cleric_visits_the_sick]: "How fares thy house, child?"
+Gisela     [Agree in the_cleric_visits_the_sick]: "We keep as we can, father."
 Eliza      [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Gisela     [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Eliza      [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Gisela     [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
+Gisela     [Farewell in visiting_the_sick ]: "Just a prayer, Eliza."
 ```
 
 ### Conversation #08: Eliza and Corvin
@@ -245,149 +245,149 @@ Corvin     [Farewell in the_cleric_blesses]: "Pray for us, father."
 - **Backstory A:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
 - **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 - **Relation:** Rival
-- **Trees Cascade:** ["visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
 - **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Eliza      [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Hob        [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
-Eliza      [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Eliza      [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
-```
-
-### Conversation #10: Eliza and Hob
-- **Speakers:** Eliza (clergy) & Hob (merchant)
-- **Backstory A:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
-- **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["visiting_the_sick"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Eliza      [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Hob        [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
-Eliza      [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Eliza      [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
-```
-
-### Conversation #11: Bram and Eliza
-- **Speakers:** Bram (lord) & Eliza (clergy)
-- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["the_sickness"]
-- **Ending:** WalksOff
 - **Turns Count:** 4
 
 ```text
-Bram       [Greet in the_sickness      ]: "*cough* Good morrow, Eliza."
-Eliza      [PushBack in the_sickness      ]: "Keep thy distance, friend."
-Bram       [Remark in the_sickness      ]: "As thou wilt, then."
-Eliza      [PushBack in the_sickness      ]: "A fine friend thou art."
+Eliza      [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
+Hob        [Remark in the_cleric_visits_the_sick]: "Morrow, father."
+Eliza      [Remark in the_cleric_visits_the_sick]: "How fares thy house, child?"
+Hob        [Farewell in the_cleric_visits_the_sick]: "Pray for us, father."
 ```
 
-### Conversation #12: Bram and Gisela
-- **Speakers:** Bram (lord) & Gisela (lord)
-- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
-- **Relation:** Rival
-- **Trees Cascade:** ["the_sickness"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Bram       [Greet in the_sickness      ]: "*cough* Good morrow, Gisela."
-Gisela     [Agree in the_sickness      ]: "Thou shouldst be by the fire, not out here."
-Bram       [Answer in the_sickness      ]: "I'd rest if the work'd wait."
-Gisela     [Remark in the_sickness      ]: "I'll send soup round this evening."
-Bram       [Remark in the_sickness      ]: "My thanks, Gisela."
-Gisela     [Farewell in the_sickness      ]: "Think nothing of it."
-```
-
-### Conversation #13: Bram and Aldric
-- **Speakers:** Bram (lord) & Aldric (lord)
-- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
-- **Relation:** Friend
-- **Trees Cascade:** ["the_sickness"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Bram       [Greet in the_sickness      ]: "Forgive the cough - it won't quit."
-Aldric     [Agree in the_sickness      ]: "Thou shouldst be by the fire, not out here."
-Bram       [Answer in the_sickness      ]: "There's no one else to fetch the water."
-Aldric     [Remark in the_sickness      ]: "I'll send soup round this evening."
-Bram       [Remark in the_sickness      ]: "Thou'rt kind. The saints remember it."
-Aldric     [Farewell in the_sickness      ]: "Think nothing of it."
-```
-
-### Conversation #14: Bram and Hob
-- **Speakers:** Bram (lord) & Hob (merchant)
-- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["the_sickness"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Bram       [Greet in the_sickness      ]: "Morrow, Hob. Don't stand too close."
-Hob        [Agree in the_sickness      ]: "Poor thing - get thee to bed."
-Bram       [Answer in the_sickness      ]: "There's no one else to fetch the water."
-Hob        [Remark in the_sickness      ]: "I'll send soup round this evening."
-Bram       [Remark in the_sickness      ]: "My thanks, Hob."
-Hob        [Farewell in the_sickness      ]: "We look after our own."
-```
-
-### Conversation #15: Bram and Hob
-- **Speakers:** Bram (lord) & Hob (merchant)
-- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["the_sickness"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Bram       [Greet in the_sickness      ]: "Morrow, Hob. Don't stand too close."
-Hob        [Agree in the_sickness      ]: "Thou shouldst be by the fire, not out here."
-Bram       [Answer in the_sickness      ]: "I'd rest if the work'd wait."
-Hob        [Remark in the_sickness      ]: "I'll send soup round this evening."
-Bram       [Remark in the_sickness      ]: "Thou'rt kind. The saints remember it."
-Hob        [Farewell in the_sickness      ]: "Think nothing of it."
-```
-
-### Conversation #16: Corvin and Wystan
-- **Speakers:** Corvin (clergy) & Wystan (merchant)
-- **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
-- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
+### Conversation #10: Eliza and Dagny
+- **Speakers:** Eliza (clergy) & Dagny (merchant)
+- **Backstory A:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
+- **Backstory B:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 - **Relation:** Acquaintance
 - **Trees Cascade:** ["the_cleric_blesses", "village_smalltalk"]
 - **Ending:** Farewell
 - **Turns Count:** 14
 
 ```text
-Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Wystan."
-Wystan     [Remark in the_cleric_blesses]: "Morrow, father."
+Eliza      [Greet in the_cleric_blesses]: "Blessings on thee, Dagny."
+Dagny      [Remark in the_cleric_blesses]: "Morrow, father."
+Eliza      [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
+Dagny      [Agree in the_cleric_blesses]: "The season's been lean, father."
+Eliza      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Dagny      [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
+Eliza      [Remark in village_smalltalk ]: "Aye, the year'll turn."
+Dagny      [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
+Eliza      [Remark in village_smalltalk ]: "Folk saw the reeve's cart loaded past dark."
+Dagny      [Remark in village_smalltalk ]: "Thou dost not say it! Go on."
+Eliza      [Remark in village_smalltalk ]: "They do say the reeve counts twice."
+Dagny      [Agree in village_smalltalk ]: "Ha! I'll believe the half of it."
+Eliza      [Remark in village_smalltalk ]: "True enough - the fields don't gossip."
+Dagny      [Farewell in village_smalltalk ]: "Go well, Eliza."
+```
+
+### Conversation #11: Bram and Dagny
+- **Speakers:** Bram (lord) & Dagny (merchant)
+- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Backstory B:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
+- **Relation:** Kin
+- **Trees Cascade:** ["the_sickness"]
+- **Ending:** Farewell
+- **Turns Count:** 4
+
+```text
+Bram       [Greet in the_sickness      ]: "Forgive the cough - it won't quit."
+Dagny      [PushBack in the_sickness      ]: "Keep thy distance, friend."
+Bram       [Remark in the_sickness      ]: "As thou wilt, then."
+Dagny      [Farewell in the_sickness      ]: "Another time, then."
+```
+
+### Conversation #12: Bram and Aldric
+- **Speakers:** Bram (lord) & Aldric (lord)
+- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Kin
+- **Trees Cascade:** ["the_sickness"]
+- **Ending:** Farewell
+- **Turns Count:** 4
+
+```text
+Bram       [Greet in the_sickness      ]: "Forgive the cough - it won't quit."
+Aldric     [Agree in the_sickness      ]: "Poor thing - get thee to bed."
+Bram       [Answer in the_sickness      ]: "There's no one else to fetch the water."
+Aldric     [Farewell in the_sickness      ]: "Rest well, Bram."
+```
+
+### Conversation #13: Bram and Aldric
+- **Speakers:** Bram (lord) & Aldric (lord)
+- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Kin
+- **Trees Cascade:** ["the_sickness"]
+- **Ending:** Farewell
+- **Turns Count:** 4
+
+```text
+Bram       [Greet in the_sickness      ]: "*cough* Good morrow, Aldric."
+Aldric     [PushBack in the_sickness      ]: "Keep thy distance, friend."
+Bram       [Remark in the_sickness      ]: "As thou wilt, then."
+Aldric     [Farewell in the_sickness      ]: "Another time, then."
+```
+
+### Conversation #14: Bram and Wystan
+- **Speakers:** Bram (lord) & Wystan (merchant)
+- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
+- **Relation:** Friend
+- **Trees Cascade:** ["the_sickness"]
+- **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Bram       [Greet in the_sickness      ]: "Morrow, Wystan. Don't stand too close."
+Wystan     [Question in the_sickness      ]: "Half the village is coughing - is it that?"
+Bram       [Answer in the_sickness      ]: "They say the herb-wife's draught helps."
+Wystan     [Remark in the_sickness      ]: "Say a prayer and I'll bring broth."
+Bram       [Remark in the_sickness      ]: "My thanks, Wystan."
+Wystan     [Farewell in the_sickness      ]: "Think nothing of it."
+```
+
+### Conversation #15: Bram and Corvin
+- **Speakers:** Bram (lord) & Corvin (clergy)
+- **Backstory A:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Backstory B:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
+- **Relation:** Acquaintance
+- **Trees Cascade:** ["the_sickness"]
+- **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Bram       [Greet in the_sickness      ]: "Morrow, Corvin. Don't stand too close."
+Corvin     [Question in the_sickness      ]: "Is it the sickness going round?"
+Bram       [Answer in the_sickness      ]: "Aye, since the last rain. The fever comes and goes."
+Corvin     [Remark in the_sickness      ]: "I'll fetch the herb-wife round."
+Bram       [Remark in the_sickness      ]: "My thanks, Corvin."
+Corvin     [Farewell in the_sickness      ]: "Think nothing of it."
+```
+
+### Conversation #16: Corvin and Aldric
+- **Speakers:** Corvin (clergy) & Aldric (lord)
+- **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Rival
+- **Trees Cascade:** ["the_cleric_blesses", "village_smalltalk"]
+- **Ending:** Farewell
+- **Turns Count:** 12
+
+```text
+Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
+Aldric     [Greet in the_cleric_blesses]: "Blessings on thy house as well."
 Corvin     [Remark in the_cleric_blesses]: "How fares thy house, child?"
-Wystan     [Agree in the_cleric_blesses]: "The season's been lean, father."
-Corvin     [Remark in village_smalltalk ]: "Looks like rain again, doesn't it?"
-Wystan     [PushBack in village_smalltalk ]: "Rain? It's the driest year in memory."
+Aldric     [Agree in the_cleric_blesses]: "We keep as we can, father."
+Corvin     [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Aldric     [Agree in village_smalltalk ]: "It'll be a wet week, mark me."
 Corvin     [Remark in village_smalltalk ]: "Even so, we'll manage."
-Wystan     [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
-Corvin     [Remark in village_smalltalk ]: "Folk saw the reeve's cart loaded past dark."
-Wystan     [Remark in village_smalltalk ]: "Aye? And what else?"
-Corvin     [Remark in village_smalltalk ]: "And the herb-wife was seen with the tinker, so it's told."
-Wystan     [Agree in village_smalltalk ]: "Ha! I'll believe the half of it."
+Aldric     [Agree in village_smalltalk ]: "Aye, we've seen worse."
+Corvin     [Remark in village_smalltalk ]: "Didst thou hear who was seen down by the mill?"
+Aldric     [PushBack in village_smalltalk ]: "I'll not repeat market talk."
 Corvin     [Remark in village_smalltalk ]: "True enough - the fields don't gossip."
-Wystan     [Farewell in village_smalltalk ]: "Go well, Corvin."
+Aldric     [Farewell in village_smalltalk ]: "Go well, Corvin."
 ```
 
 ### Conversation #17: Corvin and Aelfric
@@ -411,17 +411,17 @@ Aelfric    [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father.
 - **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 - **Backstory B:** Gisela holds the manor's leases. They mean to be more than they were born. They never miss a service. They know every soul and every soul's business. A cough's had them these two weeks.
 - **Relation:** Stranger
-- **Trees Cascade:** ["visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick", "visiting_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Corvin     [Greet in visiting_the_sick ]: "How dost thou fare, Gisela?"
-Gisela     [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
+Corvin     [Greet in the_cleric_visits_the_sick]: "Blessings on thee, Gisela."
+Gisela     [Greet in the_cleric_visits_the_sick]: "And on thee, father."
+Corvin     [Remark in the_cleric_visits_the_sick]: "How fares thy house, child?"
+Gisela     [Agree in the_cleric_visits_the_sick]: "We keep as we can, father."
 Corvin     [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Gisela     [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Corvin     [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Gisela     [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
+Gisela     [Farewell in visiting_the_sick ]: "Just a prayer, Corvin."
 ```
 
 ### Conversation #19: Corvin and Hob
@@ -429,120 +429,118 @@ Gisela     [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 - **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 - **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 - **Relation:** Rival
-- **Trees Cascade:** ["visiting_the_sick"]
-- **Ending:** Farewell
-- **Turns Count:** 4
-
-```text
-Corvin     [Greet in visiting_the_sick ]: "How dost thou fare, Hob?"
-Hob        [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
-Corvin     [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Hob        [Farewell in visiting_the_sick ]: "Just a prayer, Corvin."
-```
-
-### Conversation #20: Corvin and Aelfric
-- **Speakers:** Corvin (clergy) & Aelfric (clergy)
-- **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
-- **Backstory B:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["the_cleric_blesses"]
-- **Ending:** Farewell
-- **Turns Count:** 4
-
-```text
-Corvin     [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
-Aelfric    [Remark in the_cleric_blesses]: "Morrow, father."
-Corvin     [Remark in the_cleric_blesses]: "How fares thy house, child?"
-Aelfric    [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father."
-```
-
-### Conversation #21: Dagny and Bram
-- **Speakers:** Dagny (merchant) & Bram (lord)
-- **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
-- **Backstory B:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Dagny      [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Bram       [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
-Dagny      [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Bram       [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Dagny      [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Bram       [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
+Corvin     [Greet in the_cleric_visits_the_sick]: "Blessings on thee, Hob."
+Hob        [Question in the_cleric_visits_the_sick]: "Father, pray for my house."
+Corvin     [Question in the_cleric_visits_the_sick]: "The Lord comfort thee, child. Tell me of thy affliction."
+Hob        [Answer in the_cleric_visits_the_sick]: "It's the little one mostly - she burns with fever."
+Corvin     [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with draughts and broth."
+Hob        [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
 ```
 
-### Conversation #22: Dagny and Aldric
-- **Speakers:** Dagny (merchant) & Aldric (lord)
-- **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
+### Conversation #20: Corvin and Aldric
+- **Speakers:** Corvin (clergy) & Aldric (lord)
+- **Backstory A:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
 - **Backstory B:** Aldric holds the manor's leases. They never miss a service.
-- **Relation:** Friend
-- **Trees Cascade:** ["village_smalltalk"]
+- **Relation:** Stranger
+- **Trees Cascade:** ["the_cleric_blesses", "village_smalltalk"]
 - **Ending:** Farewell
-- **Turns Count:** 4
+- **Turns Count:** 6
 
 ```text
-Dagny      [Greet in village_smalltalk ]: "Good morrow to thee, Aldric."
-Aldric     [Greet in village_smalltalk ]: "The saints keep thee, Dagny."
-Dagny      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
+Corvin     [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
+Aldric     [Greet in the_cleric_blesses]: "And on thee, father."
+Corvin     [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
+Aldric     [Agree in the_cleric_blesses]: "The season's been lean, father."
+Corvin     [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
 Aldric     [Farewell in village_smalltalk ]: "I should get on. Fair day to thee."
 ```
 
-### Conversation #23: Dagny and Marga
+### Conversation #21: Dagny and Marga
 - **Speakers:** Dagny (merchant) & Marga (merchant)
 - **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 - **Backstory B:** Marga trades on the road between villages. Their temper's shorter than a winter's day. Their purse strings are knotted tight.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["village_smalltalk"]
-- **Ending:** Farewell
-- **Turns Count:** 12
-
-```text
-Dagny      [Greet in village_smalltalk ]: "A fair day to thee, Marga."
-Marga      [Remark in village_smalltalk ]: "Aye. What is it?"
-Dagny      [Remark in village_smalltalk ]: "Gray clouds gathering over the hill."
-Marga      [Question in village_smalltalk ]: "And how fares thy folk?"
-Dagny      [Answer in village_smalltalk ]: "We rub along, as ever."
-Marga      [Agree in village_smalltalk ]: "Good to hear it."
-Dagny      [Remark in village_smalltalk ]: "They say the miller's a knave and no mistake."
-Marga      [Remark in village_smalltalk ]: "Thou dost not say it! Go on."
-Dagny      [Remark in village_smalltalk ]: "They do say the reeve counts twice."
-Marga      [Agree in village_smalltalk ]: "Well, that's talk enough for one day."
-Dagny      [Remark in village_smalltalk ]: "True enough - the fields don't gossip."
-Marga      [Farewell in village_smalltalk ]: "Fair day to thee, Dagny."
-```
-
-### Conversation #24: Dagny and Bram
-- **Speakers:** Dagny (merchant) & Bram (lord)
-- **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
-- **Backstory B:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Relation:** Stranger
-- **Trees Cascade:** ["visiting_the_sick"]
+- **Relation:** Rival
+- **Trees Cascade:** ["old_scores"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
+Dagny      [Greet in old_scores        ]: "You."
+Marga      [PushBack in old_scores        ]: "Still breathing, I see. Pity."
+Dagny      [Remark in old_scores        ]: "Make me."
+Marga      [Remark in old_scores        ]: "Not worth the breath."
+Dagny      [Remark in old_scores        ]: "We're done here."
+Marga      [Farewell in old_scores        ]: "Aye. Done."
+```
+
+### Conversation #22: Dagny and Bram
+- **Speakers:** Dagny (merchant) & Bram (lord)
+- **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
+- **Backstory B:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
+- **Relation:** Kin
+- **Trees Cascade:** ["visiting_the_sick"]
+- **Ending:** Farewell
+- **Turns Count:** 4
+
+```text
 Dagny      [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Bram       [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
+Bram       [Answer in visiting_the_sick ]: "Weak as a kitten, but here I am."
 Dagny      [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Bram       [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Dagny      [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Bram       [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
+Bram       [Farewell in visiting_the_sick ]: "Just a prayer, Dagny."
+```
+
+### Conversation #23: Dagny and Corvin
+- **Speakers:** Dagny (merchant) & Corvin (clergy)
+- **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
+- **Backstory B:** Corvin serves the village church. Their temper's shorter than a winter's day. They never miss a service. They'd sooner watch the clouds than the plough. The store ran out and the belly knows it.
+- **Relation:** Acquaintance
+- **Trees Cascade:** ["asking_the_father"]
+- **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Dagny      [Greet in asking_the_father ]: "Good morrow, father."
+Corvin     [Greet in asking_the_father ]: "The saints keep thee, Dagny. What is it?"
+Dagny      [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
+Corvin     [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
+Dagny      [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
+Corvin     [Farewell in asking_the_father ]: "Go in peace, Dagny."
+```
+
+### Conversation #24: Dagny and Aelfric
+- **Speakers:** Dagny (merchant) & Aelfric (clergy)
+- **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
+- **Backstory B:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Relation:** Acquaintance
+- **Trees Cascade:** ["asking_the_father"]
+- **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Dagny      [Greet in asking_the_father ]: "Good morrow, father."
+Aelfric    [Greet in asking_the_father ]: "Always, child. Speak."
+Dagny      [Question in asking_the_father ]: "Can the parish spare a little grain for the lean weeks, father?"
+Aelfric    [Answer in asking_the_father ]: "The church will share what it has, child - none shall starve at the door."
+Dagny      [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
+Aelfric    [Farewell in asking_the_father ]: "Go in peace, Dagny."
 ```
 
 ### Conversation #25: Dagny and Hob
 - **Speakers:** Dagny (merchant) & Hob (merchant)
 - **Backstory A:** Dagny trades on the road between villages. They mean to be more than they were born. The store ran out and the belly knows it.
 - **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Relation:** Friend
+- **Relation:** Rival
 - **Trees Cascade:** ["visiting_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Dagny      [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
+Dagny      [Greet in visiting_the_sick ]: "How dost thou fare, Hob?"
 Hob        [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
 Dagny      [Question in visiting_the_sick ]: "Is there aught thou needest?"
 Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
@@ -550,82 +548,84 @@ Dagny      [Remark in visiting_the_sick ]: "It's done - look for it by dark."
 Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
 ```
 
-### Conversation #26: Hob and Eliza
-- **Speakers:** Hob (merchant) & Eliza (clergy)
+### Conversation #26: Hob and Wystan
+- **Speakers:** Hob (merchant) & Wystan (merchant)
 - **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
-- **Relation:** Rival
-- **Trees Cascade:** ["the_sickness", "asking_the_father"]
-- **Ending:** Farewell
-- **Turns Count:** 8
-
-```text
-Hob        [Greet in the_sickness      ]: "Morrow, Eliza. Don't stand too close."
-Eliza      [Agree in the_sickness      ]: "Poor thing - get thee to bed."
-Hob        [Answer in the_sickness      ]: "There's no one else to fetch the water."
-Eliza      [Agree in the_sickness      ]: "We rub along or we don't eat, that's the truth of it."
-Hob        [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
-Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
-Hob        [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
-Eliza      [Farewell in asking_the_father ]: "Go in peace, Hob."
-```
-
-### Conversation #27: Hob and Eliza
-- **Speakers:** Hob (merchant) & Eliza (clergy)
-- **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
-- **Relation:** Acquaintance
-- **Trees Cascade:** ["the_sickness", "asking_the_father"]
-- **Ending:** Farewell
-- **Turns Count:** 8
-
-```text
-Hob        [Greet in the_sickness      ]: "Morrow, Eliza. Don't stand too close."
-Eliza      [Question in the_sickness      ]: "Is it the sickness going round?"
-Hob        [Answer in the_sickness      ]: "They say the herb-wife's draught helps."
-Eliza      [Agree in the_sickness      ]: "The saints speed thy mending."
-Hob        [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
-Eliza      [Answer in asking_the_father ]: "The church will share what it has, child - none shall starve at the door."
-Hob        [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
-Eliza      [Farewell in asking_the_father ]: "Go in peace, Hob."
-```
-
-### Conversation #28: Hob and Marga
-- **Speakers:** Hob (merchant) & Marga (merchant)
-- **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Backstory B:** Marga trades on the road between villages. Their temper's shorter than a winter's day. Their purse strings are knotted tight.
+- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
 - **Relation:** Kin
 - **Trees Cascade:** ["the_sickness", "village_smalltalk"]
 - **Ending:** Farewell
-- **Turns Count:** 8
+- **Turns Count:** 14
 
 ```text
-Hob        [Greet in the_sickness      ]: "Forgive the cough - it won't quit."
-Marga      [Question in the_sickness      ]: "Half the village is coughing - is it that?"
+Hob        [Greet in the_sickness      ]: "*cough* Good morrow, Wystan."
+Wystan     [Question in the_sickness      ]: "Is it the sickness going round?"
 Hob        [Answer in the_sickness      ]: "Aye, since the last rain. The fever comes and goes."
-Marga      [Agree in the_sickness      ]: "The saints speed thy mending."
+Wystan     [Agree in the_sickness      ]: "The saints speed thy mending."
 Hob        [Remark in village_smalltalk ]: "Looks like rain again, doesn't it?"
-Marga      [Agree in village_smalltalk ]: "The thatch won't thank it."
+Wystan     [PushBack in village_smalltalk ]: "Thou seest storms in a clear sky."
 Hob        [Remark in village_smalltalk ]: "Even so, we'll manage."
-Marga      [Farewell in village_smalltalk ]: "I'll not keep thee. Go well."
+Wystan     [Agree in village_smalltalk ]: "That it will - the store's not empty yet."
+Hob        [Remark in village_smalltalk ]: "Folk saw the reeve's cart loaded past dark."
+Wystan     [Remark in village_smalltalk ]: "Aye? And what else?"
+Hob        [Remark in village_smalltalk ]: "And the herb-wife was seen with the tinker, so it's told."
+Wystan     [Agree in village_smalltalk ]: "Ha! I'll believe the half of it."
+Hob        [Remark in village_smalltalk ]: "True enough - the fields don't gossip."
+Wystan     [Farewell in village_smalltalk ]: "Go well, Hob."
 ```
 
-### Conversation #29: Hob and Marga
-- **Speakers:** Hob (merchant) & Marga (merchant)
+### Conversation #27: Hob and Aldric
+- **Speakers:** Hob (merchant) & Aldric (lord)
 - **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Backstory B:** Marga trades on the road between villages. Their temper's shorter than a winter's day. Their purse strings are knotted tight.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
 - **Relation:** Rival
 - **Trees Cascade:** ["the_sickness"]
 - **Ending:** Farewell
 - **Turns Count:** 6
 
 ```text
-Hob        [Greet in the_sickness      ]: "Morrow, Marga. Don't stand too close."
-Marga      [Question in the_sickness      ]: "Is it the sickness going round?"
+Hob        [Greet in the_sickness      ]: "*cough* Good morrow, Aldric."
+Aldric     [Question in the_sickness      ]: "Half the village is coughing - is it that?"
 Hob        [Answer in the_sickness      ]: "They say the herb-wife's draught helps."
-Marga      [Remark in the_sickness      ]: "I'll fetch the herb-wife round."
-Hob        [Remark in the_sickness      ]: "Thou'rt kind. The saints remember it."
-Marga      [Farewell in the_sickness      ]: "We look after our own."
+Aldric     [Remark in the_sickness      ]: "Say a prayer and I'll bring broth."
+Hob        [Remark in the_sickness      ]: "My thanks, Aldric."
+Aldric     [Farewell in the_sickness      ]: "Think nothing of it."
+```
+
+### Conversation #28: Hob and Aldric
+- **Speakers:** Hob (merchant) & Aldric (lord)
+- **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Kin
+- **Trees Cascade:** ["the_sickness", "village_smalltalk"]
+- **Ending:** Farewell
+- **Turns Count:** 8
+
+```text
+Hob        [Greet in the_sickness      ]: "*cough* Good morrow, Aldric."
+Aldric     [Agree in the_sickness      ]: "Poor thing - get thee to bed."
+Hob        [Answer in the_sickness      ]: "There's no one else to fetch the water."
+Aldric     [Agree in the_sickness      ]: "We rub along or we don't eat, that's the truth of it."
+Hob        [Remark in village_smalltalk ]: "Cold wind off the moor this morning."
+Aldric     [Question in village_smalltalk ]: "And how fares thy folk?"
+Hob        [Answer in village_smalltalk ]: "Well enough, thank thee."
+Aldric     [Farewell in village_smalltalk ]: "Give them my best. Fare well."
+```
+
+### Conversation #29: Hob and Aldric
+- **Speakers:** Hob (merchant) & Aldric (lord)
+- **Backstory A:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Acquaintance
+- **Trees Cascade:** ["the_sickness"]
+- **Ending:** WalksOff
+- **Turns Count:** 4
+
+```text
+Hob        [Greet in the_sickness      ]: "Morrow, Aldric. Don't stand too close."
+Aldric     [Question in the_sickness      ]: "Is it the sickness going round?"
+Hob        [Answer in the_sickness      ]: "Aye, since the last rain. The fever comes and goes."
+Aldric     [Farewell in the_sickness      ]: "I'll be off before it takes me too."
 ```
 
 ### Conversation #30: Hob and Bram
@@ -951,71 +951,71 @@ Corvin     [Farewell in asking_the_father ]: "Go in peace, Aelfric."
 - **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
 - **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
 - **Relation:** Acquaintance
-- **Trees Cascade:** ["visiting_the_sick"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Aelfric    [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Hob        [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
-Aelfric    [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Aelfric    [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
-```
-
-### Conversation #48: Aelfric and Hob
-- **Speakers:** Aelfric (clergy) & Hob (merchant)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
-- **Relation:** Stranger
-- **Trees Cascade:** ["visiting_the_sick"]
-- **Ending:** Farewell
-- **Turns Count:** 6
-
-```text
-Aelfric    [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Hob        [Answer in visiting_the_sick ]: "Poorly, if thou'lt have the truth."
-Aelfric    [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Hob        [Answer in visiting_the_sick ]: "A little bread, if thou canst spare it."
-Aelfric    [Remark in visiting_the_sick ]: "It's done - look for it by dark."
-Hob        [Farewell in visiting_the_sick ]: "Thou'rt a true neighbor."
-```
-
-### Conversation #49: Aelfric and Eliza
-- **Speakers:** Aelfric (clergy) & Eliza (clergy)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Eliza serves the village church. They never miss a service. They bow to no one. Last night's cup is still on them.
-- **Relation:** Friend
-- **Trees Cascade:** ["the_cleric_blesses", "asking_the_father"]
-- **Ending:** Farewell
-- **Turns Count:** 8
-
-```text
-Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
-Eliza      [Greet in the_cleric_blesses]: "And on thee, father."
-Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
-Eliza      [Agree in the_cleric_blesses]: "The season's been lean, father."
-Aelfric    [Question in asking_the_father ]: "Must the tithe stand full when the store is half empty, father?"
-Eliza      [Answer in asking_the_father ]: "The tithe stands, but I will speak for thy house at the manor, child."
-Aelfric    [Remark in asking_the_father ]: "Thank thee, father - that's a weight off."
-Eliza      [Farewell in asking_the_father ]: "Go in peace, Aelfric."
-```
-
-### Conversation #50: Aelfric and Bram
-- **Speakers:** Aelfric (clergy) & Bram (lord)
-- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
-- **Backstory B:** Bram holds the manor's leases. They know every soul and every soul's business. They never miss a service. A cough's had them these two weeks.
-- **Relation:** Friend
-- **Trees Cascade:** ["visiting_the_sick"]
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
 - **Ending:** Farewell
 - **Turns Count:** 4
 
 ```text
-Aelfric    [Greet in visiting_the_sick ]: "I heard the sickness took thee - how is it?"
-Bram       [PushBack in visiting_the_sick ]: "It'll pass. Don't fuss."
-Aelfric    [Question in visiting_the_sick ]: "Is there aught thou needest?"
-Bram       [Farewell in visiting_the_sick ]: "Just a prayer, Aelfric."
+Aelfric    [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
+Hob        [Greet in the_cleric_visits_the_sick]: "And on thee, father."
+Aelfric    [Remark in the_cleric_visits_the_sick]: "Dost thou find peace in thy labor, child?"
+Hob        [Farewell in the_cleric_visits_the_sick]: "Pray for us, father."
+```
+
+### Conversation #48: Aelfric and Aldric
+- **Speakers:** Aelfric (clergy) & Aldric (lord)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Aldric holds the manor's leases. They never miss a service.
+- **Relation:** Kin
+- **Trees Cascade:** ["the_cleric_blesses", "village_smalltalk"]
+- **Ending:** Farewell
+- **Turns Count:** 10
+
+```text
+Aelfric    [Greet in the_cleric_blesses]: "Blessings on thee, Aldric."
+Aldric     [Greet in the_cleric_blesses]: "And on thee, father."
+Aelfric    [Remark in the_cleric_blesses]: "Dost thou find peace in thy labor, child?"
+Aldric     [Agree in the_cleric_blesses]: "We keep as we can, father."
+Aelfric    [Remark in village_smalltalk ]: "Looks like rain again, doesn't it?"
+Aldric     [Agree in village_smalltalk ]: "Aye, and the mud'll take thy boots."
+Aelfric    [Remark in village_smalltalk ]: "Aye, the year'll turn."
+Aldric     [Agree in village_smalltalk ]: "Aye, we've seen worse."
+Aelfric    [Remark in village_smalltalk ]: "They say the miller's a knave and no mistake."
+Aldric     [Farewell in village_smalltalk ]: "A tale for another day - I must away."
+```
+
+### Conversation #49: Aelfric and Wystan
+- **Speakers:** Aelfric (clergy) & Wystan (merchant)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Wystan trades on the road between villages. They mean to be more than they were born. They'd sooner watch the clouds than the plough.
+- **Relation:** Kin
+- **Trees Cascade:** ["the_cleric_blesses"]
+- **Ending:** Farewell
+- **Turns Count:** 4
+
+```text
+Aelfric    [Greet in the_cleric_blesses]: "The peace of the saints be with thee."
+Wystan     [Greet in the_cleric_blesses]: "Blessings on thy house as well."
+Aelfric    [Remark in the_cleric_blesses]: "How fares thy house, child?"
+Wystan     [Farewell in the_cleric_blesses]: "I'll see thee at the bell, father."
+```
+
+### Conversation #50: Aelfric and Hob
+- **Speakers:** Aelfric (clergy) & Hob (merchant)
+- **Backstory A:** Aelfric serves the village church. They know every soul and every soul's business. They're the first with a loaf when a house is bare. Last night's cup is still on them.
+- **Backstory B:** Hob trades on the road between villages. They bow to no one. They mean to be more than they were born. A cough's had them these two weeks.
+- **Relation:** Stranger
+- **Trees Cascade:** ["the_cleric_visits_the_sick"]
+- **Ending:** Farewell
+- **Turns Count:** 6
+
+```text
+Aelfric    [Greet in the_cleric_visits_the_sick]: "The peace of the saints be with thee."
+Hob        [Question in the_cleric_visits_the_sick]: "A prayer for me, father - this cough won't quit."
+Aelfric    [Question in the_cleric_visits_the_sick]: "Speak, child - my prayers and candles are with thee."
+Hob        [Answer in the_cleric_visits_the_sick]: "This cough won't leave me, father, and the store is thin."
+Aelfric    [Remark in the_cleric_visits_the_sick]: "The saints watch over thy house. I will come by with draughts and broth."
+Hob        [Farewell in the_cleric_visits_the_sick]: "The Lord keep thee, father."
 ```
 
 ## Benchmark Summary

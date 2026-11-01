@@ -567,6 +567,7 @@ pub fn run_meeting<'a>(
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
                 if si == 0 && !question_open { continue; }
+                if s.speaker == i { continue; } // nor take up your own earlier point
                 let open_q = si == 0;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
@@ -574,6 +575,12 @@ pub fn run_meeting<'a>(
                 for l in pool {
                     // Agreement or pushback can only reply to a fellow attendee's statement, not the organizer's opening question
                     if open_q && (l.act == Act::Agree || l.act == Act::PushBack) {
+                        continue;
+                    }
+                    // Nobody says "aye, that's so" to a challenge aimed at their own point
+                    let challenged = s.act == Act::PushBack
+                        && s.replying_to.is_some_and(|t| record[t].speaker == i);
+                    if challenged && l.act == Act::Agree {
                         continue;
                     }
                     let overlap = l.concepts.iter().any(|c| s.concepts.contains(c));
@@ -603,9 +610,15 @@ pub fn run_meeting<'a>(
         let Some((t, text)) = fresh_line(line.lines, other, &used, rng) else { continue };
         used.insert(t);
         if target == 0 { answers += 1; }
+        // A reply is about what it shares with its target: a stock "aye,
+        // that's so" carries every concern tag, but on the record it's
+        // about the point it agreed with, not the whole agenda
+        let shared: Vec<&'static str> = line.concepts.iter().copied()
+            .filter(|c| record[target].concepts.contains(c)).collect();
+        let concepts = if shared.is_empty() { line.concepts.to_vec() } else { shared };
         record.push(Statement {
             speaker, act: line.act, text,
-            concepts: line.concepts.to_vec(),
+            concepts,
             replying_to: Some(target),
         });
     }
@@ -805,6 +818,64 @@ mod tests {
                 },
                 &mut rng,
             );
+        }
+    }
+
+    fn meeting_records(seeds: std::ops::Range<u64>) -> Vec<Vec<Statement>> {
+        let organizer = Speaker::new("Reeve");
+        let mut a = Speaker::new("Hob");
+        a.status.push("grieving");
+        let mut b = Speaker::new("Tilda");
+        b.status.push("hungry");
+        b.traits.push(Trait::Hotheaded);
+        let c = Speaker::new("Osric");
+        let pools = [meeting_pool(&a), meeting_pool(&b), meeting_pool(&c)];
+        let pools: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
+        let attendees = [&a, &b, &c];
+        seeds.map(|seed| run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut Rng::new(seed)))
+            .collect()
+    }
+
+    #[test]
+    fn test_meeting_attendees_never_reply_to_themselves() {
+        for rec in meeting_records(0..100) {
+            for stmt in rec.iter().skip(1) {
+                let target = stmt.replying_to.unwrap();
+                assert_ne!(rec[target].speaker, stmt.speaker, "attendee replied to own statement: {:?}", stmt.text);
+                if stmt.act == Act::Agree && rec[target].act == Act::PushBack {
+                    let challenged = rec[target].replying_to.map(|t| rec[t].speaker);
+                    assert_ne!(challenged, Some(stmt.speaker), "agreed with a challenge to own point");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_meeting_replies_carry_only_shared_concepts() {
+        for rec in meeting_records(0..100) {
+            for stmt in rec.iter().skip(1) {
+                let target = stmt.replying_to.unwrap();
+                if target == 0 { continue; }
+                assert!(stmt.concepts.iter().all(|c| rec[target].concepts.contains(c)),
+                    "reply {:?} carries concepts its target {:?} lacks", stmt.concepts, rec[target].concepts);
+            }
+        }
+    }
+
+    #[test]
+    fn test_cleric_prayer_reachable_for_sick_and_grieving() {
+        let library = village_library();
+        let mut cleric = Speaker::new("Anselm");
+        cleric.ideology = "clergy";
+        for status in ["sick", "grieving"] {
+            let mut flock = Speaker::new("Bram");
+            flock.status.push(status);
+            let prayed = (0..50).any(|seed| {
+                let tr = converse(&cleric, &flock, Relation::Acquaintance, &library, &mut Rng::new(seed));
+                tr.turns.iter().any(|t| t.speaker == 0 && t.act == Act::Question)
+                    && tr.turns.iter().any(|t| t.speaker == 1 && t.act == Act::Answer)
+            });
+            assert!(prayed, "a {} parishioner never reaches the cleric's prayer", status);
         }
     }
 }

@@ -303,7 +303,7 @@ const SICK_STUNG: Exchange = Exchange {
         Reply {
             criteria: &[], weight: 0.5, bias: &[(Hotheaded, 3.0)],
             act: Act::PushBack, concepts: &["concern:sickness"],
-            lines: &["A fine friend thou art."],
+            lines: &["I'll not catch my death for thy pride."],
             then: None, end: Some(WalksOff),
         },
         Reply {
@@ -564,11 +564,20 @@ const CLERIC_PRAYER: Exchange = Exchange {
     ],
     replies: &[
         Reply {
-            criteria: &[], weight: 1.0, bias: &[],
-            act: Act::Answer, concepts: &["concern:sickness", "concern:grief"],
+            criteria: &[Has("self:status:sick")], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:sickness"],
             lines: &[
                 "It's the little one mostly - she burns with fever.",
                 "This cough won't leave me, father, and the store is thin.",
+            ],
+            then: Some(CLERIC_COMFORT), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:grief"],
+            lines: &[
+                "He went in the night, father, and I never said farewell.",
+                "The house is so quiet, father. I can't bear the quiet.",
             ],
             then: Some(CLERIC_COMFORT), end: None,
         },
@@ -732,6 +741,14 @@ const RIVAL_END: Exchange = Exchange {
 /// sorts by criterion count and keeps this order on ties.
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
+        // A cleric calling on the sick or the bereaved outranks the lay
+        // visit, so the "pray for me" forks are reachable
+        DialogueTree { name: "the_cleric_visits_the_sick",
+            criteria: &[Has("self:ideology:clergy"), Has("other:status:sick")],
+            root: &CLERIC_GREET, rejoin: None },
+        DialogueTree { name: "the_cleric_consoles",
+            criteria: &[Has("self:ideology:clergy"), Has("other:status:grieving")],
+            root: &CLERIC_GREET, rejoin: None },
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
             root: &SICK_GREET, rejoin: None },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],

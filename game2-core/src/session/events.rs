@@ -1594,6 +1594,22 @@ impl Game {
                     bought += 1;
                 }
             }
+            EventId::CheeseMonger => {
+                // aged wheels bought, the older the better: the cellar's
+                // oldest wheel goes for a monger's price - more for the
+                // days on its rind - to the shepherd who made it
+                if self.cellar.is_none() || self.cheeses.is_empty() { return; }
+                let age = tick - self.cheeses[0];
+                let worth = crate::game::vocation::price("cheese") * 2.0 * (1.0 + age as f32 / 60.0);
+                self.cheeses.remove(0);
+                let shepherd = self.shepherd
+                    .filter(|&s| !villager::is_dead(&self.world, s)
+                        && !crate::game::dungeon::unavailable(&self.world, s));
+                if let Some(s) = shepherd {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(s) { p.gold += worth; }
+                    self.say(s, "The older the better - fine rind!", CHAT_BUBBLE_SECS);
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3579,6 +3595,37 @@ mod tests {
             assert!(gold1 > gold0, "the coin came back on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Eggler), "his panniers moved on from {:?}", st);
+        }
+    }
+
+    /// Aged wheels bought: two gold a wheel off the shelf, the older
+    /// the better - the frame shows his rounds first
+    #[test]
+    fn test_the_wheel_fetches_two() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CheeseMonger);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::CheeseMonger && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            // a well-aged wheel on the rack for him to covet
+            let cellar = g.world.create_entity();
+            g.cellar = Some(cellar);
+            g.cheeses = vec![g.tick.saturating_sub(100)];
+            let shepherd = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.shepherd = Some(shepherd);
+            let gold0 = g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the cheese-monger")),
+                "the frame shows his rounds on {:?}", st);
+            stage::run_days(&mut g, 1);
+            assert!(g.cheeses.is_empty(), "the oldest wheel went with him on {:?}", st);
+            assert!(g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0) > gold0,
+                "a monger's price paid on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::CheeseMonger), "his rounds rolled on from {:?}", st);
         }
     }
 

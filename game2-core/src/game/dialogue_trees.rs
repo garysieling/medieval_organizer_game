@@ -733,19 +733,19 @@ const RIVAL_END: Exchange = Exchange {
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
         DialogueTree { name: "the_sickness", criteria: &[Has("self:status:sick")],
-            root: &SICK_GREET, rejoin: None },
+            root: &SICK_GREET, rejoin: Some(&SICK_EXCUSE) },
         DialogueTree { name: "visiting_the_sick", criteria: &[Has("other:status:sick")],
             root: &VISIT_GREET, rejoin: Some(&VISIT_CARE) },
         DialogueTree { name: "a_death_in_the_house", criteria: &[Has("self:status:grieving")],
-            root: &GRIEF_GREET, rejoin: None },
+            root: &GRIEF_GREET, rejoin: Some(&GRIEF_OPENS) },
         DialogueTree { name: "condolence_call", criteria: &[Has("other:status:grieving")],
             root: &CONDOLE_GREET, rejoin: Some(&CONDOLE_OFFER) },
         DialogueTree { name: "the_cleric_blesses", criteria: &[Has("self:ideology:clergy")],
-            root: &CLERIC_GREET, rejoin: None },
+            root: &CLERIC_GREET, rejoin: Some(&CLERIC_PARISH) },
         DialogueTree { name: "asking_the_father", criteria: &[Has("other:ideology:clergy")],
             root: &FATHER_GREET, rejoin: Some(&FATHER_ASKS) },
         DialogueTree { name: "old_scores", criteria: &[Has("pair:relation:rival")],
-            root: &RIVAL_GREET, rejoin: None },
+            root: &RIVAL_GREET, rejoin: Some(&RIVAL_SNIPE) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },
     ]

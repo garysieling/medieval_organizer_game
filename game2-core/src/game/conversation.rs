@@ -788,6 +788,32 @@ mod tests {
     }
 
     #[test]
+    fn test_sick_rival_falls_through_to_rivalry_then_smalltalk() {
+        let library = village_library();
+        let mut sick_rival = Speaker::new("Eliza");
+        sick_rival.status.push("sick");
+        let rival = Speaker::new("Corvin");
+
+        // The cascade has [the_sickness, old_scores, village_smalltalk]
+        let facts = Facts::for_roles(&sick_rival, &rival, Relation::Rival);
+        let cascaded = cascade(&library, &facts);
+        let names: Vec<&str> = cascaded.iter().map(|t| t.name).collect();
+        assert_eq!(names, vec!["the_sickness", "old_scores", "village_smalltalk"]);
+
+        // When the conversation runs, old_scores is preserved and walked via its rejoin
+        let mut saw_rival_walked = false;
+        for seed in 0..50 {
+            let mut rng = Rng::new(seed);
+            let tr = converse(&sick_rival, &rival, Relation::Rival, &library, &mut rng);
+            if tr.trees_walked.contains(&"old_scores") && tr.trees_walked[0] == "the_sickness" {
+                saw_rival_walked = true;
+                break;
+            }
+        }
+        assert!(saw_rival_walked, "old_scores should be preserved and walked on fallback from sickness");
+    }
+
+    #[test]
     fn test_player_choices_no_duplicate_options() {
         let library = village_library();
         let a = Speaker::new("Aldric");

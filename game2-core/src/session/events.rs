@@ -1877,6 +1877,21 @@ impl Game {
                     }
                 }
             }
+            EventId::HerbFlush => {
+                // ten days of gather: the hedge is thick with simples -
+                // the day's pick goes to the herb hut's stock by its
+                // true name, where the herb-wife can actually brew it
+                if let Some(hut) = self.herb_hut {
+                    let herbs = crate::game::herbology::medicinal_herbs();
+                    if !herbs.is_empty() {
+                        let roll = self.rare_roll(id);
+                        let (name, _, _) = herbs[(roll as usize / 3) % herbs.len()];
+                        if let Some(mut b) = self.world.get_component_mut::<household::Building>(hut) {
+                            household::add_stock(&mut b, name, 2);
+                        }
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1975,6 +1990,10 @@ impl Game {
             EventId::FishRun => {
                 self.log.push(format!("t{}: a fish run - the reach is alive with them, thick enough to grab with two hands.", self.tick));
                 self.toasts.push(("A fish run".into(), self.tick + 40));
+            }
+            EventId::HerbFlush => {
+                self.log.push(format!("t{}: a flush of herbs - the hedge is thick with simples, worth the picking while it lasts.", self.tick));
+                self.toasts.push(("A flush of herbs".into(), self.tick + 40));
             }
             EventId::FouledWell => {
                 self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
@@ -5369,6 +5388,24 @@ mod tests {
                 g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0)).sum();
             assert!(gold1 > gold0 || g.villagers.is_empty(), "the apothecary paid on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("truffle") || l.contains("oak-leaves")), "the find was told on {:?}", st);
+        }
+    }
+
+    /// A flush of herbs: the hedge is thick with simples, and the
+    /// satchels fill while it lasts - ten days, then it's gone
+    #[test]
+    fn test_the_hedge_is_thick() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::HerbFlush);
+            assert!(g.rare.iter().any(|r| r.id == EventId::HerbFlush), "the flush's on");
+            stage::run_days(&mut g, 3);
+            let stocked: u32 = g.herb_hut.map(|h|
+                g.world.get_component::<household::Building>(h)
+                    .map(|b| b.stock.values().sum()).unwrap_or(0)).unwrap_or(0);
+            assert!(stocked > 0 || g.herb_hut.is_none(), "the hut's shelf filled on {:?}", st);
+            stage::run_days(&mut g, 11);
+            assert!(g.rare.iter().all(|r| r.id != EventId::HerbFlush), "the flush's gone on {:?}", st);
         }
     }
 

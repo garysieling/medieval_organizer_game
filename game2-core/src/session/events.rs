@@ -1616,16 +1616,18 @@ impl Game {
                 // now and then the word a man never wants
                 let delivered = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0;
                 if delivered { return; }
-                let v = self.villagers.iter().copied().find(|&v|
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
                     !villager::is_dead(&self.world, v)
-                        && !crate::game::dungeon::unavailable(&self.world, v));
-                let Some(v) = v else { return };
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                // the roll picks whose door - not always the same man's
+                let Some(&v) = able.get((self.rare_roll(id) as usize / 7) % able.len().max(1)) else { return };
                 if self.rare_roll(id) % 5 != 0 {
                     desires::satisfy(&mut self.world, v, Want::Joy, tick + 20);
                     self.say(v, "A letter for you - your sister's well!", CHAT_BUBBLE_SECS);
                     self.log.push(format!("t{}: a messenger rides in - a letter, and glad word with it.", tick));
                 } else {
-                    desires::add_grievance(&mut self.world, v, desires::Problem::Loss, tick + 30);
+                    // the word a man never wants - grief, not stock gone
+                    desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 30);
                     self.say(v, "A letter for you - I'm sorry to carry it.", CHAT_BUBBLE_SECS);
                     self.log.push(format!("t{}: a messenger rides in - the letter brings no joy.", tick));
                 }
@@ -3669,8 +3671,13 @@ mod tests {
             stage::run_days(&mut g, 1);
             let moved = desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
                 || g.world.get_component::<desires::InnerLife>(v)
-                    .map(|l| l.grievances.iter().any(|(p, _)| *p == desires::Problem::Loss))
-                    .unwrap_or(false);
+                    .map(|l| l.grievances.iter().any(|(p, _)| *p == desires::Problem::Grief))
+                    .unwrap_or(false)
+                || g.villagers.iter().any(|&o| o != v
+                    && g.world.get_component::<desires::InnerLife>(o)
+                        .map(|l| l.grievances.iter().any(|(p, _)| *p == desires::Problem::Grief)
+                            || l.satisfied.iter().any(|(w, _)| *w == Want::Joy))
+                        .unwrap_or(false));
             assert!(moved, "the letter found its man on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Messenger), "he rode on from {:?}", st);

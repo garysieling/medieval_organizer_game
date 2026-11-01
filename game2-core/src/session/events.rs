@@ -2480,6 +2480,34 @@ impl Game {
                 self.log.push(format!("t{}: a spring bubbles up - cold sweet water out of the ground where none ran before.", self.tick));
                 self.toasts.push(("A spring bubbles up".into(), self.tick + 40));
             }
+            EventId::HoneyTree => {
+                // a hive in a hollow trunk: the combs come back in
+                // hands that can trade them - two satchels' worth,
+                // and the first finder pays the stings
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                let roll = self.rare_roll(id);
+                if !able.is_empty() {
+                    let off = (roll as usize / 3) % able.len();
+                    for i in 0..able.len().min(2) {
+                        let v = able[(off + i) % able.len()];
+                        if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
+                            *s.goods.entry("honey".into()).or_insert(0) += 2;
+                        }
+                    }
+                    if let Some(h) = self.world.get_component_mut::<Health>(able[off]) {
+                        if h.condition > 0.05 {
+                            h.condition = (h.condition - 0.03).max(0.05);
+                        }
+                    }
+                    self.say(able[off], "Worth every sting - look at the comb on that!", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: a honey tree - a hive in a hollow trunk, and the combs came back dripping.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a honey tree hums in the wood - nobody ventures the combs.", self.tick));
+                }
+                self.toasts.push(("A honey tree".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5282,6 +5310,24 @@ mod tests {
             assert!(g.land.pit_water > 0.3, "the spring fed the water on {:?}", st);
             assert!(g.land.pit_water <= 0.5, "the spring doesn't flood on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("spring")), "the water was told on {:?}", st);
+        }
+    }
+
+    /// A honey tree: a hive in a hollow trunk - the combs come back
+    /// in hands that can trade them, stings and all
+    #[test]
+    fn test_the_combs_came_back() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let honey0: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("honey").copied()).unwrap_or(0)).sum();
+            g.force_event(EventId::HoneyTree);
+            let honey1: u32 = g.villagers.iter().map(|&v|
+                g.world.get_component::<crate::game::livelihood::Satchel>(v)
+                    .and_then(|s| s.goods.get("honey").copied()).unwrap_or(0)).sum();
+            assert!(honey1 > honey0 || g.villagers.is_empty(), "the combs came back on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("honey")), "the tree was told on {:?}", st);
         }
     }
 

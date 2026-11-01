@@ -2574,15 +2574,15 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)).collect();
                 let roll = self.rare_roll(id);
                 if !able.is_empty() {
-                    let goods = ["wood", "wood", "salt fish", "planks"];
+                    // driftwood only - wood's the leavings hands can use
                     let off = (roll as usize / 3) % able.len();
-                    for (i, g) in goods.iter().enumerate().take(able.len().min(3)) {
+                    for i in 0..able.len().min(3) {
                         let v = able[(off + i) % able.len()];
                         if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {
-                            let held = s.goods.get(*g).copied().unwrap_or(0);
+                            let held = s.goods.get("wood").copied().unwrap_or(0);
                             let room = crate::game::livelihood::SATCHEL_CAP.saturating_sub(held);
                             if room > 0 {
-                                *s.goods.entry((*g).into()).or_insert(0) += 1;
+                                *s.goods.entry("wood".into()).or_insert(0) += 1;
                             }
                         }
                     }

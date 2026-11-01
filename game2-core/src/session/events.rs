@@ -2367,6 +2367,26 @@ impl Game {
                 }
                 self.toasts.push(("Drowned in the pond".into(), self.tick + 40));
             }
+            EventId::Foundling => {
+                // a babe in a basket on the step: a rolled home takes
+                // her in, and whose she is is the street's new talk
+                // a real village roof with a bed to spare: a foreign
+                // house or a hut with no room can't take her
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.len() < 4
+                            && bb.occupants.iter().any(|o| self.villagers.contains(o)))
+                        .unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                    self.spawn_kid(h, self.tick);
+                    self.log.push(format!("t{}: a foundling - a babe in a basket on the step, and whose she is nobody's saying.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a foundling - a babe in a basket, but no door to lay her at.", self.tick));
+                }
+                self.toasts.push(("A foundling".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -5030,6 +5050,22 @@ mod tests {
             "no kid was sent to the wood");
         assert!(g.rare.iter().find(|r| r.id == EventId::LostChild)
             .map(|r| r.aux).unwrap_or(0) == 0, "no captive rides the aux");
+    }
+
+    /// A foundling: a babe in a basket on a rolled home's step - one
+    /// more mouth under that roof, and the street talks
+    #[test]
+    fn test_the_babe_in_the_basket() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let kids0 = g.villagers.iter().filter(|&&v|
+                g.world.get_component::<crate::game::vocation::Kid>(v).is_some()).count();
+            g.force_event(EventId::Foundling);
+            let kids1 = g.villagers.iter().filter(|&&v|
+                g.world.get_component::<crate::game::vocation::Kid>(v).is_some()).count();
+            assert!(kids1 > kids0 || g.building_entities.is_empty(), "the basket's inside on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("foundling")), "the basket was told on {:?}", st);
+        }
     }
 
     /// The stray dog picks the loneliest heart and stays

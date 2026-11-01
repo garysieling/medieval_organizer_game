@@ -833,4 +833,62 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_dialogue_expansion_exceeds_1000_responses_and_is_clean() {
+        let library = village_library();
+        let mut total_responses = 0;
+        let mut visited_exchanges = HashSet::new();
+
+        fn walk_ex(ex: &Exchange, count: &mut usize, visited: &mut HashSet<*const Exchange>) {
+            let ptr = ex as *const Exchange;
+            if !visited.insert(ptr) { return; }
+            *count += ex.calls.len();
+            for r in ex.replies {
+                *count += r.lines.len();
+                if let Some(next) = &r.then {
+                    walk_ex(next, count, visited);
+                }
+            }
+        }
+
+        for tree in &library {
+            walk_ex(tree.root, &mut total_responses, &mut visited_exchanges);
+            if let Some(rej) = tree.rejoin {
+                walk_ex(rej, &mut total_responses, &mut visited_exchanges);
+            }
+        }
+
+        let test_speaker = Speaker::new("Aldric");
+        let pool = meeting_pool(&test_speaker);
+        for m in &pool {
+            total_responses += m.lines.len();
+        }
+
+        assert!(
+            total_responses >= 1000,
+            "Dialogue library must contain at least 1000 responses, found {}",
+            total_responses
+        );
+
+        // Verify zero sensitive / slur words across all visited exchanges and lines
+        let forbidden = ["faggot", "retard", "nigger", "cunt", "whore", "slut", "bitch"];
+        for ex_ptr in &visited_exchanges {
+            let ex = unsafe { &**ex_ptr };
+            for c in ex.calls {
+                let lower = c.to_lowercase();
+                for f in &forbidden {
+                    assert!(!lower.contains(f), "Forbidden word '{}' found in call: {}", f, c);
+                }
+            }
+            for r in ex.replies {
+                for l in r.lines {
+                    let lower = l.to_lowercase();
+                    for f in &forbidden {
+                        assert!(!lower.contains(f), "Forbidden word '{}' found in line: {}", f, l);
+                    }
+                }
+            }
+        }
+    }
 }

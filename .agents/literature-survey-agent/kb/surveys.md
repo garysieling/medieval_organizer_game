@@ -967,3 +967,25 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High
 **Tags:** victorian, disease, epidemiology, cholera, tuberculosis, consumption, phthisis, typhoid, typhus, scarlatina, diphtheria, smallpox, ague, rickets, phossy-jaw, miasma, germ-theory, john-snow, broad-street, bazalgette, chadwick, public-health, vaccination, anti-vaccination, leicester-method, farr, zymotic, nosology
+
+---
+
+### USER-REQUESTED: Dialogue Systems (conversation framework)
+**Date Completed:** 2026-11-01
+**Domain:** Game AI / Interactive Narrative
+**Output:** wiki/literature-reviews/dialogue-systems.md
+**Yield:**
+- Ruskin/Valve rule database is the exact "most specific wins, generic falls through" model Gary described: rules = criteria on world facts, scoring = criterion count, least-specific match is the always-on fallback
+- Prom Week/CiF gives the personality model: ~5000 social considerations *weight* rather than gate responses; act-desire and response-acceptance are separate evaluations
+- Facade contributes discourse acts (respond to the act, not the words) and the meeting-threading idea: replies bind to last speaker, open question, or earlier statement
+- Versu contributes quip exclusivity: once-only lines mean material exhaustion degrades a conversation into smalltalk, then farewell - the "walks off" ending for free
+- Authoring takeaway: pools + criteria, not branching scripts; the branch structure is the player's mental model, emergent from the selection rules
+
+**Key Sources:**
+- Ruskin GDC 2012 (Valve, shipped L4D2/DOTA2) - B
+- Mateas & Stern Facade papers (CMU-CS-02-198, AIIDE05, TIDSE03) - A
+- McCoy et al. CiF/Prom Week (T-CIAIG14, FDG11) - A
+- Evans & Short Versu - B
+
+**Confidence:** High (mechanisms all shipped in commercial/academic games)
+**Tags:** dialogue, conversation, rule-database, ruskin, valve, facade, mateas, stern, prom-week, comme-il-faut, cif, versu, social-physics, discourse-acts, specificity, quips, house-meeting

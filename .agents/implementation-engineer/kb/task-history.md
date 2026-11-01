@@ -109,6 +109,26 @@ Completed task task_16: Add a comment to main.rs
 
 ---
 
+### Task: Conversation Framework & Dialogue Generator (PR)
+**Date:** 2026-11-01
+**Type:** feature
+**Files Changed:**
+- game2-core/src/game/conversation.rs (new: Facts/Criterion specificity cascade, Act enum, Reply with trait bias, Exchange, converse, converse_with for player choice, run_meeting for house meetings)
+- game2-core/src/game/dialogue_trees.rs (new: village_library with generic smalltalk tail + sickness/grief/clergy/rivalry overrides, meeting pools, backstory generator)
+- game2-core/src/game/mod.rs (pub mod conversation, dialogue_trees)
+- game2-core/src/bin/conversation_demo.rs (new: worked examples of 1-1 specificity cascade, rivalry, clergy, interactive player turn, and house meeting)
+- game2-core/src/bin/dialogue_gen.rs (new: benchmark generator producing N characters x M conversations = 50 total + AI scoring rubric)
+- wiki/literature-reviews/dialogue-systems.md (new: literature survey on Ruskin rule databases, Facade beats/acts, Prom Week CiF social considerations, Versu quip exclusivity)
+- wiki/dialogue-scoring-rubric.md (new: 100-point rubric for AI grading)
+- evidence/dialogue-gen-sample.md (new: 10 characters x 5 conversations sample benchmark)
+- AGENTS.md (new: project instructions and Windows-gnu dlltool toolchain guidance)
+
+**Outcome:** Success - all 695 library tests passing, demo and generator binaries verified
+**Notes:** Implemented Ruskin's specificity cascade (most criteria wins, generic tail is the always-on fallback). Integrated CiF-style trait weighting so traits bias reply distribution rather than hard-gating. Added Versu-inspired quip exclusivity so used lines aren't repeated and dialogue gracefully exhausts into small talk or farewell. Added concept-threaded house meeting engine allowing dynamic addressing of organizer questions or prior statements.
+**Patterns Used:** Ruskin criteria-based rule database; Façade discourse acts; SplitMix64 seeded RNG without external deps; Builder/declarative static const trees.
+
+---
+
 ### Task: RD set-styles in the art prompt generator
 **Date:** 2026-11-01
 **Type:** feature

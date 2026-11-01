@@ -1698,6 +1698,13 @@ impl Game {
                     p.next_ready = p.next_ready.max(until);
                 }
             }
+            EventId::Flood => {
+                // the river comes up: the pit fills past what the
+                // pump-line can take - a drowned pit yields nothing -
+                // and the beds drink deep of the high water
+                self.land.pit_water = (self.land.pit_water + 0.2).min(1.0);
+                for g in self.gardens.iter_mut() { g.2 += 0.02; }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1752,6 +1759,10 @@ impl Game {
             EventId::Drought => {
                 self.log.push(format!("t{}: a drought - the sky's forgotten rain, and the well knows it.", self.tick));
                 self.toasts.push(("A drought".into(), self.tick + 40));
+            }
+            EventId::Flood => {
+                self.log.push(format!("t{}: the river comes up - the reach is full and rising.", self.tick));
+                self.toasts.push(("The river's up".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -3757,6 +3768,22 @@ mod tests {
             assert!(g.land.pit_water < water0, "the well ran low on {:?}", st);
             stage::run_days(&mut g, 15);
             assert!(g.rare.iter().all(|r| r.id != EventId::Drought), "the rain remembered on {:?}", st);
+        }
+    }
+
+    /// The river comes up: the pit fills toward drowning and the beds
+    /// drink deep - and the water falls when its days are out
+    #[test]
+    fn test_the_reach_is_full() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let water0 = g.land.pit_water;
+            g.force_event(EventId::Flood);
+            assert!(g.rare.iter().any(|r| r.id == EventId::Flood), "the reach rose");
+            stage::run_days(&mut g, 1);
+            assert!(g.land.pit_water > water0 || water0 >= 1.0, "the water came up on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Flood), "the water fell on {:?}", st);
         }
     }
 

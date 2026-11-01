@@ -1595,35 +1595,19 @@ impl Game {
                 }
             }
             EventId::CheeseMonger => {
-                // aged wheels bought, the older the better: two gold a
-                // wheel off the near shelves - he pays like a man who
-                // knows what a rind's worth
-                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
-                let homes: Vec<Entity> = self.world.query::<household::Building>().iter().copied()
-                    .filter(|&b| self.world.get_component::<household::Building>(b)
-                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false))
-                    .collect();
-                let mut bought = 0;
-                for h in homes {
-                    if bought >= 2 { break; }
-                    let near = self.world.get_component::<Pos>(h)
-                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
-                        .unwrap_or(false);
-                    if !near { continue; }
-                    let has_cheese = self.world.get_component::<household::Building>(h)
-                        .map(|b| *b.stock.get("cheese").unwrap_or(&0) > 0).unwrap_or(false);
-                    if !has_cheese { continue; }
-                    let first_able = self.world.get_component::<household::Building>(h)
-                        .and_then(|b| b.occupants.iter().copied().find(|&o|
-                            !villager::is_dead(&self.world, o)
-                                && !crate::game::dungeon::unavailable(&self.world, o)));
-                    let Some(o) = first_able else { continue };
-                    if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
-                        household::take_stock(b, "cheese", 1);
-                    }
-                    if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold += 2.0; }
-                    self.say(o, "The older the better - fine rind!", CHAT_BUBBLE_SECS);
-                    bought += 1;
+                // aged wheels bought, the older the better: the cellar's
+                // oldest wheel goes for a monger's price - more for the
+                // days on its rind - to the shepherd who made it
+                if self.cellar.is_none() || self.cheeses.is_empty() { return; }
+                let age = tick - self.cheeses[0];
+                let worth = crate::game::vocation::price("cheese") * 2.0 * (1.0 + age as f32 / 60.0);
+                self.cheeses.remove(0);
+                let shepherd = self.shepherd
+                    .filter(|&s| !villager::is_dead(&self.world, s)
+                        && !crate::game::dungeon::unavailable(&self.world, s));
+                if let Some(s) = shepherd {
+                    if let Some(p) = self.world.get_component_mut::<Purse>(s) { p.gold += worth; }
+                    self.say(s, "The older the better - fine rind!", CHAT_BUBBLE_SECS);
                 }
             }
             EventId::NewsCrier => {
@@ -3625,22 +3609,21 @@ mod tests {
                 if g.rare.iter().any(|r| r.id == EventId::CheeseMonger && r.until.is_some()) { break; }
                 g.advance_rare();
             }
-            let at = g.rare.iter().find(|r| r.id == EventId::CheeseMonger).and_then(|r| r.at).unwrap();
-            let h = g.world.query::<household::Building>().iter().copied()
-                .find(|&b| g.world.get_component::<household::Building>(b)
-                    .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).unwrap();
-            g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
-            g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
-            g.world.get_component_mut::<household::Building>(h).unwrap().stock.insert("cheese".into(), 1);
-            let gold0: f32 = g.world.get_component::<household::Building>(h).unwrap().occupants.iter()
-                .filter_map(|&o| g.world.get_component::<Purse>(o).map(|p| p.gold)).sum();
+            // a well-aged wheel on the rack for him to covet
+            let cellar = g.world.create_entity();
+            g.cellar = Some(cellar);
+            g.cheeses = vec![g.tick.saturating_sub(100)];
+            let shepherd = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.shepherd = Some(shepherd);
+            let gold0 = g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the cheese-monger")),
                 "the frame shows his rounds on {:?}", st);
             stage::run_days(&mut g, 1);
-            let gold1: f32 = g.world.get_component::<household::Building>(h).unwrap().occupants.iter()
-                .filter_map(|&o| g.world.get_component::<Purse>(o).map(|p| p.gold)).sum();
-            assert!(gold1 > gold0, "the wheel fetched its price on {:?}", st);
+            assert!(g.cheeses.is_empty(), "the oldest wheel went with him on {:?}", st);
+            assert!(g.world.get_component::<Purse>(shepherd).map(|p| p.gold).unwrap_or(0.0) > gold0,
+                "a monger's price paid on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::CheeseMonger), "his rounds rolled on from {:?}", st);
         }

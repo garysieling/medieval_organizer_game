@@ -3842,8 +3842,9 @@ impl Game {
     /// Send `who` walking toward `goal` (a person, a shop or a tile).
     /// Returns whether a way was found - otherwise nothing happens
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
-        // the held take no errands - the jailer's rounds aren't theirs
-        if self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some() { return false; }
+        // the held take no errands - the jailer's rounds aren't theirs;
+        // the dead take none either, however short the walk
+        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
@@ -5046,13 +5047,13 @@ impl Game {
                         self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
                         for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
                         // taken to the castle - held, not gone: the org
-                        // ransoms them or the ladder climbs. Held while
-                        // the walk out lasts too - the errand they were
-                        // on is spent with the writ
+                        // ransoms them or the ladder climbs. The march
+                        // out goes first - it's the last errand they run
+                        // as a free pair of legs, then the mark lands
                         self.dungeon.push((m, tick));
-                        self.world.add_component(m, crate::game::dungeon::CastleHeld { since: tick });
                         self.travels.retain(|t| t.who != m);
                         self.send(m, Goal::Exile);
+                        self.world.add_component(m, crate::game::dungeon::CastleHeld { since: tick });
                     }
                 }
             }
@@ -6783,7 +6784,7 @@ impl Game {
         } else {
             // the tents fold - and the road takes the one it most tempted
             let mark = self.villagers.iter().copied()
-                .filter(|&v| !villager::is_dead(&self.world, v) && !org.contains(&v)
+                .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v) && !org.contains(&v)
                     && self.world.get_component::<TownRole>(v).is_none()
                     && desires::problems_of(&self.world, v, tick).contains(&desires::Problem::Tempted))
                 .min_by_key(|&v| {
@@ -6795,6 +6796,9 @@ impl Game {
             if let Some(m) = mark {
                 let name = self.name_of(m);
                 self.log.push(format!("t{}: {} has run off with the circus!", tick, name));
+                // the road takes them whole - whatever errand they were
+                // on is spent
+                self.travels.retain(|t| t.who != m);
                 self.send(m, Goal::Exile);
             }
             self.circus = None;
@@ -7030,7 +7034,8 @@ impl Game {
                 m.selling_until = Some(self.tick + 3);
                 // and the word goes out: a few with a want for finery come
                 let buyers: Vec<Entity> = self.villagers.iter().copied()
-                    .filter(|&v| !villager::is_dead(&self.world, v)
+                    .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
+                        && !self.travels.iter().any(|t| t.who == v)
                         && self.world.get_component::<InnerLife>(v)
                             .map(|l| l.wants.contains(&Want::Finery)).unwrap_or(false))
                     .take(4).collect();
@@ -7277,6 +7282,8 @@ impl Game {
                         self.world.add_component(k, OddJob {
                             hirer: self.seats[seat].player, good: g.to_string(), qty: 2, from, to: self.seats[seat].player,
                             pay: 3.0, loaded: false });
+                        // a fresh errand supersedes the day's walk
+                        self.travels.retain(|t| t.who != k);
                         self.send(k, Goal::RunOddJob);
                         format!("You send {} to fetch {}.", vill_name(self.seats[seat].selected_target), g)
                     }
@@ -7985,18 +7992,23 @@ impl Game {
                 }
             }
             AgentCmd::TalkTo { e } => {
+                // a fresh command supersedes the walk underway
+                self.travels.retain(|t| t.who != who);
                 if self.send(who, Goal::TalkTo(e)) { Ok(()) } else { Err("no way to them".into()) }
             }
             AgentCmd::BuyFrom { seller, good, qty } => {
                 let g: &'static str = Box::leak(good.into_boxed_str());
+                self.travels.retain(|t| t.who != who);
                 if self.send(who, Goal::BuyFrom(seller, g, qty)) { Ok(()) } else { Err("no way to them".into()) }
             }
             AgentCmd::BuyAt { shop, good } => {
                 let g: &'static str = Box::leak(good.into_boxed_str());
+                self.travels.retain(|t| t.who != who);
                 if self.send(who, Goal::BuyAt(shop, g, None)) { Ok(()) } else { Err("no way to that shop".into()) }
             }
             AgentCmd::Gather { good, x, y } => {
                 let g: &'static str = Box::leak(good.into_boxed_str());
+                self.travels.retain(|t| t.who != who);
                 if self.send_gather(who, g, (x, y)) { Ok(()) } else { Err("nothing to gather there".into()) }
             }
             AgentCmd::WorkDay => {
@@ -11105,8 +11117,8 @@ mod dungeon_tests {
         g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
         g.world.get_component_mut::<PlayerCharacter>(g.player).unwrap().resources = 50.0;
         g.dungeon.push((m, 10));
-        g.world.add_component(m, crate::game::dungeon::CastleHeld { since: 10 });
         assert!(g.send(m, Goal::Exile), "the writ marches them out");
+        g.world.add_component(m, crate::game::dungeon::CastleHeld { since: 10 });
         // the ransom comes mid-march: the walk out is still live when the
         // cell's paid - the exile leg can't arrive a driving-out
         g.dungeon_tick(50);

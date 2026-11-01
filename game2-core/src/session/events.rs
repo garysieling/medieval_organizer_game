@@ -1801,12 +1801,19 @@ impl Game {
                 // day's toll where no cat walks - the tally goes in aux
                 for &be in &self.building_entities.clone() {
                     if self.cat_watches(be) { continue; }
+                    let roll = self.rare_roll(id);
                     let good = self.world.get_component::<household::Building>(be)
-                        .and_then(|b| b.stock.iter()
-                            .find(|(g, q)| **q > 0 && matches!(g.as_str(),
+                        .and_then(|b| {
+                            let mut stocked: Vec<&String> = b.stock.iter()
+                                .filter(|(_g, q)| **q > 0).map(|(g, _)| g).collect();
+                            stocked.sort();
+                            // the rats go for the grain first, else
+                            // whatever shelf the roll lands on
+                            stocked.iter().find(|g| matches!(g.as_str(),
                                 "wheat"|"flour"|"bread"|"barley"|"oats"|"grain"))
-                            .or_else(|| b.stock.iter().find(|(_g, q)| **q > 0))
-                            .map(|(g, _)| g.clone()));
+                                .or_else(|| stocked.get((roll as usize / 5) % stocked.len().max(1)))
+                                .map(|g| (*g).clone())
+                        });
                     let Some(g) = good else { continue };
                     let took = if let Some(mut b) = self.world.get_component_mut::<household::Building>(be) {
                         household::take_stock(&mut b, &g, 1)

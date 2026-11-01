@@ -118,6 +118,17 @@ impl DiseaseKind {
             DiseaseKind::Ague => 0.05, // the marsh always sends it back
         }
     }
+
+    /// Whether beating it truly ends it: the relapsing kinds leave a
+    /// dormant seed - (days dormant, severity it wakes at). The ague
+    /// sleeps through winter and shakes again; the wasting wakes years on.
+    pub fn relapse(self) -> Option<(u32, f32)> {
+        match self {
+            DiseaseKind::Ague => Some((300, 0.3)),
+            DiseaseKind::Consumption => Some((400, 0.35)),
+            _ => None,
+        }
+    }
 }
 
 /// How a disease travels between the sick and the well
@@ -131,6 +142,15 @@ pub enum Route {
     Ingested,
     /// Carried by what bites - the marsh air, not the neighbour
     Vector,
+}
+
+/// A beaten disease lying dormant. The relapsing kinds leave one of
+/// these behind on the patient; when its days are counted out it
+/// blooms again on its own - no fresh exposure needed.
+#[derive(Debug)]
+pub struct Relapse {
+    pub kind: DiseaseKind,
+    pub due_in: u32,
 }
 
 /// A disease progressing through compartments
@@ -232,6 +252,10 @@ impl crate::engine::ecs::System for IllnessSystem {
                     // beating it leaves them harder to reinfect - how much
                     // harder depends on the disease (poisons teach nothing)
                     h.immunity = (h.immunity + kind.immunity_gain()).min(1.0);
+                    if let Some((due_in, _)) = kind.relapse() {
+                        // it goes quiet, not gone - the seed stays in them
+                        world.add_component(patient, Relapse { kind, due_in });
+                    }
                     world.destroy_entity(d);
                 }
                 continue;
@@ -246,6 +270,29 @@ impl crate::engine::ecs::System for IllnessSystem {
                 dis.severity = severity;
                 dis.stage = stage_for(severity);
             }
+        }
+        // the dormant wake: a beaten-but-not-gone disease fires again
+        let mut wake = vec![];
+        for e in world.query::<Relapse>() {
+            let alive = world.get_component::<Health>(e)
+                .map(|h| h.condition > 0.0).unwrap_or(false);
+            if !alive {
+                world.remove_component::<Relapse>(e); // the dead stay dead
+                continue;
+            }
+            // holding a live case already? the seed waits it out
+            let carrying = world.query::<Disease>().iter().any(|&d|
+                world.get_component::<Disease>(d).map(|dd| dd.patient == e).unwrap_or(false));
+            if carrying { continue; }
+            let Some(r) = world.get_component_mut::<Relapse>(e) else { continue };
+            r.due_in = r.due_in.saturating_sub(1);
+            if r.due_in == 0 { wake.push((e, r.kind)); }
+        }
+        for (e, kind) in wake {
+            world.remove_component::<Relapse>(e);
+            let severity = kind.relapse().map(|(_, s)| s).unwrap_or(0.3);
+            let d = world.create_entity();
+            world.add_component(d, Disease::new(kind, e, severity));
         }
         spread_contagion(world);
     }
@@ -604,5 +651,37 @@ mod tests {
         for _ in 0..18 { IllnessSystem.run(&mut w); }
         assert!(is_sick(&w, family), "sharing a roof with the sick doubles the dose");
         assert!(!is_sick(&w, lodger), "the lodger at the range's edge holds out");
+    }
+
+    #[test]
+    fn test_the_ague_comes_back_when_its_time_is_up() {
+        let mut w = World::new();
+        let p = villager_at(&mut w, 0.0, 0.5);
+        let d = w.create_entity();
+        // a case already on the mend - it clears on the first tick
+        w.add_component(d, Disease { kind: DiseaseKind::Ague, name: "the ague".into(),
+            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
+        IllnessSystem.run(&mut w);
+        assert!(!is_sick(&w, p));
+        // but it left its seed: quiet for the dormant stretch, then it blooms
+        for _ in 0..295 { IllnessSystem.run(&mut w); }
+        assert!(w.query::<Disease>().iter().all(|&dd|
+            w.get_component::<Disease>(dd).map(|x| x.patient != p).unwrap_or(true)),
+            "the seed lies quiet through its dormancy");
+        for _ in 0..10 { IllnessSystem.run(&mut w); }
+        assert!(w.query::<Disease>().iter().any(|&dd|
+            w.get_component::<Disease>(dd).map(|x| x.patient == p && x.kind == DiseaseKind::Ague).unwrap_or(false)),
+            "the ague comes back when its time is up");
+    }
+
+    #[test]
+    fn test_la_grippe_leaves_no_seed_behind() {
+        let mut w = World::new();
+        let p = villager_at(&mut w, 0.0, 0.5);
+        let d = w.create_entity();
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "la grippe".into(),
+            patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
+        IllnessSystem.run(&mut w);
+        assert!(w.query::<Relapse>().is_empty(), "la grippe is gone for good");
     }
 }

@@ -2648,14 +2648,20 @@ impl Game {
     /// The alehouse earns its other name: a cup in and the insults come
     /// out. Bruises, not blades - the drunk and the thirsty swing first
     fn brawl_moment(&mut self) {
-        // where the drink pours; else the market stands in for a taproom
-        let taproom = self.building_entities.iter().copied().find(|&be|
+        // where the drink pours: the tavern is the village's taproom now,
+        // so the bench with the barrel on it gets the brawl; failing that
+        // whichever drink trade has stock, and failing that the market
+        let taproom = self.tavern.filter(|&t|
+            self.world.get_component::<household::Building>(t)
+                .map(|b| b.stock.iter().any(|(g, q)|
+                    crate::game::vocation::is_drink(g) && *q > 0)).unwrap_or(false))
+        .or_else(|| self.building_entities.iter().copied().find(|&be|
             self.world.get_component::<household::Building>(be)
                 .map(|b| matches!(b.kind, household::BuildingKind::Shop(
                     crate::game::vocation::Vocation::Alewife | crate::game::vocation::Vocation::Brewer
                     | crate::game::vocation::Vocation::Vintner | crate::game::vocation::Vocation::Distiller))
                     && b.stock.iter().any(|(g, q)| crate::game::vocation::is_drink(g) && *q > 0))
-                .unwrap_or(false));
+                .unwrap_or(false)));
         let at = taproom.and_then(|be| self.world.get_component::<Pos>(be).copied())
             .or_else(|| self.world.get_component::<Pos>(self.market_food).copied());
         let mut brawlers: Vec<Entity> = self.villagers.iter().copied()
@@ -4585,18 +4591,19 @@ mod tests {
             let k = villager::spawn_villager(&mut g.world, at.0 as f32, at.1 as f32);
             g.world.add_component(k, Health { condition: 0.5, immunity: 0.5 });
             g.world.add_component(k, Purse { gold: 0.0 });
-            g.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(k);
+            g.world.get_component_mut::<household::Building>(h).unwrap().occupants.insert(0, k);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the eggler")),
                 "the frame shows his panniers on {:?}", st);
-            // the hen may lay again the same day - the coin's the surer sign
-            let gold0: f32 = g.world.get_component::<household::Building>(h).unwrap().occupants.iter()
-                .filter_map(|&o| g.world.get_component::<Purse>(o).map(|p| p.gold)).sum();
+            // the hen may lay again the same day - the coin's the surer
+            // sign, and it's the hand he pays that has to show it: a
+            // housemate's day of buying and selling says nothing about
+            // whether the eggler's penny came in
+            let gold0 = g.world.get_component::<Purse>(k).unwrap().gold;
             stage::run_days(&mut g, 1);
             let b = g.world.get_component::<household::Building>(h).unwrap();
             assert!(*b.stock.get("eggs").unwrap_or(&0) <= 2, "his basket's no deeper on {:?}", st);
-            let gold1: f32 = g.world.get_component::<household::Building>(h).unwrap().occupants.iter()
-                .filter_map(|&o| g.world.get_component::<Purse>(o).map(|p| p.gold)).sum();
+            let gold1 = g.world.get_component::<Purse>(k).unwrap().gold;
             assert!(gold1 > gold0, "the coin came back on {:?}", st);
             stage::run_days(&mut g, 3);
             assert!(g.rare.iter().all(|r| r.id != EventId::Eggler), "his panniers moved on from {:?}", st);
@@ -4938,7 +4945,18 @@ mod tests {
             let flock0 = g.flock.len();
             g.force_event(EventId::WolfAtFold);
             assert!(g.log.iter().any(|l| l.contains("wolf")), "the wolf was told on {:?}", st);
-            assert!(g.flock.len() < flock0 || flock0 == 0, "the flock scattered on {:?}", st);
+            // the wolf's take is a roll of 0..2, so a night he gets
+            // nothing is a night he gets nothing; what the test holds
+            // the fold to is that the tally and the pen agree
+            let lost: usize = g.log.iter().rev()
+                .find(|l| l.contains("wolf got into the fold"))
+                .and_then(|l| l.split("- ").nth(1))
+                .and_then(|t| t.split_whitespace().next())
+                .and_then(|n| n.parse().ok())
+                .unwrap_or_else(|| panic!("the night's tally was told on {:?}", st));
+            assert_eq!(g.flock.len() + lost, flock0,
+                "the fold is short exactly what the wolf took on {:?}", st);
+            assert!(lost <= flock0, "he can't take more than was penned on {:?}", st);
         }
     }
 

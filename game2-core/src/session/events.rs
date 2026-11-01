@@ -1467,6 +1467,44 @@ impl Game {
                     }
                 }
             }
+            EventId::CandleMaker => {
+                // wax bought, tallow taken - light for the dark: a home's
+                // tallow goes into his dipper and candles come back, a
+                // coin for the wax
+                let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
+                let homes: Vec<Entity> = self.world.query::<household::Building>().iter().copied()
+                    .filter(|&b| self.world.get_component::<household::Building>(b)
+                        .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false))
+                    .collect();
+                let mut traded = 0;
+                for h in homes {
+                    if traded >= 2 { break; }
+                    let near = self.world.get_component::<Pos>(h)
+                        .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
+                        .unwrap_or(false);
+                    if !near { continue; }
+                    let has_tallow = self.world.get_component::<household::Building>(h)
+                        .map(|b| *b.stock.get("tallow").unwrap_or(&0) > 0).unwrap_or(false);
+                    if !has_tallow { continue; }
+                    if let Some(b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::take_stock(b, "tallow", 1);
+                        household::add_stock(b, "candle", 2);
+                    }
+                    let first = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.occupants.first().copied())
+                        .filter(|&o| !villager::is_dead(&self.world, o)
+                            && !crate::game::dungeon::unavailable(&self.world, o));
+                    if let Some(o) = first {
+                        if let Some(p) = self.world.get_component_mut::<Purse>(o) { p.gold += 1.0; }
+                    }
+                    for o in self.world.get_component::<household::Building>(h)
+                        .map(|b| b.occupants.clone()).unwrap_or_default() {
+                        if villager::is_dead(&self.world, o) || crate::game::dungeon::unavailable(&self.world, o) { continue; }
+                        desires::satisfy(&mut self.world, o, Want::Joy, tick + 5);
+                    }
+                    traded += 1;
+                }
+            }
             EventId::NewsCrier => {
                 // the news gives them something to talk about: everyone
                 // in earshot goes home with a day's more to say to the
@@ -3343,6 +3381,36 @@ mod tests {
                 "the dealer's price paid on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::HorseCop), "his string moved on from {:?}", st);
+        }
+    }
+
+    /// Tallow taken, light for the dark: a home's tallow turns to
+    /// candles, a coin for the wax - the frame shows his dipper first
+    #[test]
+    fn test_the_tallow_turns_to_light() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::CandleMaker);
+            for _ in 0..2000 {
+                if g.rare.iter().any(|r| r.id == EventId::CandleMaker && r.until.is_some()) { break; }
+                g.advance_rare();
+            }
+            let at = g.rare.iter().find(|r| r.id == EventId::CandleMaker).and_then(|r| r.at).unwrap();
+            let h = g.world.query::<household::Building>().iter().copied()
+                .find(|&b| g.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).unwrap();
+            g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
+            g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            g.world.get_component_mut::<household::Building>(h).unwrap().stock.insert("tallow".into(), 1);
+            let model = g.ui_model();
+            assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the candle-maker")),
+                "the frame shows his dipper on {:?}", st);
+            stage::run_days(&mut g, 1);
+            let b = g.world.get_component::<household::Building>(h).unwrap();
+            assert_eq!(*b.stock.get("tallow").unwrap_or(&0), 0, "the tallow's in his dipper");
+            assert!(*b.stock.get("candle").unwrap_or(&0) > 0, "light for the dark on {:?}", st);
+            stage::run_days(&mut g, 4);
+            assert!(g.rare.iter().all(|r| r.id != EventId::CandleMaker), "his dipper packed up on {:?}", st);
         }
     }
 

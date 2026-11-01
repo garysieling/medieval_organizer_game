@@ -1132,10 +1132,18 @@ Tell me which mode you want to enter, and I'll guide you through the process.
 - **Remaining:** UK spycops inquiry (richest modern infiltration record), INCITE! "The Revolution Will Not Be Funded" (NGO-ization/co-option critique), platform-manipulation research (DFRLab), Color Revolution rollback scholarship (authoritarian learning)
 
 ### [ ] Implement Victorian Disease Realism (disease kinds, incubation, waterborne spread)
-- **Status:** Partially Completed (4 tranches merged, 2026-11-01)
+- **Status:** Partially Completed (5 tranches merged, 2026-11-01)
 - **Priority:** High
 - **Category:** software-design
 - **Added:** 2026-10-31
 - **Output:** wiki/literature-reviews/victorian-diseases.md
 - **Done:** DiseaseKind enum + Victorian names + per-kind incubation/immunity (PR #297); Route enum + waterborne kinds (cholera/slow fever/flux) + effluent Broad Street mechanic + Snow feedback loop + effluent decay (PR #406); ague as Route::Vector seasonal marsh fever (days 240-310) + crowding doubles dose + hunger halves immunity (PR #410); epidemic scapegoating - Blamed grievance lands on herb-wife or newest face when 2+ symptomatic (PR #411)
-- **Remaining:** occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), Vaccination Act as oppression event + Leicester Method as player counter-institution, true TB/ague relapse components, seasonal table generalized over FLU_DAY/ergot gates.
+- **Remaining:** occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), Vaccination Act as oppression event + Leicester Method as player counter-institution, true TB/seasonal table generalized over FLU_DAY/ergot gates.
+
+### [ ] Implement IAF Organizing Model Mechanics (encounter menu, research phase, leader economics, accountability assembly)
+- **Status:** Pending
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-11-01
+- **Output:** wiki/literature-reviews/organizing-iaf-model.md
+- **Notes:** 14 mechanics proposed from the IAF/ELCA deep-dive. Highest leverage first: (1) campaign phase machine — Listening -> IssueCut -> Research -> Action -> Evaluate, with TargetIntel from research visits (targets are persons not institutions; reaction-is-the-data); (2) encounter menu on `one_on_one` — listening season, door knock, listening post, power 1-1 (>=2 visitors), research visit; (3) leader economics — iron-rule dependency scalar, cold-anger disposition screen on 1-1s, leader tiers with delivered-following turnout quotas; (4) accountability assembly action — delegation turnout + published agenda + yes/no pin-down questions -> Pledge artifacts feeding enforcement; (5) institutional layer — member institutions join by vote+dues, sponsoring-committee founding conditions (locally_sponsored halves outside-agitator smears), patronage co-option events, relational-vs-dominant power split. Design note flagged in doc: disposition stats should land in one pass alongside the critical-pedagogy internalized_domination/critical_agency stats.

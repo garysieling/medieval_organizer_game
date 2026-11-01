@@ -1858,6 +1858,25 @@ impl Game {
                     if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 2; }
                 }
             }
+            EventId::FouledWell => {
+                // a week of sour water: folk who drink it get the
+                // sour gut - the roll picks who draws the bad dipper
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                let roll = self.rare_roll(id);
+                if !able.is_empty() {
+                    // two consecutive from the roll's offset - a stride
+                    // that wraps can land on the same soul twice
+                    let off = (roll as usize / 3) % able.len();
+                    for i in 0..able.len().min(2) {
+                        let v = able[(off + i) % able.len()];
+                        desires::add_grievance(&mut self.world, v, desires::Problem::SourGut, until);
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1956,6 +1975,10 @@ impl Game {
             EventId::FishRun => {
                 self.log.push(format!("t{}: a fish run - the reach is alive with them, thick enough to grab with two hands.", self.tick));
                 self.toasts.push(("A fish run".into(), self.tick + 40));
+            }
+            EventId::FouledWell => {
+                self.log.push(format!("t{}: a fouled well - the water's off, and the dippers come up green.", self.tick));
+                self.toasts.push(("A fouled well".into(), self.tick + 40));
             }
             EventId::CaterpillarYear => {
                 self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
@@ -2227,6 +2250,22 @@ impl Game {
                     self.log.push(format!("t{}: a chimney fire - smoke gone wrong, but the neighbors put it out.", self.tick));
                 }
                 self.toasts.push(("A chimney fire!".into(), self.tick + 40));
+            }
+            EventId::GranaryLeak => {
+                // the rain got in: a share of the granary's stock
+                // spoils where the water found it
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
+                    let spoiled = f.servings / 10;
+                    f.servings = f.servings.saturating_sub(spoiled);
+                    if spoiled > 0 {
+                        self.log.push(format!("t{}: a granary leak - the rain found a seam and a tenth of the stock's gone to rot.", self.tick));
+                    } else {
+                        self.log.push(format!("t{}: a granary leak - the rain found a seam, but there's little enough left to spoil.", self.tick));
+                    }
+                } else {
+                    self.log.push(format!("t{}: a granary leak - the rain found a seam.", self.tick));
+                }
+                self.toasts.push(("A granary leak".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -4751,6 +4790,43 @@ mod tests {
         assert!(held.iter().all(|&o| g.world.get_component::<desires::InnerLife>(o)
             .map(|l| l.grievances.iter().all(|(p, _)| *p != desires::Problem::NoHome))
             .unwrap_or(true)), "no hearth-grief lands on the held");
+    }
+
+    /// A fouled well: the water's off and folk get the sour gut while
+    /// it holds - a week, then the well runs clean again
+    #[test]
+    fn test_the_water_runs_sour() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.force_event(EventId::FouledWell);
+            assert!(g.rare.iter().any(|r| r.id == EventId::FouledWell), "the well's off");
+            stage::run_days(&mut g, 2);
+            let sick = g.villagers.iter().any(|&v| g.world.get_component::<desires::InnerLife>(v)
+                .map(|l| l.grievances.iter().any(|(p, u)| *p == desires::Problem::SourGut && g.tick <= *u))
+                .unwrap_or(false));
+            assert!(sick, "the sour gut spread on {:?}", st);
+            stage::run_days(&mut g, 8);
+            assert!(g.rare.iter().all(|r| r.id != EventId::FouledWell), "the well ran clean on {:?}", st);
+        }
+    }
+
+    /// A granary leak: the rain finds a seam and a share of the stock
+    /// goes to rot
+    #[test]
+    fn test_the_rain_finds_a_seam() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            if let Some(f) = g.world.get_component_mut::<villager::FoodSource>(g.market_food) {
+                f.servings = f.servings.max(50);
+            }
+            let food0 = g.world.get_component::<villager::FoodSource>(g.market_food)
+                .map(|f| f.servings).unwrap_or(0);
+            g.force_event(EventId::GranaryLeak);
+            let food1 = g.world.get_component::<villager::FoodSource>(g.market_food)
+                .map(|f| f.servings).unwrap_or(0);
+            assert!(food1 < food0, "the stock spoiled on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("granary leak")), "the leak was told on {:?}", st);
+        }
     }
 
     /// The stray dog picks the loneliest heart and stays

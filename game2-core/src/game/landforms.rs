@@ -100,7 +100,7 @@ pub const LANDFORMS: &[LandformProfile] = &[
         id: "coastal_plain",
         display_name: "Coastal Plain",
         shape: LandformShape::CoastalPlain,
-        requirements: LandformRequirements { max_water_fraction: 0.48, ..OPEN_TERRAIN },
+        requirements: LandformRequirements { min_dry_fraction: 0.52, max_water_fraction: 0.48, ..OPEN_TERRAIN },
     },
     LandformProfile {
         id: "open_valley",
@@ -128,20 +128,18 @@ pub const LANDFORMS: &[LandformProfile] = &[
     },
 ];
 
-/// Select an eligible profile using the seed, with an open valley fallback.
-/// The eligibility check happens against the generated terrain so maps that
-/// are mostly water or high rock cannot select a settlement-hostile profile.
-pub fn select_landform(terrain: &Terrain, seed: u64) -> &'static LandformProfile {
+/// Select an eligible profile using the seed. `None` means the terrain does
+/// not meet any profile's settlement requirements and generation must retry
+/// or use its separate safe fallback instead of mislabeling hostile terrain.
+pub fn select_landform(terrain: &Terrain, seed: u64) -> Option<&'static LandformProfile> {
     let availability = TerrainAvailability::measure(terrain);
     let eligible: Vec<&LandformProfile> = LANDFORMS
         .iter()
         .filter(|profile| availability.satisfies(profile.requirements))
         .collect();
-    if eligible.is_empty() {
-        return LANDFORMS.iter().find(|profile| profile.id == "open_valley").unwrap();
-    }
+    if eligible.is_empty() { return None; }
     let index = (mixed_seed(seed) % eligible.len() as u64) as usize;
-    eligible[index]
+    Some(eligible[index])
 }
 
 fn mixed_seed(seed: u64) -> u64 {

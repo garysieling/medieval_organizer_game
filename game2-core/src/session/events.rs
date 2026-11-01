@@ -1775,6 +1775,23 @@ impl Game {
             EventId::AlehouseBrawl => self.brawl_moment(),
             EventId::Assize => self.assize_moment(),
             EventId::CellarThief => self.cellar_thief_moment(),
+            EventId::LightningStrike => {
+                // the bolt picks one of them - knocked flat where it
+                // lands, not killed; the sky aims where it aims
+                let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                    !villager::is_dead(&self.world, v)
+                        && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                if let Some(&v) = able.get((self.rare_roll(id) as usize / 7) % able.len().max(1)) {
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        h.condition = (h.condition - 0.25).max(0.05);
+                    }
+                    self.say(v, "...", CHAT_BUBBLE_SECS);
+                    self.log.push(format!("t{}: lightning strikes the village - one of them's knocked flat where it lands.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: lightning strikes the common - white fire in the grass.", self.tick));
+                }
+                self.toasts.push(("Lightning!".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -3784,6 +3801,23 @@ mod tests {
             assert!(g.land.pit_water > water0 || water0 >= 1.0, "the water came up on {:?}", st);
             stage::run_days(&mut g, 5);
             assert!(g.rare.iter().all(|r| r.id != EventId::Flood), "the water fell on {:?}", st);
+        }
+    }
+
+    /// Lightning strikes: the bolt picks one of them and knocks them
+    /// flat where it lands
+    #[test]
+    fn test_the_bolt_picks_one() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let before: Vec<f32> = g.villagers.iter()
+                .map(|&v| g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0)).collect();
+            g.force_event(EventId::LightningStrike);
+            let after: Vec<f32> = g.villagers.iter()
+                .map(|&v| g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0)).collect();
+            let hit = before.iter().zip(after.iter()).any(|(b, a)| a < b);
+            assert!(hit || g.villagers.is_empty(), "the bolt picked one on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("lightning")), "the strike was told on {:?}", st);
         }
     }
 

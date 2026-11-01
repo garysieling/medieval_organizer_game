@@ -1718,6 +1718,19 @@ impl Game {
                     desires::satisfy(&mut self.world, v, Want::Joy, until);
                 }
             }
+            EventId::Thaw => {
+                // the year's release: the ground works again, the melt
+                // refills the well - but a thaw isn't a flood, it stops
+                // short of the drowning line - and the folk feel spring
+                self.land.pit_water = (self.land.pit_water + 0.05).min(0.6);
+                for g in self.gardens.iter_mut() { g.2 += 0.03; }
+                let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
+                    .unwrap_or(tick);
+                for &v in &self.villagers.clone() {
+                    if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                    desires::satisfy(&mut self.world, v, Want::Joy, until);
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1780,6 +1793,10 @@ impl Game {
             EventId::IndianSummer => {
                 self.log.push(format!("t{}: an Indian summer - the year's given back a week of warm.", self.tick));
                 self.toasts.push(("An Indian summer".into(), self.tick + 40));
+            }
+            EventId::Thaw => {
+                self.log.push(format!("t{}: the thaw - the roofs drip and the ground's soft for the working.", self.tick));
+                self.toasts.push(("The thaw".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -3921,6 +3938,28 @@ mod tests {
                     "the wonder of it on {:?}", st);
             }
             assert!(g.log.iter().any(|l| l.contains("first snow")), "the turning was told on {:?}", st);
+        }
+    }
+
+    /// The thaw: the roofs drip, the ground's soft for the working,
+    /// and the melt refills the well short of drowning it
+    #[test]
+    fn test_the_ground_works_again() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            g.land.pit_water = 0.1;
+            let v = g.villagers.iter().copied()
+                .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
+            g.force_event(EventId::Thaw);
+            assert!(g.rare.iter().any(|r| r.id == EventId::Thaw), "the roofs started dripping");
+            stage::run_days(&mut g, 1);
+            assert!(g.land.pit_water > 0.1 && g.land.pit_water <= 0.6,
+                "the melt refilled without drowning on {:?}", st);
+            assert!(desires::is_satisfied(&g.world, v, Want::Joy, g.tick)
+                || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
+                "the folk felt spring on {:?}", st);
+            stage::run_days(&mut g, 5);
+            assert!(g.rare.iter().all(|r| r.id != EventId::Thaw), "the melt was done on {:?}", st);
         }
     }
 

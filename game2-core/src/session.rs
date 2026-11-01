@@ -6633,12 +6633,16 @@ impl Game {
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
             if hungry {
                 self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::Exile));
-                let at_store = self.world.get_component::<Pos>(self.market_food)
-                    .zip(self.world.get_component::<Pos>(v))
-                    .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
-                    .unwrap_or(false);
-                if at_store { self.arrive(v, Goal::Eat); }
-                else { self.send(v, Goal::Eat); }
+                // an exile walks on, belly and all - the road's the
+                // only errand his sentence leaves him
+                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile)) {
+                    let at_store = self.world.get_component::<Pos>(self.market_food)
+                        .zip(self.world.get_component::<Pos>(v))
+                        .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
+                        .unwrap_or(false);
+                    if at_store { self.arrive(v, Goal::Eat); }
+                    else { self.send(v, Goal::Eat); }
+                }
                 continue;
             }
             if self.travels.iter().any(|t| t.who == v) { continue; }

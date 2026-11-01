@@ -1828,6 +1828,26 @@ impl Game {
                 // little a day - not the locusts' hour, but it adds up
                 for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.15).max(0.0); }
             }
+            EventId::WildBoar => {
+                // five days of the sow rooting about: she eats the
+                // beds a little a day, and she'll charge the fool who
+                // goes near her - the roll says who draws her eye
+                for g in self.gardens.iter_mut() { g.2 = (g.2 - 0.1).max(0.0); }
+                let roll = self.rare_roll(id);
+                if roll % 3 == 0 {
+                    let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+                        !villager::is_dead(&self.world, v)
+                            && !crate::game::dungeon::unavailable(&self.world, v)).collect();
+                    if let Some(&v) = able.get((roll as usize / 7) % able.len().max(1)) {
+                        if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                            if h.condition > 0.05 {
+                                h.condition = (h.condition - 0.1).max(0.05);
+                            }
+                        }
+                        self.say(v, "The sow got me - stay clear of her!", CHAT_BUBBLE_SECS);
+                    }
+                }
+            }
             EventId::WineMerchant => {
                 // "a cup before you buy": anyone in reach with a thirst
                 // pays the pedlar's price for the road's vintage
@@ -1914,6 +1934,10 @@ impl Game {
             EventId::RatPlague => {
                 self.log.push(format!("t{}: a plague of rats - they're in the thatch, the larders, everywhere.", self.tick));
                 self.toasts.push(("A plague of rats".into(), self.tick + 40));
+            }
+            EventId::WildBoar => {
+                self.log.push(format!("t{}: a wild boar's rooting about the beds - keep clear of her, she's no fool's game.", self.tick));
+                self.toasts.push(("A wild boar".into(), self.tick + 40));
             }
             EventId::CaterpillarYear => {
                 self.log.push(format!("t{}: a caterpillar year - the leaves are lacework, and the kids are out picking them off.", self.tick));
@@ -4552,6 +4576,24 @@ mod tests {
                 || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
                 "the folk watched from the hedge on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("deer")), "the doe was told on {:?}", st);
+        }
+    }
+
+    /// A wild boar: the sow roots the beds a little a day while she
+    /// holds, and she moves off when her five days are out
+    #[test]
+    fn test_the_sow_roots_about() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            for x in g.gardens.iter_mut() { x.2 = x.2.max(1.0); }
+            let growth0: f32 = g.gardens.iter().map(|x| x.2).sum();
+            g.force_event(EventId::WildBoar);
+            assert!(g.rare.iter().any(|r| r.id == EventId::WildBoar), "the sow's about");
+            stage::run_days(&mut g, 2);
+            let growth1: f32 = g.gardens.iter().map(|x| x.2).sum();
+            assert!(growth1 < growth0 || g.gardens.is_empty(), "she rooted the beds on {:?}", st);
+            stage::run_days(&mut g, 6);
+            assert!(g.rare.iter().all(|r| r.id != EventId::WildBoar), "she moved off on {:?}", st);
         }
     }
 

@@ -4754,6 +4754,26 @@ impl Game {
                     }
                 }
             }
+            // the frightened look for a culprit: once sickness is abroad,
+            // blame lands on a plausible-but-wrong target - the herb-wife
+            // and her cures, or whoever's newest to the village
+            let symptomatic = self.villagers.iter().filter(|&&v| is_sick(&self.world, v)).count();
+            if symptomatic >= 2 && self.rng.below(100) < 25 {
+                let blame_the_cures = self.rng.below(2) == 0;
+                let target = if blame_the_cures {
+                    self.herbologist.filter(|&h| !villager::is_dead(&self.world, h))
+                        .or_else(|| self.villagers.iter().copied().find(|&v|
+                            !villager::is_dead(&self.world, v) && !is_sick(&self.world, v)))
+                } else {
+                    // the newest face wears it
+                    self.villagers.iter().copied().rev().find(|&v|
+                        !villager::is_dead(&self.world, v) && !is_sick(&self.world, v))
+                };
+                if let Some(t) = target {
+                    desires::add_grievance(&mut self.world, t, desires::Problem::Blamed, tick + 30);
+                    self.say(t, "They say it's my doing.", CHAT_BUBBLE_SECS);
+                }
+            }
         }
     }
 
@@ -10000,6 +10020,22 @@ mod land_tests {
         assert!(g.world.query::<Disease>().iter().any(|&d|
             g.world.get_component::<Disease>(d).map(|dd| dd.kind == DiseaseKind::Ague).unwrap_or(false)),
             "the autumn marsh should send the ague");
+    }
+
+    #[test]
+    fn test_sickness_abroad_finds_a_scapegoat() {
+        let mut g = Game::new();
+        // two down with la grippe, symptoms showing
+        for &v in g.villagers.iter().take(2) {
+            let d = g.world.create_entity();
+            let mut dis = Disease::new(DiseaseKind::Influenza, v, 0.6);
+            dis.incubation = 0; dis.stage = Stage::Moderate;
+            g.world.add_component(d, dis);
+        }
+        for _ in 0..30 { g.land_tick(2); }
+        let blamed = g.villagers.iter().copied().any(|v|
+            desires::problems_of(&g.world, v, 2).contains(&desires::Problem::Blamed));
+        assert!(blamed, "when sickness is abroad, somebody takes the blame");
     }
 
     #[test]

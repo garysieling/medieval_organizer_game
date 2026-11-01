@@ -2073,6 +2073,42 @@ impl Game {
                 self.log.push(format!("t{}: a murmuration - ten thousand wings writing on the sky, and nobody's eyes are on their work.", self.tick));
                 self.toasts.push(("A murmuration".into(), self.tick + 40));
             }
+            EventId::BeeTree => {
+                // honey for the taking: a rolled home's larder gains
+                // the combs, and the finder pays the stings for them
+                // an empty house keeps no bees: only homes with someone
+                // living and about can bring the combs back
+                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
+                    self.world.get_component::<household::Building>(be)
+                        .map(|bb| bb.kind == household::BuildingKind::Home
+                            && bb.occupants.iter().any(|&o|
+                                !villager::is_dead(&self.world, o)
+                                    && !crate::game::dungeon::unavailable(&self.world, o)))
+                        .unwrap_or(false)).collect();
+                let roll = self.rare_roll(id);
+                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                    if let Some(mut b) = self.world.get_component_mut::<household::Building>(h) {
+                        household::add_stock(&mut b, "honey", 3);
+                    }
+                    // the combs come dear: the finder pays the stings
+                    let occ = self.world.get_component::<household::Building>(h)
+                        .and_then(|b| b.occupants.iter().copied().find(|&o|
+                            !villager::is_dead(&self.world, o)
+                                && !crate::game::dungeon::unavailable(&self.world, o)));
+                    if let Some(o) = occ {
+                        if let Some(hl) = self.world.get_component_mut::<Health>(o) {
+                            if hl.condition > 0.05 {
+                                hl.condition = (hl.condition - 0.03).max(0.05);
+                            }
+                        }
+                        self.say(o, "Worth every sting!", CHAT_BUBBLE_SECS);
+                    }
+                    self.log.push(format!("t{}: a bee tree found - the combs come back dripping, stings and all.", self.tick));
+                } else {
+                    self.log.push(format!("t{}: a bee tree's humming in the wood - nobody ventures the combs.", self.tick));
+                }
+                self.toasts.push(("A bee tree".into(), self.tick + 40));
+            }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
     }
@@ -4466,6 +4502,24 @@ mod tests {
                 || g.villagers.iter().any(|&o| desires::is_satisfied(&g.world, o, Want::Joy, g.tick)),
                 "the wonder of it on {:?}", st);
             assert!(g.log.iter().any(|l| l.contains("murmuration")), "the wings were told on {:?}", st);
+        }
+    }
+
+    /// A bee tree found: the combs come back dripping to a larder,
+    /// stings and all
+    #[test]
+    fn test_the_combs_come_back() {
+        for st in [stage::Stage::Ordinary, stage::Stage::Famine] {
+            let mut g = stage::staged(st);
+            let honey0: u32 = g.building_entities.iter().map(|&be|
+                g.world.get_component::<household::Building>(be)
+                    .and_then(|b| b.stock.get("honey").copied()).unwrap_or(0)).sum();
+            g.force_event(EventId::BeeTree);
+            let honey1: u32 = g.building_entities.iter().map(|&be|
+                g.world.get_component::<household::Building>(be)
+                    .and_then(|b| b.stock.get("honey").copied()).unwrap_or(0)).sum();
+            assert!(honey1 > honey0 || g.building_entities.is_empty(), "the combs came back on {:?}", st);
+            assert!(g.log.iter().any(|l| l.contains("bee tree")), "the find was told on {:?}", st);
         }
     }
 

@@ -564,11 +564,20 @@ const CLERIC_PRAYER: Exchange = Exchange {
     ],
     replies: &[
         Reply {
-            criteria: &[], weight: 1.0, bias: &[],
-            act: Act::Answer, concepts: &["concern:sickness", "concern:grief"],
+            criteria: &[Has("self:status:sick")], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:sickness"],
             lines: &[
                 "It's the little one mostly - she burns with fever.",
                 "This cough won't leave me, father, and the store is thin.",
+            ],
+            then: Some(CLERIC_COMFORT), end: None,
+        },
+        Reply {
+            criteria: &[Has("self:status:grieving")], weight: 1.0, bias: &[],
+            act: Act::Answer, concepts: &["concern:grief"],
+            lines: &[
+                "The house is so still without him, father.",
+                "I can't think why he was taken, father, and not me.",
             ],
             then: Some(CLERIC_COMFORT), end: None,
         },

@@ -391,13 +391,18 @@ pub fn converse_with(
 
     for _ in 0..MAX_TURNS {
         let Some(ex) = node else { tr.ending = Some(Ending::Exhausted); break };
-        // The floor-holder opens the beat
-        let Some((call_t, call)) = fresh_line(ex.calls, &pair[responder].name, &used, rng) else {
-            // Nothing fresh to call with: fall through to the next rejoinable tree,
-            // or dry up entirely at the generic tail
+        // Only open a beat the other side can still answer: a call left
+        // hanging with no reply reads as a non-sequitur, so a spent node
+        // falls through before anything is said
+        let facts = Facts::for_roles(pair[responder], pair[caller], rel);
+        let pool = eligible(ex.replies, &facts, &used);
+        let fresh_call = if pool.is_empty() { None } else { fresh_line(ex.calls, &pair[responder].name, &used, rng) };
+        let Some((call_t, call)) = fresh_call else {
+            // Nothing fresh to call with or answer: fall through to the next
+            // rejoinable tree, or dry up entirely at the generic tail
             match advance_to_rejoin(&mut trees) {
                 Some((name, rej)) => { tr.trees_walked.push(name); node = Some(rej); node_tree = name; }
-                None => tr.ending = Some(Ending::Exhausted),
+                None => node = None,
             }
             continue;
         };
@@ -405,18 +410,6 @@ pub fn converse_with(
         tr.turns.push(Turn { speaker: caller, act: ex.act, text: call,
             concepts: ex.concepts.to_vec(), tree: node_tree });
 
-        // The other side picks a fork
-        let facts = Facts::for_roles(pair[responder], pair[caller], rel);
-        let pool = eligible(ex.replies, &facts, &used);
-        if pool.is_empty() {
-            // Nothing left to say back: the floor-holder shifts to a more
-            // generic tree if there is one, else the talk dries up
-            match advance_to_rejoin(&mut trees) {
-                Some((name, rej)) => { tr.trees_walked.push(name); node = Some(rej); node_tree = name; }
-                None => tr.ending = Some(Ending::Exhausted),
-            }
-            continue;
-        }
         let weights: Vec<f32> = pool.iter().map(|r| draw_weight(r, pair[responder])).collect();
 
         // (fork index, line template): the fork picked and the variant it
@@ -558,7 +551,7 @@ pub fn run_meeting<'a>(
         // Bid: (speaker, target statement, line, score)
         let mut bids: Vec<(usize, usize, &'a MeetingLine, f32)> = vec![];
         for (i, sp) in attendees.iter().enumerate() {
-            if i == last_speaker { continue; } // you can't answer yourself
+            if i == last_speaker { continue; } // nobody speaks twice running
             let pool = pools[i];
             let mut score = 1.0f32;
             for (t, m) in [(Trait::Gregarious, 1.5), (Trait::Proud, 0.8), (Trait::Ambitious, 1.2)] {
@@ -567,6 +560,7 @@ pub fn run_meeting<'a>(
             // What could they say, and what would it answer?
             for (si, s) in record.iter().enumerate() {
                 if si == 0 && !question_open { continue; }
+                if s.speaker == i { continue; } // you can't answer yourself
                 let open_q = si == 0;
                 let pull = if open_q { QUESTION_SCORE }
                     else if si == last_idx { LAST_PULL }
@@ -811,6 +805,43 @@ mod tests {
             }
         }
         assert!(saw_rival_walked, "old_scores should be preserved and walked on fallback from sickness");
+    }
+
+    #[test]
+    fn test_meeting_nobody_replies_to_themselves() {
+        let organizer = Speaker::new("Reeve");
+        let mut a = Speaker::new("Eliza");
+        a.status.push("sick");
+        let b = Speaker::new("Bram");
+        let mut c = Speaker::new("Corvin");
+        c.ideology = "merchant";
+        let (pa, pb, pc) = (meeting_pool(&a), meeting_pool(&b), meeting_pool(&c));
+        let pools: Vec<&[MeetingLine]> = vec![&pa, &pb, &pc];
+        let attendees = [&a, &b, &c];
+        for seed in 0..50 {
+            let mut rng = Rng::new(seed);
+            let st = run_meeting(&organizer, &attendees, &MEET_PROMPT, &pools, &mut rng);
+            for s in &st[1..] {
+                let t = s.replying_to.unwrap();
+                assert_ne!(st[t].speaker, s.speaker, "seed {}: {:?} answers their own statement", seed, s.text);
+            }
+        }
+    }
+
+    #[test]
+    fn test_every_call_gets_an_answer_unless_it_ends() {
+        let library = village_library();
+        for seed in 0..100 {
+            let mut rng = Rng::new(seed);
+            let mut a = Speaker::new("Aldric");
+            if seed % 2 == 0 { a.status.push("sick"); }
+            let b = Speaker::new("Eliza");
+            let tr = converse(&a, &b, Relation::Rival, &library, &mut rng);
+            for w in tr.turns.windows(2) {
+                assert!(!(w[0].speaker == 0 && w[1].speaker == 0),
+                    "seed {}: call {:?} left unanswered", seed, w[0].text);
+            }
+        }
     }
 
     #[test]

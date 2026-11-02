@@ -154,6 +154,8 @@ def main():
             if not hits:
                 sys.exit(f"no manifest entry matches {want!r} (see art-prompts/prompts.md for ids)")
             for e in hits:
+                if any(e["id"] == q["id"] for q in picked):
+                    continue  # named twice (an id and its prefix): pay once
                 if e["id"] in done and not args.force:
                     print(f"skip {e['id']}: already generated (--force to redo)")
                     continue

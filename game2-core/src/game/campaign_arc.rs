@@ -7,9 +7,9 @@
 //! - outcomes: a live `LordGrant` for the campaign's issue is a win
 //!   (`arc:won`); one that has run out is a promise to hold them to again
 //!   (`arc:promise_broken`); the last townhall's answer gives `arc:lost`
-//!   (doors shut) or `arc:delayed` (a clerk and regards). Nothing in the
-//!   sim yet grants half a demand or hollows one out, so `arc:partial`
-//!   and `arc:diluted` are never read - their beats wait on that state.
+//!   (doors shut) or `arc:delayed` (a clerk and regards). A grant of part
+//!   of the demand is `arc:partial`; one hollowed because nobody kept
+//!   watch (`reactions::hollow_if_unguarded`) is `arc:diluted`.
 //! - the other side: `GuardsPosted` is `arc:crackdown`, an `AssemblyBan`
 //!   is `arc:countered`; members held are `arc:prisoners`, the leader
 //!   held is `arc:leader_taken`.
@@ -180,7 +180,9 @@ pub fn arc_facts(world: &World, campaign: Entity, tick: u64) -> Facts {
     // the outcome - one at most (they're exclusive): a live grant beats
     // the last answer at the door
     match world.get_component::<LordGrant>(org).filter(|g| g.issue == issue) {
-        Some(g) if tick <= g.until => { f.insert("arc:won"); }
+        Some(g) if g.active(tick) && g.hollow => { f.insert("arc:diluted"); }
+        Some(g) if g.active(tick) && g.partial => { f.insert("arc:partial"); }
+        Some(g) if g.active(tick) => { f.insert("arc:won"); }
         Some(_) => {
             f.insert("arc:promise_broken");
             outcome_from_response(&mut f, record.and_then(|r| r.last_response));
@@ -194,8 +196,8 @@ fn outcome_from_response(f: &mut Facts, resp: Option<TargetResponse>) {
     match resp {
         Some(TargetResponse::Refuses) => f.insert("arc:lost"),
         Some(TargetResponse::Deflects) => f.insert("arc:delayed"),
-        // carried up the chain: the grant (or its absence) decides it
-        Some(TargetResponse::Carries) | None => {}
+        // carried up the chain, or part granted: the grant decides it
+        Some(TargetResponse::Carries) | Some(TargetResponse::Concedes) | None => {}
     }
 }
 
@@ -330,14 +332,23 @@ mod tests {
         assert!(f.has("arc:delayed") && !f.has("arc:lost"));
         // carried up and granted: a win while the grant lasts...
         record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Carries));
-        w.add_component(o, LordGrant { issue: "the taxes".into(), until: 100 });
+        w.add_component(o, LordGrant::full("the taxes", 0, 100));
         let f = arc_facts(&w, c, 50);
         assert!(f.has("arc:won") && !f.has("arc:promise_broken"));
         // ...and a promise to hold them to once it lapses
         let f = arc_facts(&w, c, 150);
         assert!(f.has("arc:promise_broken") && !f.has("arc:won"));
         // a grant for some other issue isn't this campaign's win
-        w.add_component(o, LordGrant { issue: "the mill".into(), until: 500 });
+        w.add_component(o, LordGrant::full("the mill", 0, 500));
+        assert!(!arc_facts(&w, c, 50).has("arc:won"));
+        // part granted; then the grant hollowed while still on paper
+        w.add_component(o, LordGrant::partial("the taxes", 0, 100));
+        let f = arc_facts(&w, c, 50);
+        assert!(f.has("arc:partial") && !f.has("arc:won"));
+        w.get_component_mut::<LordGrant>(o).unwrap().hollow = true;
+        let f = arc_facts(&w, c, 50);
+        assert!(f.has("arc:diluted") && !f.has("arc:partial") && !f.has("arc:won"));
+        w.add_component(o, LordGrant::full("the mill", 0, 500));
         assert!(!arc_facts(&w, c, 50).has("arc:won"));
         // and the record counts actions: three so far, five makes a veteran
         let f = arc_facts(&w, c, 50);

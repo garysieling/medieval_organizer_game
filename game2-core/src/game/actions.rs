@@ -139,6 +139,9 @@ pub fn strike_vote(world: &mut World, campaign: Entity, vocation: Vocation, tick
 pub enum TargetResponse {
     /// They take it up the chain - "the king will hear of this"
     Carries,
+    /// It touches them, but the room's too thin to carry it whole: they
+    /// grant part of it, and no more
+    Concedes,
     /// They send regards and a clerk - a polite nothing
     Deflects,
     /// They won't hear it - the doors stay shut
@@ -193,13 +196,15 @@ pub fn townhall(world: &mut World, campaign: Entity, target: Entity, tick: u64) 
     let their_fight = campaign::stake_for(world, target, &issue, tick).is_some();
     let response = if their_fight && scale >= 0.5 { TargetResponse::Carries }
         else if scale < 0.2 { TargetResponse::Deflects }
+        else if their_fight { TargetResponse::Concedes }
         else { TargetResponse::Refuses };
-    if response != TargetResponse::Carries {
+    if matches!(response, TargetResponse::Deflects | TargetResponse::Refuses) {
         for &m in &out { world.add_component(m, Demoralized { since: tick }); }
     }
     let org = world.get_component::<campaign::Campaign>(campaign).unwrap().org;
     organized_power::record_action(world, org, match response {
         TargetResponse::Carries => ActionQuality::Transformational,
+        TargetResponse::Concedes => ActionQuality::Transactional,
         TargetResponse::Deflects | TargetResponse::Refuses => ActionQuality::Overreach,
     });
     Some(TownhallOutcome { turnout: out, response })
@@ -355,6 +360,17 @@ mod tests {
         let out = townhall(&mut w, camp, moved, 10).unwrap();
         assert_eq!(out.response, TargetResponse::Carries);
         assert!(w.get_component::<Demoralized>(b).is_none());
+
+        // the same target, facing a thinner room (one of three turns out),
+        // grants part of it - nobody goes home hollow
+        let c2 = member(&mut w);
+        let lone = member(&mut w);
+        let c3 = member(&mut w);
+        let (_, thin) = campaign(&mut w, &[lone, c2, c3], "the taxes");
+        campaign::delegate_role(&mut w, thin, Role::TurnoutCoordinator, lone);
+        let out = townhall(&mut w, thin, moved, 10).unwrap();
+        assert_eq!(out.response, TargetResponse::Concedes);
+        assert!(w.get_component::<Demoralized>(lone).is_none());
 
         // a target it doesn't touch blows the room off - and the
         // demoralized need coaching

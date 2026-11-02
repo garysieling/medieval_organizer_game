@@ -121,7 +121,7 @@ The likely integration boundary is a declarative campaign decision library besid
 ### Runtime
 - `game2-core/src/game/campaign_arc.rs`: `arc_facts` reads a campaign's state as arc facts, `deliberate_arc` walks the arc library after a public action, and `record_event`/`record_consent` keep the only state the sim didn't already hold, in an `ArcRecord` component (action count, last answer from the target, last meeting's consent).
 - Fact sources: a live `LordGrant` for the campaign's issue → `arc:won`; a lapsed one → `arc:promise_broken`; the last townhall answer → `arc:lost` (refused) or `arc:delayed` (deflected); `GuardsPosted` → `arc:crackdown`; `AssemblyBan` → `arc:countered`; members held → `arc:prisoners`/`org:jailed`; leader held → `arc:leader_taken`; organized power → `arc:weak`/`arc:strong`; 2+ dissenters → `arc:split`; half the free members `Demoralized` → `arc:fatigue`; 2+ outsiders `Sympathized` with the issue → `arc:allies`; the last meeting's consent → `arc:consent`; actions ≤1 / ≥5 → `arc:first`/`arc:veteran`.
-- **Missing state (follow-up):** nothing in the sim grants half a demand or hollows one out, so `arc:partial` and `arc:diluted` are never set at runtime; their beats are audited and wait on that state.
+- **Partial and hollow grants** (added after Stage 4): a townhall whose issue touches the target, faced with a thin room (a fifth to a half of the members), now answers `Concedes`. That's a partial `LordGrant` for half a year: a quarter of the tax cut back, and the grievance stands (`arc:partial`). A grant whose campaign has lapsed (two cadences without meeting) is hollowed at the next tax round: still in force on paper, but no relief (`arc:diluted`, via `reactions::hollow_if_unguarded`). A new carried townhall replaces it.
 - Where arcs start: a march nobody noticed → Test; a noticed march or a called strike → Counter; a failed strike → Learn; a townhall → Outcome. Up to 3 beats per action.
 - Wired in `session.rs` (March, Strike, Townhall, Meet) and `action_menu.rs` (March). The talk goes on the TALK panel (`record_campaign_talk`): the other side speaks as "The hall", the room as "The room". The closing exchange hangs over the two who said it.
 - `DialogueMemory` remembers a campaign's last 40 beats across meetings and arcs. A walk prefers beats not heard lately (`Walker::step_avoiding`), and falls back to the rest rather than dead-ending.
@@ -136,6 +136,7 @@ The likely integration boundary is a declarative campaign decision library besid
 - Audit both libraries: `cargo test -p game2-core --lib game::campaign_dialogue`
 - Runtime and balance: `cargo test -p game2-core --lib game::campaign_arc -- --nocapture`
 - Read play-throughs: `cargo test -p game2-core --lib sample_meetings -- --ignored --nocapture` and `... sample_arcs -- --ignored --nocapture`
+- See the TALK panel after a townhall and a march: `CAMPAIGN_FRAME=<path>.bmp cargo test -p game2-core --lib campaign_talk_frame -- --ignored`
 - Rules the audits enforce: a criteria-free move in every beat; at least 8 criteria-free beats per phase; no beat keyed only on `Lacks`; voices backed by criteria (Dissenter, NoteTaker, Chair); no `Hook::Resolve` in meetings; no repeated or modern-diction lines; no win that ends an arc; no Enforce after a loss; arc beats read only arc-scale facts.
 
 ### Source coverage

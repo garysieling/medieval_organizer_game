@@ -150,6 +150,10 @@ impl Facts {
     }
 
     pub fn has(&self, fact: &str) -> bool { self.set.contains(fact) }
+
+    /// Add a fact by hand - for a query built from something other than
+    /// two speakers (the campaign decision library reads campaign state)
+    pub fn insert(&mut self, fact: impl Into<String>) { self.set.insert(fact.into()); }
 }
 
 /// One test on the facts: all of a rule's criteria must hold for it to be

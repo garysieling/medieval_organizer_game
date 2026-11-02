@@ -7954,14 +7954,40 @@ impl Game {
                         let who: Vec<String> = out.attendees.iter()
                             .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
                             .collect();
+                        // the room talks it through first: what it decided is
+                        // what the notes and the consent report
+                        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
+                        let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
+                        let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
                         let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
                         if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
-                        if out.noted { msg += " - the notes keep the resolves"; }
-                        if out.consent { msg += " - consent banked for the next action"; }
+                        if out.noted && decided { msg += " - the notes keep the resolves"; }
+                        if !decided { msg += " - nothing settled"; }
+                        if consent { msg += " - consent banked for the next action"; }
                         if !out.healed.is_empty() {
                             let healed: Vec<String> = out.healed.iter()
                                 .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
                             msg += &format!(" - {} heard out", healed.join(", "));
+                        }
+                        if let Some(d) = d {
+                            let me = self.seats[seat].player;
+                            let name_of = |e: Option<Entity>| match e {
+                                None => "The room".to_string(),
+                                Some(e) if e == me => "You".to_string(),
+                                Some(e) => self.villagers.iter().position(|v| *v == e)
+                                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
+                            };
+                            // the log has a few short rows: one entry, the
+                            // outcome first, then the exchange that settled it
+                            // in the order it was said
+                            let key = d.decisive();
+                            let talk: Vec<String> = key.iter()
+                                .map(|s| format!("{}: \"{}\"", name_of(s.speaker), s.text)).collect();
+                            if !talk.is_empty() { msg += &format!(". {}", talk.join(" / ")); }
+                            // and it hangs over the two who said it
+                            for s in key {
+                                if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
+                            }
                         }
                         msg
                     }
@@ -13690,7 +13716,12 @@ mod campaign_tests {
         g.seats[0].ctx_actions.push(CtxAct::Meet);
         let i = g.seats[0].ctx_actions.len() - 1;
         g.ctx_act_at(0, i);
-        assert!(g.log.last().unwrap().contains("meet about the campaign"), "{:?}", g.log.last());
+        // one entry, newest: the outcome leads, the room's talk follows it
+        let last = g.log.last().unwrap();
+        assert!(last.contains("meet about the campaign"), "{:?}", last);
+        let (head, talk) = last.split_once(". ").expect("no talk after the outcome");
+        assert!(!head.contains('"') && talk.matches(": \"").count() == 2, "{:?}", last);
+        assert!(last.len() < 8 * 43, "the entry must fit the log's eight rows: {:?}", last);
         assert!(g.ui_model().panel.campaign.unwrap().due);
     }
 

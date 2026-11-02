@@ -237,7 +237,14 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 }
             };
             match campaign::hold_campaign_meeting(world, c, tick) {
-                Some(out) => format!("{} meet about the campaign; consensus banks as it does.", out.attendees.len()),
+                Some(out) => {
+                    let mut msg = format!("{} meet about the campaign; consensus banks as it does.", out.attendees.len());
+                    if let Some(last) = super::campaign_dialogue::deliberate_meeting(world, c, &out, tick)
+                        .and_then(|d| d.said.into_iter().last()) {
+                        msg += &format!(" \"{}\"", last.text);
+                    }
+                    msg
+                }
                 None => "The campaign isn't due to meet yet.".into(),
             }
         }

@@ -134,6 +134,8 @@ def main():
                     help="source still for two-stage adv-* animations (see each entry's notes "
                          "for which P0 output it expects)")
     args = ap.parse_args()
+    if args.max_usd < 0:
+        sys.exit("--max-usd must be >= 0")
     if args.input_image and not os.path.isfile(args.input_image):
         sys.exit(f"--input-image {args.input_image}: no such file")
 

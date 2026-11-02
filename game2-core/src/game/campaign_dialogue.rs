@@ -747,6 +747,17 @@ mod tests {
     }
 
     #[test]
+    fn test_no_beat_is_keyed_only_on_absence() {
+        // Lacks criteria still count toward specificity, so a beat that only
+        // says what isn't so outranks every generic beat - and every beat
+        // keyed on what did happen that it merely ties. Pair a Lacks with a Has.
+        for b in MEETING_BEATS.iter().chain(ARC_BEATS) {
+            if b.criteria.is_empty() { continue; }
+            assert!(b.criteria.iter().any(|c| matches!(c, Has(_))), "{} is keyed only on absence", b.id);
+        }
+    }
+
+    #[test]
     fn test_a_denied_campaign_never_guards_a_win() {
         // any outcome beat that can play once the campaign is lost - its own
         // criteria plus arc:lost - offers no move that hands on to Enforce

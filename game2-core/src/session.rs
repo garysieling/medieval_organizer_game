@@ -2400,7 +2400,8 @@ impl Game {
         // church; a courier rides the road to the rivals' and back; gulls
         // hang about the open sea
         let guards: Vec<(f32, f32)> = map.walls.iter()
-            .filter(|&(_, piece)| matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY))
+            .filter(|&((x, y), piece)| matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY)
+                && (wall.0..=wall.2).contains(x) && (wall.1..=wall.3).contains(y))
             .map(|&((x, y), piece)| match piece {
                 WallPiece::GateAlongX => (x as f32, y as f32 + if y == wall.1 { 0.9 } else { -0.9 }),
                 _ => (x as f32 + if x == wall.0 { 0.9 } else { -0.9 }, y as f32),
@@ -14874,9 +14875,15 @@ mod tavern_tests {
         assert_eq!(game.map.castles, replay.map.castles);
         assert_eq!(game.map.towns, replay.map.towns);
         assert_eq!(game.map.settlement_houses, replay.map.settlement_houses);
-        for &(x, y, _) in &game.map.castles {
+        for &(x, y) in &game.map.castle_keeps {
+            assert!(!game.map.passable(x, y), "keep tile is blocked");
+        }
+        for &(x, y) in &game.map.castle_approaches {
             assert_eq!(game.map.get(x, y), Some(Tile::Road), "castle courtyard has a road approach");
             assert!(game.map.walk_path((16, 16), (x, y)).is_some(), "castle is walk-connected to the village");
+        }
+        for (&keep, &approach) in game.map.castle_keeps.iter().zip(&game.map.castle_approaches) {
+            assert!(game.map.walk_path(approach, keep).is_none(), "the keep blocks its own tile");
         }
         for &(x, y) in &game.map.settlement_houses {
             assert!(NEIGHBOURS.iter().any(|&(dx, dy)| game.map.get(x + dx, y + dy) == Some(Tile::Road)),
@@ -14885,9 +14892,13 @@ mod tavern_tests {
         let model = game.ui_model();
         assert_eq!(model.castle_keeps.len(), 2, "castle keeps render in their courtyards");
         assert_eq!(model.settlement_houses.len(), 10, "remote towns render as map scenery");
+        assert_eq!(game.guards.len(), 4, "the village watch is posted only at the main gates");
         for seed in [0, 1, 42, 9999] {
             let sample = Game::new_seeded(seed);
-            for &(x, y, _) in &sample.map.castles {
+            for &(x, y) in &sample.map.castle_keeps {
+                assert!(!sample.map.passable(x, y), "seed {} castle keep is blocked", seed);
+            }
+            for &(x, y) in &sample.map.castle_approaches {
                 assert_eq!(sample.map.get(x, y), Some(Tile::Road), "seed {} castle approach", seed);
                 assert!(sample.map.walk_path((16, 16), (x, y)).is_some(), "seed {} castle route", seed);
             }

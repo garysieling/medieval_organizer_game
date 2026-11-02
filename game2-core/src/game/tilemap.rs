@@ -105,6 +105,8 @@ pub struct TileMap {
     pub castles: Vec<(i32, i32, i32)>,
     /// Keep footprints at the center of each remote fortification.
     pub castle_keeps: Vec<(i32, i32)>,
+    /// Walkable courtyard tile beside each keep, where the approach road ends.
+    pub castle_approaches: Vec<(i32, i32)>,
     pub towns: Vec<(i32, i32, i32)>,
     /// Remote house locations that decorate settlements without simulating
     /// additional populations or selectable buildings.
@@ -230,6 +232,7 @@ impl TileMap {
         let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h],
             trees: vec![], walls: vec![], castles: layout.castles.clone(),
             castle_keeps: layout.castles.iter().map(|&(x, y, _)| (x, y)).collect(), towns: layout.towns.clone(),
+            castle_approaches: layout.castles.iter().map(|&(x, y, _)| (x, y + 1)).collect(),
             settlement_houses: vec![], gates: vec![], hub: layout.road_hub, rev: 0 };
         map.carve_river(&layout.river);
         map.place_bridge(layout.bridge_near);
@@ -238,6 +241,7 @@ impl TileMap {
         }
         if let Some(rect) = layout.town_wall { map.build_wall(rect); }
         for &(cx, cy, r) in &layout.castles { map.build_wall((cx - r, cy - r, cx + r, cy + r)); }
+        for &(x, y, _) in &layout.castles { map.occupy(x, y); }
         for &(x, y) in &layout.buildings {
             let (bx, by) = map.nearest_buildable(x, y).unwrap_or((x, y));
             map.occupy(bx, by);
@@ -253,7 +257,7 @@ impl TileMap {
         map.set(hx, hy, Tile::Road);
         let ends: Vec<(i32, i32)> = map.buildings.clone().into_iter()
             .chain(map.settlement_houses.iter().copied())
-            .chain(layout.castles.iter().map(|&(x, y, _)| (x, y)))
+            .chain(map.castle_approaches.iter().copied())
             .chain(layout.road_ends.iter().copied()).collect();
         for (x, y) in ends { map.lay_road(layout.road_hub, (x, y)); }
         for y in 0..h as i32 {
@@ -702,7 +706,11 @@ mod tests {
         for &(cx, cy, r) in &map.castles {
             let corners = [(cx-r,cy-r),(cx+r,cy-r),(cx-r,cy+r),(cx+r,cy+r)];
             assert!(corners.iter().all(|&(x,y)| map.walls.contains(&((x,y), WallPiece::Tower))));
-            assert_eq!(map.get(cx, cy), Some(Tile::Road), "castle approach joins the road network");
+            assert!(!map.passable(cx, cy), "keep blocks its own tile");
+        }
+        for &(x, y) in &map.castle_approaches {
+            assert_eq!(map.get(x, y), Some(Tile::Road), "castle approach joins the road network");
+            assert!(map.walk_path((16, 16), (x, y)).is_some(), "castle courtyard can be reached");
         }
         for &(x, y) in &map.settlement_houses {
             assert!(NEIGHBOURS.iter().any(|&(dx,dy)| map.get(x+dx,y+dy) == Some(Tile::Road)),

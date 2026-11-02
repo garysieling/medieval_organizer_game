@@ -345,8 +345,9 @@ pub struct Spoken {
     /// Who said it; None for the room speaking together
     pub speaker: Option<Entity>,
     pub text: String,
-    /// The beat it came from
+    /// The beat it came from, and that beat's phase
     pub beat: &'static str,
+    pub phase: Phase,
 }
 
 /// What a meeting talked through and what it changed
@@ -361,6 +362,17 @@ pub struct Deliberation {
     /// Consent actually banked: a consensus room that decided with nobody
     /// going back to dissent. Supersedes `MeetingOutcome::consent`
     pub consent: bool,
+}
+
+impl Deliberation {
+    /// The exchange that settled it: the last decision beat's two lines,
+    /// or the closing beat's if the room never got to a decision
+    pub fn decisive(&self) -> &[Spoken] {
+        let at = self.said.iter().rposition(|s| s.phase == Phase::Decision)
+            .map(|i| i - i % 2)
+            .unwrap_or(self.said.len().saturating_sub(2));
+        &self.said[at..(at + 2).min(self.said.len())]
+    }
 }
 
 /// Talk a held meeting through: walk the house-meeting library against
@@ -400,9 +412,9 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
         let facts = meeting_facts(world, campaign, out);
         let Some(s) = w.step(MEETING_BEATS, &facts, &mut rng) else { break };
         let caller = voice_of(s.beat.voice, &mut rng);
-        d.said.push(Spoken { speaker: caller, text: fill(s.call, &issue), beat: s.beat.id });
+        d.said.push(Spoken { speaker: caller, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
         let answerer = voice_of(s.mv.voice, &mut rng);
-        d.said.push(Spoken { speaker: answerer, text: fill(s.reply, &issue), beat: s.beat.id });
+        d.said.push(Spoken { speaker: answerer, text: fill(s.reply, &issue), beat: s.beat.id, phase: s.beat.phase });
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
         if s.beat.phase == Phase::Decision && s.mv.next == Next::Phase(Phase::FollowThrough) {
             d.decided = true;
@@ -740,7 +752,7 @@ mod tests {
             d.said.iter().map(|s| (s.speaker, s.text.clone())).collect::<Vec<_>>()
         };
         let a = run();
-        assert!(a.len() >= 2);
+        assert!(a.len() >= 2 && a.len() % 2 == 0, "every beat is a call and a reply");
         assert_eq!(a, run(), "same campaign, same day, same talk");
     }
 
@@ -780,6 +792,10 @@ mod tests {
             let after = w.get_component::<CampaignMeeting>(c).unwrap().resolves;
             assert_eq!(after, before + d.decided as u32, "day {}: {:?}", day, d.said);
             if d.decided { decided += 1 } else { undecided += 1 }
+            let key = d.decisive();
+            assert_eq!(key.len(), 2);
+            assert_eq!(key[0].beat, key[1].beat, "the decisive pair is one beat's call and reply");
+            if d.decided { assert_eq!(key[0].phase, Phase::Decision); }
             if rule == DecisionRule::Consensus && d.applied.contains(&Hook::Dissent) {
                 assert!(!d.consent, "a dissent withholds consent");
                 blocked += 1;

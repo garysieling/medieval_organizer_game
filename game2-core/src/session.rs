@@ -7977,15 +7977,15 @@ impl Game {
                                 Some(e) => self.villagers.iter().position(|v| *v == e)
                                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
                             };
-                            // one log entry: the outcome first (the log shows
-                            // newest-first in a few rows), then the talk in the
-                            // order it was said
-                            let talk: Vec<String> = d.said.iter()
+                            // the log has a few short rows: one entry, the
+                            // outcome first, then the exchange that settled it
+                            // in the order it was said
+                            let key = d.decisive();
+                            let talk: Vec<String> = key.iter()
                                 .map(|s| format!("{}: \"{}\"", name_of(s.speaker), s.text)).collect();
                             if !talk.is_empty() { msg += &format!(". {}", talk.join(" / ")); }
-                            // bubbles can't queue, so only the closing beat's
-                            // two lines hang over the speakers
-                            for s in d.said.iter().rev().take(2) {
+                            // and it hangs over the two who said it
+                            for s in key {
                                 if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
                             }
                         }
@@ -13720,7 +13720,8 @@ mod campaign_tests {
         let last = g.log.last().unwrap();
         assert!(last.contains("meet about the campaign"), "{:?}", last);
         let (head, talk) = last.split_once(". ").expect("no talk after the outcome");
-        assert!(!head.contains('"') && talk.matches(": \"").count() >= 2, "{:?}", last);
+        assert!(!head.contains('"') && talk.matches(": \"").count() == 2, "{:?}", last);
+        assert!(last.len() < 8 * 43, "the entry must fit the log's eight rows: {:?}", last);
         assert!(g.ui_model().panel.campaign.unwrap().due);
     }
 

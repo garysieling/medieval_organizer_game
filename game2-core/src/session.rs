@@ -1637,6 +1637,7 @@ pub enum BSprite {
     Guildhall,
     RivalHouse,
     RivalWoodhouse,
+    CastleKeep,
 }
 
 /// What a seat tells the sim: the same actions the window's keys and clicks
@@ -2106,6 +2107,15 @@ impl Game {
             // the lane out of the south gate runs down through the strips
             // to the farmstead, beside the road to the rivals' village
             road_ends: vec![(29, 14), (gate_x, farm_y + 8)],
+            // two remote keeps and two satellite towns make the enlarged
+            // country read as a settled region while the main village keeps
+            // its existing simulation and political systems.
+            castles: vec![(126, 58, 5), (181, 164, 5)],
+            towns: vec![(92, 48, 8), (190, 111, 8)],
+            settlement_houses: [
+                (89, 46), (92, 44), (95, 46), (89, 50), (95, 50),
+                (187, 109), (190, 107), (193, 109), (187, 113), (193, 113),
+            ].to_vec(),
         };
         layout.buildings.push((MILL_TILE.0 as i32, MILL_TILE.1 as i32));
         let mut map = TileMap::generate(&mut terrain, &layout);
@@ -2399,7 +2409,8 @@ impl Game {
         // church; a courier rides the road to the rivals' and back; gulls
         // hang about the open sea
         let guards: Vec<(f32, f32)> = map.walls.iter()
-            .filter(|&(_, piece)| matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY))
+            .filter(|&((x, y), piece)| matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY)
+                && (wall.0..=wall.2).contains(x) && (wall.1..=wall.3).contains(y))
             .map(|&((x, y), piece)| match piece {
                 WallPiece::GateAlongX => (x as f32, y as f32 + if y == wall.1 { 0.9 } else { -0.9 }),
                 _ => (x as f32 + if x == wall.0 { 0.9 } else { -0.9 }, y as f32),
@@ -8359,6 +8370,9 @@ impl Game {
             season, precip: self.precip, rainbow_from: self.rainbow_from,
             paused: self.paused, speed: self.speed,
             stones: self.stones.clone(), buildings, people, bubbles,
+            castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
+            settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
+                (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),
             toasts: self.toasts.iter().filter(|(_, until)| self.tick < *until).map(|(m, _)| m.clone()).collect(),
             // only the lines the window would show - cloning the whole
             // history every frame was the model's biggest copy
@@ -8840,6 +8854,7 @@ impl View {
             BSprite::Guildhall => &self.art.guildhall_s,
             BSprite::RivalHouse => &self.art.rival_house,
             BSprite::RivalWoodhouse => &self.art.rival_woodhouse,
+            BSprite::CastleKeep => &self.art.tower_s,
         }
     }
 
@@ -8907,6 +8922,10 @@ impl View {
             let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) } else { s.as_ref() };
             standing.push((b.x, b.y, Piece::Building(sprite, b.risen)));
         }
+        standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
+            (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
+        standing.extend(m.castle_keeps.iter().map(|&(x, y)|
+            (x, y, Piece::Building(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0))));
         // a wood is a mix of the pack's trees, stable per tile
         standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4)))));
         // boulders and flat rocks, a different one each time
@@ -12220,8 +12239,10 @@ mod depth_tests {
         // a spot where the last wall piece and the front corner tower
         // overlap: the tower stands in front, so it owns the seam (the map
         // is perturbed per seed - find the corner, don't hardcode it)
+        let (wx0, wy0, wx1, wy1) = game.town_wall;
         let ((cx, cy), _) = game.map.walls.iter()
-            .filter(|(_, p)| *p == WallPiece::Tower)
+            .filter(|((x, y), p)| *p == WallPiece::Tower
+                && (wx0..=wx1).contains(x) && (wy0..=wy1).contains(y))
             .max_by_key(|((x, y), _)| x + y).copied().expect("a corner tower");
         let (sx, sy) = iso_to_screen_cam(cx as f32, cy as f32, view.cam_x, view.cam_y, view.zoom);
         let seam = |buf: &Buffer| { let i = ((sy - 30) as usize * W + (sx - 17) as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
@@ -14825,5 +14846,50 @@ mod tavern_tests {
         assert_eq!(MAP_TILES, 245);
         assert_eq!(game.map.width, 245);
         assert_eq!(game.map.height, 245);
+    }
+
+    #[test]
+    fn generated_country_has_repeatable_connected_satellite_sites() {
+        let game = Game::new_seeded(231);
+        let replay = Game::new_seeded(231);
+        assert_eq!(game.map.castles.len(), 2, "two satellite castles plus the main walled seat");
+        assert_eq!(game.map.castle_keeps.len(), 2);
+        assert_eq!(game.map.towns.len() + 2, 4, "main and rival towns plus two satellites");
+        assert_eq!(game.map.settlement_houses.len(), 10);
+        assert_eq!(game.map.castles, replay.map.castles);
+        assert_eq!(game.map.towns, replay.map.towns);
+        assert_eq!(game.map.settlement_houses, replay.map.settlement_houses);
+        for &(x, y) in &game.map.castle_keeps {
+            assert!(!game.map.passable(x, y), "keep tile is blocked");
+        }
+        for &(x, y) in &game.map.castle_approaches {
+            assert_eq!(game.map.get(x, y), Some(Tile::Road), "castle courtyard has a road approach");
+            assert!(game.map.walk_path((16, 16), (x, y)).is_some(), "castle is walk-connected to the village");
+        }
+        for (&keep, &approach) in game.map.castle_keeps.iter().zip(&game.map.castle_approaches) {
+            assert!(game.map.walk_path(approach, keep).is_none(), "the keep blocks its own tile");
+        }
+        for &(x, y) in &game.map.settlement_houses {
+            assert!(NEIGHBOURS.iter().any(|&(dx, dy)| game.map.get(x + dx, y + dy) == Some(Tile::Road)),
+                "satellite town house has a road");
+        }
+        let model = game.ui_model();
+        assert_eq!(model.castle_keeps.len(), 2, "castle keeps render in their courtyards");
+        assert_eq!(model.settlement_houses.len(), 10, "remote towns render as map scenery");
+        assert_eq!(game.guards.len(), 4, "the village watch is posted only at the main gates");
+        for seed in [0, 1, 42, 9999] {
+            let sample = Game::new_seeded(seed);
+            for &(x, y) in &sample.map.castle_keeps {
+                assert!(!sample.map.passable(x, y), "seed {} castle keep is blocked", seed);
+            }
+            for &(x, y) in &sample.map.castle_approaches {
+                assert_eq!(sample.map.get(x, y), Some(Tile::Road), "seed {} castle approach", seed);
+                assert!(sample.map.walk_path((16, 16), (x, y)).is_some(), "seed {} castle route", seed);
+            }
+            for &(x, y) in &sample.map.settlement_houses {
+                assert!(NEIGHBOURS.iter().any(|&(dx, dy)| sample.map.get(x + dx, y + dy) == Some(Tile::Road)),
+                    "seed {} satellite house route", seed);
+            }
+        }
     }
 }

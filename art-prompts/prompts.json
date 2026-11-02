@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 537,
-  "est_total_usd": 91.55
+  "count": 617,
+  "est_total_usd": 105.13
  },
  "prompts": [
   {
@@ -331,6 +331,21 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
+  },
+  {
+   "id": "palette-english-countryside-860d3b3d",
+   "tier": "p0",
+   "group": "colors",
+   "title": "palette english countryside",
+   "prompt": "flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_pro__simple",
+    "width": 128,
+    "height": 128,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use the output as input_palette on other calls to lock the countryside palette"
   },
   {
    "id": "event-alehouse-brawl-93c2a390",
@@ -2402,6 +2417,38 @@
    "notes": "ui_panel draws a matched chrome set; slice per element"
   },
   {
+   "id": "icon-drizzle-7e180c5d",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon drizzle",
+   "prompt": "small game UI icon of pale cloud with fine slanting drizzle, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
+   "id": "icon-fog-6c76f6da",
+   "tier": "p0",
+   "group": "icons/weather",
+   "title": "icon fog",
+   "prompt": "small game UI icon of low fog bank swallowing a rooftop, simple, readable at tiny size",
+   "request": {
+    "prompt_style": "rd_mini__skill_icon",
+    "width": 32,
+    "height": 32,
+    "num_images": 4,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.24,
+   "notes": "batch of 4 variants; keep the clearest"
+  },
+  {
    "id": "icon-heavy-rain-aa8537ee",
    "tier": "p0",
    "group": "icons/weather",
@@ -2578,11 +2625,11 @@
    "notes": ""
   },
   {
-   "id": "person-archer-fe223c0b",
+   "id": "person-archer-18038f94",
    "tier": "p0",
    "group": "people/roles",
    "title": "person archer",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: archer with bow and quiver",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: archer with bow and quiver, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2594,11 +2641,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-cavalier-6a964963",
+   "id": "person-cavalier-0dc98a40",
    "tier": "p0",
    "group": "people/roles",
    "title": "person cavalier",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: mounted knight on horseback with lance",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: mounted knight on horseback with lance, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2610,11 +2657,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-courier-b2f7f8f4",
+   "id": "person-courier-77f5648a",
    "tier": "p0",
    "group": "people/roles",
    "title": "person courier",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: road courier on horseback, satchel across chest",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: road courier on horseback, satchel across chest, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2626,11 +2673,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-crossbowman-73798b0f",
+   "id": "person-crossbowman-445f4de4",
    "tier": "p0",
    "group": "people/roles",
    "title": "person crossbowman",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: crossbowman winding his weapon",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: crossbowman winding his weapon, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2642,11 +2689,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-guard-halberd-5f8f56eb",
+   "id": "person-guard-halberd-dc5c4861",
    "tier": "p0",
    "group": "people/roles",
    "title": "person guard halberd",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with halberd",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with halberd, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2658,11 +2705,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-guard-shield-b835d305",
+   "id": "person-guard-shield-79a9b588",
    "tier": "p0",
    "group": "people/roles",
    "title": "person guard shield",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with large shield",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with large shield, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2674,11 +2721,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-guard-spear-223c1659",
+   "id": "person-guard-spear-b3fccc98",
    "tier": "p0",
    "group": "people/roles",
    "title": "person guard spear",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with spear and open helmet",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with spear and open helmet, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2690,11 +2737,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-guard-sword-948161e7",
+   "id": "person-guard-sword-63454e4d",
    "tier": "p0",
    "group": "people/roles",
    "title": "person guard sword",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with sword and buckler",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: town guard with sword and buckler, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2706,11 +2753,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-king-87f347e4",
+   "id": "person-king-aad17721",
    "tier": "p0",
    "group": "people/roles",
    "title": "person king",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: old king in ermine cloak and crown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: old king in ermine cloak and crown, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2722,11 +2769,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-mage-e4070a39",
+   "id": "person-mage-47ff6a16",
    "tier": "p0",
    "group": "people/roles",
    "title": "person mage",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: village hedge mage in robes with staff",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: village hedge mage in robes with staff, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2738,11 +2785,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-minstrel-2b6faf87",
+   "id": "person-minstrel-1026f9b4",
    "tier": "p0",
    "group": "people/roles",
    "title": "person minstrel",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2754,11 +2801,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-overseer-1f8dc2ce",
+   "id": "person-overseer-80e63818",
    "tier": "p0",
    "group": "people/roles",
    "title": "person overseer",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: stern overseer with ledger and short whip, fine coat",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: stern overseer with ledger and short whip, fine coat, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2770,11 +2817,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-prince-fe32d197",
+   "id": "person-prince-6d7d470e",
    "tier": "p0",
    "group": "people/roles",
    "title": "person prince",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: young prince in doublet",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young prince in doublet, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2786,11 +2833,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-tax-collector-d0407236",
+   "id": "person-tax-collector-9d4148e1",
    "tier": "p0",
    "group": "people/roles",
    "title": "person tax collector",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: tax collector in dark robes with coin purse and ledger",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: tax collector in dark robes with coin purse and ledger, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2802,11 +2849,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-trader-71d420cd",
+   "id": "person-trader-5c8b8def",
    "tier": "p0",
    "group": "people/roles",
    "title": "person trader",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling trader in foreign-looking bright robes at a stall",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling trader in foreign-looking bright robes at a stall, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2818,11 +2865,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-child-f-dfc9b00a",
+   "id": "person-child-f-deep-89ceaa5a",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person child f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: small girl child in short dress",
+   "title": "person child f deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small girl child in short dress, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2834,11 +2881,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-child-m-0cd9e8d4",
+   "id": "person-child-f-pale-d60f5961",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person child m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic",
+   "title": "person child f pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small girl child in short dress, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2850,11 +2897,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-elder-f-0a4cb708",
+   "id": "person-child-f-tan-d7c7a333",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person elder f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly woman with grey bun and shawl",
+   "title": "person child f tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small girl child in short dress, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2866,11 +2913,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-elder-m-a4f55465",
+   "id": "person-child-m-brown-ff139f36",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person elder m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly man with white beard and walking stick",
+   "title": "person child m brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2882,11 +2929,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-noble-f-a26753fa",
+   "id": "person-child-m-fair-40539903",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person noble f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female noble in long gown and headdress",
+   "title": "person child m fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2898,11 +2945,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-noble-m-67c63f77",
+   "id": "person-child-m-olive-14c4bcf7",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person noble m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male noble in fur-trimmed cloak and fine hose",
+   "title": "person child m olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: small boy child in short tunic, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2914,11 +2961,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-peasant-f-324e5751",
+   "id": "person-elder-f-deep-7b277cf2",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person peasant f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female peasant villager in homespun dress and kerchief",
+   "title": "person elder f deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly woman with grey bun and shawl, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2930,11 +2977,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-peasant-m-6be8c9ea",
+   "id": "person-elder-f-pale-633d8bed",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person peasant m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male peasant villager in rough brown tunic",
+   "title": "person elder f pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly woman with grey bun and shawl, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2946,11 +2993,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-player-9aa3a59e",
+   "id": "person-elder-f-tan-0fff08ed",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person player",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: player character, young organizer in green tunic with satchel",
+   "title": "person elder f tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly woman with grey bun and shawl, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2962,11 +3009,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-princess-4a6b9954",
+   "id": "person-elder-m-brown-27c2b6b5",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person princess",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: young princess in pale gown with small crown",
+   "title": "person elder m brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly man with white beard and walking stick, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2978,11 +3025,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-queen-c45451ed",
+   "id": "person-elder-m-fair-48457e1c",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person queen",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: matriarch queen in rich robes and circlet",
+   "title": "person elder m fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly man with white beard and walking stick, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -2994,11 +3041,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-worker-f-66ea972b",
+   "id": "person-elder-m-olive-5c41bd1a",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person worker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female labourer in work dress and apron",
+   "title": "person elder m olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: elderly man with white beard and walking stick, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3010,11 +3057,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-worker-m-d5c179b1",
+   "id": "person-noble-f-brown-ac4683ed",
    "tier": "p0",
    "group": "people/villagers",
-   "title": "person worker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male labourer in rolled sleeves and apron",
+   "title": "person noble f brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female noble in long gown and headdress, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3026,11 +3073,571 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-baker-f-835c1127",
+   "id": "person-noble-f-fair-dceed394",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble f fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female noble in long gown and headdress, fair skin and light brown hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-noble-f-olive-cbecdc1c",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble f olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female noble in long gown and headdress, olive skin and dark wavy hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-noble-m-deep-cf821549",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble m deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male noble in fur-trimmed cloak and fine hose, deep dark skin and short black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-noble-m-pale-86bd3a28",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble m pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male noble in fur-trimmed cloak and fine hose, pale freckled skin and red hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-noble-m-tan-45dc6f88",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person noble m tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male noble in fur-trimmed cloak and fine hose, warm tan skin and dark hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-parent-infant-brown-16f389d2",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person parent infant brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young parent carrying a swaddled infant, brown skin and coiled black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-parent-infant-fair-1272684e",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person parent infant fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young parent carrying a swaddled infant, fair skin and light brown hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-parent-infant-olive-271562bc",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person parent infant olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young parent carrying a swaddled infant, olive skin and dark wavy hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-f-deep-29a6266e",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant f deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female peasant villager in homespun dress and kerchief, deep dark skin and short black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-f-pale-b9a7d3de",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant f pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female peasant villager in homespun dress and kerchief, pale freckled skin and red hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-f-tan-e8664cb1",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant f tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female peasant villager in homespun dress and kerchief, warm tan skin and dark hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-m-brown-2360ec53",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant m brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male peasant villager in rough brown tunic, brown skin and coiled black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-m-fair-c06d5eca",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant m fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male peasant villager in rough brown tunic, fair skin and light brown hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-peasant-m-olive-290b1168",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person peasant m olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male peasant villager in rough brown tunic, olive skin and dark wavy hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-player-deep-39b1a827",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person player deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: player character, young organizer in green tunic with satchel, deep dark skin and short black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-player-pale-2982ea75",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person player pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: player character, young organizer in green tunic with satchel, pale freckled skin and red hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-player-tan-5e13ba79",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person player tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: player character, young organizer in green tunic with satchel, warm tan skin and dark hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-princess-deep-ff463a69",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person princess deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young princess in pale gown with small crown, deep dark skin and short black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-princess-pale-e2d7a210",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person princess pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young princess in pale gown with small crown, pale freckled skin and red hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-princess-tan-a54e21e8",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person princess tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: young princess in pale gown with small crown, warm tan skin and dark hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-queen-brown-3e12923e",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person queen brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: matriarch queen in rich robes and circlet, brown skin and coiled black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-queen-fair-7b084d2f",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person queen fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: matriarch queen in rich robes and circlet, fair skin and light brown hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-queen-olive-b7f3563b",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person queen olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: matriarch queen in rich robes and circlet, olive skin and dark wavy hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-f-deep-8696b188",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker f deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female labourer in work dress and apron, deep dark skin and short black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-f-pale-7fd5f44c",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker f pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female labourer in work dress and apron, pale freckled skin and red hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-f-tan-4021a892",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker f tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female labourer in work dress and apron, warm tan skin and dark hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-m-brown-5f127a60",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker m brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male labourer in rolled sleeves and apron, brown skin and coiled black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-m-fair-2e839dc5",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker m fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male labourer in rolled sleeves and apron, fair skin and light brown hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-worker-m-olive-2194271f",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person worker m olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male labourer in rolled sleeves and apron, olive skin and dark wavy hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-youth-f-deep-4d4097d2",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person youth f deep",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: teenage girl with a long braid, deep dark skin and short black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-youth-f-pale-d571a079",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person youth f pale",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: teenage girl with a long braid, pale freckled skin and red hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-youth-f-tan-88ed71ed",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person youth f tan",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: teenage girl with a long braid, warm tan skin and dark hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-youth-m-brown-a8e1b17d",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person youth m brown",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: teenage boy in a loose tunic, brown skin and coiled black hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-youth-m-fair-b545e483",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person youth m fair",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: teenage boy in a loose tunic, fair skin and light brown hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-youth-m-olive-7ea3b255",
+   "tier": "p0",
+   "group": "people/villagers",
+   "title": "person youth m olive",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: teenage boy in a loose tunic, olive skin and dark wavy hair",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "use a saved reference_image of your base villager for look consistency"
+  },
+  {
+   "id": "person-baker-f-2565f4d4",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person baker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female baker in flour-dusted apron holding a loaf",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female baker in flour-dusted apron holding a loaf, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3042,11 +3649,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-baker-m-0457b4c0",
+   "id": "person-baker-m-ec11dea5",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person baker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male baker in flour-dusted apron holding a loaf",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male baker in flour-dusted apron holding a loaf, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3058,11 +3665,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-farmer-f-e1fe6839",
+   "id": "person-farmer-f-df18d98b",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person farmer f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female farmer with straw hat, sickle at belt",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female farmer with straw hat, sickle at belt, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3074,11 +3681,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-farmer-m-a6c649ae",
+   "id": "person-farmer-m-7f50d9dc",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person farmer m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male farmer with straw hat, sickle at belt",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male farmer with straw hat, sickle at belt, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3090,11 +3697,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-glazier-f-c1a70844",
+   "id": "person-glazier-f-8174daf3",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person glazier f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female glazier holding a leaded glass pane",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female glazier holding a leaded glass pane, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3106,11 +3713,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-glazier-m-08aa53a5",
+   "id": "person-glazier-m-27312f7a",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person glazier m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male glazier holding a leaded glass pane",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male glazier holding a leaded glass pane, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3122,11 +3729,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-knight-f-58c96e1d",
+   "id": "person-knight-f-f5754a94",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person knight f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female knight-at-arms in mail with sword and surcoat",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female knight-at-arms in mail with sword and surcoat, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3138,11 +3745,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-knight-m-97859b96",
+   "id": "person-knight-m-868446a1",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person knight m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male knight-at-arms in mail with sword and surcoat",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male knight-at-arms in mail with sword and surcoat, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3154,11 +3761,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-luthier-f-181564ae",
+   "id": "person-luthier-f-28571d5d",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person luthier f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female luthier holding an unfinished lute",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female luthier holding an unfinished lute, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3170,11 +3777,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-luthier-m-f1bd5485",
+   "id": "person-luthier-m-f3230853",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person luthier m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male luthier holding an unfinished lute",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male luthier holding an unfinished lute, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3186,11 +3793,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-mason-f-c9e2d39d",
+   "id": "person-mason-f-daeabcb7",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person mason f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female stonemason with mallet and chisel, dusty apron",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female stonemason with mallet and chisel, dusty apron, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3202,11 +3809,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-mason-m-01bce502",
+   "id": "person-mason-m-8bd05b6d",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person mason m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male stonemason with mallet and chisel, dusty apron",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male stonemason with mallet and chisel, dusty apron, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3218,11 +3825,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-priest-f-09668b13",
+   "id": "person-priest-f-c01b35e6",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person priest f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female village priest in plain robes with symbol pendant",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female village priest in plain robes with symbol pendant, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3234,11 +3841,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-priest-m-03e3c90e",
+   "id": "person-priest-m-1a316a58",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person priest m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male village priest in plain robes with symbol pendant",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male village priest in plain robes with symbol pendant, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3250,11 +3857,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-printmaker-f-0f345e2d",
+   "id": "person-printmaker-f-5e7b6a14",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person printmaker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female printmaker in ink-stained apron holding a pamphlet",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female printmaker in ink-stained apron holding a pamphlet, pale freckled skin and red hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3266,11 +3873,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-printmaker-m-6874ac59",
+   "id": "person-printmaker-m-59f98bf6",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person printmaker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male printmaker in ink-stained apron holding a pamphlet",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male printmaker in ink-stained apron holding a pamphlet, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3282,11 +3889,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-tailor-f-22fde347",
+   "id": "person-tailor-f-7583d8d1",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person tailor f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female tailor with measuring tape and pins",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female tailor with measuring tape and pins, warm tan skin and dark hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3298,11 +3905,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-tailor-m-146d2d9b",
+   "id": "person-tailor-m-4b6d2c7c",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person tailor m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male tailor with measuring tape and pins",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male tailor with measuring tape and pins, olive skin and dark wavy hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3314,11 +3921,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-toolmaker-f-bd5f98a1",
+   "id": "person-toolmaker-f-09556758",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person toolmaker f",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: female blacksmith toolmaker with leather apron and hammer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: female blacksmith toolmaker with leather apron and hammer, deep dark skin and short black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -3330,11 +3937,11 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "person-toolmaker-m-6321d2df",
+   "id": "person-toolmaker-m-c529207c",
    "tier": "p0",
    "group": "people/vocations",
    "title": "person toolmaker m",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: male blacksmith toolmaker with leather apron and hammer",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: male blacksmith toolmaker with leather apron and hammer, brown skin and coiled black hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -4667,6 +5274,171 @@
    "notes": ""
   },
   {
+   "id": "country-barley-field-bc87cae6",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country barley field",
+   "prompt": "single isometric medieval village asset: barley field ground block, ripe gold, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "country-chalk-down-7fa09ca4",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country chalk down",
+   "prompt": "single isometric medieval village asset: chalk downland ground block, short turf, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "country-copse-09626ae7",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country copse",
+   "prompt": "single isometric medieval village asset: small copse of beech and ash, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-drystone-wall-de9ccd3d",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country drystone wall",
+   "prompt": "single isometric medieval village asset: drystone field wall, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-hayrick-3970c6ea",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country hayrick",
+   "prompt": "single isometric medieval village asset: conical hayrick with a loose cover, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-hedgerow-f483241a",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country hedgerow",
+   "prompt": "single isometric medieval village asset: hedgerow of hawthorn and bramble, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-meadow-e27e4113",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country meadow",
+   "prompt": "single isometric medieval village asset: meadow ground block, long grass, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 128,
+    "height": 128,
+    "num_images": 1,
+    "remove_bg": true,
+    "tile_x": true,
+    "tile_y": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "country-sheep-fold-ace00af9",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country sheep fold",
+   "prompt": "single isometric medieval village asset: stone sheep fold in a field corner, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-stile-0eb2a907",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country stile",
+   "prompt": "single isometric medieval village asset: wooden stile over a field wall, sage greens, honey limestone, drystone grey, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_tile__tile_object",
+    "width": 96,
+    "height": 96,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.06,
+   "notes": ""
+  },
+  {
+   "id": "country-village-f4f9b0f1",
+   "tier": "p1",
+   "group": "biomes/countryside",
+   "title": "country village",
+   "prompt": "single isometric medieval village asset, wide view: small english countryside village, honey limestone cottages, hedgerows and barley fields, villagers of varied ages and skin tones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
    "id": "desert-ground-86e81955",
    "tier": "p1",
    "group": "biomes/desert",
@@ -5566,11 +6338,11 @@
    "notes": ""
   },
   {
-   "id": "festival-autumn-equinox-b75eb313",
+   "id": "festival-autumn-equinox-13c44569",
    "tier": "p1",
    "group": "festivals",
    "title": "festival autumn equinox",
-   "prompt": "single isometric medieval village asset, wide festive scene: autumn harvest festival, feast tables, wheat sheaves, apple baskets, lanterns",
+   "prompt": "single isometric medieval village asset, wide festive scene: autumn harvest festival, feast tables, wheat sheaves, apple baskets, lanterns, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5581,11 +6353,11 @@
    "notes": ""
   },
   {
-   "id": "festival-spring-equinox-93ac28f9",
+   "id": "festival-spring-equinox-3cd8d304",
    "tier": "p1",
    "group": "festivals",
    "title": "festival spring equinox",
-   "prompt": "single isometric medieval village asset, wide festive scene: spring equinox festival, maypole with ribbons, flower garlands, villagers dancing",
+   "prompt": "single isometric medieval village asset, wide festive scene: spring equinox festival, maypole with ribbons, flower garlands, villagers dancing, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5596,11 +6368,11 @@
    "notes": ""
   },
   {
-   "id": "festival-summer-solstice-4fb52203",
+   "id": "festival-summer-solstice-2724705f",
    "tier": "p1",
    "group": "festivals",
    "title": "festival summer solstice",
-   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration",
+   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5611,11 +6383,11 @@
    "notes": ""
   },
   {
-   "id": "festival-winter-solstice-9ed0bc3d",
+   "id": "festival-winter-solstice-0eac86bd",
    "tier": "p1",
    "group": "festivals",
    "title": "festival winter solstice",
-   "prompt": "single isometric medieval village asset, wide festive scene: winter solstice festival, yule log fire, evergreen wreaths, candle lanterns, snow",
+   "prompt": "single isometric medieval village asset, wide festive scene: winter solstice festival, yule log fire, evergreen wreaths, candle lanterns, snow, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5799,11 +6571,393 @@
    "notes": "vocation workshop tools; include_downloadable_data returns the item atlas"
   },
   {
-   "id": "scene-church-service-9079504c",
+   "id": "scot-baronial-turret-010941ac",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot baronial turret",
+   "prompt": "single isometric medieval village asset: scots baronial corner turret with a conical witch's-hat roof, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-bridge-of-sighs-d7979a23",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot bridge of sighs",
+   "prompt": "single isometric medieval village asset: single-span stone bridge up to a walled cemetery, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-calton-folly-49fb32dd",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot calton folly",
+   "prompt": "single isometric medieval village asset: unfinished greek temple columns alone on a hilltop, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-camera-obscura-5014f35d",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot camera obscura",
+   "prompt": "single isometric medieval village asset: old outlook tower with a domed camera chamber on top, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-cannonball-house-fdffc9e1",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot cannonball house",
+   "prompt": "single isometric medieval village asset: stone merchant house with a cannonball lodged in its gable wall, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-cone-statue-7aa650a4",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot cone statue",
+   "prompt": "single isometric medieval village asset: equestrian statue with a traffic cone on its head, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-edinburgh-castle-crag-25ab04c1",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot edinburgh castle crag",
+   "prompt": "single isometric medieval village asset: castle on a sheer volcanic rock crag above the town, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-edinburgh-crown-spire-3e360d4d",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot edinburgh crown spire",
+   "prompt": "single isometric medieval village asset: gothic kirk with a crown-shaped steeple, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-edinburgh-land-f6be6282",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot edinburgh land",
+   "prompt": "single isometric medieval village asset: tall narrow old town tenement 'land', six storeys, harled stone, crow-stepped gables, dormer windows, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-finnieston-crane-0d601a96",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot finnieston crane",
+   "prompt": "single isometric medieval village asset: giant grey cantilever crane over a river, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-georgian-crescent-99ea9db0",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot georgian crescent",
+   "prompt": "single isometric medieval village asset: blonde sandstone georgian terrace, columns and fanlights, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-glasgow-blonde-tenement-3ff9f2f9",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot glasgow blonde tenement",
+   "prompt": "single isometric medieval village asset: honey blonde sandstone tenement with a corner turret, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-glasgow-cathedral-0f5b67e8",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot glasgow cathedral",
+   "prompt": "single isometric medieval village asset: dark gothic cathedral, soot-blackened stone, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-glasgow-red-tenement-5682eaf9",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot glasgow red tenement",
+   "prompt": "single isometric medieval village asset: red sandstone tenement block, four storeys, bay windows, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-necropolis-692760bd",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot necropolis",
+   "prompt": "single isometric medieval village asset: hilltop victorian cemetery, monument spires along the skyline, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-painted-terrace-5e5e65e8",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot painted terrace",
+   "prompt": "single isometric medieval village asset: curved terrace of brightly painted shopfronts, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-peoples-palace-987db61c",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot peoples palace",
+   "prompt": "single isometric medieval village asset: red sandstone museum with a glass winter-gardens dome, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-saracen-bandstand-6ffa24d8",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot saracen bandstand",
+   "prompt": "single isometric medieval village asset: ornate victorian cast-iron bandstand, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-scene-edinburgh-street-64d33c3f",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot scene edinburgh street",
+   "prompt": "single isometric medieval village asset, wide view: steep old town street of tall tenements and crow-stepped gables under a low grey sky, villagers of varied ages and skin tones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "scot-scene-glasgow-green-2f8a15ce",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot scene glasgow green",
+   "prompt": "single isometric medieval village asset, wide view: sandstone tenements round a green, a gaudy venetian-gothic factory at one edge, villagers of varied ages and skin tones",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "scot-scott-monument-2099d9be",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot scott monument",
+   "prompt": "single isometric medieval village asset: spindly black victorian gothic rocket-spire monument, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-templeton-factory-d187c4a2",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot templeton factory",
+   "prompt": "single isometric medieval village asset: carpet factory dressed as a venetian gothic palace, polychrome glazed brick, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-tolbooth-steeple-13dafcd1",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot tolbooth steeple",
+   "prompt": "single isometric medieval village asset: lone stone steeple standing free at a crossroads, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scot-whitehorse-close-a6d0b1dd",
+   "tier": "p1",
+   "group": "regions/scotland",
+   "title": "scot whitehorse close",
+   "prompt": "single isometric medieval village asset: white-harled courtyard inn with outside forestairs, grey scottish light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 160,
+    "height": 160,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": "real building - Edinburgh or Glasgow landmark"
+  },
+  {
+   "id": "scene-church-service-3bba79cd",
    "tier": "p1",
    "group": "scenes",
    "title": "scene church service",
-   "prompt": "single isometric medieval village asset, wide lively scene: villagers entering a stone church for service",
+   "prompt": "single isometric medieval village asset, wide lively scene: villagers entering a stone church for service, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5814,11 +6968,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-funeral-5814a8e0",
+   "id": "scene-funeral-b0d6882a",
    "tier": "p1",
    "group": "scenes",
    "title": "scene funeral",
-   "prompt": "single isometric medieval village asset, wide lively scene: small funeral at the graveyard, villagers heads bowed",
+   "prompt": "single isometric medieval village asset, wide lively scene: small funeral at the graveyard, villagers heads bowed, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5829,11 +6983,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-guild-meeting-c5da0c02",
+   "id": "scene-guild-meeting-ead2a556",
    "tier": "p1",
    "group": "scenes",
    "title": "scene guild meeting",
-   "prompt": "single isometric medieval village asset, wide lively scene: craftsmen meeting in a timber guildhall",
+   "prompt": "single isometric medieval village asset, wide lively scene: craftsmen meeting in a timber guildhall, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5844,11 +6998,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-hard-winter-e5512928",
+   "id": "scene-hard-winter-15e147bd",
    "tier": "p1",
    "group": "scenes",
    "title": "scene hard winter",
-   "prompt": "single isometric medieval village asset, wide lively scene: village in deep snow, thin smoke from chimneys, bleak hard winter",
+   "prompt": "single isometric medieval village asset, wide lively scene: village in deep snow, thin smoke from chimneys, bleak hard winter, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5859,11 +7013,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-harvest-in-22e8a140",
+   "id": "scene-harvest-in-cc5f1932",
    "tier": "p1",
    "group": "scenes",
    "title": "scene harvest in",
-   "prompt": "single isometric medieval village asset, wide lively scene: villagers bringing in the harvest together, carts of wheat",
+   "prompt": "single isometric medieval village asset, wide lively scene: villagers bringing in the harvest together, carts of wheat, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5874,11 +7028,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-market-day-2ee7a97e",
+   "id": "scene-market-day-6fd17e78",
    "tier": "p1",
    "group": "scenes",
    "title": "scene market day",
-   "prompt": "single isometric medieval village asset, wide lively scene: busy medieval market day, stalls, crowds, goods baskets",
+   "prompt": "single isometric medieval village asset, wide lively scene: busy medieval market day, stalls, crowds, goods baskets, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5889,11 +7043,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-minstrel-visit-f2d0a144",
+   "id": "scene-minstrel-visit-11018e35",
    "tier": "p1",
    "group": "scenes",
    "title": "scene minstrel visit",
-   "prompt": "single isometric medieval village asset, wide lively scene: travelling minstrel playing lute at the market crossroads, villagers gathered round, dropped coins",
+   "prompt": "single isometric medieval village asset, wide lively scene: travelling minstrel playing lute at the market crossroads, villagers gathered round, dropped coins, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5904,11 +7058,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-outbreak-670c0185",
+   "id": "scene-outbreak-4923e3ca",
    "tier": "p1",
    "group": "scenes",
    "title": "scene outbreak",
-   "prompt": "single isometric medieval village asset, wide lively scene: village under quarantine, closed doors, a healer walking alone",
+   "prompt": "single isometric medieval village asset, wide lively scene: village under quarantine, closed doors, a healer walking alone, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5919,11 +7073,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-pilgrims-arrive-230a18d8",
+   "id": "scene-pilgrims-arrive-fcfba741",
    "tier": "p1",
    "group": "scenes",
    "title": "scene pilgrims arrive",
-   "prompt": "single isometric medieval village asset, wide lively scene: pilgrims with staffs arriving on the road",
+   "prompt": "single isometric medieval village asset, wide lively scene: pilgrims with staffs arriving on the road, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5934,11 +7088,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-storm-damage-8f1e1470",
+   "id": "scene-storm-damage-c8c81163",
    "tier": "p1",
    "group": "scenes",
    "title": "scene storm damage",
-   "prompt": "single isometric medieval village asset, wide lively scene: storm-torn village, fallen branch, damaged roof",
+   "prompt": "single isometric medieval village asset, wide lively scene: storm-torn village, fallen branch, damaged roof, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5949,11 +7103,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-tax-day-3f0a13b6",
+   "id": "scene-tax-day-ca321aaa",
    "tier": "p1",
    "group": "scenes",
    "title": "scene tax day",
-   "prompt": "single isometric medieval village asset, wide lively scene: tax collector at the market with guards, villagers queueing",
+   "prompt": "single isometric medieval village asset, wide lively scene: tax collector at the market with guards, villagers queueing, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -5964,11 +7118,11 @@
    "notes": "cutscene/loading art; also usable as reference for the matching feature"
   },
   {
-   "id": "scene-wedding-f978b435",
+   "id": "scene-wedding-c95dae1c",
    "tier": "p1",
    "group": "scenes",
    "title": "scene wedding",
-   "prompt": "single isometric medieval village asset, wide lively scene: village wedding outside the church, flower petals",
+   "prompt": "single isometric medieval village asset, wide lively scene: village wedding outside the church, flower petals, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -6112,6 +7266,81 @@
    },
    "est_cost_usd": 0.18,
    "notes": "one call returns the whole grid; slice per cell"
+  },
+  {
+   "id": "weather-dreich-7c53e1b9",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather dreich",
+   "prompt": "wide isometric view: medieval village under flat grey drizzle, wet stone, dreary light",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-four-seasons-6ce07db7",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather four seasons",
+   "prompt": "wide isometric view: medieval village under sunlit showers: bright patches and falling rain in the same sky",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-haar-35409f75",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather haar",
+   "prompt": "wide isometric view: medieval village under cold sea fog rolling in over rooftops, buildings dissolving into grey",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-smirr-5db2f369",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather smirr",
+   "prompt": "wide isometric view: medieval village under fine misting drizzle settling over fields",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
+   "id": "weather-stinging-shower-250fa79b",
+   "tier": "p1",
+   "group": "weather",
+   "title": "weather stinging shower",
+   "prompt": "wide isometric view: medieval village under slanted heavy rain squall driving sideways",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
   },
   {
    "id": "culture-african-house-0e29aad6",
@@ -7873,6 +9102,22 @@
    "notes": ""
   },
   {
+   "id": "future-matchmaker-298f79d0",
+   "tier": "p2",
+   "group": "future/vocations",
+   "title": "future matchmaker",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: village matchmaker, older woman in worn finery carrying a ledger of eligible names and letters",
+   "request": {
+    "prompt_style": "rd_pro__default",
+    "width": 48,
+    "height": 48,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.18,
+   "notes": ""
+  },
+  {
    "id": "future-pasta-maker-ef34a7d2",
    "tier": "p2",
    "group": "future/vocations",
@@ -8398,6 +9643,38 @@
    "group": "anim/vfx",
    "title": "vfx chimney smoke",
    "prompt": "wispy chimney smoke rising",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-drizzle-bb8c499f",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx drizzle",
+   "prompt": "fine grey drizzle falling",
+   "request": {
+    "prompt_style": "rd_animation__vfx",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true
+   },
+   "est_cost_usd": 0.07,
+   "notes": ""
+  },
+  {
+   "id": "vfx-haar-d72febc6",
+   "tier": "anim",
+   "group": "anim/vfx",
+   "title": "vfx haar",
+   "prompt": "low sea fog drifting across the ground",
    "request": {
     "prompt_style": "rd_animation__vfx",
     "width": 64,

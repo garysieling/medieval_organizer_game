@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-22 prompts, est. $3.01 USD at list prices.
+23 prompts, est. $3.19 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -32,7 +32,7 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| person-minstrel-2b6faf87-smoke | small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance | rd_pro__default | 48x48 | 1 | 0.18 | validates: rd_pro character sprite - keep the output, it feeds the two-stage animations \| use a saved reference_image of your base villager for look consistency |
+| person-minstrel-1026f9b4-smoke | small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | validates: rd_pro character sprite - keep the output, it feeds the two-stage animations \| use a saved reference_image of your base villager for look consistency |
 
 ## P0 - needed now (replaces assets the game already draws) / icons/actions
 
@@ -63,7 +63,7 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| festival-summer-solstice-4fb52203-smoke | single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration | rd_pro__isometric | 256x256 | 1 | 0.18 | validates: wide isometric scene |
+| festival-summer-solstice-2724705f-smoke | single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | validates: wide isometric scene |
 
 ## ANIMATED - premium tier, all animation styles / anim/walk
 
@@ -108,6 +108,12 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | ui-title-keyart-8651a36f-smoke | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 | validates: painterly key art |
+
+## P0 - needed now (replaces assets the game already draws) / colors
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| palette-english-countryside-860d3b3d-smoke | flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky | rd_pro__simple | 128x128 | 1 | 0.18 | validates: flat palette swatch (rd_pro__simple) \| use the output as input_palette on other calls to lock the countryside palette |
 
 ## P1 - fills gaps in shipped features / compare/tiers
 

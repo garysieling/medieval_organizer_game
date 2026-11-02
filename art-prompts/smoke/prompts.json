@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 22,
-  "est_total_usd": 3.01
+  "count": 23,
+  "est_total_usd": 3.19
  },
  "prompts": [
   {
@@ -78,11 +78,11 @@
    "notes": "validates: rd_pro isometric building"
   },
   {
-   "id": "person-minstrel-2b6faf87-smoke",
+   "id": "person-minstrel-1026f9b4-smoke",
    "tier": "p0",
    "group": "people/roles",
    "title": "person minstrel",
-   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance",
+   "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair",
    "request": {
     "prompt_style": "rd_pro__default",
     "width": 48,
@@ -171,11 +171,11 @@
    "notes": "validates: ui_panel chrome | ui_panel draws a matched chrome set; slice per element"
   },
   {
-   "id": "festival-summer-solstice-4fb52203-smoke",
+   "id": "festival-summer-solstice-2724705f-smoke",
    "tier": "p1",
    "group": "festivals",
    "title": "festival summer solstice",
-   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration",
+   "prompt": "single isometric medieval village asset, wide festive scene: summer solstice festival, great bonfire, flower crowns, longest day celebration, villagers of varied ages and skin tones",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 256,
@@ -330,6 +330,21 @@
    },
    "est_cost_usd": 0.18,
    "notes": "validates: painterly key art"
+  },
+  {
+   "id": "palette-english-countryside-860d3b3d-smoke",
+   "tier": "p0",
+   "group": "colors",
+   "title": "palette english countryside",
+   "prompt": "flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky",
+   "request": {
+    "prompt_style": "rd_pro__simple",
+    "width": 128,
+    "height": 128,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: flat palette swatch (rd_pro__simple) | use the output as input_palette on other calls to lock the countryside palette"
   },
   {
    "id": "compare-cottage-fast-cbcf31b7-smoke",

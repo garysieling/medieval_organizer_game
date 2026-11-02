@@ -20,6 +20,7 @@ Needs Pillow.
 """
 import argparse
 import os
+import re
 import sys
 from collections import deque
 
@@ -186,19 +187,29 @@ def main():
     args = ap.parse_intermixed_args()  # names may follow --out
     if args.names and not args.out:
         sys.exit("cell=name args need --out DIR")
+    for opt in ("tol", "min_px", "gap"):
+        if getattr(args, opt) < 0:
+            sys.exit(f"--{opt.replace('_', '-')} must be >= 0")
     pairs = []
     for p in args.names:
         cell, eq, name = p.partition("=")
         name, at, height = name.partition("@")
-        if not eq or not name or "/" in name or os.sep in name:
+        if not eq or not re.fullmatch(r"r\d+c\d+", cell) or not name \
+                or name.startswith(".") or "/" in name or os.sep in name:
             sys.exit(f"expected rRcC=name or rRcC=name@H, got {p!r}")
         if at and not (height.isdigit() and int(height) > 0):
             sys.exit(f"{p!r}: @H must be a positive pixel height")
+        if any(name == n for _, n, _ in pairs):
+            sys.exit(f"{p!r}: name {name!r} is already used by another cell")
         pairs.append((cell, name, int(height) if at else None))
     if not os.path.isfile(args.sheet):
         sys.exit(f"{args.sheet}: no such file")
+    try:
+        sheet = Image.open(args.sheet)
+    except OSError as e:
+        sys.exit(f"{args.sheet}: not an image ({e})")
 
-    im = key_background(Image.open(args.sheet), args.tol)
+    im = key_background(sheet, args.tol)
     cells = grid(merge_close(blobs(im, args.min_px), args.gap))
     rows = sorted({int(n[1:].split("c")[0]) for n in cells})
     for r in rows:

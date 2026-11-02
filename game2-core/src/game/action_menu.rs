@@ -256,6 +256,9 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             match super::actions::demonstrate(world, c, player, tick) {
                 Some(out) => {
                     let r = super::reactions::react(world, c, &out.turnout, tick);
+                    // the campaign talks over what the street brought
+                    let _ = super::campaign_arc::deliberate_arc(world, c,
+                        super::campaign_arc::ArcEvent::March(r.unwrap_or(super::reactions::Reaction::Ignored)), tick);
                     // everyone who saw it and felt the cause wake in them
                     let issue = world.get_component::<campaign::Campaign>(c).map(|c| c.issue.clone()).unwrap_or_default();
                     let mut woke = 0usize;

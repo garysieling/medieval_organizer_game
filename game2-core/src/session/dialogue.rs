@@ -231,6 +231,27 @@ impl Game {
         self.push_talk(TalkKind::Meeting, with, lines);
     }
 
+    /// A campaign's talk - a meeting's deliberation, or the arc that
+    /// follows a march, a strike or a townhall - goes on the TALK panel in
+    /// the order it was said, and the exchange that settled it hangs over
+    /// the two who said it. The other side speaks as "The hall", the room
+    /// together as "The room".
+    pub fn record_campaign_talk(&mut self, with: Vec<Entity>, d: &crate::game::campaign_dialogue::Deliberation) {
+        use crate::game::campaign_dialogue::Voice;
+        let said: Vec<(Option<Entity>, String, String)> = d.said.iter().map(|s| {
+            let name = match (s.speaker, s.voice) {
+                (Some(e), _) => self.speaker_name(e),
+                (None, Voice::Opponent) => "The hall".to_string(),
+                (None, _) => "The room".to_string(),
+            };
+            (s.speaker, name, s.text.clone())
+        }).collect();
+        self.record_meeting(with, said);
+        for s in d.decisive() {
+            if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
+        }
+    }
+
     /// The name a line is kept under: a player's own name (each seat's
     /// panel shows its own lines as "You" - talk_panel_at), else the villager's
     fn speaker_name(&self, e: Entity) -> String {

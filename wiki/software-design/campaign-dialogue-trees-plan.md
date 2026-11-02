@@ -1,6 +1,6 @@
 # Campaign Dialogue Trees: Staged Content and Integration Plan
 
-**Status:** Stages 0-2 merged; Stage 3 (1,000 campaign-arc beats) in review; Stage 4 pending
+**Status:** Stages 0-3 merged; Stage 4 (runtime integration and balancing) in review
 **Branch:** `feat/campaign-dialogue-trees`
 **Reference model:** `game2-core/src/game/conversation.rs` and `game2-core/src/game/dialogue_trees.rs`
 
@@ -115,3 +115,29 @@ The likely integration boundary is a declarative campaign decision library besid
 - Leader demands appear as situated options in Target and Negotiate: specific/winnable, broad, procedural (a seat at the reckoning), material (wood, a dole), protective (no reprisals), and accountability (open books).
 - Audits added: per-phase floor for both libraries; arc beats read only arc-scale facts; at least 450 distinct arc contexts (523 at merge); every arc-scale fact used by at least 3 arc beats; at least 8 criteria-free beats per arc phase; at least 5 outcome beats for each outcome kind; no move from a won beat closes the arc (at least 15 hand on to enforcement); every denied outcome can hand on to learning, losses close only from Renew, and some losses carry a dissent; a seeded 8,000-campaign sample must reach 90% of the library (1,000/1,000 at merge).
 - Read sample campaigns with `cargo test -p game2-core --lib sample_arcs -- --ignored --nocapture`.
+
+## Stage 4 Notes
+
+### Runtime
+- `game2-core/src/game/campaign_arc.rs`: `arc_facts` reads a campaign's state as arc facts, `deliberate_arc` walks the arc library after a public action, and `record_event`/`record_consent` keep the only state the sim didn't already hold, in an `ArcRecord` component (action count, last answer from the target, last meeting's consent).
+- Fact sources: a live `LordGrant` for the campaign's issue → `arc:won`; a lapsed one → `arc:promise_broken`; the last townhall answer → `arc:lost` (refused) or `arc:delayed` (deflected); `GuardsPosted` → `arc:crackdown`; `AssemblyBan` → `arc:countered`; members held → `arc:prisoners`/`org:jailed`; leader held → `arc:leader_taken`; organized power → `arc:weak`/`arc:strong`; 2+ dissenters → `arc:split`; half the free members `Demoralized` → `arc:fatigue`; 2+ outsiders `Sympathized` with the issue → `arc:allies`; the last meeting's consent → `arc:consent`; actions ≤1 / ≥5 → `arc:first`/`arc:veteran`.
+- **Missing state (follow-up):** nothing in the sim grants half a demand or hollows one out, so `arc:partial` and `arc:diluted` are never set at runtime; their beats are audited and wait on that state.
+- Where arcs start: a march nobody noticed → Test; a noticed march or a called strike → Counter; a failed strike → Learn; a townhall → Outcome. Up to 3 beats per action.
+- Wired in `session.rs` (March, Strike, Townhall, Meet) and `action_menu.rs` (March). The talk goes on the TALK panel (`record_campaign_talk`): the other side speaks as "The hall", the room as "The room". The closing exchange hangs over the two who said it.
+- `DialogueMemory` remembers a campaign's last 40 beats across meetings and arcs. A walk prefers beats not heard lately (`Walker::step_avoiding`), and falls back to the rest rather than dead-ending.
+
+### Balance (seeded long run, `test_long_run_balance`)
+- 400 campaigns × 30 events per library, with facts drifting between events.
+- Arcs: 12,000 walks, 0 dead ends, 0.0% beats repeated within memory, 915/1,000 beats reached, 0 of the judged beats dominated by one move.
+- Meetings: 12,000 walks, 0 dead ends, 0.0% repeats, 955/1,000 reached, 0 dominated.
+- `test_no_move_dominates_by_weight` checks exactly (not by sampling) that no move can take more than 90% of draws even with every bias it could earn.
+
+### Authoring and validation
+- Audit both libraries: `cargo test -p game2-core --lib game::campaign_dialogue`
+- Runtime and balance: `cargo test -p game2-core --lib game::campaign_arc -- --nocapture`
+- Read play-throughs: `cargo test -p game2-core --lib sample_meetings -- --ignored --nocapture` and `... sample_arcs -- --ignored --nocapture`
+- Rules the audits enforce: a criteria-free move in every beat; at least 8 criteria-free beats per phase; no beat keyed only on `Lacks`; voices backed by criteria (Dissenter, NoteTaker, Chair); no `Hook::Resolve` in meetings; no repeated or modern-diction lines; no win that ends an arc; no Enforce after a loss; arc beats read only arc-scale facts.
+
+### Source coverage
+- 38 patterns: 30 documented, 4 sacred, 2 legendary, 2 contested. Citations in the meeting library: 1,128 documented, 117 sacred, 47 legendary, 30 contested. In the arc library: 1,160 / 64 / 57 / 47.
+- Most-cited, meetings: guild ordinances, the Acts common purse, Polletta's decision rule, the 504 coalition, citizenship schools, issue-cutting. Arcs: citizenship schools, the Hussite compacts, the 504 coalition, labour strikes, Reconstruction's reversal, the Remença.

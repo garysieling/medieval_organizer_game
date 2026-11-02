@@ -294,8 +294,18 @@ impl Walker {
     /// Play the next beat against `facts`; None once the walk closed or the
     /// phase has nothing unspent left to say
     pub fn step(&mut self, beats: &'static [Beat], facts: &Facts, rng: &mut Rng) -> Option<Step> {
+        self.step_avoiding(beats, facts, &HashSet::new(), rng)
+    }
+
+    /// As `step`, but a beat in `avoid` (heard lately) plays only when the
+    /// phase has nothing fresher to say - so a campaign whose state hasn't
+    /// changed hears new lines before old ones, and never dead-ends for it
+    pub fn step_avoiding(&mut self, beats: &'static [Beat], facts: &Facts,
+                         avoid: &HashSet<&'static str>, rng: &mut Rng) -> Option<Step> {
         let phase = self.phase?;
-        let Some((beat, mv)) = pick_beat(beats, phase, facts, &self.spent, rng)
+        let fresh: HashSet<&'static str> = self.spent.union(avoid).copied().collect();
+        let Some((beat, mv)) = pick_beat(beats, phase, facts, &fresh, rng)
+            .or_else(|| pick_beat(beats, phase, facts, &self.spent, rng))
             .and_then(|b| pick_move(b, facts, rng).map(|m| (b, m))) else {
             self.phase = None;
             return None;
@@ -437,8 +447,10 @@ pub fn apply_hook(world: &mut World, campaign: Entity, hook: Hook, speaker: Opti
 /// A line said at a campaign meeting
 #[derive(Debug)]
 pub struct Spoken {
-    /// Who said it; None for the room speaking together
+    /// Who said it; None for the room speaking together or the other side
     pub speaker: Option<Entity>,
+    /// The voice it was written for - tells the room from the other side
+    pub voice: Voice,
     pub text: String,
     /// The beat it came from, and that beat's phase
     pub beat: &'static str,
@@ -517,21 +529,24 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
             Voice::Room | Voice::Opponent => None,
         }
     };
+    let recent = crate::game::campaign_arc::recent_beats(world, campaign);
+    let mut heard: Vec<&'static str> = vec![];
     let mut d = Deliberation { said: vec![], applied: vec![], decided: false, consent: false };
     let mut w = Walker::new(Phase::Agenda);
     for _ in 0..MEETING_MAX_BEATS {
         let facts = meeting_facts(world, campaign, out, tick);
-        let Some(s) = w.step(MEETING_BEATS, &facts, &mut rng) else { break };
+        let Some(s) = w.step_avoiding(MEETING_BEATS, &facts, &recent, &mut rng) else { break };
+        heard.push(s.beat.id);
         let beat_needs = personal_needs(s.beat.criteria);
         let caller = voice_of(s.beat.voice, &beat_needs, None, &mut rng);
-        d.said.push(Spoken { speaker: caller, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
+        d.said.push(Spoken { speaker: caller, voice: s.beat.voice, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
         // a reply's own needs pick its speaker; otherwise, when the call
         // came from someone else, the reply can be the one the beat's about
         let mv_needs = personal_needs(s.mv.criteria);
         let reply_needs: &[&str] = if !mv_needs.is_empty() { &mv_needs }
             else if s.beat.voice == Voice::Member { &[] } else { &beat_needs };
         let answerer = voice_of(s.mv.voice, reply_needs, caller, &mut rng);
-        d.said.push(Spoken { speaker: answerer, text: fill(s.reply, &issue), beat: s.beat.id, phase: s.beat.phase });
+        d.said.push(Spoken { speaker: answerer, voice: s.mv.voice, text: fill(s.reply, &issue), beat: s.beat.id, phase: s.beat.phase });
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
         if s.beat.phase == Phase::Decision && s.mv.next == Next::Phase(Phase::FollowThrough) {
             d.decided = true;
@@ -543,6 +558,10 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
         }
     }
     d.consent = out.consent && d.decided && !d.applied.contains(&Hook::Dissent);
+    // what the room settled carries into the campaign's arc, and what it
+    // said is remembered so the next sitting hears fresh lines first
+    crate::game::campaign_arc::record_consent(world, campaign, d.consent);
+    crate::game::campaign_arc::remember(world, campaign, &heard);
     Some(d)
 }
 

@@ -169,12 +169,12 @@ mod tests {
 
     #[test]
     fn test_a_grant_gives_less_when_partial_and_nothing_once_hollow() {
-        let g = LordGrant::full("the taxes", 100);
+        let g = LordGrant::full("the taxes", 0, 100);
         assert_eq!(g.relief(50), FULL_RELIEF);
         assert_eq!(g.relief(101), 0.0, "lapsed");
-        let p = LordGrant::partial("the taxes", 100);
+        let p = LordGrant::partial("the taxes", 0, 100);
         assert_eq!(p.relief(50), PARTIAL_RELIEF);
-        let mut h = LordGrant::full("the taxes", 100);
+        let mut h = LordGrant::full("the taxes", 0, 100);
         h.hollow = true;
         assert!(h.active(50) && h.relief(50) == 0.0, "on paper, not in practice");
     }
@@ -185,7 +185,7 @@ mod tests {
         let m = member(&mut w);
         let (o, camp) = campaign(&mut w, &[m]);
         campaign::set_cadence(&mut w, camp, 7, 10);
-        w.add_component(o, LordGrant::full("the taxes", 300));
+        w.add_component(o, LordGrant::full("the taxes", 10, 300));
         // the campaign keeps meeting: the grant holds
         assert!(!hollow_if_unguarded(&mut w, camp, 20));
         assert!(!w.get_component::<LordGrant>(o).unwrap().hollow);
@@ -194,8 +194,15 @@ mod tests {
         assert!(w.get_component::<LordGrant>(o).unwrap().hollow);
         assert!(!hollow_if_unguarded(&mut w, camp, 31), "only once");
         // a lapsed grant has nothing left to hollow
-        w.add_component(o, LordGrant::full("the taxes", 25));
+        w.add_component(o, LordGrant::full("the taxes", 10, 25));
         assert!(!hollow_if_unguarded(&mut w, camp, 40));
+        // a grant won after the campaign had already lapsed gets its own
+        // watch: honoured at first, hollowed only if nobody meets after it
+        w.add_component(o, LordGrant::full("the taxes", 40, 400));
+        assert!(campaign::lapsed(&w, camp, 41));
+        assert!(!hollow_if_unguarded(&mut w, camp, 41), "a day-old grant isn't unguarded");
+        assert!(!hollow_if_unguarded(&mut w, camp, 54));
+        assert!(hollow_if_unguarded(&mut w, camp, 55), "two cadences past the win");
     }
 
     #[test]
@@ -224,6 +231,8 @@ mod tests {
 #[derive(Debug)]
 pub struct LordGrant {
     pub issue: String,
+    /// The day it was won - watch is kept from here, not from before it
+    pub since: u64,
     pub until: u64,
     pub partial: bool,
     pub hollow: bool,
@@ -234,14 +243,14 @@ pub const FULL_RELIEF: f32 = 0.5;
 pub const PARTIAL_RELIEF: f32 = 0.25;
 
 impl LordGrant {
-    /// The whole demand, granted until `until`
-    pub fn full(issue: &str, until: u64) -> Self {
-        LordGrant { issue: issue.to_string(), until, partial: false, hollow: false }
+    /// The whole demand, won on `since`, granted until `until`
+    pub fn full(issue: &str, since: u64, until: u64) -> Self {
+        LordGrant { issue: issue.to_string(), since, until, partial: false, hollow: false }
     }
 
-    /// Part of the demand, granted until `until`
-    pub fn partial(issue: &str, until: u64) -> Self {
-        LordGrant { issue: issue.to_string(), until, partial: true, hollow: false }
+    /// Part of the demand, won on `since`, granted until `until`
+    pub fn partial(issue: &str, since: u64, until: u64) -> Self {
+        LordGrant { issue: issue.to_string(), since, until, partial: true, hollow: false }
     }
 
     /// Still in force (honoured or not)
@@ -259,11 +268,16 @@ impl LordGrant {
 }
 
 /// A grant nobody keeps watch over is clawed back: once the campaign that
-/// won it has lapsed (gone too long without meeting), the grant stays on
-/// paper but stops being honoured. Returns whether it was hollowed now.
+/// won it has gone too long without meeting - counted from its last
+/// meeting or the day the grant was won, whichever is later, by the same
+/// measure as `campaign::lapsed` - the grant stays on paper but stops
+/// being honoured. Returns whether it was hollowed now.
 pub fn hollow_if_unguarded(world: &mut World, campaign: Entity, tick: u64) -> bool {
     let Some(org) = world.get_component::<campaign::Campaign>(campaign).map(|c| c.org) else { return false };
-    let unguarded = campaign::lapsed(world, campaign, tick);
+    let since = world.get_component::<LordGrant>(org).map(|g| g.since).unwrap_or(0);
+    let unguarded = world.get_component::<campaign::CampaignMeeting>(campaign)
+        .map(|m| tick.saturating_sub(m.last_held.max(since)) > m.cadence_days * campaign::LAPSE_CADENCES)
+        .unwrap_or(false);
     match world.get_component_mut::<LordGrant>(org) {
         Some(g) if g.active(tick) && !g.hollow && unguarded => { g.hollow = true; true }
         _ => false,

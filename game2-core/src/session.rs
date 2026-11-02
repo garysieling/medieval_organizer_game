@@ -8252,7 +8252,7 @@ impl Game {
                             let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
                                 .map(|cc| cc.issue.clone()).unwrap_or_default();
                             self.world.add_component(oe, crate::game::reactions::LordGrant::full(
-                                &issue, tick + crate::game::desires::YEAR_DAYS));
+                                &issue, tick, tick + crate::game::desires::YEAR_DAYS));
                             // the tag the tax fight is voted under
                             if issue == "the taxes" {
                                 if let Some(o) = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()) {
@@ -8271,7 +8271,7 @@ impl Game {
                             let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
                                 .map(|cc| cc.issue.clone()).unwrap_or_default();
                             self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
-                                &issue, tick + crate::game::desires::YEAR_DAYS / 2));
+                                &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
                             format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
                         }
                         TargetResponse::Deflects =>

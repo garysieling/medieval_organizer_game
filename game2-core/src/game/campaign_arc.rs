@@ -332,23 +332,23 @@ mod tests {
         assert!(f.has("arc:delayed") && !f.has("arc:lost"));
         // carried up and granted: a win while the grant lasts...
         record_event(&mut w, c, ArcEvent::Townhall(TargetResponse::Carries));
-        w.add_component(o, LordGrant::full("the taxes", 100));
+        w.add_component(o, LordGrant::full("the taxes", 0, 100));
         let f = arc_facts(&w, c, 50);
         assert!(f.has("arc:won") && !f.has("arc:promise_broken"));
         // ...and a promise to hold them to once it lapses
         let f = arc_facts(&w, c, 150);
         assert!(f.has("arc:promise_broken") && !f.has("arc:won"));
         // a grant for some other issue isn't this campaign's win
-        w.add_component(o, LordGrant::full("the mill", 500));
+        w.add_component(o, LordGrant::full("the mill", 0, 500));
         assert!(!arc_facts(&w, c, 50).has("arc:won"));
         // part granted; then the grant hollowed while still on paper
-        w.add_component(o, LordGrant::partial("the taxes", 100));
+        w.add_component(o, LordGrant::partial("the taxes", 0, 100));
         let f = arc_facts(&w, c, 50);
         assert!(f.has("arc:partial") && !f.has("arc:won"));
         w.get_component_mut::<LordGrant>(o).unwrap().hollow = true;
         let f = arc_facts(&w, c, 50);
         assert!(f.has("arc:diluted") && !f.has("arc:partial") && !f.has("arc:won"));
-        w.add_component(o, LordGrant::full("the mill", 500));
+        w.add_component(o, LordGrant::full("the mill", 0, 500));
         assert!(!arc_facts(&w, c, 50).has("arc:won"));
         // and the record counts actions: three so far, five makes a veteran
         let f = arc_facts(&w, c, 50);

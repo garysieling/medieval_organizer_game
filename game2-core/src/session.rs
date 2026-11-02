@@ -2006,6 +2006,7 @@ impl Game {
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
+        let _ = crate::game::landforms::shape_terrain(&mut terrain, seed);
         let climate = climate::spawn_climate(&mut world);
         // the felt-worth ledger rides beside the climate - what the
         // shelves show leans what a swap is worth, quietly

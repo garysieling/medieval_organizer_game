@@ -1,0 +1,89 @@
+{
+  "source": {
+    "title": "Geological Landforms",
+    "author": "m00nl1ght",
+    "url": "https://github.com/m00nl1ght-dev/GeologicalLandforms",
+    "version": "1.7.14",
+    "commit": "872cf77f4cf1dbcfd28d261f2842a00a7c68b63e",
+    "license": "CC BY-NC-SA 4.0"
+  },
+  "profiles": [
+    {
+      "id": "coastal_plain",
+      "display_name": "Coastal Plain",
+      "shape": "coastal_plain",
+      "selection_weight": 1.0,
+      "requirements": {
+        "min_buildable_fraction": 0.38,
+        "min_dry_fraction": 0.52,
+        "max_rock_fraction": 0.20,
+        "min_water_fraction": 0.02,
+        "max_water_fraction": 0.48
+      },
+      "source_profile": {
+        "id": "Coast",
+        "source_file": "1.6/Landforms-v1/LandformCoast.xml",
+        "topology": "CoastOneSide",
+        "commonness": 1.0,
+        "allows_settlements": true
+      }
+    },
+    {
+      "id": "open_valley",
+      "display_name": "Open Valley",
+      "shape": "open_valley",
+      "selection_weight": 1.0,
+      "requirements": {
+        "min_buildable_fraction": 0.45,
+        "min_dry_fraction": 0.55,
+        "max_rock_fraction": 0.16,
+        "min_water_fraction": 0.02,
+        "max_water_fraction": 0.45
+      },
+      "source_profile": {
+        "id": "Valley",
+        "source_file": "1.6/Landforms-v1/LandformValley.xml",
+        "topology": "Inland",
+        "commonness": 1.0,
+        "hilliness_requirement": [3.68571424, 4.8],
+        "river_requirement": [0.251428574, 1.0],
+        "allows_settlements": true
+      }
+    },
+    {
+      "id": "lake_basin",
+      "display_name": "Lake Basin",
+      "shape": "lake_basin",
+      "selection_weight": 0.35,
+      "requirements": {
+        "min_buildable_fraction": 0.40,
+        "min_dry_fraction": 0.52,
+        "max_rock_fraction": 0.18,
+        "min_water_fraction": 0.10,
+        "max_water_fraction": 0.40
+      },
+      "source_profile": {
+        "id": "Lake",
+        "source_file": "1.6/Landforms-v1/LandformLake.xml",
+        "topology": "Inland",
+        "commonness": 0.02793297,
+        "river_requirement": [0.0, 0.697142839],
+        "allows_settlements": false
+      }
+    },
+    {
+      "id": "rolling_uplands",
+      "display_name": "Rolling Uplands",
+      "shape": "rolling_uplands",
+      "selection_weight": 0.75,
+      "requirements": {
+        "min_buildable_fraction": 0.42,
+        "min_dry_fraction": 0.55,
+        "max_rock_fraction": 0.24,
+        "min_water_fraction": 0.02,
+        "max_water_fraction": 0.45
+      },
+      "source_profile": null
+    }
+  ]
+}

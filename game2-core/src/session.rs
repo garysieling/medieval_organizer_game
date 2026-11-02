@@ -80,6 +80,31 @@ pub fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) ->
     (sx.round() as i32, sy.round() as i32)
 }
 
+/// Conservative tile bounds whose ground sprites can reach the viewport.
+/// The screen margins match draw_ground's sprite-overhang cull, then one tile
+/// is added to absorb rounding at fractional zooms.
+fn visible_tile_bounds(cam_x: i32, cam_y: i32, zoom: f32, width: usize, height: usize,
+    map_width: i32, map_height: i32) -> (i32, i32, i32, i32) {
+    let (mx, my) = ((2.0 * TILE_W as f32 * zoom).ceil(), (4.0 * TILE_H as f32 * zoom).ceil());
+    let corners = [(-mx, -my), (width as f32 + mx, -my), (-mx, height as f32 + my),
+        (width as f32 + mx, height as f32 + my)];
+    let mut min_x = f32::INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
+    for (sx, sy) in corners {
+        let u = ((sx - ZOOM_PIVOT.0) / zoom - cam_x as f32) / TILE_W as f32;
+        let v = ((sy - ZOOM_PIVOT.1) / zoom + 60.0 - cam_y as f32) / TILE_H as f32;
+        let (tx, ty) = ((u + v) * 0.5, (v - u) * 0.5);
+        min_x = min_x.min(tx); min_y = min_y.min(ty);
+        max_x = max_x.max(tx); max_y = max_y.max(ty);
+    }
+    let (x0, y0, x1, y1) = ((min_x.floor() as i32 - 40).max(0),
+        (min_y.floor() as i32 - 40).max(0), (max_x.ceil() as i32 + 40).min(map_width - 1),
+        (max_y.ceil() as i32 + 40).min(map_height - 1));
+    (x0, y0, x1, y1)
+}
+
 /// Draw `sprite` with its top-left at (x, y), scaled by `scale`
 fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     if (scale - 1.0).abs() < 0.01 {
@@ -9439,8 +9464,10 @@ impl View {
         let faces = &self.art.faces[season_tiles(season)];
         let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
         let (w_t, h_t) = (m.map.width as i32, m.map.height as i32);
-        for d in 0..(w_t + h_t - 1) {
-            for tx in (d - h_t + 1).max(0)..=d.min(w_t - 1) {
+        let (x0, y0, x1, y1) = visible_tile_bounds(cam_x, cam_y, zoom, buf.width, buf.height, w_t, h_t);
+        if x0 > x1 || y0 > y1 { return; }
+        for d in x0 + y0..=x1 + y1 {
+            for tx in (d - y1).max(x0)..=d.min(x1) {
                 let ty = d - tx;
                 let Some(tile) = m.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
@@ -12141,6 +12168,9 @@ mod ground_cache_tests {
             assert_eq!((cache.buf.width, cache.buf.height), (MAP_W, H));
             assert_eq!(cache.buf.pixels.len(), MAP_W * H * 4);
         }
+        let bounds = visible_tile_bounds(view.cam_x, view.cam_y, view.zoom, MAP_W, H, 245, 245);
+        let visited = (bounds.2 - bounds.0 + 1) * (bounds.3 - bounds.1 + 1);
+        assert!(visited < 25_000, "viewport culling should skip most of the 60,025 map tiles (visited {})", visited);
         view.cam_x += 35;
         view.render(&model, (-1, -1));
         view.render(&model, (-1, -1));

@@ -3082,6 +3082,16 @@ impl Game {
                     .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
                 if due { None } else { Some("not due to meet".into()) }
             }
+            CtxAct::Townhall => {
+                // the Reeve won't hear the same demands while he's honouring
+                // a full grant for them; a part-grant or a hollowed one can
+                // still be pressed
+                let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
+                let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)?.issue.clone();
+                let g = self.world.get_component::<crate::game::reactions::LordGrant>(self.seats[seat].org)?;
+                (g.issue == issue && g.active(self.tick) && !g.partial && !g.hollow)
+                    .then(|| format!("the Reeve has answered - the grant stands till day {}", g.until))
+            }
             CtxAct::Delegate => {
                 let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
                 let open = [crate::game::campaign::Role::TurnoutCoordinator,
@@ -6823,7 +6833,7 @@ impl Game {
                 for o in seat_orgs {
                     if let Some(camp) = crate::game::campaign::campaign_of(&self.world, o) {
                         if crate::game::reactions::hollow_if_unguarded(&mut self.world, camp, tick) {
-                            self.log.push(format!("t{}: the lord's grant still stands on paper - but nobody kept watch, and the collector takes the full cut.", tick));
+                            self.log.push(format!("t{}: the lord's grant still stands on paper - but nobody kept watch, and the collector takes the full cut. Meet again and put your demands to the Reeve to win it back.", tick));
                         }
                     }
                 }
@@ -8270,9 +8280,18 @@ impl Game {
                             let oe = self.seats[seat].org;
                             let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
                                 .map(|cc| cc.issue.clone()).unwrap_or_default();
-                            self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
-                                &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
-                            format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
+                            // a part already granted and honoured isn't
+                            // granted again: pressing a thin room twice
+                            // doesn't stretch it
+                            let held = self.world.get_component::<crate::game::reactions::LordGrant>(oe)
+                                .map(|g| g.issue == issue && g.active(tick) && !g.hollow).unwrap_or(false);
+                            if held {
+                                format!("{} face the Reeve - he grants no more than he already has.", out.turnout.len())
+                            } else {
+                                self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
+                                    &issue, tick, tick + crate::game::desires::YEAR_DAYS / 2));
+                                format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
+                            }
                         }
                         TargetResponse::Deflects =>
                             format!("The Reeve sends regards and a clerk. {} went home hollow.", out.turnout.len()),
@@ -14281,6 +14300,32 @@ mod campaign_part_grant_tests {
     }
 
     #[test]
+    fn test_pressing_again_doesnt_stretch_a_grant() {
+        let mut g = thin_tax_campaign();
+        let reeve = g.collector.unwrap();
+        desires::add_grievance(&mut g.world, reeve, desires::Problem::Taxed, g.tick + 400);
+        g.seats[0].selected_target = COLLECTOR_IDX;
+        g.seats[0].picked = true;
+        g.seats[0].ctx_actions.push(CtxAct::Townhall);
+        g.ctx_act_at(0, 0);
+        let until = g.world.get_component::<crate::game::reactions::LordGrant>(g.org).unwrap().until;
+        // a part-grant can be pressed, but a second thin room gets nothing new
+        assert!(g.ctx_blocker_at(0, CtxAct::Townhall).is_none());
+        g.tick += 30;
+        g.ctx_act_at(0, 0);
+        assert!(g.log.iter().any(|l| l.contains("no more than he already has")), "{:?}", g.log.last());
+        assert_eq!(g.world.get_component::<crate::game::reactions::LordGrant>(g.org).unwrap().until, until);
+        // a full grant, honoured, closes the Reeve's door to the same demands
+        let issue = "the taxes";
+        g.world.add_component(g.org, crate::game::reactions::LordGrant::full(issue, g.tick, g.tick + 100));
+        let why = g.ctx_blocker_at(0, CtxAct::Townhall).expect("he's answered");
+        assert!(why.contains("grant stands"), "{}", why);
+        // hollowed, it can be pressed again
+        g.world.get_component_mut::<crate::game::reactions::LordGrant>(g.org).unwrap().hollow = true;
+        assert!(g.ctx_blocker_at(0, CtxAct::Townhall).is_none());
+    }
+
+    #[test]
     fn test_a_thin_room_wins_part_and_an_unwatched_grant_goes_hollow() {
         let mut g = thin_tax_campaign();
         let reeve = g.collector.unwrap();
@@ -14310,7 +14355,7 @@ mod campaign_part_grant_tests {
         let covered_before = g.log.iter().filter(|l| l.contains("covers")).count();
         g.world.get_component_mut::<Purse>(v).unwrap().gold = 50.0;
         g.arrive(reeve, Goal::CollectTax(v));
-        assert!(g.log.iter().any(|l| l.contains("still stands on paper")), "{:?}", g.log.last());
+        assert!(g.log.iter().any(|l| l.contains("still stands on paper") && l.contains("Meet again")), "{:?}", g.log.last());
         assert_eq!(g.log.iter().filter(|l| l.contains("covers")).count(), covered_before, "no relief once hollow");
         let f = crate::game::campaign_arc::arc_facts(&g.world, c, g.tick);
         assert!(f.has("arc:diluted") && !f.has("arc:partial"), "granted in name only");

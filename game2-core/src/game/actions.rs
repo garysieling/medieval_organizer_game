@@ -384,6 +384,47 @@ mod tests {
     }
 
     #[test]
+    fn test_townhall_outcomes_rise_with_the_room() {
+        // a probe over every room size and turnout: more people in the room
+        // never earns a worse answer, a part-grant needs the target's own
+        // stake, and it sits only between the thin and the full room
+        let rank = |r: TargetResponse| match r {
+            TargetResponse::Deflects | TargetResponse::Refuses => 0,
+            TargetResponse::Concedes => 1,
+            TargetResponse::Carries => 2,
+        };
+        let mut table: Vec<(usize, usize, bool, TargetResponse)> = vec![];
+        for members in 2..=10 {
+            for staked in [true, false] {
+                let mut last = 0;
+                for answering in 0..members {
+                    let mut w = World::new();
+                    let ms: Vec<Entity> = (0..members).map(|_| member(&mut w)).collect();
+                    for &m in &ms[1..=answering.min(members - 1)] { bond(&mut w, ms[0], m); }
+                    let (_, camp) = campaign(&mut w, &ms, "the taxes");
+                    campaign::delegate_role(&mut w, camp, Role::TurnoutCoordinator, ms[0]);
+                    let target = member(&mut w);
+                    if staked { add_grievance(&mut w, target, Problem::Taxed, 200); }
+                    let out = townhall(&mut w, camp, target, 10).unwrap();
+                    let scale = out.turnout.len() as f32 / members as f32;
+                    assert!(rank(out.response) >= last, "{} of {} did worse than fewer", out.turnout.len(), members);
+                    last = rank(out.response);
+                    if out.response == TargetResponse::Concedes {
+                        assert!(staked && (0.2..0.5).contains(&scale), "a part-grant at {:.2}", scale);
+                    }
+                    if !staked { assert!(rank(out.response) == 0, "an unmoved target granted something"); }
+                    table.push((members, out.turnout.len(), staked, out.response));
+                }
+            }
+        }
+        let concedes = table.iter().filter(|t| t.3 == TargetResponse::Concedes).count();
+        let carries = table.iter().filter(|t| t.3 == TargetResponse::Carries).count();
+        let staked = table.iter().filter(|t| t.2).count();
+        eprintln!("townhall probe: of {} staked rooms, {} carried, {} conceded", staked, carries, concedes);
+        assert!(concedes > 0 && concedes < carries, "part-grants should be the narrower band");
+    }
+
+    #[test]
     fn test_the_hollow_find_their_feet_in_about_a_month() {
         let mut w = World::new();
         let m = member(&mut w);

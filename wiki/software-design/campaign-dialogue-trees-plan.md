@@ -142,3 +142,14 @@ The likely integration boundary is a declarative campaign decision library besid
 ### Source coverage
 - 38 patterns: 30 documented, 4 sacred, 2 legendary, 2 contested. Citations in the meeting library: 1,128 documented, 117 sacred, 47 legendary, 30 contested. In the arc library: 1,160 / 64 / 57 / 47.
 - Most-cited, meetings: guild ordinances, the Acts common purse, Polletta's decision rule, the 504 coalition, citizenship schools, issue-cutting. Arcs: citizenship schools, the Hussite compacts, the 504 coalition, labour strikes, Reconstruction's reversal, the Remença.
+
+## Robustness pass (after Stage 4)
+
+- **Expired vs broken:** a grant that runs its term reads as `arc:expired` (renew it; five beats across Target, Negotiate, Enforce, Learn and Renew). `arc:promise_broken` is now reserved for a grant taken back while still in force: a hollowed grant reads as both `arc:diluted` and `arc:promise_broken`.
+- **Guards against pressing the same demand:** the Reeve won't hear demands for an issue while honouring a full grant for it (`ctx_blocker_at`). A part-grant or a hollowed grant can still be pressed, but a second thin room never extends a part-grant already held. A grant records the day it was won, and "unguarded" counts from the later of that day and the last meeting.
+- **Teaching the fix:** the hollowing log line tells the player to meet again and put the demands to the Reeve.
+- **Text game:** the action-menu march tells the arc's closing exchange, as the graphical game shows it on the TALK panel.
+- **Prompt quality:** 501 caption-like prompt variants (three words or fewer, e.g. "The closed doors.") were dropped wherever the beat had a full spoken variant; every beat kept one. `test_prompts_are_spoken_lines_not_captions` requires at least four words per prompt. Short replies ("Aye.", "Fair.") are kept as natural interjections.
+- **Counts are floors:** the library-size tests require at least 1,000 beats each, so authors can add.
+- **Facts read once:** a meeting gathers its attendees' traits and wants once (`meeting_facts_with`) and re-reads only the campaign between beats; a test checks both paths agree.
+- **Townhall probe** (`test_townhall_outcomes_rise_with_the_room`): over every room of 2–10 members and every turnout, more people never earns a worse answer; a part-grant needs the target's own stake and sits only between a fifth and a half turnout. Of 54 staked rooms, 34 carried and 15 conceded. Untuned numbers still worth a playtest: the quarter relief, the half-year term, and the 0.2–0.5 band.

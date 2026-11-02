@@ -1525,9 +1525,9 @@ pub struct Pedlar {
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;
 
-/// Tiles a side of the map: the town keeps its size, the country around it
-/// grew half again so the farmland and wilds have room
-pub const MAP_TILES: usize = 49;
+/// The map is five times the original 49-tile side in both dimensions.
+pub const MAP_SCALE: usize = 5;
+pub const MAP_TILES: usize = 49 * MAP_SCALE;
 
 /// The map the windowed game plays: GAME2_SEED pins one (for a screenshot
 /// of a particular country); otherwise each launch draws a fresh one
@@ -2350,7 +2350,11 @@ impl Game {
         let in_wall = |x: i32, y: i32| (wall.0..=wall.2).contains(&x) && (wall.1..=wall.3).contains(&y);
         let herb_sites: Vec<(i32, i32)> = (0..map.height as i32)
             .flat_map(|y| (0..map.width as i32).map(move |x| (x, y)))
-            .filter(|&(x, y)| map.get(x, y) == Some(Tile::Grass) && map.passable(x, y) && !in_wall(x, y))
+            // Foraging is a village activity: keep the wild patches within
+            // the herb-wife's walking range instead of scattering them over
+            // the newly enlarged country.
+            .filter(|&(x, y)| (x - 16).abs() + (y - 16).abs() <= 16
+                && map.get(x, y) == Some(Tile::Grass) && map.passable(x, y) && !in_wall(x, y))
             .collect();
         let step = (herb_sites.len() / PATCH_HERBS.len().max(1)).max(1);
         for (pi, &herb) in PATCH_HERBS.iter().enumerate() {
@@ -12013,8 +12017,8 @@ mod works_tests {
         let mut game = Game::new();
         // somewhere a road has to be laid to reach - the town's lanes reach
         // everywhere now, so hunt for a spot the road hasn't got to yet
-        let spot = [(8i32, 20), (4, 24), (28, 26), (30, 5), (4, 5), (26, 3)]
-            .iter().copied().find(|&(cx, cy)| {
+        let spot = (8..MAP_TILES as i32 - 8).flat_map(|y| (8..MAP_TILES as i32 - 8).map(move |x| (x, y)))
+            .find(|&(cx, cy)| {
                 (-4..=4).all(|dy| (-4..=4).all(|dx| game.map.get(cx + dx, cy + dy) != Some(Tile::Road)))
             }).expect("a spot out past the roads");
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
@@ -14804,5 +14808,13 @@ mod tavern_tests {
         assert!(household::home_of(&g.world, newcomer).is_none(), "no room was found");
         assert!(g.world.get_component::<InnerLife>(newcomer).unwrap()
             .wants.contains(&Want::Shelter), "so they want a bed");
+    }
+
+    #[test]
+    fn generated_country_is_five_times_larger_per_side() {
+        let game = Game::new();
+        assert_eq!(MAP_TILES, 245);
+        assert_eq!(game.map.width, 245);
+        assert_eq!(game.map.height, 245);
     }
 }

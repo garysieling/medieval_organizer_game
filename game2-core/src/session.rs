@@ -8045,27 +8045,12 @@ impl Game {
                                 .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
                             msg += &format!(" - {} heard out", healed.join(", "));
                         }
+                        // the log keeps the outcome; what the room said goes
+                        // on the TALK panel, in the order it was said
                         if let Some(d) = d {
-                            let me = self.seats[seat].player;
-                            let name_of = |e: Option<Entity>| match e {
-                                None => "The room".to_string(),
-                                Some(e) if e == me => self.world.get_component::<PlayerCharacter>(me)
-                                    .map(|p| p.name.clone()).unwrap_or_else(|| "You".into()),
-                                Some(e) => self.villagers.iter().position(|v| *v == e)
-                                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
-                            };
-                            // the log keeps the outcome; what the room said
-                            // goes on the TALK panel, in the order it was said
-                            let said: Vec<(Option<Entity>, String, String)> = d.said.iter()
-                                .map(|s| (s.speaker, name_of(s.speaker), s.text.clone())).collect();
-                            let mut with = vec![me];
+                            let mut with = vec![self.seats[seat].player];
                             with.extend(out.attendees.iter().copied());
-                            self.record_meeting(with, said);
-                            // and the exchange that settled it hangs over the two who said it
-                            let key = d.decisive();
-                            for s in key {
-                                if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
-                            }
+                            self.record_campaign_talk(with, &d);
                         }
                         msg
                     }
@@ -8197,6 +8182,15 @@ impl Game {
                                 self.toasts.push((format!("{} is taken", tn), tick + 40));
                             }
                         }
+                        // the campaign talks over what the street brought
+                        // (after any arrest, so the taken are counted)
+                        let ev = crate::game::campaign_arc::ArcEvent::March(
+                            r.unwrap_or(crate::game::reactions::Reaction::Ignored));
+                        if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                            let mut with = vec![pe];
+                            with.extend(out.turnout.iter().copied());
+                            self.record_campaign_talk(with, &d);
+                        }
                         msg
                     }
                     None => "You call a march - and nobody comes. The street stays empty.".into(),
@@ -8210,6 +8204,10 @@ impl Game {
                 };
                 match crate::game::actions::strike_vote(&mut self.world, c, voc, tick) {
                     Some(out) => {
+                        let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
+                        if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                            self.record_campaign_talk(vec![self.seats[seat].player, v], &d);
+                        }
                         format!("{} of {} say yes{}. {}", out.yes, out.yes + out.no,
                             if out.called { " - the strike is on" } else { "" },
                             if out.called { "The trade stands together." } else { "Less than nine of ten: it fails in public." })
@@ -8222,7 +8220,7 @@ impl Game {
                 let Some(target) = self.collector else { return };
                 use crate::game::actions::{townhall, TargetResponse};
                 match townhall(&mut self.world, c, target, tick) {
-                    Some(out) => match out.response {
+                    Some(out) => { let msg = match out.response {
                         TargetResponse::Carries => {
                             self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
                             // the carried demand lands as a grant: the load
@@ -8248,7 +8246,16 @@ impl Game {
                             format!("The Reeve sends regards and a clerk. {} went home hollow.", out.turnout.len()),
                         TargetResponse::Refuses =>
                             format!("The doors stay shut on {} voices. They go home hollow.", out.turnout.len()),
-                    },
+                    };
+                    // the answer at the door is the arc's outcome (read
+                    // after any grant above has landed)
+                    let ev = crate::game::campaign_arc::ArcEvent::Townhall(out.response);
+                    if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                        let mut with = vec![self.seats[seat].player, target];
+                        with.extend(out.turnout.iter().copied());
+                        self.record_campaign_talk(with, &d);
+                    }
+                    msg },
                     None => "Nobody turns out for the townhall.".into(),
                 }
             }
@@ -14180,6 +14187,16 @@ mod campaign_grant_tests {
 
         // the grant lands: the cause's people stop counting the taxing
         assert!(g.world.get_component::<crate::game::reactions::LordGrant>(g.org).is_some());
+        // and the campaign talks it over as a win - an outcome beat from
+        // the arc library, on the TALK panel, read off the grant
+        let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+        assert!(crate::game::campaign_arc::arc_facts(&g.world, c, g.tick).has("arc:won"));
+        let talk = g.talk_log.last().expect("no campaign talk recorded");
+        assert!(talk.lines.len() >= 2 && talk.tick == g.tick, "{:?}", talk.lines.len());
+        let arc_lines: std::collections::HashSet<String> = crate::game::campaign_dialogue::ARC_BEATS.iter()
+            .flat_map(|b| b.lines.iter().chain(b.moves.iter().flat_map(|m| m.lines)))
+            .map(|l| crate::game::campaign_dialogue::fill(l, "the taxes")).collect();
+        assert!(arc_lines.contains(&talk.lines[0].text), "not an arc line: {:?}", talk.lines[0].text);
         assert!(!desires::problems_of(&g.world, g.villagers[1], g.tick)
             .contains(&desires::Problem::Taxed), "the grievance is answered");
     }

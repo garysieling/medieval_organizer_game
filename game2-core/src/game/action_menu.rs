@@ -272,6 +272,10 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                             msg += " - they take the loudest. Letters will have to bring them home."
                         } else { msg += "." }
                     }
+                    // the campaign talks over what the street brought - after
+                    // the watchers woke and any arrest, as the graphical game does
+                    let _ = super::campaign_arc::deliberate_arc(world, c,
+                        super::campaign_arc::ArcEvent::March(r.unwrap_or(super::reactions::Reaction::Ignored)), tick);
                     msg
                 }
                 None => "You call a march - and nobody comes. The street stays empty.".into(),

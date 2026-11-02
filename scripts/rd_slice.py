@@ -184,6 +184,19 @@ def main():
     ap.add_argument("--half", action="store_true",
                     help="downscale exported sprites 2x (match the game's 2x-drawn pack art)")
     args = ap.parse_intermixed_args()  # names may follow --out
+    if args.names and not args.out:
+        sys.exit("cell=name args need --out DIR")
+    pairs = []
+    for p in args.names:
+        cell, eq, name = p.partition("=")
+        name, at, height = name.partition("@")
+        if not eq or not name or "/" in name or os.sep in name:
+            sys.exit(f"expected rRcC=name or rRcC=name@H, got {p!r}")
+        if at and not (height.isdigit() and int(height) > 0):
+            sys.exit(f"{p!r}: @H must be a positive pixel height")
+        pairs.append((cell, name, int(height) if at else None))
+    if not os.path.isfile(args.sheet):
+        sys.exit(f"{args.sheet}: no such file")
 
     im = key_background(Image.open(args.sheet), args.tol)
     cells = grid(merge_close(blobs(im, args.min_px), args.gap))
@@ -197,19 +210,16 @@ def main():
         print("preview ->", args.preview)
     if args.out:
         os.makedirs(args.out, exist_ok=True)
-        bad = [p for p in args.names if "=" not in p]
-        if bad:
-            sys.exit(f"expected rRcC=name, got {' '.join(bad)}")
-        pairs = [p.split("=", 1) for p in args.names] or [(n, n) for n in cells]
-        for cell, name in pairs:
-            if cell not in cells:
-                sys.exit(f"no cell {cell} (see the preview for names)")
+        pairs = pairs or [(n, n, None) for n in cells]
+        missing = [cell for cell, _, _ in pairs if cell not in cells]
+        if missing:
+            sys.exit(f"no cell {' '.join(missing)} (see the preview for names)")
+        for cell, name, height in pairs:
             spr = im.crop(cells[cell])
-            name, _, height = name.partition("@")
             if args.half:
                 spr = halve(spr)
             if height:
-                spr = fit_height(spr, int(height))
+                spr = fit_height(spr, height)
             spr.save(os.path.join(args.out, name + ".png"))
             print(f"{cell} -> {os.path.join(args.out, name + '.png')} ({spr.width}x{spr.height})")
 

@@ -941,6 +941,8 @@ pub struct Art {
     /// The cottages a home can be: colour, timber or plaster, and the door
     /// and gable in different spots (the pack's numbered variants)
     pub houses: Vec<Option<Sprite>>,
+    /// The houses with their greens snowed over, for winter
+    pub houses_winter: Vec<Option<Sprite>>,
     pub mill_frames: Vec<Sprite>, // the sails only: they turn on mill_tower
     pub mill_tower: Option<Sprite>,
     pub blacksmith_s: Option<Sprite>,
@@ -964,7 +966,11 @@ pub struct Art {
     pub rival_woodhouse: Option<Sprite>,
     /// The watch at the town gates, from the humans pack
     pub guards: Vec<Sprite>,
+    /// Generated looks for the watch (rd/guards), by the same index as
+    /// guards; drawn standing, facing out
+    pub guard_walks: Vec<Option<WalkSheet>>,
     pub priest_s: Option<Sprite>,
+    pub priest_walk: Option<WalkSheet>,
     pub traveller_s: Option<Sprite>, // a courier riding the road between villages
     /// The animals: Retro Diffusion art (assets/rd/farm-animals, sliced
     /// from one generated sheet - see assets/rd/README.md), drawn at 1x
@@ -1172,7 +1178,7 @@ impl TileSet {
             (v.len() == n).then_some(v)
         };
         // fields lie under the snow in winter
-        let snow = || load("Enviroument/Winter/snow.png");
+        let snow = || at("rd/tiles/winter/snow.png").or_else(|| load("Enviroument/Winter/snow.png"));
         let water = |shade: (f32, f32, f32)| grass.as_ref().map(|g| water_block(g, winter, shade));
         let (water, shallow, deep) = (water((0.55, 0.8, 1.2)), water((0.8, 1.0, 1.35)), water((0.35, 0.55, 1.0)));
         let ground = if winter { snow() } else { grass.map(gold) };
@@ -1190,7 +1196,8 @@ impl TileSet {
         };
         // both growth stages of each crop, so a field isn't one plant repeated
         let crop = |name: &str| -> Vec<Sprite> {
-            (1..=2).filter_map(|i| load(&format!("Buildings/{}/{}({}).png", name, name, i))).map(&gold).collect()
+            rd_pieces(name, 2).unwrap_or_else(||
+                (1..=2).filter_map(|i| load(&format!("Buildings/{}/{}({}).png", name, name, i))).map(&gold).collect())
         };
         let set = TileSet {
             shore, hill, rock, water, shallow, deep,
@@ -1201,13 +1208,15 @@ impl TileSet {
             corn: if winter { snow().into_iter().collect() } else { crop("corn") },
             roads: if winter {
                 // the winter set numbers its two straight roads the other way round
-                let mut r = pieces("Roads/Winter", "road_winter", 15);
+                let mut r = rd_pieces("winter/road_winter", 15).unwrap_or_else(|| pieces("Roads/Winter", "road_winter", 15));
                 if r.len() > 2 { r.swap(1, 2); }
                 r
             } else { rd_pieces("road", 15).unwrap_or_else(|| pieces("Roads/Spring", "road", 15)) },
-            rivers: if winter { pieces("Rivers/Winter", "river_winter", 17) }
+            rivers: if winter { rd_pieces("winter/river_winter", 17).unwrap_or_else(|| pieces("Rivers/Winter", "river_winter", 17)) }
                 else { rd_pieces("river", 17).unwrap_or_else(|| pieces("Rivers/Spring", "river", 17)) },
-            rivers_ice: if winter { pieces("Rivers/Winter/Ice", "river_ice_winter", 17) } else { vec![] },
+            rivers_ice: if winter {
+                rd_pieces("winter/river_ice_winter", 17).unwrap_or_else(|| pieces("Rivers/Winter/Ice", "river_ice_winter", 17))
+            } else { vec![] },
         };
         // without the dark outline round their top faces, so the ground
         // reads as one surface rather than a grid of tiles (lines inside a
@@ -1356,6 +1365,12 @@ impl Art {
         self.houses.get(i % self.houses.len().max(1)).unwrap_or(&NO_SPRITE)
     }
 
+    /// The same cottage in winter: the generated ones stand on a grass
+    /// base, which snows over (and moss on a thatch roof gets a dusting)
+    fn house_winter(&self, i: usize) -> &Option<Sprite> {
+        self.houses_winter.get(i % self.houses_winter.len().max(1)).unwrap_or(&NO_SPRITE)
+    }
+
     /// Load every sprite, `seed` settling which variant each single-choice
     /// building wears this map (the mill's colour, the corner towers, the
     /// church's keep) - the same map seed looks the same every run
@@ -1402,9 +1417,12 @@ impl Art {
             "Buildings/house/Wood houses/Wood house/wood_house(2).png",
             "Buildings/house/White houses/Blue house/white_blue_house(4).png",
         ].iter().map(|rel| pack(rel)).collect();
-        // a generated cottage takes the first look's place when present
-        let mut houses = houses;
-        if let Some(c) = at("rd/buildings/cottage.png") { houses[0] = Some(c); }
+        // the generated cottages (assets/rd/buildings) replace the pack's
+        // looks when present: a matched street, not a mix
+        let rd_houses: Vec<Option<Sprite>> = (1..=9).filter_map(|i| at(&format!("rd/buildings/cottage{}.png", i))).map(Some).collect();
+        let houses = if rd_houses.is_empty() { houses } else { rd_houses };
+        let houses_winter: Vec<Option<Sprite>> = houses.iter()
+            .map(|h| h.as_ref().map(|s| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85)))).collect();
 
         // walk cycles: the player's, and the villager looks that have one
         // (same order as vpeople: the peasant man and woman so far)
@@ -1437,6 +1455,7 @@ impl Art {
             villager_sprites,
             rival_sprites,
             houses,
+            houses_winter,
             tiles: [TileSet::load(&at, 0), TileSet::load(&at, 1), TileSet::load(&at, 2)],
             faces: [0, 1, 2].map(|season| TileSet::load(&at, season).map_blocks(face_only)),
             mill_frames: (1..=4).map(|i|
@@ -1467,6 +1486,8 @@ impl Art {
             rival_house: at(&assets.building_sprite("house", "red")),
             rival_woodhouse: at(&assets.building_sprite("woodhouse", "red")),
             priest_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniMage.png")),
+            priest_walk: walk("rd/villagers/priest.png"),
+            guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
             guards,
             dog: rd("dog").or_else(|| Some(doubled(dog_sprite()))),
@@ -9144,6 +9165,8 @@ pub struct View {
     ground: std::cell::RefCell<Option<GroundCache>>,
     last_zoom: std::cell::Cell<f32>,
     last_camera: std::cell::Cell<(i32, i32)>,
+    /// The frame being drawn is winter: buildings use their snowy looks
+    winter: std::cell::Cell<bool>,
 }
 
 impl View {
@@ -9159,12 +9182,14 @@ impl View {
             ground: std::cell::RefCell::new(None),
             last_zoom: std::cell::Cell::new(f32::NAN),
             last_camera: std::cell::Cell::new((i32::MIN, i32::MIN)),
+            winter: std::cell::Cell::new(false),
         }
     }
 
     /// The sprite a building draws with
     fn sprite_of(&self, b: BSprite) -> &Option<Sprite> {
         match b {
+            BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
             BSprite::House(i) => self.art.house(i),
             BSprite::Blacksmith => &self.art.blacksmith_s,
             BSprite::Church => &self.art.church_s,
@@ -9182,6 +9207,7 @@ impl View {
         let (mx, my) = mouse;
         let art = &self.art;
         let (tick, cam_x, cam_y, zoom) = (m.tick, self.cam_x, self.cam_y, self.zoom);
+        self.winter.set(season_tiles(m.season) == 2);
 
         let mut buf = Buffer::new(W, H);
         buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
@@ -9486,13 +9512,16 @@ impl View {
                 // the watch: soldiers from the humans pack at the gates
                 Who::P(pv) if let PKind::Guard(i) = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if !art.guards.is_empty() {
+                    if let Some(Some(ws)) = art.guard_walks.get(i % art.guard_walks.len().max(1)) {
+                        ws.draw(&mut buf, 2, false, 0, sx, sy, zoom);
+                    } else if !art.guards.is_empty() {
                         draw_character(&mut buf, &art.guards[i % art.guards.len()], sx, sy, zoom);
                     }
                 },
                 Who::P(pv) if let PKind::Priest = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(s) = &art.priest_s { draw_character(&mut buf, s, sx, sy, zoom); }
+                    if let Some(ws) = &art.priest_walk { ws.draw(&mut buf, 2, false, 0, sx, sy, zoom); }
+                    else if let Some(s) = &art.priest_s { draw_character(&mut buf, s, sx, sy, zoom); }
                 },
                 Who::P(pv) if let PKind::Traveller = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
@@ -13995,9 +14024,18 @@ mod dog_sprite_tests {
             let g = t.grass.as_ref().unwrap();
             assert_eq!((g.width, g.height), (95, 97), "the composed grass block keeps the pack's size");
         }
-        // the peasant man and woman walk; the other looks are still the pack's
-        assert!(art.villager_walks[0].is_some() && art.villager_walks[1].is_some());
-        assert!(art.villager_walks[2..].iter().all(|w| w.is_none()));
+        // winter: snow, roads, rivers and ice all generated too
+        let w = &art.tiles[2];
+        assert_eq!((w.roads.len(), w.rivers.len(), w.rivers_ice.len()), (15, 17, 17));
+        // crop fields: both growth stages of wheat and corn
+        assert_eq!((art.tiles[0].wheat.len(), art.tiles[0].corn.len()), (2, 2));
+        // every villager look, the watch and the priest walk; the street is
+        // the generated cottages, with snowy versions for winter
+        assert!(art.villager_walks.iter().all(|w| w.is_some()), "every villager look has a walk sheet");
+        assert!(art.guard_walks.len() == 4 && art.guard_walks.iter().all(|w| w.is_some()));
+        assert!(art.priest_walk.is_some());
+        assert_eq!(art.houses.len(), 9);
+        assert_eq!(art.houses_winter.len(), art.houses.len());
         let ws = art.villager_walks[0].as_ref().unwrap();
         assert_eq!((ws.frames.len(), ws.frames[0].len()), (4, 4));
         assert!((28..=40).contains(&(ws.feet - ws.head)), "a grown-up is ~35px tall, not {}", ws.feet - ws.head);

@@ -1,0 +1,27 @@
+{
+ "created_at": 1793644264,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 50.24,
+ "request_id": "722b4922-6d30-4db7-950c-93596bfd7e8d",
+ "outputs_retained_until": 1793730609,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.18,
+  "balance_left": 50.24
+ },
+ "id": "ground-set-ice-87f74ff0",
+ "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat square isometric ground block of frozen pale blue-green ice, cracked ice top, plain top face, thin earth sides, top face is a 2:1 diamond",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "art-prompts/raw/scale-tile-grass-0b26af48/0.png"
+ },
+ "generated_at": "2026-11-02T13:31:04",
+ "seconds": 55.8
+}

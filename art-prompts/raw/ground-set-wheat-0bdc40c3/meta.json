@@ -1,0 +1,27 @@
+{
+ "created_at": 1793644124,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 50.78,
+ "request_id": "156ca8d7-0190-4376-96cf-f31417bae473",
+ "outputs_retained_until": 1793730462,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.18,
+  "balance_left": 50.78
+ },
+ "id": "ground-set-wheat-0bdc40c3",
+ "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat square isometric ground block of ripe golden wheat field, dense standing wheat, plain top face, thin earth sides, top face is a 2:1 diamond",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "art-prompts/raw/scale-tile-grass-0b26af48/0.png"
+ },
+ "generated_at": "2026-11-02T13:28:44",
+ "seconds": 62.1
+}

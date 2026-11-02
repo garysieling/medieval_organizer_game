@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643918,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 52.72,
+ "request_id": "e7182881-bee9-49b9-a977-eeb693f3a4a6",
+ "outputs_retained_until": 1793730313,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 52.72
+ },
+ "id": "walk4-guard-sword-b6048a78",
+ "prompt": "town guard with brown skin, steel kettle helmet, blue tabard over chainmail, sword at the hip, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:25:18",
+ "seconds": 5.7
+}

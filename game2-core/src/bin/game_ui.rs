@@ -100,6 +100,8 @@ fn main() {
     let cam: Option<(i32, i32)> = args.iter().position(|a| a == "--cam").and_then(|i| args.get(i + 1))
         .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse().ok()?, y.parse().ok()?)));
     let weather = args.iter().position(|a| a == "--weather").and_then(|i| args.get(i + 1)).cloned();
+    // --focus sheep: centre the dump on the first figure of that kind
+    let focus = args.iter().position(|a| a == "--focus").and_then(|i| args.get(i + 1)).cloned();
     let seed = args.iter().position(|a| a == "--seed").and_then(|i| args.get(i + 1))
         .and_then(|v| v.parse().ok()).unwrap_or_else(session::run_seed);
     // remote play: --connect ws://host:port
@@ -107,7 +109,7 @@ fn main() {
 
     if let Some(target) = dump_at {
         let art = Art::load_fs("assets", seed);
-        session::run_headless(art, target, out, zoom, cam, weather.as_deref(), seed);
+        session::run_headless_focus(art, target, out, zoom, cam, weather.as_deref(), seed, focus.as_deref());
         return;
     }
 

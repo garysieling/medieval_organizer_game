@@ -7952,6 +7952,23 @@ impl Game {
                                 .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
                             msg += &format!(" - {} heard out", healed.join(", "));
                         }
+                        // the room talks it through: each speaker's line
+                        // hangs over them, and how it ended goes in the log
+                        if let Some(d) = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick) {
+                            let me = self.seats[seat].player;
+                            let name_of = |e: Option<Entity>| match e {
+                                None => "The room".to_string(),
+                                Some(e) if e == me => "You".to_string(),
+                                Some(e) => self.villagers.iter().position(|v| *v == e)
+                                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
+                            };
+                            if let Some(last) = d.said.last() {
+                                msg += &format!(". {}: \"{}\"", name_of(last.speaker), last.text);
+                            }
+                            for s in &d.said {
+                                if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
+                            }
+                        }
                         msg
                     }
                     None => "The campaign isn't due to meet yet.".into(),

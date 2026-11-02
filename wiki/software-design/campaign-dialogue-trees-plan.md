@@ -1,6 +1,6 @@
 # Campaign Dialogue Trees: Staged Content and Integration Plan
 
-**Status:** Stage 0 checked in; implementation pending
+**Status:** Stage 1 (schema + 100-beat slice + meeting path) in review; Stages 2-4 pending
 **Branch:** `feat/campaign-dialogue-trees`
 **Reference model:** `game2-core/src/game/conversation.rs` and `game2-core/src/game/dialogue_trees.rs`
 
@@ -89,3 +89,12 @@ The campaign implementation currently has procedural founding votes and meeting 
 ## Initial Local Hypothesis and Discriminating Check
 
 The likely integration boundary is a declarative campaign decision library beside the conversation library, with explicit consequence hooks into `campaign.rs`; the current meeting function itself resolves attendance and campaign bookkeeping but does not yet model a deliberative exchange. Stage 1's seeded selection test and a narrow integration test should disconfirm this if the existing campaign system already exposes a suitable decision abstraction or if content selection cannot be kept separate from state mutation.
+## Stage 1 Notes
+
+- Model, selection, runtime hooks and the inventory audit: `game2-core/src/game/campaign_dialogue.rs`. Content and source patterns: `game2-core/src/game/campaign_beats.rs`.
+- A beat is the counted unit (stable ID, phase, criteria, voice, prompt variants, weighted moves, source tags). Moves carry criteria, base weight, fact-keyed bias, a voice, line variants, one `Hook`, and a `Next` phase or close.
+- Selection: most-specific tier among unspent matching beats (seeded tie-break), then a weighted move draw. Every phase keeps a criteria-free beat; every beat keeps a criteria-free move.
+- Hooks are the only mutation path: `Resolve` (+1 resolve on record; requires a note taker), `Dissent` (speaker rejoins dissenters; never the org leader), `Reframe(Framing)`.
+- Connected path: after `hold_campaign_meeting`, `deliberate_meeting` walks the house-meeting library from `Agenda` (max 5 beats) against facts read from the campaign, voices lines through attendees, and applies hooks. `hold_campaign_meeting` itself is unchanged.
+- `arc:*` facts are defined vocabulary only; the campaign-arc library is audited and walkable in tests but not yet wired to state (Stage 3/4).
+- Audit: `cargo test -p game2-core --lib game::campaign_dialogue` checks counts per library, unique IDs, positive weights, known facts, resolvable source tags, phase fallbacks, reachability, voice/hook backing, distinct in-register lines, and seeded determinism.

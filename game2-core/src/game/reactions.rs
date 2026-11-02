@@ -193,6 +193,9 @@ mod tests {
         assert!(hollow_if_unguarded(&mut w, camp, 30));
         assert!(w.get_component::<LordGrant>(o).unwrap().hollow);
         assert!(!hollow_if_unguarded(&mut w, camp, 31), "only once");
+        // a grant on another issue isn't this campaign's to guard
+        w.add_component(o, LordGrant::full("the mill", 300));
+        assert!(!hollow_if_unguarded(&mut w, camp, 32));
         // a lapsed grant has nothing left to hollow
         w.add_component(o, LordGrant::full("the taxes", 25));
         assert!(!hollow_if_unguarded(&mut w, camp, 40));
@@ -262,10 +265,11 @@ impl LordGrant {
 /// won it has lapsed (gone too long without meeting), the grant stays on
 /// paper but stops being honoured. Returns whether it was hollowed now.
 pub fn hollow_if_unguarded(world: &mut World, campaign: Entity, tick: u64) -> bool {
-    let Some(org) = world.get_component::<campaign::Campaign>(campaign).map(|c| c.org) else { return false };
+    let Some((org, issue)) = world.get_component::<campaign::Campaign>(campaign)
+        .map(|c| (c.org, c.issue.clone())) else { return false };
     let unguarded = campaign::lapsed(world, campaign, tick);
     match world.get_component_mut::<LordGrant>(org) {
-        Some(g) if g.active(tick) && !g.hollow && unguarded => { g.hollow = true; true }
+        Some(g) if g.issue == issue && g.active(tick) && !g.hollow && unguarded => { g.hollow = true; true }
         _ => false,
     }
 }

@@ -8270,8 +8270,15 @@ impl Game {
                             let oe = self.seats[seat].org;
                             let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
                                 .map(|cc| cc.issue.clone()).unwrap_or_default();
-                            self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
-                                &issue, tick + crate::game::desires::YEAR_DAYS / 2));
+                            // a thin room can't take back what a full one
+                            // won: a live, honoured grant stands as it is
+                            let holds_full = self.world.get_component::<crate::game::reactions::LordGrant>(oe)
+                                .map(|g| g.issue == issue && g.relief(tick) >= crate::game::reactions::FULL_RELIEF)
+                                .unwrap_or(false);
+                            if !holds_full {
+                                self.world.add_component(oe, crate::game::reactions::LordGrant::partial(
+                                    &issue, tick + crate::game::desires::YEAR_DAYS / 2));
+                            }
                             format!("{} face the Reeve - he grants a part of it, and no more.", out.turnout.len())
                         }
                         TargetResponse::Deflects =>
@@ -14278,6 +14285,22 @@ mod campaign_part_grant_tests {
         let view = View::new(Art::load_fs("../assets", 0));
         let buf = view.render(&g.ui_model(), (-1, -1));
         buf.save_bmp(&path).unwrap();
+    }
+
+    #[test]
+    fn test_a_thin_room_doesnt_cut_back_a_full_grant() {
+        let mut g = thin_tax_campaign();
+        let reeve = g.collector.unwrap();
+        desires::add_grievance(&mut g.world, reeve, desires::Problem::Taxed, g.tick + 400);
+        let until = g.tick + desires::YEAR_DAYS;
+        g.world.add_component(g.org, crate::game::reactions::LordGrant::full("the taxes", until));
+        g.seats[0].selected_target = COLLECTOR_IDX;
+        g.seats[0].picked = true;
+        g.seats[0].ctx_actions.push(CtxAct::Townhall);
+        g.ctx_act_at(0, 0);
+        assert!(g.log.iter().any(|l| l.contains("grants a part of it")), "{:?}", g.log.last());
+        let grant = g.world.get_component::<crate::game::reactions::LordGrant>(g.org).unwrap();
+        assert!(!grant.partial && grant.until == until, "the full grant stands: {:?}", grant);
     }
 
     #[test]

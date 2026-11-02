@@ -197,6 +197,9 @@ def main():
         print("preview ->", args.preview)
     if args.out:
         os.makedirs(args.out, exist_ok=True)
+        bad = [p for p in args.names if "=" not in p]
+        if bad:
+            sys.exit(f"expected rRcC=name, got {' '.join(bad)}")
         pairs = [p.split("=", 1) for p in args.names] or [(n, n) for n in cells]
         for cell, name in pairs:
             if cell not in cells:

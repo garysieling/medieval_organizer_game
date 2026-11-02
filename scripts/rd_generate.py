@@ -74,6 +74,8 @@ def call(url, body=None, idem=None):
             return json.load(r)
     except urllib.error.HTTPError as e:
         sys.exit(f"RD API {e.code}: {e.read().decode(errors='replace')[:500]}")
+    except urllib.error.URLError as e:
+        sys.exit(f"RD API unreachable ({url}): {e.reason}")
 
 
 def load_manifest():

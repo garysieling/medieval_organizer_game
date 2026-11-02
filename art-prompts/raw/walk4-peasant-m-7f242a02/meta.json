@@ -1,0 +1,27 @@
+{
+ "created_at": 1793627257,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 53.35,
+ "request_id": "7e87c0fb-7983-404b-b856-7e73a641c4ca",
+ "outputs_retained_until": 1793713653,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 53.35
+ },
+ "id": "walk4-peasant-m-7f242a02",
+ "prompt": "young male peasant villager with thick messy brown hair, red-brown wool tunic and tan trousers, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T08:47:37",
+ "seconds": 4.5
+}

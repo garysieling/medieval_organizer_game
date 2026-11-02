@@ -174,6 +174,9 @@ pub struct UiModel {
     /// left) and whether it's mid-walk, for the walk cycle
     #[serde(default)]
     pub player_pose: (u8, bool),
+    /// Villagers' (entity, facing, walking), for their walk cycles
+    #[serde(default)]
+    pub poses: Vec<(Entity, u8, bool)>,
     pub tick: u64,
     /// Animation frame count (mill sails, smoke, the courier's ride)
     pub frame: u32,

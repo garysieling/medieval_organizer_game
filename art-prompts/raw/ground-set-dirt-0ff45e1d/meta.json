@@ -1,0 +1,27 @@
+{
+ "created_at": 1793627164,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 53.67,
+ "request_id": "c94e2691-713c-4a95-9dc9-010473ffcbee",
+ "outputs_retained_until": 1793713505,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.18,
+  "balance_left": 53.67
+ },
+ "id": "ground-set-dirt-0ff45e1d",
+ "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat square isometric ground block of packed brown earth, a bare dirt road surface, plain top face, thin earth sides, top face is a 2:1 diamond",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "art-prompts/raw/scale-tile-grass-0b26af48/0.png"
+ },
+ "generated_at": "2026-11-02T08:46:04",
+ "seconds": 59.3
+}

@@ -63,3 +63,32 @@ Open decisions (proportions):
 - Ground blocks: draw RD blocks at native geometry (change BLOCK_FACE /
   FACE_CENTRE) once roads and rivers are RD too, instead of mapping onto
   the pack's.
+
+## Ground set + first villagers (2026-11-02)
+
+**Ground (green seasons + autumn):** `tiles/` is built, not sliced:
+
+    python scripts/rd_compose_tiles.py \
+        --grass art-prompts/raw/scale-tile-grass-0b26af48/0.png \
+        --dirt  art-prompts/raw/ground-set-dirt-0ff45e1d/0.png \
+        --water art-prompts/raw/ground-set-water-dc517000/0.png \
+        --out assets/rd/tiles
+
+Three RD blocks (grass, plus dirt and water generated with the grass as
+`reference_images`) repaint the pack's 1 grass + 15 road + 17 river
+pieces: each pack pixel is classified by its flat palette colour and
+filled from the matching RD block's top-face texture (diamond-to-diamond
+mapping) or sides. The pieces keep the pack geometry, so tilemap.rs
+connections and BLOCK_FACE / FACE_CENTRE are unchanged. The reference
+image matched colours, not proportions, so the compositor measures each
+block's face itself. Winter (snow) is still the pack set.
+
+**Villagers:** `villagers/peasant-m.png`, `peasant-f.png` are raw
+four_angle_walking 48px sheets (rows up/right/down/left), the walk cycle
+for villager looks 0 and 1 (about a quarter of villagers); they face and
+stride as they move (`UiModel.poses`). Prompts for this style need
+positive appearance details: "male peasant villager" gave a helmeted
+soldier, "bareheaded ... no helmet" a bald man.
+
+Still pack art next to these: other villager looks, guards, priest,
+houses, wheat/corn fields, trees, stones, winter.

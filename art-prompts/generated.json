@@ -1,10 +1,16 @@
 {
  "done": [
+  "ground-set-dirt-0ff45e1d",
+  "ground-set-water-dc517000",
   "scale-animals-128-fee3e3fa",
   "scale-cottage-a42c70c2",
   "scale-player-walk-48-8c625b7d",
   "scale-tile-grass-0b26af48",
   "scale-tile-grass-905df9f7",
-  "sheet-farm-animals-a628136d"
+  "sheet-farm-animals-a628136d",
+  "walk4-peasant-f-fbb0c220",
+  "walk4-peasant-m-183772ce",
+  "walk4-peasant-m-7f242a02",
+  "walk4-peasant-m-90538b5c"
  ]
 }

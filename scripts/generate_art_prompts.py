@@ -85,7 +85,7 @@ ENTRIES = []
 
 def add(group, slug, prompt, style="rd_pro__isometric", w=128, h=128, n=1,
         tier="p0", remove_bg=True, tile_x=False, tile_y=False,
-        frames=None, sheet=False, notes=None):
+        frames=None, sheet=False, notes=None, ref=None):
     """One prompt entry -> one POST /v2/inferences call."""
     req = {"prompt_style": style, "width": w, "height": h, "num_images": n}
     if remove_bg:
@@ -98,6 +98,10 @@ def add(group, slug, prompt, style="rd_pro__isometric", w=128, h=128, n=1,
         req["frames_duration"] = frames
     if sheet:
         req["return_spritesheet"] = True
+    if ref:
+        # repo-relative image path: rd_generate sends it as reference_images
+        # (rd_pro styles) so a set matches an earlier output's look
+        req["reference_image_path"] = ref
     if style.startswith("rd_animation") or style.startswith("rd_advanced_animation"):
         tier = "anim"
     # stable id: readable slug + hash of what actually gets sent
@@ -959,15 +963,19 @@ add("future/goods", "future-goods-sheet",
 
 # 4-angle walk cycles for the sprites that move (48px prompt-driven).
 for slug, subj in [
-    ("peasant-m", "male peasant villager"), ("peasant-f", "female peasant villager"),
+    # describe hair and clothes positively: a bare "peasant villager" gets a
+    # helmeted soldier, and "bareheaded ... no helmet" a bald man (2026-11-02)
+    ("peasant-m", "young male peasant villager with thick messy brown hair, red-brown wool tunic and tan trousers"),
+    ("peasant-f", "female peasant villager"),
     ("worker-m", "male labourer"), ("child-m", "small boy child"),
     ("elder-m", "elderly man with stick"), ("noble-f", "noblewoman in gown"),
     ("priest", "village priest in robes"), ("guard-spear", "guard with spear"),
     ("minstrel", "minstrel carrying a lute"), ("tax-collector", "tax collector in dark robes"),
 ]:
     add("anim/walk", f"walk4-{slug}", subj + ", medieval",
-        style="rd_animation__four_angle_walking", w=48, h=48,
-        notes="48px 4-direction walk cycle, transparent GIF")
+        style="rd_animation__four_angle_walking", w=48, h=48, sheet=True,
+        notes="48px 4-direction walk cycle: return_spritesheet gives a 4x4 PNG grid "
+              "(rows up/right/down/left); 32px requests fail")
 
 # 8-direction rotation for hero characters (3x3 sheet option).
 for slug, subj in [
@@ -1063,6 +1071,22 @@ for px in (32, 48):
         "young villager in a green tunic and brown trousers, medieval",
         style="rd_animation__four_angle_walking", w=px, h=px, sheet=True, tier="p0",
         notes=f"player still + walk cycle; figure should end up ~{SCALE['person_h']}px tall")
+
+# Ground set for the green seasons: dirt (roads) and water (rivers, sea)
+# blocks matched to the scale-tile-grass block by passing it as a
+# reference. scripts/rd_compose_tiles.py builds every road and river piece
+# from these three blocks, using the pack's pieces as shape masks.
+GRASS_REF = "art-prompts/raw/scale-tile-grass-0b26af48/0.png"
+add("tiles/ground-set", "ground-set-dirt",
+    f"{ISO_GROUND}: flat square isometric ground block of packed brown earth, a bare dirt "
+    "road surface, plain top face, thin earth sides, top face is a 2:1 diamond",
+    w=64, h=64, tier="p0", ref=GRASS_REF,
+    notes="matches the grass block; road pieces are composed from it")
+add("tiles/ground-set", "ground-set-water",
+    f"{ISO_GROUND}: flat square isometric block of clear shallow blue water, flat water top "
+    "face, thin earth sides, top face is a 2:1 diamond",
+    w=64, h=64, tier="p0", ref=GRASS_REF,
+    notes="matches the grass block; river pieces and the sea are composed from it")
 
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.

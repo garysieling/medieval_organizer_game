@@ -47,4 +47,5 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - Pack art is drawn 2x; RD sprites are box-resampled to a target height (`name@H`) and drawn at 1x.
 - RD sprite pixel size is fixed (~25px objects, ~35px walk figures): request 256 sheets and resample; a smaller canvas only clips. `four_angle_walking` needs 48px (32 fails).
 - Ground-block prompts use `ISO_GROUND`, never `ISO` (it draws a house on the block). Tile/building swaps need the whole set (roads/rivers carry their own grass).
+- Ground tiles are composed (`scripts/rd_compose_tiles.py`), not generated per piece. Walk prompts: describe appearance positively (negatives like "no helmet" backfire).
 - Animation dumps: `GAME2_DUMP_WALK=dx,dy game_ui --dump-frame N --focus player` walks the player 8 frames before the shot.

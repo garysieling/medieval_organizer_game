@@ -174,8 +174,6 @@ pub struct UiModel {
     pub ctx_blocked: Vec<Option<String>>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
-    /// The player won (influence over the village lead)
-    pub won: bool,
     /// Mill stands at MILL_TILE when the art has a mill
     pub mill: Option<(f32, f32)>,
     /// Wild herb tufts that are ready to pick

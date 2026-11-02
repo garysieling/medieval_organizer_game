@@ -93,6 +93,13 @@ pub const ATTEND_MIN_TIE: f32 = 0.15;
 pub const LAPSE_CADENCES: u64 = 2;
 
 /// The campaign an org is running, if any (one org, one fight)
+/// Tests: give `org` a campaign without the meeting and vote that found one
+#[cfg(test)]
+pub fn found_for_test(world: &mut World, org: Entity) -> Entity {
+    let vote = IssueVote { winner: "bread".into(), ballots: vec![] };
+    found_campaign(world, org, &vote, Framing::SharedGrievance, DecisionRule::Majority, 1)
+}
+
 pub fn campaign_of(world: &World, org: Entity) -> Option<Entity> {
     world.query::<Campaign>().into_iter()
         .find(|&e| world.get_component::<Campaign>(e).map(|c| c.org == org).unwrap_or(false))

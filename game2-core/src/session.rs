@@ -833,6 +833,12 @@ const FLU_DAY: u64 = 120;
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
 const ACTION_KEYS: [char; 5] = ['T', 'R', 'I', 'O', 'B'];
+/// Whether action button `i` is shown at all: Recruit only appears once
+/// there's a campaign to recruit into (founded at a house meeting)
+pub fn action_shown(m: &UiModel, i: usize) -> bool {
+    i != 1 || m.panel.campaign.is_some()
+}
+
 /// The action panel's buttons, in ACTION_KEYS order
 pub const ACTION_LABELS: [&str; 5] = ["Talk", "Recruit", "Invest", "Organize", "Build"];
 /// The action panel's buttons, laid out the same for every player
@@ -1752,6 +1758,9 @@ pub struct Game {
     /// sprites (e.g. which cottage each new build gets)
     pub rng: Rng,
     pub built_count: usize,
+    /// The village has named the player its leader (crossing WIN_INFLUENCE).
+    /// It's a milestone, not the end: the game carries on
+    pub leader_named: bool,
     pub works: Vec<Works>, // houses still being built
     pub toasts: Vec<(String, u64)>,  // (msg, shown until tick)
     pub last_guild_count: usize,
@@ -2761,6 +2770,7 @@ impl Game {
             chicken_at: (gate_x as f32 + 0.4, farm_y as f32 + 0.3),
             rng,
             built_count: 0,
+            leader_named: false,
             works: vec![],
             rival_homes,
             toasts: vec![],
@@ -3117,14 +3127,18 @@ impl Game {
         let p = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
             .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
         let recruit_infl_ok = can_recruit(p.0);
+        let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
             || self.world.get_component::<crate::game::dungeon::CastleHeld>(target).is_some();
         if (i == 0 || i == 1) && !target_alive { Some("they have died".into()) }
         else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
         else if i == 1 && member { Some("already a member".into()) }
+        else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
         else if i == 2 && p.1 < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
+        else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
+            && crate::game::player::rapport(&self.world, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
         else if i == 3 && self.meeting.is_some() { Some("a meeting is under way".into()) }
         else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
         else { None }
@@ -3146,6 +3160,7 @@ impl Game {
         }
         // the town's business each day: work, errands, taxes
         if ticked { self.livelihood_tick(self.tick); }
+        if ticked { self.note_leader(); }
         // where everyone stood, so no one ends the frame inside a wall or a house
         let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
         let stood: Vec<Option<Pos>> = people.iter().map(|e| self.world.get_component::<Pos>(*e).copied()).collect();
@@ -3677,6 +3692,18 @@ impl Game {
         } else { crate::sim::organized_power::ActionQuality::Overreach });
         let founded = self.maybe_found_campaign(seat).map(|s| format!(" {}", s)).unwrap_or_default();
         format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
+    }
+
+    /// The day any seat's influence first passes WIN_INFLUENCE the village
+    /// names them its leader - a line in the log, and play goes on
+    fn note_leader(&mut self) {
+        if self.leader_named { return; }
+        let led = self.seats.iter().any(|s| self.world.get_component::<PlayerCharacter>(s.player)
+            .map(|p| p.influence > WIN_INFLUENCE).unwrap_or(false));
+        if !led { return; }
+        self.leader_named = true;
+        self.toasts.push(("the village names you its leader".into(), self.tick + 60));
+        self.log.push(format!("t{}: the village names you its leader - there's still work to do.", self.tick));
     }
 
     /// After a house meeting: enough living members and a heard issue and
@@ -8348,7 +8375,6 @@ impl Game {
                 influence: p.influence, gold: p.resources,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
             },
-            won: p.influence > WIN_INFLUENCE,
             mill: Some((MILL_TILE.0, MILL_TILE.1)),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
@@ -9209,6 +9235,7 @@ impl View {
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {
+            if !action_shown(m, i) { continue; }
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             let reason = m.blocked[i].as_deref();
             draw_button(&mut buf, b, hover, reason.is_some());
@@ -12360,6 +12387,9 @@ mod talk_reach_tests {
         game.selected_target = who;
         game.picked = true;
         game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().influence = 10.0;
+        let org = game.org;
+        crate::game::campaign::found_for_test(&mut game.world, org);
+        game.world.add_component(game.villagers[who], crate::game::player::Rapport { value: 1.0 });
         assert_eq!(game.disabled_reason(1), None, "Recruit walks over, so distance doesn't grey it out");
 
         game.act(1);
@@ -12375,6 +12405,34 @@ mod talk_reach_tests {
         // the recruit attempt happened on arrival (joined or turned the player down)
         let line = game.log.last().unwrap();
         assert!(line.contains(vill_name(who)) && !line.contains("walk over") && !line.contains("Can't"), "{}", line);
+    }
+
+    #[test]
+    fn test_recruit_is_hidden_until_a_campaign_exists() {
+        let mut game = Game::new();
+        while game.tick < 3 { game.update(); }
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().influence = 10.0;
+        let who = game.reach_target();
+        game.selected_target = who;
+        assert!(!action_shown(&game.ui_model(), 1), "no Recruit button before a campaign");
+        assert_eq!(game.disabled_reason(1).as_deref(), Some("no campaign to join"));
+        let org = game.org;
+        crate::game::campaign::found_for_test(&mut game.world, org);
+        assert!(action_shown(&game.ui_model(), 1), "Recruit appears once there's a campaign");
+        // and even then it takes a few real conversations with them
+        assert_eq!(game.disabled_reason(1).as_deref(), Some("talk with them more"));
+        game.world.add_component(game.villagers[who], crate::game::player::Rapport { value: 1.0 });
+        assert_eq!(game.disabled_reason(1), None);
+    }
+
+    #[test]
+    fn test_leading_the_village_does_not_end_the_game() {
+        let mut game = Game::new();
+        game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().influence = WIN_INFLUENCE + 1.0;
+        let start = game.tick;
+        while game.tick < start + 5 { game.update(); }
+        assert!(game.leader_named);
+        assert_eq!(game.log.iter().filter(|l| l.contains("names you its leader")).count(), 1, "named once, not every day");
     }
 
     #[test]
@@ -13114,43 +13172,17 @@ fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, rgb: (u8, u
 }
 
 /// The title screen shown until the player presses Enter: what the game
-/// is, what winning means, the main keys, and how to start
+/// is, how organizing works, the main keys, and how to start
 pub fn render_title() -> Buffer {
     let mut tbuf = Buffer::new(W, H);
     tbuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
     draw_centered(&mut tbuf, 160, "THE WANDERER", 4, (255, 220, 130));
     draw_centered(&mut tbuf, 230, "an outsider builds power", 2, (200, 200, 200));
     draw_centered(&mut tbuf, 290, "Talk with the villagers, win their trust, organize.", 1, (190, 190, 205));
-    draw_centered(&mut tbuf, 306, &format!("Reach {:.1} influence and the village is yours.", WIN_INFLUENCE), 1, (190, 190, 205));
+    draw_centered(&mut tbuf, 306, "Win them over, then found a campaign at a house meeting.", 1, (190, 190, 205));
     draw_centered(&mut tbuf, 340, "WASD move   T talk   R recruit   O organize   H help", 1, (140, 140, 160));
     draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
     tbuf
-}
-
-/// Width of the win banner
-const BANNER_W: i32 = 360;
-
-/// The "you've won" banner drawn over the last frame, centred on the map
-/// view (not straddling the side panel)
-pub fn draw_win_banner(buf: &mut Buffer) {
-    let cx = MAP_W as i32 / 2;
-    buf.rect(cx - BANNER_W / 2, 240, BANNER_W, 100, 20, 20, 35);
-    buf.rect(cx - BANNER_W / 2, 240, BANNER_W, 2, 255, 215, 0);
-    draw_centered_at(buf, cx, 265, "RECOGNIZED LEADER", 2, (255, 215, 0));
-    draw_centered_at(buf, cx, 302, "the village is yours", 1, (200, 200, 200));
-}
-
-/// The game-over summary screen after a win
-pub fn render_summary(game: &Game) -> Buffer {
-    let members = game.world.get_component::<Organization>(game.org).unwrap().members.len();
-    let influence = game.world.get_component::<PlayerCharacter>(game.player).unwrap().influence;
-    let mut obuf = Buffer::new(W, H);
-    obuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
-    draw_centered(&mut obuf, 150, "VILLAGE WON", 4, (255, 215, 0));
-    draw_centered(&mut obuf, 240, &format!("led the village after {} days", game.tick), 1, (220, 220, 220));
-    draw_centered(&mut obuf, 260, &format!("influence {:.2}   members {}   houses built {}", influence, members, game.built_count), 1, (200, 200, 200));
-    draw_centered(&mut obuf, 300, "the wanderer became a leader", 1, (160, 160, 180));
-    obuf
 }
 
 /// Copy a Buffer to the window
@@ -13572,54 +13604,6 @@ mod title_tests {
         for (top, lo, hi) in bands {
             let centre = (lo + hi) as i32 / 2;
             assert!((centre - W as i32 / 2).abs() <= 3, "line at y={} is centred at x={}, not {}", top, centre, W / 2);
-        }
-    }
-}
-
-#[cfg(test)]
-mod end_screen_tests {
-    use super::*;
-
-    /// Horizontal centre of each band of drawn rows in [y0, y1)
-    fn line_centres(buf: &Buffer, bg: (u8, u8, u8), x0: usize, x1: usize, y0: usize, y1: usize) -> Vec<(usize, i32)> {
-        let lit = |x: usize, y: usize| { let i = (y * W + x) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) != bg };
-        let mut out = vec![];
-        let mut y = y0;
-        while y < y1 {
-            if (x0..x1).any(|x| lit(x, y)) {
-                let top = y;
-                let (mut lo, mut hi) = (x1, x0);
-                while y < y1 && (x0..x1).any(|x| lit(x, y)) {
-                    for x in x0..x1 { if lit(x, y) { lo = lo.min(x); hi = hi.max(x); } }
-                    y += 1;
-                }
-                out.push((top, (lo + hi) as i32 / 2));
-            }
-            y += 1;
-        }
-        out
-    }
-
-    #[test]
-    fn test_summary_lines_are_centred_and_speak_in_days() {
-        let mut game = Game::new();
-        while game.tick < 90 { game.update(); }
-        let buf = render_summary(&game);
-        let lines = line_centres(&buf, (15, 15, 25), 0, W, 0, H);
-        assert!(lines.len() >= 4, "expected title and three lines, found {}", lines.len());
-        for (y, c) in lines {
-            assert!((c - W as i32 / 2).abs() <= 3, "summary line at y={} is centred at x={}", y, c);
-        }
-    }
-
-    #[test]
-    fn test_win_banner_is_centred_on_the_map_view() {
-        let mut buf = Buffer::new(W, H);
-        draw_win_banner(&mut buf);
-        let (bx, bw) = (MAP_W as i32 / 2 - BANNER_W / 2, BANNER_W);
-        assert!(bx >= 0 && bx + bw <= MAP_W as i32, "banner {}..{} spills off the map view", bx, bx + bw);
-        for (y, c) in line_centres(&buf, (20, 20, 35), bx as usize, (bx + bw) as usize, 250, 340) {
-            assert!((c - MAP_W as i32 / 2).abs() <= 3, "banner text at y={} is centred at x={}", y, c);
         }
     }
 }

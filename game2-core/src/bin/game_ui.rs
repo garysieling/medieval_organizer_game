@@ -156,7 +156,7 @@ fn main() {
             }
         }
 
-        let mut buf = match &cur_model {
+        let buf = match &cur_model {
             Some(m) => view.render(m, (mx, my)),
             None => { present(&mut window, &session::render_title()); continue; }
         };
@@ -164,6 +164,8 @@ fn main() {
 
         // input -> commands -> local game or the wire
         let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap);
+        // a hidden button (Recruit, before there's a campaign) can't be pressed
+        if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap {
             if let Some(m) = &cur_model {
                 let ctx_specs: Vec<session::Button> = m.ctx.iter().map(|a| session::ctx_button(*a)).collect();
@@ -202,14 +204,6 @@ fn main() {
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", cur_model.as_ref().map(|m| m.frame).unwrap_or(0))).ok(); }
 
-        if cur_model.as_ref().map(|m| m.won).unwrap_or(false) {
-            session::draw_win_banner(&mut buf);
-            present(&mut window, &buf);
-            std::thread::sleep(std::time::Duration::from_secs(3));
-            if let Some(g) = &game { present(&mut window, &session::render_summary(g)); }
-            std::thread::sleep(std::time::Duration::from_secs(5));
-            break;
-        }
         let spent = frame_at.elapsed();
         if spent < frame_len { std::thread::sleep(frame_len - spent); }
     }

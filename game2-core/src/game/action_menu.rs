@@ -344,7 +344,9 @@ mod tests {
         w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        crate::game::campaign::found_for_test(&mut w, org);
         let v = w.create_entity();
+        w.add_component(v, crate::game::player::Rapport { value: 1.0 });
         let msg = execute_choice(&mut w, player, org, MenuActionType::Recruit, Some(v), 5);
         assert!(msg.contains("need influence 0.40") && msg.contains("you have 0.10"), "{}", msg);
     }

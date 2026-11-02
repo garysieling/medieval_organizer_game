@@ -7890,9 +7890,6 @@ impl Game {
             self.log.push(format!("t{}: Can't {}: {}.", tick, ctx_button(act).label.to_lowercase(), reason));
             return;
         }
-        // lines that follow the action's own message in the log (a
-        // meeting's talk, said in order)
-        let mut after: Vec<String> = vec![];
         let msg = match act {
             CtxAct::Work => {
                 let (made, up) = { let pe = self.seats[seat].player; livelihood::work_day(&mut self.world, pe, tick) };
@@ -7980,9 +7977,12 @@ impl Game {
                                 Some(e) => self.villagers.iter().position(|v| *v == e)
                                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
                             };
-                            // the whole exchange goes in the log, in order
-                            after = d.said.iter()
-                                .map(|s| format!("t{}:   {}: \"{}\"", tick, name_of(s.speaker), s.text)).collect();
+                            // one log entry: the outcome first (the log shows
+                            // newest-first in a few rows), then the talk in the
+                            // order it was said
+                            let talk: Vec<String> = d.said.iter()
+                                .map(|s| format!("{}: \"{}\"", name_of(s.speaker), s.text)).collect();
+                            if !talk.is_empty() { msg += &format!(". {}", talk.join(" / ")); }
                             // bubbles can't queue, so only the closing beat's
                             // two lines hang over the speakers
                             for s in d.said.iter().rev().take(2) {
@@ -8190,7 +8190,6 @@ impl Game {
             }
         };
         self.log.push(format!("t{}: {}", tick, msg));
-        self.log.extend(after);
     }
 
     /// The frame a client draws: the authoritative sim's whole view of the
@@ -13717,10 +13716,11 @@ mod campaign_tests {
         g.seats[0].ctx_actions.push(CtxAct::Meet);
         let i = g.seats[0].ctx_actions.len() - 1;
         g.ctx_act_at(0, i);
-        // the summary line, then the room's talk quoted after it
-        let at = g.log.iter().rposition(|l| l.contains("meet about the campaign")).expect("no meeting logged");
-        assert!(g.log.len() - at - 1 >= 2 && g.log[at + 1..].iter().all(|l| l.contains(": \"")),
-            "{:?}", &g.log[at..]);
+        // one entry, newest: the outcome leads, the room's talk follows it
+        let last = g.log.last().unwrap();
+        assert!(last.contains("meet about the campaign"), "{:?}", last);
+        let (head, talk) = last.split_once(". ").expect("no talk after the outcome");
+        assert!(!head.contains('"') && talk.matches(": \"").count() >= 2, "{:?}", last);
         assert!(g.ui_model().panel.campaign.unwrap().due);
     }
 

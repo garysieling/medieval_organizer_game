@@ -8,6 +8,7 @@ pub mod record;
 pub mod events;
 pub mod probe;
 pub mod stage;
+pub mod dialogue;
 
 pub use model::*;
 pub use net::*;
@@ -1779,6 +1780,9 @@ pub struct Game {
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
+    /// Villager-to-villager conversations playing out a line at a time
+    /// (session::dialogue)
+    pub convos: Vec<dialogue::LiveConvo>,
     pub frame_n: u32,
 
     pub precip: Option<PrecipKind>, // what is falling today
@@ -2797,6 +2801,7 @@ impl Game {
             meeting: None,
             near: vec![],
             last_chat: vec![],
+            convos: vec![],
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
@@ -3431,6 +3436,7 @@ impl Game {
             }
             self.works.retain(|w| w.risen() < 1.0);
             self.advance_meeting();
+            self.advance_convos();
             self.advance_travels();
             self.advance_minstrel();
             self.advance_pedlar();
@@ -3938,7 +3944,13 @@ impl Game {
             // Only some meetings get a bubble - every pair passing a remark was
             // a constant stream of chatter (the chat still counts either way)
             let n = self.last_chat.len() + (a as usize) + tick as usize;
-            if n % 3 == 0 { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
+            if n % 3 == 0 {
+                // two villagers: a whole conversation, a line at a time
+                // (session::dialogue); the player just gets a word in passing
+                if b == self.player || !self.start_convo(a, b) {
+                    self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
+                }
+            }
             let (pe, other) = (self.player, if b == self.player { a } else { b });
             relationships::record_interaction(&mut self.world, if b == pe { b } else { a }, relationships::Interaction {
                 other, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,

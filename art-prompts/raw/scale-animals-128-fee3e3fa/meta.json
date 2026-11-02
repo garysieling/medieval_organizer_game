@@ -1,0 +1,25 @@
+{
+ "created_at": 1793622981,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 54.6,
+ "request_id": "16ddd58d-8338-4e5d-90c9-53bc3c2f3bb8",
+ "outputs_retained_until": 1793709353,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.18,
+  "balance_left": 54.6
+ },
+ "id": "scale-animals-128-fee3e3fa",
+ "prompt": "small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow, consistent matched set",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 128,
+  "height": 128,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-02T07:36:21",
+ "seconds": 28.5
+}

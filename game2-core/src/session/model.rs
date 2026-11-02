@@ -170,6 +170,10 @@ pub struct TalkPanelV {
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
+    /// The viewing seat's character: facing (0 up, 1 right, 2 down, 3
+    /// left) and whether it's mid-walk, for the walk cycle
+    #[serde(default)]
+    pub player_pose: (u8, bool),
     pub tick: u64,
     /// Animation frame count (mill sails, smoke, the courier's ride)
     pub frame: u32,

@@ -43,3 +43,23 @@ From `sheet-farm-animals-a628136d` (rd_pro__spritesheet 256x256, $0.18,
 Unused cells in the same sheet: more dogs/cats, chick, nesting hen, kid
 goats, lamb, pigs (row 5), cows (row 6), doghouse, coop, cart, feed
 trough, sacks, hay, fence, milk pail.
+
+## Scale tests (2026-11-02)
+
+One call per replacement scenario, each requested near the size the game
+draws it (`scale-tests` group in generate_art_prompts.py, ~$0.86 incl. one
+retry). Screenshots: `evidence/rd-scale-tests/`.
+
+| Scenario | Request | Result | Lesson |
+|---|---|---|---|
+| Sheet at native size | spritesheet 128x128 | Same ~25px sprites, fewer of them, clipped at the edges | RD's pixel size is fixed: canvas size = how many fit, not how big. Always ask 256; resample to size. Slicer now drops clipped cells. |
+| Ground tile | isometric 64x64 | 1st try drew a cottage on the block; with `ISO_GROUND` prompt a clean block, face exactly 48x24 (2:1) | "village asset" in the prompt beats the subject. Exported onto the pack's block geometry (`grass@95x99`) the game draws it unchanged. Roads/rivers still carry the pack's grass, so tiles must be replaced as one set. |
+| Building | isometric 64x64 | 56x59 cottage, same as the pack houses, sits right on its tile | Fits the footprint as-is, but brings its own grass base and much finer detail than the flat pack houses: replace buildings as a set. |
+| Player + animation | four_angle_walking 48 | 192x192 sheet: rows up/right/down/left, 4 frames; transparent; figure ~35px | Wired as the player's walk cycle (`player_pose` in UiModel). 32px requests fail (`inference_failed`, not charged; check_cost doesn't validate sizes). Figure is ~35px vs ~24px villagers. |
+
+Open decisions (proportions):
+- Characters ~35px (RD walk native) means villagers grow to match, or the
+  player is resampled down (~0.7x) and loses detail.
+- Ground blocks: draw RD blocks at native geometry (change BLOCK_FACE /
+  FACE_CENTRE) once roads and rivers are RD too, instead of mapping onto
+  the pack's.

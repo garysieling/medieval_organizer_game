@@ -1,0 +1,27 @@
+{
+ "created_at": 1793623146,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 54.17,
+ "request_id": "5dae32a9-2f7c-4cb0-a50f-06fbdb41c4be",
+ "outputs_retained_until": 1793709542,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 54.17
+ },
+ "id": "scale-player-walk-48-8c625b7d",
+ "prompt": "young villager in a green tunic and brown trousers, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T07:39:06",
+ "seconds": 4.1
+}

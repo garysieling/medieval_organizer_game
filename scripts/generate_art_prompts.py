@@ -117,9 +117,31 @@ def add(group, slug, prompt, style="rd_pro__isometric", w=128, h=128, n=1,
 
 
 # ---------------------------------------------------------------------------
+# SCALE: how big things are ON SCREEN at zoom 1, in the game's pixels. The
+# house style is 1x pixel art (RD's native grid), so this is also the size
+# a finished sprite should be. Request sizes should derive from here, not
+# be picked per entry. Facts from game2-core/src/session.rs:
+#   tile    - TILE_W=28, TILE_H=14: an iso diamond 56x28 (hard constraint:
+#             ground blocks must fit it exactly or the map shows seams)
+#   building- draw_on_tile scales a building to one tile wide: 56px
+#   person  - Minifolks figures are ~12px drawn 2x: ~24px tall
+#   animal  - 14-20px tall next to a 24px person (assets/rd/README.md)
+# The scale-tests group below measures what to REQUEST to get these; the
+# rest of the manifest still uses its original sizes until those land.
+SCALE = {
+    "tile": (56, 28),
+    "building_w": 56,
+    "person_h": 24,
+    "animal_h": (14, 20),
+}
+
+# ---------------------------------------------------------------------------
 # Shared phrasing. Prompts describe the SUBJECT only - the prompt_style
 # carries the pixel-art look (per RD docs: don't waste tokens on "pixel art").
 ISO = "single isometric medieval village asset"
+# Ground blocks must NOT use ISO: "village asset" wins over the subject and
+# RD draws a cottage standing on the block (scale-tile-grass, 2026-11-02)
+ISO_GROUND = "single isometric terrain tile, bare ground only, no buildings, no props"
 SPRITE = "small chibi medieval character, front view, full body, on empty background"
 
 # Appearance variety: the cast should read as a real mix of people, not one
@@ -172,7 +194,7 @@ for season, desc in SEASONS:
         ("rock", f"bare grey rock ground block, craggy top, {desc}"),
     ]:
         add(f"tiles/ground-{season}", f"ground-{tile}-{season}",
-            f"{ISO}: {subj}, square isometric ground block", w=128,
+            f"{ISO_GROUND}: {subj}, square isometric ground block", w=128,
             tile_x=True, tile_y=True,
             notes="ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet")
     for water, subj in [
@@ -180,7 +202,7 @@ for season, desc in SEASONS:
         ("deep", "deep open-sea water ground block, dark blue"),
     ]:
         add(f"tiles/ground-{season}", f"water-{water}-{season}",
-            f"{ISO}: {subj}, {desc}, square isometric water block", w=128, tile_x=True, tile_y=True)
+            f"{ISO_GROUND}: {subj}, {desc}, square isometric water block", w=128, tile_x=True, tile_y=True)
 
 # Trees with real variety: species x season (the pack ships 4 spring + 4 winter).
 TREES = [
@@ -536,7 +558,7 @@ for biome, desc in BIOMES[1:]:  # temperate is covered by the season sets
         ("vegetation", f"vegetation clump native to {desc.split(',')[0]}"),
         ("rock", f"rock outcrop, {desc}"),
     ]:
-        add(f"biomes/{biome}", f"{biome}-{tile}", f"{ISO}: {subj}",
+        add(f"biomes/{biome}", f"{biome}-{tile}", f"{ISO_GROUND if tile == 'ground' else ISO}: {subj}",
             w=128, tier="p1", tile_x=(tile == "ground"), tile_y=(tile == "ground"))
     add(f"biomes/{biome}", f"{biome}-village",
         f"{ISO}, wide view: small medieval village in {desc}",
@@ -639,7 +661,7 @@ for tile, subj in [
     ("chalk-down", "chalk downland ground block, short turf"),
     ("barley-field", "barley field ground block, ripe gold"),
 ]:
-    add("biomes/countryside", f"country-{tile}", f"{ISO}: {subj}, {COUNTRYSIDE}, square isometric ground block",
+    add("biomes/countryside", f"country-{tile}", f"{ISO_GROUND}: {subj}, {COUNTRYSIDE}, square isometric ground block",
         w=128, h=128, tile_x=True, tile_y=True, tier="p1")
 add("biomes/countryside", "country-village",
     f"{ISO}, wide view: small english countryside village, honey limestone cottages, hedgerows and barley fields, {CROWD}",
@@ -1019,6 +1041,28 @@ add("compare/tiers", "compare-cottage-plus",
     "isometric medieval cottage, timber-frame and thatch",
     style="rd_plus__default", w=128, h=128, tier="p1",
     notes="middle tier, same subject as the rd_pro cottages-set")
+
+# ---------------------------------------------------------------------------
+# Scale tests: one call per replacement scenario, each requested near the
+# SCALE size it will be drawn at, to learn what request sizes work before
+# re-sizing the whole manifest. ~$0.70 total.
+
+add("scale-tests", "scale-animals-128",
+    "small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow, consistent matched set",
+    style="rd_pro__spritesheet", w=128, h=128, remove_bg=False, tier="p0",
+    notes="same prompt as sheet-farm-animals at half size: can RD draw at the game's size?")
+add("scale-tests", "scale-tile-grass",
+    f"{ISO_GROUND}: flat square isometric ground block of short green grass, plain top face, "
+    "thin earth sides, top face is a 2:1 diamond", w=64, h=64, tier="p0",
+    notes=f"tile face must map onto a {SCALE['tile'][0]}x{SCALE['tile'][1]} diamond")
+add("scale-tests", "scale-cottage",
+    f"{ISO}: small timber-frame cottage with thatched roof and one door, fits on one ground tile",
+    w=64, h=64, tier="p0", notes=f"drawn {SCALE['building_w']}px wide on one tile")
+for px in (32, 48):
+    add("scale-tests", f"scale-player-walk-{px}",
+        "young villager in a green tunic and brown trousers, medieval",
+        style="rd_animation__four_angle_walking", w=px, h=px, sheet=True, tier="p0",
+        notes=f"player still + walk cycle; figure should end up ~{SCALE['person_h']}px tall")
 
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.

@@ -31,7 +31,6 @@ import urllib.request
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MANIFEST = os.path.join(ROOT, "art-prompts", "prompts.json")
 STATE = os.path.join(ROOT, "art-prompts", "generated.json")
 RAW = os.path.join(ROOT, "art-prompts", "raw")
 API = "https://api.retrodiffusion.ai/v1/inferences"
@@ -64,17 +63,15 @@ def call(url, body=None, idem=None):
         with urllib.request.urlopen(req, timeout=300) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
-        sys.exit(f"RD API {e.code}: {e.read().decode(errors='replace')[:500]}")
+        raise RuntimeError(f"RD API {e.code}: {e.read().decode(errors='replace')[:500]}") from None
 
 
 def load_manifest():
-    if not os.path.exists(MANIFEST):
-        # prompts.json is generated (gitignored); rebuild the full list
-        import subprocess
-        subprocess.check_call([sys.executable, os.path.join(ROOT, "scripts", "generate_art_prompts.py"),
-                               "--include-done"], cwd=ROOT)
-    with open(MANIFEST, encoding="utf-8") as f:
-        return json.load(f)["prompts"]
+    """Every entry, straight from the generator (prompts.json on disk may
+    be a filtered batch, or stale)."""
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import generate_art_prompts as g
+    return g.ENTRIES
 
 
 def load_done():
@@ -116,8 +113,7 @@ def main():
     for want in args.ids:
         hits = [e for e in entries if e["id"] == want or e["id"].startswith(want + "-")]
         if not hits:
-            sys.exit(f"no manifest entry matches {want!r} (is prompts.json filtered? "
-                     "rebuild with generate_art_prompts.py --include-done)")
+            sys.exit(f"no manifest entry matches {want!r} (see generate_art_prompts.py)")
         for e in hits:
             if e["id"] in done and not args.force:
                 print(f"skip {e['id']}: already generated (--force to redo)")
@@ -141,6 +137,7 @@ def main():
     if total > args.max_usd:
         sys.exit(f"batch ${total:.2f} > --max-usd {args.max_usd:.2f}; raise it to proceed")
 
+    failed = []
     for e in picked:
         out = os.path.join(RAW, e["id"])
         if os.path.exists(out) and args.force:
@@ -149,14 +146,25 @@ def main():
         t0 = time.time()
         # no Idempotency-Key: the API rejects it on synchronous calls
         # ("idempotency_async_required")
-        r = call(API, body_for(e))
+        try:
+            r = call(API, body_for(e))
+        except RuntimeError as err:
+            # one bad entry (e.g. a size the style can't do - check_cost
+            # doesn't validate sizes) shouldn't sink the rest of the batch
+            print(f"{e['id']}: FAILED {err}")
+            failed.append(e["id"])
+            os.rmdir(out) if not os.listdir(out) else None
+            continue
         imgs = r.get("base64_images") or []
         if not imgs:
             sys.exit(f"{e['id']}: no images in response: "
                      + json.dumps({k: v for k, v in r.items() if k != 'base64_images'})[:500])
         for i, b64 in enumerate(imgs):
-            with open(os.path.join(out, f"{i}.png"), "wb") as f:
-                f.write(base64.b64decode(b64))
+            raw = base64.b64decode(b64)
+            # animation styles can answer with a GIF; name files by content
+            ext = "gif" if raw[:4] == b"GIF8" else "webp" if raw[8:12] == b"WEBP" else "png"
+            with open(os.path.join(out, f"{i}.{ext}"), "wb") as f:
+                f.write(raw)
         meta = {k: v for k, v in r.items() if k not in ("base64_images", "output_images")}
         meta.update({"id": e["id"], "prompt": e["prompt"], "request": e["request"],
                      "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -169,6 +177,9 @@ def main():
         print(f"{e['id']}: {len(imgs)} image(s) -> {os.path.relpath(out, ROOT)} "
               f"(${r.get('balance_cost', '?')}, {meta['seconds']}s, balance left "
               f"${r.get('remaining_balance', '?')})")
+
+    if failed:
+        sys.exit(f"{len(failed)} failed (not recorded as done): {', '.join(failed)}")
 
 
 if __name__ == "__main__":

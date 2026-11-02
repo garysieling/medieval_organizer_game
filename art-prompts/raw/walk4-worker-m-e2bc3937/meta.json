@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643873,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 53.28,
+ "request_id": "af5a99c3-2858-4f09-b168-a2dcc2ba6c77",
+ "outputs_retained_until": 1793730266,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 53.28
+ },
+ "id": "walk4-worker-m-e2bc3937",
+ "prompt": "burly male labourer with deep dark skin and short black hair, rolled-up sleeves, leather work apron, brown trousers, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:24:33",
+ "seconds": 6.7
+}

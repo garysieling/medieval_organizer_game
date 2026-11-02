@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643900,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 52.93,
+ "request_id": "0055d8c6-90fa-4f8f-9c36-c561b780fa0e",
+ "outputs_retained_until": 1793730294,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 52.93
+ },
+ "id": "walk4-princess-f-8354ea8d",
+ "prompt": "young princess with warm tan skin and long dark hair, small gold tiara, pale pink gown, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:25:00",
+ "seconds": 6.4
+}

@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643878,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 53.21,
+ "request_id": "641bef04-4912-43ed-80f4-b6a942be28bd",
+ "outputs_retained_until": 1793730273,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 53.21
+ },
+ "id": "walk4-elder-m-8e48b326",
+ "prompt": "old man with pale skin, white hair and a short white beard, long grey-brown robe, walking with a wooden stick, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:24:38",
+ "seconds": 5.1
+}

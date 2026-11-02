@@ -81,7 +81,7 @@ filled from the matching RD block's top-face texture (diamond-to-diamond
 mapping) or sides. The pieces keep the pack geometry, so tilemap.rs
 connections and BLOCK_FACE / FACE_CENTRE are unchanged. The reference
 image matched colours, not proportions, so the compositor measures each
-block's face itself. Winter (snow) is still the pack set.
+block's face itself. 
 
 **Villagers:** `villagers/peasant-m.png`, `peasant-f.png` are raw
 four_angle_walking 48px sheets (rows up/right/down/left), the walk cycle
@@ -90,5 +90,19 @@ stride as they move (`UiModel.poses`). Prompts for this style need
 positive appearance details: "male peasant villager" gave a helmeted
 soldier, "bareheaded ... no helmet" a bald man.
 
-Still pack art next to these: other villager looks, guards, priest,
-houses, wheat/corn fields, trees, stones, winter.
+## Full village pass (2026-11-02, $3.11)
+
+- **Characters:** all 8 villager looks (`villagers/{role}-{m|f}.png`,
+  matched to `vpeople` in session.rs), the priest and the 4 gate guards
+  (`guards/`) are walk sheets. Guards and priest stand facing out.
+- **Cottages:** `buildings/cottage1..9.png` (the first test cottage plus
+  two 4-image calls using it as `reference_images`) replace the pack's
+  10 house looks. Their grass bases are recoloured to snow in winter
+  (`Art.houses_winter`).
+- **Ground:** wheat and corn fields (soil + wheat + green-crop blocks) and
+  the whole winter set (snow + ice blocks; roads and rivers reuse dirt and
+  water) composed like the green set. Blocks with crops or snow above the
+  face are measured at their widest row and taken as 2:1.
+
+Still pack art: windmill, church tower, walls, guildhall/blacksmith,
+rival town, traveller, trees, stones.

@@ -1,16 +1,34 @@
 {
  "done": [
+  "cottages-plaster-e17812fc",
+  "cottages-timber-6883e4c7",
   "ground-set-dirt-0ff45e1d",
+  "ground-set-greencrop-228d4299",
+  "ground-set-ice-87f74ff0",
+  "ground-set-snow-52322a18",
+  "ground-set-soil-4fbbfde4",
   "ground-set-water-dc517000",
+  "ground-set-wheat-0bdc40c3",
   "scale-animals-128-fee3e3fa",
   "scale-cottage-a42c70c2",
   "scale-player-walk-48-8c625b7d",
   "scale-tile-grass-0b26af48",
   "scale-tile-grass-905df9f7",
   "sheet-farm-animals-a628136d",
+  "walk4-elder-f-22c11ed8",
+  "walk4-elder-m-8e48b326",
+  "walk4-guard-halberd-4ed709fd",
+  "walk4-guard-shield-b1953b95",
+  "walk4-guard-spear-aaab2449",
+  "walk4-guard-sword-b6048a78",
+  "walk4-noble-f-de38c7f6",
+  "walk4-noble-m-5df4bcdb",
   "walk4-peasant-f-fbb0c220",
   "walk4-peasant-m-183772ce",
   "walk4-peasant-m-7f242a02",
-  "walk4-peasant-m-90538b5c"
+  "walk4-peasant-m-90538b5c",
+  "walk4-priest-6b8e0e6e",
+  "walk4-princess-f-8354ea8d",
+  "walk4-worker-m-e2bc3937"
  ]
 }

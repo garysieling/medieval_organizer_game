@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643912,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 52.79,
+ "request_id": "562bab1e-ac85-4b80-bf83-5499242c0ae7",
+ "outputs_retained_until": 1793730308,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 52.79
+ },
+ "id": "walk4-guard-spear-aaab2449",
+ "prompt": "town guard with fair skin, steel kettle helmet, blue tabard over chainmail, holding a tall spear, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:25:13",
+ "seconds": 4.9
+}

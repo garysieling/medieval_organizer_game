@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643889,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 53.07,
+ "request_id": "d1534e7b-51a5-4562-8015-25d65745a8c4",
+ "outputs_retained_until": 1793730284,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 53.07
+ },
+ "id": "walk4-noble-m-5df4bcdb",
+ "prompt": "nobleman with brown skin and short black hair, rich blue doublet with gold trim, red cape, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:24:50",
+ "seconds": 5.6
+}

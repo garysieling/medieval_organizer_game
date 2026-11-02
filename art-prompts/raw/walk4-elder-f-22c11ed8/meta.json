@@ -1,0 +1,27 @@
+{
+ "created_at": 1793643884,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 53.14,
+ "request_id": "a7567b1d-aae7-43d9-bb6a-cd9a6e4c1120",
+ "outputs_retained_until": 1793730278,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 53.14
+ },
+ "id": "walk4-elder-f-22c11ed8",
+ "prompt": "old woman with olive skin and grey hair in a bun, green wool shawl, long brown skirt, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T13:24:44",
+ "seconds": 5.9
+}

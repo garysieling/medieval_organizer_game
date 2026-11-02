@@ -274,9 +274,16 @@ for slug, t in [
 # ---------------------------------------------------------------------------
 # P0: buildings - every BuildingKind the game places, plus shop per vocation.
 
-add("buildings", "cottages-set",
-    "isometric medieval cottages: timber-frame and plastered fronts, thatched and tiled roofs, varied door and gable positions",
-    w=192, h=192, n=4, notes="batch of 4 distinct cottage variants; repeat calls for more variety")
+# 64px is the size that comes back at the pack houses' 56x59 (scale tests);
+# the first generated cottage is the style reference so the street matches
+COTTAGE_REF = "art-prompts/raw/scale-cottage-a42c70c2/0.png"
+for slug, subj in [
+    ("cottages-timber", "small timber-frame cottage with thatched roof, one door, fits on one ground tile"),
+    ("cottages-plaster", "small whitewashed plaster cottage with red clay tile roof and a chimney, "
+                         "one door, fits on one ground tile"),
+]:
+    add("buildings", slug, f"{ISO}: {subj}", w=64, h=64, n=4, ref=COTTAGE_REF,
+        notes="4 variants per call; together with the first cottage they're the village's homes")
 
 SHOPS = [
     ("bakery", "bakery with brick oven chimney and bread sign"),
@@ -967,9 +974,28 @@ for slug, subj in [
     # helmeted soldier, and "bareheaded ... no helmet" a bald man (2026-11-02)
     ("peasant-m", "young male peasant villager with thick messy brown hair, red-brown wool tunic and tan trousers"),
     ("peasant-f", "female peasant villager"),
-    ("worker-m", "male labourer"), ("child-m", "small boy child"),
-    ("elder-m", "elderly man with stick"), ("noble-f", "noblewoman in gown"),
-    ("priest", "village priest in robes"), ("guard-spear", "guard with spear"),
+    # the rest of the villager looks (vpeople in session.rs), the priest and
+    # the four gate guards: specific clothes, hair and a spread of skin tones
+    ("worker-m", "burly male labourer with deep dark skin and short black hair, rolled-up "
+                 "sleeves, leather work apron, brown trousers"),
+    ("elder-m", "old man with pale skin, white hair and a short white beard, long grey-brown "
+                "robe, walking with a wooden stick"),
+    ("elder-f", "old woman with olive skin and grey hair in a bun, green wool shawl, long brown skirt"),
+    ("noble-m", "nobleman with brown skin and short black hair, rich blue doublet with gold trim, "
+                "red cape"),
+    ("noble-f", "noblewoman with fair skin and auburn hair braided up, long purple gown"),
+    ("princess-f", "young princess with warm tan skin and long dark hair, small gold tiara, "
+                   "pale pink gown"),
+    ("priest", "village priest with short grey hair, long black cassock, white collar"),
+    ("guard-spear", "town guard with fair skin, steel kettle helmet, blue tabard over chainmail, "
+                    "holding a tall spear"),
+    ("guard-sword", "town guard with brown skin, steel kettle helmet, blue tabard over chainmail, "
+                    "sword at the hip"),
+    ("guard-shield", "town guard with olive skin, steel kettle helmet, blue tabard over chainmail, "
+                     "carrying a round wooden shield"),
+    ("guard-halberd", "town guard with deep dark skin, steel kettle helmet, blue tabard over "
+                      "chainmail, holding a halberd"),
+    ("child-m", "small boy child"),
     ("minstrel", "minstrel carrying a lute"), ("tax-collector", "tax collector in dark robes"),
 ]:
     add("anim/walk", f"walk4-{slug}", subj + ", medieval",
@@ -1087,6 +1113,20 @@ add("tiles/ground-set", "ground-set-water",
     "face, thin earth sides, top face is a 2:1 diamond",
     w=64, h=64, tier="p0", ref=GRASS_REF,
     notes="matches the grass block; river pieces and the sea are composed from it")
+
+# Field crops and winter for the composed ground set (rd_compose_tiles.py):
+# blocks whose top faces texture the pack's crop and snow/ice pieces.
+for slug, subj in [
+    ("soil", "tilled brown farmland soil with furrows"),
+    ("wheat", "ripe golden wheat field, dense standing wheat"),
+    ("greencrop", "young green crop rows, leafy green maize plants"),
+    ("snow", "deep fresh white snow, smooth snow top"),
+    ("ice", "frozen pale blue-green ice, cracked ice top"),
+]:
+    add("tiles/ground-set", f"ground-set-{slug}",
+        f"{ISO_GROUND}: flat square isometric ground block of {subj}, plain top face, "
+        "thin earth sides, top face is a 2:1 diamond",
+        w=64, h=64, tier="p0", ref=GRASS_REF, notes="matches the grass block")
 
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.

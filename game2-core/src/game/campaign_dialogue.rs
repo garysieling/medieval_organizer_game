@@ -747,6 +747,27 @@ mod tests {
     }
 
     #[test]
+    fn test_a_denied_campaign_never_guards_a_win() {
+        // any outcome beat that can play once the campaign is lost - its own
+        // criteria plus arc:lost - offers no move that hands on to Enforce
+        let lost_group = EXCLUSIVE_FACTS.iter().find(|g| g.contains(&"arc:lost")).unwrap();
+        let mut checked = 0;
+        for b in ARC_BEATS.iter().filter(|b| b.phase == Phase::Outcome) {
+            let needs: Vec<&str> = b.criteria.iter().filter_map(|c| match c { Has(f) => Some(*f), _ => None }).collect();
+            if needs.iter().any(|f| *f != "arc:lost" && lost_group.contains(f)) { continue; }
+            let mut f = facts(&needs);
+            f.insert("arc:lost");
+            if !holds(b.criteria, &f) { continue; }
+            checked += 1;
+            for m in b.moves.iter().filter(|m| holds(m.criteria, &f)) {
+                assert_ne!(m.next, Next::Phase(Phase::Enforce), "{}.{}: a lost campaign guarding a win", b.id, m.id);
+            }
+            assert!(b.moves.iter().any(|m| holds(m.criteria, &f)), "{}: no way on after a loss", b.id);
+        }
+        assert!(checked >= 20, "only {} outcome beats can follow a loss", checked);
+    }
+
+    #[test]
     fn test_seeded_sample_reaches_most_of_the_arc_library() {
         let facts_pool: Vec<&str> = KNOWN_FACTS.iter().copied().filter(|f| arc_fact(f)).collect();
         let mut played: HashSet<&str> = HashSet::new();

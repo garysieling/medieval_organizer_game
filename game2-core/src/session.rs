@@ -80,6 +80,31 @@ pub fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) ->
     (sx.round() as i32, sy.round() as i32)
 }
 
+/// Conservative tile bounds whose ground sprites can reach the viewport.
+/// The screen margins match draw_ground's sprite-overhang cull, then one tile
+/// is added to absorb rounding at fractional zooms.
+fn visible_tile_bounds(cam_x: i32, cam_y: i32, zoom: f32, width: usize, height: usize,
+    map_width: i32, map_height: i32) -> (i32, i32, i32, i32) {
+    let (mx, my) = ((2.0 * TILE_W as f32 * zoom).ceil(), (4.0 * TILE_H as f32 * zoom).ceil());
+    let corners = [(-mx, -my), (width as f32 + mx, -my), (-mx, height as f32 + my),
+        (width as f32 + mx, height as f32 + my)];
+    let mut min_x = f32::INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
+    for (sx, sy) in corners {
+        let u = ((sx - ZOOM_PIVOT.0) / zoom - cam_x as f32) / TILE_W as f32;
+        let v = ((sy - ZOOM_PIVOT.1) / zoom + 60.0 - cam_y as f32) / TILE_H as f32;
+        let (tx, ty) = ((u + v) * 0.5, (v - u) * 0.5);
+        min_x = min_x.min(tx); min_y = min_y.min(ty);
+        max_x = max_x.max(tx); max_y = max_y.max(ty);
+    }
+    let (x0, y0, x1, y1) = ((min_x.floor() as i32 - 40).max(0),
+        (min_y.floor() as i32 - 40).max(0), (max_x.ceil() as i32 + 40).min(map_width - 1),
+        (max_y.ceil() as i32 + 40).min(map_height - 1));
+    (x0, y0, x1, y1)
+}
+
 /// Draw `sprite` with its top-left at (x, y), scaled by `scale`
 fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     if (scale - 1.0).abs() < 0.01 {
@@ -1525,9 +1550,9 @@ pub struct Pedlar {
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;
 
-/// Tiles a side of the map: the town keeps its size, the country around it
-/// grew half again so the farmland and wilds have room
-pub const MAP_TILES: usize = 49;
+/// The map is five times the original 49-tile side in both dimensions.
+pub const MAP_SCALE: usize = 5;
+pub const MAP_TILES: usize = 49 * MAP_SCALE;
 
 /// The map the windowed game plays: GAME2_SEED pins one (for a screenshot
 /// of a particular country); otherwise each launch draws a fresh one
@@ -1586,12 +1611,10 @@ fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) ->
     best.map(|(p, _)| p)
 }
 
-/// The ground layer in world space at one zoom, drawn once then blitted
-/// each frame: `origin` is the cache pixel that lands on screen (0,0) when
-/// the camera is at (0,0)
+/// The visible ground viewport, cached for a fixed camera, zoom, season and map revision.
 pub struct GroundCache {
     pub buf: Buffer,
-    pub origin: (i32, i32),
+    pub camera: (i32, i32),
     pub zoom: f32,
     pub season: Season, // the season it was drawn in (Spring and Summer share a tile set but not their fallback colours)
     pub rev: u64,       // map.rev() when it was drawn
@@ -2350,7 +2373,11 @@ impl Game {
         let in_wall = |x: i32, y: i32| (wall.0..=wall.2).contains(&x) && (wall.1..=wall.3).contains(&y);
         let herb_sites: Vec<(i32, i32)> = (0..map.height as i32)
             .flat_map(|y| (0..map.width as i32).map(move |x| (x, y)))
-            .filter(|&(x, y)| map.get(x, y) == Some(Tile::Grass) && map.passable(x, y) && !in_wall(x, y))
+            // Foraging is a village activity: keep the wild patches within
+            // the herb-wife's walking range instead of scattering them over
+            // the newly enlarged country.
+            .filter(|&(x, y)| (x - 16).abs() + (y - 16).abs() <= 16
+                && map.get(x, y) == Some(Tile::Grass) && map.passable(x, y) && !in_wall(x, y))
             .collect();
         let step = (herb_sites.len() / PATCH_HERBS.len().max(1)).max(1);
         for (pi, &herb) in PATCH_HERBS.iter().enumerate() {
@@ -8759,6 +8786,7 @@ pub struct View {
     /// The ground layer repainted only when stale
     ground: std::cell::RefCell<Option<GroundCache>>,
     last_zoom: std::cell::Cell<f32>,
+    last_camera: std::cell::Cell<(i32, i32)>,
 }
 
 impl View {
@@ -8773,6 +8801,7 @@ impl View {
             help_open: false,
             ground: std::cell::RefCell::new(None),
             last_zoom: std::cell::Cell::new(f32::NAN),
+            last_camera: std::cell::Cell::new((i32::MIN, i32::MIN)),
         }
     }
 
@@ -8805,27 +8834,23 @@ impl View {
         // shows; it's redrawn only when the zoom, the season or the map
         // itself has changed since the last pass.
         let season = m.season;
-        if self.last_zoom.get() != zoom {
-            // a held zoom key changes zoom every frame: rebuilding the layer
-            // each frame would draw the whole map per frame, so while it's
-            // moving just paint the visible tiles like the pass always did;
-            // the cache rebuilds once the zoom settles
+        let camera = (cam_x, cam_y);
+        if self.last_zoom.get() != zoom || self.last_camera.get() != camera {
+            // Pan and zoom input can change every frame. Draw only the visible
+            // viewport while moving; rebuild its compact cache when settled.
             self.draw_ground(m, &mut buf, cam_x, cam_y, zoom);
         } else {
             let stale = match *self.ground.borrow() {
-                Some(ref g) => g.zoom != zoom || g.season != season || g.rev != m.map.rev(),
+                Some(ref g) => g.zoom != zoom || g.camera != camera || g.season != season || g.rev != m.map.rev(),
                 None => true,
             };
-            if stale { *self.ground.borrow_mut() = Some(self.render_ground(m, zoom)); }
+            if stale { *self.ground.borrow_mut() = Some(self.render_ground(m, zoom, camera)); }
             let g = self.ground.borrow();
             let g = g.as_ref().unwrap();
-            // the cache pixel under screen (x, y): the layer's world-space
-            // origin shifted by the camera pan (cam offsets are unzoomed,
-            // so on screen they move cam * zoom px)
-            let (ox, oy) = ((cam_x as f32 * zoom).round() as i32, (cam_y as f32 * zoom).round() as i32);
-            buf.blit_from(&g.buf, g.origin.0 - ox, g.origin.1 - oy, 0, 0, MAP_W as i32, H as i32);
+            buf.blit_from(&g.buf, 0, 0, 0, 0, MAP_W as i32, H as i32);
         }
         self.last_zoom.set(zoom);
+        self.last_camera.set(camera);
 
         // everything standing on the map, people included, drawn back to
         // front in one painter's-order pass: whatever is nearer covers what
@@ -9439,8 +9464,10 @@ impl View {
         let faces = &self.art.faces[season_tiles(season)];
         let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
         let (w_t, h_t) = (m.map.width as i32, m.map.height as i32);
-        for d in 0..(w_t + h_t - 1) {
-            for tx in (d - h_t + 1).max(0)..=d.min(w_t - 1) {
+        let (x0, y0, x1, y1) = visible_tile_bounds(cam_x, cam_y, zoom, buf.width, buf.height, w_t, h_t);
+        if x0 > x1 || y0 > y1 { return; }
+        for d in x0 + y0..=x1 + y1 {
+            for tx in (d - y1).max(x0)..=d.min(x1).min(d - y0) {
                 let ty = d - tx;
                 let Some(tile) = m.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
@@ -9478,39 +9505,13 @@ impl View {
         }
     }
 
-    /// The ground layer drawn once into world space (camera at 0,0): a
-    /// buffer covering every tile's block so the frame pass can blit the
-    /// window of it the camera actually shows
-    pub fn render_ground(&self, m: &UiModel, zoom: f32) -> GroundCache {
-        let (w_t, h_t) = (m.map.width as i32, m.map.height as i32);
-        let tw = (TILE_W as f32 * zoom) as i32;
-        let th = (TILE_H as f32 * zoom) as i32;
-        let season = m.season;
-        let set = &self.art.tiles[season_tiles(season)];
-        // the rectangle of world screen space the ground covers: the fullest
-        // (edge-style) block each tile could draw, plus room for the specks
-        // a tile may wear and a margin
-        let (mut x0, mut y0, mut x1, mut y1) = (i32::MAX, i32::MAX, i32::MIN, i32::MIN);
-        for ty in 0..h_t { for tx in 0..w_t {
-            let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, 0, 0, zoom);
-            let (bx0, by0, bx1, by1) = match set.block(&m.map, tx, ty) {
-                Some(block) => { let (w, h, x, y) = block_rect(block, sx, sy, zoom); (x, y, x + w as i32, y + h as i32) }
-                None => (sx - tw, sy - th, sx + tw, sy + 2 * th),
-            };
-            x0 = x0.min(bx0); y0 = y0.min(by0); x1 = x1.max(bx1); y1 = y1.max(by1);
-        }}
-        let pad = (40.0 * zoom).round() as i32 + 8;
-        x0 -= tw + pad; x1 += tw + pad; y0 -= pad; y1 += 2 * th + pad;
-        let mut buf = Buffer::new((x1 - x0).max(1) as usize, (y1 - y0).max(1) as usize);
-        // the same dark the frame clears to, so the layer's edges blend away
-        buf.rect(0, 0, buf.width as i32, buf.height as i32, 25, 25, 38);
-        // the camera offsets draw_ground applies are in unzoomed space (the
-        // projection scales them by zoom), so to shift content by -x0
-        // screen px the cam to pass is -x0 / zoom
-        let (kx, ky) = ((-x0 as f32 / zoom).round() as i32, (-y0 as f32 / zoom).round() as i32);
-        self.draw_ground(m, &mut buf, kx, ky, zoom);
-        let origin = ((kx as f32 * zoom).round() as i32, (ky as f32 * zoom).round() as i32);
-        GroundCache { buf, origin, zoom, season, rev: m.map.rev() }
+    /// Render just the visible ground viewport. Cache size is independent of
+    /// total map area, so enlarging the country cannot allocate a giant layer.
+    pub fn render_ground(&self, m: &UiModel, zoom: f32, camera: (i32, i32)) -> GroundCache {
+        let mut buf = Buffer::new(MAP_W, H);
+        buf.rect(0, 0, MAP_W as i32, H as i32, 25, 25, 38);
+        self.draw_ground(m, &mut buf, camera.0, camera.1, zoom);
+        GroundCache { buf, camera, zoom, season: m.season, rev: m.map.rev() }
     }
 
 }
@@ -12013,8 +12014,8 @@ mod works_tests {
         let mut game = Game::new();
         // somewhere a road has to be laid to reach - the town's lanes reach
         // everywhere now, so hunt for a spot the road hasn't got to yet
-        let spot = [(8i32, 20), (4, 24), (28, 26), (30, 5), (4, 5), (26, 3)]
-            .iter().copied().find(|&(cx, cy)| {
+        let spot = (8..MAP_TILES as i32 - 8).flat_map(|y| (8..MAP_TILES as i32 - 8).map(move |x| (x, y)))
+            .find(|&(cx, cy)| {
                 (-4..=4).all(|dy| (-4..=4).all(|dx| game.map.get(cx + dx, cy + dy) != Some(Tile::Road)))
             }).expect("a spot out past the roads");
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
@@ -12120,13 +12121,14 @@ mod ground_cache_tests {
         // put it (at fractional zooms the layer can sit a sub-pixel off and
         // still be right)
         for &zoom in &[1.0f32, 2.0] {
+            for camera in [(0, 0), (35, -20)] {
             let mut direct = Buffer::new(W, H);
             direct.rect(0, 0, W as i32, H as i32, 25, 25, 38);
-            view.draw_ground(&game.ui_model(), &mut direct, 0, 0, zoom);
-            let g = view.render_ground(&game.ui_model(), zoom);
+            view.draw_ground(&game.ui_model(), &mut direct, camera.0, camera.1, zoom);
+            let g = view.render_ground(&game.ui_model(), zoom, camera);
             let mut cached = Buffer::new(W, H);
             cached.rect(0, 0, W as i32, H as i32, 25, 25, 38);
-            cached.blit_from(&g.buf, g.origin.0, g.origin.1, 0, 0, MAP_W as i32, H as i32);
+            cached.blit_from(&g.buf, 0, 0, 0, 0, MAP_W as i32, H as i32);
             if std::env::var("DUMP_GROUND").is_ok() {
                 direct.save_bmp(&format!("../evidence/ground-direct-{}.bmp", (zoom * 100.0) as i32)).ok();
                 cached.save_bmp(&format!("../evidence/ground-cache-{}.bmp", (zoom * 100.0) as i32)).ok();
@@ -12144,8 +12146,35 @@ mod ground_cache_tests {
                     bounds = [bounds[0].min(x as i32), bounds[1].min(y as i32), bounds[2].max(x as i32), bounds[3].max(y as i32)];
                 }
             }}
-            assert_eq!(missing, 0, "zoom {}: ground pixels dropped by the cache in {:?}", zoom, bounds);
+            assert_eq!(missing, 0, "zoom {} camera {:?}: ground pixels dropped by the cache in {:?}", zoom, camera, bounds);
+            }
         }
+    }
+
+    #[test]
+    fn test_expanded_map_ground_cache_is_viewport_sized_at_zoom_two() {
+        let game = Game::new_seeded(231);
+        assert_eq!(game.map.width, 245);
+        let mut view = View::new(Art::load_fs("../assets", 0));
+        let model = game.ui_model();
+        view.zoom = 2.0;
+        // The first pass at a new zoom draws directly while input may still
+        // be changing it; a settled pass creates only the viewport cache.
+        view.render(&model, (-1, -1));
+        view.render(&model, (-1, -1));
+        {
+            let cache = view.ground.borrow();
+            let cache = cache.as_ref().expect("settled zoom should cache the viewport");
+            assert_eq!((cache.buf.width, cache.buf.height), (MAP_W, H));
+            assert_eq!(cache.buf.pixels.len(), MAP_W * H * 4);
+        }
+        let bounds = visible_tile_bounds(view.cam_x, view.cam_y, view.zoom, MAP_W, H, 245, 245);
+        let visited = (bounds.2 - bounds.0 + 1) * (bounds.3 - bounds.1 + 1);
+        assert!(visited < 25_000, "viewport culling should skip most of the 60,025 map tiles (visited {})", visited);
+        view.cam_x += 35;
+        view.render(&model, (-1, -1));
+        view.render(&model, (-1, -1));
+        assert_eq!(view.ground.borrow().as_ref().unwrap().camera, (view.cam_x, view.cam_y));
     }
 }
 
@@ -14804,5 +14833,13 @@ mod tavern_tests {
         assert!(household::home_of(&g.world, newcomer).is_none(), "no room was found");
         assert!(g.world.get_component::<InnerLife>(newcomer).unwrap()
             .wants.contains(&Want::Shelter), "so they want a bed");
+    }
+
+    #[test]
+    fn generated_country_is_five_times_larger_per_side() {
+        let game = Game::new();
+        assert_eq!(MAP_TILES, 245);
+        assert_eq!(game.map.width, 245);
+        assert_eq!(game.map.height, 245);
     }
 }

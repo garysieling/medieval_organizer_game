@@ -1,6 +1,6 @@
 # Campaign Dialogue Trees: Staged Content and Integration Plan
 
-**Status:** Stage 1 (schema + 100-beat slice + meeting path) in review; Stages 2-4 pending
+**Status:** Stages 0-1 merged; Stage 2 (1,000 house-meeting beats) in review; Stages 3-4 pending
 **Branch:** `feat/campaign-dialogue-trees`
 **Reference model:** `game2-core/src/game/conversation.rs` and `game2-core/src/game/dialogue_trees.rs`
 
@@ -98,3 +98,11 @@ The likely integration boundary is a declarative campaign decision library besid
 - Connected path: after `hold_campaign_meeting`, `deliberate_meeting` walks the house-meeting library from `Agenda` (max 5 beats) against facts read from the campaign, voices lines through attendees, and applies hooks. `hold_campaign_meeting` itself is unchanged.
 - `arc:*` facts are defined vocabulary only; the campaign-arc library is audited and walkable in tests but not yet wired to state (Stage 3/4).
 - Audit: `cargo test -p game2-core --lib game::campaign_dialogue` checks counts per library, unique IDs, positive weights, known facts, resolvable source tags, phase fallbacks, reachability, voice/hook backing, distinct in-register lines, and seeded determinism.
+
+## Stage 2 Notes
+
+- The house-meeting library moved to `game2-core/src/game/campaign_meeting_beats.rs`: 1,000 beats (agenda 100, floor 100, testimony 140, proposal 129, amendment 100, objection 130, coalition 100, decision 120, follow-through 81). `campaign_beats.rs` keeps the arc library, source patterns (now 38, adding sacred, legendary and contested cases alongside the documented ones) and the `bt`/`mv` authoring helpers.
+- New runtime facts read by `meeting_facts` (now given the tick): `room:trait:*` (any attendee's temperament), `room:want:*` (what attendees' live problems leave them short of: bread, relief, justice, roof, work, mourning), `room:faction` (two or more heard dissenters), `org:jailed`, `org:weak`/`org:strong` (organized-power capacity below 0.3 / at least 1.0), `org:leader_absent`. `EXCLUSIVE_FACTS` names facts that can't co-occur.
+- Audits added: exact per-library counts with a per-phase floor, satisfiable criteria, at least 450 distinct phase+criteria contexts (558 at merge), every runtime fact used by at least 3 beats, at least 8 criteria-free beats per phase, dissent/reframe/close coverage, and a seeded 6,000-room sample that must reach 90% of the library (991/1,000 at merge).
+- Authors can read play-throughs with `cargo test -p game2-core --lib sample_meetings -- --ignored --nocapture`.
+- Content note: a beat whose criteria are mostly `Lacks` still scores its full criterion count, so it outranks every generic beat in most rooms. Pair a `Lacks` with a `Has` that narrows it.

@@ -25,7 +25,8 @@ use crate::engine::ecs::{Entity, World};
 use crate::game::campaign::{Campaign, CampaignMeeting, DecisionRule, Framing, MeetingOutcome, Role};
 use crate::game::conversation::{Criterion, Facts, Rng};
 
-pub use crate::game::campaign_beats::{ARC_BEATS, MEETING_BEATS, SOURCE_PATTERNS};
+pub use crate::game::campaign_beats::{ARC_BEATS, SOURCE_PATTERNS};
+pub use crate::game::campaign_meeting_beats::MEETING_BEATS;
 
 /// The two separately counted libraries
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -175,6 +176,11 @@ pub struct SourcePattern {
 /// and the inventory audit rejects content that names anything else.
 /// The `arc:*` facts are the campaign-arc vocabulary; they're wired to
 /// state in a later stage.
+/// - `room:trait:*`: someone in the room carries that temperament
+/// - `room:want:*`: what the room is short of - bread, relief from dues,
+///   justice for a wrong, a roof, work, time to mourn
+/// - `org:*`: the org around the room - members taken, its standing
+///   power, whether its leader came
 pub const KNOWN_FACTS: &[&str] = &[
     "rule:majority", "rule:consensus",
     "framing:grievance", "framing:foe", "framing:duty",
@@ -184,7 +190,29 @@ pub const KNOWN_FACTS: &[&str] = &[
     "history:first", "history:seasoned",
     "arc:weak", "arc:strong", "arc:consent", "arc:crackdown", "arc:prisoners",
     "arc:won", "arc:lost", "arc:partial", "arc:promise_broken", "arc:split",
+    "room:trait:proud", "room:trait:hotheaded", "room:trait:kind", "room:trait:pious",
+    "room:trait:stingy", "room:trait:gregarious", "room:trait:ambitious", "room:trait:lazy",
+    "room:want:bread", "room:want:relief", "room:want:justice", "room:want:roof",
+    "room:want:work", "room:want:mourning",
+    "room:faction", "org:jailed", "org:weak", "org:strong", "org:leader_absent",
 ];
+
+/// Facts that can't hold together: a beat needing two of one group can
+/// never play
+pub const EXCLUSIVE_FACTS: &[&[&str]] = &[
+    &["rule:majority", "rule:consensus"],
+    &["framing:grievance", "framing:foe", "framing:duty"],
+    &["room:thin", "room:full"],
+    &["history:first", "history:seasoned"],
+    &["org:weak", "org:strong"],
+    &["arc:won", "arc:lost", "arc:partial"],
+    &["arc:weak", "arc:strong"],
+];
+
+/// Organized power below this is a weak org, at or above `ORG_STRONG` a
+/// strong one (a meeting attended builds 0.15)
+pub const ORG_WEAK: f32 = 0.3;
+pub const ORG_STRONG: f32 = 1.0;
 
 /// Most beats a house meeting gets through before the light goes
 pub const MEETING_MAX_BEATS: usize = 5;
@@ -280,8 +308,9 @@ pub fn fill(line: &str, issue: &str) -> String {
 }
 
 /// The facts a campaign meeting is judged by: the campaign's rule and
-/// framing, the seats whose holders came, its history, and who came
-pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome) -> Facts {
+/// framing, the seats whose holders came, its history, who came - their
+/// temperaments and what they're short of - and the org around them
+pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome, tick: u64) -> Facts {
     let mut f = Facts::default();
     if let Some(c) = world.get_component::<Campaign>(campaign) {
         f.insert(match c.decision_rule { DecisionRule::Majority => "rule:majority", DecisionRule::Consensus => "rule:consensus" });
@@ -299,6 +328,24 @@ pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome) -> F
             });
         }
         if c.dissenters.iter().any(|d| !out.attendees.contains(d)) { f.insert("room:dissent_absent"); }
+        if let Some(o) = world.get_component::<crate::sim::community::Organization>(c.org) {
+            if !out.attendees.contains(&o.leader) { f.insert("org:leader_absent"); }
+            let taken = o.members.iter().any(|&m| !crate::game::villager::is_dead(world, m)
+                && crate::game::dungeon::unavailable(world, m));
+            if taken { f.insert("org:jailed"); }
+        }
+        if let Some(p) = world.get_component::<crate::sim::organized_power::OrganizedPower>(c.org) {
+            if p.capacity < ORG_WEAK { f.insert("org:weak"); }
+            if p.capacity >= ORG_STRONG { f.insert("org:strong"); }
+        }
+    }
+    for &a in &out.attendees {
+        if let Some(p) = world.get_component::<crate::game::traits::Personality>(a) {
+            for t in &p.traits { f.insert(format!("room:trait:{}", trait_fact(*t))); }
+        }
+        for pr in crate::game::desires::problems_of(world, a, tick) {
+            if let Some(w) = want_fact(pr) { f.insert(format!("room:want:{}", w)); }
+        }
     }
     if let Some(m) = world.get_component::<CampaignMeeting>(campaign) {
         if m.held <= 1 { f.insert("history:first"); }
@@ -307,9 +354,32 @@ pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome) -> F
     if out.drifted { f.insert("room:drifted"); }
     if out.noted { f.insert("room:noted"); }
     if !out.healed.is_empty() { f.insert("room:dissent_heard"); }
+    if out.healed.len() >= 2 { f.insert("room:faction"); }
     if out.attendees.len() < 3 { f.insert("room:thin"); }
     if out.attendees.len() >= 5 { f.insert("room:full"); }
     f
+}
+
+fn trait_fact(t: crate::game::traits::Trait) -> &'static str {
+    use crate::game::traits::Trait::*;
+    match t {
+        Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",
+        Pious => "pious", Hotheaded => "hotheaded", Gregarious => "gregarious", Proud => "proud",
+    }
+}
+
+/// What a live problem leaves a person short of, as the room hears it
+fn want_fact(p: crate::game::desires::Problem) -> Option<&'static str> {
+    use crate::game::desires::Problem::*;
+    Some(match p {
+        Broke | LongWinter | ColdHearth | SourGut => "bread",
+        Taxed | WritBorne | DeathDuty | OverseerCut => "relief",
+        Blamed | Robbed | ShortChanged | Loss => "justice",
+        NoHome => "roof",
+        NoWorkplace | NoMaster => "work",
+        Grief => "mourning",
+        _ => return None,
+    })
 }
 
 /// Apply a chosen move's consequence. Returns whether anything changed.
@@ -409,7 +479,7 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     let mut d = Deliberation { said: vec![], applied: vec![], decided: false, consent: false };
     let mut w = Walker::new(Phase::Agenda);
     for _ in 0..MEETING_MAX_BEATS {
-        let facts = meeting_facts(world, campaign, out);
+        let facts = meeting_facts(world, campaign, out, tick);
         let Some(s) = w.step(MEETING_BEATS, &facts, &mut rng) else { break };
         let caller = voice_of(s.beat.voice, &mut rng);
         d.said.push(Spoken { speaker: caller, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
@@ -453,11 +523,120 @@ mod tests {
     // --- inventory: the audit every later stage reruns at scale ---
 
     #[test]
-    fn test_libraries_are_counted_separately_at_the_stage_one_tranche() {
-        assert_eq!(MEETING_BEATS.len(), 50, "house-meeting beats");
-        assert_eq!(ARC_BEATS.len(), 50, "campaign-arc beats");
+    fn test_libraries_are_counted_separately() {
+        assert_eq!(MEETING_BEATS.len(), 1000, "house-meeting beats (Stage 2)");
+        assert_eq!(ARC_BEATS.len(), 50, "campaign-arc beats (Stage 1 tranche; Stage 3 grows it)");
         for l in [Library::HouseMeeting, Library::CampaignArc] {
             assert!(library(l).iter().all(|b| b.phase.library() == l), "{:?} holds another library's phase", l);
+        }
+        // the meeting library is spread across its phases, not piled in one
+        for p in Phase::MEETING {
+            let n = MEETING_BEATS.iter().filter(|b| b.phase == p).count();
+            assert!(n >= 75, "{:?} has only {} beats", p, n);
+        }
+    }
+
+    #[test]
+    fn test_every_beat_can_match_some_room() {
+        // no beat demands a fact and its absence, or two facts that can't
+        // hold together - such a beat could never play
+        for b in MEETING_BEATS.iter().chain(ARC_BEATS) {
+            let has: Vec<&str> = b.criteria.iter().filter_map(|c| match c { Has(f) => Some(*f), _ => None }).collect();
+            let lacks: Vec<&str> = b.criteria.iter().filter_map(|c| match c { Lacks(f) => Some(*f), _ => None }).collect();
+            assert!(has.iter().all(|f| !lacks.contains(f)), "{} has and lacks one fact", b.id);
+            for group in EXCLUSIVE_FACTS {
+                assert!(has.iter().filter(|f| group.contains(f)).count() <= 1, "{} needs two of {:?}", b.id, group);
+            }
+        }
+    }
+
+    #[test]
+    fn test_meeting_contexts_are_distinct_and_cover_the_room() {
+        // many distinct situations, not one situation paraphrased
+        let contexts: HashSet<(String, Vec<String>)> = MEETING_BEATS.iter().map(|b| {
+            let mut cs: Vec<String> = b.criteria.iter().map(|c| format!("{:?}", c)).collect();
+            cs.sort();
+            (format!("{:?}", b.phase), cs)
+        }).collect();
+        eprintln!("{} distinct phase+criteria contexts", contexts.len());
+        assert!(contexts.len() >= 450, "only {} distinct phase+criteria contexts", contexts.len());
+        // every fact the runtime can read is something some beat speaks to
+        // (in a meeting `seat:note_taker` and `room:noted` say the same thing -
+        // both mean the note taker came - so content uses the latter)
+        let runtime = KNOWN_FACTS.iter().filter(|f| !f.starts_with("arc:") && **f != "seat:note_taker");
+        for f in runtime {
+            let n = MEETING_BEATS.iter().filter(|b| requires(&[b.criteria], f)).count();
+            assert!(n >= 3, "only {} meeting beats speak to {}", n, f);
+        }
+        // and every phase still has plenty to say when nothing's known
+        for p in Phase::MEETING {
+            let generic = MEETING_BEATS.iter().filter(|b| b.phase == p && b.criteria.is_empty()).count();
+            assert!(generic >= 8, "{:?} has only {} criteria-free beats", p, generic);
+        }
+    }
+
+    #[test]
+    fn test_meeting_moves_cover_power_and_outcomes() {
+        let moves: Vec<&Move> = MEETING_BEATS.iter().flat_map(|b| b.moves).collect();
+        let dissents = moves.iter().filter(|m| m.hook == Hook::Dissent).count();
+        let reframes = moves.iter().filter(|m| matches!(m.hook, Hook::Reframe(_))).count();
+        let closes = moves.iter().filter(|m| m.next == Next::Close).count();
+        assert!(dissents >= 30, "{} dissent moves", dissents);
+        assert!(reframes >= 15, "{} reframe moves", reframes);
+        assert!(closes >= 100, "{} moves can end a meeting", closes);
+        for fr in [Framing::SharedGrievance, Framing::CommonFoe, Framing::MoralDuty] {
+            assert!(moves.iter().any(|m| m.hook == Hook::Reframe(fr)), "nobody reframes to {:?}", fr);
+        }
+    }
+
+    #[test]
+    fn test_seeded_sample_reaches_most_of_the_meeting_library() {
+        // a seeded spread of rooms: each draws a consistent handful of
+        // facts, walks a meeting, and the sample is reported per phase
+        let facts_pool: Vec<&str> = KNOWN_FACTS.iter().copied().filter(|f| !f.starts_with("arc:")).collect();
+        let mut played: HashSet<&str> = HashSet::new();
+        for seed in 0..6000u64 {
+            let mut rng = Rng::new(seed);
+            let mut f = Facts::default();
+            let mut picked: Vec<&str> = vec![];
+            for _ in 0..rng.below(5) {
+                let x = facts_pool[rng.below(facts_pool.len())];
+                let clash = EXCLUSIVE_FACTS.iter().any(|g| g.contains(&x) && picked.iter().any(|p| g.contains(p)));
+                if !clash { picked.push(x); f.insert(x); }
+            }
+            for s in walk(MEETING_BEATS, Phase::Agenda, &f, &mut rng, MEETING_MAX_BEATS) {
+                played.insert(s.beat.id);
+            }
+        }
+        let share = played.len() as f32 / MEETING_BEATS.len() as f32;
+        for p in Phase::MEETING {
+            let all = MEETING_BEATS.iter().filter(|b| b.phase == p).count();
+            let hit = MEETING_BEATS.iter().filter(|b| b.phase == p && played.contains(b.id)).count();
+            eprintln!("{:?}: {}/{} beats played", p, hit, all);
+        }
+        eprintln!("sample reached {}/{} meeting beats", played.len(), MEETING_BEATS.len());
+        assert!(share >= 0.9, "only {:.0}% of meeting beats ever played in the sample", share * 100.0);
+    }
+
+    /// For authors: read a few meetings as they'd play.
+    /// `cargo test -p game2-core --lib sample_meetings -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn sample_meetings() {
+        let rooms: [&[&str]; 6] = [
+            &[],
+            &["rule:consensus", "room:noted", "room:dissent_heard"],
+            &["room:drifted", "org:leader_absent", "room:trait:hotheaded"],
+            &["framing:foe", "room:want:bread", "org:weak"],
+            &["org:jailed", "room:full", "room:trait:pious"],
+            &["seat:chair", "room:faction", "rule:majority", "history:seasoned"],
+        ];
+        for (i, room) in rooms.iter().enumerate() {
+            eprintln!("--- room {:?}", room);
+            for s in walk(MEETING_BEATS, Phase::Agenda, &facts(room), &mut Rng::new(i as u64 + 7), MEETING_MAX_BEATS) {
+                eprintln!("[{}] {:?}: {}", s.beat.id, s.beat.voice, fill(s.call, "the mill toll"));
+                eprintln!("    -> {:?}: {}", s.mv.voice, fill(s.reply, "the mill toll"));
+            }
         }
     }
 
@@ -730,7 +909,7 @@ mod tests {
     fn test_meeting_facts_read_campaign_state() {
         let (mut w, c, ms) = meeting_world(DecisionRule::Consensus);
         let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
-        let f = meeting_facts(&w, c, &out);
+        let f = meeting_facts(&w, c, &out, 8);
         for x in ["rule:consensus", "framing:foe", "seat:coordinator", "seat:note_taker",
                   "room:noted", "room:dissent_heard", "history:first"] {
             assert!(f.has(x), "missing {}", x);
@@ -819,14 +998,14 @@ mod tests {
         assert!(delegate_role(&mut w, c, Role::Chair, stranger));
         let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
         assert!(!out.attendees.contains(&stranger));
-        let f = meeting_facts(&w, c, &out);
+        let f = meeting_facts(&w, c, &out, 8);
         assert!(!f.has("seat:chair"), "the chair isn't in the room");
         assert!(f.has("seat:coordinator") && f.has("seat:note_taker"));
         // seated and present: the chair's beats are theirs to speak
         let (mut w, c, ms2) = meeting_world(DecisionRule::Majority);
         assert!(delegate_role(&mut w, c, Role::Chair, ms2[3]));
         let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
-        assert!(meeting_facts(&w, c, &out).has("seat:chair"));
+        assert!(meeting_facts(&w, c, &out, 8).has("seat:chair"));
         let _ = ms;
     }
 

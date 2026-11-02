@@ -1,6 +1,7 @@
-//! Campaign decision content: the Stage 1 tranche of 50 house-meeting
-//! beats and 50 campaign-arc beats, plus the source patterns they borrow.
-//! The model and its audit live in `campaign_dialogue`.
+//! Campaign decision content: the campaign-arc library, the source
+//! patterns both libraries borrow, and the authoring helpers. The
+//! house-meeting library lives in `campaign_meeting_beats`; the model and
+//! its audit in `campaign_dialogue`.
 //!
 //! Authoring rules (wiki/software-design/campaign-dialogue-trees-plan.md):
 //! - Every phase keeps at least one criteria-free beat - the fallback.
@@ -9,19 +10,25 @@
 //! - The village voice: short, concrete, period words; no modern terms.
 //!   Source tags carry the history; the lines never lecture.
 
-use crate::game::campaign::Framing;
 use crate::game::campaign_dialogue::{Beat, Evidence, Hook, Move, Next, Phase, SourcePattern, Voice};
+use crate::game::conversation::Criterion;
 use crate::game::conversation::Criterion::*;
 use Hook::*;
 use Phase::*;
 use Voice::*;
 
-const fn to(p: Phase) -> Next { Next::Phase(p) }
-const END: Next = Next::Close;
+pub(crate) const fn to(p: Phase) -> Next { Next::Phase(p) }
+pub(crate) const END: Next = Next::Close;
 
 /// A move with no criteria or bias of its own; struct-update it to add them
-const fn mv(id: &'static str, weight: f32, voice: Voice, lines: &'static [&'static str], hook: Hook, next: Next) -> Move {
+pub(crate) const fn mv(id: &'static str, weight: f32, voice: Voice, lines: &'static [&'static str], hook: Hook, next: Next) -> Move {
     Move { id, criteria: &[], weight, bias: &[], voice, lines, hook, next }
+}
+
+/// A beat, positionally: id, phase, criteria, voice, lines, moves, sources
+pub(crate) const fn bt(id: &'static str, phase: Phase, criteria: &'static [Criterion], voice: Voice,
+                       lines: &'static [&'static str], moves: &'static [Move], sources: &'static [&'static str]) -> Beat {
+    Beat { id, phase, criteria, voice, lines, moves, sources }
 }
 
 pub const SOURCE_PATTERNS: &[SourcePattern] = &[
@@ -73,402 +80,34 @@ pub const SOURCE_PATTERNS: &[SourcePattern] = &[
         mechanism: "a win holds only while someone watches and can call folk out again" },
     SourcePattern { tag: "repression_backfire", origin: "'political jiu-jitsu' accounts of crackdowns", evidence: Evidence::Contested,
         mechanism: "open force against the peaceful can turn onlookers - but often it simply works" },
+    SourcePattern { tag: "nehemiah_assembly", origin: "Nehemiah 5, the great assembly against usury", evidence: Evidence::Sacred,
+        mechanism: "a public assembly shames creditors into releasing pledges and swearing to it" },
+    SourcePattern { tag: "acts_common_purse", origin: "Acts 2 and 4, the common purse", evidence: Evidence::Sacred,
+        mechanism: "need shared out from a common store holds a group through scarcity" },
+    SourcePattern { tag: "village_bylaws", origin: "English manorial bylaws and village assemblies, 13th-15th c.", evidence: Evidence::Documented,
+        mechanism: "the village sets and polices its own field rules, fines and gleaning" },
+    SourcePattern { tag: "peasants_revolt_1381", origin: "English Rising of 1381", evidence: Evidence::Documented,
+        mechanism: "charters granted under pressure are revoked once the crowd disperses" },
+    SourcePattern { tag: "ciompi_revolt", origin: "Ciompi wool-workers, Florence 1378", evidence: Evidence::Documented,
+        mechanism: "the unrepresented win a guild of their own, then lose it to divisions within" },
+    SourcePattern { tag: "lollard_conventicle", origin: "Lollard household conventicles, 1380s-1520s", evidence: Evidence::Documented,
+        mechanism: "reading and talking in a trusted kitchen keeps a cause alive under suspicion" },
+    SourcePattern { tag: "beguine_houses", origin: "Beguine communities, 13th c. onward", evidence: Evidence::Documented,
+        mechanism: "women pool work and lodging outside the usual authorities and govern it themselves" },
+    SourcePattern { tag: "quaker_business_meeting", origin: "Quaker meeting for business, 17th c. onward", evidence: Evidence::Documented,
+        mechanism: "silence and a clerk's minute find the sense of the meeting rather than a count" },
+    SourcePattern { tag: "rochdale_rules", origin: "Rochdale Pioneers, 1844", evidence: Evidence::Documented,
+        mechanism: "plain written rules on shares and accounts keep a mutual store honest" },
+    SourcePattern { tag: "group_centered_leadership", origin: "Ella Baker and SNCC, 1960s", evidence: Evidence::Documented,
+        mechanism: "the organizer draws out local leaders rather than speaking for them" },
+    SourcePattern { tag: "cut_issue", origin: "Alinsky-school organizing, 1940s onward", evidence: Evidence::Documented,
+        mechanism: "a problem is cut into an issue: specific, winnable, with someone who can say yes" },
+    SourcePattern { tag: "tell_legend", origin: "William Tell legend", evidence: Evidence::Legendary,
+        mechanism: "a remembered refusal to bow lends a room the nerve to refuse together" },
+    SourcePattern { tag: "jacquerie", origin: "Jacquerie, France 1358", evidence: Evidence::Contested,
+        mechanism: "rage without plan or allies is crushed - and the chroniclers were the victors" },
     SourcePattern { tag: "outlaw_ballads", origin: "Robin Hood and greenwood ballads", evidence: Evidence::Legendary,
         mechanism: "a told story of the taken brought home lends nerve to those left behind" },
-];
-
-// ---------------------------------------------------------------------
-// House meetings: 50 beats
-
-pub const MEETING_BEATS: &[Beat] = &[
-    // --- Agenda (6) ---
-    Beat { id: "hm_agenda_generic", phase: Agenda, criteria: &[], voice: Driver,
-        lines: &["We're met about {issue}. What comes first?", "Sit, all of you. {issue} brings us here - where do we start?"],
-        moves: &[
-            mv("hear_room", 1.0, Room, &["Let folk say their piece before aught is settled.", "Hear the room first, then plan."], Nothing, to(Floor)),
-            mv("worst_first", 0.8, Member, &["Let them who bear it worst speak first.", "Start with the houses hit hardest."], Nothing, to(Testimony)),
-            Move { bias: &[("history:seasoned", 1.6)],
-                ..mv("straight_to_it", 0.6, Member, &["We all know the trouble. Put a remedy to us.", "Enough telling. What do we do?"], Nothing, to(Proposal)) },
-        ],
-        sources: &["athenian_assembly"] },
-    Beat { id: "hm_agenda_first_meeting", phase: Agenda, criteria: &[Has("history:first")], voice: Driver,
-        lines: &["This is our first sitting on {issue}. Let's agree how we'll talk.", "We've never met like this before. A word on how we do it."],
-        moves: &[
-            mv("one_at_a_time", 1.0, Room, &["One at a time, and no shouting.", "Each speaks once before anyone speaks twice."], Nothing, to(Floor)),
-            mv("who_keeps_order", 0.6, Member, &["Who keeps the order? Somebody must.", "Pick someone to say whose turn it is."], Nothing, to(Floor)),
-            mv("just_begin", 0.5, Member, &["Rules can wait. My roof can't.", "We'll learn the manner of it by doing."], Nothing, to(Testimony)),
-        ],
-        sources: &["exodus_assembly", "guild_ordinance"] },
-    Beat { id: "hm_agenda_drifted", phase: Agenda, criteria: &[Has("room:drifted")], voice: Driver,
-        lines: &["Nobody called this, but here we sit. Shall I begin?", "Folk came because I asked them. I'll start, if none object."],
-        moves: &[
-            mv("go_on", 1.0, Room, &["Go on, then. Thou hast all our ears.", "Aye, thou'rt as good as any to start."], Nothing, to(Floor)),
-            Move { bias: &[("seat:chair", 1.5)],
-                ..mv("who_made_thee", 0.5, Member, &["Who made thee chair? Let them we chose speak.", "We never gave thee the floor to give."], Dissent, to(Objection)) },
-        ],
-        sources: &["freeman_structurelessness"] },
-    Beat { id: "hm_agenda_chair", phase: Agenda, criteria: &[Has("seat:chair")], voice: Chair,
-        lines: &["The chair has the order of it: {issue} first, then all else.", "By the chair's list - {issue}, then any other business."],
-        moves: &[
-            mv("as_listed", 1.0, Room, &["As the chair says.", "Fair enough. Go in order."], Nothing, to(Testimony)),
-            mv("open_it_first", 0.5, Member, &["Open the floor a moment first. Some have news.", "Before the list - let the quiet ones speak."], Nothing, to(Floor)),
-        ],
-        sources: &["guild_ordinance"] },
-    Beat { id: "hm_agenda_absent_dissent", phase: Agenda, criteria: &[Has("room:dissent_absent")], voice: Driver,
-        lines: &["Some who voted for another fight aren't here tonight.", "There are empty stools - and I know whose."],
-        moves: &[
-            mv("send_word", 0.8, Member, &["Send word to them after. Don't decide behind their backs.", "Carry what we say to their doors."], Nothing, to(Floor)),
-            mv("proceed", 1.0, Driver, &["We go on with who's here. They know where we meet.", "The door was open. We can't wait on them."], Nothing, to(Proposal)),
-        ],
-        sources: &["land_war_boycott"] },
-    Beat { id: "hm_agenda_seasoned", phase: Agenda, criteria: &[Has("history:seasoned")], voice: Driver,
-        lines: &["We've met on {issue} many a time. What's changed since last?", "Another sitting. Tell me what's moved."],
-        moves: &[
-            mv("report", 1.0, Member, &["Some things. Let me tell it.", "More than thou'd think. Hear this."], Nothing, to(Testimony)),
-            mv("nothing_changed", 0.6, Member, &["Naught has changed, and that's the trouble.", "Same as last time. Same as the time before."], Nothing, to(Objection)),
-        ],
-        sources: &["montgomery_mass_meeting"] },
-
-    // --- Floor (6) ---
-    Beat { id: "hm_floor_generic", phase: Floor, criteria: &[], voice: Driver,
-        lines: &["Who'll speak first?", "The floor is open. Who has something?"],
-        moves: &[
-            mv("one_rises", 1.0, Member, &["I will. I've held it in long enough.", "Me. Mine's short."], Nothing, to(Testimony)),
-            mv("silence", 0.5, Driver, &["None speak. Then I'll put a thought to you.", "Quiet as a church. I'll start us off."], Nothing, to(Proposal)),
-            Move { bias: &[("room:drifted", 1.6)],
-                ..mv("loudest", 0.4, Member, &["I'll speak, and I'm against the lot of it.", "Somebody has to say it - this is foolish."], Nothing, to(Objection)) },
-        ],
-        sources: &["athenian_assembly"] },
-    Beat { id: "hm_floor_thin", phase: Floor, criteria: &[Has("room:thin")], voice: Driver,
-        lines: &["There's few of us tonight. Speak plain, then.", "A small room. No need for speeches."],
-        moves: &[
-            mv("plain", 1.0, Member, &["Plain it is. It's getting worse.", "I'll be quick: we're hurting."], Nothing, to(Testimony)),
-            Move { bias: &[("rule:consensus", 1.5)],
-                ..mv("too_few", 0.5, Member, &["So few - should we decide for the rest at all?", "Let's not settle aught with half the village abed."], Nothing, END) },
-        ],
-        sources: &["polletta_decision_rule"] },
-    Beat { id: "hm_floor_full", phase: Floor, criteria: &[Has("room:full")], voice: Driver,
-        lines: &["The room's full. Speak short, or we'll be here till cockcrow.", "Look at all of you. Keep it brief, each one."],
-        moves: &[
-            mv("hands_up", 1.0, Room, &["A forest of hands goes up.", "Half the room wants the floor at once."], Nothing, to(Testimony)),
-            mv("shouting", 0.4, Member, &["Over the din: some of us want action, not talk!", "Shouting from the back: get on with it!"], Nothing, to(Objection)),
-        ],
-        sources: &["montgomery_mass_meeting"] },
-    Beat { id: "hm_floor_chair", phase: Floor, criteria: &[Has("seat:chair")], voice: Chair,
-        lines: &["The chair calls first on those who've not spoken before.", "New voices first. Thou in the corner?"],
-        moves: &[
-            mv("quiet_one", 1.0, Member, &["I... aye. I'll try.", "I never thought to be asked. Here's how it is."], Nothing, to(Testimony)),
-            mv("declines", 0.5, Member, &["Not me. Let someone with a stronger voice.", "I'll listen tonight, if it's all the same."], Nothing, to(Proposal)),
-        ],
-        sources: &["guild_ordinance", "citizenship_schools"] },
-    Beat { id: "hm_floor_drifted", phase: Floor, criteria: &[Has("room:drifted")], voice: Driver,
-        lines: &["Folk here look to me. I'll say who speaks.", "I'll call on folk - I know who's got something."],
-        moves: &[
-            mv("let_it", 1.0, Room, &["Nobody minds. Easier that way.", "Heads nod. It's always been so."], Nothing, to(Proposal)),
-            mv("push_back", 0.6, Member, &["Thou'lt call thy friends and skip the rest.", "And who calls on thee to sit down?"], Dissent, to(Objection)),
-        ],
-        sources: &["freeman_structurelessness"] },
-    Beat { id: "hm_floor_consensus", phase: Floor, criteria: &[Has("rule:consensus")], voice: Driver,
-        lines: &["We go round the circle. Nobody's passed over.", "Round the hearth, each in turn."],
-        moves: &[
-            mv("round", 1.0, Room, &["Round it goes, one after another.", "Each says a little, and it adds up."], Nothing, to(Testimony)),
-            mv("slow", 0.5, Member, &["This'll take all night.", "By the time it comes round I'll have forgot mine."], Nothing, to(Proposal)),
-        ],
-        sources: &["polletta_decision_rule"] },
-
-    // --- Testimony (6) ---
-    Beat { id: "hm_testimony_generic", phase: Testimony, criteria: &[], voice: Member,
-        lines: &["Let me tell how {issue} falls on my house.", "I'll say what it's cost us, plain as I can."],
-        moves: &[
-            mv("moved", 1.0, Room, &["The room goes still. Then: what do we do?", "A low murmur. Nobody doubts it."], Nothing, to(Proposal)),
-            mv("me_too", 0.8, Member, &["Same at mine. Worse, maybe.", "Thou'rt not alone. Ask the far end of the lane."], Nothing, to(Coalition)),
-            mv("doubt", 0.4, Member, &["That's thy trouble, not the whole village's.", "Hard luck, but it's no cause for all of us."], Nothing, to(Objection)),
-        ],
-        sources: &["montgomery_mass_meeting"] },
-    Beat { id: "hm_testimony_dissent", phase: Testimony, criteria: &[Has("room:dissent_heard")], voice: Dissenter,
-        lines: &["I voted for another fight. Hear why before ye ask me to march.", "My trouble lost the vote. It didn't go away."],
-        moves: &[
-            mv("heard", 1.0, Driver, &["We hear thee. Thy trouble goes on the list.", "Fair. It's not forgot."], Nothing, to(Proposal)),
-            Move { bias: &[("rule:majority", 1.4)],
-                ..mv("unsatisfied", 0.5, Dissenter, &["Listening's cheap. I'm still not with you.", "Nodding at me isn't the same as helping."], Dissent, to(Objection)) },
-            Move { bias: &[("framing:foe", 1.5)],
-                ..mv("reframe_owed", 0.4, Driver, &["Then let's not put it as a hanging. It's what's owed to all of us.", "Put it as a debt the village is owed, and it's thine as much as ours."], Reframe(Framing::MoralDuty), to(Proposal)) },
-        ],
-        sources: &["snow_frame_alignment", "polletta_decision_rule"] },
-    Beat { id: "hm_testimony_foe", phase: Testimony, criteria: &[Has("framing:foe")], voice: Member,
-        lines: &["Name the man. Everyone knows who's behind {issue}.", "We all know whose purse fattens on {issue}."],
-        moves: &[
-            mv("name_him", 1.0, Room, &["The name goes round the room in a whisper.", "Nobody says it loud, but every head nods."], Nothing, to(Proposal)),
-            mv("careful", 0.6, Member, &["Say it loud and he'll know our names by morning.", "Walls have ears, and some ears drink at the hall."], Nothing, to(Objection)),
-            mv("not_one_man", 0.3, Driver, &["It's not one man. We all go short together.", "Hang him and the next one's the same. It's all of us carrying it."], Reframe(Framing::SharedGrievance), to(Proposal)),
-        ],
-        sources: &["snow_frame_alignment", "montaillou_register"] },
-    Beat { id: "hm_testimony_duty", phase: Testimony, criteria: &[Has("framing:duty")], voice: Member,
-        lines: &["The priest says we owe each other. Then why does {issue} go unanswered?", "We're told charity's a duty. Whose?"],
-        moves: &[
-            mv("duty", 1.0, Room, &["Aye. Hold them to their own sermon.", "If it's owed, let it be paid."], Nothing, to(Proposal)),
-            mv("belly", 0.5, Member, &["Fine words. My children want bread.", "Duty never thatched a roof."], Nothing, to(Objection)),
-            mv("shared", 0.4, Driver, &["Then put it plain: we're all hungry, and we'll share it out.", "Leave the pulpit out. We go short together."], Reframe(Framing::SharedGrievance), to(Proposal)),
-        ],
-        sources: &["jubilee_release", "snow_frame_alignment"] },
-    Beat { id: "hm_testimony_grievance", phase: Testimony, criteria: &[Has("framing:grievance")], voice: Member,
-        lines: &["We all carry {issue}. Let's count how many houses.", "Hands up, every house that's felt it."],
-        moves: &[
-            mv("count", 1.0, Room, &["Most hands go up. Some slowly.", "Nearly every hand. Even the miller's wife."], Nothing, to(Proposal)),
-            mv("somebody_profits", 0.5, Member, &["It's no weather. Somebody profits by it.", "Shared? Then why's one house fatter for it?"], Reframe(Framing::CommonFoe), to(Proposal)),
-        ],
-        sources: &["exodus_assembly"] },
-    Beat { id: "hm_testimony_first", phase: Testimony, criteria: &[Has("history:first")], voice: Member,
-        lines: &["I've never said this aloud before.", "I don't know how to say this in front of folk."],
-        moves: &[
-            mv("support", 1.0, Room, &["Go on. We're with thee.", "Take thy time. None here will laugh."], Nothing, to(Coalition)),
-            mv("hush", 0.4, Member, &["Careful whose ears are at the window.", "Lower, friend. Not everyone here is a friend."], Nothing, to(Objection)),
-        ],
-        sources: &["montgomery_mass_meeting", "waldensian_cells"] },
-
-    // --- Proposal (6) ---
-    Beat { id: "hm_proposal_generic", phase: Proposal, criteria: &[], voice: Driver,
-        lines: &["Here's what I'd have us do about {issue}.", "I'll put a plan to the room."],
-        moves: &[
-            mv("nods", 1.0, Room, &["Nods around the hearth.", "That'll do. Put it to us."], Nothing, to(Decision)),
-            mv("mend_it", 0.7, Member, &["Good, but it wants changing.", "Near enough. One thing, though."], Nothing, to(Amendment)),
-            mv("against", 0.4, Member, &["I'll not have it.", "That's a fool's plan and I'll say why."], Nothing, to(Objection)),
-        ],
-        sources: &["athenian_assembly"] },
-    Beat { id: "hm_proposal_petition", phase: Proposal, criteria: &[], voice: Member,
-        lines: &["Let's write it down - every name, every wrong - and carry it to the hall.", "A list. Our marks and our grievances, in ink."],
-        moves: &[
-            mv("aye", 1.0, Room, &["Aye, a list. Let them read it.", "In ink, so they can't say they never heard."], Nothing, to(Decision)),
-            mv("who_writes", 0.6, Member, &["Who among us has letters?", "The clerk won't write it for us."], Nothing, to(Amendment)),
-            mv("names_danger", 0.4, Member, &["Our names on a list? In their hands?", "A list of names is a gift to the hall."], Nothing, to(Objection)),
-        ],
-        sources: &["grievance_articles", "montaillou_register"] },
-    Beat { id: "hm_proposal_small_demand", phase: Proposal, criteria: &[], voice: Driver,
-        lines: &["Ask for one thing we can win, not the whole of it.", "Start with what they can't refuse without shame."],
-        moves: &[
-            mv("agree", 1.0, Room, &["One thing. Aye.", "Small and sure. Good."], Nothing, to(Decision)),
-            mv("broader", 0.6, Member, &["Win a crumb and they'll think us satisfied.", "Ask small and we'll get smaller."], Nothing, to(Amendment)),
-        ],
-        sources: &["salt_march_demand"] },
-    Beat { id: "hm_proposal_seasoned", phase: Proposal, criteria: &[Has("history:seasoned")], voice: Driver,
-        lines: &["We've talked enough. It's time to act on {issue}.", "No more sittings without a deed after."],
-        moves: &[
-            mv("act", 1.0, Room, &["Past time.", "Aye. Talking's worn thin."], Nothing, to(Decision)),
-            mv("not_yet", 0.5, Member, &["We're not strong enough. Build first.", "Act now and we'll be few in the square."], Nothing, to(Amendment)),
-        ],
-        sources: &["labor_strike"] },
-    Beat { id: "hm_proposal_thin", phase: Proposal, criteria: &[Has("room:thin")], voice: Driver,
-        lines: &["We're few, so let's ask small and ask together.", "Two or three of us can still carry one ask."],
-        moves: &[
-            mv("together", 1.0, Member, &["Together, then. I'll stand by thee.", "Few is more than none."], Nothing, to(Decision)),
-            mv("wait_for_more", 0.6, Member, &["Let's wait till more come. Next time.", "Not with so few. Not yet."], Nothing, END),
-        ],
-        sources: &["salt_march_demand"] },
-    Beat { id: "hm_proposal_noted", phase: Proposal, criteria: &[Has("room:noted")], voice: NoteTaker,
-        lines: &["Last time we said we'd do this. I have it written. Did we?", "It's in the notes from last sitting. Who kept to it?"],
-        moves: &[
-            mv("shamed", 1.0, Room, &["We didn't. Let's do it now, then.", "Sheepish looks. Then: aye, this time."], Nothing, to(Decision)),
-            mv("changed", 0.6, Driver, &["Things changed. The plan wants mending.", "We learned since. Let's alter it."], Nothing, to(Amendment)),
-        ],
-        sources: &["guild_ordinance"] },
-
-    // --- Amendment (5) ---
-    Beat { id: "hm_amend_generic", phase: Amendment, criteria: &[], voice: Member,
-        lines: &["I'd change one word in it.", "Keep the plan, but not the way it's put."],
-        moves: &[
-            mv("accepted", 1.0, Room, &["Changed, then. Better for it.", "Fair. Mend it so."], Nothing, to(Decision)),
-            mv("stands", 0.6, Driver, &["The plan stands as put.", "No. Leave it be, we'll muddle it."], Nothing, to(Decision)),
-            mv("spiral", 0.3, Member, &["And if we change that, we must change this...", "Then the whole thing's wrong, isn't it?"], Nothing, to(Objection)),
-        ],
-        sources: &["guild_ordinance"] },
-    Beat { id: "hm_amend_consensus", phase: Amendment, criteria: &[Has("rule:consensus")], voice: Driver,
-        lines: &["Who cannot live with this? Speak now, so we can mend it.", "If it sticks in anyone's throat, say so before we settle."],
-        moves: &[
-            mv("mended", 1.0, Member, &["Shift the day and I can live with it.", "Leave my strip out of it and I'm content."], Nothing, to(Decision)),
-            mv("block", 0.4, Member, &["I can't. Not like this.", "No mending will make me swallow it."], Dissent, to(Objection)),
-        ],
-        sources: &["polletta_decision_rule"] },
-    Beat { id: "hm_amend_dissent", phase: Amendment, criteria: &[Has("room:dissent_heard")], voice: Dissenter,
-        lines: &["Fold my trouble into it, and I'll stand with you.", "Put a word in for mine, and ye have me."],
-        moves: &[
-            mv("folded", 1.0, Driver, &["Done. It goes in.", "Aye, there's room for thine."], Nothing, to(Decision)),
-            mv("refused", 0.5, Dissenter, &["One fight at a time, is it? Then count me out.", "So mine waits again. I've waited enough."], Dissent, to(Decision)),
-        ],
-        sources: &["snow_frame_alignment"] },
-    Beat { id: "hm_amend_soften", phase: Amendment, criteria: &[], voice: Member,
-        lines: &["Ask it softer. Give them a way to say yes and keep face.", "Leave them a door to walk through."],
-        moves: &[
-            mv("soften", 1.0, Room, &["Softer, then. Honey for the hall.", "A door for them. Clever."], Nothing, to(Decision)),
-            mv("no_soft", 0.6, Member, &["Soft words got us nothing last year.", "They'll take the door and slam it on us."], Nothing, to(Decision)),
-        ],
-        sources: &["hussite_compacts"] },
-    Beat { id: "hm_amend_foe_to_duty", phase: Amendment, criteria: &[Has("framing:foe")], voice: Member,
-        lines: &["Don't make it a hanging matter. Put it as what's owed.", "Less blame, more debt. Folk will follow a debt."],
-        moves: &[
-            mv("reframe", 0.6, Room, &["As what's owed, then.", "A debt. Aye, that sits better."], Reframe(Framing::MoralDuty), to(Decision)),
-            mv("keep_foe", 1.0, Driver, &["No. He did it, and folk should know he did.", "Soften it and he walks free of it."], Nothing, to(Decision)),
-        ],
-        sources: &["snow_frame_alignment", "jubilee_release"] },
-
-    // --- Objection (6) ---
-    Beat { id: "hm_objection_generic", phase: Objection, criteria: &[], voice: Member,
-        lines: &["I'm against it, and I'll say why.", "Hold. I've a word against this."],
-        moves: &[
-            Move { bias: &[("rule:consensus", 2.0)],
-                ..mv("talk_it_out", 1.0, Driver, &["Then help us mend it.", "Say what would bring thee round."], Nothing, to(Amendment)) },
-            Move { bias: &[("rule:majority", 2.0)],
-                ..mv("call_question", 1.0, Driver, &["Heard. Let's put it to the room.", "Thy word's on the record. Hands now."], Nothing, to(Decision)) },
-            mv("let_it_lie", 0.4, Room, &["Let it lie a week. Tempers are up.", "Sleep on it. All of us."], Nothing, END),
-        ],
-        sources: &["polletta_decision_rule"] },
-    Beat { id: "hm_objection_fear", phase: Objection, criteria: &[], voice: Member,
-        lines: &["If we do this, who loses their place first? Not thee.", "Who pays when the hall hits back?"],
-        moves: &[
-            mv("together", 1.0, Driver, &["Then we go together, or not at all.", "Nobody stands alone. That's the whole point."], Nothing, to(Coalition)),
-            mv("fear_wins", 0.5, Room, &["Uneasy silence. Nobody will say it first.", "Eyes on the floor. The fear has the room."], Nothing, END),
-        ],
-        sources: &["commune_oath"] },
-    Beat { id: "hm_objection_drifted", phase: Objection, criteria: &[Has("room:drifted")], voice: Member,
-        lines: &["Who decided this? I don't remember a vote.", "When did we agree to that? I was here the whole time."],
-        moves: &[
-            mv("vote", 1.0, Driver, &["Fair. We'll vote it now.", "Then let's have hands on it, proper."], Nothing, to(Decision)),
-            mv("seat_someone", 0.6, Member, &["Then seat someone to keep order, so it's not who shouts loudest.", "Choose a chair. Out loud, this time."], Nothing, to(Decision)),
-        ],
-        sources: &["freeman_structurelessness"] },
-    Beat { id: "hm_objection_dissent", phase: Objection, criteria: &[Has("room:dissent_heard")], voice: Dissenter,
-        lines: &["I lost the vote. I didn't lose my tongue.", "Ye won. That doesn't make ye right."],
-        moves: &[
-            mv("heard_out", 1.0, Room, &["Fair. Say thy piece and we'll weigh it.", "Speak. We'll mend what we can."], Nothing, to(Amendment)),
-            mv("walks", 0.4, Dissenter, &["I'll stay. But I'll not pretend to be glad of it.", "Do it without me, then."], Dissent, to(Decision)),
-        ],
-        sources: &["polletta_decision_rule"] },
-    Beat { id: "hm_objection_thin", phase: Objection, criteria: &[Has("room:thin")], voice: Member,
-        lines: &["There's not enough of us to carry this.", "Look around. Who'll stand with us?"],
-        moves: &[
-            mv("recruit", 1.0, Driver, &["Then we bring more. Each of us brings one.", "We fill this room before we fill the square."], Nothing, to(Coalition)),
-            mv("anyway", 0.5, Member, &["Few is enough if few are steady.", "Do it anyway. Others will follow if we start."], Nothing, to(Decision)),
-        ],
-        sources: &["abolition_petitions"] },
-    Beat { id: "hm_objection_seasoned", phase: Objection, criteria: &[Has("history:seasoned")], voice: Member,
-        lines: &["We tried this before and it went bad.", "Same plan as last spring. Same end, I'd wager."],
-        moves: &[
-            mv("learned", 1.0, Driver, &["Aye, and now we know where it broke.", "We do it different this time - we learned."], Nothing, to(Amendment)),
-            mv("agreed", 0.4, Room, &["Fair point. Let's think again.", "Grumbles of agreement. It's set aside."], Nothing, END),
-        ],
-        sources: &["citizenship_schools"] },
-
-    // --- Coalition (5) ---
-    Beat { id: "hm_coalition_generic", phase: Coalition, criteria: &[], voice: Member,
-        lines: &["The weavers have the same trouble. Bring them in.", "We're not the only lane hurting. Ask the others."],
-        moves: &[
-            mv("aye", 1.0, Room, &["More hands, lighter work.", "Ask them. What's the harm?"], Nothing, to(Decision)),
-            mv("their_own", 0.5, Member, &["They'll want their own fight first.", "They'll bring their quarrel and drop ours."], Nothing, to(Amendment)),
-        ],
-        sources: &["guild_ordinance", "section_504_coalition"] },
-    Beat { id: "hm_coalition_clergy", phase: Coalition, criteria: &[], voice: Member,
-        lines: &["If the priest would stand with us, the hall would think twice.", "Get a cassock at the front and they'll not dare."],
-        moves: &[
-            mv("ask_him", 1.0, Driver, &["I'll ask him after mass.", "Worth the asking."], Nothing, to(Decision)),
-            mv("dines_at_hall", 0.6, Member, &["The priest dines at the hall.", "He'll bless them, not us."], Nothing, to(Decision)),
-        ],
-        sources: &["section_504_coalition"] },
-    Beat { id: "hm_coalition_full", phase: Coalition, criteria: &[Has("room:full")], voice: Driver,
-        lines: &["Look at this room. We're more than they think.", "Count heads. Then tell me we're weak."],
-        moves: &[
-            mv("count", 1.0, Room, &["A cheer, quickly hushed.", "Folk look round, and stand a little straighter."], Nothing, to(Decision)),
-            mv("crowd_not_army", 0.4, Member, &["A full room isn't a steady one.", "Crowds come. Crowds go home."], Nothing, to(Amendment)),
-        ],
-        sources: &["montgomery_mass_meeting"] },
-    Beat { id: "hm_coalition_absent", phase: Coalition, criteria: &[Has("room:dissent_absent")], voice: Driver,
-        lines: &["Those who stayed home - someone must walk to their doors.", "The empty stools. Who'll fetch them back?"],
-        moves: &[
-            mv("i_will", 1.0, Member, &["I'll go. I know them.", "Leave them to me. They'll listen to kin."], Nothing, to(Decision)),
-            mv("let_them_be", 0.5, Member, &["Let them be. They chose.", "Chase them and they'll dig in."], Nothing, to(Decision)),
-        ],
-        sources: &["land_war_boycott"] },
-    Beat { id: "hm_coalition_consensus", phase: Coalition, criteria: &[Has("rule:consensus")], voice: Member,
-        lines: &["Let each household send one voice, so none speak for others.", "One voice a hearth. Nobody carries two."],
-        moves: &[
-            mv("aye", 1.0, Room, &["Fair and even.", "One a hearth. Aye."], Nothing, to(Decision)),
-            mv("slow", 0.5, Member, &["That'll take till Michaelmas.", "Fair, and slow as a plough ox."], Nothing, to(Decision)),
-        ],
-        sources: &["section_504_coalition", "commune_oath"] },
-
-    // --- Decision (6) ---
-    Beat { id: "hm_decision_generic", phase: Decision, criteria: &[], voice: Driver,
-        lines: &["Are we agreed?", "Then it's put. Hands, if ye'll have it."],
-        moves: &[
-            mv("carried", 1.0, Room, &["Carried.", "Agreed, near enough all."], Nothing, to(FollowThrough)),
-            mv("split", 0.4, Room, &["Hands half up, half down.", "Too close to call. Nobody's happy."], Nothing, END),
-            mv("tabled", 0.3, Room, &["Not tonight. Bring it back.", "Put off. Too many doubts."], Nothing, END),
-        ],
-        sources: &["athenian_assembly"] },
-    Beat { id: "hm_decision_noted", phase: Decision, criteria: &[Has("room:noted")], voice: NoteTaker,
-        lines: &["Say it plain, so I can write it.", "Word for word, so it holds tomorrow."],
-        moves: &[
-            mv("written", 1.0, NoteTaker, &["Written. None can say otherwise now.", "There. In ink, with the day beside it."], Nothing, to(FollowThrough)),
-            mv("muddle", 0.4, Room, &["Three folk say it three ways.", "Nobody can agree what they agreed."], Nothing, to(Amendment)),
-        ],
-        sources: &["guild_ordinance"] },
-    Beat { id: "hm_decision_majority", phase: Decision, criteria: &[Has("rule:majority")], voice: Driver,
-        lines: &["Show of hands. Most carries it.", "Count them. The greater part decides."],
-        moves: &[
-            mv("carried", 1.0, Room, &["Carried, and plainly.", "A good majority."], Nothing, to(FollowThrough)),
-            mv("narrow", 0.4, Member, &["Carried by two, and the rest of us sour.", "Two hands made it. I'm not one."], Dissent, to(FollowThrough)),
-        ],
-        sources: &["athenian_assembly", "polletta_decision_rule"] },
-    Beat { id: "hm_decision_consensus", phase: Decision, criteria: &[Has("rule:consensus")], voice: Driver,
-        lines: &["Does anyone stand aside? Does anyone block?", "Last chance. Any who cannot bear it?"],
-        moves: &[
-            mv("consent", 1.0, Room, &["No one blocks.", "Silence, and nods all round."], Nothing, to(FollowThrough)),
-            mv("aside", 0.5, Member, &["I'll stand aside, not block.", "Not for me, but I'll not stop you."], Nothing, to(FollowThrough)),
-            mv("block", 0.3, Member, &["I block it.", "No. I'll not consent."], Dissent, to(Amendment)),
-        ],
-        sources: &["polletta_decision_rule", "commune_oath"] },
-    Beat { id: "hm_decision_consensus_noted", phase: Decision, criteria: &[Has("rule:consensus"), Has("room:noted")], voice: NoteTaker,
-        lines: &["No one blocks. I'll write it as all of us.", "Every hearth consents - I'll mark it so."],
-        moves: &[
-            mv("write", 1.0, NoteTaker, &["Written as one voice.", "Down it goes: all of us, this day."], Nothing, to(FollowThrough)),
-            mv("wait", 0.3, Member, &["Not yet - one more word first.", "Hold the quill. I've a doubt."], Nothing, to(Amendment)),
-        ],
-        sources: &["polletta_decision_rule", "guild_ordinance"] },
-    Beat { id: "hm_decision_drifted", phase: Decision, criteria: &[Has("room:drifted")], voice: Driver,
-        lines: &["I say we do it. Who's with me?", "I'm doing it. Come if ye will."],
-        moves: &[
-            mv("follow", 1.0, Room, &["Most follow. They always do.", "Hands go up for them, not for the plan."], Nothing, to(FollowThrough)),
-            mv("thy_say", 0.5, Member, &["That's thy say. Where's ours?", "I'll not follow a vote nobody took."], Dissent, END),
-        ],
-        sources: &["freeman_structurelessness"] },
-
-    // --- Follow-through (4) ---
-    Beat { id: "hm_follow_generic", phase: FollowThrough, criteria: &[], voice: Driver,
-        lines: &["Who does what, and by when?", "Settled. Now - whose hands?"],
-        moves: &[
-            mv("volunteers", 1.0, Member, &["I'll take it to the far lane.", "Give me the tallying."], Nothing, END),
-            mv("nobody", 0.4, Room, &["Silence. Folk look at their boots.", "Everyone's busy, of a sudden."], Nothing, END),
-        ],
-        sources: &["guild_ordinance"] },
-    Beat { id: "hm_follow_noted", phase: FollowThrough, criteria: &[Has("room:noted")], voice: NoteTaker,
-        lines: &["I'll read back who promised what.", "Before ye go - here's what each of you said ye'd do."],
-        moves: &[
-            mv("read", 1.0, NoteTaker, &["Each name, each task. Read and marked.", "All on the page. I'll ask after it next time."], Nothing, END),
-            mv("groans", 0.4, Room, &["Groans. Nobody likes hearing it twice.", "A few wince at their own names."], Nothing, END),
-        ],
-        sources: &["guild_ordinance"] },
-    Beat { id: "hm_follow_coordinator", phase: FollowThrough, criteria: &[Has("seat:coordinator")], voice: Driver,
-        lines: &["I'll walk to every door before we meet again.", "Every house will hear of this by Sunday."],
-        moves: &[
-            mv("thanks", 1.0, Room, &["Thanks all round.", "Good. Thou'rt the legs of this."], Nothing, END),
-            mv("help", 0.6, Member, &["I'll take the north end. Thou take the mill side.", "Two of us go faster."], Nothing, END),
-        ],
-        sources: &["abolition_petitions"] },
-    Beat { id: "hm_follow_first", phase: FollowThrough, criteria: &[Has("history:first")], voice: Driver,
-        lines: &["Same night, same hearth, next time?", "We meet again. Let's say when."],
-        moves: &[
-            mv("aye", 1.0, Room, &["Same night.", "Aye - and bring a neighbor."], Nothing, END),
-            mv("bigger", 0.5, Member, &["Somewhere bigger. We'll be more.", "The barn, next time. This won't hold us."], Nothing, END),
-        ],
-        sources: &["commune_oath"] },
 ];
 
 // ---------------------------------------------------------------------

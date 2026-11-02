@@ -231,8 +231,13 @@ impl Game {
         self.push_talk(TalkKind::Meeting, with, lines);
     }
 
+    /// The name a line is kept under: a player's own name (each seat's
+    /// panel shows its own lines as "You" - talk_panel_at), else the villager's
     fn speaker_name(&self, e: Entity) -> String {
-        if self.seats.iter().any(|s| s.player == e) { "You".into() } else { self.name_of(e) }
+        match self.world.get_component::<crate::game::player::PlayerCharacter>(e) {
+            Some(p) if self.seats.iter().any(|s| s.player == e) => p.name.clone(),
+            _ => self.name_of(e),
+        }
     }
 
     /// Two villagers meet: they hold a conversation, which goes on the
@@ -296,7 +301,7 @@ impl Game {
         let vname = t.villager.name.clone();
         let mut lines: Vec<TalkLine> = vec![];
         for (k, (sp, text)) in said.iter().enumerate() {
-            let (who, name) = if *sp == 0 { (t.who, vname.clone()) } else { (pe, "You".to_string()) };
+            let (who, name) = if *sp == 0 { (t.who, vname.clone()) } else { (pe, self.speaker_name(pe)) };
             lines.push(TalkLine { who: Some(who), name, text: text.clone(), gist: false });
             if k == 0 { lines.extend(Self::gist_lines(&t, &vname)); }
         }
@@ -401,7 +406,9 @@ impl Game {
             shown.push(r.id);
             let mut block: Vec<TalkRowV> = vec![TalkRowV { name: None, text: format!("day {}", r.tick), gist: false, you: false, rule: true }];
             block.extend(r.lines.iter().map(|l| TalkRowV {
-                name: (!l.name.is_empty()).then(|| l.name.clone()), text: l.text.clone(), gist: l.gist,
+                // your own lines read "You"; another seat's keep their name
+                name: if l.who == Some(s.player) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
+                text: l.text.clone(), gist: l.gist,
                 you: l.who.map(|w| w == s.player).unwrap_or(false), rule: false,
             }));
             block.extend(rows);
@@ -629,7 +636,7 @@ mod tests {
         // pick the first reply: it's said, as previewed
         g.talk_pick_at(0, Some(0));
         let rec = g.talk_log.iter().find(|r| r.id == rec.id).unwrap();
-        assert!(rec.lines.iter().any(|l| l.name == "You" && l.text == t.options[0].1), "{:?}", rec.lines);
+        assert!(rec.lines.iter().any(|l| l.who == Some(g.player) && l.text == t.options[0].1), "{:?}", rec.lines);
     }
 
     #[test]
@@ -698,10 +705,28 @@ mod tests {
         assert!(g.meeting.is_none(), "the meeting ran its course");
         let r = g.talk_log.iter().rev().find(|r| r.kind == TalkKind::Meeting).expect("a meeting on the record");
         assert!(r.with.contains(&g.player));
-        assert!(r.lines.iter().any(|l| l.name == "You") && r.lines.iter().any(|l| l.who == Some(eliza) || l.who == Some(bram)),
+        assert!(r.lines.iter().any(|l| l.who == Some(g.player)) && r.lines.iter().any(|l| l.who == Some(eliza) || l.who == Some(bram)),
             "{:?}", r.lines);
         // the room's talk, not just the stock remarks
         assert!(r.lines.len() >= 5);
+    }
+
+    #[test]
+    fn test_each_seat_sees_its_own_lines_as_you_and_hosts_its_own_meeting() {
+        let mut g = Game::new();
+        let s1 = g.add_seat();
+        let (p0, p1) = (g.seats[0].player, g.seats[s1].player);
+        let v = g.villagers[adults(&g)[0]];
+        // seat 1 hosts: the prompts are theirs, not seat 0's
+        let lines = g.meeting_lines(&[v], s1);
+        assert!(lines.iter().any(|l| l.0 == p1) && !lines.iter().any(|l| l.0 == p0), "seat 1 asks the questions");
+        let n1 = g.speaker_name(p1);
+        g.record_meeting(vec![p1, p0, v], vec![(Some(p1), n1.clone(), "Thanks for coming.".into())]);
+        let row = |g: &Game, seat: usize| g.talk_panel_at(seat).rows.into_iter()
+            .find(|r| r.text == "Thanks for coming.").and_then(|r| r.name).unwrap();
+        assert_eq!(row(&g, s1), "You", "the host's own panel");
+        assert_eq!(row(&g, 0), n1, "the other seat sees who said it");
+        assert_ne!(n1, "You");
     }
 
     #[test]

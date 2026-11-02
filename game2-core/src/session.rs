@@ -3844,9 +3844,11 @@ impl Game {
     /// what's on their mind - now and then a secret slips out, and every
     /// parallel complaint already voiced makes the next speaker likelier
     /// to share their own. Three voices in a family surface an issue.
-    pub fn meeting_lines(&mut self, came: &[Entity]) -> Vec<(Entity, String)> {
+    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize) -> Vec<(Entity, String)> {
+        // the seat that called it hosts: its player asks, and hears what comes out
+        let host_e = self.seats[seat].player;
         if came.is_empty() { return vec![]; }
-        let mut lines = vec![(self.player, MEETING_PROMPTS[0].to_string())];
+        let mut lines = vec![(host_e, MEETING_PROMPTS[0].to_string())];
         self.voiced.clear();
         // what each attendee says when no secret comes out of them: the
         // meeting's talk from conversation::run_meeting - answers to the
@@ -3860,7 +3862,7 @@ impl Game {
             let pools: Vec<Vec<MeetingLine>> = speakers.iter().map(meeting_pool).collect();
             let pool_refs: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
             let refs: Vec<&Speaker> = speakers.iter().collect();
-            let host = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.name.clone()).unwrap_or_default();
+            let host = self.world.get_component::<PlayerCharacter>(host_e).map(|p| p.name.clone()).unwrap_or_default();
             let seed = self.tick.wrapping_mul(0x51_7CC1) ^ came.iter().fold(0u64, |h, &v| h.rotate_left(7) ^ v as u64);
             let record = run_meeting(&Speaker::new(&host), &refs, &MEET_PROMPT, &pool_refs, &mut TalkRng::new(seed));
             // per attendee, in the order they said them: (statement index,
@@ -3892,7 +3894,7 @@ impl Game {
                     if let Some(r) = desires::next_reveal(&self.world, v, self.tick, pick) {
                         let (_, said) = desires::reveal_speech(vill_name(i), &r);
                         self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
-                        let pe = self.player;
+                        let pe = host_e;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                             self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                             self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
@@ -3910,7 +3912,7 @@ impl Game {
                     lines.push((v, line));
                 }
             }
-            lines.push((self.player, MEETING_PROMPTS[round + 1].to_string()));
+            lines.push((host_e, MEETING_PROMPTS[round + 1].to_string()));
         }
         lines
     }
@@ -3950,7 +3952,7 @@ impl Game {
                     m.invited = came.iter().map(|&i| m.invited[i]).collect();
                     m.spots = came.iter().map(|&i| m.spots[i]).collect();
                     m.paths = came.iter().map(|&i| m.paths[i].clone()).collect();
-                    m.lines = self.meeting_lines(&m.invited);
+                    m.lines = self.meeting_lines(&m.invited, m.seat);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said
                     if !m.invited.is_empty() {
@@ -8047,7 +8049,8 @@ impl Game {
                             let me = self.seats[seat].player;
                             let name_of = |e: Option<Entity>| match e {
                                 None => "The room".to_string(),
-                                Some(e) if e == me => "You".to_string(),
+                                Some(e) if e == me => self.world.get_component::<PlayerCharacter>(me)
+                                    .map(|p| p.name.clone()).unwrap_or_else(|| "You".into()),
                                 Some(e) => self.villagers.iter().position(|v| *v == e)
                                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
                             };

@@ -222,6 +222,15 @@ impl Game {
         self.push_talk(TalkKind::Meeting, with, vec![])
     }
 
+    /// A meeting already talked through (a campaign meeting): put the
+    /// whole exchange on the record at once. (speaker, name, text); a None
+    /// speaker is the room together - named, but nobody in particular
+    pub fn record_meeting(&mut self, with: Vec<Entity>, said: Vec<(Option<Entity>, String, String)>) {
+        if said.is_empty() { return; }
+        let lines = said.into_iter().map(|(who, name, text)| TalkLine { who, name, text, gist: false }).collect();
+        self.push_talk(TalkKind::Meeting, with, lines);
+    }
+
     fn speaker_name(&self, e: Entity) -> String {
         if self.seats.iter().any(|s| s.player == e) { "You".into() } else { self.name_of(e) }
     }
@@ -392,7 +401,7 @@ impl Game {
             shown.push(r.id);
             let mut block: Vec<TalkRowV> = vec![TalkRowV { name: None, text: format!("day {}", r.tick), gist: false, you: false, rule: true }];
             block.extend(r.lines.iter().map(|l| TalkRowV {
-                name: l.who.map(|_| l.name.clone()), text: l.text.clone(), gist: l.gist,
+                name: (!l.name.is_empty()).then(|| l.name.clone()), text: l.text.clone(), gist: l.gist,
                 you: l.who.map(|w| w == s.player).unwrap_or(false), rule: false,
             }));
             block.extend(rows);

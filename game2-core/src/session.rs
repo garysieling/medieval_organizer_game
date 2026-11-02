@@ -3863,12 +3863,18 @@ impl Game {
             let host = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.name.clone()).unwrap_or_default();
             let seed = self.tick.wrapping_mul(0x51_7CC1) ^ came.iter().fold(0u64, |h, &v| h.rotate_left(7) ^ v as u64);
             let record = run_meeting(&Speaker::new(&host), &refs, &MEET_PROMPT, &pool_refs, &mut TalkRng::new(seed));
-            let mut q: Vec<std::collections::VecDeque<String>> = vec![Default::default(); came.len()];
-            for st in record.into_iter().skip(1) {
-                if let Some(d) = q.get_mut(st.speaker) { d.push_back(st.text); }
+            // per attendee, in the order they said them: (statement index,
+            // the statement it answers, the words)
+            let mut q: Vec<Vec<(usize, Option<usize>, String)>> = vec![vec![]; came.len()];
+            for (k, st) in record.into_iter().enumerate().skip(1) {
+                if let Some(d) = q.get_mut(st.speaker) { d.push((k, st.replying_to, st.text)); }
             }
             q
         };
+        // the meeting runs in rounds, not in run_meeting's order, so a
+        // reply is only said once what it answers has been (statement 0 is
+        // the host's question) - never an answer ahead of its question
+        let mut aired: std::collections::HashSet<usize> = [0].into_iter().collect();
         for round in 0..2 {
             for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
@@ -3896,7 +3902,11 @@ impl Game {
                     }
                 }
                 if !shared {
-                    let line = said[ci].pop_front().unwrap_or_else(|| meeting_remark(&self.world, v, vill_name(i), round));
+                    let ready = said[ci].iter().position(|(_, to, _)| to.map_or(true, |t| aired.contains(&t)));
+                    let line = match ready {
+                        Some(j) => { let (k, _, text) = said[ci].remove(j); aired.insert(k); text }
+                        None => meeting_remark(&self.world, v, vill_name(i), round),
+                    };
                     lines.push((v, line));
                 }
             }
@@ -8041,14 +8051,15 @@ impl Game {
                                 Some(e) => self.villagers.iter().position(|v| *v == e)
                                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
                             };
-                            // the log has a few short rows: one entry, the
-                            // outcome first, then the exchange that settled it
-                            // in the order it was said
+                            // the log keeps the outcome; what the room said
+                            // goes on the TALK panel, in the order it was said
+                            let said: Vec<(Option<Entity>, String, String)> = d.said.iter()
+                                .map(|s| (s.speaker, name_of(s.speaker), s.text.clone())).collect();
+                            let mut with = vec![me];
+                            with.extend(out.attendees.iter().copied());
+                            self.record_meeting(with, said);
+                            // and the exchange that settled it hangs over the two who said it
                             let key = d.decisive();
-                            let talk: Vec<String> = key.iter()
-                                .map(|s| format!("{}: \"{}\"", name_of(s.speaker), s.text)).collect();
-                            if !talk.is_empty() { msg += &format!(". {}", talk.join(" / ")); }
-                            // and it hangs over the two who said it
                             for s in key {
                                 if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
                             }
@@ -13796,12 +13807,13 @@ mod campaign_tests {
         g.seats[0].ctx_actions.push(CtxAct::Meet);
         let i = g.seats[0].ctx_actions.len() - 1;
         g.ctx_act_at(0, i);
-        // one entry, newest: the outcome leads, the room's talk follows it
+        // the log keeps the outcome; the room's talk is on the TALK panel
         let last = g.log.last().unwrap();
-        assert!(last.contains("meet about the campaign"), "{:?}", last);
-        let (head, talk) = last.split_once(". ").expect("no talk after the outcome");
-        assert!(!head.contains('"') && talk.matches(": \"").count() == 2, "{:?}", last);
+        assert!(last.contains("meet about the campaign") && !last.contains(": \""), "{:?}", last);
         assert!(last.len() < 8 * 43, "the entry must fit the log's eight rows: {:?}", last);
+        let rec = g.talk_log.last().expect("the meeting on the TALK panel");
+        assert_eq!(rec.kind, dialogue::TalkKind::Meeting);
+        assert!(rec.with.contains(&g.player) && rec.lines.len() >= 2, "{:?}", rec.lines);
         assert!(g.ui_model().panel.campaign.unwrap().due);
     }
 

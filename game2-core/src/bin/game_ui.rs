@@ -177,6 +177,11 @@ fn main() {
                         cmds.push(Command::CtxAct(i));
                     }
                 }
+                // a reply on the TALK panel
+                if let Some(pick) = session::dialogue::talk_click(&m.talk, mx, my) {
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    cmds.push(Command::TalkPick(pick));
+                }
             }
         }
         match (&remote, &mut game) {

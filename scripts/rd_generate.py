@@ -92,6 +92,10 @@ def save_done(done):
 def body_for(e, check_cost=False):
     b = dict(e["request"])
     b["prompt"] = e["prompt"]
+    ref = b.pop("reference_image_path", None)
+    if ref:
+        with open(os.path.join(ROOT, ref), "rb") as f:
+            b["reference_images"] = [base64.b64encode(f.read()).decode()]
     if check_cost:
         b["check_cost"] = True
     return b

@@ -1,0 +1,27 @@
+{
+ "created_at": 1793627242,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 53.42,
+ "request_id": "7ecbcb64-de65-4424-a834-a9b411cdfa6c",
+ "outputs_retained_until": 1793713638,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.07,
+  "balance_left": 53.42
+ },
+ "id": "walk4-peasant-m-183772ce",
+ "prompt": "bareheaded male peasant villager with short brown hair, plain brown wool tunic, no hat, no helmet, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-02T08:47:22",
+ "seconds": 4.4
+}

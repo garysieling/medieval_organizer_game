@@ -106,6 +106,14 @@ def merge_close(boxes, gap):
     return boxes
 
 
+def drop_clipped(boxes, w, h):
+    """A sprite touching the canvas edge was cut off by it (a sheet asked
+    for at a small size still draws full-size sprites, just fewer and
+    clipped - scale-animals-128): leave those out."""
+    keep = [b for b in boxes if b[0] > 0 and b[1] > 0 and b[2] < w and b[3] < h]
+    return keep if keep else boxes  # a single full-bleed image: keep it
+
+
 def grid(boxes):
     """Assign (row, col): a new row starts when a box's vertical centre is
     below the current row's bottom edge."""
@@ -174,19 +182,27 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sheet")
     ap.add_argument("names", nargs="*",
-                    help="rRcC=name or rRcC=name@H pairs to export (H: resample to H px "
-                         "tall); default: all cells at native size")
+                    help="rRcC=name, rRcC=name@H (resample to H px tall) or rRcC=name@WxH "
+                         "(exactly WxH) pairs to export; default: all cells at native size")
     ap.add_argument("--out", help="directory for the exported sprites")
     ap.add_argument("--preview", help="write a labelled, 4x preview PNG here")
     ap.add_argument("--tol", type=int, default=24, help="background colour tolerance per channel")
     ap.add_argument("--min-px", type=int, default=12, help="ignore specks smaller than this")
     ap.add_argument("--gap", type=int, default=1, help="merge blobs this close together")
+    ap.add_argument("--keep-clipped", action="store_true",
+                    help="keep sprites that touch the sheet edge")
     ap.add_argument("--half", action="store_true",
                     help="downscale exported sprites 2x (match the game's 2x-drawn pack art)")
     args = ap.parse_intermixed_args()  # names may follow --out
 
     im = key_background(Image.open(args.sheet), args.tol)
-    cells = grid(merge_close(blobs(im, args.min_px), args.gap))
+    boxes = merge_close(blobs(im, args.min_px), args.gap)
+    if not args.keep_clipped:
+        n = len(boxes)
+        boxes = drop_clipped(boxes, im.width, im.height)
+        if len(boxes) < n:
+            print(f"dropped {n - len(boxes)} sprites clipped by the sheet edge (--keep-clipped keeps them)")
+    cells = grid(boxes)
     rows = sorted({int(n[1:].split("c")[0]) for n in cells})
     for r in rows:
         row = [n for n in cells if n.startswith(f"r{r}c")]
@@ -205,7 +221,15 @@ def main():
             name, _, height = name.partition("@")
             if args.half:
                 spr = halve(spr)
-            if height:
+            if "x" in height:
+                # exact WxH (e.g. map a ground block onto the pack's block
+                # geometry); nearest when enlarging, box when shrinking
+                w, h = (int(v) for v in height.split("x"))
+                big = w * h >= spr.width * spr.height
+                spr = spr.resize((w, h), Image.NEAREST if big else Image.BOX)
+                if not big:
+                    spr.putalpha(spr.getchannel("A").point(lambda v: 255 if v >= 110 else 0))
+            elif height:
                 spr = fit_height(spr, int(height))
             spr.save(os.path.join(args.out, name + ".png"))
             print(f"{cell} -> {os.path.join(args.out, name + '.png')} ({spr.width}x{spr.height})")

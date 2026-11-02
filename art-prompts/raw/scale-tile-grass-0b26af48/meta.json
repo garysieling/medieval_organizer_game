@@ -1,0 +1,26 @@
+{
+ "created_at": 1793623298,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 53.99,
+ "request_id": "9a39e45c-2029-4373-a909-c479c915cce9",
+ "outputs_retained_until": 1793709591,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.18,
+  "balance_left": 53.99
+ },
+ "id": "scale-tile-grass-0b26af48",
+ "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat square isometric ground block of short green grass, plain top face, thin earth sides, top face is a 2:1 diamond",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-02T07:41:38",
+ "seconds": 107.3
+}

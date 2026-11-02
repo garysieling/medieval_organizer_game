@@ -275,6 +275,13 @@ fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
     for lx in [-3, -1, 1, 3] { buf.rect(sx + k(lx), sy - k(3), 1.max(k(1)), 1.max(k(3)), dark.0, dark.1, dark.2); }
 }
 
+/// Which way a step of (dx, dy) on the map looks on screen: 0 up, 1
+/// right, 2 down, 3 left (the walk sheet's row order)
+fn facing_on_screen(dx: f32, dy: f32) -> u8 {
+    let (sx, sy) = ((dx - dy) * TILE_W as f32, (dx + dy) * TILE_H as f32);
+    if sx.abs() > sy.abs() { if sx > 0.0 { 1 } else { 3 } } else if sy > 0.0 { 2 } else { 0 }
+}
+
 /// Draw an animal sprite (1px art, so 1x zoom) standing on screen point
 /// (sx, sy); returns its height on screen, for a label above it
 fn draw_animal(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) -> i32 {
@@ -940,6 +947,12 @@ pub struct Art {
     pub stones: Vec<Sprite>,        // boulders, a few shapes
     pub stone_grounds: Vec<Sprite>, // flat rocks
     pub player_s: Option<Sprite>,
+    /// The player's walk cycle (assets/rd/player/walk.png). None: the
+    /// pack's still figure (player_s) stands in.
+    pub player_walk: Option<WalkSheet>,
+    /// Walk cycles for the villager looks, by the same index as
+    /// villager_sprites (None: that look is still the pack's figure)
+    pub villager_walks: Vec<Option<WalkSheet>>,
     pub tower_s: Option<Sprite>,
     /// Town wall blocks: running along x, along y, and the two gatehouses
     pub walls: [Option<Sprite>; 4],
@@ -971,6 +984,49 @@ pub struct Art {
     /// and the same as top faces only, for inland tiles
     pub tiles: [TileSet; 3],
     pub faces: [TileSet; 3],
+}
+
+/// A generated 4-direction walk cycle: a row per facing (0 up, 1 right,
+/// 2 down, 3 left on screen), 4 frames each, 1x art (rd_animation
+/// four_angle_walking, 48px frames, figures ~35px tall)
+pub struct WalkSheet {
+    pub frames: Vec<Vec<Sprite>>,
+    /// The row the feet stand on and the top of the head, over every frame
+    /// (so anchors don't jitter between frames)
+    pub feet: i32,
+    pub head: i32,
+}
+
+impl WalkSheet {
+    /// Cut a 4x4 sheet into frames and find its feet and head rows
+    pub fn from_sheet(sheet: &Sprite) -> WalkSheet {
+        let f = sheet.width / 4;
+        let frames: Vec<Vec<Sprite>> = (0..4).map(|r| (0..4).map(|c| sheet.crop(c * f, r * f, f, f)).collect()).collect();
+        let rows = |s: &Sprite| -> Vec<usize> {
+            (0..s.height).filter(|&y| (0..s.width).any(|x| s.pixels[(y * s.width + x) * 4 + 3] > 0)).collect()
+        };
+        let feet = frames.iter().flatten().filter_map(|s| rows(s).last().copied()).max().unwrap_or(0) as i32 + 1;
+        let head = frames.iter().flatten().filter_map(|s| rows(s).first().copied()).min().unwrap_or(0) as i32;
+        WalkSheet { frames, feet, head }
+    }
+
+    /// The frame for a pose at frame count `t`: striding through the row
+    /// while walking, the standing frame otherwise
+    pub fn frame(&self, facing: u8, walking: bool, t: u32) -> Option<&Sprite> {
+        let row = self.frames.get(facing as usize)?;
+        row.get(if walking { (t / 6) as usize % row.len().max(1) } else { 1 })
+    }
+
+    /// Draw a pose standing on screen point (sx, sy) at `scale` (1.0 a
+    /// grown-up at the current zoom); returns the y of the top of the head
+    pub fn draw(&self, buf: &mut Buffer, facing: u8, walking: bool, t: u32, sx: i32, sy: i32, scale: f32) -> i32 {
+        let feet = (self.feet as f32 * scale).round() as i32;
+        if let Some(f) = self.frame(facing, walking, t) {
+            let w = (f.width as f32 * scale).round() as i32;
+            draw_zoomed(buf, f, sx - w / 2, sy - feet, scale);
+        }
+        sy - feet + (self.head as f32 * scale).round() as i32
+    }
 }
 
 /// The pack's ground blocks for one season's look: one per kind of map
@@ -1104,7 +1160,17 @@ impl TileSet {
         let pieces = |dir: &str, name: &str, n: usize| -> Vec<Sprite> {
             (1..=n).filter_map(|i| load(&format!("{}/{}({}).png", dir, name, i))).map(gold).collect()
         };
-        let grass = load("Enviroument/Spring/grass.png");
+        // the generated block (assets/rd/tiles, exported onto the pack's
+        // block geometry) if present; water, shore, hills and rock are all
+        // recoloured from it
+        let grass = at("rd/tiles/grass.png").or_else(|| load("Enviroument/Spring/grass.png"));
+        // the generated road/river pieces (scripts/rd_compose_tiles.py: the
+        // pack's shapes repainted from RD blocks, same geometry and order),
+        // all of a set or none so a road never mixes looks
+        let rd_pieces = |name: &str, n: usize| -> Option<Vec<Sprite>> {
+            let v: Vec<Sprite> = (1..=n).filter_map(|i| at(&format!("rd/tiles/{}({}).png", name, i))).map(&gold).collect();
+            (v.len() == n).then_some(v)
+        };
         // fields lie under the snow in winter
         let snow = || load("Enviroument/Winter/snow.png");
         let water = |shade: (f32, f32, f32)| grass.as_ref().map(|g| water_block(g, winter, shade));
@@ -1138,8 +1204,9 @@ impl TileSet {
                 let mut r = pieces("Roads/Winter", "road_winter", 15);
                 if r.len() > 2 { r.swap(1, 2); }
                 r
-            } else { pieces("Roads/Spring", "road", 15) },
-            rivers: if winter { pieces("Rivers/Winter", "river_winter", 17) } else { pieces("Rivers/Spring", "river", 17) },
+            } else { rd_pieces("road", 15).unwrap_or_else(|| pieces("Roads/Spring", "road", 15)) },
+            rivers: if winter { pieces("Rivers/Winter", "river_winter", 17) }
+                else { rd_pieces("river", 17).unwrap_or_else(|| pieces("Rivers/Spring", "river", 17)) },
             rivers_ice: if winter { pieces("Rivers/Winter/Ice", "river_ice_winter", 17) } else { vec![] },
         };
         // without the dark outline round their top faces, so the ground
@@ -1335,6 +1402,16 @@ impl Art {
             "Buildings/house/Wood houses/Wood house/wood_house(2).png",
             "Buildings/house/White houses/Blue house/white_blue_house(4).png",
         ].iter().map(|rel| pack(rel)).collect();
+        // a generated cottage takes the first look's place when present
+        let mut houses = houses;
+        if let Some(c) = at("rd/buildings/cottage.png") { houses[0] = Some(c); }
+
+        // walk cycles: the player's, and the villager looks that have one
+        // (same order as vpeople: the peasant man and woman so far)
+        let walk = |rel: &str| at(rel).map(|s| WalkSheet::from_sheet(&s));
+        let player_walk = walk("rd/player/walk.png");
+        let villager_walks: Vec<Option<WalkSheet>> = vpeople.iter()
+            .map(|&(role, gender)| walk(&format!("rd/villagers/{}-{}.png", role, gender))).collect();
 
         // the animals: generated art if it's there, else the hand-drawn
         // fallback doubled so both draw at the same 1x scale
@@ -1372,6 +1449,8 @@ impl Art {
             // the map it read as a black hole, so the boulders stand instead
             stones: (2..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone({}).png", i))).collect(),
             stone_grounds: (1..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone_ground ({}).png", i))).collect(),
+            player_walk,
+            villager_walks,
             player_s: at("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png").map(|s| s.crop(0, 0, 32, 32)),
             // the pack's corner towers: flat-top, capped or keeps - the
             // whole watch matches within a map, but varies between runs
@@ -1748,12 +1827,19 @@ pub struct Seat {
     pub agent: bool,
     /// A Talk under way, waiting on the player's reply (session::dialogue)
     pub talk: Option<dialogue::PlayerTalk>,
+    /// Where the character stood last frame, which way they face (0 up,
+    /// 1 right, 2 down, 3 left on screen) and whether they moved: drives
+    /// the walk cycle
+    pub last_pos: Option<(f32, f32)>,
+    pub facing: u8,
+    pub walking: bool,
 }
 
 impl Default for Seat {
     fn default() -> Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
-               selected_building: None, ctx_actions: vec![], agent: false, talk: None }
+               selected_building: None, ctx_actions: vec![], agent: false, talk: None,
+               last_pos: None, facing: 2, walking: false }
     }
 }
 
@@ -1768,6 +1854,9 @@ pub struct Game {
     pub map: TileMap,
     pub climate: Entity,
     pub villagers: Vec<Entity>,
+    /// Each villager's last position, facing and whether they moved this
+    /// frame (track_poses): the walk cycles read it
+    pub villager_poses: std::collections::HashMap<Entity, ((f32, f32), u8, bool)>,
     pub rivals: Vec<Entity>,
     pub rival_homes: Vec<(f32, f32)>, // where each rival lives, across the river
     /// One seat per claimed connection (seat 0 in solo play)
@@ -2919,6 +3008,7 @@ impl Game {
             player_passed: false,
             martyr_grave: None,
             path_cache: std::collections::HashMap::new(),
+            villager_poses: std::collections::HashMap::new(),
             path_tick: u64::MAX,
             sfx: vec![],
             dungeon: vec![],
@@ -3075,6 +3165,30 @@ impl Game {
         }
     }
 
+    /// Each seat's facing and walking, from how far its character moved
+    /// since last frame (walking, an approach, a meeting - any movement)
+    fn track_poses(&mut self) {
+        for i in 0..self.seats.len() {
+            let now = self.player_pos_at(i);
+            let seat = &mut self.seats[i];
+            let (dx, dy) = seat.last_pos.map(|(x, y)| (now.0 - x, now.1 - y)).unwrap_or((0.0, 0.0));
+            seat.walking = dx.abs() + dy.abs() > 1e-4;
+            if seat.walking {
+                seat.facing = facing_on_screen(dx, dy);
+            }
+            seat.last_pos = Some(now);
+        }
+        for i in 0..self.villagers.len() {
+            let v = self.villagers[i];
+            let Some(p) = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y)) else { continue };
+            let pose = self.villager_poses.entry(v).or_insert((p, 2, false));
+            let (dx, dy) = (p.0 - pose.0.0, p.1 - pose.0.1);
+            pose.2 = dx.abs() + dy.abs() > 1e-4;
+            if pose.2 { pose.1 = facing_on_screen(dx, dy); }
+            pose.0 = p;
+        }
+    }
+
     pub fn player_pos_at(&self, seat: usize) -> (f32, f32) {
         self.world.get_component::<Pos>(self.seats[seat].player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0))
     }
@@ -3213,6 +3327,13 @@ impl Game {
     /// One frame of game time: the sim ticks every few frames, and between
     /// ticks villagers keep strolling
     pub fn update(&mut self) {
+        self.advance_frame();
+        // after every move this frame (the player's command, the sim, the
+        // strolling), so the model's poses match its positions
+        self.track_poses();
+    }
+
+    fn advance_frame(&mut self) {
         let ticks_per_frame = self.ticks_per_frame();
         // the soundscape resets each frame: cues live exactly one read
         self.sfx.clear();
@@ -8557,6 +8678,8 @@ impl Game {
             Some(self.villager_inspector_at(seat))
         };
         UiModel {
+            player_pose: (self.seats[seat].facing, self.seats[seat].walking),
+            poses: self.villager_poses.iter().map(|(&e, &(_, f, w))| (e, f, w)).collect(),
             tick: self.tick, frame: self.frame_n,
             map: self.map.clone(), town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
@@ -9306,16 +9429,25 @@ impl View {
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {
-                        let fig = &art.villager_sprites[i % art.villager_sprites.len().max(1)];
-                        // children draw small and flagged: the pack has no
-                        // figure for them, so they're a scaled villager
-                        if pv.kid {
-                            draw_kid(&mut buf, fig, sx, sy, zoom);
+                        let look = i % art.villager_sprites.len().max(1);
+                        let fig = &art.villager_sprites[look];
+                        let anchor = if let Some(Some(ws)) = art.villager_walks.get(look) {
+                            // a generated walk cycle: facing and striding as they move
+                            let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
+                            let scale = if pv.kid { 0.6 * zoom } else { zoom };
+                            ws.draw(&mut buf, facing, walking, m.frame + pv.e * 7, sx, sy, scale) - SPRITE_HEAD
                         } else {
-                            draw_character(&mut buf, fig, sx, sy, zoom);
-                        }
+                            // children draw small and flagged: the pack has no
+                            // figure for them, so they're a scaled villager
+                            if pv.kid {
+                                draw_kid(&mut buf, fig, sx, sy, zoom);
+                            } else {
+                                draw_character(&mut buf, fig, sx, sy, zoom);
+                            }
+                            sprite_label_anchor(fig, sy, zoom)
+                        };
                         let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
-                        let (lx, ly) = name_label_pos(sx, sprite_label_anchor(fig, sy, zoom), &lbl);
+                        let (lx, ly) = name_label_pos(sx, anchor, &lbl);
                         // bright when close enough to talk, recruit or meet; dim otherwise
                         let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
                         labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected));
@@ -9385,14 +9517,20 @@ impl View {
                 // player sprite at their actual position
                 Who::P(pv) if let PKind::Player = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(ps) = &art.player_s {
+                    let (facing, walking) = m.player_pose;
+                    let mut anchor = None;
+                    if let Some(ws) = &art.player_walk {
+                        // gold ring under player, then the 1x frame on its feet
+                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                        let head = ws.draw(&mut buf, facing, walking, m.frame, sx, sy, zoom);
+                        anchor = Some(head - SPRITE_HEAD);
+                    } else if let Some(ps) = &art.player_s {
                         draw_character(&mut buf, ps, sx, sy, zoom);
-                        // gold ring under player
                         buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
                     } else {
                         draw_rect(&mut buf, sx - 4, sy - 8, 8, 8, 255, 255, 255);
                     }
-                    let anchor = art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom));
+                    let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
                     labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
                 },
@@ -13452,6 +13590,13 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     view.zoom = zoom;
     if let Some(cam) = cam { (view.cam_x, view.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
+    // GAME2_DUMP_WALK=dx,dy: walk the player that way for the last few
+    // frames, so a dump shows the walk cycle mid-stride
+    if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()
+        .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse::<f32>().ok()?, y.parse::<f32>().ok()?))) {
+        for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
+        println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
+    }
     if let Some(name) = focus {
         match game.ui_model().people.iter().find(|p| focus_matches(p.kind, name)) {
             Some(p) => {
@@ -13838,6 +13983,71 @@ mod dog_tests {
 #[cfg(test)]
 mod dog_sprite_tests {
     use super::*;
+
+    #[test]
+    fn test_generated_ground_set_and_villager_walks_load() {
+        let art = Art::load_fs("../assets", 0);
+        // green seasons: every road and river piece generated, in the pack's
+        // geometry (so BLOCK_FACE still fits); winter is still the pack's
+        for season in [0, 1] {
+            let t = &art.tiles[season];
+            assert_eq!((t.roads.len(), t.rivers.len()), (15, 17), "season {}: full road and river sets", season);
+            let g = t.grass.as_ref().unwrap();
+            assert_eq!((g.width, g.height), (95, 97), "the composed grass block keeps the pack's size");
+        }
+        // the peasant man and woman walk; the other looks are still the pack's
+        assert!(art.villager_walks[0].is_some() && art.villager_walks[1].is_some());
+        assert!(art.villager_walks[2..].iter().all(|w| w.is_none()));
+        let ws = art.villager_walks[0].as_ref().unwrap();
+        assert_eq!((ws.frames.len(), ws.frames[0].len()), (4, 4));
+        assert!((28..=40).contains(&(ws.feet - ws.head)), "a grown-up is ~35px tall, not {}", ws.feet - ws.head);
+    }
+
+    #[test]
+    fn test_walking_villagers_face_where_they_go() {
+        let mut g = Game::new_seeded(7);
+        for _ in 0..200 { g.update(); }
+        let m = g.ui_model();
+        assert_eq!(m.poses.len(), g.villagers.len(), "a pose for every villager");
+        assert!(m.poses.iter().all(|p| p.1 < 4), "facings are walk-sheet rows");
+        // the model straight after an update: whoever moved in that update
+        // is mid-stride, facing that way; whoever didn't is standing (no
+        // one-frame lag)
+        let mut moved_some = false;
+        for _ in 0..50 {
+            let before: Vec<(f32, f32)> = g.villagers.iter().map(|&v| g.world.get_component::<Pos>(v).map(|p| (p.x, p.y)).unwrap_or_default()).collect();
+            g.update();
+            let m = g.ui_model();
+            for (i, &v) in g.villagers.iter().enumerate() {
+                let Some(p) = g.world.get_component::<Pos>(v) else { continue };
+                let (dx, dy) = (p.x - before[i].0, p.y - before[i].1);
+                let moved = dx.abs() + dy.abs() > 1e-4;
+                let pose = m.poses.iter().find(|q| q.0 == v).unwrap();
+                assert_eq!(pose.2, moved, "villager {}: walking shows this frame's movement", i);
+                if moved { assert_eq!(pose.1, facing_on_screen(dx, dy)); moved_some = true; }
+            }
+        }
+        assert!(moved_some, "someone walked in 50 frames");
+    }
+
+    #[test]
+    fn test_walking_turns_and_strides_the_player() {
+        let mut g = Game::new_seeded(7);
+        while g.tick < 5 { g.update(); }
+        g.update();
+        assert!(!g.ui_model().player_pose.1, "standing still isn't walking");
+        // each way across the map shows its own row of the walk sheet
+        let mut seen = vec![];
+        for (dx, dy) in [(1.0, -1.0), (1.0, 1.0), (-1.0, 1.0), (-1.0, -1.0)] {
+            for _ in 0..4 { g.command(Command::Walk(dx, dy)); g.update(); }
+            let (facing, walking) = g.ui_model().player_pose;
+            assert!(walking, "walking ({}, {}) shows the walk cycle", dx, dy);
+            seen.push(facing);
+        }
+        assert_eq!(seen, vec![1, 2, 3, 0], "right, down, left, up on screen");
+        g.update();
+        assert!(!g.ui_model().player_pose.1, "stops striding when they stop");
+    }
 
     #[test]
     fn test_generated_animals_load_and_are_animal_sized() {

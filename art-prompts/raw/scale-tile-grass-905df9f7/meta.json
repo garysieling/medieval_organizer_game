@@ -1,0 +1,26 @@
+{
+ "created_at": 1793623066,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 54.42,
+ "request_id": "6502555e-e5a2-4c97-a22f-3b53ba41cb54",
+ "outputs_retained_until": 1793709381,
+ "billing": {
+  "source": "balance",
+  "balance_charged": 0.18,
+  "balance_left": 54.42
+ },
+ "id": "scale-tile-grass-905df9f7",
+ "prompt": "single isometric medieval village asset: flat square isometric ground block of short green grass, plain top face, thin earth sides, top face is a 2:1 diamond",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-02T07:37:46",
+ "seconds": 84.5
+}

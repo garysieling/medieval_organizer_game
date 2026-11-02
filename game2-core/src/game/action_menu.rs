@@ -273,9 +273,13 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                         } else { msg += "." }
                     }
                     // the campaign talks over what the street brought - after
-                    // the watchers woke and any arrest, as the graphical game does
-                    let _ = super::campaign_arc::deliberate_arc(world, c,
-                        super::campaign_arc::ArcEvent::March(r.unwrap_or(super::reactions::Reaction::Ignored)), tick);
+                    // the watchers woke and any arrest, as the graphical game
+                    // does - and the exchange that settled it is told
+                    if let Some(d) = super::campaign_arc::deliberate_arc(world, c,
+                        super::campaign_arc::ArcEvent::March(r.unwrap_or(super::reactions::Reaction::Ignored)), tick) {
+                        let talk: Vec<String> = d.decisive().iter().map(|s| format!("\"{}\"", s.text)).collect();
+                        if !talk.is_empty() { msg += &format!(" {}", talk.join(" ")); }
+                    }
                     msg
                 }
                 None => "You call a march - and nobody comes. The street stays empty.".into(),
@@ -571,5 +575,31 @@ mod tests {
         // the street answers (or stays empty - either way the verb lives)
         let msg = execute_choice(&mut w, player, org, MenuActionType::March, None, 8);
         assert!(msg.contains("street"), "{}", msg);
+    }
+
+    #[test]
+    fn test_a_text_march_tells_what_the_campaign_said() {
+        use crate::game::desires::{self, InnerLife, Organizer};
+        use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.5, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, Organizer { issues: vec!["the taxes".into()], heard: vec![] });
+        let org = w.create_entity();
+        let members: Vec<Entity> = (0..4).map(|_| {
+            let m = w.create_entity();
+            w.add_component(m, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+            desires::add_grievance(&mut w, m, desires::Problem::Taxed, 200);
+            for _ in 0..2 {
+                record_interaction(&mut w, m, Interaction { other: player, kind: InteractionKind::Aid, intensity: 1.0 });
+            }
+            m
+        }).collect();
+        w.add_component(org, Organization { name: "the Harvesters".into(), members: members.clone(), leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        execute_choice(&mut w, player, org, MenuActionType::Meet, None, 5);
+        let msg = execute_choice(&mut w, player, org, MenuActionType::March, None, 8);
+        assert!(msg.contains("march in the street"), "{}", msg);
+        assert!(msg.matches('"').count() >= 4, "the closing exchange is told: {}", msg);
     }
 }

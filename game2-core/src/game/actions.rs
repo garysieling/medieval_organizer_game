@@ -139,6 +139,9 @@ pub fn strike_vote(world: &mut World, campaign: Entity, vocation: Vocation, tick
 pub enum TargetResponse {
     /// They take it up the chain - "the king will hear of this"
     Carries,
+    /// It touches them, but the room's too thin to carry it whole: they
+    /// grant part of it, and no more
+    Concedes,
     /// They send regards and a clerk - a polite nothing
     Deflects,
     /// They won't hear it - the doors stay shut
@@ -152,6 +155,9 @@ pub struct TownhallOutcome {
     pub turnout: Vec<Entity>,
     /// What the target did with the demands
     pub response: TargetResponse,
+    /// A part conceded that's already granted and honoured: nothing new
+    /// was won, so nothing is counted as won
+    pub nothing_new: bool,
 }
 
 /// What a blow-off leaves on the people who came: the helplessness the
@@ -193,16 +199,25 @@ pub fn townhall(world: &mut World, campaign: Entity, target: Entity, tick: u64) 
     let their_fight = campaign::stake_for(world, target, &issue, tick).is_some();
     let response = if their_fight && scale >= 0.5 { TargetResponse::Carries }
         else if scale < 0.2 { TargetResponse::Deflects }
+        else if their_fight { TargetResponse::Concedes }
         else { TargetResponse::Refuses };
-    if response != TargetResponse::Carries {
+    if matches!(response, TargetResponse::Deflects | TargetResponse::Refuses) {
         for &m in &out { world.add_component(m, Demoralized { since: tick }); }
     }
     let org = world.get_component::<campaign::Campaign>(campaign).unwrap().org;
-    organized_power::record_action(world, org, match response {
-        TargetResponse::Carries => ActionQuality::Transformational,
-        TargetResponse::Deflects | TargetResponse::Refuses => ActionQuality::Overreach,
-    });
-    Some(TownhallOutcome { turnout: out, response })
+    // pressing for a part already granted and honoured wins nothing new -
+    // and earns the org nothing for it
+    let nothing_new = response == TargetResponse::Concedes
+        && world.get_component::<crate::game::reactions::LordGrant>(org)
+            .map(|g| g.issue == issue && g.active(tick) && !g.hollow).unwrap_or(false);
+    if !nothing_new {
+        organized_power::record_action(world, org, match response {
+            TargetResponse::Carries => ActionQuality::Transformational,
+            TargetResponse::Concedes => ActionQuality::Transactional,
+            TargetResponse::Deflects | TargetResponse::Refuses => ActionQuality::Overreach,
+        });
+    }
+    Some(TownhallOutcome { turnout: out, response, nothing_new })
 }
 
 /// The organizer's job after a blow-off: talk the helplessness out of
@@ -356,6 +371,31 @@ mod tests {
         assert_eq!(out.response, TargetResponse::Carries);
         assert!(w.get_component::<Demoralized>(b).is_none());
 
+        // the same target, facing a thinner room (one of three turns out),
+        // grants part of it - nobody goes home hollow
+        let c2 = member(&mut w);
+        let lone = member(&mut w);
+        let c3 = member(&mut w);
+        let (_, thin) = campaign(&mut w, &[lone, c2, c3], "the taxes");
+        campaign::delegate_role(&mut w, thin, Role::TurnoutCoordinator, lone);
+        let out = townhall(&mut w, thin, moved, 10).unwrap();
+        assert_eq!(out.response, TargetResponse::Concedes);
+        assert!(!out.nothing_new);
+        assert!(w.get_component::<Demoralized>(lone).is_none());
+        // with that part granted and honoured, pressing again wins nothing
+        // new - and builds no power
+        let org = w.get_component::<campaign::Campaign>(thin).unwrap().org;
+        w.add_component(org, crate::sim::organized_power::OrganizedPower::new());
+        w.add_component(org, crate::game::reactions::LordGrant::partial("the taxes", 10, 190));
+        let out = townhall(&mut w, thin, moved, 20).unwrap();
+        assert!(out.nothing_new);
+        assert_eq!(w.get_component::<crate::sim::organized_power::OrganizedPower>(org).unwrap().capacity, 0.0);
+        // hollowed, it can be won again and counts
+        w.get_component_mut::<crate::game::reactions::LordGrant>(org).unwrap().hollow = true;
+        let out = townhall(&mut w, thin, moved, 30).unwrap();
+        assert!(!out.nothing_new);
+        assert!(w.get_component::<crate::sim::organized_power::OrganizedPower>(org).unwrap().capacity > 0.0);
+
         // a target it doesn't touch blows the room off - and the
         // demoralized need coaching
         let stone = member(&mut w);
@@ -365,6 +405,47 @@ mod tests {
         // a stranger can't coach; the bonded organizer can
         assert!(coach(&mut w, a, b, 10));
         assert!(w.get_component::<Demoralized>(b).is_none());
+    }
+
+    #[test]
+    fn test_townhall_outcomes_rise_with_the_room() {
+        // a probe over every room size and turnout: more people in the room
+        // never earns a worse answer, a part-grant needs the target's own
+        // stake, and it sits only between the thin and the full room
+        let rank = |r: TargetResponse| match r {
+            TargetResponse::Deflects | TargetResponse::Refuses => 0,
+            TargetResponse::Concedes => 1,
+            TargetResponse::Carries => 2,
+        };
+        let mut table: Vec<(usize, usize, bool, TargetResponse)> = vec![];
+        for members in 2..=10 {
+            for staked in [true, false] {
+                let mut last = 0;
+                for answering in 0..members {
+                    let mut w = World::new();
+                    let ms: Vec<Entity> = (0..members).map(|_| member(&mut w)).collect();
+                    for &m in &ms[1..=answering.min(members - 1)] { bond(&mut w, ms[0], m); }
+                    let (_, camp) = campaign(&mut w, &ms, "the taxes");
+                    campaign::delegate_role(&mut w, camp, Role::TurnoutCoordinator, ms[0]);
+                    let target = member(&mut w);
+                    if staked { add_grievance(&mut w, target, Problem::Taxed, 200); }
+                    let out = townhall(&mut w, camp, target, 10).unwrap();
+                    let scale = out.turnout.len() as f32 / members as f32;
+                    assert!(rank(out.response) >= last, "{} of {} did worse than fewer", out.turnout.len(), members);
+                    last = rank(out.response);
+                    if out.response == TargetResponse::Concedes {
+                        assert!(staked && (0.2..0.5).contains(&scale), "a part-grant at {:.2}", scale);
+                    }
+                    if !staked { assert!(rank(out.response) == 0, "an unmoved target granted something"); }
+                    table.push((members, out.turnout.len(), staked, out.response));
+                }
+            }
+        }
+        let concedes = table.iter().filter(|t| t.3 == TargetResponse::Concedes).count();
+        let carries = table.iter().filter(|t| t.3 == TargetResponse::Carries).count();
+        let staked = table.iter().filter(|t| t.2).count();
+        eprintln!("townhall probe: of {} staked rooms, {} carried, {} conceded", staked, carries, concedes);
+        assert!(concedes > 0 && concedes < carries, "part-grants should be the narrower band");
     }
 
     #[test]

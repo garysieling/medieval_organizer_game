@@ -3773,13 +3773,16 @@ impl Game {
     /// Ambient chatter as people pass each other: unlike `say`, this never
     /// overwrites a bubble that isn't itself passing chatter while that
     /// bubble is still up (e.g. a Talk reply), so a reply can't be clobbered
-    /// by a passing remark on the very next frame.
-    pub fn say_in_passing(&mut self, who: Entity, text: &str, secs: u32) {
+    /// by a passing remark on the very next frame. Returns whether the line
+    /// was actually shown, so a caller spending a scripted turn (a
+    /// conversation line) can tell it was blocked and hold the turn open.
+    pub fn say_in_passing(&mut self, who: Entity, text: &str, secs: u32) -> bool {
         let frame = self.frame_n;
         let blocked = self.bubbles.iter().any(|(w, _, until, _, passing)| *w == who && !*passing && frame < *until);
-        if blocked { return; }
+        if blocked { return false; }
         self.bubbles.retain(|(w, _, _, _, _)| *w != who);
         self.bubbles.push((who, text.to_string(), frame + secs * FPS, false, true));
+        true
     }
 
     /// Organize: call a house meeting at the home nearest the player (or
@@ -3947,7 +3950,12 @@ impl Game {
             if n % 3 == 0 {
                 // two villagers: a whole conversation, a line at a time
                 // (session::dialogue); the player just gets a word in passing
-                if b == self.player || !self.start_convo(a, b) {
+                if b == self.player {
+                    self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
+                } else if !self.start_convo(a, b) && !self.in_convo(a) && !self.in_convo(b) {
+                    // start_convo also fails when either is already talking;
+                    // don't clobber that exchange with a canned remark - only
+                    // fall back here when no conversation could be produced
                     self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
                 }
             }

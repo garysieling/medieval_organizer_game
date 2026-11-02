@@ -155,7 +155,9 @@ impl Game {
             if apart { return false; }
             if frame < c.due { return true; }
             let (who, text) = c.lines[c.next].clone();
-            self.say_in_passing(who, &text, CONVO_BUBBLE_SECS);
+            // a non-passing bubble (a Talk reply, a meeting thought) can be
+            // up over `who` right now; don't spend the turn until it shows
+            if !self.say_in_passing(who, &text, CONVO_BUBBLE_SECS) { return true; }
             c.next += 1;
             c.due = frame + CONVO_BEAT_FRAMES;
             if c.next < c.lines.len() { return true; }

@@ -107,7 +107,7 @@ pub const MEETING_BEATS: &[Beat] = &[
                 ..mv("who_made_thee", 0.5, Member, &["Who made thee chair? Let them we chose speak.", "We never gave thee the floor to give."], Dissent, to(Objection)) },
         ],
         sources: &["freeman_structurelessness"] },
-    Beat { id: "hm_agenda_chair", phase: Agenda, criteria: &[Has("seat:chair")], voice: Driver,
+    Beat { id: "hm_agenda_chair", phase: Agenda, criteria: &[Has("seat:chair")], voice: Chair,
         lines: &["The chair has the order of it: {issue} first, then all else.", "By the chair's list - {issue}, then any other business."],
         moves: &[
             mv("as_listed", 1.0, Room, &["As the chair says.", "Fair enough. Go in order."], Nothing, to(Testimony)),
@@ -154,7 +154,7 @@ pub const MEETING_BEATS: &[Beat] = &[
             mv("shouting", 0.4, Member, &["Over the din: some of us want action, not talk!", "Shouting from the back: get on with it!"], Nothing, to(Objection)),
         ],
         sources: &["montgomery_mass_meeting"] },
-    Beat { id: "hm_floor_chair", phase: Floor, criteria: &[Has("seat:chair")], voice: Driver,
+    Beat { id: "hm_floor_chair", phase: Floor, criteria: &[Has("seat:chair")], voice: Chair,
         lines: &["The chair calls first on those who've not spoken before.", "New voices first. Thou in the corner?"],
         moves: &[
             mv("quiet_one", 1.0, Member, &["I... aye. I'll try.", "I never thought to be asked. Here's how it is."], Nothing, to(Testimony)),
@@ -406,7 +406,7 @@ pub const MEETING_BEATS: &[Beat] = &[
     Beat { id: "hm_decision_noted", phase: Decision, criteria: &[Has("room:noted")], voice: NoteTaker,
         lines: &["Say it plain, so I can write it.", "Word for word, so it holds tomorrow."],
         moves: &[
-            mv("written", 1.0, NoteTaker, &["Written. None can say otherwise now.", "There. In ink, with the day beside it."], Resolve, to(FollowThrough)),
+            mv("written", 1.0, NoteTaker, &["Written. None can say otherwise now.", "There. In ink, with the day beside it."], Nothing, to(FollowThrough)),
             mv("muddle", 0.4, Room, &["Three folk say it three ways.", "Nobody can agree what they agreed."], Nothing, to(Amendment)),
         ],
         sources: &["guild_ordinance"] },
@@ -428,7 +428,7 @@ pub const MEETING_BEATS: &[Beat] = &[
     Beat { id: "hm_decision_consensus_noted", phase: Decision, criteria: &[Has("rule:consensus"), Has("room:noted")], voice: NoteTaker,
         lines: &["No one blocks. I'll write it as all of us.", "Every hearth consents - I'll mark it so."],
         moves: &[
-            mv("write", 1.0, NoteTaker, &["Written as one voice.", "Down it goes: all of us, this day."], Resolve, to(FollowThrough)),
+            mv("write", 1.0, NoteTaker, &["Written as one voice.", "Down it goes: all of us, this day."], Nothing, to(FollowThrough)),
             mv("wait", 0.3, Member, &["Not yet - one more word first.", "Hold the quill. I've a doubt."], Nothing, to(Amendment)),
         ],
         sources: &["polletta_decision_rule", "guild_ordinance"] },
@@ -451,7 +451,7 @@ pub const MEETING_BEATS: &[Beat] = &[
     Beat { id: "hm_follow_noted", phase: FollowThrough, criteria: &[Has("room:noted")], voice: NoteTaker,
         lines: &["I'll read back who promised what.", "Before ye go - here's what each of you said ye'd do."],
         moves: &[
-            mv("read", 1.0, NoteTaker, &["Each name, each task. Read and marked.", "All on the page. I'll ask after it next time."], Resolve, END),
+            mv("read", 1.0, NoteTaker, &["Each name, each task. Read and marked.", "All on the page. I'll ask after it next time."], Nothing, END),
             mv("groans", 0.4, Room, &["Groans. Nobody likes hearing it twice.", "A few wince at their own names."], Nothing, END),
         ],
         sources: &["guild_ordinance"] },

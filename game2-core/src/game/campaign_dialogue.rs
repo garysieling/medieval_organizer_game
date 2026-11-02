@@ -86,6 +86,8 @@ pub enum Voice {
     Dissenter,
     /// The seated note taker (needs `room:noted`)
     NoteTaker,
+    /// The seated chair, present (needs `seat:chair`)
+    Chair,
     /// The room together - a murmur, a show of hands
     Room,
     /// The other side: the steward, the reeve, the lord's man (arcs only)
@@ -230,22 +232,46 @@ pub fn pick_move(beat: &'static Beat, facts: &Facts, rng: &mut Rng) -> Option<&'
 /// move, the move names the next phase, until one closes, a phase has
 /// nothing unspent, or `max` beats have played. Pure - no world access.
 pub fn walk(beats: &'static [Beat], start: Phase, facts: &Facts, rng: &mut Rng, max: usize) -> Vec<Step> {
+    let mut w = Walker::new(start);
     let mut steps = vec![];
-    let mut spent: HashSet<&'static str> = HashSet::new();
-    let mut phase = start;
     while steps.len() < max {
-        let Some(beat) = pick_beat(beats, phase, facts, &spent, rng) else { break };
-        let Some(mv) = pick_move(beat, facts, rng) else { break };
-        spent.insert(beat.id);
-        let call = beat.lines[rng.below(beat.lines.len())];
-        let reply = mv.lines[rng.below(mv.lines.len())];
-        steps.push(Step { beat, mv, call, reply });
-        match mv.next {
-            Next::Phase(p) => phase = p,
-            Next::Close => break,
-        }
+        let Some(s) = w.step(beats, facts, rng) else { break };
+        steps.push(s);
     }
     steps
+}
+
+/// A walk taken one beat at a time, so a caller can apply each move's hook
+/// and re-read the facts before the next beat is picked
+pub struct Walker {
+    /// Where the next beat comes from; None once the walk has closed
+    pub phase: Option<Phase>,
+    spent: HashSet<&'static str>,
+}
+
+impl Walker {
+    pub fn new(start: Phase) -> Self {
+        Walker { phase: Some(start), spent: HashSet::new() }
+    }
+
+    /// Play the next beat against `facts`; None once the walk closed or the
+    /// phase has nothing unspent left to say
+    pub fn step(&mut self, beats: &'static [Beat], facts: &Facts, rng: &mut Rng) -> Option<Step> {
+        let phase = self.phase?;
+        let Some((beat, mv)) = pick_beat(beats, phase, facts, &self.spent, rng)
+            .and_then(|b| pick_move(b, facts, rng).map(|m| (b, m))) else {
+            self.phase = None;
+            return None;
+        };
+        self.spent.insert(beat.id);
+        let call = beat.lines[rng.below(beat.lines.len())];
+        let reply = mv.lines[rng.below(mv.lines.len())];
+        self.phase = match mv.next {
+            Next::Phase(p) => Some(p),
+            Next::Close => None,
+        };
+        Some(Step { beat, mv, call, reply })
+    }
 }
 
 /// A line put in a speaker's mouth
@@ -254,7 +280,7 @@ pub fn fill(line: &str, issue: &str) -> String {
 }
 
 /// The facts a campaign meeting is judged by: the campaign's rule and
-/// framing, its seats, its history, and who came
+/// framing, the seats whose holders came, its history, and who came
 pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome) -> Facts {
     let mut f = Facts::default();
     if let Some(c) = world.get_component::<Campaign>(campaign) {
@@ -264,14 +290,15 @@ pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome) -> F
             Framing::CommonFoe => "framing:foe",
             Framing::MoralDuty => "framing:duty",
         });
-        for s in &c.seats {
+        // a seat speaks to the room only when its holder is in it
+        for s in c.seats.iter().filter(|s| out.attendees.contains(&s.holder)) {
             f.insert(match s.role {
                 Role::Chair => "seat:chair",
                 Role::TurnoutCoordinator => "seat:coordinator",
                 Role::NoteTaker => "seat:note_taker",
             });
         }
-        if !c.dissenters.is_empty() { f.insert("room:dissent_absent"); }
+        if c.dissenters.iter().any(|d| !out.attendees.contains(d)) { f.insert("room:dissent_absent"); }
     }
     if let Some(m) = world.get_component::<CampaignMeeting>(campaign) {
         if m.held <= 1 { f.insert("history:first"); }
@@ -328,39 +355,65 @@ pub struct Deliberation {
     pub said: Vec<Spoken>,
     /// The hooks that changed state, in order
     pub applied: Vec<Hook>,
+    /// The room carried a decision (a Decision beat handed on to
+    /// follow-through) rather than tabling, splitting or giving up
+    pub decided: bool,
+    /// Consent actually banked: a consensus room that decided with nobody
+    /// going back to dissent. Supersedes `MeetingOutcome::consent`
+    pub consent: bool,
 }
 
 /// Talk a held meeting through: walk the house-meeting library against
 /// the campaign's facts (seeded by campaign and day, so a replay says the
-/// same), put each line in an attendee's mouth, and apply the moves'
-/// hooks. Call after `hold_campaign_meeting`; None if nobody came.
+/// same), put each line in an attendee's mouth, and apply each move's hook
+/// before the next beat is picked, so a reframe or a fresh dissent is what
+/// the rest of the meeting hears. Call after `hold_campaign_meeting`; None
+/// if nobody came.
+///
+/// Resolves: `hold_campaign_meeting` already counts one for a meeting the
+/// note taker attended. It stands only if the room decided; a tabled or
+/// split meeting takes it back. Meeting moves never add resolves of their
+/// own (the audit keeps `Hook::Resolve` out of the meeting library), so a
+/// meeting is at most one resolve.
 pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutcome, tick: u64) -> Option<Deliberation> {
     let driver = *out.attendees.first()?;
     let issue = world.get_component::<Campaign>(campaign)?.issue.clone();
-    let facts = meeting_facts(world, campaign, out);
     let mut rng = Rng::new(tick.wrapping_mul(0x0100_0000_01B3) ^ ((campaign as u64) << 32));
-    let steps = walk(MEETING_BEATS, Phase::Agenda, &facts, &mut rng, MEETING_MAX_BEATS);
 
     let others: Vec<Entity> = out.attendees.iter().copied().filter(|&a| a != driver).collect();
-    let note_taker = crate::game::campaign::seat_holder(world, campaign, Role::NoteTaker)
+    let seated = |r: Role| crate::game::campaign::seat_holder(world, campaign, r)
         .filter(|n| out.attendees.contains(n));
+    let (note_taker, chair) = (seated(Role::NoteTaker), seated(Role::Chair));
     let voice_of = |v: Voice, rng: &mut Rng| -> Option<Entity> {
         match v {
             Voice::Driver => Some(driver),
             Voice::Member => Some(others.get(rng.below(others.len())).copied().unwrap_or(driver)),
             Voice::Dissenter => out.healed.first().copied().or(Some(driver)),
             Voice::NoteTaker => note_taker.or(Some(driver)),
+            Voice::Chair => chair.or(Some(driver)),
             Voice::Room | Voice::Opponent => None,
         }
     };
-    let mut d = Deliberation { said: vec![], applied: vec![] };
-    for s in &steps {
+    let mut d = Deliberation { said: vec![], applied: vec![], decided: false, consent: false };
+    let mut w = Walker::new(Phase::Agenda);
+    for _ in 0..MEETING_MAX_BEATS {
+        let facts = meeting_facts(world, campaign, out);
+        let Some(s) = w.step(MEETING_BEATS, &facts, &mut rng) else { break };
         let caller = voice_of(s.beat.voice, &mut rng);
         d.said.push(Spoken { speaker: caller, text: fill(s.call, &issue), beat: s.beat.id });
         let answerer = voice_of(s.mv.voice, &mut rng);
         d.said.push(Spoken { speaker: answerer, text: fill(s.reply, &issue), beat: s.beat.id });
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
+        if s.beat.phase == Phase::Decision && s.mv.next == Next::Phase(Phase::FollowThrough) {
+            d.decided = true;
+        }
     }
+    if out.noted && !d.decided {
+        if let Some(m) = world.get_component_mut::<CampaignMeeting>(campaign) {
+            m.resolves = m.resolves.saturating_sub(1);
+        }
+    }
+    d.consent = out.consent && d.decided && !d.applied.contains(&Hook::Dissent);
     Some(d)
 }
 
@@ -488,12 +541,17 @@ mod tests {
                             "{}.{}: a dissenter speaks with none guaranteed", b.id, m.id),
                         Voice::NoteTaker => assert!(requires(&crit, "room:noted") || requires(&crit, "seat:note_taker"),
                             "{}.{}: the note taker speaks with none guaranteed", b.id, m.id),
+                        Voice::Chair => assert!(requires(&crit, "seat:chair"),
+                            "{}.{}: the chair speaks with none seated", b.id, m.id),
                         Voice::Opponent => assert_eq!(b.phase.library(), Library::CampaignArc,
                             "{}: the other side doesn't sit in the house meeting", b.id),
                         _ => {}
                     }
                 }
                 match m.hook {
+                    // a meeting's one resolve is reconciled by deliberate_meeting
+                    Hook::Resolve if b.phase.library() == Library::HouseMeeting =>
+                        panic!("{}.{}: meeting moves don't add resolves", b.id, m.id),
                     Hook::Resolve => assert!(requires(&crit, "room:noted") || requires(&crit, "seat:note_taker"),
                         "{}.{}: a resolve with nobody to write it", b.id, m.id),
                     Hook::Dissent => assert!(matches!(m.voice, Voice::Member | Voice::Dissenter),
@@ -708,18 +766,69 @@ mod tests {
 
     #[test]
     fn test_deliberation_hooks_land_across_seeds() {
-        // over many days the meeting path exercises its hooks for real
+        // over many days the meeting path exercises its hooks for real, and
+        // a meeting is one resolve if it decided and none if it didn't
         let mut applied: Vec<Hook> = vec![];
+        let (mut decided, mut undecided, mut blocked) = (0, 0, 0);
         for day in 8..208 {
-            let (mut w, c, _) = meeting_world(if day % 2 == 0 { DecisionRule::Majority } else { DecisionRule::Consensus });
-            let out = hold_campaign_meeting(&mut w, c, day).unwrap();
+            let rule = if day % 2 == 0 { DecisionRule::Majority } else { DecisionRule::Consensus };
+            let (mut w, c, _) = meeting_world(rule);
             let before = w.get_component::<CampaignMeeting>(c).unwrap().resolves;
+            let out = hold_campaign_meeting(&mut w, c, day).unwrap();
+            assert!(out.noted);
             let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
-            let resolves = d.applied.iter().filter(|h| **h == Hook::Resolve).count() as u32;
-            assert_eq!(w.get_component::<CampaignMeeting>(c).unwrap().resolves, before + resolves);
+            let after = w.get_component::<CampaignMeeting>(c).unwrap().resolves;
+            assert_eq!(after, before + d.decided as u32, "day {}: {:?}", day, d.said);
+            if d.decided { decided += 1 } else { undecided += 1 }
+            if rule == DecisionRule::Consensus && d.applied.contains(&Hook::Dissent) {
+                assert!(!d.consent, "a dissent withholds consent");
+                blocked += 1;
+            }
+            assert!(!d.consent || (d.decided && rule == DecisionRule::Consensus));
             applied.extend(d.applied);
         }
-        assert!(applied.contains(&Hook::Resolve));
+        assert!(decided > 0 && undecided > 0, "decided {} undecided {}", decided, undecided);
+        assert!(blocked > 0, "no consensus meeting ever saw a dissent");
         assert!(applied.contains(&Hook::Dissent));
+        assert!(applied.iter().any(|h| matches!(h, Hook::Reframe(_))));
+    }
+
+    #[test]
+    fn test_an_absent_chair_runs_nothing() {
+        let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
+        // a chair with no tie to the coordinator stays home
+        let stranger = w.create_entity();
+        let org = w.get_component::<Campaign>(c).unwrap().org;
+        w.get_component_mut::<Organization>(org).unwrap().members.push(stranger);
+        assert!(delegate_role(&mut w, c, Role::Chair, stranger));
+        let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
+        assert!(!out.attendees.contains(&stranger));
+        let f = meeting_facts(&w, c, &out);
+        assert!(!f.has("seat:chair"), "the chair isn't in the room");
+        assert!(f.has("seat:coordinator") && f.has("seat:note_taker"));
+        // seated and present: the chair's beats are theirs to speak
+        let (mut w, c, ms2) = meeting_world(DecisionRule::Majority);
+        assert!(delegate_role(&mut w, c, Role::Chair, ms2[3]));
+        let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
+        assert!(meeting_facts(&w, c, &out).has("seat:chair"));
+        let _ = ms;
+    }
+
+    #[test]
+    fn test_a_reframe_is_heard_by_the_rest_of_the_meeting() {
+        // walk the meeting step by step: after a reframe, no later beat is
+        // picked on the old framing
+        for day in 8..408 {
+            let (mut w, c, _) = meeting_world(DecisionRule::Majority);
+            let out = hold_campaign_meeting(&mut w, c, day).unwrap();
+            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            let beats: Vec<&str> = d.said.iter().map(|s| s.beat).collect();
+            if let Some(i) = beats.iter().position(|b| *b == "hm_testimony_foe") {
+                if d.applied.contains(&Hook::Reframe(Framing::SharedGrievance)) {
+                    assert!(!beats[i + 2..].contains(&"hm_amend_foe_to_duty"),
+                        "day {}: a foe-framed amendment after the room dropped the foe", day);
+                }
+            }
+        }
     }
 }

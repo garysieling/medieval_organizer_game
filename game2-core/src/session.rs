@@ -7879,6 +7879,9 @@ impl Game {
             self.log.push(format!("t{}: Can't {}: {}.", tick, ctx_button(act).label.to_lowercase(), reason));
             return;
         }
+        // lines that follow the action's own message in the log (a
+        // meeting's talk, said in order)
+        let mut after: Vec<String> = vec![];
         let msg = match act {
             CtxAct::Work => {
                 let (made, up) = { let pe = self.seats[seat].player; livelihood::work_day(&mut self.world, pe, tick) };
@@ -7943,18 +7946,22 @@ impl Game {
                         let who: Vec<String> = out.attendees.iter()
                             .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string()))
                             .collect();
+                        // the room talks it through first: what it decided is
+                        // what the notes and the consent report
+                        let d = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick);
+                        let decided = d.as_ref().map(|d| d.decided).unwrap_or(true);
+                        let consent = d.as_ref().map(|d| d.consent).unwrap_or(out.consent);
                         let mut msg = format!("{} meet about the campaign: {}", out.attendees.len(), who.join(", "));
                         if out.drifted { msg += " - run by whoever pulled hardest, nobody asked"; }
-                        if out.noted { msg += " - the notes keep the resolves"; }
-                        if out.consent { msg += " - consent banked for the next action"; }
+                        if out.noted && decided { msg += " - the notes keep the resolves"; }
+                        if !decided { msg += " - nothing settled"; }
+                        if consent { msg += " - consent banked for the next action"; }
                         if !out.healed.is_empty() {
                             let healed: Vec<String> = out.healed.iter()
                                 .filter_map(|a| self.villagers.iter().position(|v| v == a).map(|i| vill_name(i).to_string())).collect();
                             msg += &format!(" - {} heard out", healed.join(", "));
                         }
-                        // the room talks it through: each speaker's line
-                        // hangs over them, and how it ended goes in the log
-                        if let Some(d) = crate::game::campaign_dialogue::deliberate_meeting(&mut self.world, c, &out, tick) {
+                        if let Some(d) = d {
                             let me = self.seats[seat].player;
                             let name_of = |e: Option<Entity>| match e {
                                 None => "The room".to_string(),
@@ -7962,10 +7969,12 @@ impl Game {
                                 Some(e) => self.villagers.iter().position(|v| *v == e)
                                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "Someone".into()),
                             };
-                            if let Some(last) = d.said.last() {
-                                msg += &format!(". {}: \"{}\"", name_of(last.speaker), last.text);
-                            }
-                            for s in &d.said {
+                            // the whole exchange goes in the log, in order
+                            after = d.said.iter()
+                                .map(|s| format!("t{}:   {}: \"{}\"", tick, name_of(s.speaker), s.text)).collect();
+                            // bubbles can't queue, so only the closing beat's
+                            // two lines hang over the speakers
+                            for s in d.said.iter().rev().take(2) {
                                 if let Some(e) = s.speaker { self.say(e, &s.text, 4); }
                             }
                         }
@@ -8170,6 +8179,7 @@ impl Game {
             }
         };
         self.log.push(format!("t{}: {}", tick, msg));
+        self.log.extend(after);
     }
 
     /// The frame a client draws: the authoritative sim's whole view of the
@@ -13686,7 +13696,10 @@ mod campaign_tests {
         g.seats[0].ctx_actions.push(CtxAct::Meet);
         let i = g.seats[0].ctx_actions.len() - 1;
         g.ctx_act_at(0, i);
-        assert!(g.log.last().unwrap().contains("meet about the campaign"), "{:?}", g.log.last());
+        // the summary line, then the room's talk quoted after it
+        let at = g.log.iter().rposition(|l| l.contains("meet about the campaign")).expect("no meeting logged");
+        assert!(g.log.len() - at - 1 >= 2 && g.log[at + 1..].iter().all(|l| l.contains(": \"")),
+            "{:?}", &g.log[at..]);
         assert!(g.ui_model().panel.campaign.unwrap().due);
     }
 

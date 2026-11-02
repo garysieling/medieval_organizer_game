@@ -9467,7 +9467,7 @@ impl View {
         let (x0, y0, x1, y1) = visible_tile_bounds(cam_x, cam_y, zoom, buf.width, buf.height, w_t, h_t);
         if x0 > x1 || y0 > y1 { return; }
         for d in x0 + y0..=x1 + y1 {
-            for tx in (d - y1).max(x0)..=d.min(x1) {
+            for tx in (d - y1).max(x0)..=d.min(x1).min(d - y0) {
                 let ty = d - tx;
                 let Some(tile) = m.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);

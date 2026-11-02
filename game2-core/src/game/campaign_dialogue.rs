@@ -25,7 +25,8 @@ use crate::engine::ecs::{Entity, World};
 use crate::game::campaign::{Campaign, CampaignMeeting, DecisionRule, Framing, MeetingOutcome, Role};
 use crate::game::conversation::{Criterion, Facts, Rng};
 
-pub use crate::game::campaign_beats::{ARC_BEATS, SOURCE_PATTERNS};
+pub use crate::game::campaign_arc_beats::ARC_BEATS;
+pub use crate::game::campaign_beats::SOURCE_PATTERNS;
 pub use crate::game::campaign_meeting_beats::MEETING_BEATS;
 
 /// The two separately counted libraries
@@ -175,7 +176,12 @@ pub struct SourcePattern {
 /// Every fact a beat or move may test. Runtime builders only emit these,
 /// and the inventory audit rejects content that names anything else.
 /// The `arc:*` facts are the campaign-arc vocabulary; they're wired to
-/// state in a later stage.
+/// state in Stage 4. Outcomes are exclusive: granted (`won`), denied
+/// (`lost`), split (`partial`), put off (`delayed`) or granted in name
+/// and emptied in practice (`diluted`). `countered`: the other side has
+/// moved; `allies`: others stand with the campaign; `leader_taken`: its
+/// leader is held or gone; `fatigue`: folk are worn; `first`/`veteran`:
+/// the org's first campaign, or one of many.
 /// - `room:trait:*`: someone in the room carries that temperament
 /// - `room:want:*`: what the room is short of - bread, relief from dues,
 ///   justice for a wrong, a roof, work, time to mourn
@@ -190,6 +196,8 @@ pub const KNOWN_FACTS: &[&str] = &[
     "history:first", "history:seasoned",
     "arc:weak", "arc:strong", "arc:consent", "arc:crackdown", "arc:prisoners",
     "arc:won", "arc:lost", "arc:partial", "arc:promise_broken", "arc:split",
+    "arc:delayed", "arc:diluted", "arc:countered", "arc:allies", "arc:leader_taken",
+    "arc:fatigue", "arc:first", "arc:veteran",
     "room:trait:proud", "room:trait:hotheaded", "room:trait:kind", "room:trait:pious",
     "room:trait:stingy", "room:trait:gregarious", "room:trait:ambitious", "room:trait:lazy",
     "room:want:bread", "room:want:relief", "room:want:justice", "room:want:roof",
@@ -205,7 +213,8 @@ pub const EXCLUSIVE_FACTS: &[&[&str]] = &[
     &["room:thin", "room:full"],
     &["history:first", "history:seasoned"],
     &["org:weak", "org:strong"],
-    &["arc:won", "arc:lost", "arc:partial"],
+    &["arc:won", "arc:lost", "arc:partial", "arc:delayed", "arc:diluted"],
+    &["arc:first", "arc:veteran"],
     &["arc:weak", "arc:strong"],
 ];
 
@@ -563,14 +572,16 @@ mod tests {
     #[test]
     fn test_libraries_are_counted_separately() {
         assert_eq!(MEETING_BEATS.len(), 1000, "house-meeting beats (Stage 2)");
-        assert_eq!(ARC_BEATS.len(), 50, "campaign-arc beats (Stage 1 tranche; Stage 3 grows it)");
+        assert_eq!(ARC_BEATS.len(), 1000, "campaign-arc beats (Stage 3)");
         for l in [Library::HouseMeeting, Library::CampaignArc] {
             assert!(library(l).iter().all(|b| b.phase.library() == l), "{:?} holds another library's phase", l);
         }
-        // the meeting library is spread across its phases, not piled in one
-        for p in Phase::MEETING {
-            let n = MEETING_BEATS.iter().filter(|b| b.phase == p).count();
-            assert!(n >= 75, "{:?} has only {} beats", p, n);
+        // each library is spread across its phases, not piled in one
+        for (beats, phases) in [(MEETING_BEATS, &Phase::MEETING[..]), (ARC_BEATS, &Phase::ARC[..])] {
+            for p in phases {
+                let n = beats.iter().filter(|b| b.phase == *p).count();
+                assert!(n >= 75, "{:?} has only {} beats", p, n);
+            }
         }
     }
 
@@ -654,6 +665,166 @@ mod tests {
         }
         eprintln!("sample reached {}/{} meeting beats", played.len(), MEETING_BEATS.len());
         assert!(share >= 0.9, "only {:.0}% of meeting beats ever played in the sample", share * 100.0);
+    }
+
+    // --- Stage 3: the campaign-arc library ---
+
+    /// Facts an arc can be judged by: its own vocabulary plus the org,
+    /// framing, rule and seat facts that exist outside any one meeting
+    fn arc_fact(f: &str) -> bool {
+        ["arc:", "org:", "framing:", "rule:", "seat:"].iter().any(|p| f.starts_with(p))
+    }
+
+    #[test]
+    fn test_arc_beats_only_read_arc_scale_facts() {
+        // a campaign isn't a room: no attendee temperaments, wants or
+        // meeting history in the arc library
+        for b in ARC_BEATS {
+            for c in b.criteria.iter().chain(b.moves.iter().flat_map(|m| m.criteria)) {
+                assert!(arc_fact(fact_of(c)), "{} reads meeting-scale fact {}", b.id, fact_of(c));
+            }
+        }
+    }
+
+    #[test]
+    fn test_arc_contexts_are_distinct_and_cover_the_campaign() {
+        let contexts: HashSet<(String, Vec<String>)> = ARC_BEATS.iter().map(|b| {
+            let mut cs: Vec<String> = b.criteria.iter().map(|c| format!("{:?}", c)).collect();
+            cs.sort();
+            (format!("{:?}", b.phase), cs)
+        }).collect();
+        eprintln!("{} distinct arc phase+criteria contexts", contexts.len());
+        assert!(contexts.len() >= 450, "only {} distinct arc contexts", contexts.len());
+        for f in KNOWN_FACTS.iter().filter(|f| arc_fact(f)) {
+            let n = ARC_BEATS.iter().filter(|b| requires(&[b.criteria], f)).count();
+            assert!(n >= 3, "only {} arc beats speak to {}", n, f);
+        }
+        for p in Phase::ARC {
+            let generic = ARC_BEATS.iter().filter(|b| b.phase == p && b.criteria.is_empty()).count();
+            assert!(generic >= 8, "{:?} has only {} criteria-free beats", p, generic);
+        }
+    }
+
+    #[test]
+    fn test_every_outcome_kind_is_written_for() {
+        // granted, denied, split, put off, hollowed out: each has its own
+        // outcome beats
+        for kind in ["arc:won", "arc:lost", "arc:partial", "arc:delayed", "arc:diluted"] {
+            let n = ARC_BEATS.iter().filter(|b| b.phase == Phase::Outcome && requires(&[b.criteria], kind)).count();
+            assert!(n >= 5, "only {} outcome beats for {}", n, kind);
+        }
+    }
+
+    #[test]
+    fn test_a_win_never_ends_the_campaign() {
+        // won beats hand on to enforcement, renewal or more work - no move
+        // from a beat that requires a win closes the arc
+        let mut to_enforce = 0;
+        for b in ARC_BEATS.iter().filter(|b| requires(&[b.criteria], "arc:won")) {
+            for m in b.moves {
+                assert_ne!(m.next, Next::Close, "{}.{}: a win that just ends", b.id, m.id);
+                if m.next == Next::Phase(Phase::Enforce) { to_enforce += 1; }
+            }
+        }
+        assert!(to_enforce >= 15, "only {} won moves hand on to enforcement", to_enforce);
+    }
+
+    #[test]
+    fn test_a_loss_is_learned_from_and_still_costs() {
+        // every denied outcome can hand on to learning; outside Renew,
+        // nothing reached from a loss simply closes; and some losses carry
+        // their cost forward as dissent rather than being smoothed over
+        let lost: Vec<&Beat> = ARC_BEATS.iter().filter(|b| requires(&[b.criteria], "arc:lost")).collect();
+        for b in lost.iter().filter(|b| b.phase == Phase::Outcome) {
+            assert!(b.moves.iter().any(|m| m.next == Next::Phase(Phase::Learn)), "{}: a loss with no lesson", b.id);
+        }
+        for b in &lost {
+            for m in b.moves {
+                assert!(m.next != Next::Close || b.phase == Phase::Renew, "{}.{}: a loss that just ends", b.id, m.id);
+            }
+        }
+        assert!(lost.iter().flat_map(|b| b.moves).any(|m| m.hook == Hook::Dissent), "losses never cost anyone's faith");
+    }
+
+    #[test]
+    fn test_no_beat_is_keyed_only_on_absence() {
+        // Lacks criteria still count toward specificity, so a beat that only
+        // says what isn't so outranks every generic beat - and every beat
+        // keyed on what did happen that it merely ties. Pair a Lacks with a Has.
+        for b in MEETING_BEATS.iter().chain(ARC_BEATS) {
+            if b.criteria.is_empty() { continue; }
+            assert!(b.criteria.iter().any(|c| matches!(c, Has(_))), "{} is keyed only on absence", b.id);
+        }
+    }
+
+    #[test]
+    fn test_a_denied_campaign_never_guards_a_win() {
+        // any outcome beat that can play once the campaign is lost - its own
+        // criteria plus arc:lost - offers no move that hands on to Enforce
+        let lost_group = EXCLUSIVE_FACTS.iter().find(|g| g.contains(&"arc:lost")).unwrap();
+        let mut checked = 0;
+        for b in ARC_BEATS.iter().filter(|b| b.phase == Phase::Outcome) {
+            let needs: Vec<&str> = b.criteria.iter().filter_map(|c| match c { Has(f) => Some(*f), _ => None }).collect();
+            if needs.iter().any(|f| *f != "arc:lost" && lost_group.contains(f)) { continue; }
+            let mut f = facts(&needs);
+            f.insert("arc:lost");
+            if !holds(b.criteria, &f) { continue; }
+            checked += 1;
+            for m in b.moves.iter().filter(|m| holds(m.criteria, &f)) {
+                assert_ne!(m.next, Next::Phase(Phase::Enforce), "{}.{}: a lost campaign guarding a win", b.id, m.id);
+            }
+            assert!(b.moves.iter().any(|m| holds(m.criteria, &f)), "{}: no way on after a loss", b.id);
+        }
+        assert!(checked >= 20, "only {} outcome beats can follow a loss", checked);
+    }
+
+    #[test]
+    fn test_seeded_sample_reaches_most_of_the_arc_library() {
+        let facts_pool: Vec<&str> = KNOWN_FACTS.iter().copied().filter(|f| arc_fact(f)).collect();
+        let mut played: HashSet<&str> = HashSet::new();
+        for seed in 0..8000u64 {
+            let mut rng = Rng::new(seed);
+            let mut f = Facts::default();
+            let mut picked: Vec<&str> = vec![];
+            for _ in 0..rng.below(5) {
+                let x = facts_pool[rng.below(facts_pool.len())];
+                let clash = EXCLUSIVE_FACTS.iter().any(|g| g.contains(&x) && picked.iter().any(|p| g.contains(p)));
+                if !clash { picked.push(x); f.insert(x); }
+            }
+            let start = Phase::ARC[rng.below(Phase::ARC.len())];
+            for s in walk(ARC_BEATS, start, &f, &mut rng, 12) {
+                played.insert(s.beat.id);
+            }
+        }
+        for p in Phase::ARC {
+            let all = ARC_BEATS.iter().filter(|b| b.phase == p).count();
+            let hit = ARC_BEATS.iter().filter(|b| b.phase == p && played.contains(b.id)).count();
+            eprintln!("{:?}: {}/{} beats played", p, hit, all);
+        }
+        eprintln!("sample reached {}/{} arc beats", played.len(), ARC_BEATS.len());
+        let share = played.len() as f32 / ARC_BEATS.len() as f32;
+        assert!(share >= 0.9, "only {:.0}% of arc beats ever played in the sample", share * 100.0);
+    }
+
+    /// For authors: read a few campaigns as they'd play.
+    /// `cargo test -p game2-core --lib sample_arcs -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn sample_arcs() {
+        let arcs: [&[&str]; 5] = [
+            &[],
+            &["arc:strong", "arc:consent", "framing:foe"],
+            &["arc:weak", "arc:crackdown", "arc:prisoners"],
+            &["arc:won", "arc:allies"],
+            &["arc:lost", "arc:split", "rule:majority"],
+        ];
+        for (i, arc) in arcs.iter().enumerate() {
+            eprintln!("--- arc {:?}", arc);
+            for s in walk(ARC_BEATS, Phase::Target, &facts(arc), &mut Rng::new(i as u64 + 3), 12) {
+                eprintln!("[{}] {:?}: {}", s.beat.id, s.beat.voice, fill(s.call, "the mill toll"));
+                eprintln!("    -> {:?}: {}", s.mv.voice, fill(s.reply, "the mill toll"));
+            }
+        }
     }
 
     /// For authors: read a few meetings as they'd play.

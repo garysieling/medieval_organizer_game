@@ -13,6 +13,8 @@ use game2_core::session::{
 const W: usize = session::W;
 const H: usize = session::H;
 const FPS: u32 = session::FPS;
+const MIN_ZOOM: f32 = 0.5;
+const MAX_ZOOM: f32 = 2.0;
 /// The speed key stays while the flag's on; web builds and the server drop it
 const SPEED: bool = cfg!(feature = "speed-timer");
 
@@ -195,8 +197,13 @@ fn main() {
             }
         }
         if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { view.help_open = !view.help_open; }
-        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { view.zoom = (view.zoom + 0.006).min(2.0); }
-        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { view.zoom = (view.zoom - 0.006).max(0.5); }
+        if let Some((_, scroll_y)) = window.get_scroll_wheel() {
+            // Scale multiplicatively so a wheel notch feels consistent at any zoom,
+            // while trackpads can still make smaller, smooth adjustments.
+            view.zoom = (view.zoom * 1.1_f32.powf(scroll_y)).clamp(MIN_ZOOM, MAX_ZOOM);
+        }
+        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { view.zoom = (view.zoom + 0.006).min(MAX_ZOOM); }
+        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { view.zoom = (view.zoom - 0.006).max(MIN_ZOOM); }
         if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)  { view.cam_x += 2; }
         if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No) { view.cam_x -= 2; }
         if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)    { view.cam_y += 2; }

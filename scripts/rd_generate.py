@@ -112,6 +112,31 @@ def load_manifest():
     return g.ENTRIES
 
 
+def from_raw(want):
+    """Entries rebuilt from saved raw/<id>/meta.json for paid ids whose
+    prompt has since changed (so they're no longer in the manifest): a
+    --force redo then sends exactly the old request, never a newer one."""
+    out = []
+    try:
+        names = sorted(os.listdir(RAW))
+    except OSError:
+        return out
+    for d in names:
+        if d != want and not d.startswith(want + "-"):
+            continue
+        try:
+            with open(os.path.join(RAW, d, "meta.json"), encoding="utf-8") as f:
+                m = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if m.get("id") != d or any(e["id"] == d for e in out):
+            continue  # a --force re-run's timestamped dir: same id as its original
+        out.append({"id": d, "tier": "", "group": "raw", "title": d, "prompt": m["prompt"],
+                    "request": m["request"], "est_cost_usd": m.get("balance_cost") or 0.0,
+                    "notes": "rebuilt from raw meta.json"})
+    return out
+
+
 def load_done():
     try:
         with open(STATE, encoding="utf-8") as f:
@@ -155,6 +180,8 @@ def run(args):
     picked = []
     for want in args.ids:
         hits = [e for e in entries if e["id"] == want or e["id"].startswith(want + "-")]
+        if not hits:
+            hits = from_raw(want)
         if not hits:
             sys.exit(f"no manifest entry matches {want!r} (see generate_art_prompts.py)")
         for e in hits:

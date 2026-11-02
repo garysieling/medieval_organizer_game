@@ -3348,7 +3348,13 @@ impl Game {
     /// One frame of game time: the sim ticks every few frames, and between
     /// ticks villagers keep strolling
     pub fn update(&mut self) {
+        self.advance_frame();
+        // after every move this frame (the player's command, the sim, the
+        // strolling), so the model's poses match its positions
         self.track_poses();
+    }
+
+    fn advance_frame(&mut self) {
         let ticks_per_frame = self.ticks_per_frame();
         // the soundscape resets each frame: cues live exactly one read
         self.sfx.clear();
@@ -14042,6 +14048,24 @@ mod dog_sprite_tests {
         let m = g.ui_model();
         assert_eq!(m.poses.len(), g.villagers.len(), "a pose for every villager");
         assert!(m.poses.iter().all(|p| p.1 < 4), "facings are walk-sheet rows");
+        // the model straight after an update: whoever moved in that update
+        // is mid-stride, facing that way; whoever didn't is standing (no
+        // one-frame lag)
+        let mut moved_some = false;
+        for _ in 0..50 {
+            let before: Vec<(f32, f32)> = g.villagers.iter().map(|&v| g.world.get_component::<Pos>(v).map(|p| (p.x, p.y)).unwrap_or_default()).collect();
+            g.update();
+            let m = g.ui_model();
+            for (i, &v) in g.villagers.iter().enumerate() {
+                let Some(p) = g.world.get_component::<Pos>(v) else { continue };
+                let (dx, dy) = (p.x - before[i].0, p.y - before[i].1);
+                let moved = dx.abs() + dy.abs() > 1e-4;
+                let pose = m.poses.iter().find(|q| q.0 == v).unwrap();
+                assert_eq!(pose.2, moved, "villager {}: walking shows this frame's movement", i);
+                if moved { assert_eq!(pose.1, facing_on_screen(dx, dy)); moved_some = true; }
+            }
+        }
+        assert!(moved_some, "someone walked in 50 frames");
     }
 
     #[test]

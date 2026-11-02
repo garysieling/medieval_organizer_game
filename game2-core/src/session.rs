@@ -8283,9 +8283,7 @@ impl Game {
                             // a part already granted and honoured isn't
                             // granted again: pressing a thin room twice
                             // doesn't stretch it
-                            let held = self.world.get_component::<crate::game::reactions::LordGrant>(oe)
-                                .map(|g| g.issue == issue && g.active(tick) && !g.hollow).unwrap_or(false);
-                            if held {
+                            if out.nothing_new {
                                 format!("{} face the Reeve - he grants no more than he already has.", out.turnout.len())
                             } else {
                                 self.world.add_component(oe, crate::game::reactions::LordGrant::partial(

@@ -155,6 +155,9 @@ pub struct TownhallOutcome {
     pub turnout: Vec<Entity>,
     /// What the target did with the demands
     pub response: TargetResponse,
+    /// A part conceded that's already granted and honoured: nothing new
+    /// was won, so nothing is counted as won
+    pub nothing_new: bool,
 }
 
 /// What a blow-off leaves on the people who came: the helplessness the
@@ -202,12 +205,19 @@ pub fn townhall(world: &mut World, campaign: Entity, target: Entity, tick: u64) 
         for &m in &out { world.add_component(m, Demoralized { since: tick }); }
     }
     let org = world.get_component::<campaign::Campaign>(campaign).unwrap().org;
-    organized_power::record_action(world, org, match response {
-        TargetResponse::Carries => ActionQuality::Transformational,
-        TargetResponse::Concedes => ActionQuality::Transactional,
-        TargetResponse::Deflects | TargetResponse::Refuses => ActionQuality::Overreach,
-    });
-    Some(TownhallOutcome { turnout: out, response })
+    // pressing for a part already granted and honoured wins nothing new -
+    // and earns the org nothing for it
+    let nothing_new = response == TargetResponse::Concedes
+        && world.get_component::<crate::game::reactions::LordGrant>(org)
+            .map(|g| g.issue == issue && g.active(tick) && !g.hollow).unwrap_or(false);
+    if !nothing_new {
+        organized_power::record_action(world, org, match response {
+            TargetResponse::Carries => ActionQuality::Transformational,
+            TargetResponse::Concedes => ActionQuality::Transactional,
+            TargetResponse::Deflects | TargetResponse::Refuses => ActionQuality::Overreach,
+        });
+    }
+    Some(TownhallOutcome { turnout: out, response, nothing_new })
 }
 
 /// The organizer's job after a blow-off: talk the helplessness out of
@@ -370,7 +380,21 @@ mod tests {
         campaign::delegate_role(&mut w, thin, Role::TurnoutCoordinator, lone);
         let out = townhall(&mut w, thin, moved, 10).unwrap();
         assert_eq!(out.response, TargetResponse::Concedes);
+        assert!(!out.nothing_new);
         assert!(w.get_component::<Demoralized>(lone).is_none());
+        // with that part granted and honoured, pressing again wins nothing
+        // new - and builds no power
+        let org = w.get_component::<campaign::Campaign>(thin).unwrap().org;
+        w.add_component(org, crate::sim::organized_power::OrganizedPower::new());
+        w.add_component(org, crate::game::reactions::LordGrant::partial("the taxes", 10, 190));
+        let out = townhall(&mut w, thin, moved, 20).unwrap();
+        assert!(out.nothing_new);
+        assert_eq!(w.get_component::<crate::sim::organized_power::OrganizedPower>(org).unwrap().capacity, 0.0);
+        // hollowed, it can be won again and counts
+        w.get_component_mut::<crate::game::reactions::LordGrant>(org).unwrap().hollow = true;
+        let out = townhall(&mut w, thin, moved, 30).unwrap();
+        assert!(!out.nothing_new);
+        assert!(w.get_component::<crate::sim::organized_power::OrganizedPower>(org).unwrap().capacity > 0.0);
 
         // a target it doesn't touch blows the room off - and the
         // demoralized need coaching

@@ -158,6 +158,11 @@ pub struct UiModel {
     pub speed: u32,
     pub stones: Vec<(i32, i32)>,
     pub buildings: Vec<BldgV>,
+    /// Keep sprites at the centers of remote castle enclosures.
+    pub castle_keeps: Vec<(f32, f32)>,
+    /// House sprites in the remote town clusters; these are map scenery,
+    /// not selectable/simulated buildings in the main village.
+    pub settlement_houses: Vec<(f32, f32, BSprite)>,
     pub people: Vec<PersonV>,
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<String>,

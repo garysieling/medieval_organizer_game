@@ -18,7 +18,10 @@ pub const REVEAL_BASE: f32 = 0.15;
 pub const REVEAL_PARALLEL: f32 = 0.10;
 
 /// An issue kind: complaints in the same family, however people put them
-pub type IssueTag = &'static str;
+/// What an issue's about. Trade-flavored problems carry the trade too -
+/// "no master (mason)" only echoes among masons; the commons (tax,
+/// broke, the bad bread) carry no tag and echo for everyone
+pub type IssueTag = String;
 
 /// What a person wants, inspired by Maslow's hierarchy
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +38,7 @@ pub enum Want {
     DifferentTrade,// the assigned vocation bores them
     Love,          // a close bond
     Joy,           // play - mostly the children's want
+    Drink,         // a cup at the alehouse - company in a bowl
 }
 
 /// What's in someone's way. Most are computed from their situation each
@@ -55,6 +59,40 @@ pub enum Problem {
     Taxed,
     /// Under three gold to their name
     Broke,
+    /// Carries a smell: the flock's, the cauldron's smoke - honest work
+    /// hangs on them
+    Smelly,
+    /// Wolves got into the fold - stock lost in the night
+    Loss,
+    /// The village says their bread brought the fire
+    Blamed,
+    /// Ate spoiled stock - a sour gut for a poor soul
+    SourGut,
+    /// The lord took his fifth of what the dead one left
+    DeathDuty,
+    /// The wood's thin this side of the hill - gathers outpace regrowth
+    ThinWood,
+    /// The worked pit drowned - no stone to be had
+    DryPit,
+    /// The reach below town stinks - the leavings settle in it
+    StinkingReach,
+    /// The reckoning didn't add up - shorted in a foreign count
+    ShortChanged,
+    /// The circus's pull: the road's calling and the days here are gray
+    Tempted,
+    /// The bailiff's writ: a levy, a fee, a summons from the castle
+    WritBorne,
+    /// The winter runs long and the stores run thin
+    LongWinter,
+    /// No fuel for the hearth - the house eats cold all winter
+    ColdHearth,
+    /// The hermit's want: the dark keeps them
+    TheDark,
+    /// What they watched and can't unsee - the hanging's weight
+    Grief,
+    /// The good stock walked off in the night - a cellar worth robbing
+    /// is a cellar worth watching
+    Robbed,
 }
 
 /// One secret a person can share: a want or a problem
@@ -117,8 +155,8 @@ pub fn add_grievance(world: &mut World, e: Entity, p: Problem, until: u64) {
 }
 
 /// The issue family a reveal belongs to - parallel complaints share one
-pub fn issue_tag(r: &Reveal) -> IssueTag {
-    match r {
+pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
+    let base: &'static str = match r {
         Reveal::Want(Want::GoodFood) => "hunger",
         Reveal::Want(Want::Finery) => "comfort",
         Reveal::Want(Want::Faith) => "faith",
@@ -130,6 +168,7 @@ pub fn issue_tag(r: &Reveal) -> IssueTag {
         Reveal::Want(Want::DifferentTrade) => "restlessness",
         Reveal::Want(Want::Love) => "loneliness",
         Reveal::Want(Want::Joy) => "joy",
+        Reveal::Want(Want::Drink) => "the drink",
         Reveal::Problem(Problem::NoWorkplace) => "workplaces",
         Reveal::Problem(Problem::NoMaster) => "apprenticeship",
         Reveal::Problem(Problem::NoInput(_)) => "materials",
@@ -137,12 +176,47 @@ pub fn issue_tag(r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::OverseerCut) => "the overseers' cut",
         Reveal::Problem(Problem::Taxed) => "the taxes",
         Reveal::Problem(Problem::Broke) => "poverty",
+        Reveal::Problem(Problem::Smelly) => "honest work's stink",
+        Reveal::Problem(Problem::Loss) => "the wolves",
+        Reveal::Problem(Problem::Blamed) => "the bad bread",
+        Reveal::Problem(Problem::SourGut) => "the sour gut",
+        Reveal::Problem(Problem::DeathDuty) => "the death duty",
+        Reveal::Problem(Problem::ThinWood) => "the shrinking wood",
+        Reveal::Problem(Problem::ColdHearth) => "cold hearths",
+        Reveal::Problem(Problem::DryPit) => "the drowned pit",
+        Reveal::Problem(Problem::StinkingReach) => "the stinking reach",
+        Reveal::Problem(Problem::ShortChanged) => "the reckoning that didn't add up",
+        Reveal::Problem(Problem::Tempted) => "the road's pull",
+        Reveal::Problem(Problem::WritBorne) => "the bailiff's writ",
+        Reveal::Problem(Problem::LongWinter) => "the long winter",
+        Reveal::Problem(Problem::TheDark) => "the dark",
+        Reveal::Problem(Problem::Grief) => "the grief",
+        Reveal::Problem(Problem::Robbed) => "the thieves",
+    };
+    // a trade's grievance only echoes among the trade - the commons
+    // (tax, poverty, the bad bread, the sour gut) echo for everyone
+    let scoped = matches!(r,
+        Reveal::Problem(Problem::NoWorkplace) | Reveal::Problem(Problem::NoMaster)
+        | Reveal::Problem(Problem::NoInput(_)) | Reveal::Problem(Problem::DerelictNearby)
+        | Reveal::Problem(Problem::OverseerCut) | Reveal::Problem(Problem::Smelly)
+        | Reveal::Problem(Problem::Loss) | Reveal::Want(Want::BetterTools));
+    if scoped {
+        if let Some(v) = world.get_component::<crate::game::vocation::Craft>(e)
+            .map(|c| crate::game::vocation::vocation_name(c.vocation).to_lowercase()) {
+            return format!("{} ({})", base, v);
+        }
     }
+    base.into()
 }
 
-/// What the issue is called once the organizer sees the pattern
+/// What the issue is called once the organizer sees the pattern. A
+/// trade-scoped tag names its trade: "materials (baker)" reads "the
+/// bakers' workshops starved of materials"
 pub fn issue_name(tag: IssueTag) -> String {
-    match tag {
+    if let Some((base, voc)) = tag.strip_suffix(')').and_then(|s| s.split_once(" (")) {
+        return format!("the {}s' {}", voc, issue_name(base.to_string()));
+    }
+    match tag.as_str() {
         "hunger" => "the bread shortage".into(),
         "comfort" => "plain living".into(),
         "faith" => "the neglected faith".into(),
@@ -161,7 +235,23 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the overseers' cut" => "the overseers' cut".into(),
         "the taxes" => "the tax collector's cut".into(),
         "poverty" => "folk without a coin".into(),
-        _ => tag.into(),
+        "honest work's stink" => "the stink of honest work".into(),
+        "the wolves" => "wolves at the fold".into(),
+        "the bad bread" => "the cursed bread".into(),
+        "the sour gut" => "spoiled stock in the larder".into(),
+        "the death duty" => "the lord's death-duty".into(),
+        "the shrinking wood" => "the shrinking wood".into(),
+        "the drowned pit" => "the drowned pit".into(),
+        "the stinking reach" => "the stinking reach".into(),
+        "the reckoning that didn't add up" => "the reckoning that didn't add up".into(),
+        "the road's pull" => "the road's pull".into(),
+        "the bailiff's writ" => "the bailiff's writ".into(),
+        "the long winter" => "the long winter".into(),
+        "the dark" => "the dark".into(),
+        "the grief" => "the grief".into(),
+        "the drink" => "a dry village".into(),
+        "the thieves" => "thieves in the night".into(),
+        _ => tag,
     }
 }
 
@@ -180,6 +270,7 @@ pub fn want_label(w: Want) -> &'static str {
         Want::DifferentTrade => "bored with the trade",
         Want::Love => "wants love",
         Want::Joy => "wants to play",
+        Want::Drink => "wants a drink",
     }
 }
 
@@ -194,6 +285,22 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::OverseerCut => "the overseer takes a cut".into(),
         Problem::Taxed => "paid the tax collector".into(),
         Problem::Broke => "is nearly broke".into(),
+        Problem::Smelly => "smells of honest work".into(),
+        Problem::Loss => "lost stock to wolves".into(),
+        Problem::Blamed => "is blamed for the sickness".into(),
+        Problem::SourGut => "ate spoiled stock".into(),
+        Problem::DeathDuty => "paid the lord's fifth on the dead".into(),
+        Problem::ThinWood => "the wood's thin this side of the hill".into(),
+        Problem::DryPit => "the pit's drowned - no stone to be had".into(),
+        Problem::StinkingReach => "the reach below town stinks".into(),
+        Problem::ShortChanged => "shorted in a foreign count".into(),
+        Problem::Tempted => "the road's calling".into(),
+        Problem::WritBorne => "a writ came down from the castle".into(),
+        Problem::LongWinter => "the winter runs long and the stores run thin".into(),
+        Problem::ColdHearth => "no fuel for the hearth".into(),
+        Problem::TheDark => "the dark keeps me".into(),
+        Problem::Grief => "I watched it and can't unsee it".into(),
+        Problem::Robbed => "was robbed in the night".into(),
     }
 }
 
@@ -213,6 +320,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Want(Want::DifferentTrade) => (format!("{} is bored with the trade", name), "This isn't the life I pictured.".into()),
         Reveal::Want(Want::Love) => (format!("{} confides they're lonely", name), "Everyone's got someone. Not me.".into()),
         Reveal::Want(Want::Joy) => (format!("{} wants to play", name), "I just want to play a while.".into()),
+        Reveal::Want(Want::Drink) => (format!("{} misses a cup", name), "A cup of something would sit well about now.".into()),
         Reveal::Problem(Problem::NoHome) => (format!("{} has no home", name), "Nowhere to lay my head. Nowhere.".into()),
         Reveal::Problem(Problem::NoWorkplace) => (format!("{} has no workshop", name), "No bench, no hearth - I work in the street.".into()),
         Reveal::Problem(Problem::NoMaster) => (format!("{} has no master", name), "No one to learn from. I'll be a journeyman forever.".into()),
@@ -221,6 +329,22 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::OverseerCut) => (format!("{} resents the overseer's cut", name), "I sweat and he takes his share for watching.".into()),
         Reveal::Problem(Problem::Taxed) => (format!("{} curses the tax collector", name), "The collector took his cut again. The lord eats well.".into()),
         Reveal::Problem(Problem::Broke) => (format!("{} is nearly broke", name), "Two coins left. Two.".into()),
+        Reveal::Problem(Problem::Smelly) => (format!("{} stinks of honest work", name), "Aye, honest work hangs on - it'll wash off.".into()),
+        Reveal::Problem(Problem::Loss) => (format!("{} lost stock to wolves", name), "The wolf came in the night. I found what's left of her.".into()),
+        Reveal::Problem(Problem::Blamed) => (format!("{} is blamed for the sickness", name), "They say my bread did it. My bread.".into()),
+        Reveal::Problem(Problem::SourGut) => (format!("{} ate spoiled stock", name), "It was all there was. Still smells.".into()),
+        Reveal::Problem(Problem::DeathDuty) => (format!("{} paid the lord's fifth", name), "A fifth of all he had. For dying.".into()),
+        Reveal::Problem(Problem::ThinWood) => (format!("{}: the wood's thin", name), "Walked half a day for a bundle. It wasn't always so.".into()),
+        Reveal::Problem(Problem::DryPit) => (format!("{}: the pit's drowned", name), "Water in the cut. No stone comes out of a pond.".into()),
+        Reveal::Problem(Problem::StinkingReach) => (format!("{}: the reach stinks", name), "You can smell it on a still night. That wasn't always so.".into()),
+        Reveal::Problem(Problem::ShortChanged) => (format!("{}: the reckoning's off", name), "He counted it his way. My way it's short.".into()),
+        Reveal::Problem(Problem::Tempted) => (format!("{}'s feet itch", name), "The road looks shorter from the gate than the days look here.".into()),
+        Reveal::Problem(Problem::WritBorne) => (format!("{} bore the writ", name), "Sealed by the castle. No arguing with wax.".into()),
+        Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are thin", name), "Second winter running. The barrel knows it.".into()),
+        Reveal::Problem(Problem::ColdHearth) => (format!("{} eats cold", name), "No faggots, no turf, not even the dry leavings. The pot's cold and the bed's colder.".into()),
+        Reveal::Problem(Problem::TheDark) => (format!("{} keeps to the dark", name), "The village is loud with light. Down here it's honest.".into()),
+        Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
+        Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),
     }
 }
 
@@ -266,10 +390,10 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
             }
         }
     }
-    let tag = issue_tag(&r);
+    let tag = issue_tag(world, person, &r);
     let org = world.get_component_mut::<Organizer>(organizer)?;
     org.heard.retain(|(_, _, day)| tick <= *day + YEAR_DAYS);
-    org.heard.push((tag, person, tick));
+    org.heard.push((tag.clone(), person, tick));
     if org.issues.contains(&tag) { return None; }
     let voices: Vec<Entity> = org.heard.iter()
         .filter(|(t, _, _)| *t == tag).map(|(_, e, _)| *e).collect();
@@ -277,7 +401,7 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
     dedup.sort_unstable();
     dedup.dedup();
     if dedup.len() >= 3 {
-        org.issues.push(tag);
+        org.issues.push(tag.clone());
         Some(issue_name(tag))
     } else {
         None
@@ -289,7 +413,7 @@ pub fn hear(world: &mut World, organizer: Entity, person: Entity, r: Reveal, tic
 pub fn found_issue(world: &mut World, organizer: Entity, tag: IssueTag) -> Option<String> {
     let org = world.get_component_mut::<Organizer>(organizer)?;
     if org.issues.contains(&tag) { return None; }
-    org.issues.push(tag);
+    org.issues.push(tag.clone());
     Some(issue_name(tag))
 }
 
@@ -312,6 +436,8 @@ pub fn problems_of(world: &World, e: Entity, tick: u64) -> Vec<Problem> {
         if c.master.is_none() && vocation::level_of(c.skill) < vocation::Level::Master {
             out.push(Problem::NoMaster);
         }
+        // the fold's smell hangs on a shepherd; folk notice
+        if c.vocation == vocation::Vocation::Shepherd { out.push(Problem::Smelly); }
     }
     // a derelict shop (workplace kind with no worker) within a stroll of home
     if let Some(p) = world.get_component::<Pos>(e).copied() {
@@ -347,6 +473,7 @@ pub fn sample_wants(class: SocialClass, voc: Option<vocation::Vocation>, is_kid:
             Want::Love => 3, Want::Faith => 2, Want::Music => 2,
             Want::Finery => 2, Want::BetterTools => 2, Want::Shelter => 2,
             Want::DifferentTrade => 2, Want::Instrument => 1, Want::Joy => 1,
+            Want::Drink => 3,
         };
         let bonus: u64 = match (w, voc) {
             (Want::Faith, Some(vocation::Vocation::Priest)) => 6,
@@ -369,10 +496,10 @@ pub fn sample_wants(class: SocialClass, voc: Option<vocation::Vocation>, is_kid:
         };
         base + bonus + class_bonus
     };
-    const ALL: [Want; 11] = [
+    const ALL: [Want; 12] = [
         Want::GoodFood, Want::Finery, Want::Faith, Want::Shelter, Want::Security,
         Want::Mastery, Want::Music, Want::Instrument, Want::BetterTools,
-        Want::DifferentTrade, Want::Love,
+        Want::DifferentTrade, Want::Love, Want::Drink,
     ];
     let mut pool: Vec<Want> = ALL.iter().copied()
         .flat_map(|w| std::iter::repeat(w).take(weight(w) as usize)).collect();
@@ -406,6 +533,9 @@ pub fn occupation_of(world: &World, e: Entity) -> Option<String> {
             TownRole::Overseer => "Overseer",
             TownRole::TaxCollector => "Tax Collector",
             TownRole::Trader => "Trader",
+            TownRole::Herbologist => "Herb-wife",
+            TownRole::Matchmaker => "Heart-helper",
+            TownRole::Hermit => "Hermit",
         };
         return Some(role.into());
     }
@@ -415,7 +545,11 @@ pub fn occupation_of(world: &World, e: Entity) -> Option<String> {
 /// The class a character reads as: PMC roles and PMC vocations read PMC;
 /// masters who own their workshop read petit bourgeois
 pub fn class_of(world: &World, e: Entity) -> SocialClass {
-    if world.get_component::<TownRole>(e).is_some() { return SocialClass::ProfessionalMiddle; }
+    if let Some(role) = world.get_component::<TownRole>(e) {
+        // the herb-wife works her hedge like any labourer; the rest of the
+        // postings carry the lord's or the profession's standing
+        return match role { TownRole::Herbologist | TownRole::Matchmaker => SocialClass::Working, _ => SocialClass::ProfessionalMiddle };
+    }
     if let Some(c) = world.get_component::<Craft>(e) {
         if vocation::is_pmc(c.vocation) { return SocialClass::ProfessionalMiddle; }
         if vocation::level_of(c.skill) == vocation::Level::Master && c.workplace.is_some() {
@@ -535,5 +669,13 @@ mod tests {
         assert_eq!(class_of(&w, e), SocialClass::ProfessionalMiddle);
         w.add_component(e, craft(vocation::Vocation::Baker, 0.9));
         assert_eq!(class_of(&w, e), SocialClass::Working, "a master with no shop is still working class");
+    }
+}
+
+/// Lift a grievance: the load is answered, not just waited out - a
+/// grievance that stops counting right now (a grant, a fix, a fight won)
+pub fn lift_grievance(world: &mut World, e: Entity, p: Problem) {
+    if let Some(life) = world.get_component_mut::<InnerLife>(e) {
+        life.grievances.retain(|(g, _)| *g != p);
     }
 }

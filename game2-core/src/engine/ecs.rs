@@ -17,6 +17,13 @@ type ComponentStorage = HashMap<Entity, Box<dyn Any + Send>>;
 pub struct World {
     next_entity: Entity,
     storages: HashMap<TypeId, ComponentStorage>,
+    /// Singleton data keyed by type rather than by entity: caches and
+    /// indices the systems share (e.g. the relationship pair index).
+    resources: HashMap<TypeId, Box<dyn Any + Send>>,
+    /// Per-type structural revision: bumped whenever a component of that
+    /// type is added or removed. An index that stored a revision behind
+    /// the current one no longer provably covers that storage.
+    mutation_rev: HashMap<TypeId, u64>,
 }
 
 impl World {
@@ -25,6 +32,8 @@ impl World {
         Self {
             next_entity: 0,
             storages: HashMap::new(),
+            resources: HashMap::new(),
+            mutation_rev: HashMap::new(),
         }
     }
 
@@ -41,6 +50,7 @@ impl World {
             .entry(TypeId::of::<T>())
             .or_default()
             .insert(entity, Box::new(component));
+        *self.mutation_rev.entry(TypeId::of::<T>()).or_default() += 1;
     }
 
     /// Get a component for an entity
@@ -62,15 +72,20 @@ impl World {
     /// Remove a component from an entity
     pub fn remove_component<T: Any + Send>(&mut self, entity: Entity) -> bool {
         if let Some(storage) = self.storages.get_mut(&TypeId::of::<T>()) {
-            return storage.remove(&entity).is_some();
+            if storage.remove(&entity).is_some() {
+                *self.mutation_rev.entry(TypeId::of::<T>()).or_default() += 1;
+                return true;
+            }
         }
         false
     }
 
     /// Destroy an entity and all its components
     pub fn destroy_entity(&mut self, entity: Entity) {
-        for storage in self.storages.values_mut() {
-            storage.remove(&entity);
+        for (tid, storage) in self.storages.iter_mut() {
+            if storage.remove(&entity).is_some() {
+                *self.mutation_rev.entry(*tid).or_default() += 1;
+            }
         }
     }
 
@@ -86,6 +101,57 @@ impl World {
             }
             None => Vec::new(),
         }
+    }
+
+    /// Call `f` once per (entity, component) pair of type T, in arbitrary
+    /// order. Unlike query() nothing is collected or sorted - for passes
+    /// where order doesn't matter and the caller accumulates.
+    pub fn iter<T: Any + Send>(&self, mut f: impl FnMut(Entity, &T)) {
+        if let Some(storage) = self.storages.get(&TypeId::of::<T>()) {
+            for (e, c) in storage.iter() {
+                if let Some(c) = c.downcast_ref::<T>() { f(*e, c); }
+            }
+        }
+    }
+
+    /// The first entity whose component T satisfies `pred`, in arbitrary
+    /// order. Unlike query() this allocates nothing and skips the sort -
+    /// for hot lookups where any match will do.
+    pub fn find<T: Any + Send>(&self, mut pred: impl FnMut(Entity, &T) -> bool) -> Option<Entity> {
+        self.storages.get(&TypeId::of::<T>())?.iter()
+            .find(|(e, c)| c.downcast_ref::<T>().map(|c| pred(**e, c)).unwrap_or(false))
+            .map(|(e, _)| *e)
+    }
+
+    /// Live components of type T. O(1) - the storage's own length.
+    pub fn component_count<T: Any + Send>(&self) -> usize {
+        self.storages.get(&TypeId::of::<T>()).map(|s| s.len()).unwrap_or(0)
+    }
+
+    /// How many times type T's storage has structurally changed (add,
+    /// remove, destroy) - an index that folded at an older revision
+    /// can't claim to cover what's live now.
+    pub fn mutation_rev<T: Any + Send>(&self) -> u64 {
+        self.mutation_rev.get(&TypeId::of::<T>()).copied().unwrap_or(0)
+    }
+
+    /// Store world-level singleton data, keyed by type.
+    pub fn insert_resource<T: Any + Send>(&mut self, res: T) {
+        self.resources.insert(TypeId::of::<T>(), Box::new(res));
+    }
+
+    /// Read the resource of type T, if one's stored.
+    pub fn resource<T: Any + Send>(&self) -> Option<&T> {
+        self.resources.get(&TypeId::of::<T>())?.downcast_ref()
+    }
+
+    /// The resource of type T, created from Default if absent.
+    pub fn resource_or_default<T: Any + Send + Default>(&mut self) -> &mut T {
+        self.resources
+            .entry(TypeId::of::<T>())
+            .or_insert_with(|| Box::new(T::default()))
+            .downcast_mut()
+            .unwrap()
     }
 
     /// Total number of live entities (approx: highest id issued)

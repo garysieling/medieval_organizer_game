@@ -24,6 +24,9 @@ fn main() {
     let mut sched = Scheduler::new();
     sched.add_system(villager::HungerSystem);
     sched.add_system(villager::SeekFoodSystem);
+    // the weather bites here too: nourishment applies the frost and the
+    // heat, same path the session's health runs through
+    sched.add_system(villager::NourishmentSystem);
     sched.add_system(pets::PetBondSystem);
     sched.add_system(SeasonSystem);
     sched.add_system(WeatherSystem);
@@ -76,6 +79,20 @@ fn main() {
         if tick == 60 { spawn_weather(&mut world, Weather::Storm, 0.7, 20); println!("EVENT: storm"); }
         if tick == 120 { spawn_weather(&mut world, Weather::Drought, 0.8, 30); println!("EVENT: drought"); }
         if tick == 200 { spawn_weather(&mut world, Weather::Frost, 0.6, 15); println!("EVENT: frost"); }
+
+        // the weather bites: frost and heat take it out of them
+        let bite: f32 = world.query::<game2_core::sim::weather::CurrentWeather>().iter()
+            .filter_map(|&e| world.get_component::<game2_core::sim::weather::CurrentWeather>(e))
+            .map(game2_core::sim::weather::health_effect).sum();
+        if bite != 0.0 {
+            for v in world.query::<game2_core::sim::illness::Health>() {
+                if let Some(h) = world.get_component_mut::<game2_core::sim::illness::Health>(v) {
+                    // the weather wears them down but never finishes the job -
+                    // illness and hunger are for that
+                    h.condition = (h.condition + bite).clamp(0.1, 1.0);
+                }
+            }
+        }
 
         // Player actions each 10 ticks
         if tick % 10 == 0 && tick > 0 {

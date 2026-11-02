@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 22,
-  "est_total_usd": 3.01
+  "count": 23,
+  "est_total_usd": 3.19
  },
  "prompts": [
   {
@@ -141,6 +141,21 @@
    "notes": "validates: inventory_items atlas mode + include_downloadable_data | one call draws a matched set; include_downloadable_data returns the item atlas"
   },
   {
+   "id": "sheet-villager-poses-5af51f87-smoke",
+   "tier": "p1",
+   "group": "sheets/sprites",
+   "title": "sheet villager poses",
+   "prompt": "small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping, consistent matched set",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "validates: spritesheet mode - matched pose grid in one call | one call returns the whole grid; slice per cell"
+  },
+  {
    "id": "ui-panel-e028fe6e-smoke",
    "tier": "p0",
    "group": "icons/ui",
@@ -153,7 +168,7 @@
     "num_images": 1
    },
    "est_cost_usd": 0.18,
-   "notes": "validates: ui_panel chrome"
+   "notes": "validates: ui_panel chrome | ui_panel draws a matched chrome set; slice per element"
   },
   {
    "id": "festival-summer-solstice-2724705f-smoke",

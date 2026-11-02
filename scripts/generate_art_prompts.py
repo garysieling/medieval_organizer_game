@@ -2,7 +2,8 @@
 """Build the Retro Diffusion prompt manifest for game2's art pass.
 
 Walks the game's asset taxonomy (seasons, biomes, tilesets, buildings,
-people, festivals, cultures, icons, future features) and emits a flat list
+people, festivals, cultures, icons, matched sheets, future features) and
+emits a flat list
 of generation prompts for https://retrodiffusion.ai/, with per-prompt
 request settings, cost estimates and stable ids.
 
@@ -451,18 +452,60 @@ add("icons/goods", "goods-sheet",
     style="rd_pro__inventory_items", w=256, h=256, remove_bg=False,
     notes="one call draws a matched set; include_downloadable_data returns the item atlas")
 
-# UI chrome: panels and window pieces.
+# More atlases: each $0.18 call replaces a bought item pack or a dozen
+# individual icon calls. 256x256 is the only size this style accepts.
+add("icons/goods", "tools-sheet",
+    "inventory item sheet: sickle, hoe, hammer, saw, chisel, axe, mallet, needle and thread, quill, trowel, smith's tongs, wood plane",
+    style="rd_pro__inventory_items", w=256, h=256, remove_bg=False, tier="p1",
+    notes="vocation workshop tools; include_downloadable_data returns the item atlas")
+add("icons/goods", "food-sheet",
+    "inventory item sheet: bread loaf, cheese wheel, ale mug, honey jar, dried fish, egg basket, milk jug, apples, pottage bowl, turnips, peas, fuel faggot bundle",
+    style="rd_pro__inventory_items", w=256, h=256, remove_bg=False, tier="p1",
+    notes="kitchen-garden and hearth foods, plus the fuel goods")
+add("icons/goods", "materials-sheet",
+    "inventory item sheet: log, dressed stone block, sand pile, pigment pot, cloth bolt, glass pane, paper sheet, ink pot, wool ball, tanned hide, candle, clay brick",
+    style="rd_pro__inventory_items", w=256, h=256, remove_bg=False, tier="p1",
+    notes="raw and crafted materials for the production chains")
+
+# UI chrome: panels and window pieces. ui_panel returns a matched chrome set
+# per call, so the kit-level prompts below cover a whole UI for ~$0.18 each.
 for slug, subj in [
     ("panel", "carved wooden-framed parchment UI panel, empty centre"),
     ("button", "wooden game button, unpressed"),
     ("villager-card", "character card panel with portrait frame and stat rows"),
     ("log-box", "long thin parchment scroll log box"),
+    ("ui-kit", "complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment"),
+    ("hud-bar", "game HUD strip: resource counters with icon slots, meter frames, season and date display"),
+    ("window-set", "set of matching medieval game windows: title bar, dialog box, tooltip, modal frame"),
+    ("inventory-grid", "empty inventory grid panel with item slots and a character paper-doll frame"),
     ("title-keyart", "sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art"),
     ("end-screen", "quiet dusk view of a medieval village, lamps lit, end-of-game mood"),
 ]:
-    add("icons/ui", f"ui-{slug}", subj + (", game UI element" if "panel" in slug or "button" in slug or "box" in slug or "card" in slug else ""),
-        style="rd_pro__ui_panel" if any(k in slug for k in ("panel", "button", "card", "box")) else "rd_pro__painterly",
-        w=256, h=256, remove_bg=False, n=1)
+    painterly = slug in ("title-keyart", "end-screen")
+    add("icons/ui", f"ui-{slug}", subj + ("" if painterly else ", game UI element"),
+        style="rd_pro__painterly" if painterly else "rd_pro__ui_panel",
+        w=256, h=256, remove_bg=False, n=1,
+        notes=None if painterly else "ui_panel draws a matched chrome set; slice per element")
+
+# ---------------------------------------------------------------------------
+# Matched sprite sheets: rd_pro__spritesheet returns a grid of same-style
+# assets or poses on a plain ground. One call = a whole set that would
+# otherwise be a bought sprite pack or a run of single-asset calls.
+
+for slug, subj in [
+    ("villager-poses", "small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping"),
+    ("villager-variants", "small chibi medieval peasant villagers, varied tunic colours and hair, front view, full body"),
+    ("cottage-construction", "isometric medieval cottage construction stages: foundation stones, timber frame, half-roofed, finished thatch"),
+    ("tree-growth", "isometric oak tree growth stages: sapling, young tree, mature, ancient"),
+    ("crop-growth", "isometric wheat field patch growth stages: bare soil, green shoots, half-grown, ripe golden heads"),
+    ("guard-poses", "small medieval town guard with spear: standing, marching, ready stance, saluting"),
+    ("cottage-seasons", "the same isometric medieval cottage in four seasons: spring green, summer lush, autumn gold, winter snow"),
+    ("farm-animals", "small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow"),
+    ("visitor-pack", "small chibi travelling medieval figures: pedlar with pack, pilgrim with staff, friar in habit, minstrel with lute, beggar with bowl"),
+]:
+    add("sheets/sprites", f"sheet-{slug}", subj + ", consistent matched set",
+        style="rd_pro__spritesheet", w=256, h=256, remove_bg=False, tier="p1",
+        notes="one call returns the whole grid; slice per cell")
 
 # ---------------------------------------------------------------------------
 # P1: festival modes - the four solstice/equinox occasions.
@@ -629,6 +672,148 @@ for slug, s in SCENES:
 # P2: cultures - the 20 traditions in the creativity corpus. Each gets a
 # villager pair + a house style + a motif so regions read differently.
 
+# ---------------------------------------------------------------------------
+# Rare events (session/events.rs). Every Visitor stands a pitch and cries a
+# trade - each needs its own figure; today all draw traveller_s. Moments and
+# Spells are map phenomena: an icon for the toast, plus an in-world tile for
+# the creatures and props that stand on the ground.
+
+EVENT_VISITORS = [
+    ("tinker", "itinerant tinker with a pack of kettles and pots on his back"),
+    ("knife-grinder", "knife-grinder at a foot-treadle grindstone, sparks"),
+    ("rag-and-bone", "rag-and-bone man with a sack of rags over his shoulder"),
+    ("chimney-sweep", "sooty chimney sweep with brush and rods"),
+    ("rat-catcher", "rat-catcher with a terrier and a pole of dead rats"),
+    ("dowser", "water-diviner with a forked hazel wand held out before him"),
+    ("scribe", "itinerant scribe with a writing slope and quill case"),
+    ("tooth-drawer", "travelling tooth-drawer holding up iron pincers"),
+    ("barber-surgeon", "barber-surgeon with basin and fleam, rolled sleeves"),
+    ("pilgrims", "three weary pilgrims with staffs and scallop badges"),
+    ("relic-seller", "relic-seller holding a tiny sealed reliquary box"),
+    ("pardoner", "pardoner flourishing a sealed parchment indulgence"),
+    ("juggler", "juggler tossing three knives, one foot up"),
+    ("bear-ward", "bear-ward leading a muzzled brown bear on a rope"),
+    ("puppeteer", "puppeteer beside a small striped puppet booth"),
+    ("ballad-monger", "ballad-monger holding up printed broadside sheets"),
+    ("news-crier", "town crier with a bell and a scroll"),
+    ("recruiter", "recruiting sergeant in a sash, coin purse held out"),
+    ("deserter", "ragged deserter, half-worn soldier's coat, wary look"),
+    ("refugee-family", "refugee family: mother, father, two children, bundled goods"),
+    ("leper-band", "two hooded lepers with a clapper and begging bowl"),
+    ("friar", "wandering friar in a brown habit, bare feet"),
+    ("quiet-preacher", "plain-clothed hedge preacher, hands open, no vestments"),
+    ("drover", "drover with a long stick guiding a knot of sheep"),
+    ("fish-hawker", "fish-hawker with a creel basket of silver fish"),
+    ("salt-seller", "salt-seller with a sack and a cup of white salt"),
+    ("wool-merchant", "wool merchant in a good cloak, scale in hand"),
+    ("wine-merchant", "wine merchant with a small cask and a tasting cup"),
+    ("spice-merchant", "spice merchant with bright packets of pepper and cloves"),
+    ("bookseller", "bookseller with a tray of small bound volumes"),
+    ("glazier", "glazier carrying a leaded glass pane and a glass-cutter"),
+    ("thatcher", "thatcher with a bundle of reed and a leggett tool"),
+    ("well-digger", "well-digger with a shovel and rope over his shoulder"),
+    ("charcoal-burner", "charcoal-burner in a soot-stained smock, coal bag"),
+    ("lime-burner", "lime-burner with a grey dust coat and lime shovel"),
+    ("tanner", "tanner with rolled hides on his shoulder, stained apron"),
+    ("candle-maker", "candle-maker carrying a dipper frame hung with candles"),
+    ("potter", "travelling potter with a crate of crocks and jugs"),
+    ("horse-coper", "horse-coper holding a halter, appraising look"),
+    ("eggler", "eggler with a basket of eggs and a butter crock"),
+    ("cheese-monger", "cheese-monger carrying a whole round cheese"),
+    ("fortune-teller", "fortune-teller in bright shawls, palm held out"),
+    ("astrologer", "astrologer with a star chart and brass astrolabe"),
+    ("alchemist", "alchemist in a stained robe, odd vials at his belt"),
+    ("quack", "medicine-show quack holding a small bottled elixir"),
+    ("midwife", "midwife with a basket of linen and herbs"),
+    ("sowgelder", "pig man with a small knife roll and a patient air"),
+    ("farrier", "farrier with a hoof pick and a horseshoe held high"),
+    ("corn-factor", "corn-factor with a grain measure and a tally stick"),
+    ("messenger", "messenger in a badge, letter held out before him"),
+    ("prodigal", "travel-worn returned son, staff and a hopeful look"),
+]
+for slug, subj in EVENT_VISITORS:
+    person("events/visitors")(slug, subj)
+
+# In-world tiles: creatures and props that stand on the map during the event.
+EVENT_TILES = [
+    ("wolf", "grey wolf at a sheep pen, crouched"),
+    ("fox", "red fox slinking near a hen run"),
+    ("hawk", "stooping hawk with wings tucked, mid-dive"),
+    ("rat-swarm", "a mob of rats pouring across the ground"),
+    ("locust-cloud", "a dense cloud of locusts over a field"),
+    ("caterpillar", "fat green caterpillar on a leaf"),
+    ("starling-flock", "a wheeling murmuration of starlings"),
+    ("bee-swarm", "a swarm of bees around a hollow tree trunk"),
+    ("deer", "red deer doe grazing in a crop field"),
+    ("wild-boar", "wild boar rooting in a furrow"),
+    ("barn-owl", "white-faced barn owl perched on a roof beam"),
+    ("crow-mob", "a mob of crows settling on a field"),
+    ("leaping-fish", "silver fish leaping in the shallows"),
+    ("truffle-pig", "pig nosing the ground under an oak"),
+    ("bear", "large muzzled dancing bear on a rope"),
+]
+for slug, subj in EVENT_TILES:
+    add("events/creatures", f"creature-{slug}", f"{ISO}: {subj}",
+        style="rd_tile__tile_object", w=64, h=64, tier="p1")
+
+EVENT_PROPS = [
+    ("bee-tree", "hollow oak with bees at a knothole, honeycomb edge"),
+    ("honey-tree", "tree hung with dripping wild honeycomb"),
+    ("fallen-oak", "giant old oak fallen across a lane, split trunk"),
+    ("old-stones", "ancient dressed stones half-buried in a furrow"),
+    ("spring", "fresh spring bubbling up between rocks, clear water"),
+    ("truffle", "black truffle in leaf litter, a hand reaching"),
+    ("mushroom-cluster", "cluster of wild mushrooms under a tree"),
+    ("berry-bush", "hedge bush heavy with dark berries"),
+    ("herb-clump", "clump of flowering medicinal herbs by a hedge"),
+    ("coin-hoard", "half-buried clay pot spilling old silver coins"),
+    ("cart-overturned", "overturned handcart spilling sacks on a lane"),
+    ("fouled-well", "village well with green scum on the water"),
+    ("granary-leak", "grain store with wet sacks and drips from the eaves"),
+    ("chimney-fire", "cottage chimney with smoke and a lick of flame"),
+    ("drowned-pond", "village pond with a small ring of ripples and a dropped basket"),
+    ("lost-child", "small child's dropped toy at a wood's edge"),
+    ("foundling", "wrapped infant in a basket on a church doorstep"),
+    ("quarrel", "two villagers face to face, fists up, small crowd"),
+    ("driftwood", "driftwood, a broken barrel and rope on a river strand"),
+    ("storm-leavings", "scattered planks and a staved barrel after a storm"),
+]
+for slug, subj in EVENT_PROPS:
+    add("events/props", f"prop-{slug}", f"{ISO}: {subj}",
+        style="rd_tile__tile_object", w=64, h=64, tier="p1")
+
+# Toast icons for moments and spells (the sky/weather/social events with no
+# standing figure or tile of their own).
+EVENT_ICONS = [
+    ("hailstorm", "white hailstones bouncing off a roof"),
+    ("heat-wave", "shimmering heat lines over dry crops"),
+    ("drought", "cracked dry earth under a pale sun"),
+    ("flood", "brown river water risen over a bank"),
+    ("lightning", "a single lightning bolt striking a field"),
+    ("late-frost", "white frost on a green sprout"),
+    ("indian-summer", "golden warm haze over autumn fields"),
+    ("first-snow", "first thin snowflakes over a cottage"),
+    ("thaw", "dripping icicle melting into a puddle"),
+    ("aurora", "green aurora ribbons over a village at night"),
+    ("meteor-shower", "streaking meteors in a night sky"),
+    ("blood-moon", "large red moon over rooftops"),
+    ("dark-noon", "black disc of an eclipse over a pale sky"),
+    ("windstorm", "bent trees and flying thatch in wind"),
+    ("mirage", "shimmering false city on the horizon"),
+    ("alehouse-brawl", "two tankards clashing, spilled ale"),
+    ("assize", "weighing scales with a loaf and a tankard"),
+    ("cellar-thief", "dark figure slipping out of a cellar door with a sack"),
+    ("lost-child-icn", "small empty shoe beside a path"),
+    ("foundling-icn", "basket with a swaddled bundle"),
+    ("quarrel-icn", "two raised fists face to face"),
+    ("thief-icn", "shadowed hand lifting a jar"),
+]
+for slug, subj in EVENT_ICONS:
+    add("events/icons", f"event-{slug}", f"small game UI icon of {subj}, simple, readable at tiny size",
+        style="rd_mini__skill_icon", w=32, h=32, n=4,
+        notes="batch of 4 variants; keep the clearest")
+
+
 def cultures():
     try:
         with open(CULTURES_TSV, encoding="utf-8") as f:
@@ -739,6 +924,12 @@ for slug, subj in FUTURE_GOODS:
     add("future/goods", f"good-{slug}", f"small game item icon of {subj}",
         style="rd_mini__topdown_item", w=32, h=32, n=2, tier="p2")
 
+# The same list as one matched atlas - far cheaper per item than the calls above.
+add("future/goods", "future-goods-sheet",
+    "inventory item sheet: cheese wheel, wine bottle, ale mug, honey jar, perfume bottle, mushroom basket, dried herb bundle, dried fish, pasta noodles, wool ball, milk jug, egg basket, mead bottle, cider jug",
+    style="rd_pro__inventory_items", w=256, h=256, remove_bg=False, tier="p2",
+    notes="atlas alternative to the good-* calls above; include_downloadable_data returns the item atlas")
+
 # ---------------------------------------------------------------------------
 # ANIMATED tier: premium. Prompt-driven animations from text alone, plus the
 # advanced-animation styles that animate an input_image (two-stage: first
@@ -845,6 +1036,7 @@ SMOKE = [
     ("icon-talk", "mini icon readability at tiny size"),
     ("good-bread", "mini item icon"),
     ("goods-sheet", "inventory_items atlas mode + include_downloadable_data"),
+    ("sheet-villager-poses", "spritesheet mode - matched pose grid in one call"),
     ("ui-panel", "ui_panel chrome"),
     ("festival-summer-solstice", "wide isometric scene"),
     ("walk4-peasant-m", "prompt-driven 4-angle walk GIF"),

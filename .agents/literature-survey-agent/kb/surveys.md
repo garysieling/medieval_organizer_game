@@ -1,7 +1,7 @@
 # Completed Surveys
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.2.0
 
 ## Summary
@@ -459,3 +459,533 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 **Tags:** art-history, medieval-art, Byzantine, Romanesque, Gothic, aesthetics, Kant, beautiful-vs-sublime, color-symbolism, gold-leaf, lapis-lazuli, atmosphere-design, visual-direction, illuminated-manuscripts, religious-art, Hume, aesthetic-theory
 
 ---
+
+### Historical Campaigns of Community Organizing (USER-REQUESTED DEEP DIVE)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement History / Community Organizing Case Studies
+**Output:** wiki/literature-reviews/organizing-historical-campaigns.md
+**Yield:**
+- Wide-net case survey: apartheid, civil rights, farmworkers, Stonewall/gay liberation, women's property rights & suffrage, women in ministry, IAF/broad-based organizing, labor, abolition, climate organizing + quick-list (Gandhi, Otpor, ACT UP, disability rights, tenant organizing)
+- Cross-case synthesis: 7 "what worked" patterns (political jiu-jitsu, specific demands, institutional anchoring, coalition breadth, pillar defection, nonviolent discipline, parallel institutions) + 7 "what failed" patterns (diffuse asks, spontaneity w/o org, charismatic bottlenecks, victory-then-disband, infiltration vulnerability, purity spirals, tactical stagnation)
+- 7 mechanics: campaign structure, pillars of support, repression backfire/jiu-jitsu, institutional anchoring, leadership pipeline, ask specificity, coalition breadth
+
+**Key Sources:**
+- Chenoweth & Stephan, *Why Civil Resistance Works* + NAVCO dataset - A+
+- Chenoweth 3.5% rule updates - A
+- King Institute (Stanford) Birmingham materials - A
+- Swarthmore Global Nonviolent Action Database - A
+- Zumes on non-violent action vs apartheid (SAHO) - A
+- NPS / Library of Congress / SA History Online movement histories - B+/A
+- Hobson, Stonewall NPS Scholars' Workshop - A
+- Fossil-fuel divestment systematic review (WIREs 2024) - A
+
+**Confidence:** High
+**Tags:** social-movements, organizing-history, campaigns, apartheid, civil-rights, farmworkers, stonewall, suffrage, ordination, IAF, labor, abolition, climate-organizing, nonviolent-resistance, pillars-of-support, political-jiu-jitsu, NAVCO, Chenoweth
+
+---
+
+### Counter-Organizing: Repression, Infiltration, Controlled Opposition, False Flags (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement Repression / State & Corporate Counter-Intelligence History
+**Output:** wiki/literature-reviews/organizing-countertactics.md
+**Yield:**
+- COINTELPRO tactic taxonomy (snitch-jacketing, provocateurs, fomenting rival-group violence, personal attacks, decapitation, reputation poisoning, counterfeit literature, media manipulation, police coordination) — 2,370 documented actions
+- Corporate counter-organizing history: Pinkerton→FBI continuity, American Plan, Mohawk Valley Formula (9-step strikebreaking playbook), company unions/ERPs banned 1935
+- Controlled opposition patterns: company unions, bantustan leaders + Inkathagate, colonial indirect rule, co-option of moderates, astroturf
+- Documented false flags (Mukden, Gleiwitz, Mainila, Tonkin) + crisis exploitation pattern
+- Soft repression (reform absorption, NGO-ization, bureaucratization, selective enforcement, zone-flooding)
+- 10 counter-countertactics (assume-infiltration design, relational vetting, marshals/discipline, verify-don't-accuse, exploiting surveillance, distributed leadership, counter-intel, solidarity armor, independent press, legal infrastructure)
+- 7 mechanics: repression tech tree, trust/paranoia stat, controlled-opposition events, provocateur events, manufactured crisis, Mohawk Valley counter-AI, counter-intel abilities
+
+**Key Sources:**
+- Church Committee Reports (US Senate 1976), Books II-III - A+
+- Garrow on FBI informants (Public Historian 1988) - A
+- Pinkerton-to-G-Man transition research - A-
+- Smith & Tennent (ERPs), Kaufman (company unions) - A
+- UK Undercover Policing Inquiry / Mark Kennedy case - A
+- Nuremberg (Gleiwitz), declassified NSA (Tonkin), Soviet archives (Mainila) - A+
+- Inkathagate / TRC record - A
+
+**Confidence:** High
+**Tags:** countertactics, COINTELPRO, infiltration, agent-provocateur, snitch-jacketing, controlled-opposition, company-unions, astroturf, false-flag, pinkerton, mohawk-valley-formula, divide-and-rule, repression, church-committee, counter-countertactics, paranoia
+
+---
+
+### ROUND 2: The Enforcement Problem - How Wins Are Defended (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement History / Post-Victory Dynamics
+**Output:** wiki/literature-reviews/organizing-enforcement-and-defense.md
+**Yield:**
+- Core asymmetry: movements disband after winning, losers reorganize — counter-movements play 50-year games
+- Cases: Reconstruction→Redemption (catastrophic loss), VRA→Shelby County, UFW→ALRB capture, suffrage→service-org conversion, labor→Taft-Hartley erosion, Roe→49-year counter-movement win, Keystone→ISDS counter-suit, disability 504→ADA (positive case)
+- 7 post-victory failure modes; enforcement-form strength tiers (norm < litigation < agency < self-executing mechanism < beneficiary-owned institution)
+- 5 mechanics: win-decay + maintenance, enforcement tiers, counter-movement timer, demobilization temptation events, watchdog role
+
+**Key Sources:**
+- Foner Reconstruction historiography - A+
+- Shelby County v. Holder + documented aftermath - A+
+- ALRB capture / UFW collapse records - A
+- Anti-abortion 49-year infrastructure scholarship - A
+- TC Energy ISDS claim - A
+
+**Confidence:** High
+**Tags:** enforcement, post-victory, counter-movement, demobilization, reconstruction, shelby-county, agency-capture, win-decay, watchdog, roe-backlash, institutionalization
+
+---
+
+### ROUND 2: Campaign Engineering Masters (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement History / Campaign Craft
+**Output:** wiki/literature-reviews/organizing-campaign-masters.md
+**Yield:**
+- 4 master-campaign dissections: Salt March 1930 (ungrantable-or-undefendable demand, narrative arc, Chauri Chaura discipline precedent), Otpor (branding, laughtivism, arrest-training, pillar outreach, CANVAS export + its limits vs full-repression regimes), ACT UP (spectacle-outside/expertise-inside double structure, pipeline chokepoint targeting), 504 sit-in (coalition matrix, Panther logistics, unspinnable optics, sequel designed)
+- Meta-pattern: master campaigns architect situations where every opponent response advances the movement (decision-tree rule)
+- 6-layer design stack: demand, participation cost, media arc, discipline, pillar work, logistics
+- 5 mechanics: campaign design phases, decision-tree evaluation, exportable playbooks + counter-adaptation, logistics resource, discipline stat
+
+**Key Sources:**
+- Salt March historiography (Dalton) - A+
+- Otpor/CANVAS documentation + Color Revolution scholarship - A/B+
+- ACT UP FDA/NIH reform record - A
+- 504 sit-in (Smithsonian, NPS, Longmore oral histories, DSQ) - A/A+
+
+**Confidence:** High
+**Tags:** campaign-engineering, salt-march, gandhi, otpor, canvas, act-up, section-504, disability-rights, laughtivism, political-ju-jitsu, logistics, nonviolent-discipline, export-playbooks
+
+---
+
+### ROUND 2: The Modern Counter-Playbook (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Contemporary Authoritarian Practice / Civil Society Repression
+**Output:** wiki/literature-reviews/organizing-modern-counter-playbook.md
+**Yield:**
+- 3 structural shifts vs COINTELPRO era: privatization (TigerSwan), legalization (foreign-agent laws, anti-protest statutes, RICO), digitalization (Pegasus, facial recognition, data brokers)
+- TigerSwan @ Standing Rock as fullest documented private counter-insurgency (leaked docs: infiltration, jihadist framing, fake reporters, police liaison, $175k fine as cost-of-business)
+- Foreign-agent law proliferation (Russia 2012 archetype → Georgia, Hungary, Kyrgyzstan, Slovakia)
+- Lawfare inventory: critical-infrastructure statutes, Cop City RICO/domestic-terror charges, Energy Transfer v. Greenpeace $660M verdict
+- 7 counter-adaptations; 5 mechanics: repression-as-market, legalization track, administrative attrition, surveillance asymmetry, lawfare events
+
+**Key Sources:**
+- Intercept/Grist TigerSwan leaks - A
+- HRW foreign-agent playbook + CSCE briefing - A
+- Citizen Lab Pegasus forensics - A+
+- Energy Transfer v. Greenpeace (court record) - A
+- ICNL anti-protest tracker, UK statutes - A
+
+**Confidence:** High
+**Tags:** modern-repression, foreign-agent-laws, tigerswan, standing-rock, privatized-surveillance, pegasus, nso, lawfare, slapp, cop-city, rico, greenpeace-verdict, spyware, legalized-repression
+
+---
+
+### ROUND 2: Movement Information Infrastructure (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Media History / Movement Communications
+**Output:** wiki/literature-reviews/organizing-information-infrastructure.md
+**Yield:**
+- Petition machinery as structure-test-with-artifact (130k+ petitions 1837-38; gag-rule backfire as deliberate Streisand-effect prototype; women canvassers 50%+ more effective → suffrage leadership pipeline)
+- Movement press ownership (Freedom's Journal, Liberator, El Malcriado, samizdat, Radio Freedom)
+- Meeting infrastructure (church pulpit = pre-installed broadcast; house meetings; taverns/mutual-aid halls)
+- Brand/symbol systems (raised fist lineage, UFW eagle, Silence=Death, Otpor stencil - replication cost vs recognition depth)
+- Digital era + Tufekci's tactical freeze (networked mobilization outpaces org capacity)
+- 3-channel properties (ownership, replication cost, suppression asymmetry); 5 mechanics: channel stats, petition artifacts, suppression backfire roll, venue assets, brand propagation
+
+**Key Sources:**
+- APSR antislavery petition dataset study (2014) - A+
+- House History/National Archives gag-rule records - A+
+- Tufekci *Twitter and Tear Gas* - A
+- Movement press/samizdat/clandestine radio histories - A/B+
+
+**Confidence:** High
+**Tags:** information-infrastructure, petition-machinery, gag-rule, movement-press, samizdat, church-pulpits, broadcast-networks, brand-symbols, silence-death, indymedia, tactical-freeze, tufekci, suppression-backfire, streisand
+
+---
+
+### ROUND 2: Movement Internal Structure — Decisions, Meetings, Training (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Social Movement Sociology / Participatory Democracy / Movement Pedagogy
+**Output:** wiki/literature-reviews/organizing-internal-structure.md
+**Yield:**
+- Freeman's structurelessness problem: informal elites are inevitable and unaccountable; rap groups founder when they try to act; the fix is accountable delegated roles, not hierarchy
+- Snow et al. frame alignment taxonomy (bridging/amplification/extension/transformation) — alignment is a necessary, ongoing condition for participation; maps directly onto Framing grumbles
+- Polletta: failures come from modeling democracy on friendship/tutelage; consensus = commitment + slowness + splinter-risk, majority = speed + permanent minority, spokescouncils = the scaling unlock
+- Highlander/Citizenship Schools as the leadership multiplier: noncharismatic teachers, hidden venues, train-the-trainer replication (37 Sea Island schools → ~100k trained under SCLC)
+- 6 mechanics: alignment-as-participation-gate, seats-as-accountability/shadow elite, decision rules, frame work as meeting action, train-the-trainer, hidden schools
+
+**Key Sources:**
+- Freeman "Tyranny of Structurelessness" (1970/72) - A+
+- Snow, Rochford, Worden & Benford, ASR 51(4) 1986 (6.5k citations) - A+
+- Polletta *Freedom Is an Endless Meeting* (2002) + consensus encyclopedia entry - A
+- King Institute Highlander records; J. Am. Hist. CEP study; HEQ Highlander pedagogy - A
+
+**Confidence:** High
+**Tags:** internal-structure, tyranny-of-structurelessness, informal-elites, delegation, frame-alignment, snow-benford, consensus, majority-vote, spokescouncil, participatory-democracy, polletta, highlander, citizenship-schools, septima-clark, train-the-trainer, meeting-craft
+
+---
+
+### ROUND 3: Anti-Colonial Campaign History (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Colonial/Decolonial History, Insurgency & Counter-Insurgency
+**Output:** wiki/literature-reviews/organizing-anticolonial-campaigns.md
+**Yield:**
+- Haiti: Bois Caiman as fused org+ritual (commandeur networks + maroons + blood oath); conspirators' fake royal-decree disinfo; indemnity counter-attack (post-victory economic isolation)
+- Ireland Land War: boycott invented (Ennis speech); boycotting primarily as insider discipline; Ladies' Land League = pre-built succession redundancy (decapitation insurance)
+- Algeria/FLN: cells + parallel state; two Battles of Algiers (mass brutal vs surgical bleuite infiltration); torture's strategic self-defeat; Galula hearts-and-minds paradox (even the clean doctrine failed vs structural legitimacy deficit)
+- Counter-insurgency doctrine inventory: quadrillage, population control, infiltration>raids, torture trap
+- Supporting: Setif atrocity radicalization debt, Viet Minh parallel governance, swadeshi, Palmares (90-year parallel state)
+- 5 mechanics: sacred binding infrastructure, ostracism as insider discipline, succession redundancy, COIN doctrine choice, deferred radicalization debt
+
+**Key Sources:**
+- Geggus Haitian Revolutionary Studies + Bois Caiman analyses - A
+- Land League/Parnell Ennis speech (primary) + BAHS organizational study - A
+- DTIC/RAND Battle of Algiers studies - A
+- J Cold War Studies guerre revolutionnaire + Galula limits - A
+- CLR James Black Jacobins - A+
+
+**Confidence:** High
+**Tags:** anticolonial, haiti, bois-caiman, land-league, boycott, ladies-land-league, algeria, fln, battle-of-algiers, bleuite, galula, counterinsurgency, setif, palmares, maroons, succession-redundancy, torture-paradox
+
+---
+
+### ROUND 3: Messianic & Prophetic Movements (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval/Early-Modern Religious Movements, Millenarianism
+**Output:** wiki/literature-reviews/organizing-messianic-prophetic.md
+**Yield:**
+- Cohn framework: prophets from lower clergy/marginal intellectuals; constituency = rootless poor; narrative = golden age→corruption→imminent overturn
+- Cases: Drummer of Niklashausen (30-70k mobilized in weeks, one arrest ended it), Müntzer/Peasants' War (prophetic legitimacy ≠ military competence, Frankenhausen annihilation), Münster (prophetic takeover→authoritarian capture, cages as memorial deterrence), Savonarola (prophet rules a republic via institutional cover, ends when sponsors withdraw), Flagellants (leaderless replication = leaderless drift), Free Spirit (meme without org)
+- Prophet-vs-organizer archetype table; deep patterns (prophecy solves collective action; deadline as kill-switch; single point of failure; capture vulnerability; martyrdom double-edge)
+- 5 mechanics: prophetic mobilization growth mode, millenarian timer, martyrdom roll, prophetic capture events, institutional-cover dependency
+
+**Key Sources:**
+- Cohn *Pursuit of the Millennium* (1957/1970) - A (classic; contested on modern-totalitarianism linkage)
+- Wunderli *Peasant Fires* - A
+- Peasants' War/Münster/Savonarola historiography - A
+
+**Confidence:** High
+**Tags:** messianic, prophetic, millenarian, cohn, niklashausen, muntzer, munster, anabaptist, savonarola, flagellants, free-spirit, charismatic-mobilization, deadline-movement, martyrdom, authoritarian-capture
+
+---
+
+### ROUND 3: Pre-Modern Resistance Organizations (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Religious/Social Movements, Heresy & Persecution
+**Output:** wiki/literature-reviews/organizing-premodern-resistance.md
+**Yield:**
+- Survivors: Waldensians (800yr clandestine parallel church - dissimulation as doctrine), Hussites (wagon-fort wins + Compactata negotiated settlement; moderate-militant split exploited at Lipany), Lollards (text-based persistence), Remenca (rare negotiated WIN - Sentencia 1486 abolished serfdom via crown-as-arbiter pillar defection)
+- Institutional fork: Francis (absorbed - capture-by-incorporation) vs Dominicans (counter-movement order that staffed the Inquisition - power answers organizing with parallel organizing)
+- Insurrection failures: Bundschuh (network kept warm between attempts), 1381 (Tyler killed AT negotiation - negotiate-and-decapitate countertactic), Jacquerie (pure spontaneity), Ciompi (movement-to-administration gap)
+- INQUISITION AS MEDIEVAL COUNTER-INTEL: Fournier register/Montaillou (dossiers, informers, flipped penitents); Bernard Gui manual; grace-period amnesty = informer harvest; secret denunciation; relapse=death engineered informer class; tolerated freelance inquisitors
+- 5 mechanics: hidden-institution form, inquisition counter-cycle, relapse/penitent mechanic, negotiate-and-decapitate event, moderate-split exploitation
+
+**Key Sources:**
+- Le Roy Ladurie *Montaillou* / Fournier register - A+
+- Bernard Gui *Practica Inquisitionis* - A+ (primary manual)
+- Biller *The Waldenses* - A
+- Hussite/Remenca/Peasants' Revolt scholarship - A
+
+**Confidence:** High
+**Tags:** premodern, waldensians, hussites, lollards, remenca, inquisition, fournier, montaillou, bernard-gui, heresy, underground-church, wagon-forts, negotiate-and-decapitate, relapse-informers, franciscans, dominicans, bundschuh, jacquerie, ciompi
+
+---
+
+### ROUND 3: Secret Societies & Oath Networks (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Clandestine Organization History, Ritual & Trust Economics
+**Output:** wiki/literature-reviews/organizing-secret-societies.md
+**Yield:**
+- Core tech: oath as costly-signal commitment device; staged degrees; passwords/recognition protocols (Fenian ritual documented); cover functions
+- Carbonari (vendite cells + ritual; Mazzini's critique: secrecy outlived function = ritual drift), Fenians/IRB (Le Caron 25-year deep infiltration; dual open+clandestine architecture; diaspora funding), Mau Mau (oath as sophisticated mass-binding; British counter-oathing cleansing ceremonies + villagization), Triads (mutual aid + rebellion dual function; 300yr persistence via service), Tolpuddle (oath itself criminalized 1834 - prosecution created the founding myth), Freemasonry (the template; anti-Masonic counter-movement shows 'secret cabal' frame as weapon)
+- Failure modes: ritual drift, penetration, informer-class flips, isolation from legitimacy, conspiracy frame vulnerability
+- Function map: secret vs open forms across trust/comm/coordination/legitimacy/scale/survival; secret society = wartime form, must convert to win
+- 5 mechanics: oath intensity tech, cover function, penetration timer, counter-ritual enemy action, dual-org architecture
+
+**Key Sources:**
+- Rath on Carbonari (AHR 1964) - A
+- Mau Mau oath scholarship (Kershaw; Rice thesis) - A
+- Fenian ritual + Le Caron account - A
+- ter Haar on Triads - A
+- Tolpuddle records - A
+
+**Confidence:** High
+**Tags:** secret-societies, oaths, carbonari, fenian, irb, mau-mau, oathing, counter-oathing, triads, tolpuddle, freemasonry, clandestine, infiltration, le-caron, ritual-drift, dual-org, cover-function, costly-signaling
+
+---
+
+### ROUND 2: The Dungeon — Imprisonment & Release Campaigns (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Prison Organizing / Recruitment Sociology
+**Output:** wiki/literature-reviews/organizing-prisons-and-release.md
+**Yield:**
+- Jasper & Poulsen moral shocks: strangers recruit via broadcast condensing symbols — a second channel beside network recruitment (the bystander mechanic)
+- Prisoner-as-organizer: Dunlop 1909 invented the hunger strike over status; Attica's 28-demand manifesto as inside-organizing; jailhouse-lawyer track
+- All-losing state responses: force-feeding = propaganda gift, Cat-and-Mouse Act = revolving-door absurdity + fugitives, hold-without-process = legitimacy drain
+- Amnesty adoption model: prisoner-as-charter, pressure = volume × time + elite prestige multiplier, response latency as a stat
+- 5 mechanics: Imprisoned-as-active-state, moral-shock stranger recruitment, jailer's dilemma, release-campaign pressure accumulator, adoption-as-charter
+
+**Key Sources:**
+- Jasper & Poulsen, Social Problems 42(4) 1995 - A+
+- UK Parliament / London Museum suffragette prison record - A/A+
+- Attica manifesto (Freedom Archives primary) + CR-CL/Race&Class historiography - A
+- Amnesty archive (AI@50, 1981 handbook, Urgent Action) - A
+
+**Confidence:** High
+**Tags:** imprisonment, dungeon, hunger-strike, force-feeding, cat-and-mouse, moral-shocks, condensing-symbols, jasper-poulsen, stranger-recruitment, attica, jailhouse-lawyer, amnesty, prisoner-of-conscience, release-campaign, pressure-accumulator, adoption-groups
+
+---
+
+### ROUND 3.5: The Faith-Power Interface (USER-REQUESTED, w/ Foucault comparison)
+**Date Completed:** 2026-10-31
+**Domain:** Sociology of Religion / Colonial Sociology / Institutional Power
+**Output:** wiki/literature-reviews/organizing-faith-and-power.md
+**Yield:**
+- Intermediary-class theory (Tilly brokerage, Fanon comprador, Weber routinization of charisma as THE co-option mechanism, Niebuhr church-sect drift, Gramsci hegemony, Stark religious economy)
+- Second Temple Judaism as complete typology: Sadducees (collaborator→destroyed), Pharisees (ambiguous intermediary→survived as rabbinic Judaism), Jesus movement (prophetic→captured by empire), Essenes (exit→archive), Zealots (revolt→annihilation)
+- Plantation intermediaries: drivers as structurally dual role (Genovese mediator thesis); paternalism bargain (legitimating ideology as contested resource - slaves weaponized the frame)
+- Slave Bible 1807 (literal redaction: 90% OT/50% NT cut, Exodus removed - faith-as-info-weapon); the double-edge church (Vesey/Turner/Montgomery on the same infrastructure)
+- Imperial co-option toolkit: Constantinian settlement (ur-case), Holy Synod, millet system, patronato, indirect rule, mission-educated comprador class → co-option backfire (Nkrumah/Mandela/Kenyatta were mission-schooled), state churches as controlled opposition, colonial communal categories
+- FOUCAULT: pastoral power→examination lineage; sovereign vs disciplinary; carceral continuum; church-as-intermediary = disciplinary institution avant la lettre; movements need counter-institutions producing counter-subjects
+- 6 mechanics: broker class, incorporation offers, redacted canon, paternalism bargain, disciplinary institutions layer, broker dilemmas
+
+**Key Sources:**
+- Niebuhr *Social Sources of Denominationalism* - A
+- Foucault (D&P, Madness, pastoral power) - A+
+- Genovese *Roll Jordan Roll* + driver scholarship - A
+- Slave Bible collections scholarship - A
+- Mission-education/intermediary-intellectual studies - A
+
+**Confidence:** High
+**Tags:** faith-power, intermediaries, brokers, co-option, pharisees, sadducees, plantation-drivers, paternalism, slave-bible, constantine, millet, indirect-rule, mission-schools, church-sect, foucault, pastoral-power, disciplinary-institutions, routinization-of-charisma
+
+---
+
+### ROUND 3.5: Critical Pedagogy & Movement Education (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Critical Pedagogy / Popular Education / Movement Schools
+**Output:** wiki/literature-reviews/organizing-critical-pedagogy.md
+**Yield:**
+- Author list: Freire, Boal, Horton/Highlander, hooks, Illich, Bourdieu&Passeron, Gramsci, Gutiérrez/liberation theology, Fals-Borda PAR, Giroux/McLaren, Rancière (counter-point), Du Bois, Dewey
+- 8 key insights: education never neutral (form teaches first); oppressor-within as deepest domination layer; praxis loop; community-teachers-only rule (organic intellectuals); agency not information as product; counter-institutions produce counter-subjects; research=organizing (PAR); embodied rehearsal (spect-actor)
+- Internal tensions documented: Freire vs Rancière (liberating teacher paradox), Freire vs Illich (transform vs dissolve), Horton vs Freire (practice vs theory)
+- 6 mechanics: internalized_domination stat, praxis loop skill growth, community-teacher requirement, spect-actor rehearsal, movement schools building, oppressor-within flip risk
+
+**Key Sources:**
+- Freire *Pedagogy of the Oppressed* - A+
+- Boal *Theatre of the Oppressed* - A+
+- Horton/Freire *We Make the Road by Walking* + Highlander historiography - A
+- Illich, Bourdieu&Passeron, Gramsci - A+
+- Gutiérrez + BEC scholarship - A
+- Fals-Borda PAR scholarship - A
+- Citizenship School records (~80% registration) - A
+
+**Confidence:** High
+**Tags:** critical-pedagogy, freire, boal, theatre-of-oppressed, highlander, citizenship-schools, septima-clark, illich, bourdieu, gramsci, organic-intellectuals, liberation-theology, becs, fals-borda, par, hooks, ranciere, conscientization, praxis, movement-schools, subject-production
+
+---
+
+### Hot-Pursuit: Ink Making - The Oil-Boiler's Fire
+**Date Completed:** 2026-10-31
+**Domain:** History of Technology, Medieval Crafts, Printing Ink
+**Output:** wiki/literature-reviews/ink-oil-boiling.md
+**Trigger:** Gary's remembered event - boil linseed oil in a cauldron, bread fries in it, mix in something black for ink. Confirmed real.
+**Yield:**
+- The oil-boiler/varnish-maker trade: linseed oil boiled for hours in a cauldron -> varnish (heat-bodied oil), the binder of printing ink and oil paint
+- Bread crusts + onions thrown into the boiling oil to degrease it (Encyclopedie) - the bread literally fries
+- Deliberate ignition practice: hot oil vapours allowed to catch fire, then smothered with wet linen or a metal lid; readiness tested by dripping on slate until "sticky like thin glue"
+- Lampblack (not ash - correction noted) from burning pitch/resin in a sac-a-noir sheepskin-lined soot chamber, beaten down with sticks
+- Fire/stench hazard pushed the craft outside walls: Cennini's enclosed stove, Encyclopedie's "wide space such as a garden", Pistoia's stench-craft banishment statute, English furnace-craft bylaws
+- Proposed mechanics: periodic oil-boiler event outside the gate, map fire-spread CA, acrolein stench grievance, local ink supply for the print shop
+
+**Key Sources:**
+- Cennini, Libro dell'Arte ch. XCI (c.1390s) - enclosed stove, "risk burning down the house", reduce by half - A+
+- Encyclopedie "Encre noir" (Diderot & d'Alembert) - bread crusts + onions, wet linen smothering, slate test, garden siting, sac-a-noir - A
+- NCBI Printing Processes and Printing Inks - oil ink for metal type, lampblack + linseed oil + rosin + driers - A
+- Savage/Stiber/Morenus, Pre-Industrial Western Printing Inks c.1450-1850 - A
+- "The Path to Pistoia", Past & Present 246 - stench crafts beyond walls - A
+
+**Confidence:** High
+**Tags:** ink-making, oil-boiling, linseed-oil, varnish, lampblack, sac-a-noir, printing-ink, Gutenberg, Cennini, Encyclopedie, fire-hazard, urban-zoning, stench-crafts, outside-the-walls, bread-crusts
+
+---
+
+### SYNTHESIS: The Organizing/Power Architecture (all 12 surveys unified)
+**Date Completed:** 2026-10-31
+**Domain:** Cross-domain synthesis / System Architecture
+**Output:** wiki/literature-reviews/organizing-synthesis-architecture.md
+**Yield:**
+- Unified model: 3 coupled systems (mobilization modes / subject-production / counter-playbook) across a 6-phase lifecycle (build→mobilize→campaign→win→enforce→defend)
+- Core finding: "win" is phase 3 of 5 — movements disband, losers reorganize
+- Org-form spectrum table (open/secret/prophetic/parallel-institution/anchored/crowd) with growth-strength-weakness-counter mappings
+- Subject-production layer (Foucault×Freire): both sides build institutions that manufacture citizen dispositions
+- Unified stats model: organized_power, perceived_power, discipline, paranoia, logistics, brand_saturation, win_integrity, penetration (org) + internalized_domination, critical_agency, courage, dignity, broker_duality (citizen) + legitimacy, repression_debt, perceived_threat (power-holder)
+- Actor taxonomy (organizer, organic leader, prophet, broker, watchdog, marshal, canvasser, infiltrator, informer class)
+- Doc-to-mechanic map + 5-phase implementation path (loop→enemy→depth→forms→long game) + design flags (ethics layer, prophet play, broker play, medieval theming)
+
+**Confidence:** High (synthesis of documented material)
+**Tags:** synthesis, architecture, organizing-systems, mobilization-modes, subject-production, counter-playbook, campaign-lifecycle, stats-model, actor-taxonomy, implementation-path
+
+---
+
+### ROUND 4: Cult Dynamics (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Psychology of Totalism / New Religious Movements
+**Output:** wiki/literature-reviews/organizing-cult-dynamics.md
+**Yield:**
+- Lifton's 3 markers (charismatic leader becomes object of worship; thought reform; exploitation of members)
+- 8-criteria toolkit as 8 dials (milieu control, mystical manipulation, demand for purity, cult of confession, sacred science, loading the language, doctrine over person, dispensing of existence)
+- Key insight: cult is a phase state, not a type - normal social mechanics at toxic dosage; emergent not scripted
+- Lifecycle: charismatic founder→idealistic recruits→isolation→exploitation scales→leader paranoia→collapse modes (implosion/capture/deadline/institutionalization)
+- Cult vs movement vs sect vs secret society comparison table
+- 6 mechanics: 8-dial totalism system, exploitation extraction loop, isolation mechanics, escalating-commitment bind, collapse modes, exit-assistance counters
+
+**Key Sources:**
+- Lifton *Thought Reform and the Psychology of Totalism* (1961/89) - A+
+- Jonestown scholarship (SDSU Institute) - A
+- NRM/church-sect-cult scholarship - A
+
+**Confidence:** High
+**Tags:** cults, lifton, thought-reform, totalism, charismatic-leader, thought-reform-8-criteria, milieu-control, jonestown, munster, nxivm, synanon, exit-cost, exploitation, cult-emergence
+
+---
+
+### ROUND 4: Hinduism, Caste & Faith (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Religious Sociology / South Asian History / Caste Systems
+**Output:** wiki/literature-reviews/organizing-hinduism-caste-faith.md
+**Yield:**
+- Caste machine: varna (scriptural schema) vs jati (~3000 real endogamous occupational groups); purity/pollution economics; sanskritization (mobility that reinforces the frame); Brahmin interpretation monopoly; temple economies
+- Bhakti counter-tradition: vernacular devotion bypassing Brahmin gatekeeping (Basava/Lingayat, Kabir, Ravidas, Chaitanya) - the Lollard/Waldensian pattern 500 years early
+- Mass-conversion phenomenon: 1M->5M Christians 1860-1930, ~80% via GROUP movements not individual (Shanars, Chuhras, Telugu, Mizos); Dalit-initiated, missions followed; rice-Christians dependency problem
+- Exploitation/hypocrisy layer: devadasi debates, anti-nautch campaign vs British patronage; Spivak 'white men saving brown women' rescue-discourse frame
+- Hindu counter-organizing: Arya Samaj shuddhi re-conversion missions (the Dominican move)
+- Modern Dalit organizing: Phule Satyashodhak Samaj, Ambedkar; 1956 Navayana mass conversion ~500k (exit-as-mass-movement-tactic)
+- 6 mechanics: hereditary stratification layer, interpretation monopoly lever, mass_defection campaign type, ambiguous liberation institutions, exit-as-tactic, hereditary servitude institutions
+
+**Key Sources:**
+- Pickett *Christian Mass Movements in India* (1933) + modern scholarship - A
+- Srinivas sanskritization/varna-jati sociology - A+
+- Bhakti studies - A
+- Phule/Ambedkar scholarship + Navayana records - A
+- Spivak 'Can the Subaltern Speak' - A+
+
+**Confidence:** High
+**Tags:** hinduism, caste, varna, jati, sanskritization, bhakti, lingayat, kabir, ravidas, dalit, mass-conversion, missionaries, devadasi, phule, ambedkar, navayana-buddhism, group-conversion, exit-as-protest, brahmin-gatekeeping, stratification
+
+---
+
+### ROUND 4: Doctrine Formation & Sacramental Politics (USER-REQUESTED)
+**Date Completed:** 2026-10-31
+**Domain:** Historical Theology / Church-State Relations / Sacramental Sociology
+**Output:** wiki/literature-reviews/organizing-doctrine-sacraments.md
+**Yield:**
+- Creeds as adversarial answer-documents (each clause excludes a defeated heresy; councils as dispute-resolution events; heresiology as enemy-naming genre)
+- Theology of pain: church ran pre-medicine pain-management infrastructure (redemptive suffering, sacraments-as-palliative, purgatory); anesthesia controversy 1847-53 (tech disrupting theodicy - the religion-economics feedback loop confirmed)
+- Sacraments as membership-assignment tech: baptism=citizenship (why rebaptism was capital crime - refused state-assigned ID; drowning punishments), communion=membership enforcement, host-desecration pogroms, BCP rebellions, interdict as siege weapon (Innocent III vs John)
+- State-church contest: cuius regio eius religio, Act of Supremacy (property as real prize), Kulturkampf (failed vs anchored institution), Jesuit suppression/restoration
+- Wesley's accidental schism: field preaching (jurisdiction bypass), class-meeting parallel church, lay preachers, 1784 ordinations, hymns as vernacular doctrine - institution-building outrunning intent
+- Pacifist nonconformity: Quaker oath/hat/tithe refusals (declining deference-tech itself), Martyrs Mirror as memory infrastructure
+- 7 mechanics: creed-builder ledger, council events, affliction_load/theodicy stat, sacraments-as-membership-infrastructure, interdict-type collective punishment, accidental-schism emergence, deference-refusal action class
+
+**Confidence:** High
+**Tags:** doctrine, creeds, councils, nicaea, theology-of-pain, anesthesia, sacraments, baptism, anabaptist, communion, interdict, state-church, cuius-regio, wesley, methodism, schism, quakers, martyrs-mirror, heresiology
+
+---
+
+### ROUND 4: Religious Institutions Deep-Dive (USER-REQUESTED continuation)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Church History / Institutional Sociology
+**Output:** wiki/literature-reviews/organizing-religious-institutions-deep.md
+**Yield:**
+- Relic/saint economy: canonization as brand management; relics as ultimate collateral (Louis IX's Crown of Thorns > Sainte-Chapelle cost); furta sacra sacred theft (Venice's St. Mark heist); Reformation iconoclasm as legitimacy-market crash; pilgrimage economy
+- Monastic orders as proto-multinationals: Benedict's Rule as 1500yr org charter; Cistercian franchise model (~750 abbeys, lay-brother labor, granges); accumulation trap (durability->wealth->expropriation); Jesuit suppression/restoration (killable order, unkillable network)
+- Councils as constitutional machinery: Nicaea (emperor convenes/enforces), Constance (3 rival popes -> council deposes all, elects Martin V - conciliarism), Trent (18yr counter-doctrine production), Vatican II (self-loosening for competition)
+- Mystics' suppression = license-to-prophesy gate: Porete burned 1310 (heresy of ACCESS not content), Eckhart posthumous condemnation, beguines eliminated as unclassifiable female autonomy, Joan of Arc (mystic->military->martyr->saint); two-paths rule (submit experience to doctrine=canonized; claim it suffices=eliminated)
+- 5 mechanics: relic/cult economy with theft and crash, order-type orgs with accumulation->expropriation risk, council override events, license-to-prophesy gate, furta sacra raids
+
+**Confidence:** High
+**Tags:** relics, saints, canonization, furta-sacra, monastic-orders, benedictine-rule, cistercians, jesuits, councils, nicaea, constance, trent, conciliarism, mystics, porete, eckhart, beguines, joan-of-arc, prophecy-license
+
+---
+
+### ROUND 4: Incense - Production & Distribution (USER-REQUESTED deep-dive)
+**Date Completed:** 2026-10-31
+**Domain:** Medieval Craft, Long-Distance Trade, Liturgical Economics
+**Output:** wiki/literature-reviews/craft-incense-production.md
+**Yield:**
+- Resin tier table (frankincense>benzoin>copal>pine/local pitch - the substitute-tier economy; sacramental function same, prestige differs)
+- Incense Road: Nabataean source-mystification monopoly (dragon-guarded grove tales); Pliny silver-drain complaint; caravan->Alexandria->Venice/Genoa->spice guilds->parish; stacked middlemen
+- Craft: resin tears, compounded blends, charcoal delivery, saltpeter self-burning tech (gunpowder-adjacent), thuribles (Botafumeiro 80kg spectacle censer)
+- Theology: Ps 141 smoke=prayer; censing as sacred-zone marking; Reformation scent-war (incense=popery, smell as confessional marker)
+- Economics: perpetual-demand consumable; consumption dependency (church as customer of the trade it preached against); ritual budget as status economy
+- 5 mechanics: incense supply chain w/ tolls+mystification, substitute tiers, scent-as-space-marker, thurible/spectacle objects, consumption dependency
+
+**Key Sources:**
+- Pliny Natural History XII - A+
+- Nabataean/frankincense-trail archaeology - A
+- Medieval incense recipes + Botafumeiro records - A
+
+**Confidence:** High
+**Tags:** incense, frankincense, myrrh, nabataean, incense-road, trade-routes, thurible, botafumeiro, liturgy, scent-theology, substitute-goods, consumption-dependency, spice-trade, medieval-craft
+
+---
+
+### ROUND 5: Balance Tester Research Suite (USER-REQUESTED, 4 parallel streams)
+**Date Completed:** 2026-10-31
+**Domain:** Game Design / Testing Methodology / Narrative Design / Behavioral Psychology
+**Output:**
+- wiki/literature-reviews/game-design-fun-supply-chain.md (#208)
+- wiki/literature-reviews/balance-testing-methodology.md (#209)
+- wiki/literature-reviews/narrative-storytelling-arcs.md (#210)
+- wiki/literature-reviews/reward-punishment-conditioning.md (#211)
+**Yield:**
+- Fun mechanisms per title: Factorio self-generating problem queue, Civ5 nested-horizon anticipation, Majesty incentive-priced indirect control (the Wanderer fantasy), Lords food-first feudal stack, RimWorld wealth-scaled rubber band (0.4-1.47 adaptation), Stardew interlocking calm clocks, Settlers 2 legible bottleneck
+- Balance testing as layered practice: human playtests + deconfounded telemetry + synthetic players (Ubisoft/King) + analytical methods (Schreiber cost curves, Sirlin degeneracy) + studio threshold frameworks (Riot 4-band) -> pre-registered KPI bands + baseline ensemble + review cadence
+- Narrative pacing is a scheduler problem: RimWorld datamined constants (Cassandra ~10.6d cycle, >=1.9d min gap; Phoebe ~16d; Randy uniform-random control) anchor all narrative bands; arcs review proposes thread-grouped phase-state machines for story detection
+- Reward structure: FI skeleton (calendar feasts/writs ~90-360d) + VI flesh (jittered 15-45d); punishment as legible natural consequences (warning->escalation->consequence); casinos as explicit anti-target; reward ratio 2.5-5:1 (loss aversion ~2:1 + Gottman 5:1)
+- 53 KPIs total across the four reviews + 20 OKRs; implemented first-cut as 19 KPIs in game2-core/src/agents/balance_tester.rs (PR #212)
+
+**Confidence:** High (bands are priors; all four docs flag calibration-over-ensemble as next step)
+**Tags:** fun, supply-chain, factorio, civ5, majesty, rimworld, stardew, settlers2, balance-testing, playtesting, telemetry, schreiber, sirlin, storytelling, freytag, kishotenketsu, drama-management, operant-conditioning, skinner, reward-schedules, sdt, balance-tester
+
+---
+
+### USER-REQUESTED: Victorian Diseases (big research pass)
+**Date Completed:** 2026-10-31
+**Domain:** Historical Epidemiology / History of Public Health (Britain 1837–1901)
+**Output:** wiki/literature-reviews/victorian-diseases.md
+**Yield:**
+- Full disease roster with period names: consumption/phthisis (TB, #1 killer ~15% of deaths 1848–72), Asiatic cholera (4 epidemics: 1831/1848/1854/1866), typhoid ("the filth disease"), typhus ("putrid/jail/camp fever"), scarlatina, diphtheria ("strangling angel"/"quinsy"), smallpox ("speckled monster"), measles, whooping cough, la grippe (Russian flu 1889–94, R0~2.1, attack ~60%, CFR 0.1–0.28%), fenland ague (vivax malaria, relapsing), childbed fever, summer diarrhoea, rickets, and the occupational set (phossy jaw, miner's phthisis/"the dust", sweeps' cancer, byssinosis)
+- Transmission-route taxonomy is the core translation: contact/droplet vs waterborne (Snow's "mode of communication") vs vector vs occupational — the sim already has `effluent`/`pit_water` tiles, a ready-made Broad Street mechanic
+- Era arc: miasma era → Chadwick 1842 report → PH Act 1848 (non-compulsory, failed) → Great Stink 1858 → Bazalgette sewers (built 1859–75, still in use) → PH Act 1875; germ theory (Pasteur/Lister 1867/Koch 1882) lands late
+- Social/organizing finds: compulsory Vaccination Acts (1853/1871) → Anti-Compulsory Vaccination League + conscience clause victory; **Leicester Method** = movement-built alternative institution (notify→isolate→quarantine→disinfect→compensate); matchgirls' strike 1888 grew out of phossy jaw; ergot-style blame dynamics have Victorian twins (Irish blamed for typhus, railways for cholera)
+- Naming table for in-code diseases: "flu"→"la grippe"/"the influenza", "the fever"→"scarlatina", "bad belly"→"the gripes", "saint anthony's fire" keeps its name
+- 8 mechanics proposed: zymotic roster (DiseaseKind enum), real incubation (Stage::Latent already exists, unused), waterborne route via effluent, seasonal fever calendar, differential immunity+relapse, crowding/class exposure modifier, occupational trade-exposure, epidemic blame/grievance
+
+**Key Sources:**
+- Mooney (SHM 2007), Hardy *Epidemic Streets* (OUP 1993) - A+
+- Snow 1849 (primary), Farr nosology 1842 (primary), Lancet 1890 anti-vax report (primary) - A+
+- GRO mortality data (UKDA SN 5705), Brody et al. Lancet, Valtierra PNAS 2010, CampOP, typhus/phthisis Medical History papers - A
+
+**Confidence:** High
+**Tags:** victorian, disease, epidemiology, cholera, tuberculosis, consumption, phthisis, typhoid, typhus, scarlatina, diphtheria, smallpox, ague, rickets, phossy-jaw, miasma, germ-theory, john-snow, broad-street, bazalgette, chadwick, public-health, vaccination, anti-vaccination, leicester-method, farr, zymotic, nosology
+
+---
+
+### USER-REQUESTED: Dialogue Systems (conversation framework)
+**Date Completed:** 2026-11-01
+**Domain:** Game AI / Interactive Narrative
+**Output:** wiki/literature-reviews/dialogue-systems.md
+**Yield:**
+- Ruskin/Valve rule database is the exact "most specific wins, generic falls through" model Gary described: rules = criteria on world facts, scoring = criterion count, least-specific match is the always-on fallback
+- Prom Week/CiF gives the personality model: ~5000 social considerations *weight* rather than gate responses; act-desire and response-acceptance are separate evaluations
+- Facade contributes discourse acts (respond to the act, not the words) and the meeting-threading idea: replies bind to last speaker, open question, or earlier statement
+- Versu contributes quip exclusivity: once-only lines mean material exhaustion degrades a conversation into smalltalk, then farewell - the "walks off" ending for free
+- Authoring takeaway: pools + criteria, not branching scripts; the branch structure is the player's mental model, emergent from the selection rules
+
+**Key Sources:**
+- Ruskin GDC 2012 (Valve, shipped L4D2/DOTA2) - B
+- Mateas & Stern Facade papers (CMU-CS-02-198, AIIDE05, TIDSE03) - A
+- McCoy et al. CiF/Prom Week (T-CIAIG14, FDG11) - A
+- Evans & Short Versu - B
+
+**Confidence:** High (mechanisms all shipped in commercial/academic games)
+**Tags:** dialogue, conversation, rule-database, ruskin, valve, facade, mateas, stern, prom-week, comme-il-faut, cif, versu, social-physics, discourse-acts, specificity, quips, house-meeting

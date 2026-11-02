@@ -2,6 +2,50 @@
 //! Emergent: bonds form from interactions, not assigned.
 
 use crate::engine::ecs::{Entity, World};
+use std::collections::HashMap;
+
+/// Pair index: unordered entity pair -> the earliest Relationship
+/// entity between them. find_relationship consults it only while the
+/// index is provably complete: `rev` tracks the storage's own mutation
+/// revision, so any bond change the index didn't fold - a bare
+/// add_component, a removal - leaves it behind, and lookups fall back
+/// to a scan until the next indexed bond rebuilds it in one pass.
+#[derive(Default)]
+struct RelIndex {
+    by_pair: HashMap<(Entity, Entity), Entity>,
+    /// World::mutation_rev::<Relationship> the index last folded through
+    rev: u64,
+}
+
+fn pair_key(a: Entity, b: Entity) -> (Entity, Entity) {
+    (a.min(b), a.max(b))
+}
+
+/// One pass over every live bond -> earliest entity per pair, marked
+/// complete. Runs when a bare component change put bonds the index
+/// never saw into the world - rare outside hand-built test setups.
+fn rebuild_index(world: &mut World) {
+    let mut by_pair: HashMap<(Entity, Entity), Entity> = HashMap::new();
+    world.iter::<Relationship>(|e, r| {
+        by_pair.entry(pair_key(r.from, r.other))
+            .and_modify(|cur| { if e < *cur { *cur = e; } })
+            .or_insert(e);
+    });
+    let rev = world.mutation_rev::<Relationship>();
+    let idx = world.resource_or_default::<RelIndex>();
+    idx.by_pair = by_pair;
+    idx.rev = rev;
+}
+
+/// The lowest-id live Relationship matching `pred` - the answer a sorted
+/// query() + first-match always gave, without the alloc or the sort.
+fn lowest_matching(world: &World, matches: impl Fn(&Relationship) -> bool) -> Option<Entity> {
+    let mut best: Option<Entity> = None;
+    world.iter::<Relationship>(|e, r| {
+        if matches(r) && best.map(|b| e < b).unwrap_or(true) { best = Some(e); }
+    });
+    best
+}
 
 /// A relationship between two entities, stored as its own entity (like
 /// Organization or HouseMeeting) so each person can hold many of them.
@@ -61,15 +105,77 @@ impl crate::engine::ecs::System for RelationshipSystem {
     }
 }
 
+/// Create the entity a Relationship lives on and register it in the pair
+/// index. Bonds that come in through here resolve in O(1) from then on -
+/// prefer it over bare create_entity + add_component.
+pub fn add_relationship(world: &mut World, r: Relationship) -> Entity {
+    let e = world.create_entity();
+    let key = pair_key(r.from, r.other);
+    world.add_component(e, r);
+    let rev = world.mutation_rev::<Relationship>();
+    let indexed_rev = world.resource::<RelIndex>().map(|i| i.rev).unwrap_or(0);
+    if indexed_rev + 1 == rev {
+        // the index was complete before this bond - fold it in. An
+        // existing entry already holds the pair's earliest bond, and e
+        // is the newest id, so or_insert keeps the ordering a sorted
+        // scan always favoured
+        let idx = world.resource_or_default::<RelIndex>();
+        idx.by_pair.entry(key).or_insert(e);
+        idx.rev = rev;
+    } else {
+        // a bare add_component slipped bonds past the index - rebuild
+        // once rather than scan per insert
+        rebuild_index(world);
+    }
+    e
+}
+
+/// The bond entities `v` is a side of, in creation order - ties settle
+/// the way a sorted query() always did, so picks stay reproducible.
+/// For a walk over many villagers' bonds at once, build a `bond_map`
+/// instead of calling this per villager.
+pub fn bonds_of(world: &World, v: Entity) -> Vec<Entity> {
+    let mut out = world.query::<Relationship>();
+    out.retain(|&e| world.get_component::<Relationship>(e)
+        .map(|r| r.from == v || r.other == v).unwrap_or(false));
+    out
+}
+
+/// One pass over every bond -> who holds bonds to whom (each list in
+/// creation order). For code walking many villagers' bonds in one go,
+/// building this once beats a full scan per villager; strength and kind
+/// still come off the components.
+pub fn bond_map(world: &World) -> HashMap<Entity, Vec<Entity>> {
+    let mut m: HashMap<Entity, Vec<Entity>> = HashMap::new();
+    for e in world.query::<Relationship>() {
+        let Some(r) = world.get_component::<Relationship>(e) else { continue };
+        m.entry(r.from).or_default().push(e);
+        if r.other != r.from { m.entry(r.other).or_default().push(e); }
+    }
+    m
+}
+
 /// Find the relationship entity between `from` and `other`, if any exists
 /// (checked in both directions, since either side may have recorded the
 /// first interaction).
 pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<Entity> {
-    world.query::<Relationship>().into_iter().find(|&e| {
-        world.get_component::<Relationship>(e)
-            .map(|r| (r.from == from && r.other == other) || (r.from == other && r.other == from))
-            .unwrap_or(false)
-    })
+    let matches = |r: &Relationship|
+        (r.from == from && r.other == other) || (r.from == other && r.other == from);
+    if let Some(idx) = world.resource::<RelIndex>() {
+        // a complete index answers in O(1); a stale one defers to the
+        // scan, since an unindexed bond could predate any indexed entry
+        if idx.rev == world.mutation_rev::<Relationship>() {
+            return match idx.by_pair.get(&pair_key(from, other)) {
+                // the entry only counts if the entity still holds this
+                // bond - a destroyed relationship leaves a stale key
+                Some(&e) if world.get_component::<Relationship>(e)
+                    .map(&matches).unwrap_or(false) => Some(e),
+                Some(_) => lowest_matching(world, &matches),
+                None => None,
+            };
+        }
+    }
+    lowest_matching(world, matches)
 }
 
 /// Record an interaction - relationships evolve emergently. Finds the
@@ -89,11 +195,9 @@ pub fn record_interaction(world: &mut World, from: Entity, interaction: Interact
     let other = interaction.other;
 
     let rel_entity = find_relationship(world, from, other).unwrap_or_else(|| {
-        let e = world.create_entity();
-        world.add_component(e, Relationship {
+        add_relationship(world, Relationship {
             from, other, kind: RelKind::Stranger, strength: 0.0, interactions: 0,
-        });
-        e
+        })
     });
 
     if let Some(r) = world.get_component_mut::<Relationship>(rel_entity) {
@@ -245,6 +349,52 @@ mod tests {
         let r = world.get_component::<Relationship>(e).unwrap();
         assert!(r.strength > -0.3, "strength should have decayed back above the rivalry threshold");
         assert_ne!(r.kind, RelKind::Rival, "kind should be re-inferred once strength decays out of rivalry range");
+    }
+
+    #[test]
+    fn a_handmade_bond_keeps_its_place_when_a_bond_is_indexed_later() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        // a bond added bare - the index never sees it made
+        let early = world.create_entity();
+        world.add_component(early, Relationship {
+            from: a, other: b, kind: RelKind::Family, strength: 0.8, interactions: 0,
+        });
+        // then an indexed bond lands on the same pair - a duplicate, the
+        // way a second Family or a stray record can be
+        let later = add_relationship(&mut world, Relationship {
+            from: b, other: a, kind: RelKind::Acquaintance, strength: 0.1, interactions: 1,
+        });
+        assert_eq!(find_relationship(&world, a, b), Some(early),
+            "the earliest record still wins the pair, indexed or not");
+        assert_eq!(find_relationship(&world, b, a), Some(early));
+        assert_ne!(later, early, "the new bond still exists, it just doesn't own the pair");
+    }
+
+    #[test]
+    fn an_indexed_removal_and_a_bare_add_still_resolves() {
+        // remove an indexed bond and add a bare one elsewhere: coverage
+        // changed under the index - the bare bond can't go invisible
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let c = world.create_entity();
+        let d = world.create_entity();
+        let ab = add_relationship(&mut world, Relationship {
+            from: a, other: b, kind: RelKind::Friend, strength: 0.5, interactions: 3,
+        });
+        world.remove_component::<Relationship>(ab);
+        let cd = world.create_entity();
+        world.add_component(cd, Relationship {
+            from: c, other: d, kind: RelKind::Friend, strength: 0.9, interactions: 9,
+        });
+        assert_eq!(find_relationship(&world, c, d), Some(cd),
+            "the bare bond resolves, so a second interaction lands on it");
+        let e = record_interaction(&mut world, c, Interaction {
+            other: d, kind: InteractionKind::Conversation, intensity: 1.0 });
+        assert_eq!(e, cd, "no duplicate bond gets created for the pair");
+        assert_eq!(world.get_component::<Relationship>(cd).unwrap().interactions, 10);
     }
 
     #[test]

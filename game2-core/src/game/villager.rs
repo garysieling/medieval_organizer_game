@@ -45,6 +45,43 @@ pub struct Villager {
 /// this marker is the durable record `is_dead` can still see afterward.
 pub struct Dead;
 
+/// What a villager smells of: the fold, the smoke, the cut. Recomputed
+/// daily from vocation; the rain washes it off; it shows in talk and
+/// damps the heart-helper's rolls. Texture, not a sim.
+#[derive(Debug, Clone, Copy)]
+pub struct Smell {
+    pub intensity: f32,
+    pub kind: &'static str,
+}
+
+/// A difference a villager carries: a lame leg, failing sight, a mind
+/// that needs quiet. It's texture, not punchline - the village walks a
+/// little slower for them, and theirs check on them.
+#[derive(Debug, Clone, Copy)]
+pub struct Condition {
+    pub kind: &'static str,
+}
+
+/// Last night's cup still has them: they sleep it off instead of
+/// working the day. The short lift was worth the lost morning.
+#[derive(Debug, Clone, Copy)]
+pub struct Drunk {
+    /// The day they're sober again
+    pub until: u64,
+}
+
+/// A thing made to outlast its maker: a lute, a window, a fine toolset -
+/// named, owned, and passed down. It gathers stories the way a person does.
+#[derive(Debug)]
+pub struct Heirloom {
+    pub maker: Entity,
+    pub owner: Entity,
+    pub name: &'static str,
+    pub born_tick: u64,
+    /// What it's been through: "played at the feast of the Harvest Home"
+    pub stories: Vec<String>,
+}
+
 /// Whether an entity has died: either its `Health` has hit 0, or it was
 /// marked dead (e.g. by the windowed game after removing `Health`).
 /// Entities with neither are never counted as dead.
@@ -53,12 +90,15 @@ pub fn is_dead(world: &World, e: Entity) -> bool {
     world.get_component::<crate::sim::illness::Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)
 }
 
-/// Hunger rises each tick (the dead no longer hunger)
+/// Hunger rises each tick (the dead no longer hunger, and the held are
+/// fed at the castle's charge - they can't seek, so letting them hunger
+/// would starve them where they stand)
 pub struct HungerSystem;
 impl System for HungerSystem {
     fn run(&mut self, world: &mut World) {
         for e in world.query::<Hunger>() {
-            if is_dead(world, e) { continue; }
+            if is_dead(world, e)
+                || world.get_component::<crate::game::dungeon::Imprisoned>(e).is_some() { continue; }
             if let Some(h) = world.get_component_mut::<Hunger>(e) {
                 h.value = (h.value - 1.0).max(0.0);
             }
@@ -91,7 +131,9 @@ impl System for SeekFoodSystem {
             .collect();
 
         for v in villagers {
-            if is_dead(world, v) { continue; }
+            // the held can't seek: they take what the jailer gives
+            if is_dead(world, v)
+                || world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() { continue; }
             let hunger = match world.get_component::<Hunger>(v) {
                 Some(h) => h.value,
                 None => continue,
@@ -214,10 +256,20 @@ impl System for NourishmentSystem {
         let sick: Vec<Entity> = world.query::<Disease>().iter()
             .filter_map(|d| world.get_component::<Disease>(*d).map(|d| d.patient))
             .collect();
+        // a heat wave or a frost bite everyone a little each tick, same
+        // as the crops take the drought - the weather touches health too
+        use crate::sim::weather::{health_effect, CurrentWeather};
+        let weather: f32 = world.query::<CurrentWeather>().iter()
+            .filter_map(|w| world.get_component::<CurrentWeather>(*w))
+            .map(health_effect)
+            .sum();
         for e in world.query::<Hunger>() {
             let hunger = world.get_component::<Hunger>(e).unwrap().value;
             let Some(h) = world.get_component_mut::<Health>(e) else { continue };
             if h.condition <= 0.0 { continue; }
+            if weather != 0.0 {
+                h.condition = (h.condition + weather).clamp(0.0, 1.0);
+            }
             if hunger <= 0.0 {
                 h.condition = (h.condition - STARVATION_DAMAGE).max(0.0);
             } else if hunger >= WELL_FED && !sick.contains(&e) && h.condition < NOURISHED_HEALTH {
@@ -403,12 +455,12 @@ mod tests {
 
     #[test]
     fn test_the_sick_do_not_mend_from_food_alone() {
-        use crate::sim::illness::{Disease, Health, Stage};
+        use crate::sim::illness::{Disease, DiseaseKind, Health, Stage};
         let mut w = World::new();
         let v = spawn_villager(&mut w, 0.0, 0.0);
         w.add_component(v, Health { condition: 0.5, immunity: 0.5 });
         let d = w.create_entity();
-        w.add_component(d, Disease { name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false });
+        w.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0 });
         for _ in 0..50 { NourishmentSystem.run(&mut w); }
         assert_eq!(w.get_component::<Health>(v).unwrap().condition, 0.5);
     }
@@ -599,5 +651,22 @@ mod tests {
         sched.tick(&mut world);
 
         assert_eq!(world.get_component::<Hunger>(v).unwrap().value, 99.0);
+    }
+
+    #[test]
+    fn test_a_frost_bites_everyone_a_little() {
+        use crate::sim::weather::{spawn_weather, Weather};
+        use crate::sim::illness::Health;
+        let mut world = World::new();
+        let v = spawn_villager(&mut world, 0.0, 0.0);
+        world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
+        spawn_weather(&mut world, Weather::Frost, 0.6, 15);
+
+        let mut sched = Scheduler::new();
+        sched.add_system(NourishmentSystem);
+        sched.tick(&mut world);
+
+        let c = world.get_component::<Health>(v).unwrap().condition;
+        assert!(c < 0.9, "a frost bites everyone a little: {}", c);
     }
 }

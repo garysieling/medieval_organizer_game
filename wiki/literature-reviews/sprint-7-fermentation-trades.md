@@ -72,3 +72,11 @@
 
 ## Rating
 **Critical** - fermentation gives the game preservation (food survives winter), wealth that matures, region-unique goods via caves, and a clean historical example of technology reshaping labor (ale → beer). Spirits unlock perfume and tinctures.
+
+## In game (as of the alcohol-trades PR)
+
+- **Cheese:** cellar building, milk → wheels, aging clock, village-named ("stone-cellar"), noble pays triple for aged wheels. *Not yet:* the coagulation/draining recipe tree, rennet→slaughter link.
+- **Alcohol table:** `Alewife` (wheat → ale, sours to vinegar inside the week), `Brewer` (wheat + hops → beer, keeps), `Vintner` (grapes → wine, turns on a shelf, keeps in casks and the cellar), `Distiller` (wine → spirits, never turns, value-dense), `Cooper` (wood → casks that slow the souring). Exactly one drink trade is guaranteed per village, rolled off the seed.
+- **Value density → defense & revenue:** the `CellarThief` moment targets the fattest drink stock (a living watch catches him); the tax round takes an ale excise on stocked drink; a fourth seasonal writ is the castle's share of the barrel; the `Assize` moment fines thin brews and praises masters.
+- **Social:** `Want::Drink`, drinks consumed at the counter, a `Drunk` day costs the next day's work, `AlehouseBrawl` picks real drinkers, feasts tap the barrel, the wine merchant sells cups, the alehouse keeper is a gossip contact.
+- **Chains:** spirits are an input to perfume (Hungary water) and to the feverfew tincture (a measure the still owes the wise woman each fortnight); hops/grapes/wine/spirits ride the trader's road.

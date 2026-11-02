@@ -21,6 +21,10 @@ pub enum MenuActionType {
     Organize,
     Contract,
     Build,
+    Meet,
+    March,
+    Delegate,
+    Petition,
     Wait,
 }
 
@@ -38,6 +42,10 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
     s += "  [o] Organize a meeting (gather people)\n";
     s += "  [c] Seal a mutual-aid pact (10 gold of aid; builds their trust)\n";
     s += "  [b] Build a meeting hall (40 gold; meetings become shared meals)\n";
+    s += "  [m] Meet on the campaign (founds it on the first go)\n";
+    s += "  [s] Take the campaign to the street\n";
+    s += "  [d] Name a member a campaign seat\n";
+    s += "  [p] Petition for a prisoner's release\n";
     s += "  [w] Wait (let the world turn)\n";
     s += "  [q] Quit\n";
     s += "Add a number to choose who: t2 = talk to villager 2\n";
@@ -66,7 +74,7 @@ pub fn parse_command(input: &str, current_target: usize, num_targets: usize) -> 
 }
 
 /// Execute a chosen action
-pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: MenuActionType, target: Option<Entity>) -> String {
+pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: MenuActionType, target: Option<Entity>, tick: u64) -> String {
     match choice {
         MenuActionType::Talk => {
             if let Some(t) = target {
@@ -169,6 +177,140 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             format!("You build a meeting hall ({:.0} gold). From now on your house meetings share a meal.", HALL_COST)
         }
         MenuActionType::Wait => "You wait and observe.".into(),
+        MenuActionType::Meet => {
+            use super::campaign;
+            let c = match campaign::campaign_of(world, org) {
+                Some(c) => c,
+                // the first meeting is the founding: they take a vote on
+                // the spot, once you know what they'd fight for
+                None => {
+                    let members = world.get_component::<crate::sim::community::Organization>(org)
+                        .map(|o| o.members.clone()).unwrap_or_default();
+                    let mut issues = world.get_component::<super::desires::Organizer>(player)
+                        .map(|o| o.issues.clone()).unwrap_or_default();
+                    if issues.is_empty() {
+                        // no organizer's notebook in the text game: the
+                        // members' own troubles name the cause - the most
+                        // common grievances lead the ballot
+                        let mut tally: Vec<(String, usize)> = vec![];
+                        let mut roofless = 0usize;
+                        for &m in &members {
+                            for p in super::desires::problems_of(world, m, tick) {
+                                // NoHome is ambient - everyone under a roof
+                                // counts it, so it trails the real ballot
+                                if p == super::desires::Problem::NoHome { roofless += 1; continue; }
+                                let tag = super::desires::issue_tag(world, m,
+                                    &super::desires::Reveal::Problem(p));
+                                match tally.iter_mut().find(|(t, _)| *t == tag) {
+                                    Some(e) => e.1 += 1,
+                                    None => tally.push((tag, 1)),
+                                }
+                            }
+                        }
+                        tally.sort_by(|a, b| b.1.cmp(&a.1));
+                        issues = tally.into_iter().take(3).map(|(t, _)| t).collect();
+                        // a roof is still a fight worth having - it just
+                        // never leads the ballot when a grievance stands
+                        if roofless > 0 && issues.len() < 3 {
+                            if let Some(&m) = members.first() {
+                                issues.push(super::desires::issue_tag(world, m,
+                                    &super::desires::Reveal::Problem(super::desires::Problem::NoHome)));
+                            }
+                        }
+                    }
+                    if issues.is_empty() {
+                        return "Nobody's told you what they'd fight for - talk to people first.".into();
+                    }
+                    let living = members.iter().filter(|&&m| !super::villager::is_dead(world, m)).count();
+                    if living < 3 { return "Three members make a cause worth a vote.".into(); }
+                    match campaign::hold_issue_vote(world, org, &issues, campaign::Framing::SharedGrievance, tick) {
+                        Some(vote) => {
+                            let c = campaign::found_campaign(world, org, &vote,
+                                campaign::Framing::SharedGrievance, campaign::DecisionRule::Majority, tick);
+                            campaign::set_cadence(world, c, 3, tick);
+                            let oname = world.get_component::<crate::sim::community::Organization>(org)
+                                .map(|o| o.name.clone()).unwrap_or_default();
+                            return format!("{} take a vote - they'll fight for {}.", oname, vote.winner);
+                        }
+                        None => return "No common cause emerges.".into(),
+                    }
+                }
+            };
+            match campaign::hold_campaign_meeting(world, c, tick) {
+                Some(out) => format!("{} meet about the campaign; consensus banks as it does.", out.attendees.len()),
+                None => "The campaign isn't due to meet yet.".into(),
+            }
+        }
+        MenuActionType::March => {
+            use super::campaign;
+            let Some(c) = campaign::campaign_of(world, org) else {
+                return "There's no campaign to march for - meet first.".into();
+            };
+            match super::actions::demonstrate(world, c, player, tick) {
+                Some(out) => {
+                    let r = super::reactions::react(world, c, &out.turnout, tick);
+                    // everyone who saw it and felt the cause wake in them
+                    let issue = world.get_component::<campaign::Campaign>(c).map(|c| c.issue.clone()).unwrap_or_default();
+                    let mut woke = 0usize;
+                    for v in world.query::<super::villager::Villager>() {
+                        if out.turnout.contains(&v) { continue; }
+                        woke += super::reactions::witness(world, v, &issue, &out.turnout, tick) as usize;
+                    }
+                    let mut msg = format!("{} march in the street.", out.turnout.len());
+                    if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
+                    if r == Some(super::reactions::Reaction::Crackdown) {
+                        msg += " The knights come out";
+                        if let Some(taken) = super::dungeon::arrest(world, c, tick) {
+                            super::dungeon::found_release_campaign(world, org, taken, tick);
+                            msg += " - they take the loudest. Letters will have to bring them home."
+                        } else { msg += "." }
+                    }
+                    msg
+                }
+                None => "You call a march - and nobody comes. The street stays empty.".into(),
+            }
+        }
+        MenuActionType::Delegate => {
+            use super::campaign::{self, Role};
+            let (Some(c), Some(t)) = (campaign::campaign_of(world, org), target) else {
+                return if target.is_none() { "Pick someone first.".into() }
+                    else { "There's no campaign with seats to fill.".into() };
+            };
+            // a seated member doesn't get re-seated silently - their
+            // old seat would empty behind the new one
+            let role_name = |r: Role| match r {
+                Role::TurnoutCoordinator => "turnout coordinator",
+                Role::NoteTaker => "note taker", Role::Chair => "chair" };
+            let already = world.get_component::<campaign::Campaign>(c)
+                .and_then(|c| c.seats.iter().find(|s| s.holder == t)).map(|s| s.role);
+            if let Some(r) = already {
+                return format!("They already hold the {} seat.", role_name(r));
+            }
+            let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
+                .find(|&r| campaign::seat_holder(world, c, r).is_none());
+            match open {
+                Some(r) if campaign::delegate_role(world, c, r, t) =>
+                    format!("You name them to the {} seat.", match r {
+                        Role::TurnoutCoordinator => "turnout coordinator",
+                        Role::NoteTaker => "note taker", Role::Chair => "chair" }),
+                Some(_) => "They can't hold a seat - living members only.".into(),
+                None => "Every seat is spoken for.".into(),
+            }
+        }
+        MenuActionType::Petition => {
+            let Some(t) = target else { return "No one inside to petition for.".into() };
+            if world.get_component::<super::dungeon::Imprisoned>(t).is_none() {
+                return "They aren't inside.".into();
+            }
+            super::dungeon::press(world, t, 0.3);
+            if super::dungeon::release_check(world, t, 1.0) {
+                "The letters don't stop - and the cell opens. They walk free.".into()
+            } else {
+                let p = world.get_component::<super::dungeon::ReleaseCampaign>(t)
+                    .map(|r| r.pressure).unwrap_or(0.0);
+                format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
+            }
+        }
     }
 }
 
@@ -188,9 +330,9 @@ mod tests {
         let v = w.create_entity();
         w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.add_component(v, Hunger { value: 10.0 });
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v));
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5);
         assert_eq!(msg, "They complained the store is running low: \"There's hardly anything left in the store.\"");
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v));
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5);
         assert!(msg.starts_with("They complained about wages"), "{}", msg);
     }
 
@@ -203,7 +345,7 @@ mod tests {
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let v = w.create_entity();
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Recruit, Some(v));
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Recruit, Some(v), 5);
         assert!(msg.contains("need influence 0.40") && msg.contains("you have 0.10"), "{}", msg);
     }
 
@@ -237,7 +379,7 @@ mod tests {
         let rel = w.create_entity();
         w.add_component(rel, Relationship { from: player, other: friend, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
 
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Organize, None);
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5);
 
         let members = &w.get_component::<Organization>(org).unwrap().members;
         assert_eq!(members, &vec![friend], "the trusted friend joins, the stranger doesn't");
@@ -256,11 +398,11 @@ mod tests {
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
         // Hear everyone out, organize until the village has joined, invest the gold
         for &v in &villagers {
-            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5); }
         }
-        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5); }
         assert_eq!(w.get_component::<Organization>(org).unwrap().members.len(), 5);
-        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None, 5); }
         let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
         assert!(infl > 2.0, "organized the whole village and invested everything, yet influence is {:.2} (win at 2.0)", infl);
     }
@@ -275,12 +417,12 @@ mod tests {
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
         // Build the hall first, then the same route as above
-        execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
         for &v in &villagers {
-            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5); }
         }
-        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
-        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5); }
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None, 5); }
         let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
         assert!(infl > 2.0, "built the hall, organized everyone and invested the rest, yet influence is {:.2} (win at 2.0)", infl);
     }
@@ -295,13 +437,13 @@ mod tests {
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
         // Spend gold every way there is - the hall and a pact with everyone - then win
-        execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
         for &v in &villagers {
-            execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v));
-            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v)); }
+            execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v), 5);
+            for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5); }
         }
-        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None); }
-        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None); }
+        for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5); }
+        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None, 5); }
         let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
         assert!(infl > 2.0, "spent gold on the hall and pacts, yet influence is {:.2} (win at 2.0)", infl);
     }
@@ -326,12 +468,12 @@ mod tests {
         w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
         assert!(msg.contains("build a meeting hall"), "{}", msg);
         assert!(w.get_component::<MeetingHall>(org).is_some());
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 60.0);
         // only one hall, and no charge for trying again
-        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("already stands"));
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None, 5).contains("already stands"));
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 60.0);
     }
 
@@ -344,7 +486,7 @@ mod tests {
         w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 30.0, standing: 0.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
-        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("costs 40 gold; you have 30"));
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None, 5).contains("costs 40 gold; you have 30"));
         assert!(w.get_component::<MeetingHall>(org).is_none());
     }
 
@@ -358,11 +500,11 @@ mod tests {
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let v = w.create_entity();
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v));
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v), 5);
         assert!(msg.contains("seal a mutual-aid pact"), "{}", msg);
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
         assert!(find_relationship(&w, player, v).and_then(|r| w.get_component::<Relationship>(r)).unwrap().strength > 0.1);
-        assert!(execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v)).contains("already have a pact"));
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v), 5).contains("already have a pact"));
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 90.0);
     }
 
@@ -377,11 +519,11 @@ mod tests {
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         w.add_component(org, MeetingHall);
         storm_strikes_hall(&mut w, org);
-        let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None);
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
         assert!(msg.contains("repair the meeting hall"), "{}", msg);
         assert!(w.get_component::<HallDamaged>(org).is_none());
         assert_eq!(w.get_component::<PlayerCharacter>(player).unwrap().resources, 35.0);
-        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None).contains("already stands"));
+        assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None, 5).contains("already stands"));
     }
 
     #[test]
@@ -389,5 +531,32 @@ mod tests {
         let p = PlayerCharacter { name: "P".into(), influence: 1.25, authority: 0.0, resources: 35.0, standing: 0.0 };
         let s = end_summary(&p, 4, 6, 501);
         assert!(s.contains("After 501 turns: influence 1.25 / 2.0 (Respected), 4 of 6 villagers with the Harvesters, 35 gold left."), "{}", s);
+    }
+
+    #[test]
+    fn test_the_text_game_fights_a_cause_too() {
+        use crate::game::desires::{self, InnerLife, Organizer};
+        use crate::sim::community::Organization;
+        let mut w = World::new();
+        let player = w.create_entity();
+        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.5, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, Organizer { issues: vec!["the taxes".into()], heard: vec![] });
+        let org = w.create_entity();
+        let members: Vec<Entity> = (0..4).map(|_| {
+            let m = w.create_entity();
+            w.add_component(m, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+            desires::add_grievance(&mut w, m, desires::Problem::Taxed, 200);
+            m
+        }).collect();
+        w.add_component(org, Organization { name: "the Harvesters".into(), members: members.clone(), leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        // the first Meet is the founding vote
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Meet, None, 5);
+        assert!(msg.contains("take a vote"), "{}", msg);
+        // a member takes a seat
+        let msg = execute_choice(&mut w, player, org, MenuActionType::Delegate, Some(members[0]), 6);
+        assert!(msg.contains("seat"), "{}", msg);
+        // the street answers (or stays empty - either way the verb lives)
+        let msg = execute_choice(&mut w, player, org, MenuActionType::March, None, 8);
+        assert!(msg.contains("street"), "{}", msg);
     }
 }

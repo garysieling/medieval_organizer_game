@@ -23,6 +23,13 @@ pub enum BuildingKind {
     Granary,
     /// The road trader's stall at the market (imported goods)
     TraderStall,
+    /// The shepherd's pen out in the meadow: a workplace, not a shop -
+    /// the flock grazes round it
+    Pasture,
+    /// The beekeeper's yard at the meadow's edge: the skeps stand round it
+    Apiary,
+    /// The cheese cellar by the fold: wheels age in the dark down there
+    Cellar,
 }
 
 /// A building on the map (entity; its Pos is where it stands)
@@ -47,6 +54,8 @@ pub fn kind_for(v: Vocation) -> BuildingKind {
     match v {
         Vocation::Priest => BuildingKind::Church,
         Vocation::Knight => BuildingKind::WatchPost,
+        Vocation::Shepherd => BuildingKind::Pasture,
+        Vocation::Beekeeper => BuildingKind::Apiary,
         other => BuildingKind::Shop(other),
     }
 }
@@ -90,6 +99,14 @@ pub fn on_offer(b: &Building) -> Vec<(String, u32, f32)> {
     v
 }
 
+/// The same offer, priced by the day's felt worth (scarcity-leaned)
+pub fn on_offer_at(world: &World, b: &Building) -> Vec<(String, u32, f32)> {
+    let mut v: Vec<_> = b.stock.iter().filter(|(_, q)| **q > 0)
+        .map(|(g, q)| (g.clone(), *q, crate::game::goods::worth_at(world, g))).collect();
+    v.sort_by(|a, b| a.0.cmp(&b.0));
+    v
+}
+
 /// Spawn a building entity at (x, y)
 pub fn spawn_building(world: &mut World, kind: BuildingKind, name: &str, x: f32, y: f32, capacity: u32) -> Entity {
     use crate::game::villager::Pos;
@@ -117,7 +134,7 @@ pub fn home_of(world: &World, e: Entity) -> Option<Entity> {
 /// the shop is overseen). Returns the gold paid, or None if stock's short
 /// or the buyer can't cover it
 pub fn buy_at_shop(world: &mut World, shop: Entity, buyer: Entity, good: &str, qty: u32) -> Option<f32> {
-    let price = vocation::price(good) * qty as f32;
+    let price = crate::game::goods::worth_at(world, good) * qty as f32;
     // who gets paid: the shop's worker; a stall with no worker can't sell
     let (worker, overseer) = {
         let b = world.get_component::<Building>(shop)?;
@@ -131,6 +148,10 @@ pub fn buy_at_shop(world: &mut World, shop: Entity, buyer: Entity, good: &str, q
         take_stock(b, good, qty)
     };
     if taken < qty { return None; }
+    // a shelf just emptied leans the good's felt worth a little dear
+    let bare = world.get_component::<Building>(shop)
+        .map(|b| b.stock.get(good).copied().unwrap_or(0) == 0).unwrap_or(false);
+    if bare { crate::game::goods::nudge(world, good, crate::game::goods::BARE_NUDGE); }
     // goods to the buyer's satchel
     {
         let s = world.get_component_mut::<Purse>(buyer)?;

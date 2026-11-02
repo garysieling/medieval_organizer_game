@@ -1,7 +1,7 @@
 # Source Log
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.1.0
 
 ## Summary
@@ -130,10 +130,660 @@ Tracks all sources found during literature surveys with credibility ratings.
 
 ---
 
+### Social Movements & Counter-Organizing (added 2026-10-31)
+
+#### Chenoweth & Stephan - *Why Civil Resistance Works* + NAVCO dataset (2011)
+**Type:** Academic Book + Dataset
+**Domain:** Political Science, Social Movements
+**Rating:** A+
+**Year:** 2011
+**Relevance:** Quantitative basis for nonviolent-vs-violent campaign outcomes (53% vs 26% success); pillars-of-support mechanism; 3.5% participation heuristic (descriptive, not prescriptive — see author's 2020 caveat paper)
+**Used In:** organizing-historical-campaigns.md
+**Notes:** Largest dataset of its kind (323 campaigns 1900-2006). Bahrain 2011 is documented exception to 3.5%.
+
+#### Church Committee Reports, Books II-III (US Senate, 1976)
+**Type:** Primary Government Investigation
+**Domain:** Intelligence History, Repression
+**Rating:** A+
+**Year:** 1976
+**Relevance:** Definitive documented record of COINTELPRO tactics (2,370 actions): snitch-jacketing, provocateurs, forged letters, fomented BPP-US violence, MLK suicide letter, Hampton raid floor plan, Jean Seberg op
+**Used In:** organizing-countertactics.md
+**Notes:** Exposed by the Citizens' Commission Media PA break-in (1971). The gold standard — everything else on FBI repression gets checked against it.
+
+#### King Institute (Stanford) - Birmingham Campaign primary materials
+**Type:** University archive, primary documents
+**Domain:** Civil Rights History
+**Rating:** A
+**Year:** 1963 materials, curated
+**Relevance:** Project C design (focus downtown business, engineered confrontation, exploited tapped phones for disinformation), Albany→Birmingham learning loop
+**Used In:** organizing-historical-campaigns.md, organizing-countertactics.md
+
+#### Global Nonviolent Action Database (Swarthmore)
+**Type:** Peer-reviewed case database
+**Domain:** Social Movements
+**Rating:** A
+**Year:** Ongoing
+**Relevance:** Structured case records of campaigns incl. Delano grape strike (Schenley targeting logic)
+**Used In:** organizing-historical-campaigns.md
+
+#### Garrow - "FBI Political Harassment and FBI Historiography" (Public Historian, 1988)
+**Type:** Peer-reviewed article
+**Domain:** Intelligence History
+**Rating:** A
+**Year:** 1988
+**Relevance:** Effects of informants/provocateurs; Albertson snitch-jacket detail, Seberg case
+**Used In:** organizing-countertactics.md
+
+#### Smith & Tennent - ERP movement 1913-1935 (Labor History, 2025); Kaufman - company unions (Industrial Relations, 2016)
+**Type:** Peer-reviewed articles
+**Domain:** Labor History
+**Rating:** A / B+
+**Year:** 2016, 2025
+**Relevance:** Company unions/ERPs as controlled opposition; Wagner Act ban; legitimation strategy
+**Used In:** organizing-countertactics.md
+**Notes:** Kaufman argues ban was overbroad (revisionist) — useful for the performative-vs-binding seat mechanic
+
+#### "Union Avoidance: Rationale, Strategies, and Practices" (Southeastern Oklahoma State U working paper)
+**Type:** Working paper
+**Domain:** Labor Relations
+**Rating:** B+
+**Year:** undated
+**Relevance:** Documents Mohawk Valley Formula 9-step strikebreaking playbook, American Plan
+**Used In:** organizing-countertactics.md
+**Notes:** MVF also documented in NLRB v. Remington Rand record — verify against primary for final citation
+
+#### Zumes - "Non-violent action against apartheid" (SA History Online)
+**Type:** Historical analysis
+**Domain:** Anti-Apartheid History
+**Rating:** A
+**Year:** undated
+**Relevance:** Nonviolent resistance arc: Defiance Campaign → exile → UDF → sanctions+strikes forcing negotiation
+**Used In:** organizing-historical-campaigns.md
+
+#### Hobson - Stonewall NPS Scholars' Workshop essay
+**Type:** Academic historical context report
+**Domain:** LGBTQ+ History
+**Rating:** A
+**Year:** 2016
+**Relevance:** Stonewall complexity (multi-day uprising, contested narratives, GLF/STAR/GAA differentiation)
+**Used In:** organizing-historical-campaigns.md
+
+#### Fossil-Fuel Divestment Effectiveness Systematic Review (WIREs Climate Change, 2024)
+**Type:** Peer-reviewed systematic review (69 articles)
+**Domain:** Climate Policy / Social Movements
+**Rating:** A
+**Year:** 2024
+**Relevance:** Divestment real effects = social-license erosion + agenda-setting, contested on capital effects; 3-order impact framework
+**Used In:** organizing-historical-campaigns.md
+
+#### Married Women's Property Acts scholarship (Mississippi Encyclopedia; Emerald enactment study; LoC guides)
+**Type:** Institutional/academic histories
+**Domain:** Legal History, Women's Rights
+**Rating:** A
+**Year:** various
+**Relevance:** MS 1839 first MWPA driven by debt-shielding (elite interest) not feminism; Betsy Love Allen Chickasaw precedent; NY 1848 as template
+**Used In:** organizing-historical-campaigns.md
+
+#### Women's ordination timeline sources (Encyclopedia.com, Andrews U, LoC)
+**Type:** Academic/institutional histories
+**Domain:** Religious History, Women's Rights
+**Rating:** B+/A
+**Year:** various
+**Relevance:** Women preached first in marginal/revival movements (Quakers, Holiness, Pentecostal), absorbed by mainlines 1956-1980
+**Used In:** organizing-historical-campaigns.md
+
+#### UK Undercover Policing Inquiry + Mark Kennedy case reporting
+**Type:** Public inquiry / investigative journalism
+**Domain:** Policing, Infiltration
+**Rating:** A
+**Year:** 2010-ongoing
+**Relevance:** Modern provocateur infiltration (7+ yr deep cover, relationship deception, protest provocation)
+**Used In:** organizing-countertactics.md
+
+#### False-flag primary record (Nuremberg/Gleiwitz, declassified NSA/Tonkin, Soviet archives/Mainila, Inkathagate/TRC)
+**Type:** Declassified primary documents
+**Domain:** Intelligence/False Flag History
+**Rating:** A+
+**Year:** various
+**Relevance:** Confirmed manufactured-pretext cases + crisis exploitation pattern; Inkatha covert funding as controlled opposition
+**Used In:** organizing-countertactics.md
+
+---
+
+### Round 2: Enforcement, Campaign Masters, Modern Playbook, Info Infrastructure (added 2026-10-31)
+
+#### The Intercept/Grist - TigerSwan Standing Rock document leaks (2017, 2023)
+**Type:** Investigative journalism on leaked primary documents (100+ leaked + 1,000+ public-records docs)
+**Domain:** Private Security, Counter-Insurgency
+**Rating:** A
+**Year:** 2017-2023
+**Relevance:** Fullest documented private counter-organizing operation: camp infiltration, "jihadist insurgency" framing, fake reporters, police liaison/fusion, social-media monitoring, $175k fine as cost-of-business
+**Used In:** organizing-modern-counter-playbook.md
+
+#### HRW "Foreign Agent Laws in the Authoritarian Playbook" (2024) + CSCE/ICNL trackers
+**Type:** NGO research + government briefing
+**Domain:** Authoritarianism, Civil Society Law
+**Rating:** A
+**Year:** 2024
+**Relevance:** Russia 2012 archetype → proliferation (Georgia, Kyrgyzstan, Hungary, Slovakia); stigmatize + administrative-death + funding-cut mechanism
+**Used In:** organizing-modern-counter-playbook.md
+
+#### Citizen Lab Pegasus investigations + Pegasus Project (Forbidden Stories)
+**Type:** Forensic research lab + journalism consortium
+**Domain:** Digital Surveillance
+**Rating:** A+
+**Year:** 2021-2024
+**Relevance:** Forensically confirmed spyware infections of activists/journalists; zero-click era of surveillance = subscription, not field agent
+**Used In:** organizing-modern-counter-playbook.md
+
+#### APSR antislavery petition dataset study (2014) - "When Canvassers Became Activists"
+**Type:** Peer-reviewed empirical study (8,500+ petitions, 1833-1845)
+**Domain:** Political Science, Movement History
+**Rating:** A+
+**Year:** 2014
+**Relevance:** Petition canvassing = leadership pipeline (women 50%+ more effective; Seneca Falls signers were canvassers; 4x female overrepresentation among later activists)
+**Used In:** organizing-information-infrastructure.md
+
+#### House History / National Archives - Gag Rule records
+**Type:** Primary government records
+**Domain:** Abolition, Congressional History
+**Rating:** A+
+**Year:** 1836-1844 materials
+**Relevance:** 130k+ petitions; gag-rule suppression backfired into the movement's best story (deliberate proto-Streisand)
+**Used In:** organizing-information-infrastructure.md
+
+#### Tufekci - *Twitter and Tear Gas* (2017)
+**Type:** Academic book
+**Domain:** Digital Movements, Sociology
+**Rating:** A
+**Year:** 2017
+**Relevance:** "Tactical freeze" — networked movements scale attention faster than org capacity; mobilization≠organizing
+**Used In:** organizing-information-infrastructure.md
+
+#### Popovic - *Blueprint for Revolution* + Otpor/CANVAS documentation + Color Revolution scholarship
+**Type:** Practitioner memoir + academic scholarship
+**Domain:** Nonviolent Resistance, Movement Export
+**Rating:** B+/A
+**Year:** 2000-2015
+**Relevance:** Laughtivism, arrest-training, brand-based participation, CANVAS export model and its failure modes vs unrestrained regimes (Belarus, Iran)
+**Used In:** organizing-campaign-masters.md
+
+#### 504 sit-in documentation (Smithsonian, NPS, Longmore Institute oral histories, DSQ "Lomax's Matrix")
+**Type:** Institutional history + oral history + peer-reviewed
+**Domain:** Disability Rights
+**Rating:** A/A+
+**Year:** 1977 event, documented 2000s+
+**Relevance:** Coalition matrix logistics (Panther food line), HEW phone-cut workaround, unspinnable optics, signed-unchanged win, 504→ADA continuity
+**Used In:** organizing-campaign-masters.md, organizing-enforcement-and-defense.md
+
+#### Energy Transfer v. Greenpeace verdict (2025) + Cop City RICO indictments (2023-)
+**Type:** Court records
+**Domain:** Lawfare, Counter-Organizing
+**Rating:** A
+**Year:** 2023-2025
+**Relevance:** Civil damages + terrorism charges as counter-movement weapons; bail funds/infra as targets (Greenpeace appeal pending — contested)
+**Used In:** organizing-modern-counter-playbook.md, organizing-enforcement-and-defense.md
+
+#### Enforcement-phase historiography (Foner Reconstruction; Shelby County record; ALRB capture; anti-abortion infrastructure scholarship)
+**Type:** Academic histories + court records
+**Domain:** Post-Victory Movement Dynamics
+**Rating:** A/A+
+**Year:** various
+**Relevance:** Movements disband, losers reorganize; enforcement-form tiers; agency capture; 49-year counter-movement win
+**Used In:** organizing-enforcement-and-defense.md
+
+---
+
+#### Freeman, "The Tyranny of Structurelessness" (1970 talk; The Second Wave 1972; Berkeley J. Sociology 17)
+**Type:** Primary movement essay
+**Domain:** Participatory democracy / org structure
+**Rating:** A+ (canonical; defines the informal-elite problem)
+**Year:** 1972
+**Relevance:** Structureless groups hide unaccountable elites; accountable delegated roles are the fix
+**Used In:** organizing-internal-structure.md
+
+---
+
+#### Snow, Rochford, Worden & Benford, "Frame Alignment Processes, Micromobilization, and Movement Participation," ASR 51(4)
+**Type:** Peer-reviewed theory (field studies of religious/peace/neighborhood movements)
+**Domain:** Micro-mobilization / framing
+**Rating:** A+ (6,500+ citations; the standard joining model)
+**Year:** 1986
+**Relevance:** Bridging/amplification/extension/transformation; alignment necessary & ongoing for participation
+**Used In:** organizing-internal-structure.md
+
+---
+
+#### Polletta, *Freedom Is an Endless Meeting* (U. Chicago 2002) + "Consensual decision-making" (Wiley-Blackwell encyclopedia)
+**Type:** Academic monograph + reference entry (100+ activist interviews)
+**Domain:** Participatory democracy history
+**Rating:** A
+**Year:** 2002 / 2011
+**Relevance:** Consensus vs majority trade-offs; spokescouncils; friendship-model failure; explicit norms beat charisma
+**Used In:** organizing-internal-structure.md
+
+---
+
+#### Highlander / Citizenship Education Program records (King Institute Stanford; J. Am. Hist. CEP study 2011; HEQ "The Answers Come from the People")
+**Type:** Institutional history + peer-reviewed historiography
+**Domain:** Movement pedagogy / leadership development
+**Rating:** A
+**Year:** various (school active 1953–61; SCLC program to 1970)
+**Relevance:** Train-the-trainer replication (37 Sea Island schools, ~100k trained); noncharismatic teachers; hidden venues; charter revocation as repression
+**Used In:** organizing-internal-structure.md
+
+---
+
+### Round 3: Anti-Colonial, Messianic, Pre-Modern, Secret Societies (added 2026-10-31)
+
+#### Norman Cohn - *The Pursuit of the Millennium* (1957/1970)
+**Type:** Academic book (Oxford UP)
+**Domain:** Medieval Millenarianism, Religious Movements
+**Rating:** A
+**Year:** 1957/1970
+**Relevance:** The spine for prophetic mobilization: prophet class (lower clergy/marginal intellectuals), constituency (rootless poor), narrative structure (golden age→corruption→imminent overturn), cases from Niklashausen to Münster
+**Used In:** organizing-messianic-prophetic.md
+**Notes:** Still the only comprehensive work. Cohn's modern-totalitarianism linkage is contested; case history is standard.
+
+#### Emmanuel Le Roy Ladurie - *Montaillou* (Fournier register) + Bernard Gui - *Practica Inquisitionis*
+**Type:** Inquisitorial primary records / microhistory + inquisitor's manual
+**Domain:** Medieval Counter-Intelligence, Heresy
+**Rating:** A+
+**Year:** 1318-25 register; manual 1320s
+**Relevance:** Best-documented pre-modern counter-organizing institution: dossier system, informer networks, grace-period amnesty harvests, secret denunciation, relapse=death engineered informer class
+**Used In:** organizing-premodern-resistance.md
+
+#### Haitian Revolution scholarship (Geggus; Bois Caiman ceremony analyses)
+**Type:** Academic monograph + journal articles
+**Domain:** Slave Revolt, Caribbean History
+**Rating:** A
+**Year:** various
+**Relevance:** Commandeur network pre-organization, Vodou as cross-ethnic binding infrastructure, blood oath as commitment device, conspirators' fake-decree disinfo document
+**Used In:** organizing-anticolonial-campaigns.md
+**Notes:** Ceremony details contested; consensus on religious-network organizational function.
+
+#### Land League scholarship (Parnell Ennis speech — primary; BAHS organizational study)
+**Type:** Primary speech + peer-reviewed history
+**Domain:** Irish History, Agrarian Movements
+**Rating:** A
+**Year:** 1879-82 events
+**Relevance:** Boycott invention ("moral Coventry"); boycotting primarily as insider discipline; Ladies' Land League pre-built succession redundancy
+**Used In:** organizing-anticolonial-campaigns.md
+
+#### Battle of Algiers / counter-insurgency studies (DTIC French HUMINT study; RAND *Pacification in Algeria*; J Cold War Studies on guerre revolutionnaire; Ormsby on Galula)
+**Type:** Military-academic analysis
+**Domain:** Counter-Insurgency Doctrine
+**Rating:** A
+**Year:** various
+**Relevance:** Two-register COIN (mass brutal vs surgical bleuite); torture's strategic self-defeat; Galula hearts-and-minds paradox; COIN as competitive organizing
+**Used In:** organizing-anticolonial-campaigns.md
+
+#### Waldensian/Hussite/Remenca scholarship (Biller *The Waldenses*; Kaminsky; Freedman; Cohn *Lust for Liberty*)
+**Type:** Academic monographs
+**Domain:** Medieval Religious Resistance
+**Rating:** A
+**Year:** various
+**Relevance:** Clandestine parallel-church durability (800yr), wagon-fort tactical innovation, Compactata negotiated win + moderate-split exploitation, rare peasant negotiated victory
+**Used In:** organizing-premodern-resistance.md
+
+#### Secret society scholarship (Rath on Carbonari AHR 1964; Kershaw/Rice on Mau Mau oath; ter Haar on Triads; Fenian ritual documents; Le Caron account)
+**Type:** Peer-reviewed + primary documents
+**Domain:** Clandestine Organizations
+**Rating:** A
+**Year:** various
+**Relevance:** Oath as costly-signal commitment tech; staged degrees; cover functions; Le Caron 25-year penetration; counter-oathing ceremonies; dual-org architecture
+**Used In:** organizing-secret-societies.md
+**Notes:** Le Caron is the infiltrator's own account — self-serving but primary.
+
+---
+
+#### Jasper & Poulsen, "Recruiting Strangers and Friends: Moral Shocks and Social Networks," Social Problems 42(4)
+**Type:** Peer-reviewed survey study (animal-rights & anti-nuclear protestors)
+**Domain:** Recruitment sociology
+**Rating:** A+ (~760 citations; the stranger-recruitment paper)
+**Year:** 1995
+**Relevance:** Two recruitment channels — network activation vs moral shocks to strangers via condensing symbols
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+#### Suffragette prison record (UK Parliament heritage pages; London Museum; OpenLearn)
+**Type:** Institutional/primary-source histories
+**Domain:** Political imprisonment / hunger strikes
+**Rating:** A/A+
+**Year:** events 1909–1914
+**Relevance:** Dunlop's 1909 hunger strike (status demand), force-feeding as propaganda gift, Cat and Mouse Act failure mode
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+#### Attica Liberation Faction manifesto + historiography (Freedom Archives primary; Race & Class 2011; Harvard CR-CL; NYS Archives)
+**Type:** Primary document + peer-reviewed history
+**Domain:** Prison organizing
+**Rating:** A
+**Year:** events 1971
+**Relevance:** 28 "strikingly moderate" demands; manifesto-drafting as organizing; amnesty as the state's real refusal point; jailhouse-lawyer strand
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+#### Amnesty International archive (AI@50 timeline; 1981 membership handbook; Urgent Action records)
+**Type:** Primary institutional records
+**Domain:** Release-campaign architecture
+**Rating:** A
+**Year:** 1961–present
+**Relevance:** Adoption groups (prisoner-as-charter); "one letter is not pressure" volume doctrine; elite-statement prestige multiplier; response latency
+**Used In:** organizing-prisons-and-release.md
+
+---
+
+### Round 3.5: Faith-Power Interface & Critical Pedagogy (added 2026-10-31)
+
+#### Niebuhr - *The Social Sources of Denominationalism* (1929); Weber/Troeltsch church-sect frame
+**Type:** Academic books (sociology of religion canon)
+**Domain:** Sociology of Religion
+**Rating:** A
+**Year:** 1909-1929
+**Relevance:** Co-option by institutionalization: sects of the disinherited → denominations → churches; routinization of charisma as the mechanism
+**Used In:** organizing-faith-and-power.md
+**Notes:** Niebuhr's evolutionism is dated; the dynamic (respectability drift) remains standard.
+
+#### Foucault - *Discipline and Punish*, *Madness and Civilization*, pastoral power lectures
+**Type:** Academic books/lectures
+**Domain:** Institutional Power, Surveillance
+**Rating:** A+
+**Year:** 1961-1980
+**Relevance:** Sovereign vs disciplinary power; examination as power tech (confession→dossier lineage); Great Confinement as institution for surplus population; carceral continuum; Panopticon internalization
+**Used In:** organizing-faith-and-power.md, organizing-critical-pedagogy.md
+
+#### Genovese - *Roll Jordan Roll* (1974) + driver scholarship (Starobin revisionist school)
+**Type:** Academic history (Gramscian)
+**Domain:** Slavery Studies
+**Rating:** A
+**Year:** 1974+
+**Relevance:** Paternalism as contested bargain (slaves weaponized the master's frame); driver as structurally dual intermediary
+**Used In:** organizing-faith-and-power.md
+**Notes:** Paternalism thesis contested but generative; driver-as-mediator is the revisionist consensus.
+
+#### Slave Bible documentation (Glasgow special collections; Porteus correspondence)
+**Type:** Primary artifact + institutional scholarship
+**Domain:** Missionary History, Information Control
+**Rating:** A
+**Year:** 1807 artifact
+**Relevance:** Literal redacted scripture (90% OT/50% NT cut; Exodus/Psalms/Gal 3:28/Revelation removed) — faith-as-information-weapon, documented
+**Used In:** organizing-faith-and-power.md
+
+#### Mission-education/comprador scholarship (Attwell intermediary intellectuals; Macaulay minute; colonial communal electorates)
+**Type:** Academic articles + primary documents
+**Domain:** Colonial Education, Intermediary Classes
+**Rating:** A
+**Year:** various
+**Relevance:** Mission schools produced the intermediary class → co-option backfire (Nkrumah/Mandela/Kenyatta mission-schooled)
+**Used In:** organizing-faith-and-power.md
+
+#### Freire - *Pedagogy of the Oppressed* (1970); Boal - *Theatre of the Oppressed* (1979)
+**Type:** Canonical movement-education texts
+**Domain:** Critical Pedagogy
+**Rating:** A+
+**Year:** 1970/1979
+**Relevance:** Banking vs problem-posing; conscientization; praxis loop; spect-actor rehearsal; Joker facilitation
+**Used In:** organizing-critical-pedagogy.md
+
+#### Horton & Freire - *We Make the Road by Walking* (1990); Highlander historiography (Morris "halfway house"; Citizenship School records)
+**Type:** Primary dialogue + academic history
+**Domain:** Movement Education
+**Rating:** A
+**Year:** 1932-1990
+**Relevance:** The US practitioner precedent; community-teachers-only rule (Robinson case ~80% voter registration); movement halfway house as institution type
+**Used In:** organizing-critical-pedagogy.md
+
+#### Illich - *Deschooling Society*; Bourdieu & Passeron - *Reproduction*; Gramsci - *Prison Notebooks*
+**Type:** Canonical critical-institutional texts
+**Domain:** Institutional Critique, Hegemony
+**Rating:** A+
+**Year:** 1929-1971
+**Relevance:** Institutional education as domestication (Illich); symbolic violence/cultural capital (Bourdieu); organic intellectuals + war of position (Gramsci)
+**Used In:** organizing-critical-pedagogy.md
+
+#### Gutiérrez - *A Theology of Liberation* (1971) + BEC scholarship; Fals-Borda PAR; hooks; Rancière - *The Ignorant Schoolmaster*
+**Type:** Canonical + academic
+**Domain:** Liberation Theology, PAR, Critical Pedagogy
+**Rating:** A/A+
+**Year:** 1971-1994
+**Relevance:** BECs as Freirean praxis in church form; research-as-organizing; engaged pedagogy; Rancière counter-point (equal intelligence axiom vs teacher-led liberation)
+**Used In:** organizing-critical-pedagogy.md, organizing-faith-and-power.md
+
+---
+
+### History of Technology / Ink Making
+
+#### Cennini - Il Libro dell'Arte ch. XCI (c.1390s)
+**Type:** Primary source (craft handbook)
+**Domain:** Medieval craft technology
+**Rating:** A+
+**Relevance:** Linseed oil boiled in glazed pot on enclosed stove; flame must not reach oil; "risk burning down the house"; reduce by half; mordants and tempera
+**Used In:** ink-oil-boiling.md lit review
+
+#### Encyclopedie (Diderot & d'Alembert) - "Encre noir" (1751-72)
+**Type:** Primary technical encyclopedia
+**Domain:** Print history / material culture
+**Rating:** A
+**Relevance:** Full printing-ink recipe: oil heated to varnish, deliberate ignition smothered with wet linen, 1lb bread crusts + dozen onions to degrease, slate-drip readiness test, "wide space such as a garden" siting, sac-a-noir soot chamber
+**Used In:** ink-oil-boiling.md lit review
+
+#### NCBI - Printing Processes and Printing Inks
+**Type:** Scholarly book chapter (conservation science)
+**Domain:** History of printing
+**Rating:** A
+**Relevance:** Oil-based ink required for metal type; lampblack + heated linseed/nut oil + rosin + metal driers; heating was "significant hazard (fires, vapours, spills)"
+**Used In:** ink-oil-boiling.md lit review
+
+#### Savage, Stiber & Morenus - Pre-Industrial Western Printing Inks c.1450-1850
+**Type:** Scholarly survey chapter (SAS-Space)
+**Domain:** Print history
+**Rating:** A
+**Relevance:** Most substantial survey of pre-industrial ink materiality; recipe secrecy until ~17th c.; Dutch vs English varnish practice
+**Used In:** ink-oil-boiling.md lit review
+
+#### "The Path to Pistoia" - Past & Present 246 (OUP)
+**Type:** Peer-reviewed journal article
+**Domain:** Urban environmental history
+**Rating:** A
+**Relevance:** Pistoia statute banishing stench-crafts beyond the walls; urban zoning of nuisance trades
+**Used In:** ink-oil-boiling.md lit review
+
+#### Fire Prevention in Late Medieval British Towns (Oxford Academic)
+**Type:** Scholarly book chapter
+**Domain:** Urban history / fire regulation
+**Rating:** A
+**Relevance:** Towns regulated furnace/oven crafts and combustibles; fire-fighting bylaws, penalties for those responsible
+**Used In:** ink-oil-boiling.md lit review
+
+#### Henley's 20th Century Formulas + NIST Circular 53
+**Type:** Trade encyclopedias / government circular
+**Domain:** Ink manufacture technology
+**Rating:** B/C
+**Relevance:** Boil-over and acrolein fume hazards, fire-on-rails safety rigs, "long" vs "short" varnish drip test, red-hot poker ignition
+**Used In:** ink-oil-boiling.md lit review
+
+---
+
+### Round 5: Balance Tester Suite (added 2026-10-31)
+
+Condensed per-stream log; full per-source ratings live in each review's Key Sources.
+
+#### Game Design Fun / Supply-Chain (game-design-fun-supply-chain.md)
+- Csikszentmihalyi Flow; Koster Theory of Fun; Salen & Zimmerman meaningful play; Meier "interesting decisions" - A/A- theory spine
+- Per-title dev blogs, manuals, datamined wikis, designer interviews (Factorio FFF, Civ5, Majesty, Lords of the Realm, RimWorld storyteller constants, Stardew, Settlers 2) - A/B+ primary
+
+#### Balance Testing Methodology (balance-testing-methodology.md)
+- Schreiber & Romero, Game Balance (CRC 2021) + Game Balance Concepts course - A+
+- Sirlin, Playing to Win + balancing essays - A
+- Dormans, Engineering Emergence / Machinations - A
+- Ubisoft GDC'19 AI playtesting; King IEEE CoG'18 human-like playtesting - A
+- Riot /dev balance framework; Blizzard SC2/Hearthstone practice; Firaxis difficulty design; Bungie user research - A/A-
+- Pfau et al. "Dungeons & Replicants II" (IEEE ToG 2022); Mahlmann/Togelius/Yannakakis Dominion (CEC 2012) - B+
+
+#### Narrative & Storytelling Arcs (narrative-storytelling-arcs.md)
+- Aristotle/Freytag/Hero's Journey/Save the Cat - A (canonical)
+- Kishotenketsu analyses - B+
+- Mateas & Stern Façade beats; Thue et al. PaSSAGE; Roberts & Isbell survey - A
+- RimWorld storyteller personas (datamined constants) - A-
+- Reagan et al., six emotional-arc shapes (EPJ 2016) - A
+
+#### Reward & Punishment Conditioning (reward-punishment-conditioning.md)
+- Skinner, schedules of reinforcement (Ferster & Skinner 1957) - A+
+- Deci & Ryan, Self-Determination Theory - A+
+- Gottman ratio (~5:1) - A
+- Near-miss/LDW gambling literature (Clark et al.) - A
+- Dog-training / clicker practice (Pryor) - B+
+- Dark patterns literature (Gray et al., Mathur et al.) - A-
+
+---
+
+### Historical Epidemiology — Victorian Diseases (2026-10-31)
+
+#### Mooney - "Infectious Diseases and Epidemiologic Transition in Victorian Britain? Definitely" (SHM 2007)
+**Type:** Academic Paper
+**Domain:** Historical Epidemiology
+**Rating:** A+
+**Relevance:** Quantifies the infectious share of Victorian mortality (~40% nationally, >50% in towns)
+**Used In:** victorian-diseases.md
+**Notes:** Rebuttal to Condrau & Worboys; argues the epidemiological transition is real.
+
+#### Hardy - *The Epidemic Streets* (OUP 1993)
+**Type:** Academic Book
+**Domain:** Historical Epidemiology
+**Rating:** A+
+**Relevance:** Disease-by-disease Victorian epidemiology; crowding-susceptible dynamics
+**Used In:** victorian-diseases.md
+**Notes:** Standard work. Key concept: childhood diseases need replenished susceptibles.
+
+#### Snow - *On the Mode of Communication of Cholera* (1849, rev. 1854)
+**Type:** Primary Source
+**Domain:** Epidemiology / Public Health History
+**Rating:** A+
+**Relevance:** Waterborne transmission; natural-experiment method
+**Used In:** victorian-diseases.md
+**Notes:** "Mode of communication" — distinct from touch-contagion. Southwark & Vauxhall vs Lambeth = history's great natural experiment.
+
+#### Farr - Statistical Nosology (4th/5th Annual Reports, Registrar-General, 1841-42)
+**Type:** Primary Source
+**Domain:** Medical Statistics / Nosology
+**Rating:** A+
+**Relevance:** Zymotic classification; period disease terminology
+**Used In:** victorian-diseases.md
+**Notes:** Five classes: zymotic/constitutional/local/developmental/violent. Documents Victorian euphemisms ('teething' = infant diarrhoea).
+
+#### Brody et al. - "Map-making and myth-making in Broad Street" (Lancet 2000)
+**Type:** Academic Historiography
+**Domain:** Public Health History
+**Rating:** A
+**Relevance:** Debunks the pump-handle folk tale; legend vs data
+**Used In:** victorian-diseases.md
+
+#### Hardy - "Urban Famine or Urban Crisis? Typhus in the Victorian City" (Medical History)
+**Type:** Academic Paper
+**Domain:** Social History of Medicine
+**Rating:** A
+**Relevance:** Typhus as poverty disease (93% of deaths wage-earners); overcrowding chain
+**Used In:** victorian-diseases.md
+
+#### "Sex differentials in phthisis mortality, 1861-1870" (Continuity & Change 2015) + PMC6204963 TB trends
+**Type:** Academic Papers
+**Domain:** Historical Demography
+**Rating:** A
+**Relevance:** Consumption as #1 killer; young-adult/female skew; ~50% pre-chemo CFR
+**Used In:** victorian-diseases.md
+
+#### Porter & Porter + Fitzpatrick - anti-vaccination politics; Lancet 1890 (primary); Leicester Method paper
+**Type:** Academic + Primary
+**Domain:** Medical Politics / Organizing History
+**Rating:** A
+**Relevance:** Vaccination Acts → Anti-Compulsory Vaccination League → Leicester Method as alternative institution
+**Used In:** victorian-diseases.md
+**Notes:** Gold for the organizing side of the game: a movement that built its own public-health system to defeat compulsion.
+
+#### CampOP "Shitscapes" (Cambridge, working paper)
+**Type:** Academic Working Paper
+**Domain:** Historical Demography
+**Rating:** A
+**Relevance:** Infant diarrhoea resisted sanitation until 1900+; fly/milk route ≠ water route
+**Used In:** victorian-diseases.md
+
+#### Dobson - "Fenland ague in the nineteenth century" (Medical History)
+**Type:** Academic Paper
+**Domain:** Historical Epidemiology
+**Rating:** A
+**Relevance:** Endemic English malaria; relapse signature; folk naming
+**Used In:** victorian-diseases.md
+
+#### Valtierra et al. - 1889 Russian flu (PNAS 2010)
+**Type:** Academic Paper
+**Domain:** Epidemiology
+**Rating:** A
+**Relevance:** First rail/sea pandemic: R0~2.1, attack ~60%, CFR 0.1-0.28%
+**Used In:** victorian-diseases.md
+
+#### Occupational-disease cluster (USURJ phossy jaw; OEM scrotal-cancer review; ILO C18 history PMC3923370)
+**Type:** Academic + Institutional
+**Domain:** Occupational Health History
+**Rating:** A/B+
+**Relevance:** Vocation-keyed diseases; matchgirls' strike origin
+**Used In:** victorian-diseases.md
+
+#### Science Museum / London Museum / BBC / healthandthepeople.ncl.ac.uk - sanitation arc
+**Type:** Museum/Educational (curated, well-sourced)
+**Domain:** Public Health History
+**Rating:** A-/B+
+**Relevance:** Chadwick → PH Act 1848 → Great Stink 1858 → Bazalgette
+**Used In:** victorian-diseases.md
+
+#### PubMed 20027740 - historical disease terminology methods (Victoria 1853-1900)
+**Type:** Academic Paper
+**Domain:** Medical Terminology
+**Rating:** A
+**Relevance:** Maps period names → modern diagnoses
+**Used In:** victorian-diseases.md naming table
+
+---
+
+### Game AI / Interactive Narrative — Dialogue Systems (2026-11-01)
+
+#### Ruskin - "Rule Databases for Contextual Dialogue and Game Logic" (GDC 2012)
+**Type:** Industry Talk (Valve)
+**Domain:** Game AI, Dialogue
+**Rating:** B (industry, shipped at scale in Left 4 Dead 2 / DOTA 2)
+**Relevance:** Criteria-matched response rules; most-criteria-wins specificity ordering; generic rules as fallback
+**Used In:** dialogue-systems.md; conversation.rs specificity cascade
+
+#### Mateas & Stern - Façade architecture (CMU-CS-02-198; AIIDE 2005; TIDSE 2003)
+**Type:** Academic Papers
+**Domain:** Interactive Drama, Game AI
+**Rating:** A
+**Relevance:** Beats + joint dialog behaviors; drama management; discourse acts (respond to the act, not the words)
+**Used In:** dialogue-systems.md; conversation.rs Act enum + meeting threading
+
+#### McCoy, Treanor, Samuel et al. - Comme il Faut / Prom Week (T-CIAIG 2014; FDG 2011; AIIDE 2013)
+**Type:** Academic Papers
+**Domain:** Social Simulation, Game AI
+**Rating:** A
+**Relevance:** Social exchanges; ~5000 social considerations weight (not gate) actions from traits/status/relationships; separate act/accept evaluation
+**Used In:** dialogue-systems.md; conversation.rs trait_bias weighting
+
+#### Evans & Short - Versu (2014)
+**Type:** Academic/Industry (published system + write-ups)
+**Domain:** Interactive Narrative
+**Rating:** B
+**Relevance:** Quips with prerequisites and once-only exclusivity; pooled authored content, procedural selection
+**Used In:** dialogue-systems.md; conversation.rs used-line exclusivity -> smalltalk exhaustion ending
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority
-1. **Community Organizing** - Need specific foundational texts (Alinsky, etc.)
+1. **Community Organizing** - FILLED 2026-10-31 (Alinsky/Ganz/McAlevey/Han from sprint reviews; Chenoweth, Church Committee, case histories added)
 2. **Sociology of Religion** - Need key papers on fundamentalism emergence
 3. **Medieval Economics** - Need historical sources on market structures
 4. **QSP** - Need foundational QSP papers for proper citation

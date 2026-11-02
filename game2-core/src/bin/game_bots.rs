@@ -22,12 +22,19 @@ fn main() {
     loop { std::thread::sleep(std::time::Duration::from_secs(60)); }
 }
 
+/// A claim token kept on disk like the windowed client's `game2.claim`:
+/// restart the bots and each reclaims its own villager instead of
+/// doubling the cast
+fn claim_file(n: usize) -> String { format!("game2-bot-{}.claim", n) }
+
 fn run_bot(url: &str, n: usize) {
+    let saved = std::fs::read_to_string(claim_file(n)).ok()
+        .map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let (mut ws, _) = match tungstenite::connect(url) {
         Ok(x) => x, Err(e) => { eprintln!("bot {}: connect failed: {}", n, e); return; }
     };
     ws.send(tungstenite::Message::Text(
-        serde_json::to_string(&ClientMsg::Hello { token: None, kind: ClientKind::Agent, name: Some(format!("bot-{}", n)) }).unwrap().into()
+        serde_json::to_string(&ClientMsg::Hello { token: saved, kind: ClientKind::Agent, name: Some(format!("bot-{}", n)) }).unwrap().into()
     )).ok();
     eprintln!("bot {}: connected", n);
     let mut last_tick = 0u64;
@@ -38,7 +45,7 @@ fn run_bot(url: &str, n: usize) {
         match sm {
             ServerMsg::Welcome { you, token, .. } => {
                 eprintln!("bot {}: claimed entity {}", n, you);
-                let _ = (token, ());
+                let _ = std::fs::write(claim_file(n), token);
             }
             ServerMsg::Obs(obs) => {
                 // act only on a fresh observation, and only when free - a bot

@@ -51,6 +51,9 @@ pub enum PKind {
     Traveller,
     Chicken,
     Gull,
+    /// An animal of the fold, grazing the meadow
+    Sheep,
+    Goat,
 }
 
 /// A building on the map
@@ -97,6 +100,22 @@ pub struct InspectorV {
     pub lines: Vec<Line>,
 }
 
+/// The campaign the org is running, for the panel's status line
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CampaignV {
+    pub issue: String,
+    pub framing: String,
+    /// Grumblers the issue's loser's left
+    pub dissenters: usize,
+    /// "turnout: Aldric" / "notes: (empty)"
+    pub seats: Vec<String>,
+    pub resolves: u32,
+    /// A meeting is due on the cadence
+    pub due: bool,
+    /// Days between meetings, the organizer's recommendation
+    pub cadence_days: u64,
+}
+
 /// The right-hand panel's player/org data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelV {
@@ -110,6 +129,8 @@ pub struct PanelV {
     pub guilds: usize,
     /// Market servings (the HUD's "food")
     pub food: u32,
+    /// The org's campaign, when it's founded one
+    pub campaign: Option<CampaignV>,
 }
 
 /// Which of the five action buttons is blocked and why
@@ -149,10 +170,40 @@ pub struct UiModel {
     /// Disabled reason per action button
     pub blocked: [Option<String>; 5],
     pub ctx: Vec<CtxAct>,
+    /// Disabled reason per ctx button, same index order as `ctx`
+    pub ctx_blocked: Vec<Option<String>>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
     /// The player won (influence over the village lead)
     pub won: bool,
     /// Mill stands at MILL_TILE when the art has a mill
     pub mill: Option<(f32, f32)>,
+    /// Wild herb tufts that are ready to pick
+    pub herbs: Vec<(f32, f32)>,
+    /// Ready mushroom patches in the shade
+    pub mush: Vec<(f32, f32)>,
+    /// The skeps of the apiary, and a swarm out following someone
+    pub skeps: Vec<(f32, f32)>,
+    pub swarm: Option<(f32, f32)>,
+    /// Where feet have worn the ground in (x, y, strength)
+    pub trails: Vec<(f32, f32, f32)>,
+    /// The land's score: stump tiles, the foul reach, the drowned pit
+    pub stumps: Vec<(f32, f32)>,
+    pub murk: Vec<(f32, f32)>,
+    pub pond: Option<(f32, f32)>,
+    /// What's alight on the map, and the ground it scorched
+    pub burning: Vec<(f32, f32)>,
+    pub scorched: Vec<(f32, f32)>,
+    /// Kitchen-garden beds and how full they've grown (x, y, growth)
+    pub gardens: Vec<(f32, f32, f32)>,
+    /// Something riding over the walls tonight
+    pub sky: Option<String>,
+    /// The painted halls - color is clout that fades
+    pub painted: Vec<(f32, f32)>,
+    /// The cave mouth at the map's edge
+    pub cave: Option<(f32, f32)>,
+    /// The tuning panel's gauge lines, for the debug overlay
+    pub debug_lines: Vec<String>,
+    /// The audio cues this frame raised, for the sound layer
+    pub sfx: Vec<String>,
 }

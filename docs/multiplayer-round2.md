@@ -8,28 +8,33 @@ fallback), `game_ui --connect`, agent API (`AgentObs`/`AgentCmd`),
 `game_bots`, Dockerfile + k8s, `speed-timer` feature flag. 353 tests green;
 claim/reclaim and command round-trip verified live.
 
-## Known gaps to fix
+## Known gaps — status
 
-- **`sync_purse` runs for seat 0 only** — a remote player's
-  `PlayerCharacter.resources` never mirrors their `Purse`. Loop it per
-  seat in `update()`.
+Fixed since this list was written:
+
+- ~~`sync_purse` runs for seat 0 only~~ — done; the purse mirrors per seat.
+- ~~Inspector on non-zero seats~~ — done; `building_inspector` is
+  seat-parameterized.
+- ~~`AgentCmd::Eat` never explicitly eats~~ — done (#232): the agent's
+  Eat actually eats.
+- ~~Bots don't reclaim~~ — done (#228): `game_bots` keeps a
+  `game2-bot-{n}.claim` file like the UI client's `game2.claim`.
+- ~~`free_villager` assigns by index~~ — done (#228): postings
+  (`TownRole`, PMC `Craft`s) and kids are off the menu.
+- ~~`AgentObs` thin~~ — improved (#230): carries `held`, `orgs`,
+  `campaigns`, and nearby `burning` tiles.
+
+Still open:
+
 - **`drive_agent` heuristic is thin** (Eat → WorkDay → Idle). Wants: craft
   input gathering (`BuyFrom`/`Gather` when the bench needs stock), sell
   surplus, rest at own home, train juniors, occasional `TalkTo` for ties —
   keep the village-first bias, add probabilities not just priorities.
-- **Inspector on non-zero seats** — `building_inspector` reads seat 0's
-  selection (never parameterized); `villager_inspector` is fine.
 - **Scene bandwidth** — every broadcast serializes the whole `UiModel`
   (incl. `TileMap`). Fine at 1–5 players; if it matters, send the map once
   per claim and diffs after.
-- **`AgentCmd::Eat`** paths to the market but never explicitly eats; the
-  builtin hunger system handles it once the villager is idle. Verify.
 - **No scripted multiplayer regression** — add a test: server + 1 human +
   1 bot, assert claims, commands land, scenes stream.
-- **Bots don't reclaim** — `game_bots` sends `token: None` every run;
-  accept a token file like the UI client for stable villager identity.
-- **`free_villager`** assigns by index, not role — bots may claim the
-  priest/collector; consider a villager eligibility filter.
 - **Remote `click_map`** rebuilds cam-dependent selection server-side;
   camera mismatch between seats could mis-select — acceptable now.
 

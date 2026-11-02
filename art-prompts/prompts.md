@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-492 prompts, est. $85.51 USD at list prices.
+617 prompts, est. $105.13 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -39,6 +39,89 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | palette-english-countryside-860d3b3d | flat color palette chart, one square swatch per color: sage green, hedgerow green, meadow green, honey limestone, chalk white, barley gold, thatch amber, drystone grey, slate blue-grey, weathered oak brown, muted terracotta, drizzle-grey sky | rd_pro__simple | 128x128 | 1 | 0.18 | use the output as input_palette on other calls to lock the countryside palette |
+
+## P0 - needed now (replaces assets the game already draws) / events/icons
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| event-alehouse-brawl-93c2a390 | small game UI icon of two tankards clashing, spilled ale, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-assize-e947c98c | small game UI icon of weighing scales with a loaf and a tankard, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-aurora-26ad8ff2 | small game UI icon of green aurora ribbons over a village at night, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-blood-moon-933be15c | small game UI icon of large red moon over rooftops, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-cellar-thief-c53befce | small game UI icon of dark figure slipping out of a cellar door with a sack, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-dark-noon-1a67a84e | small game UI icon of black disc of an eclipse over a pale sky, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-drought-b56bee44 | small game UI icon of cracked dry earth under a pale sun, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-first-snow-acd8aa20 | small game UI icon of first thin snowflakes over a cottage, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-flood-c05a7fca | small game UI icon of brown river water risen over a bank, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-foundling-icn-b425f819 | small game UI icon of basket with a swaddled bundle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-hailstorm-480c176f | small game UI icon of white hailstones bouncing off a roof, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-heat-wave-9572e189 | small game UI icon of shimmering heat lines over dry crops, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-indian-summer-99a3c218 | small game UI icon of golden warm haze over autumn fields, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-late-frost-04a5d118 | small game UI icon of white frost on a green sprout, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-lightning-717fe433 | small game UI icon of a single lightning bolt striking a field, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-lost-child-icn-6cabe3bc | small game UI icon of small empty shoe beside a path, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-meteor-shower-2155f2df | small game UI icon of streaking meteors in a night sky, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-mirage-544deb21 | small game UI icon of shimmering false city on the horizon, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-quarrel-icn-0f42edb5 | small game UI icon of two raised fists face to face, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-thaw-03f09edb | small game UI icon of dripping icicle melting into a puddle, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-thief-icn-3efd606e | small game UI icon of shadowed hand lifting a jar, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+| event-windstorm-418a5877 | small game UI icon of bent trees and flying thatch in wind, simple, readable at tiny size | rd_mini__skill_icon | 32x32 | 4 | 0.24 | batch of 4 variants; keep the clearest |
+
+## P0 - needed now (replaces assets the game already draws) / events/visitors
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| person-alchemist-bef87a38 | small chibi medieval character, front view, full body, on empty background: alchemist in a stained robe, odd vials at his belt | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-astrologer-afc40fb9 | small chibi medieval character, front view, full body, on empty background: astrologer with a star chart and brass astrolabe | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-ballad-monger-3360c29b | small chibi medieval character, front view, full body, on empty background: ballad-monger holding up printed broadside sheets | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-barber-surgeon-df1f165e | small chibi medieval character, front view, full body, on empty background: barber-surgeon with basin and fleam, rolled sleeves | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-bear-ward-1e856d2c | small chibi medieval character, front view, full body, on empty background: bear-ward leading a muzzled brown bear on a rope | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-bookseller-f8a14b40 | small chibi medieval character, front view, full body, on empty background: bookseller with a tray of small bound volumes | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-candle-maker-1ed97164 | small chibi medieval character, front view, full body, on empty background: candle-maker carrying a dipper frame hung with candles | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-charcoal-burner-7a809ad9 | small chibi medieval character, front view, full body, on empty background: charcoal-burner in a soot-stained smock, coal bag | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-cheese-monger-471640e6 | small chibi medieval character, front view, full body, on empty background: cheese-monger carrying a whole round cheese | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-chimney-sweep-147c0c45 | small chibi medieval character, front view, full body, on empty background: sooty chimney sweep with brush and rods | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-corn-factor-74c9d07f | small chibi medieval character, front view, full body, on empty background: corn-factor with a grain measure and a tally stick | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-deserter-5a915a3a | small chibi medieval character, front view, full body, on empty background: ragged deserter, half-worn soldier's coat, wary look | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-dowser-b7a4c6e8 | small chibi medieval character, front view, full body, on empty background: water-diviner with a forked hazel wand held out before him | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-drover-d88e9e19 | small chibi medieval character, front view, full body, on empty background: drover with a long stick guiding a knot of sheep | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-eggler-fff186f1 | small chibi medieval character, front view, full body, on empty background: eggler with a basket of eggs and a butter crock | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-farrier-15211a23 | small chibi medieval character, front view, full body, on empty background: farrier with a hoof pick and a horseshoe held high | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-fish-hawker-c6f39d13 | small chibi medieval character, front view, full body, on empty background: fish-hawker with a creel basket of silver fish | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-fortune-teller-3871e5b8 | small chibi medieval character, front view, full body, on empty background: fortune-teller in bright shawls, palm held out | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-friar-05090490 | small chibi medieval character, front view, full body, on empty background: wandering friar in a brown habit, bare feet | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-glazier-825c4950 | small chibi medieval character, front view, full body, on empty background: glazier carrying a leaded glass pane and a glass-cutter | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-horse-coper-f589dd8a | small chibi medieval character, front view, full body, on empty background: horse-coper holding a halter, appraising look | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-juggler-648c61fc | small chibi medieval character, front view, full body, on empty background: juggler tossing three knives, one foot up | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-knife-grinder-c2e64688 | small chibi medieval character, front view, full body, on empty background: knife-grinder at a foot-treadle grindstone, sparks | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-leper-band-ab5dbc5c | small chibi medieval character, front view, full body, on empty background: two hooded lepers with a clapper and begging bowl | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-lime-burner-3d6786db | small chibi medieval character, front view, full body, on empty background: lime-burner with a grey dust coat and lime shovel | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-messenger-9de51221 | small chibi medieval character, front view, full body, on empty background: messenger in a badge, letter held out before him | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-midwife-93716dbd | small chibi medieval character, front view, full body, on empty background: midwife with a basket of linen and herbs | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-news-crier-a3cdb92b | small chibi medieval character, front view, full body, on empty background: town crier with a bell and a scroll | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-pardoner-458f75f1 | small chibi medieval character, front view, full body, on empty background: pardoner flourishing a sealed parchment indulgence | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-pilgrims-a85a2c1f | small chibi medieval character, front view, full body, on empty background: three weary pilgrims with staffs and scallop badges | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-potter-f5ae2bb4 | small chibi medieval character, front view, full body, on empty background: travelling potter with a crate of crocks and jugs | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-prodigal-85c46ee5 | small chibi medieval character, front view, full body, on empty background: travel-worn returned son, staff and a hopeful look | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-puppeteer-8e1164bd | small chibi medieval character, front view, full body, on empty background: puppeteer beside a small striped puppet booth | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-quack-1eed98cf | small chibi medieval character, front view, full body, on empty background: medicine-show quack holding a small bottled elixir | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-quiet-preacher-807ea247 | small chibi medieval character, front view, full body, on empty background: plain-clothed hedge preacher, hands open, no vestments | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-rag-and-bone-9a8f8269 | small chibi medieval character, front view, full body, on empty background: rag-and-bone man with a sack of rags over his shoulder | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-rat-catcher-b5896b6b | small chibi medieval character, front view, full body, on empty background: rat-catcher with a terrier and a pole of dead rats | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-recruiter-e05e45f8 | small chibi medieval character, front view, full body, on empty background: recruiting sergeant in a sash, coin purse held out | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-refugee-family-840ef997 | small chibi medieval character, front view, full body, on empty background: refugee family: mother, father, two children, bundled goods | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-relic-seller-d365ff06 | small chibi medieval character, front view, full body, on empty background: relic-seller holding a tiny sealed reliquary box | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-salt-seller-45d3b501 | small chibi medieval character, front view, full body, on empty background: salt-seller with a sack and a cup of white salt | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-scribe-04af103c | small chibi medieval character, front view, full body, on empty background: itinerant scribe with a writing slope and quill case | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-sowgelder-d8c11272 | small chibi medieval character, front view, full body, on empty background: pig man with a small knife roll and a patient air | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-spice-merchant-73b0d6e1 | small chibi medieval character, front view, full body, on empty background: spice merchant with bright packets of pepper and cloves | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-tanner-10a4c752 | small chibi medieval character, front view, full body, on empty background: tanner with rolled hides on his shoulder, stained apron | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-thatcher-18a5afa8 | small chibi medieval character, front view, full body, on empty background: thatcher with a bundle of reed and a leggett tool | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-tinker-4b896082 | small chibi medieval character, front view, full body, on empty background: itinerant tinker with a pack of kettles and pots on his back | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-tooth-drawer-0b1b80eb | small chibi medieval character, front view, full body, on empty background: travelling tooth-drawer holding up iron pincers | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-well-digger-a2f0fdfc | small chibi medieval character, front view, full body, on empty background: well-digger with a shovel and rope over his shoulder | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-wine-merchant-78ca70b9 | small chibi medieval character, front view, full body, on empty background: wine merchant with a small cask and a tasting cup | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-wool-merchant-cfd9d219 | small chibi medieval character, front view, full body, on empty background: wool merchant in a good cloak, scale in hand | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
 
 ## P0 - needed now (replaces assets the game already draws) / icons/actions
 
@@ -116,12 +199,16 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ui-button-c5bf7b01 | wooden game button, unpressed, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
+| ui-button-c5bf7b01 | wooden game button, unpressed, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-end-screen-c3c99989 | quiet dusk view of a medieval village, lamps lit, end-of-game mood | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
-| ui-log-box-637d32e2 | long thin parchment scroll log box, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
-| ui-panel-e028fe6e | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
+| ui-hud-bar-7a7d8edb | game HUD strip: resource counters with icon slots, meter frames, season and date display, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-inventory-grid-ccb897f8 | empty inventory grid panel with item slots and a character paper-doll frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-log-box-637d32e2 | long thin parchment scroll log box, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-panel-e028fe6e | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 | ui-title-keyart-8651a36f | sweeping isometric medieval valley town at golden hour, river and bridge, walled town, fields - title screen key art | rd_pro__painterly | 256x256 | 1 | 0.18 |  |
-| ui-villager-card-c74542c4 | character card panel with portrait frame and stat rows, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 |  |
+| ui-ui-kit-8349cf27 | complete medieval game UI kit: buttons, sliders, panels, knobs, checkboxes, scroll bars, matching carved wood and parchment, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-villager-card-c74542c4 | character card panel with portrait frame and stat rows, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
+| ui-window-set-b4b2586c | set of matching medieval game windows: title bar, dialog box, tooltip, modal frame, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | ui_panel draws a matched chrome set; slice per element |
 
 ## P0 - needed now (replaces assets the game already draws) / icons/weather
 
@@ -485,6 +572,51 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | compare-cottage-fast-cbcf31b7 | isometric medieval cottage, timber-frame and thatch | rd_fast__game_asset | 64x64 | 1 | 0.03 | quality floor check: if Fast looks fine, filler assets get much cheaper |
 | compare-cottage-plus-77832dea | isometric medieval cottage, timber-frame and thatch | rd_plus__default | 128x128 | 1 | 0.06 | middle tier, same subject as the rd_pro cottages-set |
 
+## P1 - fills gaps in shipped features / events/creatures
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| creature-barn-owl-370292b9 | single isometric medieval village asset: white-faced barn owl perched on a roof beam | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-bear-ca84a91c | single isometric medieval village asset: large muzzled dancing bear on a rope | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-bee-swarm-177702e4 | single isometric medieval village asset: a swarm of bees around a hollow tree trunk | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-caterpillar-12ce0588 | single isometric medieval village asset: fat green caterpillar on a leaf | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-crow-mob-2ed76027 | single isometric medieval village asset: a mob of crows settling on a field | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-deer-f8c2574a | single isometric medieval village asset: red deer doe grazing in a crop field | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-fox-2c3b295b | single isometric medieval village asset: red fox slinking near a hen run | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-hawk-b744f4d7 | single isometric medieval village asset: stooping hawk with wings tucked, mid-dive | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-leaping-fish-843be811 | single isometric medieval village asset: silver fish leaping in the shallows | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-locust-cloud-4dd62189 | single isometric medieval village asset: a dense cloud of locusts over a field | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-rat-swarm-5e3c0f7c | single isometric medieval village asset: a mob of rats pouring across the ground | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-starling-flock-07340765 | single isometric medieval village asset: a wheeling murmuration of starlings | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-truffle-pig-0bbf1e76 | single isometric medieval village asset: pig nosing the ground under an oak | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-wild-boar-9b0281f5 | single isometric medieval village asset: wild boar rooting in a furrow | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| creature-wolf-5ced6e05 | single isometric medieval village asset: grey wolf at a sheep pen, crouched | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+
+## P1 - fills gaps in shipped features / events/props
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| prop-bee-tree-34b1891c | single isometric medieval village asset: hollow oak with bees at a knothole, honeycomb edge | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-berry-bush-5e26658a | single isometric medieval village asset: hedge bush heavy with dark berries | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-cart-overturned-c4cb62df | single isometric medieval village asset: overturned handcart spilling sacks on a lane | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-chimney-fire-970adb03 | single isometric medieval village asset: cottage chimney with smoke and a lick of flame | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-coin-hoard-e85e92a7 | single isometric medieval village asset: half-buried clay pot spilling old silver coins | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-driftwood-b198f8cc | single isometric medieval village asset: driftwood, a broken barrel and rope on a river strand | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-drowned-pond-6b657733 | single isometric medieval village asset: village pond with a small ring of ripples and a dropped basket | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-fallen-oak-ebc01cad | single isometric medieval village asset: giant old oak fallen across a lane, split trunk | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-fouled-well-94e47dad | single isometric medieval village asset: village well with green scum on the water | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-foundling-392f9353 | single isometric medieval village asset: wrapped infant in a basket on a church doorstep | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-granary-leak-80ff4545 | single isometric medieval village asset: grain store with wet sacks and drips from the eaves | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-herb-clump-8d0fdd85 | single isometric medieval village asset: clump of flowering medicinal herbs by a hedge | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-honey-tree-1005bf37 | single isometric medieval village asset: tree hung with dripping wild honeycomb | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-lost-child-8ce6b3c2 | single isometric medieval village asset: small child's dropped toy at a wood's edge | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-mushroom-cluster-821374d1 | single isometric medieval village asset: cluster of wild mushrooms under a tree | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-old-stones-da323661 | single isometric medieval village asset: ancient dressed stones half-buried in a furrow | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-quarrel-c0db3dfa | single isometric medieval village asset: two villagers face to face, fists up, small crowd | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-spring-976657d8 | single isometric medieval village asset: fresh spring bubbling up between rocks, clear water | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-storm-leavings-3cac0d57 | single isometric medieval village asset: scattered planks and a staved barrel after a storm | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+| prop-truffle-fc7567c7 | single isometric medieval village asset: black truffle in leaf litter, a hand reaching | rd_tile__tile_object | 64x64 | 1 | 0.06 |  |
+
 ## P1 - fills gaps in shipped features / festivals
 
 | id | prompt | style | size | n | est $ | notes |
@@ -506,6 +638,14 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | decor-maypole-398f6b81 | single isometric medieval village asset: maypole with coloured ribbons | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 | decor-wreath-2455375b | single isometric medieval village asset: evergreen wreath with candles | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
 | decor-yule-log-0557bc95 | single isometric medieval village asset: decorated yule log with holly | rd_tile__tile_object | 96x96 | 1 | 0.06 |  |
+
+## P1 - fills gaps in shipped features / icons/goods
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| food-sheet-4fe809ed | inventory item sheet: bread loaf, cheese wheel, ale mug, honey jar, dried fish, egg basket, milk jug, apples, pottage bowl, turnips, peas, fuel faggot bundle | rd_pro__inventory_items | 256x256 | 1 | 0.18 | kitchen-garden and hearth foods, plus the fuel goods |
+| materials-sheet-40a5650d | inventory item sheet: log, dressed stone block, sand pile, pigment pot, cloth bolt, glass pane, paper sheet, ink pot, wool ball, tanned hide, candle, clay brick | rd_pro__inventory_items | 256x256 | 1 | 0.18 | raw and crafted materials for the production chains |
+| tools-sheet-cf25b75b | inventory item sheet: sickle, hoe, hammer, saw, chisel, axe, mallet, needle and thread, quill, trowel, smith's tongs, wood plane | rd_pro__inventory_items | 256x256 | 1 | 0.18 | vocation workshop tools; include_downloadable_data returns the item atlas |
 
 ## P1 - fills gaps in shipped features / regions/scotland
 
@@ -552,6 +692,20 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | scene-storm-damage-c8c81163 | single isometric medieval village asset, wide lively scene: storm-torn village, fallen branch, damaged roof, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
 | scene-tax-day-ca321aaa | single isometric medieval village asset, wide lively scene: tax collector at the market with guards, villagers queueing, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
 | scene-wedding-c95dae1c | single isometric medieval village asset, wide lively scene: village wedding outside the church, flower petals, villagers of varied ages and skin tones | rd_pro__isometric | 256x256 | 1 | 0.18 | cutscene/loading art; also usable as reference for the matching feature |
+
+## P1 - fills gaps in shipped features / sheets/sprites
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| sheet-cottage-construction-fb3f2687 | isometric medieval cottage construction stages: foundation stones, timber frame, half-roofed, finished thatch, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-cottage-seasons-7db62d5d | the same isometric medieval cottage in four seasons: spring green, summer lush, autumn gold, winter snow, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-crop-growth-3e1490f8 | isometric wheat field patch growth stages: bare soil, green shoots, half-grown, ripe golden heads, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-farm-animals-a628136d | small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-guard-poses-866c3f01 | small medieval town guard with spear: standing, marching, ready stance, saluting, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-tree-growth-1e90f5de | isometric oak tree growth stages: sapling, young tree, mature, ancient, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-villager-poses-5af51f87 | small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-villager-variants-d8068ffd | small chibi medieval peasant villagers, varied tunic colours and hair, front view, full body, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
+| sheet-visitor-pack-7cf1ab2d | small chibi travelling medieval figures: pedlar with pack, pilgrim with staff, friar in habit, minstrel with lute, beggar with bowl, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | one call returns the whole grid; slice per cell |
 
 ## P1 - fills gaps in shipped features / weather
 
@@ -758,6 +912,7 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
+| future-goods-sheet-c7eb0b49 | inventory item sheet: cheese wheel, wine bottle, ale mug, honey jar, perfume bottle, mushroom basket, dried herb bundle, dried fish, pasta noodles, wool ball, milk jug, egg basket, mead bottle, cider jug | rd_pro__inventory_items | 256x256 | 1 | 0.18 | atlas alternative to the good-* calls above; include_downloadable_data returns the item atlas |
 | good-ale-208ec286 | small game item icon of foaming ale mug | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
 | good-cheese-bc48db84 | small game item icon of cheese wheel | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |
 | good-cider-18fa52ea | small game item icon of jug of cider | rd_mini__topdown_item | 32x32 | 2 | 0.12 |  |

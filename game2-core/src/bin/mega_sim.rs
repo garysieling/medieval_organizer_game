@@ -7,7 +7,7 @@ use game2_core::game::villager::{self, Hunger};
 use game2_core::game::pets::{self, Species, PetRole};
 use game2_core::game::tech_tree::{printmaking_tree, research, next_researchable};
 use game2_core::sim::climate::{self, SeasonSystem, climate_multiplier};
-use game2_core::sim::illness::{Health, Disease, Stage, IllnessSystem};
+use game2_core::sim::illness::{Health, Disease, DiseaseKind, IllnessSystem};
 use game2_core::sim::psychology::{self, AttachmentHistory, Episode, EpisodeKind, infer_style};
 use game2_core::sim::religion::{self, Faith, Congregation, Service, DevotionSystem};
 use game2_core::infra::telemetry::Telemetry;
@@ -79,7 +79,7 @@ fn main() {
         sched.tick(&mut world);
 
         // Research comes from the village: every villager who's fed and well
-        // puts a little thought into the next tech, so hunger and the flu
+        // puts a little thought into the next tech, so hunger and la grippe
         // slow progress
         let thinkers = villagers.iter().filter(|v| {
             let fed = world.get_component::<Hunger>(**v).map(|h| h.value >= 30.0).unwrap_or(false);
@@ -92,11 +92,11 @@ fn main() {
             }
         }
 
-        // A traveller brings the flu; it's contagious, so neighbours may catch it
+        // A traveller brings la grippe; it's contagious, so neighbours may catch it
         if tick == 100 {
             let d = world.create_entity();
-            world.add_component(d, Disease { name: "flu".into(), patient: villagers[2], stage: Stage::Moderate, severity: 0.5, contagious: true });
-            println!("EVENT: villager2 comes down with the flu");
+            world.add_component(d, Disease::new(DiseaseKind::Influenza, villagers[2], 0.5));
+            println!("EVENT: villager2 comes down with la grippe");
         }
 
         // Weekly Mass for everyone fed and well enough to attend

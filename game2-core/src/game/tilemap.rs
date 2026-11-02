@@ -256,6 +256,15 @@ impl TileMap {
         }
     }
 
+    /// Occupy a cell with a house or workshop, and record it as a
+    /// building so `flammable` (and anything else reading `buildings`)
+    /// knows it's there - unlike a wall or a stone, which occupy a cell
+    /// without being a building.
+    pub fn build_at(&mut self, x: i32, y: i32) {
+        self.occupy(x, y);
+        self.buildings.push((x, y));
+    }
+
     /// Wall in the rectangle (x0, y0)-(x1, y1): towers at the corners, a
     /// gate midway along each side (left open, so the roads go through them),
     /// wall everywhere else. Wall and towers can't be built on or walked through.

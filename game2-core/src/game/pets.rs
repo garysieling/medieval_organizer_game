@@ -54,6 +54,7 @@ pub fn spawn_pet(world: &mut World, name: &str, species: Species, role: PetRole)
             PetRole::Labor => 0.0,
         },
     });
+    world.add_component(e, role);
     e
 }
 
@@ -86,12 +87,14 @@ use crate::game::villager::is_dead; // health 0, or marked Dead by the windowed 
 /// Who takes in a pet when its owner dies: the living person the owner was
 /// closest to (strongest positive relationship), if anyone
 fn next_keeper(world: &World, dead_owner: Entity) -> Option<Entity> {
-    use crate::game::relationships::Relationship;
-    world.query::<Relationship>().into_iter()
+    use crate::game::relationships::{self, Relationship};
+    relationships::bonds_of(world, dead_owner).into_iter()
         .filter_map(|r| world.get_component::<Relationship>(r))
         .filter_map(|r| {
             let other = if r.from == dead_owner { r.other } else if r.other == dead_owner { r.from } else { return None };
-            (r.strength > 0.0 && !is_dead(world, other)).then_some((other, r.strength))
+            // a pet goes to the closest who can still keep it - no
+            // hound goes begging to the lock-up
+            (r.strength > 0.0 && !crate::game::dungeon::unavailable(world, other)).then_some((other, r.strength))
         })
         .max_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(e, _)| e)

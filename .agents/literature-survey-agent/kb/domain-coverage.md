@@ -1,7 +1,7 @@
 # Domain Coverage
 
 **Agent:** Literature Survey Agent
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-31
 **Version:** 0.1.0
 
 ## Summary
@@ -14,10 +14,10 @@ Domains with completed surveys and implemented mechanics.
 
 #### Game Design & Emergence
 **Coverage:** High
-**Surveys:** Sprint 1 (Game Design & Simulation)
-**Mechanics Implemented:** Cellular automata (emergence.rs), Machinations-inspired resource flow
-**Sources:** Sweetser (2006), Dormans (2011)
-**Next Steps:** Explore additional emergent systems (flocking, agent-based modeling)
+**Surveys:** Sprint 1 (Game Design & Simulation), Round 5 (Balance Tester suite: fun/supply-chain games, balance-testing methodology, storytelling arcs, reward/punishment conditioning)
+**Mechanics Implemented:** Cellular automata (emergence.rs), Machinations-inspired resource flow, balance_tester.rs KPI scorer + balance_test bin (PR #212)
+**Sources:** Sweetser (2006), Dormans (2011); Schreiber & Romero Game Balance, Sirlin, Riot/Blizzard/Firaxis practice, RimWorld storyteller constants, Skinner/SDT/Gottman (round 5)
+**Next Steps:** Calibrate KPI bands over a baseline ensemble (30 seeds); persona x scenario policy matrix; typed event-log severity/cause fields
 
 ---
 
@@ -40,28 +40,63 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Community Organizing & Sociology
-**Coverage:** Medium
-**Surveys:** Sprint 3 (Community Organizing)
+**Coverage:** High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (Community Organizing), Sprint 4 (Organizing Leadership), Sprint 7 (Organizing Power, Non-violent Deposition), Historical Campaigns of Community Organizing, Counter-Organizing: Repression & Infiltration, Enforcement & Defense of Wins, Campaign Engineering Masters, Modern Counter-Playbook, Movement Information Infrastructure, Pre-Modern Resistance Organizations, Secret Societies & Oath Networks, Imprisonment & Release Campaigns, Movement Internal Structure (decisions, meetings, training)
 **Mechanics Implemented:** 1-1 conversations, house meetings (community.rs)
-**Sources:** Community organizing literature (needs specific citations)
-**Next Steps:** Coalition building, direct action tactics, movement scaling
+**Mechanics Proposed:**
+- Campaign structure (target, demand, escalation ladder, settlement) - historical-campaigns review
+- Pillars of support (defection-based power model) - historical-campaigns review
+- Repression backfire / political jiu-jitsu - historical-campaigns review
+- Institutional anchoring (durable vs ephemeral orgs) - historical-campaigns review
+- Leadership pipeline vs charismatic bottleneck - historical-campaigns review
+- Ask specificity (winnable vs transformational campaigns) - historical-campaigns review
+- Coalition breadth vs coordination friction - historical-campaigns review
+- Repression tech tree (surveillance → infiltration → legal harassment → provocation → violence) - countertactics review
+- Trust/paranoia stat (COINTELPRO's real mechanism) - countertactics review
+- Controlled-opposition events (binding vs performative seats) - countertactics review
+- Provocateur events + marshal/discipline counters - countertactics review
+- Manufactured crisis + refutation window - countertactics review
+- Mohawk Valley Formula as counter-AI playbook - countertactics review
+- Counter-intel abilities (documentation, vetting, surveillance exploitation) - countertactics review
+- Win-decay + enforcement tiers + counter-movement timer - enforcement review
+- Campaign design stack (6 layers) + decision-tree rule + playbook export/counter-adaptation - campaign-masters review
+- Repression-as-market + legalization track + lawfare events - modern-playbook review
+- Channel ownership + petition artifacts + suppression backfire + brand propagation - info-infrastructure review
+- Hidden-institution form + inquisition counter-cycle + relapse/penitent mechanic + negotiate-and-decapitate event + moderate-split exploitation - premodern-resistance review
+- Oath intensity tech + cover function + penetration timer + counter-ritual enemy action + dual-org architecture - secret-societies review
+- Imprisoned-as-active-state + moral-shock stranger recruitment + jailer's dilemma + release-campaign pressure accumulator + adoption-as-charter - prisons-and-release review
+- Alignment-as-participation-gate + seats-as-accountability (shadow elite) + decision rules + frame-work meetings + train-the-trainer + hidden schools - internal-structure review
+**Sources:** Alinsky, Ganz, McAlevey, Han (theory); Chenoweth & Stephan NAVCO (quant); Church Committee (primary on counter-organizing); movement case histories (Birmingham, Delano, apartheid, Stonewall, suffrage, ordination, IAF, labor, abolition, climate); TigerSwan leaks, Citizen Lab, HRW (modern repression); APSR petition dataset, Tufekci (info infrastructure); Le Roy Ladurie/Montaillou, Bernard Gui, Biller (pre-modern resistance); Rath, Kershaw/Rice, ter Haar, Le Caron (secret societies); Jasper & Poulsen, suffragette/Attica/Amnesty records (imprisonment & release); Freeman, Snow/Benford frame alignment, Polletta (internal structure); Highlander/CEP records (training schools)
+**Next Steps:** Deep-dives done: 504, ACT UP, abolition petitions (round 2). Remaining: UK spycops inquiry, NGO-ization/co-option literature, platform-manipulation research
 
 ---
 
 #### Systems Biology & Medicine
-**Coverage:** Medium
-**Surveys:** Sprint 3 (QSP for Game Systems)
-**Mechanics Implemented:** Illness stages, treatments (illness.rs)
-**Sources:** QSP/ADME literature (needs specific citations)
-**Next Steps:** Specific illnesses (cancer progression), preventive medicine, epidemiology
+**Coverage:** Medium-High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (QSP for Game Systems), Victorian Diseases (historical epidemiology roster)
+**Mechanics Implemented:** Illness stages, treatments (illness.rs); contagious spread by proximity
+**Mechanics Proposed:**
+- Zymotic roster / DiseaseKind enum (per-disease route, virulence, immunity, incubation, season) - victorian-diseases review
+- Real incubation period via unused Stage::Latent - victorian-diseases review
+- Waterborne transmission through existing effluent/pit_water tiles (Broad Street mechanic) - victorian-diseases review
+- Seasonal fever calendar (summer cholera/diarrhoea, winter respiratory, autumn ague) - victorian-diseases review
+- Differential immunity + relapse (ague/ague dormancy, TB reactivation on hunger) - victorian-diseases review
+- Crowding/class exposure modifier + hunger-immunity loop - victorian-diseases review
+- Occupational trade-exposure diseases (phossy jaw, miner's dust, sweeps' cancer) - victorian-diseases review
+- Epidemic blame/grievance extension (miasma-minded scapegoats) - victorian-diseases review
+**Sources:** QSP/ADME literature (needs specific citations); Mooney, Hardy, Snow, Farr, CampOP (victorian-diseases review)
+**Next Steps:** Apply victorian naming table to in-code diseases; specific illnesses (cancer progression), preventive medicine, epidemiology
 
 ---
 
 #### Religion & Fundamentalism
-**Coverage:** Medium
-**Surveys:** Sprint 3 (Religion & Emergence)
+**Coverage:** Medium-High (deepened 2026-10-31)
+**Surveys:** Sprint 3 (Religion & Emergence), Messianic & Prophetic Movements, The Faith-Power Interface
 **Mechanics Implemented:** Congregations, fundamentalism (religion.rs, fundamentalism.rs)
-**Sources:** Sociology of religion (needs specific citations)
+**Mechanics Proposed:**
+- Prophetic mobilization growth mode + millenarian timer + martyrdom roll + prophetic capture events + institutional-cover dependency - messianic-prophetic review
+- Broker class + incorporation offers + redacted canon + paternalism bargain + disciplinary institutions layer + broker dilemmas - faith-and-power review
+**Sources:** Sociology of religion (needs specific citations); Cohn *Pursuit of the Millennium* (messianic movements); Niebuhr, Weber/Troeltsch, Foucault, Genovese (faith-power)
 **User Note - Religion-Economics Feedback Loop (Bonhoeffer, Niebuhr):**
 - Economic scarcity → Religious coping (simplicity/hard work as values, celebration of pain, apocalyptic hope)
 - New technology → Removes need → Tension between faith and reality → Schism (new organizations form)
@@ -73,10 +108,12 @@ Domains with completed surveys and implemented mechanics.
 ---
 
 #### Political Theory & Liberation
-**Coverage:** Medium-Low
-**Surveys:** Sprint 4 (Anti-Colonialist/Liberation)
+**Coverage:** Medium (deepened 2026-10-31)
+**Surveys:** Sprint 4 (Anti-Colonialist/Liberation), Anti-Colonial Campaign History
 **Mechanics Implemented:** Player role progression (Outsider → Leader)
-**Sources:** Liberation theory (needs specific citations)
+**Mechanics Proposed:**
+- Sacred binding infrastructure + ostracism as insider discipline + succession redundancy + COIN doctrine choice + deferred radicalization debt - anticolonial-campaigns review
+**Sources:** Liberation theory (needs specific citations); Geggus (Haiti), Land League/Parnell, DTIC/RAND Battle of Algiers studies, CLR James
 **Next Steps:** Specific organizing tactics, oppression mechanics, revolution dynamics
 
 ---
@@ -228,10 +265,10 @@ Domains with no research yet but relevant to game vision.
 ---
 
 #### Education & Pedagogy
-**Coverage:** High
-**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy)
+**Coverage:** High (deepened 2026-10-31)
+**Surveys:** Cycle 3, Survey 4 (Education & Pedagogy), Critical Pedagogy & Movement Education
 **Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/education-pedagogy.md)
-**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory
+**Sources:** Medieval education (monastery/cathedral/university), Guild apprenticeships, Deliberate practice (Ericsson), Tacit knowledge theory; Freire, Boal, Horton/Highlander, Illich, Bourdieu & Passeron, Gramsci (critical pedagogy)
 **Mechanics Proposed:**
 - Medieval education structures (monastery schools, cathedral schools, universities with four faculties)
 - Seven liberal arts curriculum (trivium + quadrivium progression)
@@ -239,6 +276,7 @@ Domains with no research yet but relevant to game vision.
 - Deliberate practice skill system (quality over quantity, 3x multiplier for focused practice)
 - Literacy teaching (wax tablets, hornbooks, oral recitation, reading vs writing as separate skills)
 - Tacit vs explicit knowledge transfer (books for theory, apprenticeship for embodied skills)
+- Internalized_domination stat + praxis loop skill growth + community-teacher requirement + spect-actor rehearsal + movement schools building + oppressor-within flip risk - critical-pedagogy review
 **Next Steps:** Implement education.rs and skills.rs modules, test deliberate practice mechanics, balance apprenticeship timescales
 
 ---
@@ -259,9 +297,9 @@ Domains with no research yet but relevant to game vision.
 
 #### Writing Materials & Bookmaking
 **Coverage:** High
-**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking)
-**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md)
-**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus
+**Surveys:** Cycle 3, Survey 3 (Writing Materials & Bookmaking); Hot-Pursuit 2026-10-31 (Ink Making - The Oil-Boiler's Fire)
+**Mechanics Implemented:** None yet (proposed in wiki/literature-reviews/writing-materials-bookmaking.md, wiki/literature-reviews/ink-oil-boiling.md)
+**Sources:** Vellum/parchment process, Iron gall ink, Linen rag papermaking, Coptic binding, Manuscript illumination, Vegetable papyrus, Cennini oil-boiling, Encyclopedie printing ink, lampblack/sac-a-noir, fire zoning bylaws
 **Mechanics Proposed:**
 - Five writing surfaces (vellum 14-day process, papyrus, vegetable papyrus from peppers, linen rag paper)
 - Four ink types (iron gall archival, carbon/lampblack, berry inks, mineral pigment from stone dust)
@@ -356,18 +394,18 @@ Topics that emerge from other work and need immediate research.
 - None active
 
 **Completed Hot-Pursuit:**
-- None yet
+- Ink Making - The Oil-Boiler's Fire (2026-10-31, Gary request) - confirmed the remembered event: linseed oil boiled to varnish outside the walls, bread crusts fried in it, lampblack (soot, not ash) ground in for printing ink -> periodic event + fire spread mechanics proposed
 
 ---
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 20
+**Total Surveys Completed:** 43 (+4: Balance Tester suite - fun/supply-chain, balance-testing methodology, storytelling arcs, reward-punishment; prior: 39) (+1: Incense Production/Distribution deep-dive; prior: 38) (+1: Religious Institutions Deep-Dive; prior: 37) (+1: Doctrine & Sacramental Politics; prior: 36 incl. round 4 Cult Dynamics + Hinduism-Caste) (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)
-**Mechanics Implemented from Research:** ~72 (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed)
-**Sources Requiring Better Citation:** ~5
+**Mechanics Implemented from Research:** ~167 (+5: incense supply chain, substitute tiers, scent-space, spectacle liturgy, consumption dependency) (+5: relic economy, order-type orgs, council overrides, prophecy gate, furta sacra) (+7 doctrine/sacrament mechanics: creed-ledger, council events, affliction/theodicy, sacrament-membership, interdict, accidental-schism, deference-refusal) (+12 round 4: cult totalism dials, extraction loop, escalating commitment, stratification layer, interpretation monopoly, mass defection, exit-as-tactic) (5 agriculture + 5 ecology + 5 urban + 5 philosophy + 5 anthropology + 5 historical events + 5 herbology + 4 crafts + 5 writing materials + 6 education + 6 systems thinking + 4 military + 5 art/aesthetics + 7 misc proposed + 14 organizing/countertactics + 20 round-2 + 20 round-3 organizing mechanics)
+**Sources Requiring Better Citation:** ~4 (Community Organizing citation gap FILLED 2026-10-31)
 
 **Coverage Score:** 100% (20/20 well-covered domains!)
 **Cycle 1: COMPLETE** (7/7 surveys finished)

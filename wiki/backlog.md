@@ -1106,3 +1106,53 @@ Tell me which mode you want to enter, and I'll guide you through the process.
 - **Output:** wiki/agents/gary-agent.md
 - **Requested by:** Gary
 - **Notes:** An agent that looks back on things Gary has said and provides feedback if the game is on track based on his high-level guidance/profile. When it runs it gives nudges. Should learn from Gary's feedback about what his expectations are (e.g., evidence = software output not desktop captures, wants modular systems, emergent design, specific aesthetic direction). Maintains a living model of Gary's intent - reads his messages/specs, compares current work to vision, nudges course corrections, and refines its model when corrected.
+
+### [ ] Implement Historical Organizing Mechanics (campaigns + countertactics)
+- **Status:** Pending
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-10-31
+- **Output:** wiki/literature-reviews/organizing-historical-campaigns.md, wiki/literature-reviews/organizing-countertactics.md
+- **Notes:** 14 mechanics proposed from the historical organizing research. Player-side: campaign structure (target/demand/escalation/settlement), pillars-of-support defection model, institutional anchoring, leadership pipeline, ask specificity, coalition breadth, repression backfire (political jiu-jitsu). Counter-side: repression tech tree, paranoia stat, controlled-opposition seats, provocateur events, manufactured crisis + refutation window, Mohawk Valley counter-AI, counter-intel abilities. Design question flagged: AI power-holders should run countertactics; players get counter-countertactics (ethics layer needs thought if players run them).
+
+### [ ] Implement Round-2 Organizing Mechanics (enforcement, campaign design, modern repression, info infrastructure)
+- **Status:** Pending
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-10-31
+- **Output:** wiki/literature-reviews/organizing-enforcement-and-defense.md, wiki/literature-reviews/organizing-campaign-masters.md, wiki/literature-reviews/organizing-modern-counter-playbook.md, wiki/literature-reviews/organizing-information-infrastructure.md
+- **Notes:** 20 more mechanics (5 per review) that extend the round-1 campaign/countertactics model above. Enforcement & defense: win_integrity decay post-victory, enforcement-form strength tiers (norm → self-executing legal mechanism → beneficiary-owned institution), a counter-movement timer for the defeated faction, demobilization-temptation off-ramp events, a watchdog org role. Campaign masters: the six-layer campaign design stack (demand/lever/participation/discipline/logistics/pillar outreach), a decision-tree "does the opponent have a non-losing response" evaluator usable by both player and AI, exportable playbooks with power-holder counter-adaptation, logistics as a per-turn tracked resource, discipline as a trained/maintained stat. Modern counter-playbook: repression-as-a-market (power-holders buy deniable private security/PR/legal services), a covert→legalization track for repression tactics, administrative attrition (compliance burden as damage-over-time), digital surveillance asymmetry (ambient bulk collection vs. rare deep-asset infiltrators), lawfare events where the process itself is the damage. Information infrastructure: channel ownership (pulpit/press/signal_net/symbol, each with reach/credibility/control/cost), petition-like structure-test artifacts, a suppression-backfire roll gated on frame readiness, meeting venues as infrastructure buildings, brand/symbol propagation. Ties into the existing `Campaign`/`CampaignMeeting`/organized-power model in `game2-core/src/game/campaign.rs` and `game2-core/src/sim/organized_power.rs`.
+
+### [ ] Deep-Dive Follow-Ups: Movement History
+- **Status:** Partially Completed (round 2, 2026-10-31)
+- **Priority:** Medium
+- **Category:** books/articles
+- **Added:** 2026-10-31
+- **Done:** 504 sit-in, ACT UP, Salt March, Otpor/CANVAS (campaign-masters doc); abolition petition machinery (info-infrastructure doc); enforcement/defense dynamics (enforcement doc); foreign-agent laws, TigerSwan, spyware, lawfare (modern-playbook doc)
+- **Remaining:** UK spycops inquiry (richest modern infiltration record), INCITE! "The Revolution Will Not Be Funded" (NGO-ization/co-option critique), platform-manipulation research (DFRLab), Color Revolution rollback scholarship (authoritarian learning)
+
+### [ ] Implement Victorian Disease Realism (disease kinds, incubation, waterborne spread)
+- **Status:** Partially Completed (5 tranches merged, 2026-11-01)
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-10-31
+- **Output:** wiki/literature-reviews/victorian-diseases.md
+- **Done:** DiseaseKind enum + Victorian names + per-kind incubation/immunity (PR #297); Route enum + waterborne kinds (cholera/slow fever/flux) + effluent Broad Street mechanic + Snow feedback loop + effluent decay (PR #406); ague as Route::Vector seasonal marsh fever (days 240-310) + crowding doubles dose + hunger halves immunity (PR #410); epidemic scapegoating - Blamed grievance lands on herb-wife or newest face when 2+ symptomatic (PR #411)
+- **Remaining:** occupational trade-exposure diseases (phossy jaw → matchgirls strike is a ready-made campaign), Vaccination Act as oppression event + Leicester Method as player counter-institution, true TB/seasonal table generalized over FLU_DAY/ergot gates.
+
+### [ ] Goods & Market Economy Overhaul (barter, hidden worths, 3-tier goods web)
+- **Status:** In Progress (design landed 2026-11-01)
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-11-01
+- **Requested by:** Gary
+- **Output:** wiki/software-design/goods-market-economy.md
+- **Notes:** Barter-first trading (goods-for-goods + "a penny to boot"), intrinsic worth hidden from the UI (you hear "2 roots for 3 eggs", never a number), three tiers (staples / manufactured / luxuries), AtS-style ingredient-slot recipe web so no single missing good stalls a trade, muted scarcity drift bounded 0.6-1.8, cottage industries selling their own goods at door and market. ~30 new goods; "wood"/"stone" de-troped to timber+faggots / fieldstone. 19 implementation tranches ordered preparatory-first in the design doc. Open questions flagged for Gary: salt sourcing (import vs salt-pan), meat/pigs, drift bounds.
+
+### [ ] Implement IAF Organizing Model Mechanics (encounter menu, research phase, leader economics, accountability assembly)
+- **Status:** Pending
+- **Priority:** High
+- **Category:** software-design
+- **Added:** 2026-11-01
+- **Output:** wiki/literature-reviews/organizing-iaf-model.md
+- **Notes:** 14 mechanics proposed from the IAF/ELCA deep-dive. Highest leverage first: (1) campaign phase machine — Listening -> IssueCut -> Research -> Action -> Evaluate, with TargetIntel from research visits (targets are persons not institutions; reaction-is-the-data); (2) encounter menu on `one_on_one` — listening season, door knock, listening post, power 1-1 (>=2 visitors), research visit; (3) leader economics — iron-rule dependency scalar, cold-anger disposition screen on 1-1s, leader tiers with delivered-following turnout quotas; (4) accountability assembly action — delegation turnout + published agenda + yes/no pin-down questions -> Pledge artifacts feeding enforcement; (5) institutional layer — member institutions join by vote+dues, sponsoring-committee founding conditions (locally_sponsored halves outside-agitator smears), patronage co-option events, relational-vs-dominant power split. Design note flagged in doc: disposition stats should land in one pass alongside the critical-pedagogy internalized_domination/critical_agency stats.

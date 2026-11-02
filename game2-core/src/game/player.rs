@@ -58,6 +58,10 @@ pub const TALK_MAINTENANCE: f32 = 0.1;
 /// TALK_MAINTENANCE - a catch-up that keeps an old friendship from fading.
 pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    if world.get_component::<crate::game::villager::Dead>(target).is_some() {
+        return ActionResult { success: false, influence_change: 0.0,
+            description: "You can't talk with the dead.".into() };
+    }
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });
@@ -125,7 +129,14 @@ pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entit
     let personal = crate::game::relationships::find_relationship(world, player, target)
         .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
-    let trust = recruit_trust(player_infl).max(personal);
+    // Someone woken to the cause signs on without being convinced -
+    // the issue organized them before you ever knocked (moral shock)
+    let sympathetic = crate::game::campaign::campaign_of(world, org)
+        .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c))
+        .map(|c| world.get_component::<crate::game::reactions::Sympathized>(target)
+            .map(|s| s.issues.iter().any(|(i, _)| *i == c.issue)).unwrap_or(false))
+        .unwrap_or(false);
+    let trust = if sympathetic { 1.0 } else { recruit_trust(player_infl).max(personal) };
     let recruited = crate::sim::community::recruit(world, org, target, trust);
     let gained = if recruited { RECRUIT_INFLUENCE } else { 0.0 };
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {

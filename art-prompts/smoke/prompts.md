@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-22 prompts, est. $3.01 USD at list prices.
+23 prompts, est. $3.19 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -47,11 +47,17 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | good-bread-5f6af63a-smoke | small game item icon of round bread loaf | rd_mini__topdown_item | 32x32 | 1 | 0.06 | validates: mini item icon |
 | goods-sheet-644710b6-smoke | inventory item sheet: wheat sheaf, bread loaf, flour sack, stone block, log stack, sand pile, paper, ink pot, pamphlet, pigment pots, cloth bolt, glass pane, garments, hammer tools, lute, gold coins | rd_pro__inventory_items | 256x256 | 1 | 0.18 | validates: inventory_items atlas mode + include_downloadable_data \| one call draws a matched set; include_downloadable_data returns the item atlas |
 
+## P1 - fills gaps in shipped features / sheets/sprites
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| sheet-villager-poses-5af51f87-smoke | small chibi medieval peasant villager in nine poses: standing, walking, carrying a sack, kneeling, hammering, hoeing, sitting, waving, sleeping, consistent matched set | rd_pro__spritesheet | 256x256 | 1 | 0.18 | validates: spritesheet mode - matched pose grid in one call \| one call returns the whole grid; slice per cell |
+
 ## P0 - needed now (replaces assets the game already draws) / icons/ui
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| ui-panel-e028fe6e-smoke | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | validates: ui_panel chrome |
+| ui-panel-e028fe6e-smoke | carved wooden-framed parchment UI panel, empty centre, game UI element | rd_pro__ui_panel | 256x256 | 1 | 0.18 | validates: ui_panel chrome \| ui_panel draws a matched chrome set; slice per element |
 
 ## P1 - fills gaps in shipped features / festivals
 

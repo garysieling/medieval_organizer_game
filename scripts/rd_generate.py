@@ -77,7 +77,7 @@ def call(url, body=None, idem=None):
 
 
 def load_manifest():
-    # prompts.json is generated (gitignored); always rebuild the full,
+    # prompts.json is generated from generate_art_prompts.py; always rebuild the full,
     # unfiltered list so already-done ids are still selectable (needed
     # for --force: generate_art_prompts.py drops done ids by default).
     import subprocess
@@ -132,6 +132,8 @@ def main():
                     help="source still for two-stage adv-* animations (see each entry's notes "
                          "for which P0 output it expects)")
     args = ap.parse_args()
+    if args.input_image and not os.path.isfile(args.input_image):
+        sys.exit(f"--input-image {args.input_image}: no such file")
 
     os.makedirs(os.path.dirname(LOCK), exist_ok=True)
     lock_f = open(LOCK, "w")
@@ -146,8 +148,7 @@ def main():
         for want in args.ids:
             hits = [e for e in entries if e["id"] == want or e["id"].startswith(want + "-")]
             if not hits:
-                sys.exit(f"no manifest entry matches {want!r} (is prompts.json filtered? "
-                         "rebuild with generate_art_prompts.py --include-done)")
+                sys.exit(f"no manifest entry matches {want!r} (see art-prompts/prompts.md for ids)")
             for e in hits:
                 if e["id"] in done and not args.force:
                     print(f"skip {e['id']}: already generated (--force to redo)")

@@ -141,6 +141,32 @@ pub struct Selection {
     pub building: Option<usize>,
 }
 
+/// One line on the TALK panel
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TalkRowV {
+    /// Who said it - None for narration and the day rule
+    pub name: Option<String>,
+    pub text: String,
+    /// A concern or secret drawn out: the line that matters
+    pub gist: bool,
+    /// Said by the player
+    pub you: bool,
+    /// A "day 12" divider between conversations
+    pub rule: bool,
+}
+
+/// The TALK panel: conversations, kept apart from the event log
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TalkPanelV {
+    pub title: String,
+    /// Oldest first; the panel shows the newest that fit
+    pub rows: Vec<TalkRowV>,
+    /// Replies on offer mid-Talk, in pick order
+    pub options: Vec<String>,
+    /// Mid-Talk: Leave is on offer too
+    pub in_talk: bool,
+}
+
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
@@ -167,6 +193,9 @@ pub struct UiModel {
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<String>,
     pub log: Vec<String>,
+    /// The TALK panel, apart from the log
+    #[serde(default)]
+    pub talk: TalkPanelV,
     pub sel: Selection,
     /// Villager indices within talk/meeting reach
     pub reach: Vec<usize>,

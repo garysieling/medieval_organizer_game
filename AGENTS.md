@@ -33,3 +33,8 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
   - Lines are spent upon utterance to avoid in-conversation repetition and allow natural material exhaustion.
 - **House Meetings**:
   - Looser model where attendees bid on speaking based on concept overlap with the organizer's open question, the previous speaker, or prior statements.
+- **In-game wiring (`session/dialogue.rs`)**:
+  - Villagers meeting in passing run `converse()`; the transcript goes into `Game::talk_log` (no map bubbles). Kids only talk to kids, on the `children_at_play` tree.
+  - The player's Talk opens a `PlayerTalk` that is replayed from its seed plus the picks so far (`converse_with`), so it can wait across frames for a reply (`Command::TalkPick`).
+  - House meetings use `run_meeting` lines for attendees who don't reveal an issue, and are recorded as they're said.
+  - The TALK panel (under the minimap) shows the picked villager's conversations, or the player's own. The event LOG holds only events.

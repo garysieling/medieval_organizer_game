@@ -1402,6 +1402,8 @@ pub struct Meeting {
     pub frames: u32,                         // how long since it was called, unpaused
     pub talk_from: Option<u32>,              // when the talking began
     pub lines: Vec<(Entity, String)>,        // the conversation, in order
+    /// Its record on the TALK panel, once the talking starts
+    pub talk_id: u64,
     /// The seat that called it - resolution belongs to their org
     pub seat: usize,
 }
@@ -1659,6 +1661,8 @@ pub enum Command {
     ToggleSpeed,
     /// Drop any walk-over-to-talk in progress
     CancelApproach,
+    /// Answer the villager mid-Talk with reply `n`, or None to take your leave
+    TalkPick(Option<usize>),
 }
 
 /// A contextual action offered under the main buttons: what the player can
@@ -1710,12 +1714,14 @@ pub struct Seat {
     pub ctx_actions: Vec<CtxAct>,
     /// An API-driven seat steers a villager, not a wanderer
     pub agent: bool,
+    /// A Talk under way, waiting on the player's reply (session::dialogue)
+    pub talk: Option<dialogue::PlayerTalk>,
 }
 
 impl Default for Seat {
     fn default() -> Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
-               selected_building: None, ctx_actions: vec![], agent: false }
+               selected_building: None, ctx_actions: vec![], agent: false, talk: None }
     }
 }
 
@@ -1780,9 +1786,10 @@ pub struct Game {
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
-    /// Villager-to-villager conversations playing out a line at a time
-    /// (session::dialogue)
-    pub convos: Vec<dialogue::LiveConvo>,
+    /// Every conversation heard - villagers in passing, the player's Talk,
+    /// house meetings - for the TALK panel (session::dialogue)
+    pub talk_log: Vec<dialogue::TalkRecord>,
+    pub talk_next_id: u64,
     pub frame_n: u32,
 
     pub precip: Option<PrecipKind>, // what is falling today
@@ -2801,7 +2808,8 @@ impl Game {
             meeting: None,
             near: vec![],
             last_chat: vec![],
-            convos: vec![],
+            talk_log: vec![],
+            talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],
             frame_n: 0,
@@ -3436,7 +3444,7 @@ impl Game {
             }
             self.works.retain(|w| w.risen() < 1.0);
             self.advance_meeting();
-            self.advance_convos();
+            self.advance_player_talks();
             self.advance_travels();
             self.advance_minstrel();
             self.advance_pedlar();
@@ -3506,13 +3514,19 @@ impl Game {
             }
             None => talk_response(&self.world, v, vill_name(who), talks_before),
         };
-        let pe = self.seats[seat].player; act_talk(&mut self.world, pe, v);
+        let pe = self.seats[seat].player;
+        // the bond as it stood before this talk: a first talk is with a stranger
+        let rel = dialogue::relation_with_wanderer(self.rel_kind(pe, v));
+        act_talk(&mut self.world, pe, v);
         self.say(v, &said, TALK_BUBBLE_SECS);
         // a blow-off leaves them hollow: a real talk coaches them back
         let coached = if self.world.get_component::<crate::game::actions::Demoralized>(v).is_some()
             && crate::game::actions::coach(&mut self.world, pe, v, self.tick) {
             " You talk the helplessness out of them."
         } else { "" };
+        // the conversation itself goes on the TALK panel, the replies yours to pick
+        self.open_player_talk(seat, v, rel, &said);
+        if !coached.is_empty() { self.narrate_talk(seat, coached.trim()); }
         format!("{}: \"{}\"{}", did, said, coached)
     }
 
@@ -3595,13 +3609,15 @@ impl Game {
         // whoever is in reach
         if (i == 0 || i == 1) && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
         let selected_target = self.seats[seat].selected_target;
+        // a Talk's words go on the TALK panel, not the event log
+        let mut talked = false;
         let msg = if let Some(reason) = self.action_blocker_at(seat, i) {
             format!("Can't {}: {}.", ACTION_LABELS[i].to_lowercase(), reason)
         } else {
             match i {
                 0 => match self.start_approach_at(seat, selected_target, 0) {
                     Some(walking) => walking,
-                    None => self.talk_to_at(seat, selected_target),
+                    None => { talked = true; self.talk_to_at(seat, selected_target) }
                 },
                 1 => if let Some(walking) = self.start_approach_at(seat, selected_target, 1) { walking } else {
                     let (pe, oe, te) = (self.seats[seat].player, self.seats[seat].org, self.villagers[selected_target]);
@@ -3629,7 +3645,7 @@ impl Game {
         // every action line is dated like the rest of the log. It doesn't
         // show the influence it earned: the log reads as what happened in
         // the village, not a score sheet (the panel's bar shows standing)
-        self.log.push(format!("t{}: {}", tick, msg));
+        if !talked { self.log.push(format!("t{}: {}", tick, msg)); }
         // gold spent here is the same purse the day's trading counts
         let pe = self.seats[seat].player; sync_purse(&mut self.world, pe, true);
     }
@@ -3820,7 +3836,7 @@ impl Game {
         }).collect();
         let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
         let msg = format!("You call a house meeting at {} - {} {} on the way.", label, names.join(", "), if names.len() == 1 { "is" } else { "are" });
-        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], seat });
+        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat });
         msg
     }
 
@@ -3832,8 +3848,29 @@ impl Game {
         if came.is_empty() { return vec![]; }
         let mut lines = vec![(self.player, MEETING_PROMPTS[0].to_string())];
         self.voiced.clear();
+        // what each attendee says when no secret comes out of them: the
+        // meeting's talk from conversation::run_meeting - answers to the
+        // question, agreement and pushback threaded on what's been said -
+        // seeded off the meeting, not the game's rng
+        let mut said = {
+            use crate::game::conversation::{run_meeting, MeetingLine, Rng as TalkRng, Speaker};
+            use crate::game::dialogue_trees::{meeting_pool, MEET_PROMPT};
+            let speakers: Vec<Speaker> = came.iter()
+                .map(|&v| dialogue::speaker_of(&self.world, v, &self.name_of(v), self.tick)).collect();
+            let pools: Vec<Vec<MeetingLine>> = speakers.iter().map(meeting_pool).collect();
+            let pool_refs: Vec<&[MeetingLine]> = pools.iter().map(|p| p.as_slice()).collect();
+            let refs: Vec<&Speaker> = speakers.iter().collect();
+            let host = self.world.get_component::<PlayerCharacter>(self.player).map(|p| p.name.clone()).unwrap_or_default();
+            let seed = self.tick.wrapping_mul(0x51_7CC1) ^ came.iter().fold(0u64, |h, &v| h.rotate_left(7) ^ v as u64);
+            let record = run_meeting(&Speaker::new(&host), &refs, &MEET_PROMPT, &pool_refs, &mut TalkRng::new(seed));
+            let mut q: Vec<std::collections::VecDeque<String>> = vec![Default::default(); came.len()];
+            for st in record.into_iter().skip(1) {
+                if let Some(d) = q.get_mut(st.speaker) { d.push_back(st.text); }
+            }
+            q
+        };
         for round in 0..2 {
-            for &v in came {
+            for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
                 let mine: std::collections::HashSet<desires::IssueTag> =
                     desires::unrevealed(&self.world, v, self.tick).iter()
@@ -3858,7 +3895,10 @@ impl Game {
                         shared = true;
                     }
                 }
-                if !shared { lines.push((v, meeting_remark(&self.world, v, vill_name(i), round))); }
+                if !shared {
+                    let line = said[ci].pop_front().unwrap_or_else(|| meeting_remark(&self.world, v, vill_name(i), round));
+                    lines.push((v, line));
+                }
             }
             lines.push((self.player, MEETING_PROMPTS[round + 1].to_string()));
         }
@@ -3902,10 +3942,18 @@ impl Game {
                     m.paths = came.iter().map(|&i| m.paths[i].clone()).collect();
                     m.lines = self.meeting_lines(&m.invited);
                     m.talk_from = Some(m.frames);
+                    // the TALK panel keeps the meeting's record as it's said
+                    if !m.invited.is_empty() {
+                        let host = self.seats[m.seat].player;
+                        m.talk_id = self.open_meeting_record(host, &m.invited);
+                    }
                     // show the opening line right away - otherwise the first
                     // "since" tick after talk_from is 1, not 0, and the
                     // player's opening prompt (lines[0]) is skipped
-                    if let Some((who, text)) = m.lines.first().cloned() { self.think(who, &text, LINE_FRAMES); }
+                    if let Some((who, text)) = m.lines.first().cloned() {
+                        self.think(who, &text, LINE_FRAMES);
+                        self.note_talk(m.talk_id, Some(who), &text);
+                    }
                 }
                 self.meeting = Some(m);
             }
@@ -3914,6 +3962,7 @@ impl Game {
                 if since % LINE_FRAMES == 0 && k < m.lines.len() {
                     let (who, text) = m.lines[k].clone();
                     self.think(who, &text, LINE_FRAMES); // gone as the next one speaks
+                    if k > 0 { self.note_talk(m.talk_id, Some(who), &text); }
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
@@ -3948,16 +3997,11 @@ impl Game {
             // a constant stream of chatter (the chat still counts either way)
             let n = self.last_chat.len() + (a as usize) + tick as usize;
             if n % 3 == 0 {
-                // two villagers: a whole conversation, a line at a time
-                // (session::dialogue); the player just gets a word in passing
-                if b == self.player {
-                    self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
-                } else if !self.start_convo(a, b) && !self.in_convo(a) && !self.in_convo(b) {
-                    // start_convo also fails when either is already talking;
-                    // don't clobber that exchange with a canned remark - only
-                    // fall back here when no conversation could be produced
-                    self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS);
-                }
+                // two villagers hold a whole conversation - on the record
+                // for the TALK panel, not floated over the street
+                // (session::dialogue); the player gets a word in passing
+                if b == self.player { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
+                else { self.villagers_chat(a, b); }
             }
             let (pe, other) = (self.player, if b == self.player { a } else { b });
             relationships::record_interaction(&mut self.world, if b == pe { b } else { a }, relationships::Interaction {
@@ -8460,6 +8504,7 @@ impl Game {
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
+            talk: self.talk_panel_at(seat),
             debug_lines: self.telemetry_lines(),
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
         }
@@ -8616,6 +8661,7 @@ impl Game {
             Command::TogglePause => self.paused = !self.paused,
             Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },
             Command::CancelApproach => self.seats[seat].approach = None,
+            Command::TalkPick(n) => self.talk_pick_at(seat, n),
         }
     }
 
@@ -9406,6 +9452,9 @@ impl View {
                 row += 1;
             }
         }
+
+        // the TALK panel under the minimap: conversations, apart from the log
+        dialogue::draw_talk_panel(&mut buf, &m.talk, (mx, my));
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;
@@ -12152,7 +12201,8 @@ mod chat_tests {
         game.act(0);
         let (who, said, until, _, _) = game.bubbles.iter().find(|b| b.0 == v).expect("no speech bubble over Eliza").clone();
         assert_eq!(who, v);
-        assert!(game.log.last().unwrap().contains(&said), "the bubble says what the log reports");
+        assert!(game.talk_log.last().unwrap().lines.iter().any(|l| l.gist && l.text == said),
+            "the bubble says what the TALK panel records");
         assert!(until > game.frame_n + FPS, "the bubble stays up for seconds, not a frame");
     }
 
@@ -12163,6 +12213,11 @@ mod chat_tests {
         let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
         let before = trust(&game, game.player, v);
         *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 1.0, y: vy };
+        // just the two of them: villagers meeting each other talk on the
+        // record, not over the map, so a neighbour mustn't take the turn
+        for (i, o) in game.villagers.clone().into_iter().enumerate() {
+            if o != v { *game.world.get_component_mut::<Pos>(o).unwrap() = Pos { x: vx + 30.0 + 3.0 * i as f32, y: vy + 30.0 }; }
+        }
         // only some meetings get a bubble - pad the ledger so Bram's pair
         // lands on the remark roll whatever came before it
         while (game.last_chat.len() + v as usize + game.tick as usize) % 3 != 0 {
@@ -12408,8 +12463,9 @@ mod talk_reach_tests {
         assert_eq!(game.disabled_reason(0), None, "someone is beside you, so Talk should be usable");
         game.act(0);
         assert_eq!(game.selected_target, 2, "Talk should turn to the villager in reach");
-        let line = game.log.last().unwrap();
-        assert!(line.contains(vill_name(2)) && !line.contains("Can't"), "{}", line);
+        assert!(!game.log.last().map(|l| l.contains("Can't")).unwrap_or(false), "{:?}", game.log.last());
+        let talk = game.talk_log.last().expect("a talk on the TALK panel");
+        assert!(talk.with.contains(&game.villagers[2]), "talked with {}", vill_name(2));
     }
 
     /// A villager the player can walk to who's well out of talking distance
@@ -12443,7 +12499,8 @@ mod talk_reach_tests {
         assert!(game.approach.is_none(), "still walking to {} ({} tiles off, started {})", vill_name(who), game.dist_to(who), start);
         assert!(game.dist_to(who) <= TALK_DIST + 0.5, "stopped {} tiles from {}", game.dist_to(who), vill_name(who));
         assert_eq!(talks(&game), before + 1, "talked once on arrival");
-        assert!(game.log.iter().any(|l| l.contains(vill_name(who)) && l.contains(": \"")), "no talk line: {:?}", game.log);
+        assert!(game.talk_log.iter().any(|r| r.with.contains(&game.villagers[who]) && r.with.contains(&game.player)),
+            "no talk on the TALK panel");
     }
 
     #[test]
@@ -12535,9 +12592,12 @@ mod action_log_tests {
         { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = ex + 0.5; p.y = ey; }
         game.selected_target = 1;
 
+        let logged = game.log.len();
         game.act(0);
-        let talk = game.log.last().unwrap().clone();
-        assert!(talk.starts_with("t3: Eliza ") && talk.contains(": \"") && !talk.contains("influence"), "{}", talk);
+        // a Talk's words go on the TALK panel, dated, not into the event log
+        assert_eq!(game.log.len(), logged, "talk isn't an event: {:?}", game.log.last());
+        let talk = game.talk_log.last().unwrap();
+        assert!(talk.tick == 3 && talk.lines.iter().any(|l| l.gist && l.name == "Eliza"), "{:?}", talk.lines);
 
         game.act(1); // not enough influence yet
         let recruit = game.log.last().unwrap().clone();

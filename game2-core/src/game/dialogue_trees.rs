@@ -2383,9 +2383,70 @@ pub const MEET_PROMPT: MeetingPrompt = MeetingPrompt {
     concepts: &["concern:food", "concern:sickness", "concern:wages", "concern:roads", "concern:faith", "concern:rents", "concern:fuel", "concern:bridge", "concern:harvest", "concern:commons", "concern:grief"],
 };
 
+// Two children meeting in the lane: games, dares and the things grown-ups
+// mustn't hear. The village's other trees are grown-up talk - wages, rents,
+// the harvest - so a pair of kids keeps to this one (session::dialogue
+// cuts their talk off where it would fall through to the adult tail)
+const KIDS_RUN: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["play"],
+    calls: &["Race thee to the well and back!", "Last one to the mill pond is a mouldy turnip!", "Mother's calling. I'll be skinned if I'm late again."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["Not fair, thou hadst a head start!", "Tomorrow, then. Same place.", "Run, {other}, run!"],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
+const KIDS_DARE: Exchange = Exchange {
+    act: Act::Question,
+    concepts: &["play"],
+    calls: &["I dare thee to knock on the hermit's cave.", "Wouldst thou climb the church wall if I held thy boots?", "Hast thou seen the miller's new pup? It bit Tom."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[(Proud, 1.5), (Hotheaded, 1.5)],
+            act: Act::Agree, concepts: &["play"],
+            lines: &["Easy! Watch me.", "Double dare thee back, then.", "Only if thou goest first."],
+            then: Some(KIDS_RUN), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.70, bias: &[(Kind, 1.5), (Lazy, 1.5)],
+            act: Act::PushBack, concepts: &["play"],
+            lines: &["Not likely - my father would tan my hide.", "Thou'rt cracked in the head, {other}.", "I'm not scared. I just don't want to."],
+            then: Some(KIDS_RUN), end: None,
+        },
+    ],
+};
+
+const KIDS_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "play"],
+    calls: &["Oi, {other}! Come and see what I found.", "{other}! Hast thou any errands, or canst thou play?", "Psst, {other} - over here."],
+    replies: &[
+        Reply {
+            criteria: &[], weight: 1.00, bias: &[(Gregarious, 1.5)],
+            act: Act::Greet, concepts: &["play"],
+            lines: &["What is it? Show me!", "I've an errand, but it can wait a bit.", "Is it a frog? Tell me it's a frog."],
+            then: Some(KIDS_DARE), end: None,
+        },
+        Reply {
+            criteria: &[], weight: 0.40, bias: &[(Ambitious, 2.0)],
+            act: Act::Farewell, concepts: &["farewell"],
+            lines: &["Can't - I'm running for the baker and he pays a penny.", "Later, {other}. I've chores."],
+            then: None, end: Some(Farewell),
+        },
+    ],
+};
+
 /// The full dialogue library: 30 circumstance and vocation trees plus smalltalk tail
 pub fn village_library() -> Vec<DialogueTree> {
     vec![
+        DialogueTree { name: "children_at_play",
+            criteria: &[Has("self:status:child"), Has("other:status:child")],
+            root: &KIDS_GREET, rejoin: None },
         // A cleric calling on the sick or the bereaved outranks the lay
         // visit, so the "pray for me" forks are reachable
         DialogueTree { name: "the_cleric_visits_the_sick",

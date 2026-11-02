@@ -181,7 +181,9 @@ pub struct SourcePattern {
 /// and emptied in practice (`diluted`). `countered`: the other side has
 /// moved; `allies`: others stand with the campaign; `leader_taken`: its
 /// leader is held or gone; `fatigue`: folk are worn; `first`/`veteran`:
-/// the org's first campaign, or one of many.
+/// the org's first campaign, or one of many; `expired`: a grant ran its
+/// term and wants renewing (nobody broke it - `promise_broken` is for a
+/// grant taken back while still in force).
 /// - `room:trait:*`: someone in the room carries that temperament
 /// - `room:want:*`: what the room is short of - bread, relief from dues,
 ///   justice for a wrong, a roof, work, time to mourn
@@ -197,7 +199,7 @@ pub const KNOWN_FACTS: &[&str] = &[
     "arc:weak", "arc:strong", "arc:consent", "arc:crackdown", "arc:prisoners",
     "arc:won", "arc:lost", "arc:partial", "arc:promise_broken", "arc:split",
     "arc:delayed", "arc:diluted", "arc:countered", "arc:allies", "arc:leader_taken",
-    "arc:fatigue", "arc:first", "arc:veteran",
+    "arc:fatigue", "arc:first", "arc:veteran", "arc:expired",
     "room:trait:proud", "room:trait:hotheaded", "room:trait:kind", "room:trait:pious",
     "room:trait:stingy", "room:trait:gregarious", "room:trait:ambitious", "room:trait:lazy",
     "room:want:bread", "room:want:relief", "room:want:justice", "room:want:roof",
@@ -330,6 +332,15 @@ pub fn fill(line: &str, issue: &str) -> String {
 /// framing, the seats whose holders came, its history, who came - their
 /// temperaments and what they're short of - and the org around them
 pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome, tick: u64) -> Facts {
+    let personal: HashSet<String> = out.attendees.iter()
+        .flat_map(|&a| personal_facts(world, a, tick)).collect();
+    meeting_facts_with(world, campaign, out, &personal)
+}
+
+/// `meeting_facts` with the attendees' own facts already gathered: those
+/// don't change while the room talks, so a meeting reads them once and
+/// re-reads only the campaign (which hooks can change) between beats
+pub fn meeting_facts_with(world: &World, campaign: Entity, out: &MeetingOutcome, personal: &HashSet<String>) -> Facts {
     let mut f = Facts::default();
     if let Some(c) = world.get_component::<Campaign>(campaign) {
         f.insert(match c.decision_rule { DecisionRule::Majority => "rule:majority", DecisionRule::Consensus => "rule:consensus" });
@@ -358,9 +369,7 @@ pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome, tick
             if p.capacity >= ORG_STRONG { f.insert("org:strong"); }
         }
     }
-    for &a in &out.attendees {
-        for x in personal_facts(world, a, tick) { f.insert(x); }
-    }
+    for x in personal { f.insert(x.clone()); }
     if let Some(m) = world.get_component::<CampaignMeeting>(campaign) {
         if m.held <= 1 { f.insert("history:first"); }
         if m.held >= 4 { f.insert("history:seasoned"); }
@@ -506,6 +515,7 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     // who brings which temperament and want - fixed for the evening
     let personal: Vec<(Entity, HashSet<String>)> = out.attendees.iter()
         .map(|&a| (a, personal_facts(world, a, tick))).collect();
+    let room: HashSet<String> = personal.iter().flat_map(|(_, fs)| fs.iter().cloned()).collect();
     let holds_all = |a: Entity, needs: &[&str]| personal.iter()
         .find(|(e, _)| *e == a).map(|(_, fs)| needs.iter().all(|n| fs.contains(*n))).unwrap_or(false);
     // A member's line: the one the beat is about speaks it (`holders`);
@@ -534,7 +544,7 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     let mut d = Deliberation { said: vec![], applied: vec![], decided: false, consent: false };
     let mut w = Walker::new(Phase::Agenda);
     for _ in 0..MEETING_MAX_BEATS {
-        let facts = meeting_facts(world, campaign, out, tick);
+        let facts = meeting_facts_with(world, campaign, out, &room);
         let Some(s) = w.step_avoiding(MEETING_BEATS, &facts, &recent, &mut rng) else { break };
         heard.push(s.beat.id);
         let beat_needs = personal_needs(s.beat.criteria);
@@ -590,8 +600,9 @@ mod tests {
 
     #[test]
     fn test_libraries_are_counted_separately() {
-        assert_eq!(MEETING_BEATS.len(), 1000, "house-meeting beats (Stage 2)");
-        assert_eq!(ARC_BEATS.len(), 1000, "campaign-arc beats (Stage 3)");
+        // at least the plan's thousand each - authors may add, not cut
+        assert!(MEETING_BEATS.len() >= 1000, "house-meeting beats: {}", MEETING_BEATS.len());
+        assert!(ARC_BEATS.len() >= 1000, "campaign-arc beats: {}", ARC_BEATS.len());
         for l in [Library::HouseMeeting, Library::CampaignArc] {
             assert!(library(l).iter().all(|b| b.phase.library() == l), "{:?} holds another library's phase", l);
         }
@@ -979,6 +990,28 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_prompts_are_spoken_lines_not_captions() {
+        // the line a beat opens with is said by someone; a three-word
+        // heading ("The closed doors.") reads as a stage direction
+        for b in MEETING_BEATS.iter().chain(ARC_BEATS) {
+            for l in b.lines {
+                assert!(l.split_whitespace().count() >= 4, "{}: caption-like prompt {:?}", b.id, l);
+            }
+        }
+    }
+
+    #[test]
+    fn test_reading_attendee_facts_once_changes_nothing() {
+        let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
+        crate::game::desires::add_grievance(&mut w, ms[1], crate::game::desires::Problem::Grief, 10_000);
+        let out = hold_campaign_meeting(&mut w, c, 8).unwrap();
+        let personal: HashSet<String> = out.attendees.iter().flat_map(|&a| personal_facts(&w, a, 8)).collect();
+        let (a, b) = (meeting_facts(&w, c, &out, 8), meeting_facts_with(&w, c, &out, &personal));
+        for f in KNOWN_FACTS { assert_eq!(a.has(f), b.has(f), "{} differs", f); }
+        assert!(a.has("room:want:mourning"));
     }
 
     #[test]

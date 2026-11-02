@@ -168,7 +168,9 @@ pub fn apply_landform(terrain: &mut Terrain, profile: &LandformProfile, seed: u6
     let original = terrain.heights.clone();
     let (width, height) = (terrain.width, terrain.height);
     if width < 2 || height < 2 { return false; }
-    let rotation = (mixed_seed(seed) % 4) as u8;
+    // The default river course exits the south edge, so the coastal profile
+    // keeps its low side there instead of rotating it away from the outlet.
+    let rotation = if profile.shape == LandformShape::CoastalPlain { 0 } else { (mixed_seed(seed) % 4) as u8 };
     let salt = mixed_seed(seed ^ 0x4C414E44464F524D) as u32;
     for y in 0..height {
         for x in 0..width {
@@ -186,7 +188,8 @@ pub fn apply_landform(terrain: &mut Terrain, profile: &LandformProfile, seed: u6
                     // A broad, one-sided rise keeps a clear coast and lowers
                     // the sharp relief of the source country terrain.
                     let coastal = 0.82 - 0.72 * v;
-                    *height_value = (*height_value * 0.45 + coastal * 0.55).clamp(0.0, 1.0);
+                    let shaped = (*height_value * 0.45 + coastal * 0.55).clamp(0.0, 1.0);
+                    *height_value = if y + 1 == height { (WATER_LEVEL - 0.03).min(shaped) } else { shaped };
                 }
                 LandformShape::OpenValley => {
                     let ridge_a = gaussian(u, 0.22, 0.12);
@@ -313,6 +316,14 @@ mod tests {
         }
         assert!(shaped_count > 0, "the country generator should admit at least one landform");
         assert!(profile_ids.len() > 1, "seeded generation should use more than one landform profile");
+    }
+
+    #[test]
+    fn coastal_plain_keeps_the_southbound_river_outlet_open() {
+        let mut terrain = Terrain::generate_country(49, 0.7, 11);
+        let coastal = profiles().iter().find(|profile| profile.shape == LandformShape::CoastalPlain).unwrap();
+        assert!(apply_landform(&mut terrain, coastal, 11));
+        assert!(terrain.heights[48][24] < WATER_LEVEL, "the downstream river tile must open into south-edge water");
     }
 }
 

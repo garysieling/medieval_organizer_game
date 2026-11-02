@@ -78,6 +78,14 @@ pub struct Layout {
     /// (x0, y0, x1, y1): a wall round the town on this rectangle (corners
     /// included), with a tower at each corner and a gate midway along each side
     pub town_wall: Option<(i32, i32, i32, i32)>,
+    /// Remote fortified sites (x, y, radius), each drawn as a small castle
+    /// wall enclosure with gates and connected to the road network.
+    pub castles: Vec<(i32, i32, i32)>,
+    /// Clustered satellite towns (x, y, radius), kept level for houses.
+    pub towns: Vec<(i32, i32, i32)>,
+    /// Decorative satellite houses (the simulation remains focused on the
+    /// main village); each site is occupied and connected to the roads.
+    pub settlement_houses: Vec<(i32, i32)>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -93,6 +101,16 @@ pub struct TileMap {
     pub trees: Vec<(i32, i32)>,
     /// The town wall, piece by piece
     pub walls: Vec<((i32, i32), WallPiece)>,
+    /// The remote castle sites and town clusters used by country generation.
+    pub castles: Vec<(i32, i32, i32)>,
+    /// Keep footprints at the center of each remote fortification.
+    pub castle_keeps: Vec<(i32, i32)>,
+    /// Walkable courtyard tile beside each keep, where the approach road ends.
+    pub castle_approaches: Vec<(i32, i32)>,
+    pub towns: Vec<(i32, i32, i32)>,
+    /// Remote house locations that decorate settlements without simulating
+    /// additional populations or selectable buildings.
+    pub settlement_houses: Vec<(i32, i32)>,
     /// Gate tiles (GateAlongX/GateAlongY): left un-occupied so roads and
     /// people can pass through, but still excluded from `buildable` so a
     /// house never seals one off before (or instead of) a road reaching it
@@ -189,34 +207,68 @@ impl TileMap {
                 }
             }
         }
+        for &(cx, cy, r) in &layout.towns {
+            for y in (cy - r).max(0)..=(cy + r).min(h as i32 - 1) {
+                for x in (cx - r).max(0)..=(cx + r).min(w as i32 - 1) {
+                    if (x - cx).pow(2) + (y - cy).pow(2) > r * r { continue; }
+                    let v = &mut terrain.heights[y as usize][x as usize];
+                    *v = v.clamp(0.25, HILL_LEVEL - 0.05);
+                }
+            }
+        }
+        for &(cx, cy, r) in &layout.castles {
+            for y in (cy - r).max(0)..=(cy + r).min(h as i32 - 1) {
+                for x in (cx - r).max(0)..=(cx + r).min(w as i32 - 1) {
+                    let v = &mut terrain.heights[y as usize][x as usize];
+                    *v = v.clamp(0.25, HILL_LEVEL - 0.05);
+                }
+            }
+        }
         sink_islets(terrain);
         let tiles = (0..w * h).map(|i| {
             let v = terrain.heights[i / w][i % w];
             if v < WATER_LEVEL { Tile::Water } else if v < HILL_LEVEL { Tile::Grass } else if v < ROCK_LEVEL { Tile::Hill } else { Tile::Rock }
         }).collect();
-        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h], trees: vec![], walls: vec![], gates: vec![], hub: layout.road_hub, rev: 0 };
+        let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h],
+            trees: vec![], walls: vec![], castles: layout.castles.clone(),
+            castle_keeps: layout.castles.iter().map(|&(x, y, _)| (x, y)).collect(), towns: layout.towns.clone(),
+            castle_approaches: layout.castles.iter().map(|&(x, y, _)| (x, y + 1)).collect(),
+            settlement_houses: vec![], gates: vec![], hub: layout.road_hub, rev: 0 };
         map.carve_river(&layout.river);
         map.place_bridge(layout.bridge_near);
         for &(x, y, crop) in &layout.fields {
             if map.get(x, y) == Some(Tile::Grass) { map.set(x, y, crop); }
         }
         if let Some(rect) = layout.town_wall { map.build_wall(rect); }
+        for &(cx, cy, r) in &layout.castles { map.build_wall((cx - r, cy - r, cx + r, cy + r)); }
+        for &(x, y, _) in &layout.castles { map.occupy(x, y); }
         for &(x, y) in &layout.buildings {
             let (bx, by) = map.nearest_buildable(x, y).unwrap_or((x, y));
             map.occupy(bx, by);
             map.buildings.push((bx, by));
         }
+        for &(x, y) in &layout.settlement_houses {
+            if let Some((bx, by)) = map.nearest_buildable(x, y) {
+                map.occupy(bx, by);
+                map.settlement_houses.push((bx, by));
+            }
+        }
         let (hx, hy) = layout.road_hub;
         map.set(hx, hy, Tile::Road);
-        let ends: Vec<(i32, i32)> = map.buildings.clone().into_iter().chain(layout.road_ends.iter().copied()).collect();
+        let ends: Vec<(i32, i32)> = map.buildings.clone().into_iter()
+            .chain(map.settlement_houses.iter().copied())
+            .chain(map.castle_approaches.iter().copied())
+            .chain(layout.road_ends.iter().copied()).collect();
         for (x, y) in ends { map.lay_road(layout.road_hub, (x, y)); }
         for y in 0..h as i32 {
             for x in 0..w as i32 {
                 if map.is_occupied(x, y) { continue; }
                 // woods grow in patches (smooth noise), thickest on the hills;
                 // the odd lone tree stands out on open grass. Not in a settlement.
-                let settled = layout.settlements.iter().any(|&(cx, cy, r)| (x - cx).pow(2) + (y - cy).pow(2) <= r * r)
-                    || layout.town_wall.map(|(x0, y0, x1, y1)| (x0..=x1).contains(&x) && (y0..=y1).contains(&y)).unwrap_or(false);
+                let settled = layout.settlements.iter().chain(&layout.towns)
+                    .any(|&(cx, cy, r)| (x - cx).pow(2) + (y - cy).pow(2) <= r * r)
+                    || layout.town_wall.map(|(x0, y0, x1, y1)| (x0..=x1).contains(&x) && (y0..=y1).contains(&y)).unwrap_or(false)
+                    || layout.castles.iter().any(|&(cx, cy, r)| (cx - r..=cx + r).contains(&x) && (cy - r..=cy + r).contains(&y));
                 let woods = smooth_noise(x, y, WOODS_SCALE, 3);
                 let wooded = !settled && match map.get(x, y) {
                     Some(Tile::Hill) => woods > 0.35 && noise(x, y, 1) < 0.85,
@@ -526,6 +578,7 @@ mod tests {
             buildings: vec![(13, 12), (19, 12), (28, 13), (31, 31)],
             road_hub: (16, 16),
             road_ends: vec![(28, 15)],
+            ..Layout::default()
         }
     }
 
@@ -629,6 +682,40 @@ mod tests {
         // the road to the rivals' village leaves through a gate
         assert!(gates.iter().any(|&(x, y)| m.get(x, y) == Some(Tile::Road)
             && NEIGHBOURS.iter().filter(|(dx, dy)| m.get(x + dx, y + dy) == Some(Tile::Road)).count() == 2));
+    }
+
+    #[test]
+    fn test_satellite_castles_and_towns_join_the_road_network() {
+        let mut t = Terrain::generate_country(81, 0.7, 42);
+        let mut layout = Layout {
+            town_wall: Some((8, 8, 21, 23)),
+            settlements: vec![(16, 16, 8), (28, 14, 4)],
+            castles: vec![(53, 22, 4), (60, 60, 4)],
+            towns: vec![(39, 39, 6), (69, 31, 6)],
+            settlement_houses: vec![(36, 39), (39, 36), (42, 39), (66, 31), (69, 28), (72, 31)],
+            river: vec![],
+            road_hub: (16, 16),
+            road_ends: vec![],
+            ..Layout::default()
+        };
+        layout.settlements.extend(layout.towns.iter().copied());
+        let map = TileMap::generate(&mut t, &layout);
+        assert_eq!(map.castles.len(), 2);
+        assert_eq!(map.towns.len(), 2);
+        assert_eq!(map.settlement_houses.len(), 6);
+        for &(cx, cy, r) in &map.castles {
+            let corners = [(cx-r,cy-r),(cx+r,cy-r),(cx-r,cy+r),(cx+r,cy+r)];
+            assert!(corners.iter().all(|&(x,y)| map.walls.contains(&((x,y), WallPiece::Tower))));
+            assert!(!map.passable(cx, cy), "keep blocks its own tile");
+        }
+        for &(x, y) in &map.castle_approaches {
+            assert_eq!(map.get(x, y), Some(Tile::Road), "castle approach joins the road network");
+            assert!(map.walk_path((16, 16), (x, y)).is_some(), "castle courtyard can be reached");
+        }
+        for &(x, y) in &map.settlement_houses {
+            assert!(NEIGHBOURS.iter().any(|&(dx,dy)| map.get(x+dx,y+dy) == Some(Tile::Road)),
+                "satellite house ({},{}) has a road", x, y);
+        }
     }
 
     #[test]

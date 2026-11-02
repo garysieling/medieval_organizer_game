@@ -141,6 +141,7 @@ mod tests {
             buildings: vec![(13, 12), (19, 12), (28, 13), (31, 31)],
             road_hub: (16, 16),
             road_ends: vec![(28, 15)],
+            ..crate::game::tilemap::Layout::default()
         }
     }
 

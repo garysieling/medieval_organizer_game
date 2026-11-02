@@ -142,7 +142,8 @@ pub fn arc_facts(world: &World, campaign: Entity, tick: u64) -> Facts {
             Role::NoteTaker => "seat:note_taker",
         });
     }
-    if c.dissenters.len() >= 2 { f.insert("arc:split"); }
+    // a split is two dissenters free to say so - the held can't
+    if c.dissenters.iter().filter(|&&d| !unavailable(world, d)).count() >= 2 { f.insert("arc:split"); }
     let (org, issue) = (c.org, c.issue.clone());
 
     if let Some(o) = world.get_component::<Organization>(org) {
@@ -157,7 +158,7 @@ pub fn arc_facts(world: &World, campaign: Entity, tick: u64) -> Facts {
         let low = free.iter().filter(|&&m| world.get_component::<Demoralized>(m).is_some()).count();
         if !free.is_empty() && low * 2 >= free.len() { f.insert("arc:fatigue"); }
         let woken = world.query::<Sympathized>().into_iter()
-            .filter(|&v| !o.members.contains(&v) && v != o.leader)
+            .filter(|&v| !o.members.contains(&v) && v != o.leader && !unavailable(world, v))
             .filter(|&v| world.get_component::<Sympathized>(v)
                 .map(|s| s.issues.iter().any(|(i, _)| *i == issue)).unwrap_or(false))
             .count();
@@ -198,13 +199,24 @@ fn outcome_from_response(f: &mut Facts, resp: Option<TargetResponse>) {
     }
 }
 
-/// Walk the arc library after `ev`: record the event, read the facts,
+/// Walk the arc library after `ev`: record the event, read the facts
+/// (consent banked at the last meeting counts for this action, then is
+/// spent),
 /// walk from the event's phase (preferring beats the campaign hasn't
 /// heard lately), voice each line through the org - the leader drives,
 /// members answer, the other side speaks for itself - and apply the
 /// hooks. Seeded by campaign and day. None if nobody's free to speak.
 pub fn deliberate_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64) -> Option<Deliberation> {
     record_event(world, campaign, ev);
+    let d = walk_arc(world, campaign, ev, tick);
+    // consent banked at a meeting is spent by the action that follows it -
+    // whether or not anyone was free to talk it over
+    if let Some(r) = world.get_component_mut::<ArcRecord>(campaign) { r.consent = false; }
+    d
+}
+
+/// The walk itself, with the event already on the record
+fn walk_arc(world: &mut World, campaign: Entity, ev: ArcEvent, tick: u64) -> Option<Deliberation> {
     let (org, issue, dissenters) = world.get_component::<Campaign>(campaign)
         .map(|c| (c.org, c.issue.clone(), c.dissenters.clone()))?;
     let (leader, members) = world.get_component::<Organization>(org).map(|o| (o.leader, o.members.clone()))?;
@@ -351,6 +363,42 @@ mod tests {
             d.said.iter().map(|s| (s.speaker, s.text.clone())).collect::<Vec<_>>()
         };
         for day in 5..25 { assert_eq!(run(day), run(day)); }
+    }
+
+    #[test]
+    fn test_consent_is_spent_by_the_next_action() {
+        let (mut w, _, c, _) = world_with(3);
+        record_consent(&mut w, c, true);
+        assert!(arc_facts(&w, c, 10).has("arc:consent"));
+        let d = deliberate_arc(&mut w, c, ArcEvent::March(Reaction::Watched), 10).unwrap();
+        assert!(!d.said.is_empty());
+        assert!(!arc_facts(&w, c, 11).has("arc:consent"), "consent carried past the action it was banked for");
+        // spent even when nobody's free to talk it over
+        let (mut w, o, c, ms) = world_with(1);
+        record_consent(&mut w, c, true);
+        let leader = w.get_component::<Organization>(o).unwrap().leader;
+        for e in [leader, ms[0]] {
+            w.add_component(e, crate::game::dungeon::Imprisoned { since: 5, charge: "riot".into() });
+        }
+        assert!(deliberate_arc(&mut w, c, ArcEvent::Strike { called: true }, 12).is_none());
+        assert!(!arc_facts(&w, c, 13).has("arc:consent"));
+    }
+
+    #[test]
+    fn test_only_the_free_count_as_split_or_allies() {
+        let (mut w, _, c, ms) = world_with(4);
+        w.get_component_mut::<Campaign>(c).unwrap().dissenters = vec![ms[1], ms[2]];
+        assert!(arc_facts(&w, c, 10).has("arc:split"));
+        w.add_component(ms[2], crate::game::dungeon::Imprisoned { since: 5, charge: "riot".into() });
+        assert!(!arc_facts(&w, c, 10).has("arc:split"), "a held dissenter can't voice the split");
+        let woken: Vec<Entity> = (0..2).map(|_| {
+            let v = w.create_entity();
+            w.add_component(v, Sympathized { issues: vec![("the taxes".into(), 8)] });
+            v
+        }).collect();
+        assert!(arc_facts(&w, c, 10).has("arc:allies"));
+        w.add_component(woken[0], crate::game::villager::Dead);
+        assert!(!arc_facts(&w, c, 10).has("arc:allies"), "the dead aren't allies");
     }
 
     #[test]

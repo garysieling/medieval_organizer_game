@@ -114,15 +114,38 @@ pub fn can_recruit(player_influence: f32) -> bool {
     recruit_trust(player_influence) >= crate::sim::community::RECRUIT_MIN_TRUST
 }
 
-/// Player attempts to recruit someone: they join if they trust the player
-/// enough, whether through the player's influence in the village or their
-/// own relationship with the player
+/// Rapport the player needs with someone before asking them to join a
+/// campaign: four real conversations, not a nod in passing
+pub const RECRUIT_RAPPORT_NEEDED: f32 = 0.55;
+
+/// The player's rapport with `target` (0 = stranger)
+pub fn rapport(world: &World, target: Entity) -> f32 {
+    world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0)
+}
+
+/// Whether `target` has been woken to `campaign`'s issue already
+pub fn sympathizes(world: &World, campaign: Entity, target: Entity) -> bool {
+    world.get_component::<crate::game::campaign::Campaign>(campaign)
+        .map(|c| world.get_component::<crate::game::reactions::Sympathized>(target)
+            .map(|s| s.issues.iter().any(|(i, _)| *i == c.issue)).unwrap_or(false))
+        .unwrap_or(false)
+}
+
+/// Player attempts to recruit someone into the org's campaign. There must
+/// be a campaign to ask them into (one is founded at a house meeting), and
+/// the player must have built up rapport with them personally. Then they
+/// join if they trust the player enough, whether through the player's
+/// influence in the village or their own relationship with the player.
+/// Someone the cause has already woken skips the persuading.
 pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entity) -> ActionResult {
     let already = world.get_component::<crate::sim::community::Organization>(org)
         .map(|o| o.members.contains(&target)).unwrap_or(false);
     if already {
         return ActionResult { success: false, influence_change: 0.0, description: "Already a member".into() };
     }
+    let Some(campaign) = crate::game::campaign::campaign_of(world, org) else {
+        return ActionResult { success: false, influence_change: 0.0, description: "No campaign to recruit into".into() };
+    };
     let player_infl = world.get_component::<PlayerCharacter>(player).map(|p| p.influence).unwrap_or(0.0);
     // They'll join on the player's standing in the village, or on their own
     // trust in the player (built by talking with them and at meetings)
@@ -131,11 +154,10 @@ pub fn act_recruit(world: &mut World, player: Entity, org: Entity, target: Entit
         .map(|r| r.strength).unwrap_or(0.0);
     // Someone woken to the cause signs on without being convinced -
     // the issue organized them before you ever knocked (moral shock)
-    let sympathetic = crate::game::campaign::campaign_of(world, org)
-        .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c))
-        .map(|c| world.get_component::<crate::game::reactions::Sympathized>(target)
-            .map(|s| s.issues.iter().any(|(i, _)| *i == c.issue)).unwrap_or(false))
-        .unwrap_or(false);
+    let sympathetic = sympathizes(world, campaign, target);
+    if !sympathetic && rapport(world, target) < RECRUIT_RAPPORT_NEEDED {
+        return ActionResult { success: false, influence_change: 0.0, description: "They hardly know you".into() };
+    }
     let trust = if sympathetic { 1.0 } else { recruit_trust(player_infl).max(personal) };
     let recruited = crate::sim::community::recruit(world, org, target, trust);
     let gained = if recruited { RECRUIT_INFLUENCE } else { 0.0 };
@@ -208,6 +230,9 @@ mod tests {
         (w, p, o, vs)
     }
 
+    /// Give org `o` a campaign to recruit into
+    fn found(w: &mut World, o: Entity) { crate::game::campaign::found_for_test(w, o); }
+
     #[test]
     fn test_talk_spam_cannot_win() {
         let (mut w, p, _, vs) = setup();
@@ -219,6 +244,8 @@ mod tests {
     #[test]
     fn test_recruit_applies_influence_and_matches_gate() {
         let (mut w, p, o, vs) = setup();
+        found(&mut w, o);
+        w.add_component(vs[0], Rapport { value: RECRUIT_RAPPORT_NEEDED });
         assert!(!can_recruit(0.1));
         assert!(!act_recruit(&mut w, p, o, vs[0]).success);
         w.get_component_mut::<PlayerCharacter>(p).unwrap().influence = 0.4;
@@ -229,8 +256,9 @@ mod tests {
     }
 
     #[test]
-    fn test_full_campaign_can_win() {
+    fn test_full_campaign_reaches_lead() {
         let (mut w, p, o, vs) = setup();
+        found(&mut w, o);
         for i in 0..50 { act_talk(&mut w, p, vs[i % 5]); }
         for _ in 0..10 { act_invest(&mut w, p, 10.0); }
         for v in &vs { act_recruit(&mut w, p, o, *v); }
@@ -281,10 +309,36 @@ mod tests {
     fn test_someone_who_trusts_you_joins_even_before_you_have_influence() {
         use crate::game::relationships::{Relationship, RelKind};
         let (mut w, p, o, vs) = setup();
+        found(&mut w, o);
+        for v in &vs[..2] { w.add_component(*v, Rapport { value: RECRUIT_RAPPORT_NEEDED }); }
         assert!(!can_recruit(0.1));
         assert!(!act_recruit(&mut w, p, o, vs[0]).success, "a stranger won't join a low-influence outsider");
         let r = w.create_entity();
         w.add_component(r, Relationship { from: p, other: vs[1], kind: RelKind::Friend, strength: 0.6, interactions: 8 });
         assert!(act_recruit(&mut w, p, o, vs[1]).success, "a friend who trusts you joins anyway");
+    }
+
+    #[test]
+    fn test_no_one_is_recruited_without_a_campaign() {
+        let (mut w, p, o, vs) = setup();
+        w.get_component_mut::<PlayerCharacter>(p).unwrap().influence = 10.0;
+        w.add_component(vs[0], Rapport { value: 1.0 });
+        let r = act_recruit(&mut w, p, o, vs[0]);
+        assert!(!r.success && r.description == "No campaign to recruit into", "{}", r.description);
+        found(&mut w, o);
+        assert!(act_recruit(&mut w, p, o, vs[0]).success, "with a campaign to join they sign on");
+    }
+
+    #[test]
+    fn test_recruiting_takes_rapport_not_just_standing() {
+        let (mut w, p, o, vs) = setup();
+        found(&mut w, o);
+        w.get_component_mut::<PlayerCharacter>(p).unwrap().influence = 10.0;
+        // three talks aren't enough, however well known the player is
+        for _ in 0..3 { act_talk(&mut w, p, vs[0]); }
+        let r = act_recruit(&mut w, p, o, vs[0]);
+        assert!(!r.success && r.description == "They hardly know you", "{}", r.description);
+        act_talk(&mut w, p, vs[0]);
+        assert!(act_recruit(&mut w, p, o, vs[0]).success, "a fourth talk earns the ask");
     }
 }

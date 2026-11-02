@@ -340,12 +340,7 @@ pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome, tick
         }
     }
     for &a in &out.attendees {
-        if let Some(p) = world.get_component::<crate::game::traits::Personality>(a) {
-            for t in &p.traits { f.insert(format!("room:trait:{}", trait_fact(*t))); }
-        }
-        for pr in crate::game::desires::problems_of(world, a, tick) {
-            if let Some(w) = want_fact(pr) { f.insert(format!("room:want:{}", w)); }
-        }
+        for x in personal_facts(world, a, tick) { f.insert(x); }
     }
     if let Some(m) = world.get_component::<CampaignMeeting>(campaign) {
         if m.held <= 1 { f.insert("history:first"); }
@@ -358,6 +353,27 @@ pub fn meeting_facts(world: &World, campaign: Entity, out: &MeetingOutcome, tick
     if out.attendees.len() < 3 { f.insert("room:thin"); }
     if out.attendees.len() >= 5 { f.insert("room:full"); }
     f
+}
+
+/// The `room:trait:*` and `room:want:*` facts one attendee brings in.
+/// The room holds the union; a line about them belongs in their mouth.
+pub fn personal_facts(world: &World, who: Entity, tick: u64) -> HashSet<String> {
+    let mut out = HashSet::new();
+    if let Some(p) = world.get_component::<crate::game::traits::Personality>(who) {
+        for t in &p.traits { out.insert(format!("room:trait:{}", trait_fact(*t))); }
+    }
+    for pr in crate::game::desires::problems_of(world, who, tick) {
+        if let Some(w) = want_fact(pr) { out.insert(format!("room:want:{}", w)); }
+    }
+    out
+}
+
+/// The personal facts a beat's criteria call for
+fn personal_needs(criteria: &[Criterion]) -> Vec<&'static str> {
+    criteria.iter().filter_map(|c| match c {
+        Criterion::Has(f) if f.starts_with("room:trait:") || f.starts_with("room:want:") => Some(*f),
+        _ => None,
+    }).collect()
 }
 
 fn trait_fact(t: crate::game::traits::Trait) -> &'static str {
@@ -466,10 +482,24 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     let seated = |r: Role| crate::game::campaign::seat_holder(world, campaign, r)
         .filter(|n| out.attendees.contains(n));
     let (note_taker, chair) = (seated(Role::NoteTaker), seated(Role::Chair));
-    let voice_of = |v: Voice, rng: &mut Rng| -> Option<Entity> {
+    // who brings which temperament and want - fixed for the evening
+    let personal: Vec<(Entity, HashSet<String>)> = out.attendees.iter()
+        .map(|&a| (a, personal_facts(world, a, tick))).collect();
+    let holds_all = |a: Entity, needs: &[&str]| personal.iter()
+        .find(|(e, _)| *e == a).map(|(_, fs)| needs.iter().all(|n| fs.contains(*n))).unwrap_or(false);
+    // A member's line: the one the beat is about speaks it (`holders`);
+    // whoever answers them is someone else when anyone else is there
+    let member = |needs: &[&str], not: Option<Entity>, rng: &mut Rng| -> Entity {
+        let pool = |cands: Vec<Entity>| -> Vec<Entity> { cands.into_iter().filter(|a| Some(*a) != not).collect() };
+        let holders = pool(out.attendees.iter().copied().filter(|&a| !needs.is_empty() && holds_all(a, needs)).collect());
+        let fallback = pool(others.clone());
+        let cands = if !holders.is_empty() { holders } else if !fallback.is_empty() { fallback } else { others.clone() };
+        cands.get(rng.below(cands.len())).copied().unwrap_or(driver)
+    };
+    let voice_of = |v: Voice, needs: &[&str], not: Option<Entity>, rng: &mut Rng| -> Option<Entity> {
         match v {
             Voice::Driver => Some(driver),
-            Voice::Member => Some(others.get(rng.below(others.len())).copied().unwrap_or(driver)),
+            Voice::Member => Some(member(needs, not, rng)),
             Voice::Dissenter => out.healed.first().copied().or(Some(driver)),
             Voice::NoteTaker => note_taker.or(Some(driver)),
             Voice::Chair => chair.or(Some(driver)),
@@ -481,9 +511,15 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
     for _ in 0..MEETING_MAX_BEATS {
         let facts = meeting_facts(world, campaign, out, tick);
         let Some(s) = w.step(MEETING_BEATS, &facts, &mut rng) else { break };
-        let caller = voice_of(s.beat.voice, &mut rng);
+        let beat_needs = personal_needs(s.beat.criteria);
+        let caller = voice_of(s.beat.voice, &beat_needs, None, &mut rng);
         d.said.push(Spoken { speaker: caller, text: fill(s.call, &issue), beat: s.beat.id, phase: s.beat.phase });
-        let answerer = voice_of(s.mv.voice, &mut rng);
+        // a reply's own needs pick its speaker; otherwise, when the call
+        // came from someone else, the reply can be the one the beat's about
+        let mv_needs = personal_needs(s.mv.criteria);
+        let reply_needs: &[&str] = if !mv_needs.is_empty() { &mv_needs }
+            else if s.beat.voice == Voice::Member { &[] } else { &beat_needs };
+        let answerer = voice_of(s.mv.voice, reply_needs, caller, &mut rng);
         d.said.push(Spoken { speaker: answerer, text: fill(s.reply, &issue), beat: s.beat.id, phase: s.beat.phase });
         if apply_hook(world, campaign, s.mv.hook, answerer) { d.applied.push(s.mv.hook); }
         if s.beat.phase == Phase::Decision && s.mv.next == Next::Phase(Phase::FollowThrough) {
@@ -986,6 +1022,29 @@ mod tests {
         assert!(blocked > 0, "no consensus meeting ever saw a dissent");
         assert!(applied.contains(&Hook::Dissent));
         assert!(applied.iter().any(|h| matches!(h, Hook::Reframe(_))));
+    }
+
+    #[test]
+    fn test_personal_lines_go_to_the_person() {
+        // only ms[1] grieves: a mourning beat's Member call is always theirs,
+        // and the reply to it comes from someone else
+        let mut checked = 0;
+        for day in 8..408 {
+            let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
+            crate::game::desires::add_grievance(&mut w, ms[1], crate::game::desires::Problem::Grief, 10_000);
+            let out = hold_campaign_meeting(&mut w, c, day).unwrap();
+            assert!(meeting_facts(&w, c, &out, day).has("room:want:mourning"));
+            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            for pair in d.said.chunks(2) {
+                let b = MEETING_BEATS.iter().find(|b| b.id == pair[0].beat).unwrap();
+                if b.voice == Voice::Member && personal_needs(b.criteria).contains(&"room:want:mourning") {
+                    assert_eq!(pair[0].speaker, Some(ms[1]), "{}: grief voiced by someone else", b.id);
+                    assert_ne!(pair[1].speaker, Some(ms[1]), "{}: the griever answered themself", b.id);
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 0, "no mourning beat with a member's call ever played");
     }
 
     #[test]

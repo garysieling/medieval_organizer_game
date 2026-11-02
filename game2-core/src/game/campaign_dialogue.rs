@@ -493,7 +493,9 @@ pub fn deliberate_meeting(world: &mut World, campaign: Entity, out: &MeetingOutc
         let pool = |cands: Vec<Entity>| -> Vec<Entity> { cands.into_iter().filter(|a| Some(*a) != not).collect() };
         let holders = pool(out.attendees.iter().copied().filter(|&a| !needs.is_empty() && holds_all(a, needs)).collect());
         let fallback = pool(others.clone());
-        let cands = if !holders.is_empty() { holders } else if !fallback.is_empty() { fallback } else { others.clone() };
+        // in a two-person room the driver answers before anyone answers themself
+        let anyone = pool(out.attendees.clone());
+        let cands = [holders, fallback, anyone].into_iter().find(|c| !c.is_empty()).unwrap_or_else(|| others.clone());
         cands.get(rng.below(cands.len())).copied().unwrap_or(driver)
     };
     let voice_of = |v: Voice, needs: &[&str], not: Option<Entity>, rng: &mut Rng| -> Option<Entity> {
@@ -1045,6 +1047,23 @@ mod tests {
             }
         }
         assert!(checked > 0, "no mourning beat with a member's call ever played");
+    }
+
+    #[test]
+    fn test_nobody_answers_themself_in_a_two_person_room() {
+        for day in 8..408 {
+            let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
+            let out = MeetingOutcome { attendees: vec![ms[0], ms[1]], healed: vec![],
+                drifted: false, noted: false, consent: false };
+            let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
+            for pair in d.said.chunks(2) {
+                let b = MEETING_BEATS.iter().find(|b| b.id == pair[0].beat).unwrap();
+                let mv = b.moves.iter().find(|m| m.lines.iter().any(|l| fill(l, "the mill toll") == pair[1].text)).unwrap();
+                if mv.voice == Voice::Member && pair[0].speaker.is_some() {
+                    assert_ne!(pair[0].speaker, pair[1].speaker, "day {}: {} answered itself", day, b.id);
+                }
+            }
+        }
     }
 
     #[test]

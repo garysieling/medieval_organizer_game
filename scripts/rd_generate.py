@@ -8,7 +8,7 @@ art-prompts/generated.json so the next manifest run skips it.
 
     # free dry run: what would these cost?
     python scripts/rd_generate.py sheet-farm-animals --dry-run
-    # generate (ids may be prefixes; the manifest is rebuilt if missing)
+    # generate (ids may be prefixes; the manifest is always rebuilt fresh)
     python scripts/rd_generate.py sheet-farm-animals
     # regenerate something already done (new seed, new output dir suffix)
     python scripts/rd_generate.py sheet-farm-animals --force
@@ -19,9 +19,17 @@ Never commit the token.
 Each run writes art-prompts/raw/<id>/<n>.png plus meta.json (prompt,
 request, seed-free response metadata, cost, timestamp) so a sheet can be
 re-sliced later without paying again. Stdlib only.
+
+Concurrency: a file lock (art-prompts/generated.json.lock) serializes
+runs that share this checkout, so two invocations can't both see an id
+as unfinished and pay for it twice. It does NOT coordinate across
+separate git worktrees or clones, which have independent working
+copies of generated.json - don't run this script against the same
+manifest ids from two worktrees at once.
 """
 import argparse
 import base64
+import fcntl
 import json
 import os
 import sys
@@ -33,6 +41,7 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST = os.path.join(ROOT, "art-prompts", "prompts.json")
 STATE = os.path.join(ROOT, "art-prompts", "generated.json")
+LOCK = STATE + ".lock"
 RAW = os.path.join(ROOT, "art-prompts", "raw")
 API = "https://api.retrodiffusion.ai/v1/inferences"
 CREDITS = "https://api.retrodiffusion.ai/v1/inferences/credits"
@@ -68,11 +77,12 @@ def call(url, body=None, idem=None):
 
 
 def load_manifest():
-    if not os.path.exists(MANIFEST):
-        # prompts.json is generated (gitignored); rebuild the full list
-        import subprocess
-        subprocess.check_call([sys.executable, os.path.join(ROOT, "scripts", "generate_art_prompts.py"),
-                               "--include-done"], cwd=ROOT)
+    # prompts.json is generated (gitignored); always rebuild the full,
+    # unfiltered list so already-done ids are still selectable (needed
+    # for --force: generate_art_prompts.py drops done ids by default).
+    import subprocess
+    subprocess.check_call([sys.executable, os.path.join(ROOT, "scripts", "generate_art_prompts.py"),
+                           "--include-done"], cwd=ROOT)
     with open(MANIFEST, encoding="utf-8") as f:
         return json.load(f)["prompts"]
 
@@ -92,11 +102,21 @@ def save_done(done):
         f.write("\n")
 
 
-def body_for(e, check_cost=False):
+def is_two_stage(e):
+    return e["request"]["prompt_style"].startswith("rd_advanced_animation")
+
+
+def body_for(e, check_cost=False, input_image=None):
     b = dict(e["request"])
     b["prompt"] = e["prompt"]
     if check_cost:
         b["check_cost"] = True
+    if is_two_stage(e):
+        if not input_image:
+            sys.exit(f"{e['id']}: two-stage animation needs --input-image "
+                      f"(see notes: {e['notes']})")
+        with open(input_image, "rb") as f:
+            b["input_image"] = base64.b64encode(f.read()).decode("ascii")
     return b
 
 
@@ -108,67 +128,86 @@ def main():
     ap.add_argument("--force", action="store_true", help="regenerate ids already marked done")
     ap.add_argument("--max-usd", type=float, default=DEFAULT_MAX_USD,
                     help="refuse if the checked cost exceeds this (default %(default)s)")
+    ap.add_argument("--input-image", metavar="PNG",
+                    help="source still for two-stage adv-* animations (see each entry's notes "
+                         "for which P0 output it expects)")
     args = ap.parse_args()
 
-    entries = load_manifest()
-    done = load_done()
-    picked = []
-    for want in args.ids:
-        hits = [e for e in entries if e["id"] == want or e["id"].startswith(want + "-")]
-        if not hits:
-            sys.exit(f"no manifest entry matches {want!r} (is prompts.json filtered? "
-                     "rebuild with generate_art_prompts.py --include-done)")
-        for e in hits:
-            if e["id"] in done and not args.force:
-                print(f"skip {e['id']}: already generated (--force to redo)")
-                continue
-            picked.append(e)
-    if not picked:
-        return
+    os.makedirs(os.path.dirname(LOCK), exist_ok=True)
+    lock_f = open(LOCK, "w")
+    try:
+        # Serializes runs sharing this checkout so two processes can't both
+        # see an id as unfinished and pay for it (see module docstring).
+        fcntl.flock(lock_f, fcntl.LOCK_EX)
 
-    # price the whole batch first: check_cost is free
-    total = 0.0
-    for e in picked:
-        c = call(API, body_for(e, check_cost=True))
-        e["_cost"] = c.get("balance_cost") or c.get("credit_cost") or 0
-        total += e["_cost"]
-        print(f"{e['id']:44s} {e['request']['prompt_style']:32s} ${e['_cost']:.2f}"
-              f" (manifest est ${e['est_cost_usd']:.2f})")
-    bal = call(CREDITS).get("balance")
-    print(f"total ${total:.2f}; balance ${bal}")
-    if args.dry_run:
-        return
-    if total > args.max_usd:
-        sys.exit(f"batch ${total:.2f} > --max-usd {args.max_usd:.2f}; raise it to proceed")
+        entries = load_manifest()
+        done = load_done()
+        picked = []
+        for want in args.ids:
+            hits = [e for e in entries if e["id"] == want or e["id"].startswith(want + "-")]
+            if not hits:
+                sys.exit(f"no manifest entry matches {want!r} (is prompts.json filtered? "
+                         "rebuild with generate_art_prompts.py --include-done)")
+            for e in hits:
+                if e["id"] in done and not args.force:
+                    print(f"skip {e['id']}: already generated (--force to redo)")
+                    continue
+                picked.append(e)
+        if not picked:
+            return
 
-    for e in picked:
-        out = os.path.join(RAW, e["id"])
-        if os.path.exists(out) and args.force:
-            out += time.strftime("-%Y%m%d%H%M%S")
-        os.makedirs(out, exist_ok=True)
-        t0 = time.time()
-        # no Idempotency-Key: the API rejects it on synchronous calls
-        # ("idempotency_async_required")
-        r = call(API, body_for(e))
-        imgs = r.get("base64_images") or []
-        if not imgs:
-            sys.exit(f"{e['id']}: no images in response: "
-                     + json.dumps({k: v for k, v in r.items() if k != 'base64_images'})[:500])
-        for i, b64 in enumerate(imgs):
-            with open(os.path.join(out, f"{i}.png"), "wb") as f:
-                f.write(base64.b64decode(b64))
-        meta = {k: v for k, v in r.items() if k not in ("base64_images", "output_images")}
-        meta.update({"id": e["id"], "prompt": e["prompt"], "request": e["request"],
-                     "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                     "seconds": round(time.time() - t0, 1)})
-        with open(os.path.join(out, "meta.json"), "w", encoding="utf-8") as f:
-            json.dump(meta, f, indent=1)
-            f.write("\n")
-        done.add(e["id"])
-        save_done(done)
-        print(f"{e['id']}: {len(imgs)} image(s) -> {os.path.relpath(out, ROOT)} "
-              f"(${r.get('balance_cost', '?')}, {meta['seconds']}s, balance left "
-              f"${r.get('remaining_balance', '?')})")
+        # price the whole batch first: check_cost is free
+        total = 0.0
+        for e in picked:
+            c = call(API, body_for(e, check_cost=True, input_image=args.input_image))
+            cost_val = c.get("balance_cost")
+            if cost_val is None:
+                cost_val = c.get("credit_cost")
+            if cost_val is None:
+                sys.exit(f"{e['id']}: check_cost response has no balance_cost or "
+                         f"credit_cost, refusing to assume $0: {json.dumps(c)[:300]}")
+            e["_cost"] = cost_val
+            total += e["_cost"]
+            print(f"{e['id']:44s} {e['request']['prompt_style']:32s} ${e['_cost']:.2f}"
+                  f" (manifest est ${e['est_cost_usd']:.2f})")
+        bal = call(CREDITS).get("balance")
+        print(f"total ${total:.2f}; balance ${bal}")
+        if args.dry_run:
+            return
+        if total > args.max_usd:
+            sys.exit(f"batch ${total:.2f} > --max-usd {args.max_usd:.2f}; raise it to proceed")
+
+        for e in picked:
+            out = os.path.join(RAW, e["id"])
+            if os.path.exists(out) and args.force:
+                out += time.strftime("-%Y%m%d%H%M%S")
+            os.makedirs(out, exist_ok=True)
+            t0 = time.time()
+            # no Idempotency-Key: the API rejects it on synchronous calls
+            # ("idempotency_async_required")
+            r = call(API, body_for(e, input_image=args.input_image))
+            imgs = r.get("base64_images") or []
+            if not imgs:
+                sys.exit(f"{e['id']}: no images in response: "
+                         + json.dumps({k: v for k, v in r.items() if k != 'base64_images'})[:500])
+            for i, b64 in enumerate(imgs):
+                with open(os.path.join(out, f"{i}.png"), "wb") as f:
+                    f.write(base64.b64decode(b64))
+            meta = {k: v for k, v in r.items() if k not in ("base64_images", "output_images")}
+            meta.update({"id": e["id"], "prompt": e["prompt"], "request": e["request"],
+                         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                         "seconds": round(time.time() - t0, 1)})
+            with open(os.path.join(out, "meta.json"), "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=1)
+                f.write("\n")
+            done.add(e["id"])
+            save_done(done)
+            print(f"{e['id']}: {len(imgs)} image(s) -> {os.path.relpath(out, ROOT)} "
+                  f"(${r.get('balance_cost', '?')}, {meta['seconds']}s, balance left "
+                  f"${r.get('remaining_balance', '?')})")
+    finally:
+        fcntl.flock(lock_f, fcntl.LOCK_UN)
+        lock_f.close()
 
 
 if __name__ == "__main__":

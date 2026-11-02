@@ -34,6 +34,7 @@ pub mod campaign;
 pub mod campaign_dialogue;
 pub mod campaign_beats;
 pub mod campaign_meeting_beats;
+pub mod campaign_arc_beats;
 pub mod org_skills;
 pub mod actions;
 pub mod reactions;

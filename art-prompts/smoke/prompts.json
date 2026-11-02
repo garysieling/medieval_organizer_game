@@ -1,7 +1,7 @@
 {
  "_meta": {
   "service": "https://api.retrodiffusion.ai/v2/inferences",
-  "auth": "header X-RD-Token: rdpk-... ; persist an Idempotency-Key per call",
+  "auth": "header X-RD-Token: rdpk-... ; run via scripts/rd_generate.py (sync calls must NOT send Idempotency-Key)",
   "usage": [
    "prompt describes the SUBJECT only; prompt_style carries the pixel look",
    "check_cost:true is a free dry run - verify a batch's price first",

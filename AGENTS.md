@@ -38,3 +38,10 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
   - The player's Talk opens a `PlayerTalk` that is replayed from its seed plus the picks so far (`converse_with`), so it can wait across frames for a reply (`Command::TalkPick`).
   - House meetings use `run_meeting` lines for attendees who don't reveal an issue, and are recorded as they're said.
   - The TALK panel (under the minimap) shows the picked villager's conversations, or the player's own. The event LOG holds only events.
+
+## Art Pipeline (Retro Diffusion)
+- Full recipe: `assets/rd/README.md`. Pick from `art-prompts/prompts.md` -> `scripts/rd_generate.py <id>` (use `--dry-run` first; `--max-usd` guard defaults to $2) -> `scripts/rd_slice.py` -> wire into `Art::load` with a fallback -> verify with `game_ui --dump-frame N --zoom 2 --focus <kind>`.
+- API token: `$RETRODIFFUSION_API_KEY` or `~/.config/retrodiffusion/token`. Never commit it.
+- `art-prompts/generated.json` is tracked: it's the ledger of paid generations; raw outputs live in `art-prompts/raw/<id>/`.
+- Sync API calls reject an `Idempotency-Key` header (`idempotency_async_required`).
+- Pack art is drawn 2x; RD sprites are box-resampled to a target height (`name@H`) and drawn at 1x.

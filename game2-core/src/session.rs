@@ -275,6 +275,19 @@ fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
     for lx in [-3, -1, 1, 3] { buf.rect(sx + k(lx), sy - k(3), 1.max(k(1)), 1.max(k(3)), dark.0, dark.1, dark.2); }
 }
 
+/// Draw an animal sprite (1px art, so 1x zoom) standing on screen point
+/// (sx, sy); returns its height on screen, for a label above it
+fn draw_animal(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) -> i32 {
+    let (w, h) = ((sprite.width as f32 * zoom).round() as i32, (sprite.height as f32 * zoom).round() as i32);
+    draw_zoomed(buf, sprite, sx - w / 2, sy - h, zoom);
+    h
+}
+
+/// One of a set of looks, the same one for the same animal every frame
+fn variant(set: &[Sprite], key: Entity) -> Option<&Sprite> {
+    if set.is_empty() { None } else { set.get(key as usize % set.len()) }
+}
+
 /// Draw a gravestone standing on screen point (sx, sy) at the current zoom;
 /// returns the y of its top, for the name label
 fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) -> i32 {
@@ -940,9 +953,17 @@ pub struct Art {
     pub guards: Vec<Sprite>,
     pub priest_s: Option<Sprite>,
     pub traveller_s: Option<Sprite>, // a courier riding the road between villages
-    pub dog: Option<Sprite>,   // hand-drawn: the asset packs have no animals
+    /// The animals: Retro Diffusion art (assets/rd/farm-animals, sliced
+    /// from one generated sheet - see assets/rd/README.md), drawn at 1x
+    /// zoom by draw_animal. If those files are missing the old hand-drawn
+    /// pixel art stands in, pre-doubled to the same scale.
+    pub dog: Option<Sprite>,
     pub cat: Option<Sprite>,
-    pub chicken: Option<Sprite>,
+    /// Hens about the village (variants: hen, rooster)
+    pub hens: Vec<Sprite>,
+    /// The fold: a couple of looks each, picked per animal
+    pub sheep: Vec<Sprite>,
+    pub goats: Vec<Sprite>,
     pub gull: Option<Sprite>,
     /// Ground specks scattered on open grass, per season set
     pub details: [Vec<Sprite>; 3],
@@ -1315,6 +1336,14 @@ impl Art {
             "Buildings/house/White houses/Blue house/white_blue_house(4).png",
         ].iter().map(|rel| pack(rel)).collect();
 
+        // the animals: generated art if it's there, else the hand-drawn
+        // fallback doubled so both draw at the same 1x scale
+        let doubled = |s: Sprite| s.scaled(s.width * 2, s.height * 2);
+        let rd = |name: &str| at(&format!("rd/farm-animals/{}.png", name));
+        let rd_set = |names: &[&str]| -> Vec<Sprite> { names.iter().filter_map(|n| rd(n)).collect() };
+        let hens = rd_set(&["hen", "hen", "rooster"]);
+        let hens = if hens.is_empty() { vec![doubled(chicken_sprite())] } else { hens };
+
         // ground specks for open grass: tufts and flowers, snow lumps in
         // winter, the green set gone gold in autumn
         let gold = |s: Sprite| recolour_greens(&s, |c| blend(c, (185, 125, 45), 0.45));
@@ -1361,9 +1390,12 @@ impl Art {
             priest_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniMage.png")),
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
             guards,
-            dog: Some(dog_sprite()),
-            cat: Some(cat_sprite()),
-            chicken: Some(chicken_sprite()),
+            dog: rd("dog").or_else(|| Some(doubled(dog_sprite()))),
+            cat: rd("cat").or_else(|| Some(doubled(cat_sprite()))),
+            hens,
+            // no fallback sprite: draw_beast's blocks stand in
+            sheep: rd_set(&["sheep", "sheep2"]),
+            goats: rd_set(&["goat", "goat2"]),
             gull: Some(gull_sprite()),
             details,
         }
@@ -9301,18 +9333,18 @@ impl View {
                 },
                 Who::P(pv) if matches!(pv.kind, PKind::Sheep | PKind::Goat) => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    draw_beast(&mut buf, sx, sy, zoom, pv.kind == PKind::Sheep);
+                    let set = if pv.kind == PKind::Sheep { &art.sheep } else { &art.goats };
+                    match variant(set, pv.e) {
+                        Some(s) => { draw_animal(&mut buf, s, sx, sy, zoom); }
+                        None => draw_beast(&mut buf, sx, sy, zoom, pv.kind == PKind::Sheep),
+                    }
                 },
                 Who::P(pv) if let PKind::Pet(species) = pv.kind => {
                     let sprite = match species { Species::Dog => &self.art.dog, Species::Cat => &self.art.cat, _ => &NO_SPRITE };
                     let (dx, dy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                     // standing on its spot, drawn at the villagers' scale
                     let h = match sprite {
-                        Some(s) => {
-                            let (w, h) = ((s.width as f32 * 2.0 * zoom) as i32, (s.height as f32 * 2.0 * zoom) as i32);
-                            draw_zoomed(&mut buf, s, dx - w / 2, dy - h, 2.0 * zoom);
-                            h
-                        }
+                        Some(s) => draw_animal(&mut buf, s, dx, dy, zoom),
                         None => 0,
                     };
                     if pv.bond {
@@ -9336,9 +9368,8 @@ impl View {
                 },
                 Who::P(pv) if let PKind::Chicken = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(c) = &art.chicken {
-                        let (w, h) = ((c.width as f32 * 2.0 * zoom) as i32, (c.height as f32 * 2.0 * zoom) as i32);
-                        draw_zoomed(&mut buf, c, sx - w / 2, sy - h, 2.0 * zoom);
+                    if let Some(c) = variant(&art.hens, pv.e) {
+                        draw_animal(&mut buf, c, sx, sy, zoom);
                     }
                 },
                 // rival villagers (foreign settlement): the outlined figures
@@ -13387,11 +13418,49 @@ pub fn render_title() -> Buffer {
 /// render that frame through the same Game::render the window uses and save
 /// it as a BMP.
 pub fn run_headless(art: Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64) {
+    run_headless_focus(art, target_tick, out, zoom, cam, weather, seed, None)
+}
+
+/// The camera offset that puts map point (tx, ty) at the zoom pivot (the
+/// view centre), so it stays centred at any zoom
+pub fn cam_centred_on(tx: f32, ty: f32) -> (i32, i32) {
+    let cx = ZOOM_PIVOT.0 - MAP_W as f32 / 2.0 - (tx - ty) * TILE_W as f32;
+    let cy = ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32;
+    (cx.round() as i32, cy.round() as i32)
+}
+
+/// Does a scene figure answer to `--focus <name>`? (dog, cat, chicken,
+/// sheep, goat, gull, guard, priest, traveller, player, rival, villager)
+fn focus_matches(kind: PKind, name: &str) -> bool {
+    match (kind, name) {
+        (PKind::Pet(Species::Dog), "dog") | (PKind::Pet(Species::Cat), "cat") => true,
+        (PKind::Chicken, "chicken" | "hen") | (PKind::Sheep, "sheep") | (PKind::Goat, "goat") => true,
+        (PKind::Gull, "gull") | (PKind::Guard(_), "guard") | (PKind::Priest, "priest") => true,
+        (PKind::Traveller, "traveller") | (PKind::Player, "player") => true,
+        (PKind::Rival(_), "rival") | (PKind::Villager(_), "villager") => true,
+        _ => false,
+    }
+}
+
+/// run_headless, optionally centring the camera on the first figure of a
+/// kind (`--focus sheep`): screenshot checks for new art land on it
+/// without hunting for --cam coordinates
+#[allow(clippy::too_many_arguments)]
+pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64, focus: Option<&str>) {
     let mut game = Game::new_seeded(seed);
     let mut view = View::new(art);
     view.zoom = zoom;
     if let Some(cam) = cam { (view.cam_x, view.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
+    if let Some(name) = focus {
+        match game.ui_model().people.iter().find(|p| focus_matches(p.kind, name)) {
+            Some(p) => {
+                (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);
+                println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y);
+            }
+            None => eprintln!("focus {}: nothing of that kind on the map at tick {}", name, target_tick),
+        }
+    }
     // force the sky for a screenshot of each kind of weather
     if let Some(w) = weather {
         game.precip = match w {
@@ -13745,15 +13814,21 @@ mod dog_tests {
             .expect("a clear tile");
         *game.world.get_component_mut::<Pos>(owner).unwrap() = Pos { x: clear.0 as f32, y: clear.1 as f32 };
         let buf = view.render(&game.ui_model(), (-1, -1));
+        // the dog's coat: its sprite's commonest colour (whichever art loaded)
+        let dog_s = view.art.dog.as_ref().unwrap();
+        let mut counts: std::collections::HashMap<(u8, u8, u8), usize> = std::collections::HashMap::new();
+        for p in dog_s.pixels.chunks(4).filter(|p| p[3] > 0) { *counts.entry((p[0], p[1], p[2])).or_default() += 1; }
+        let (coat_rgb, coat_n) = counts.into_iter().max_by_key(|&(c, n)| (n, c)).unwrap();
+        let need = 20.min(coat_n / 2);
         let dog_at = |v: Entity| {
             let p = *game.world.get_component::<Pos>(v).unwrap();
             let (dx, dy) = iso_to_screen_cam(p.x + 0.8, p.y + 0.5, view.cam_x, view.cam_y, view.zoom);
             let mut coat = 0;
-            for y in (dy - 16)..dy { for x in (dx - 12)..(dx + 12) {
+            for y in (dy - 24)..dy { for x in (dx - 12)..(dx + 12) {
                 let i = (y as usize * W + x as usize) * 4;
-                if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == DOG { coat += 1; }
+                if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == coat_rgb { coat += 1; }
             }}
-            coat >= 20
+            coat >= need
         };
         assert!(dog_at(owner), "the dog isn't drawn beside its new owner");
         assert!(!dog_at(aldric), "the dog is still drawn at Aldric's grave");
@@ -13763,6 +13838,33 @@ mod dog_tests {
 #[cfg(test)]
 mod dog_sprite_tests {
     use super::*;
+
+    #[test]
+    fn test_generated_animals_load_and_are_animal_sized() {
+        // the Retro Diffusion sprites (assets/rd/farm-animals) replace the
+        // hand-drawn ones: they must be found, and stay smaller than a
+        // villager drawn on screen (a 32px frame at 2x, ~24px of figure)
+        let art = Art::load_fs("../assets", 0);
+        let dog = art.dog.as_ref().unwrap();
+        assert!(dog.width != 22 || dog.height != 14, "still the doubled hand-drawn dog: rd/farm-animals didn't load");
+        assert_eq!(art.sheep.len(), 2, "both sheep looks load");
+        assert_eq!(art.goats.len(), 2, "both goat looks load");
+        assert_eq!(art.hens.len(), 3, "hen, hen, rooster");
+        for s in [dog, art.cat.as_ref().unwrap()].into_iter().chain(&art.hens).chain(&art.sheep).chain(&art.goats) {
+            assert!((10..=22).contains(&s.height), "{}x{} animal - too big or too small next to a villager", s.width, s.height);
+            assert!(s.pixels.chunks(4).any(|p| p[3] == 0), "background keyed out");
+        }
+    }
+
+    #[test]
+    fn test_animals_fall_back_to_hand_drawn_art() {
+        // the generated files missing (the packs still there): the
+        // hand-drawn pets and hen, doubled
+        let art = Art::load(&|rel: &str| if rel.starts_with("rd/") { None } else { std::fs::read(std::path::Path::new("../assets").join(rel)).ok() }, 0);
+        assert_eq!(art.dog.as_ref().map(|d| (d.width, d.height)), Some((22, 14)));
+        assert_eq!(art.hens.len(), 1);
+        assert!(art.sheep.is_empty() && art.goats.is_empty(), "draw_beast covers the fold");
+    }
 
     #[test]
     fn test_the_dog_is_a_proper_little_sprite() {

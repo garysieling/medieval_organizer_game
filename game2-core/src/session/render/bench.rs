@@ -10,42 +10,24 @@ pub fn run_headless(art: Art, target_tick: u64, out: Option<String>, zoom: f32, 
     run_headless_focus(art, target_tick, out, zoom, cam, weather, seed, None)
 }
 
-thread_local! {
-    /// Per-section render time, summed over bench frames (bench_frames)
-    static PROF: std::cell::RefCell<Vec<(&'static str, f64)>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-/// Whether render's section timers record (only while bench_frames runs)
-pub(in crate::session) static PROF_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Marks section boundaries in render; only bench_frames reads them
-pub(in crate::session) struct Prof(std::time::Instant);
-
-impl Prof {
-    pub(in crate::session) fn new() -> Prof { Prof(std::time::Instant::now()) }
-    pub(in crate::session) fn mark(&mut self, name: &'static str) {
-        if !PROF_ON.load(std::sync::atomic::Ordering::Relaxed) { return; }
-        let now = std::time::Instant::now();
-        let ms = (now - self.0).as_secs_f64() * 1e3;
-        self.0 = now;
-        PROF.with(|p| {
-            let mut p = p.borrow_mut();
-            match p.iter_mut().find(|e| e.0 == name) { Some(e) => e.1 += ms, None => p.push((name, ms)) }
-        });
-    }
-}
+/// The View's pass marks (render.ground, render.sprites, ...): perf telemetry,
+/// recorded only while a bench runs
+pub(in crate::session) type Prof = crate::infra::perf::Marks;
 
 /// Time `n` frames of what the window does each frame: update the game,
-/// build the model, render it. Prints the average and worst per stage.
+/// build the model, render it. Prints the stage means and p95/max, the
+/// render passes, and the slowest sections across sim, ECS and render.
+/// GAME2_BENCH_JSON=path also writes the whole run as JSON for tooling.
 pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
+    use crate::infra::perf;
     // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
     // (the ground can't use its cache then)
     let pan = std::env::var("GAME2_BENCH_PAN").is_ok_and(|v| !v.is_empty());
     // GAME2_BENCH_ZOOM=1: the zoom drifts every frame, as while scrolling
     let zooming = std::env::var("GAME2_BENCH_ZOOM").is_ok_and(|v| !v.is_empty());
+    let start_tick = game.tick;
     // this run's sections only, and off again after (see the end)
-    PROF.with(|p| p.borrow_mut().clear());
-    PROF_ON.store(true, std::sync::atomic::Ordering::Relaxed);
+    perf::start();
     use std::time::Instant;
     let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
     for _ in 0..n.max(1) {
@@ -63,18 +45,37 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
         tu.push((t1 - t0).as_secs_f64() * 1e3);
         tm.push((t2 - t1).as_secs_f64() * 1e3);
         tr.push((t3 - t2).as_secs_f64() * 1e3);
+        perf::frame_end();
     }
-    PROF.with(|p| {
-        let p = p.borrow();
-        let line: Vec<String> = p.iter().map(|(k, v)| format!("{} {:.1}", k, v / n.max(1) as f64)).collect();
-        println!("render sections (ms/frame): {}", line.join(", "));
-    });
-    PROF_ON.store(false, std::sync::atomic::Ordering::Relaxed);
-    let stat = |v: &Vec<f64>| (v.iter().sum::<f64>() / v.len() as f64, v.iter().cloned().fold(0.0, f64::max));
-    let ((au, wu), (am, wm), (ar, wr)) = (stat(&tu), stat(&tm), stat(&tr));
+    let summary = perf::stop();
+    let frames = n.max(1);
+    let line: Vec<String> = summary.layer("render.")
+        .map(|s| format!("{} {:.1}", &s.name["render.".len()..], s.mean_per_frame)).collect();
+    println!("render sections (ms/frame): {}", line.join(", "));
+    let (su, sm, sr) = (perf::stats("update", &tu, frames), perf::stats("model", &tm, frames), perf::stats("render", &tr, frames));
     println!("bench weather: precip {:?}, rainbow {:?}, season {:?}", game.precip, game.rainbow_from.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
     println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
-        n, au, wu, am, wm, ar, wr, au + am + ar);
+        n, su.mean_per_frame, su.max, sm.mean_per_frame, sm.max, sr.mean_per_frame, sr.max,
+        su.mean_per_frame + sm.mean_per_frame + sr.mean_per_frame);
+    println!("bench p50/p95: update {:.2}/{:.2}, model {:.2}/{:.2}, render {:.2}/{:.2} ms (ticks {}..{})",
+        su.p50, su.p95, sm.p50, sm.p95, sr.p50, sr.p95, start_tick, game.tick);
+    // total.* hold their sim.*/ecs.* children, so they don't add up with them
+    print!("{}", summary.table(25));
+    if let Some(path) = std::env::var("GAME2_BENCH_JSON").ok().filter(|p| !p.is_empty()) {
+        let json = serde_json::json!({
+            "frames": n, "ticks": [start_tick, game.tick], "zoom": view.zoom, "pan": pan, "zooming": zooming,
+            "stages": [su, sm, sr],
+            "sections": summary.sections.iter().map(|s| {
+                let mut v = serde_json::to_value(s).unwrap_or_default();
+                v["display"] = perf::display_name(s.name).into();
+                v
+            }).collect::<Vec<_>>(),
+        });
+        match std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap_or_default()) {
+            Ok(()) => println!("bench json written to {}", path),
+            Err(e) => eprintln!("bench json: can't write {}: {}", path, e),
+        }
+    }
 }
 
 /// The camera offset that puts map point (tx, ty) at the zoom pivot (the

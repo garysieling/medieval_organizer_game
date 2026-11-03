@@ -123,7 +123,7 @@ impl View {
         }
         self.last_zoom.set(zoom);
         self.last_camera.set(camera);
-        prof.mark("ground");
+        prof.mark("render.ground");
 
         // everything standing on the map, people included, drawn back to
         // front in one painter's-order pass: whatever is nearer covers what
@@ -296,7 +296,7 @@ impl View {
             }
         };
 
-        prof.mark("scene-setup");
+        prof.mark("render.scene-setup");
         // people share the pass, along with the windmill and the chimney
         // smoke, which stand where their tower and houses stand
         let mut people: Vec<(f32, f32, Who)> = vec![];
@@ -486,7 +486,7 @@ impl View {
             }
         }
         for st in standing { draw_piece(&mut buf, st); }
-        prof.mark("sprites");
+        prof.mark("render.sprites");
 
         // gulls wheel over the open sea
         if let Some(gull) = &art.gull {
@@ -513,7 +513,7 @@ impl View {
             if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
         }
 
-        prof.mark("gulls+labels");
+        prof.mark("render.gulls+labels");
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
         draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
@@ -668,10 +668,10 @@ impl View {
         }
 
 
-        prof.mark("ui-panel");
+        prof.mark("render.ui-panel");
         // weather over the map: overcast, falling rain or snow, the rainbow after rain
         draw_weather(&mut buf, m.precip, m.frame as u64, m.rainbow_from.map(|f| (m.frame - f) as u64));
-        prof.mark("weather");
+        prof.mark("render.weather");
 
         // minimap (top-right of map area): the map in miniature, same projection
         // and colours, with villagers, the player and the visible area marked
@@ -718,7 +718,7 @@ impl View {
             buf.rect(x1, y0, 1, y1 - y0 + 1, 255, 255, 255);
         }
 
-        prof.mark("minimap");
+        prof.mark("render.minimap");
         // speech bubbles over whoever is speaking
         for bv in &m.bubbles {
             let (text, thought) = (bv.text.as_str(), bv.thought);

@@ -83,7 +83,7 @@ stats) are fine: name them in the PR.
 2. ~~Render layer: `View`, `Art`, `TileSet`, draw helpers, HUD and the bench
    runners into `session/render/`.~~ `tests/layering.rs` fails if the render
    files mention `Game`/`World`.
-3. Perf bench: add p50/p95/max and machine-readable output.
+3. ~~Perf bench: `infra/perf.rs` sections across sim/ECS/render, p50/p95/max, `GAME2_BENCH_JSON`.~~
 3b. Determinism: with a fixed `--seed`, two runs of main diverge after
    ~tick 300 (likely `HashMap` iteration order leaking into the sim).
    Replays, multiplayer lockstep and golden-frame tests all need this fixed.

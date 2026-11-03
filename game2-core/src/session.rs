@@ -1605,11 +1605,24 @@ pub struct Meeting {
     /// The seat that called it - resolution belongs to their org
     pub seat: usize,
 }
+
+/// The founding call a finished house meeting left with its organizer:
+/// the vote the room took (kept for the stakes - grumbles get re-read
+/// against whichever framing the organizer picks), the record it was
+/// said on, and the org's name. Held until they answer it
+/// (Command::Decide) or the next meeting's offer supersedes it
+pub struct PendingFounding {
+    pub seat: usize,
+    /// The meeting's talk record - the convo box keeps its tail showing
+    pub record: u64,
+    pub vote: crate::game::campaign::IssueVote,
+    pub org_name: String,
+}
 /// How fast people walk to a meeting (tiles a frame), how long the host
 /// waits for them, and how long each turn to speak lasts
 const MEETING_WALK: f32 = 2.5 / FPS as f32;
 const GATHER_FRAMES: u32 = 20 * FPS;
-const LINE_FRAMES: u32 = 2 * FPS;
+const LINE_FRAMES: u32 = 3 * FPS;
 /// How long the knights hold the streets after a crackdown: a posting is
 /// a tour, not a life sentence - they ride home in a month
 const GUARD_TOUR: u64 = 30;
@@ -1870,6 +1883,10 @@ pub enum Command {
     CancelApproach,
     /// Answer the villager mid-Talk with reply `n`, or None to take your leave
     TalkPick(Option<usize>),
+    /// Answer the founding call a house meeting left open on the
+    /// conversation box: pick `n` of the framings, or the last option
+    /// (let it rest)
+    Decide(usize),
 }
 
 /// A contextual action offered under the main buttons: what the player can
@@ -2000,6 +2017,9 @@ pub struct Game {
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     pub meeting: Option<Meeting>,
+    /// The founding call a finished meeting left open on the conversation
+    /// box, waiting on the organizer's pick (Command::Decide)
+    pub pending_founding: Option<PendingFounding>,
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
@@ -2058,6 +2078,9 @@ pub struct Game {
     /// The living animals, and where the day's grazing point sits
     pub flock: Vec<Entity>,
     pub graze_at: (f32, f32),
+    /// Each animal's own spot of grass and the frame it picks the next
+    /// one: the flock grazes as individuals, not in lockstep
+    pub flock_wander: std::collections::HashMap<Entity, (f32, f32, u32)>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,
@@ -3023,6 +3046,7 @@ impl Game {
             log_dropped: 0,
             bubbles: vec![],
             meeting: None,
+            pending_founding: None,
             near: vec![],
             last_chat: vec![],
             talk_log: vec![],
@@ -3055,6 +3079,7 @@ impl Game {
             shepherd,
             flock,
             graze_at,
+            flock_wander: std::collections::HashMap::new(),
             next_graze: 0,
             hens,
             hen_houses,
@@ -3215,8 +3240,11 @@ impl Game {
     }
 
     pub fn ticks_per_frame(&self) -> u32 {
-        // frames per day: ~5s/day normal, ~1.2s turbo
-        if self.speed == 1 { 5 * FPS } else { 5 * FPS / 4 }
+        // frames per day: ~7s/day normal, ~1.2s turbo; a house meeting (or
+        // the call it leaves the organizer) slows the calendar so the
+        // room's talk can be read as it's said
+        let base = if self.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+        if self.meeting.is_some() || self.pending_founding.is_some() { base * 2 } else { base }
     }
 
     /// Whether the player can stand at (x, y): not in the water or the
@@ -3706,22 +3734,51 @@ impl Game {
             self.advance_ink_boiler();
             // and the rare events walk their roads
             self.advance_rare();
-            // the flock grazes: the animals drift about the day's grazing point
-            for (ai, &a) in self.flock.iter().enumerate() {
-                if let Some(p) = self.world.get_component_mut::<Pos>(a) {
-                    let (ox, oy) = (((ai * 37) % 9) as f32 - 4.0, ((ai * 53) % 7) as f32 - 3.0);
-                    p.x += (self.graze_at.0 + ox * 0.5 - p.x) * 0.004;
-                    p.y += (self.graze_at.1 + oy * 0.5 - p.y) * 0.004;
+            // the flock grazes: each animal drifts to a spot of its own
+            // picking round the day's grazing point, at its own pace, and
+            // only onto ground it can stand on - no walls, no water
+            for &a in self.flock.clone().iter() {
+                let Some(p) = self.world.get_component::<Pos>(a).copied() else { continue };
+                let (tx, ty, due) = self.flock_wander.get(&a).copied().unwrap_or((p.x, p.y, 0));
+                let arrived = (tx - p.x).powi(2) + (ty - p.y).powi(2) < 0.06;
+                if arrived || self.frame_n >= due {
+                    // a fresh spot of grass: keep it to the meadow, off the
+                    // walls and buildings (a couple of tries, then it stands)
+                    for _ in 0..8 {
+                        let (cx, cy) = (self.graze_at.0 + self.rng.around(8) as f32 * 0.5,
+                                        self.graze_at.1 + self.rng.around(8) as f32 * 0.5);
+                        if self.walkable(cx, cy) {
+                            let next = self.frame_n + FPS + self.rng.below(6 * FPS as i32) as u32;
+                            self.flock_wander.insert(a, (cx, cy, next));
+                            break;
+                        }
+                    }
+                }
+                let (tx, ty, _) = self.flock_wander.get(&a).copied().unwrap_or((p.x, p.y, 0));
+                let (dx, dy) = (tx - p.x, ty - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                if d < 0.02 { continue; }
+                // each ambles its own pace; a wall in the way ends the wander
+                let step = (0.005 + (a % 5) as f32 * 0.002 + self.rng.below(4) as f32 * 0.001).min(d);
+                let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
+                if self.walkable(nx, ny) {
+                    if let Some(pp) = self.world.get_component_mut::<Pos>(a) { pp.x = nx; pp.y = ny; }
+                } else {
+                    self.flock_wander.insert(a, (p.x, p.y, 0));
                 }
             }
-            // the yard hens scratch a slow wander round their own door
+            // the yard hens scratch a slow wander round their own door -
+            // on ground they can stand on, not through the walls
             for (hi, &a) in self.hens.iter().enumerate() {
                 let hp = self.world.get_component::<Livestock>(a)
                     .and_then(|l| self.world.get_component::<Pos>(l.fold).copied());
-                let (Some(hp), Some(p)) = (hp, self.world.get_component_mut::<Pos>(a)) else { continue };
+                let (Some(hp), Some(p)) = (hp, self.world.get_component::<Pos>(a).copied()) else { continue };
                 let t = self.frame_n as f32 / 50.0 + hi as f32 * 1.7;
-                p.x += (hp.x + t.sin() * 1.4 + (hi % 3) as f32 * 0.4 - p.x) * 0.01;
-                p.y += (hp.y + t.cos() * 1.0 + (hi % 2) as f32 * 0.4 - p.y) * 0.01;
+                let (nx, ny) = (p.x + (hp.x + t.sin() * 1.4 + (hi % 3) as f32 * 0.4 - p.x) * 0.01,
+                                p.y + (hp.y + t.cos() * 1.0 + (hi % 2) as f32 * 0.4 - p.y) * 0.01);
+                if self.walkable(nx, ny) {
+                    if let Some(pp) = self.world.get_component_mut::<Pos>(a) { pp.x = nx; pp.y = ny; }
+                }
             }
         }
         for seat in 0..self.seats.len() {
@@ -3921,8 +3978,9 @@ impl Game {
     /// The end of a house meeting, once those who came have talked it over.
     /// Those who already trust you join the org; everyone who came gets to
     /// know you a little better (organizing::house_meeting). The meeting
-    /// belongs to the seat that called it.
-    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize) -> String {
+    /// belongs to the seat that called it; `record` is its talk_log id, so
+    /// a founding call can keep its tail showing on the conversation box.
+    pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64) -> String {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
         let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
@@ -3977,7 +4035,7 @@ impl Game {
         self.record_power(if invited.len() >= 3 {
             crate::sim::organized_power::ActionQuality::Transformational
         } else { crate::sim::organized_power::ActionQuality::Overreach });
-        let founded = self.maybe_found_campaign(seat).map(|s| format!(" {}", s)).unwrap_or_default();
+        let founded = self.founding_offer(seat, record).map(|s| format!(" {}", s)).unwrap_or_default();
         format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
     }
 
@@ -3993,11 +4051,13 @@ impl Game {
         self.log.push(format!("t{}: the village names you its leader - there's still work to do.", self.tick));
     }
 
-    /// After a house meeting: enough living members and a heard issue and
-    /// the org can take the founding vote. The organizer's ledger supplies
-    /// the candidates; the campaign is born framed as a shared grievance.
-    /// Returns a log line when the campaign forms.
-    pub fn maybe_found_campaign(&mut self, seat: usize) -> Option<String> {
+    /// The founding vote, when the org can take one: enough living
+    /// members and a heard issue. The organizer's ledger supplies the
+    /// candidates; the room's leaning is read for a shared grievance
+    /// (grumbles are re-read against the framing actually picked).
+    /// No campaign is founded - that's the organizer's call (decide_at),
+    /// or maybe_found_campaign's in tests
+    fn founding_vote(&self, seat: usize) -> Option<(crate::game::campaign::IssueVote, String)> {
         use crate::game::campaign;
         let org = self.seats[seat].org;
         if campaign::campaign_of(&self.world, org).is_some() { return None; }
@@ -4010,8 +4070,17 @@ impl Game {
         if issues.is_empty() { return None; }
         let vote = campaign::hold_issue_vote(&self.world, org, &issues, campaign::Framing::SharedGrievance, self.tick)?;
         let oname = self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default();
-        let c = campaign::found_campaign(&mut self.world, org, &vote,
-            campaign::Framing::SharedGrievance, campaign::DecisionRule::Majority, self.tick);
+        Some((vote, oname))
+    }
+
+    /// Found the campaign off a settled vote: the entity, its meeting
+    /// cadence, the toast and the "they'll fight for" line for the log
+    fn found_and_note(&mut self, seat: usize, vote: &crate::game::campaign::IssueVote,
+                      framing: crate::game::campaign::Framing, rule: crate::game::campaign::DecisionRule) -> String {
+        use crate::game::campaign;
+        let org = self.seats[seat].org;
+        let oname = self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default();
+        let c = campaign::found_campaign(&mut self.world, org, vote, framing, rule, self.tick);
         self.world.add_component(c, campaign::CampaignMeeting {
             cadence_days: 3, last_held: self.tick, held: 0, resolves: 0 });
         self.toasts.push((format!("{} take a vote", oname), self.tick + 40));
@@ -4021,10 +4090,55 @@ impl Game {
         let grumbler = vote.ballots.iter().find(|b| b.grumbles).map(|b| b.member);
         if let Some(d) = grumbler {
             let name = self.villagers.iter().position(|&v| v == d).map(|i| vill_name(i)).unwrap_or("someone");
-            msg += &format!(" - {} {}", name,
-                campaign::grumble_line(campaign::Framing::SharedGrievance));
+            msg += &format!(" - {} {}", name, campaign::grumble_line(framing));
         }
-        Some(msg)
+        msg
+    }
+
+    /// After a house meeting: enough living members and a heard issue and
+    /// the org can take the founding vote. The room's leaning goes up on
+    /// the conversation box - which cause and how it's put is the
+    /// organizer's call to make (decide_at). Returns the log line's tail.
+    fn founding_offer(&mut self, seat: usize, record: u64) -> Option<String> {
+        let (vote, oname) = self.founding_vote(seat)?;
+        let lean = format!("{} lean to {} - your call.", oname, desires::issue_name(vote.winner.clone()));
+        self.pending_founding = Some(PendingFounding { seat, record, vote, org_name: oname });
+        Some(lean)
+    }
+
+    /// The organizer's answer to the founding call on the conversation
+    /// box: take the room's leaning up, framed as picked - or let it rest
+    /// (the next house meeting can put it again)
+    pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        let Some(mut d) = self.pending_founding.take() else { return };
+        if d.seat != seat { self.pending_founding = Some(d); return; }
+        use crate::game::campaign::{self, DecisionRule, Framing};
+        let framing = match pick {
+            0 => Framing::SharedGrievance,
+            1 => Framing::CommonFoe,
+            2 => Framing::MoralDuty,
+            _ => {
+                self.log.push(format!("t{}: The talk stays talk for now - no cause taken up.", self.tick));
+                self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+                return;
+            }
+        };
+        // who grumbles is re-read against the framing actually picked
+        for b in &mut d.vote.ballots {
+            b.grumbles = b.stake.as_ref().map(|s| !campaign::framing_suits(framing, s)).unwrap_or(false);
+        }
+        let msg = self.found_and_note(seat, &d.vote, framing, DecisionRule::Majority);
+        self.log.push(format!("t{}: {}", self.tick, msg));
+        self.note_talk(d.record, None, &msg);
+    }
+
+    /// After a house meeting: found the campaign on the vote straight
+    /// away, without asking the organizer - kept for tests and for
+    /// callers that don't offer the founding call
+    pub fn maybe_found_campaign(&mut self, seat: usize) -> Option<String> {
+        let (vote, _) = self.founding_vote(seat)?;
+        Some(self.found_and_note(seat, &vote,
+            crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority))
     }
 
     /// Put a speech bubble over `who` for `secs` seconds (replacing any
@@ -4232,7 +4346,7 @@ impl Game {
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
-                    else { self.resolve_meeting(&m.invited, m.seat) };
+                    else { self.resolve_meeting(&m.invited, m.seat, m.talk_id) };
                 self.log.push(format!("t{}: {}", self.tick, msg));
             }
         }
@@ -8261,13 +8375,38 @@ impl Game {
         }
         let msg = match act {
             CtxAct::Work => {
-                let (made, up) = { let pe = self.seats[seat].player; livelihood::work_day(&mut self.world, pe, tick) };
-                let what = self.world.get_component::<Craft>(self.seats[seat].player)
-                    .and_then(|c| vocation::output(c.vocation)).unwrap_or("goods");
-                match up {
-                    Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
-                    None if made > 0.0 => format!("You work - {:.0} {} made.", made, what),
-                    None => "You put in the day, but make nothing yet.".into(),
+                let pe = self.seats[seat].player;
+                let (voc, workplace) = self.world.get_component::<Craft>(pe)
+                    .map(|c| (Some(c.vocation), c.workplace)).unwrap_or((None, None));
+                // nothing comes of a day without the makings: say what's
+                // short and how to come by it, not just "nothing yet"
+                let missing: Vec<&'static str> = voc.map(|v| vocation::inputs(v).iter().copied()
+                    .filter(|g| {
+                        let held = self.world.get_component::<Satchel>(pe)
+                            .map(|s| s.goods.get(*g).copied().unwrap_or(0)).unwrap_or(0);
+                        let stocked = workplace
+                            .and_then(|b| self.world.get_component::<Building>(b))
+                            .map(|b| b.stock.get(*g).copied().unwrap_or(0)).unwrap_or(0);
+                        held + stocked < 1
+                    }).collect()).unwrap_or_default();
+                if !missing.is_empty() {
+                    let how: Vec<String> = missing.iter().map(|g|
+                        if vocation::gatherable(g) { format!("{} - gather some", g) }
+                        else { format!("{} - buy some", g) }).collect();
+                    format!("You can't work: no {} to hand.", how.join(", "))
+                } else {
+                    let (made, up) = livelihood::work_day(&mut self.world, pe, tick);
+                    let what = voc.and_then(vocation::output).unwrap_or("goods");
+                    match up {
+                        Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
+                        None if made > 0.0 => {
+                            let dest = workplace.and_then(|b| self.world.get_component::<Building>(b))
+                                .map(|b| format!(" stocked at {}", b.name))
+                                .unwrap_or_else(|| " in your satchel".to_string());
+                            format!("You work - {:.0} {} made{}.", made, what, dest)
+                        }
+                        None => "You put in the day, but make nothing yet.".into(),
+                    }
                 }
             }
             CtxAct::PairUp => {
@@ -8839,6 +8978,7 @@ impl Game {
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             talk: self.talk_panel_at(seat),
+            convo: self.convo_panel_at(seat),
             debug_lines: self.telemetry_lines(),
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
         }
@@ -9002,6 +9142,7 @@ impl Game {
             Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },
             Command::CancelApproach => self.seats[seat].approach = None,
             Command::TalkPick(n) => self.talk_pick_at(seat, n),
+            Command::Decide(i) => self.decide_at(seat, i),
         }
     }
 
@@ -9852,6 +9993,10 @@ impl View {
         // the TALK panel under the minimap: conversations, apart from the log
         dialogue::draw_talk_panel(&mut buf, &m.talk, (mx, my));
 
+        // the conversation box, top-right of the map: a Talk under way or
+        // a house meeting's lines as they're said - and the call one leaves
+        if let Some(c) = &m.convo { dialogue::draw_convo_panel(&mut buf, c, (mx, my)); }
+
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;
         for (m, (r, g, b), word) in MAP_MARKS {
@@ -10349,6 +10494,28 @@ mod flock_tests {
             let p = g.world.get_component::<Pos>(a).unwrap();
             let d = (p.x - fp.x).abs() + (p.y - fp.y).abs();
             assert!(d < 20.0, "an animal strayed too far ({:.0} tiles)", d);
+        }
+    }
+
+    #[test]
+    fn test_the_flock_grazes_as_individuals_and_stays_off_the_walls() {
+        let mut g = Game::new();
+        for _ in 0..(4 * FPS) { g.update(); }
+        // each wanders on its own clock - the old lockstep drift set them
+        // all the same target at once
+        let dues: std::collections::HashSet<u32> = g.flock.iter()
+            .filter_map(|a| g.flock_wander.get(a).map(|w| w.2)).collect();
+        assert!(dues.len() > 1, "the animals wander on their own clocks");
+        let spots: std::collections::HashSet<(i32, i32)> = g.flock.iter()
+            .filter_map(|a| g.flock_wander.get(a).map(|w| (w.0 as i32, w.1 as i32))).collect();
+        assert!(spots.len() > 1, "the animals head for their own spots");
+        // and over a few seconds none of them ends up on a wall or in the water
+        for _ in 0..(2 * FPS) {
+            g.update();
+            for &a in &g.flock {
+                let p = g.world.get_component::<Pos>(a).unwrap();
+                assert!(g.walkable(p.x, p.y), "an animal off the ground at {:.1},{:.1}", p.x, p.y);
+            }
         }
     }
 }
@@ -13351,6 +13518,24 @@ mod blocker_tests {
         let b = &action_buttons()[1];
         let i = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
         assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Recruit still drawn in its live colour");
+    }
+
+    #[test]
+    fn test_work_names_what_is_missing_instead_of_nothing() {
+        let mut g = Game::new();
+        // a baker with neither wheat in hand nor a shop's stock to draw on
+        g.world.add_component(g.player, vocation::craft(Vocation::Baker, 0.3));
+        g.seats[0].ctx_actions = vec![CtxAct::Work];
+        g.ctx_act_at(0, 0);
+        let last = g.log.last().unwrap();
+        assert!(last.contains("no wheat"), "{}", last);
+        // with wheat in the satchel the day makes bread (a street bench
+        // works at half rate: two days a loaf) and says where it went
+        g.world.get_component_mut::<Satchel>(g.player).unwrap().goods.insert("wheat".into(), 2);
+        g.ctx_act_at(0, 0);
+        g.ctx_act_at(0, 0);
+        let last = g.log.last().unwrap();
+        assert!(last.contains("1 bread made") && last.contains("in your satchel"), "{}", last);
     }
 }
 

@@ -189,6 +189,18 @@ fn main() {
                     cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     cmds.push(Command::TalkPick(pick));
                 }
+                // the conversation box: a speaker's line selects them, a
+                // choice button answers it (a reply, leave, or the call)
+                if let Some(c) = &m.convo {
+                    if let Some(click) = session::dialogue::convo_click(c, mx, my) {
+                        cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                        match click {
+                            session::dialogue::ConvoClick::Speaker(i) => cmds.push(Command::Select(i)),
+                            session::dialogue::ConvoClick::Reply(n) => cmds.push(Command::TalkPick(n)),
+                            session::dialogue::ConvoClick::Decide(i) => cmds.push(Command::Decide(i)),
+                        }
+                    }
+                }
             }
         }
         match (&remote, &mut game) {

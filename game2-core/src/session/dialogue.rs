@@ -465,23 +465,21 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
-        if let Some(d) = &self.pending_founding {
-            if d.seat == seat {
-                let issue = crate::game::desires::issue_name(d.vote.winner.clone());
-                let mut rows = self.record_rows(seat, d.record);
-                rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
-                    text: format!("The room leans to {} - your call.", issue) });
-                return Some(ConvoPanelV {
-                    title: format!("{} - YOUR CALL", d.org_name.to_uppercase()),
-                    rows,
-                    options: vec![
-                        format!("Take it on, {} - a burden shared", issue),
-                        format!("Take it on, {} - and name the foe", issue),
-                        format!("Take it on, {} - a duty the village owes", issue),
-                        "Let it rest - keep talking".into(),
-                    ],
-                    decides: true, leave: false });
-            }
+        if let Some(d) = &s.pending_founding {
+            let issue = crate::game::desires::issue_name(d.vote.winner.clone());
+            let mut rows = self.record_rows(seat, d.record);
+            rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                text: format!("The room leans to {} - your call.", issue) });
+            return Some(ConvoPanelV {
+                title: format!("{} - YOUR CALL", d.org_name.to_uppercase()),
+                rows,
+                options: vec![
+                    format!("Take it on, {} - a burden shared", issue),
+                    format!("Take it on, {} - and name the foe", issue),
+                    format!("Take it on, {} - a duty the village owes", issue),
+                    "Let it rest - keep talking".into(),
+                ],
+                decides: true, leave: false });
         }
         if let Some(m) = &self.meeting {
             if m.seat == seat {
@@ -1004,7 +1002,7 @@ mod tests {
         let id = g.open_meeting_record(g.player, &came);
         let msg = g.resolve_meeting(&came, 0, id);
         // the room leans, but nothing is founded until the organizer says so
-        assert!(g.pending_founding.is_some(), "{}", msg);
+        assert!(g.seats[0].pending_founding.is_some(), "{}", msg);
         assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
         let c = g.convo_panel_at(0).expect("the call on the box");
         assert!(c.decides && c.options.len() == 4, "{:?}", c.options);
@@ -1016,7 +1014,7 @@ mod tests {
             .expect("the let-it-rest button");
         assert_eq!(convo_click(&c, rest.x + 2, rest.y + 2), Some(ConvoClick::Decide(3)));
         g.decide_at(0, 3);
-        assert!(g.pending_founding.is_none());
+        assert!(g.seats[0].pending_founding.is_none());
         assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
     }
 
@@ -1052,7 +1050,7 @@ mod tests {
         let cp = g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap();
         assert_eq!(cp.issue, "the taxes");
         assert!(matches!(cp.framing, crate::game::campaign::Framing::CommonFoe));
-        assert!(g.pending_founding.is_none());
+        assert!(g.seats[0].pending_founding.is_none());
         // and the outcome lands on the meeting's record
         let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
         assert!(rec.lines.iter().any(|l| l.text.contains("they'll fight for the taxes")), "{:?}", rec.lines);

@@ -1609,10 +1609,9 @@ pub struct Meeting {
 /// The founding call a finished house meeting left with its organizer:
 /// the vote the room took (kept for the stakes - grumbles get re-read
 /// against whichever framing the organizer picks), the record it was
-/// said on, and the org's name. Held until they answer it
-/// (Command::Decide) or the next meeting's offer supersedes it
+/// said on, and the org's name. Held on the calling seat until they
+/// answer it (Command::Decide) or their next meeting's offer supersedes it
 pub struct PendingFounding {
-    pub seat: usize,
     /// The meeting's talk record - the convo box keeps its tail showing
     pub record: u64,
     pub vote: crate::game::campaign::IssueVote,
@@ -1940,6 +1939,10 @@ pub struct Seat {
     pub agent: bool,
     /// A Talk under way, waiting on the player's reply (session::dialogue)
     pub talk: Option<dialogue::PlayerTalk>,
+    /// The founding call this seat's house meeting left open on the
+    /// conversation box, waiting on their pick (Command::Decide). Each
+    /// organizer holds their own - another seat's meeting can't erase it
+    pub pending_founding: Option<PendingFounding>,
     /// Where the character stood last frame, which way they face (0 up,
     /// 1 right, 2 down, 3 left on screen) and whether they moved: drives
     /// the walk cycle
@@ -1952,7 +1955,7 @@ impl Default for Seat {
     fn default() -> Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
-               last_pos: None, facing: 2, walking: false }
+               pending_founding: None, last_pos: None, facing: 2, walking: false }
     }
 }
 
@@ -2017,9 +2020,6 @@ pub struct Game {
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     pub meeting: Option<Meeting>,
-    /// The founding call a finished meeting left open on the conversation
-    /// box, waiting on the organizer's pick (Command::Decide)
-    pub pending_founding: Option<PendingFounding>,
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
@@ -3046,7 +3046,6 @@ impl Game {
             log_dropped: 0,
             bubbles: vec![],
             meeting: None,
-            pending_founding: None,
             near: vec![],
             last_chat: vec![],
             talk_log: vec![],
@@ -3244,7 +3243,7 @@ impl Game {
         // the call it leaves the organizer) slows the calendar so the
         // room's talk can be read as it's said
         let base = if self.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
-        if self.meeting.is_some() || self.pending_founding.is_some() { base * 2 } else { base }
+        if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
     }
 
     /// Whether the player can stand at (x, y): not in the water or the
@@ -4102,7 +4101,7 @@ impl Game {
     fn founding_offer(&mut self, seat: usize, record: u64) -> Option<String> {
         let (vote, oname) = self.founding_vote(seat)?;
         let lean = format!("{} lean to {} - your call.", oname, desires::issue_name(vote.winner.clone()));
-        self.pending_founding = Some(PendingFounding { seat, record, vote, org_name: oname });
+        self.seats[seat].pending_founding = Some(PendingFounding { record, vote, org_name: oname });
         Some(lean)
     }
 
@@ -4110,8 +4109,7 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
-        let Some(mut d) = self.pending_founding.take() else { return };
-        if d.seat != seat { self.pending_founding = Some(d); return; }
+        let Some(mut d) = self.seats[seat].pending_founding.take() else { return };
         use crate::game::campaign::{self, DecisionRule, Framing};
         let framing = match pick {
             0 => Framing::SharedGrievance,
@@ -8395,15 +8393,33 @@ impl Game {
                         else { format!("{} - buy some", g) }).collect();
                     format!("You can't work: no {} to hand.", how.join(", "))
                 } else {
-                    let (made, up) = livelihood::work_day(&mut self.world, pe, tick);
                     let what = voc.and_then(vocation::output).unwrap_or("goods");
+                    // where the day's work actually lands is read off the
+                    // before-and-after: a full shelf spills to the satchel,
+                    // and a full satchel loses it
+                    let held_before = self.world.get_component::<Satchel>(pe)
+                        .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0);
+                    let stocked_before = workplace
+                        .and_then(|b| self.world.get_component::<Building>(b))
+                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+                    let (made, up) = livelihood::work_day(&mut self.world, pe, tick);
                     match up {
                         Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
                         None if made > 0.0 => {
-                            let dest = workplace.and_then(|b| self.world.get_component::<Building>(b))
-                                .map(|b| format!(" stocked at {}", b.name))
-                                .unwrap_or_else(|| " in your satchel".to_string());
-                            format!("You work - {:.0} {} made{}.", made, what, dest)
+                            let held = self.world.get_component::<Satchel>(pe)
+                                .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - held_before as i32;
+                            let stocked = workplace
+                                .and_then(|b| self.world.get_component::<Building>(b))
+                                .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
+                            let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
+                                .map(|b| b.name.as_str()).unwrap_or("the shop");
+                            let mut parts: Vec<String> = vec![];
+                            if stocked > 0 { parts.push(format!("{} stocked at {}", stocked, shop)); }
+                            if held > 0 { parts.push(format!("{} in your satchel", held)); }
+                            let lost = made as i32 - stocked - held;
+                            if lost > 0 { parts.push(format!("{} spoiled - no room for it", lost)); }
+                            let went = if parts.is_empty() { String::new() } else { format!(" - {}", parts.join(", ")) };
+                            format!("You work - {:.0} {} made{}.", made, what, went)
                         }
                         None => "You put in the day, but make nothing yet.".into(),
                     }

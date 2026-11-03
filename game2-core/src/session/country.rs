@@ -407,9 +407,22 @@ impl Game {
                         let resumed = match kind {
                             SiteKind::Town => self.market_pitch(c).map(|p| self.send_far(c, p, Goal::Cart(si))).unwrap_or(false),
                             SiteKind::Castle => {
-                                let keep = site.homes.first().and_then(|&k| self.world.get_component::<Pos>(k).copied())
-                                    .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
-                                keep.map(|d| self.send_far(c, d, Goal::Deliver(si))).unwrap_or(false)
+                                // loaded at the granary already? carry the
+                                // provisions on home. otherwise the steward
+                                // never reached the town: head there still
+                                let has_provisions = self.world.get_component::<Satchel>(c)
+                                    .map(|s| s.goods.get("provisions").copied().unwrap_or(0) > 0).unwrap_or(false);
+                                if has_provisions {
+                                    let keep = site.homes.first().and_then(|&k| self.world.get_component::<Pos>(k).copied())
+                                        .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+                                    keep.map(|d| self.send_far(c, d, Goal::Deliver(si))).unwrap_or(false)
+                                } else {
+                                    (0..self.sites.len()).filter(|&t| self.sites[t].kind == SiteKind::Town)
+                                        .min_by_key(|&t| (self.sites[t].centre.0 - site.centre.0).abs() + (self.sites[t].centre.1 - site.centre.1).abs())
+                                        .and_then(|ti| self.world.get_component::<Pos>(self.sites[ti].store).copied().map(|p| (ti, p)))
+                                        .and_then(|(ti, p)| self.at_the_door(p.x.round() as i32, p.y.round() as i32).map(|d| (ti, d)))
+                                        .map(|(ti, d)| self.send_far(c, d, Goal::Levy(si, ti))).unwrap_or(false)
+                                }
                             }
                         };
                         if !resumed { self.sites[si].away_until = None; }
@@ -489,7 +502,13 @@ impl Game {
         let face = self.world.get_component::<Pos>(self.market_food).map(|m| (m.x, m.y));
         self.set_routine(who, routine::Routine { mode: routine::Mode::Selling, spot: routine::Spot::Market,
             anchor: (p.x, p.y), face, drift: 0.0, leads: false, day: tick, reached: true });
-        self.sites[si].away_until = Some(tick.max(routine_market_day_after(tick)) + MARKET_STAY);
+        // stay through market day if they got there early, but a cart
+        // delayed past market day just sells for its two days from
+        // whenever it actually arrives, rather than waiting a month
+        // for the next one
+        let into = tick % 30;
+        let stay_from = if into <= routine::MARKET_DAY { tick - into + routine::MARKET_DAY } else { tick };
+        self.sites[si].away_until = Some(stay_from + MARKET_STAY);
         let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a carter");
         self.log.push(format!("t{}: {}'s cart comes in from {}{}.", tick, name, site.name,
             if load > 0 { format!(" with {} wheat for the market", load) } else { String::new() }));
@@ -530,12 +549,6 @@ impl Game {
         }
         if let Some(s) = self.sites.get_mut(castle) { s.away_until = None; }
     }
-}
-
-/// The next market day on or after `tick`
-fn routine_market_day_after(tick: u64) -> u64 {
-    let into = tick % 30;
-    if into <= routine::MARKET_DAY { tick - into + routine::MARKET_DAY } else { tick - into + 30 + routine::MARKET_DAY }
 }
 
 /// The village's homes inside the wall and out: which a villager of this

@@ -196,7 +196,7 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>) {
                         you, token: tok, model: Box::new(s.game.ui_model_at(seat)) },
                     ClientKind::Agent => ServerMsg::Welcome {
                         you, token: tok,
-                        model: Box::new(s.game.ui_model_at(0)) }, // agents see the world via Obs
+                        model: Box::new(s.game.ui_model_at(seat)) }, // their own seat's frame, never seat 0's; agents mostly read Obs
                 };
                 let conn = Arc::new(Mutex::new(Conn { seat, kind, last_active: Instant::now(), outbox: vec![], dead: false }));
                 send_msg(&mut conn.lock().unwrap(), &first);

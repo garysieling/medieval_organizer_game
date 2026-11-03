@@ -17,18 +17,20 @@ fn mentions(code: &str, word: &str) -> bool {
 }
 
 #[test]
-fn render_never_reaches_into_the_sim() {
+fn render_and_public_kpis_never_reach_into_the_sim() {
     let files = [
         ("render/art.rs", include_str!("../render/art.rs")),
         ("render/draw.rs", include_str!("../render/draw.rs")),
         ("render/hud.rs", include_str!("../render/hud.rs")),
         ("render/view.rs", include_str!("../render/view.rs")),
+        // public KPIs read a seat's view, never the sim
+        ("kpi/public.rs", include_str!("../kpi/public.rs")),
     ];
     for (name, src) in files {
         let code = code_of(src);
         for word in ["Game", "World", "world", "Scheduler"] {
             assert!(!mentions(&code, word),
-                "{name} mentions `{word}`: the render layer draws from UiModel only");
+                "{name} mentions `{word}`: the render layer and public KPIs read UiModel/AgentObs only");
         }
     }
 }

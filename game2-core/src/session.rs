@@ -11,6 +11,7 @@ pub mod stage;
 pub mod dialogue;
 pub mod routine;
 pub mod render;
+pub mod kpi;
 #[cfg(test)]
 mod tests;
 
@@ -2122,67 +2123,6 @@ impl Game {
             }
         }
         g
-    }
-
-    /// The tuning panel's gauges: what the village's innards read at
-    /// this tick - trail heat, people power, the economy's pulse
-    pub fn telemetry(&self) -> Vec<(&'static str, f64)> {
-        let alive = self.villagers.iter().filter(|&&v| !villager::is_dead(&self.world, v)).count();
-        // hungry = below the sim's own seek-food line (30); a villager between
-        // 30-40 is just low on the eat cycle, not in trouble
-        let hungry = self.villagers.iter().filter(|&&v|
-            self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false)).count();
-        // starving = the hard line: a real food crisis, not the bottom of a meal cycle
-        let starving = self.villagers.iter().filter(|&&v|
-            self.world.get_component::<Hunger>(v).map(|h| h.value <= 10.0).unwrap_or(false)).count();
-        let trail_heat: f32 = self.trails.values().map(|t| t.strength).sum();
-        let trail_max = self.trails.values().map(|t| t.strength).fold(0.0f32, f32::max);
-        let power = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
-            .map(|p| p.capacity).unwrap_or(0.0);
-        let grain = self.world.get_component::<Building>(self.market_food)
-            .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0) as f64;
-        let bread = self.world.get_component::<Building>(self.market_food)
-            .map(|b| b.stock.get("bread").copied().unwrap_or(0)).unwrap_or(0) as f64;
-        let food = self.world.get_component::<villager::FoodSource>(self.market_food)
-            .map(|f| f.servings).unwrap_or(0) as f64;
-        // the village's gold: mean purse and the top/mean spread - the
-        // economy's pulse while prices sit on a fixed table
-        let purses: Vec<f32> = self.villagers.iter()
-            .filter(|&&v| !villager::is_dead(&self.world, v))
-            .filter_map(|&v| self.world.get_component::<Purse>(v).map(|p| p.gold))
-            .collect();
-        let gold_mean = if purses.is_empty() { 0.0 } else { purses.iter().sum::<f32>() / purses.len() as f32 };
-        let gold_top = purses.iter().copied().fold(0.0f32, f32::max);
-        let org_members = self.world.get_component::<Organization>(self.org)
-            .map(|o| o.members.len()).unwrap_or(0);
-        let sanctioned = self.sanctioned.len();
-        let tree_cover = self.land.tree_cover.values().sum::<f32>() / self.land.tree_cover.len().max(1) as f32;
-        vec![
-            ("villagers.alive", alive as f64),
-            ("villagers.hungry", hungry as f64),
-            ("villagers.starving", starving as f64),
-            ("econ.gold_mean", gold_mean as f64),
-            ("econ.gold_spread", (gold_top / gold_mean.max(1.0)) as f64),
-            ("org.members", org_members as f64),
-            ("org.power", power as f64),
-            ("org.lord_esteem", self.lord_esteem as f64),
-            ("sanctioned", sanctioned as f64),
-            ("trails.heat", trail_heat as f64),
-            ("trails.max", trail_max as f64),
-            ("stock.grain", grain),
-            ("stock.bread", bread),
-            ("stock.food", food),
-            ("env.tree_cover", tree_cover as f64),
-            ("price.grain", goods::worth_at(&self.world, "grain") as f64),
-            ("price.wood", goods::worth_at(&self.world, "wood") as f64),
-            ("price.fish", goods::worth_at(&self.world, "fish") as f64),
-            ("winter.harsh", if self.harsh_winter { 1.0 } else { 0.0 }),
-        ]
-    }
-
-    /// The gauges as overlay lines: "org.power 0.4" for the tuning panel
-    pub fn telemetry_lines(&self) -> Vec<String> {
-        self.telemetry().iter().map(|(k, v)| format!("{} {:.2}", k, v)).collect()
     }
 
     pub fn ticks_per_frame(&self) -> u32 {
@@ -7726,6 +7666,15 @@ impl Game {
     /// The frame a client draws: the authoritative sim's whole view of the
     /// world this seat should see. One per player seat per broadcast.
     pub fn ui_model_at(&self, seat: usize) -> UiModel {
+        let mut m = self.ui_model_parts_at(seat);
+        // the debug readout shows what this seat could know, never the
+        // secret gauges: the model goes over the wire to remote clients
+        m.debug_lines = kpi::kpi_lines(&kpi::public_kpis(&m));
+        m
+    }
+
+    /// The seat's frame, all but the lines derived from the frame itself
+    fn ui_model_parts_at(&self, seat: usize) -> UiModel {
         let world = &self.world;
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
         let in_reach = self.villagers_in_reach_at(seat);
@@ -7885,7 +7834,14 @@ impl Game {
             .collect();
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
             .map(|o| o.issues.iter().map(|t| desires::issue_name(t.clone())).collect()).unwrap_or_default();
-        let p = world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap();
+        // a player seat drives a PlayerCharacter; an agent seat drives a plain
+        // villager, whose panel is their own name and purse
+        let me = self.seats[seat].player;
+        let (my_name, my_influence, my_gold) = match world.get_component::<PlayerCharacter>(me) {
+            Some(p) => (p.name.clone(), p.influence, p.resources),
+            None => (self.name_of(me), 0.0,
+                world.get_component::<Purse>(me).map(|p| p.gold).unwrap_or(0.0)),
+        };
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
         let guilds = world.query::<Guild>().len();
         let name_of = |e: Entity| {
@@ -7947,8 +7903,8 @@ impl Game {
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
             inspector,
             panel: PanelV {
-                name: p.name.clone(), standing: crate::game::player::standing(p.influence).to_string(),
-                influence: p.influence, gold: p.resources,
+                name: my_name, standing: crate::game::player::standing(my_influence).to_string(),
+                influence: my_influence, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
             },
             mill: Some((MILL_TILE.0, MILL_TILE.1)),
@@ -7978,7 +7934,7 @@ impl Game {
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
-            debug_lines: self.telemetry_lines(),
+            debug_lines: vec![],
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
         }
     }

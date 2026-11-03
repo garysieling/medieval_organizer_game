@@ -42,7 +42,7 @@ fn main() {
         let food = game.world.get_component::<FoodSource>(game.market_food).map(|f| f.servings).unwrap_or(0);
         golds.sort_by(|a, c| a.partial_cmp(c).unwrap_or(std::cmp::Ordering::Equal));
         let gmean = if golds.is_empty() { 0.0 } else { golds.iter().sum::<f32>() / golds.len() as f32 };
-        let t: Vec<(String, f64)> = game.telemetry().iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        let t: Vec<(String, f64)> = game.secret_kpis().iter().map(|(k, v)| (k.to_string(), *v)).collect();
         let get = |k: &str| t.iter().find(|(n, _)| n == k).map(|(_, v)| *v).unwrap_or(0.0);
         println!("{},{},{},{},{},{},{},{},{},{},{},{},{:.1},{:.0},{:.0},{:.0},{:.1},{:.1}",
             game.tick, alive, b[0], b[1], b[2], b[3], b[4], b[5], seeking, idle, other, food,

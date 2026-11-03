@@ -60,10 +60,12 @@ Rules:
 | Tests | `session/tests/<subsystem>.rs` | one file per subsystem; `use crate::session::*;` |
 | Render (client) | `session/render/` | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays |
 | Perf bench | `session/render/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
+| Still in `session.rs`, bound for the view model | log filters (`visible_log`), inspector words, minimap/screen hit-testing | used by `ui_model_at` / `click_map_at` |
 | World generation | `session/setup.rs` | `Game::new_seeded` |
 | Seats & commands | `session/seat.rs` | `Seat`, `Command`, `command_at`, ctx actions |
 | Public views | `session/model.rs`, `session/view_model.rs`, `session/net.rs` | `UiModel`, `AgentObs` |
-| Omniscient | `session/probe.rs`, `session/kpi.rs` | probe + secret/public KPIs |
+| KPIs | `session/kpi/public.rs`, `session/kpi/secret.rs` | public: from a view only; secret: `Game::secret_kpis` |
+| Omniscient | `session/probe.rs` | `ProbeView` for tests and the probe socket |
 | Sim subsystems | `session/sim/<subsystem>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
 | Rare events | `session/events/` | split by category |
 | Pure rules | `game/`, `sim/` | ECS components & systems, no `Game` |
@@ -73,16 +75,25 @@ Later, once these seams hold, the layers get promoted to crates
 
 ## The order we're taking it in
 
-Each step is its own PR and moves code without changing behaviour. The test
-list must be identical before and after (`cargo test -p game2-core --lib -- --list`).
+Each step is its own PR and moves code without changing behaviour. Every test
+on main must still be listed afterwards (`cargo test -p game2-core --lib -- --list`,
+module paths aside). New tests the step adds on purpose (layering guards, perf
+stats) are fine: name them in the PR.
 
-1. Tests out of `session.rs` into `session/tests/`.
-2. Render layer: `View`, `Art`, `TileSet`, draw helpers into `session/render/`.
-3. Perf bench & headless runners into `render/bench.rs`; add p50/p95/max.
+1. ~~Tests out of `session.rs` into `session/tests/`.~~ (#457)
+2. ~~Render layer: `View`, `Art`, `TileSet`, draw helpers, HUD and the bench
+   runners into `session/render/`.~~ `tests/layering.rs` fails if the render
+   files mention `Game`/`World`.
+3. ~~Perf bench: `infra/perf.rs` sections across sim/ECS/render, p50/p95/max, `GAME2_BENCH_JSON`.~~
+3b. Determinism: with a fixed `--seed`, two runs of main diverge after
+   ~tick 300 (likely `HashMap` iteration order leaking into the sim).
+   Replays, multiplayer lockstep and golden-frame tests all need this fixed.
 4. World generation (`new_seeded`) into `setup.rs`.
 5. Seats, commands, the agent API and `ui_model_at` into their own files.
-6. Public vs secret KPIs (`kpi.rs`), plus a test that the agent/player views
-   carry nothing from the probe.
+6. ~~Public vs secret KPIs: `session/kpi/{public,secret}.rs`.~~ `public_kpis(&UiModel)` /
+   `agent_kpis(&AgentObs)` can't see the sim by construction (layering test). `Game::secret_kpis`
+   is the old `telemetry()`. This closed two leaks: `UiModel.debug_lines` carried the secret
+   gauges to every client, and an agent's `Welcome` carried seat 0's frame.
 7. Sim tick families into `session/sim/`, a few per PR.
 8. `events.rs` split by category.
 

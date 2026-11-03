@@ -165,7 +165,7 @@ fn main() {
             let events: Vec<String> = game.log[off..]
                 .iter().map(|l| l.splitn(2, ": ").nth(1).unwrap_or(l).to_string()).collect();
             log_read = game.log_dropped + game.log.len();
-            record.samples.push(DaySample { tick: game.tick, gauges: game.telemetry().iter()
+            record.samples.push(DaySample { tick: game.tick, gauges: game.secret_kpis().iter()
                 .map(|(k, v)| (k.to_string(), *v)).collect(), events });
         }
     }

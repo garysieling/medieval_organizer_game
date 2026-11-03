@@ -11,6 +11,8 @@ pub mod stage;
 pub mod dialogue;
 pub mod routine;
 pub mod country;
+pub mod render;
+pub mod kpi;
 #[cfg(test)]
 mod tests;
 
@@ -18,6 +20,7 @@ pub use model::*;
 pub use net::*;
 pub use driver::*;
 pub use record::*;
+pub use render::*;
 
 use crate::engine::ecs::{Entity, Scheduler, World};
 use crate::engine::render::Buffer;
@@ -118,174 +121,6 @@ fn off_view(sx: i32, sy: i32, zoom: f32) -> bool {
     sx < -z(150.0) || sx > MAP_W as i32 + z(150.0) || sy < -z(40.0) || sy > H as i32 + z(300.0)
 }
 
-/// Draw `sprite` with its top-left at (x, y), scaled by `scale`
-fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
-    if (scale - 1.0).abs() < 0.01 {
-        sprite.blit(buf, x, y);
-    } else if (scale - 2.0).abs() < 0.01 {
-        sprite.blit_scaled(buf, x, y, 2);
-    } else {
-        let (w, h) = ((sprite.width as f32 * scale).round().max(1.0) as usize, (sprite.height as f32 * scale).round().max(1.0) as usize);
-        sprite.blit_resized(buf, x, y, w, h);
-    }
-}
-
-/// The dog's coat
-const DOG: (u8, u8, u8) = (139, 90, 43);
-
-/// A little dog, facing left, as pixel art: o outline, b coat, n eye/nose,
-/// . transparent. Drawn 2x like the villagers.
-const DOG_ART: [&str; 7] = [
-    "..oo.......",
-    ".obbo....o.",
-    "obnbboooobo",
-    ".obbbbbbbo.",
-    "..obbbbbbo.",
-    "..ob.o.obo.",
-    "..oo....oo.",
-];
-
-fn dog_sprite() -> Sprite {
-    let (w, h) = (DOG_ART[0].len(), DOG_ART.len());
-    let mut pixels = vec![0u8; w * h * 4];
-    for (y, row) in DOG_ART.iter().enumerate() {
-        for (x, c) in row.chars().enumerate() {
-            let rgb = match c { 'o' => (45, 28, 16), 'b' => DOG, 'n' => (15, 10, 8), _ => continue };
-            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
-        }
-    }
-    Sprite { width: w, height: h, pixels }
-}
-
-/// The cat's coat (a grey tabby)
-const CAT: (u8, u8, u8) = (95, 95, 105);
-
-/// A little cat, facing right, sitting with its tail curled round: o
-/// outline, b coat, n eye/nose, . transparent. Drawn 2x like the dog.
-const CAT_ART: [&str; 7] = [
-    "..o.....o..",
-    ".obo...obo.",
-    ".obbbnbbo..",
-    "oobbbbbbo..",
-    "obbbbbbbo..",
-    "ob..bb..o..",
-    ".o..oo.....",
-];
-
-fn cat_sprite() -> Sprite {
-    let (w, h) = (CAT_ART[0].len(), CAT_ART.len());
-    let mut pixels = vec![0u8; w * h * 4];
-    for (y, row) in CAT_ART.iter().enumerate() {
-        for (x, c) in row.chars().enumerate() {
-            let rgb = match c { 'o' => (40, 38, 45), 'b' => CAT, 'n' => (15, 10, 8), _ => continue };
-            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
-        }
-    }
-    Sprite { width: w, height: h, pixels }
-}
-
-/// A hen scratching round the farmyard, facing left: o outline, w white
-/// feathers, r comb, n eye/beak, l legs, . transparent
-const CHICKEN_ART: [&str; 7] = [
-    "....oo.....",
-    "...orro....",
-    "..owwno....",
-    ".owwwwwo...",
-    ".owwwwoo...",
-    "..l..l.....",
-    "..l..l.....",
-];
-
-fn chicken_sprite() -> Sprite {
-    let (w, h) = (CHICKEN_ART[0].len(), CHICKEN_ART.len());
-    let mut pixels = vec![0u8; w * h * 4];
-    for (y, row) in CHICKEN_ART.iter().enumerate() {
-        for (x, c) in row.chars().enumerate() {
-            let rgb = match c {
-                'o' => (60, 55, 50), 'w' => (235, 230, 220), 'r' => (200, 60, 50),
-                'n' => (15, 10, 8), 'l' => (200, 150, 60), _ => continue,
-            };
-            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
-        }
-    }
-    Sprite { width: w, height: h, pixels }
-}
-
-/// A gull on the wing: just two white strokes and a grey under-shadow
-const GULL_ART: [&str; 3] = [
-    "w.....w",
-    ".w...w.",
-    "..g.g..",
-];
-
-fn gull_sprite() -> Sprite {
-    let (w, h) = (GULL_ART[0].len(), GULL_ART.len());
-    let mut pixels = vec![0u8; w * h * 4];
-    for (y, row) in GULL_ART.iter().enumerate() {
-        for (x, c) in row.chars().enumerate() {
-            let rgb = match c { 'w' => (245, 248, 250), 'g' => (170, 180, 195), _ => continue };
-            pixels[(y * w + x) * 4..(y * w + x) * 4 + 4].copy_from_slice(&[rgb.0, rgb.1, rgb.2, 255]);
-        }
-    }
-    Sprite { width: w, height: h, pixels }
-}
-
-/// Where the panel portrait's feet are: a 32px frame drawn 2x from
-/// (UI_X+6, 312), the figure centred in it and ending at its bottom row
-const PORTRAIT_FOOT: (i32, i32) = (UI_X as i32 + 6 + 32, 322 + 62);
-
-/// Villager name colours on the map: within MEETING_REACH of the player
-/// (Talk, Recruit and Organize can reach them) or not
-const NAME_IN_REACH: (u8, u8, u8) = (255, 255, 255);
-const NAME_OUT_OF_REACH: (u8, u8, u8) = (150, 150, 165);
-
-/// Gravestone colours
-const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
-const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
-
-/// A ready herb patch: a little spray of flowers low on the meadow tile
-fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
-    let k = |v: i32| ((v as f32) * zoom).round() as i32;
-    // green sprigs, then petal dots above them
-    for (dx, dy) in [(-3, 0), (0, -1), (3, 0), (-1, -2), (1, -2)] {
-        buf.rect(sx + k(dx), sy + k(dy), 1.max(k(1)), 1.max(k(1)), 70, 145, 75);
-    }
-    for (dx, dy, c) in [(-3, -3, (240, 225, 245)), (1, -4, (205, 165, 235)), (3, -2, (245, 240, 200))] {
-        buf.rect(sx + k(dx), sy + k(dy), 1.max(k(1)), 1.max(k(1)), c.0, c.1, c.2);
-    }
-}
-
-/// A wild mushroom: a little cap on a pale stem
-fn shroom_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
-    let k = |v: i32| ((v as f32) * zoom).round() as i32;
-    buf.rect(sx - k(2), sy - k(4), 1.max(k(5)), 1.max(k(3)), 195, 70, 55);
-    buf.rect(sx - k(1), sy - k(1), 1.max(k(3)), 1.max(k(2)), 235, 225, 200);
-}
-
-/// A woven skep: a small domed hive with banding
-fn draw_skep(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
-    let k = |v: i32| ((v as f32) * zoom).round() as i32;
-    buf.rect(sx - k(4), sy - k(7), 1.max(k(8)), 1.max(k(6)), 210, 185, 120);
-    buf.rect(sx - k(3), sy - k(9), 1.max(k(6)), 1.max(k(2)), 220, 198, 140);
-    for row in [4, 6] { buf.rect(sx - k(4), sy - k(row), 1.max(k(8)), 1.max(k(1)), 160, 135, 85); }
-}
-
-/// A swarm on the wing: a knot of dark specks
-fn draw_swarm(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
-    let k = |v: i32| ((v as f32) * zoom).round() as i32;
-    for (dx, dy) in [(-3, -8), (0, -10), (3, -8), (-1, -6), (2, -11), (-4, -10)] {
-        buf.rect(sx + k(dx), sy + k(dy), 1.max(k(2)), 1.max(k(1)), 45, 35, 20);
-    }
-}
-
-/// A grazing animal: a wool or hair blob low on four legs
-fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
-    let k = |v: i32| ((v as f32) * zoom).round() as i32;
-    let (body, dark) = if sheep { ((235, 230, 212), (205, 198, 180)) } else { ((148, 132, 110), (104, 92, 75)) };
-    buf.rect(sx - k(5), sy - k(8), 2.max(k(10)), 1.max(k(5)), body.0, body.1, body.2);
-    buf.rect(sx + k(4), sy - k(9), 1.max(k(3)), 1.max(k(4)), dark.0, dark.1, dark.2);
-    for lx in [-3, -1, 1, 3] { buf.rect(sx + k(lx), sy - k(3), 1.max(k(1)), 1.max(k(3)), dark.0, dark.1, dark.2); }
-}
 
 /// Which way a step of (dx, dy) on the map looks on screen: 0 up, 1
 /// right, 2 down, 3 left (the walk sheet's row order)
@@ -294,90 +129,6 @@ fn facing_on_screen(dx: f32, dy: f32) -> u8 {
     if sx.abs() > sy.abs() { if sx > 0.0 { 1 } else { 3 } } else if sy > 0.0 { 2 } else { 0 }
 }
 
-/// Draw an animal sprite (1px art, so 1x zoom) standing on screen point
-/// (sx, sy); returns its height on screen, for a label above it
-fn draw_animal(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) -> i32 {
-    let (w, h) = ((sprite.width as f32 * zoom).round() as i32, (sprite.height as f32 * zoom).round() as i32);
-    draw_zoomed(buf, sprite, sx - w / 2, sy - h, zoom);
-    h
-}
-
-/// One of a set of looks, the same one for the same animal every frame
-fn variant(set: &[Sprite], key: Entity) -> Option<&Sprite> {
-    if set.is_empty() { None } else { set.get(key as usize % set.len()) }
-}
-
-/// Draw a gravestone standing on screen point (sx, sy) at the current zoom;
-/// returns the y of its top, for the name label
-fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) -> i32 {
-    let z = |v: f32| (v * zoom).round() as i32;
-    let (w, h) = (z(12.0).max(4), z(16.0).max(5));
-    let (x, top) = (sx - w / 2, sy - h);
-    // outline, then the stone with a rounded head, then a carved cross
-    buf.rect(x - 1, top + 2, w + 2, h - 1, GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
-    buf.rect(x + 1, top, w - 2, 3, GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
-    buf.rect(x, top + 2, w, h - 2, GRAVE_STONE.0, GRAVE_STONE.1, GRAVE_STONE.2);
-    buf.rect(x + 2, top + 1, w - 4, 2, GRAVE_STONE.0, GRAVE_STONE.1, GRAVE_STONE.2);
-    buf.rect(sx - 1, top + z(3.0), 2, z(8.0).max(3), GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
-    buf.rect(sx - z(3.0), top + z(5.0), z(6.0).max(2), 2, GRAVE_EDGE.0, GRAVE_EDGE.1, GRAVE_EDGE.2);
-    top
-}
-
-/// Draw a character sprite (a 32px frame drawn 2x at zoom 1) standing on
-/// screen point (sx, sy), at the current zoom
-fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    draw_zoomed(buf, sprite, sx - (32.0 * zoom).round() as i32, sy - (60.0 * zoom).round() as i32, 2.0 * zoom);
-}
-
-/// Screen y of a character's head at the current zoom
-fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
-
-/// The point to hand name_label_pos so a label sits just above a zoomed head
-fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
-
-/// How far below SPRITE_HEAD this sprite's head actually starts, in screen
-/// pixels at zoom 1: some figures (the old man) have blank rows above
-/// row 18, which left their name floating
-fn head_drop(sprite: &Sprite) -> i32 {
-    let w = sprite.width as usize;
-    let top = (0..sprite.height as usize)
-        .find(|&y| (0..w).any(|x| sprite.pixels[(y * w + x) * 4 + 3] > 0))
-        .unwrap_or(18) as i32;
-    (top - 18).max(0) * 2
-}
-
-/// label_anchor for a particular sprite, so its name sits on its own head
-fn sprite_label_anchor(sprite: &Sprite, sy: i32, zoom: f32) -> i32 {
-    label_anchor(sy, zoom) + (head_drop(sprite) as f32 * zoom).round() as i32
-}
-
-/// Height of a speech bubble
-const BUBBLE_H: i32 = 18;
-
-/// Where a speech bubble goes for a speaker standing on screen point
-/// (sx, sy): just above their (zoomed) name label, kept inside the map view.
-/// None when the speaker isn't on the map view at all.
-/// `label_y` is where the speaker's name label actually ended up: place_labels
-/// nudges crowded labels upward, and the bubble must clear the nudged one
-fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) -> Option<(i32, i32, i32)> {
-    if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
-    let bw = (text.len() as i32 * GLYPH_W + 12).max(60).min(MAP_W as i32 - 8);
-    let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
-    let label_top = (head_y(sy, zoom) - GLYPH_H - LABEL_GAP).min(label_y.map(|y| y - 4).unwrap_or(i32::MAX));
-    let by = (label_top - BUBBLE_H - 8).max(4);
-    Some((bx, by, bw))
-}
-
-/// Top of a character's head relative to its ground point. Characters are
-/// 32px frames drawn 2x from (sx-32, sy-60), but the figure only fills the
-/// frame's bottom rows (18-31), so the head is at about sy-24.
-const SPRITE_HEAD: i32 = -24;
-/// Font glyph width and height (ui::font)
-const GLYPH_W: i32 = 6;
-const GLYPH_H: i32 = 7;
-/// Space between a name label and the head below it (the text outline
-/// adds one more pixel)
-const LABEL_GAP: i32 = 1;
 
 /// Where to draw a character's name: centred over them, just above the head
 /// The player's coins (PlayerCharacter.resources) and their Purse are one
@@ -393,35 +144,6 @@ fn sync_purse(world: &mut World, player: Entity, to_purse: bool) {
     }
 }
 
-fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
-    (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
-}
-
-/// Word-wrap `text` into lines of at most `max` characters, breaking at
-/// spaces (a word longer than a whole line is split)
-fn wrap_text(text: &str, max: usize) -> Vec<String> {
-    let mut lines = vec![];
-    let mut line = String::new();
-    for word in text.split_whitespace() {
-        let mut word = word.to_string();
-        while word.chars().count() > max {
-            if !line.is_empty() { lines.push(std::mem::take(&mut line)); }
-            let head: String = word.chars().take(max).collect();
-            word = word.chars().skip(max).collect();
-            lines.push(head);
-        }
-        if line.is_empty() {
-            line = word;
-        } else if line.chars().count() + 1 + word.chars().count() <= max {
-            line.push(' ');
-            line.push_str(&word);
-        } else {
-            lines.push(std::mem::replace(&mut line, word));
-        }
-    }
-    if !line.is_empty() { lines.push(line); }
-    lines
-}
 
 /// Gossip lines shown in the log at once; older gossip is hidden so it
 /// can't push real events (illness, joins, deaths, guilds) out of view
@@ -526,63 +248,6 @@ fn log_colour(entry: &str) -> (u8, u8, u8) {
     else { (210, 210, 210) }
 }
 
-/// Base colour of a terrain tile by height - shared by the map and minimap
-/// so they agree on what is water, grass, fields, hills and peaks
-fn terrain_colour(h: f32) -> (u8, u8, u8) {
-    if h < 0.15 { (30, 60, 180) }
-    else if h < 0.35 { (60, 140, 60) }
-    else if h < 0.55 { (140, 110, 50) }
-    else if h < 0.75 { (110, 90, 60) }
-    else { (220, 220, 220) }
-}
-
-/// A pixel under rain: dimmed and cooled, like light through rain cloud
-fn rain_wash(c: (u8, u8, u8)) -> (u8, u8, u8) {
-    blend(c, (40, 55, 80), 0.25)
-}
-
-/// Mix colour `a` toward `b` by `t` (0 = all a, 1 = all b)
-fn blend(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
-    let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
-    (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
-}
-
-/// A tile's colour in the current season: snow lies on the land in winter
-/// and the water turns cold, grass goes gold in autumn and fresh in spring,
-/// summer is the base palette. Shared by the map and the minimap.
-fn season_colour(h: f32, season: Season) -> (u8, u8, u8) {
-    let base = terrain_colour(h);
-    let water = h < 0.15;
-    let peak = h >= 0.75;
-    match season {
-        Season::Summer => base,
-        Season::Spring if water || peak => base,
-        Season::Spring => blend(base, (70, 170, 70), 0.25),
-        Season::Autumn if water || peak => base,
-        Season::Autumn => blend(base, (185, 125, 45), 0.45),
-        Season::Winter if water => blend(base, (60, 80, 120), 0.5),
-        Season::Winter => blend(base, (228, 232, 240), 0.65),
-    }
-}
-
-/// A map tile's colour in a season: the minimap's, and the map's own when
-/// a tile's block art is missing. Open ground follows season_colour.
-fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
-    let land = |c: (u8, u8, u8)| match season {
-        Season::Winter => blend(c, (228, 232, 240), 0.65),
-        _ => c,
-    };
-    match tile {
-        Tile::Water | Tile::River => season_colour(0.05, season),
-        Tile::Grass => season_colour(0.25, season),
-        Tile::Hill => season_colour(0.45, season),
-        Tile::Rock => season_colour(0.65, season),
-        Tile::Wheat => land((220, 185, 80)),
-        Tile::Corn => land((200, 160, 60)),
-        Tile::Road => land((229, 143, 77)),
-        Tile::Bridge => (229, 143, 77),
-    }
-}
 
 // Minimap: the same isometric projection as the map, shrunk to fit a box at
 // the bottom of the side panel (so up on the minimap is up on screen)
@@ -598,9 +263,6 @@ fn mm_k(w_t: f32, h_t: f32) -> f32 {
     ((MM_W - 24) as f32 / span).min((MM_H - 16) as f32 * 2.0 / span)
 }
 
-/// Minimap dot colours: living villagers, and the graves of the dead
-const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
-const MM_GRAVE: (u8, u8, u8) = (150, 150, 160);
 
 /// Minimap position of a world tile
 fn tile_to_minimap(tx: f32, ty: f32, k: f32) -> (f32, f32) {
@@ -631,51 +293,6 @@ pub fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
     (-((tx - ty) * TILE_W as f32).round() as i32, (ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32).round() as i32)
 }
 
-/// Minimap position of a point on screen (inverse of iso_to_screen_cam,
-/// then tile_to_minimap) - used to outline what the screen is showing
-fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32, w_t: f32, h_t: f32) -> (f32, f32) {
-    // undo the zoom about the view centre, then the zoom-1 projection
-    let bx = ZOOM_PIVOT.0 + (sx - ZOOM_PIVOT.0) / zoom;
-    let by = ZOOM_PIVOT.1 + (sy - ZOOM_PIVOT.1) / zoom;
-    let diff = (bx - MAP_W as f32 / 2.0 - cam_x as f32) / TILE_W as f32; // tx - ty
-    let sum = (by + 60.0 - cam_y as f32) / TILE_H as f32;                 // tx + ty
-    tile_to_minimap((sum + diff) / 2.0, (sum - diff) / 2.0, mm_k(w_t, h_t))
-}
-
-/// Nudge name labels so none overlap: each label (x, y, width) keeps its x
-/// and, if it would sit on a label already placed, moves up a line at a time
-/// (at most a few lines) until it's clear. Labels nearer the bottom of the
-/// screen (characters in front) are placed first and keep their spot.
-fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
-    const LINE: i32 = GLYPH_H + 3;
-    let mut order: Vec<usize> = (0..labels.len()).collect();
-    order.sort_by_key(|&i| -labels[i].1);
-    let mut placed: Vec<(i32, i32, i32)> = vec![];
-    let mut ys = vec![0; labels.len()];
-    for i in order {
-        let (x, mut y, w) = labels[i];
-        let hits = |y: i32, placed: &[(i32, i32, i32)]| placed.iter().any(|&(px, py, pw)| {
-            x < px + pw + 2 && px < x + w + 2 && y < py + LINE && py < y + LINE
-        });
-        for _ in 0..4 {
-            if !hits(y, &placed) { break; }
-            y -= LINE;
-        }
-        placed.push((x, y, w));
-        ys[i] = y;
-    }
-    ys
-}
-
-/// Marks drawn by villagers on the map: (glyph, colour, meaning). The
-/// panel's legend lists them, so the map and the key can't drift apart.
-const MARK_HUNGRY: (&str, (u8, u8, u8), &str) = ("!", (255, 100, 100), "hungry");
-const MARK_FOOD: (&str, (u8, u8, u8), &str) = ("o", (255, 200, 100), "finding food");
-const MARK_BUSY: (&str, (u8, u8, u8), &str) = ("*", (180, 180, 255), "busy");
-const MARK_SICK: (&str, (u8, u8, u8), &str) = ("+", (140, 230, 110), "sick");
-const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK_BUSY, MARK_SICK];
-/// The legend's row, between the log box and the bottom of the window
-const LEGEND_Y: i32 = 627;
 
 /// Whether the crowd-separation pass may push this villager aside: not the
 /// dead, and not someone on their way to food
@@ -716,21 +333,6 @@ fn activity_text(a: Activity) -> &'static str {
     }
 }
 
-/// Green when high, amber in the middle, red when low (0..=1)
-fn meter_colour(frac: f32) -> (u8, u8, u8) {
-    if frac >= 0.6 { (90, 200, 90) } else if frac >= 0.3 { (230, 180, 60) } else { (230, 80, 70) }
-}
-
-/// A small labelled meter: label, bar filled to `frac`, then a note
-fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &str, frac: f32, note: &str) {
-    const BAR_X: i32 = 44;
-    const BAR_W: i32 = 70;
-    draw_text(buf, x, y, label, 200, 200, 200);
-    buf.rect(x + BAR_X, y, BAR_W, 6, 30, 30, 45);
-    let (r, g, b) = meter_colour(frac);
-    buf.rect(x + BAR_X, y, (frac.clamp(0.0, 1.0) * BAR_W as f32) as i32, 6, r, g, b);
-    draw_text(buf, x + BAR_X + BAR_W + 6, y, note, r, g, b);
-}
 
 /// The disease `who` is fighting, if any: (name, stage)
 fn disease_of(world: &World, who: Entity) -> Option<(String, Stage)> {
@@ -763,20 +365,6 @@ pub struct Button {
     pub color: (u8, u8, u8),
 }
 
-fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
-    let (mut r, mut g, mut bl) = b.color;
-    if disabled { r = 50; g = 50; bl = 55; }
-    else if hover { r = r.saturating_add(40); g = g.saturating_add(40); bl = bl.saturating_add(40); }
-    draw_rect(buf, b.x, b.y, b.w, b.h, r, g, bl);
-    draw_rect(buf, b.x, b.y, b.w, 1, 255, 255, 255);
-    draw_rect(buf, b.x, b.y + b.h - 1, b.w, 1, 20, 20, 20);
-    // label centered
-    let tw = b.label.len() as i32 * 6;
-    draw_text(buf, b.x + (b.w - tw) / 2, b.y + (b.h - 7) / 2, b.label, 255, 255, 255);
-    // key hint
-    let key = format!("{}", b.key);
-    draw_text(buf, b.x + b.w - 10, b.y + 2, &key, 180, 180, 200);
-}
 
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
@@ -988,685 +576,6 @@ const TOOLTIPS: [&str; 5] = [
     "commission a new house",
 ];
 
-/// Every sprite the game draws, loaded once up front
-#[derive(Default)]
-pub struct Art {
-    pub villager_sprites: Vec<Sprite>,
-    /// The rivals' figures: the same pack's outlined look, so they read foreign
-    pub rival_sprites: Vec<Sprite>,
-    /// The cottages a home can be: colour, timber or plaster, and the door
-    /// and gable in different spots (the pack's numbered variants)
-    pub houses: Vec<Option<Sprite>>,
-    /// The houses with their greens snowed over, for winter
-    pub houses_winter: Vec<Option<Sprite>>,
-    pub mill_frames: Vec<Sprite>, // the sails only: they turn on mill_tower
-    pub mill_tower: Option<Sprite>,
-    /// The windmill is generated (assets/rd/windmill): the tower stands at
-    /// its own size (draw_standing) and the sails turn at 1x on MILL_HUB_RD
-    pub mill_rd: bool,
-    pub blacksmith_s: Option<Sprite>,
-    /// The trade halls and the rival village's homes with their grass
-    /// snowed over (blacksmith, guildhall, rival house, rival woodhouse);
-    /// None for the pack's, which keep their summer look
-    pub trades_winter: [Option<Sprite>; 4],
-    pub stones: Vec<Sprite>,        // boulders, a few shapes
-    pub stone_grounds: Vec<Sprite>, // flat rocks
-    /// The rocks' size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/stones)
-    pub stones_k: f32,
-    pub player_s: Option<Sprite>,
-    /// The player's walk cycle (assets/rd/player/walk.png). None: the
-    /// pack's still figure (player_s) stands in.
-    pub player_walk: Option<WalkSheet>,
-    /// Walk cycles for the villager looks, by the same index as
-    /// villager_sprites (None: that look is still the pack's figure)
-    pub villager_walks: Vec<Option<WalkSheet>>,
-    pub tower_s: Option<Sprite>,
-    /// The town wall, its towers and gatehouses are generated
-    /// (assets/rd/castle): drawn one tile wide like the cottages instead of
-    /// on the pack's block scale
-    pub castle_rd: bool,
-    /// Town wall blocks: running along x, along y, and the two gatehouses
-    pub walls: [Option<Sprite>; 4],
-    /// The odd wall stretch with a postern door in it: along x, along y
-    pub wall_posts: [Option<Sprite>; 2],
-    pub church_s: Option<Sprite>,
-    pub guildhall_s: Option<Sprite>,
-    pub rival_house: Option<Sprite>,
-    pub rival_woodhouse: Option<Sprite>,
-    /// The watch at the town gates, from the humans pack
-    pub guards: Vec<Sprite>,
-    /// Generated looks for the watch (rd/guards), by the same index as
-    /// guards; drawn standing, facing out
-    pub guard_walks: Vec<Option<WalkSheet>>,
-    pub priest_s: Option<Sprite>,
-    pub priest_walk: Option<WalkSheet>,
-    pub traveller_s: Option<Sprite>, // a courier riding the road between villages
-    /// Generated walk cycles: the rivals' (by RIVAL_NAMES index) and the
-    /// travellers' (courier, minstrel, pedlar, the rare visitors)
-    pub rival_walks: Vec<Option<WalkSheet>>,
-    pub traveller_walk: Option<WalkSheet>,
-    /// The animals: Retro Diffusion art (assets/rd/farm-animals, sliced
-    /// from one generated sheet - see assets/rd/README.md), drawn at 1x
-    /// zoom by draw_animal. If those files are missing the old hand-drawn
-    /// pixel art stands in, pre-doubled to the same scale.
-    pub dog: Option<Sprite>,
-    pub cat: Option<Sprite>,
-    /// Hens about the village (variants: hen, rooster)
-    pub hens: Vec<Sprite>,
-    /// The fold: a couple of looks each, picked per animal
-    pub sheep: Vec<Sprite>,
-    pub goats: Vec<Sprite>,
-    pub gull: Option<Sprite>,
-    /// Ground specks scattered on open grass, per season set
-    pub details: [Vec<Sprite>; 3],
-    /// Their size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/tufts)
-    pub details_k: f32,
-    /// Ground blocks for the green seasons, autumn and winter (season_tiles),
-    /// and the same as top faces only, for inland tiles
-    pub tiles: [TileSet; 3],
-    pub faces: [TileSet; 3],
-}
-
-/// A generated 4-direction walk cycle: a row per facing (0 up, 1 right,
-/// 2 down, 3 left on screen), 4 frames each, 1x art (rd_animation
-/// four_angle_walking, 48px frames, figures ~35px tall)
-pub struct WalkSheet {
-    pub frames: Vec<Vec<Sprite>>,
-    /// The row the feet stand on and the top of the head, over every frame
-    /// (so anchors don't jitter between frames)
-    pub feet: i32,
-    pub head: i32,
-}
-
-impl WalkSheet {
-    /// Cut a 4x4 sheet into frames and find its feet and head rows
-    pub fn from_sheet(sheet: &Sprite) -> WalkSheet {
-        let f = sheet.width / 4;
-        let frames: Vec<Vec<Sprite>> = (0..4).map(|r| (0..4).map(|c| sheet.crop(c * f, r * f, f, f)).collect()).collect();
-        let rows = |s: &Sprite| -> Vec<usize> {
-            (0..s.height).filter(|&y| (0..s.width).any(|x| s.pixels[(y * s.width + x) * 4 + 3] > 0)).collect()
-        };
-        let feet = frames.iter().flatten().filter_map(|s| rows(s).last().copied()).max().unwrap_or(0) as i32 + 1;
-        let head = frames.iter().flatten().filter_map(|s| rows(s).first().copied()).min().unwrap_or(0) as i32;
-        WalkSheet { frames, feet, head }
-    }
-
-    /// The frame for a pose at frame count `t`: striding through the row
-    /// while walking, the standing frame otherwise
-    pub fn frame(&self, facing: u8, walking: bool, t: u32) -> Option<&Sprite> {
-        let row = self.frames.get(facing as usize)?;
-        row.get(if walking { (t / 6) as usize % row.len().max(1) } else { 1 })
-    }
-
-    /// Draw a pose standing on screen point (sx, sy) at `scale` (1.0 a
-    /// grown-up at the current zoom); returns the y of the top of the head
-    pub fn draw(&self, buf: &mut Buffer, facing: u8, walking: bool, t: u32, sx: i32, sy: i32, scale: f32) -> i32 {
-        let feet = (self.feet as f32 * scale).round() as i32;
-        if let Some(f) = self.frame(facing, walking, t) {
-            let w = (f.width as f32 * scale).round() as i32;
-            draw_zoomed(buf, f, sx - w / 2, sy - feet, scale);
-        }
-        sy - feet + (self.head as f32 * scale).round() as i32
-    }
-}
-
-/// The pack's ground blocks for one season's look: one per kind of map
-/// tile, and every numbered road and river piece, in the pack's order
-#[derive(Default)]
-pub struct TileSet {
-    pub grass: Option<Sprite>,
-    /// Sandy grass where the sea meets the land, and drier bare looks up
-    /// on the hills and the bare tops
-    pub shore: Option<Sprite>,
-    pub hill: Option<Sprite>,
-    pub rock: Option<Sprite>,
-    pub water: Option<Sprite>,
-    /// Pale water round the shore, darker out at sea
-    pub shallow: Option<Sprite>,
-    pub deep: Option<Sprite>,
-    pub wheat: Vec<Sprite>,
-    pub corn: Vec<Sprite>,
-    pub roads: Vec<Sprite>,
-    pub rivers: Vec<Sprite>,
-    /// Winter only: iced-over river stretches
-    pub rivers_ice: Vec<Sprite>,
-    pub trees: Vec<Sprite>,
-    /// How big the trees draw at zoom 1: the pack's are drawn on its block
-    /// scale (PACK_PROP_K), the generated ones (assets/rd/trees) at 1x
-    pub trees_k: f32,
-}
-
-/// Which TileSet a season draws with
-fn season_tiles(season: Season) -> usize {
-    match season { Season::Autumn => 1, Season::Winter => 2, _ => 0 }
-}
-
-/// `block` with its greens recoloured by `f` (grass to water, or autumn gold)
-fn recolour_greens(block: &Sprite, f: impl Fn((u8, u8, u8)) -> (u8, u8, u8)) -> Sprite {
-    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
-    for p in out.pixels.chunks_mut(4) {
-        if p[3] > 0 && p[1] > p[0] && p[1] > p[2] {
-            let (r, g, b) = f((p[0], p[1], p[2]));
-            p[0] = r; p[1] = g; p[2] = b;
-        }
-    }
-    out
-}
-
-/// The top face of the pack's 94x97 ground blocks: a diamond centred on
-/// (47, 26.5), 47 across and 26.5 down from its centre to its corners
-const FACE_CENTRE: (f32, f32, f32, f32) = (47.0, 26.5, 47.0, 26.5);
-/// How far the top face's outline runs either side of its edge, as a
-/// fraction of the way to the centre (measured on the grass block: 0.76
-/// to 1.12 - it's thickest at the corners)
-const FACE_OUTLINE: (f32, f32) = (0.25, 0.15);
-
-/// `block` with the dark outline round its top face (and its soft,
-/// half-dark edge) painted over in the colour just inside it
-fn strip_face_outline(block: &Sprite) -> Sprite {
-    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
-    let (cx, cy, rx, ry) = FACE_CENTRE;
-    let px = |x: i32, y: i32| -> [u8; 4] {
-        let i = (y as usize * block.width + x as usize) * 4;
-        [block.pixels[i], block.pixels[i + 1], block.pixels[i + 2], block.pixels[i + 3]]
-    };
-    let lum = |p: [u8; 4]| p[0] as u32 + p[1] as u32 + p[2] as u32;
-    for y in 0..block.height.min(60) as i32 {
-        for x in 0..block.width as i32 {
-            let d = ((x as f32 + 0.5 - cx) / rx).abs() + ((y as f32 + 0.5 - cy) / ry).abs();
-            let here = px(x, y);
-            if d < 1.0 - FACE_OUTLINE.0 || d > 1.0 + FACE_OUTLINE.1 || here[3] == 0 { continue; }
-            // the face's own colour, just inside the outline on the way to
-            // the centre (the distance shrinks evenly along that line)
-            let t = 1.0 - (1.0 - FACE_OUTLINE.0 - 0.04) / d;
-            let (ix, iy) = ((x as f32 + (cx - x as f32) * t) as i32, (y as f32 + (cy - y as f32) * t) as i32);
-            let fill = px(ix, iy);
-            if fill[3] > 0 && lum(here) * 100 < lum(fill) * 85 {
-                let i = (y as usize * block.width + x as usize) * 4;
-                out.pixels[i..i + 4].copy_from_slice(&fill);
-            }
-        }
-    }
-    out
-}
-
-/// Just the top face of a ground block, its sides cut away: inland, where
-/// the blocks in front cover the sides anyway, their edges only peeked
-/// between the tiles as faint lines
-fn face_only(block: &Sprite) -> Sprite {
-    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
-    let (cx, cy, rx, ry) = FACE_CENTRE;
-    for y in 0..block.height {
-        for x in 0..block.width {
-            let d = ((x as f32 + 0.5 - cx) / rx).abs() + ((y as f32 + 0.5 - cy) / ry).abs();
-            if d > 1.0 + FACE_OUTLINE.1 / 2.0 { out.pixels[(y * block.width + x) * 4 + 3] = 0; }
-        }
-    }
-    out
-}
-
-/// The sea: the pack has no open-water block, so it's the grass block with
-/// its grass turned to water, colder in winter. `shade` scales the blue
-/// per channel: shallow water is paler, the open sea darker.
-fn water_block(grass: &Sprite, winter: bool, shade: (f32, f32, f32)) -> Sprite {
-    let k = if winter { 0.8 } else { 1.0 };
-    recolour_greens(grass, |(_, g, _)| {
-        let l = g as f32 * k;
-        ((l * shade.0) as u8, (l * shade.1) as u8, (l * shade.2).min(255.0) as u8)
-    })
-}
-
-/// Blend every drawn pixel of `block` toward `colour` by `t` (where
-/// recolour_greens only touches the greens - snow has none to take)
-fn tint(block: &Sprite, colour: (u8, u8, u8), t: f32) -> Sprite {
-    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
-    for p in out.pixels.chunks_mut(4) {
-        if p[3] == 0 { continue; }
-        let (r, g, b) = blend((p[0], p[1], p[2]), colour, t);
-        p[0] = r; p[1] = g; p[2] = b;
-    }
-    out
-}
-
-/// A per-tile pick from a sprite list, stable for the tile (`salt` keeps
-/// different lists from lining up on the same tiles)
-fn pick(v: &[Sprite], x: i32, y: i32, salt: u32) -> Option<&Sprite> {
-    if v.is_empty() { None } else { v.get((noise(x, y, salt) * v.len() as f32) as usize % v.len()) }
-}
-
-impl TileSet {
-    /// Load the blocks for the green seasons (0), autumn (1: the green set
-    /// gone gold) or winter (2)
-    fn load(at: &dyn Fn(&str) -> Option<Sprite>, season: usize) -> TileSet {
-        let load = |rel: &str| at(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/{}", rel));
-        let winter = season == 2;
-        let gold = |s: Sprite| if season == 1 { recolour_greens(&s, |c| blend(c, (185, 125, 45), 0.45)) } else { s };
-        let pieces = |dir: &str, name: &str, n: usize| -> Vec<Sprite> {
-            (1..=n).filter_map(|i| load(&format!("{}/{}({}).png", dir, name, i))).map(gold).collect()
-        };
-        // the generated block (assets/rd/tiles, exported onto the pack's
-        // block geometry) if present; water, shore, hills and rock are all
-        // recoloured from it
-        let grass = at("rd/tiles/grass.png").or_else(|| load("Enviroument/Spring/grass.png"));
-        // the generated road/river pieces (scripts/rd_compose_tiles.py: the
-        // pack's shapes repainted from RD blocks, same geometry and order),
-        // all of a set or none so a road never mixes looks
-        let rd_pieces = |name: &str, n: usize| -> Option<Vec<Sprite>> {
-            let v: Vec<Sprite> = (1..=n).filter_map(|i| at(&format!("rd/tiles/{}({}).png", name, i))).map(&gold).collect();
-            (v.len() == n).then_some(v)
-        };
-        // fields lie under the snow in winter
-        let snow = || at("rd/tiles/winter/snow.png").or_else(|| load("Enviroument/Winter/snow.png"));
-        let water = |shade: (f32, f32, f32)| grass.as_ref().map(|g| water_block(g, winter, shade));
-        let (water, shallow, deep) = (water((0.55, 0.8, 1.2)), water((0.8, 1.0, 1.35)), water((0.35, 0.55, 1.0)));
-        let ground = if winter { snow() } else { grass.map(gold) };
-        // the look of bare land this season: a sandy rim where the sea
-        // meets it, parched hills and grey tops (snow has no greens to
-        // recolour, so winter tints the whole block instead)
-        let (shore, hill, rock) = if winter {
-            (ground.as_ref().map(|s| tint(s, (200, 210, 230), 0.3)),
-             ground.as_ref().map(|s| tint(s, (215, 195, 165), 0.3)),
-             ground.as_ref().map(|s| tint(s, (155, 160, 175), 0.35)))
-        } else {
-            (ground.as_ref().map(|s| recolour_greens(s, |c| blend(c, (224, 204, 150), 0.55))),
-             ground.as_ref().map(|s| recolour_greens(s, |c| blend(c, (170, 140, 85), 0.45))),
-             ground.as_ref().map(|s| recolour_greens(s, |c| blend(c, (150, 145, 140), 0.55))))
-        };
-        // both growth stages of each crop, so a field isn't one plant repeated
-        let crop = |name: &str| -> Vec<Sprite> {
-            rd_pieces(name, 2).unwrap_or_else(||
-                (1..=2).filter_map(|i| load(&format!("Buildings/{}/{}({}).png", name, name, i))).map(&gold).collect())
-        };
-        // the generated woods (assets/rd/trees: broadleaf and fir, winter's
-        // bare and snowed-on) if there, else the pack's four
-        let rd_trees: Vec<Sprite> = (1..=8)
-            .filter_map(|i| at(&format!("rd/trees/{}tree{}.png", if winter { "winter/" } else { "" }, i))).map(&gold).collect();
-        let rd_trees_k = !rd_trees.is_empty();
-        let pack_trees: Vec<Sprite> = (1..=4).filter_map(|i|
-            load(&format!("Enviroument/{}/trees/tree({}).png", if winter { "Winter" } else { "Spring" }, i)).map(&gold)).collect();
-        let set = TileSet {
-            shore, hill, rock, water, shallow, deep,
-            grass: ground,
-            trees: if rd_trees.is_empty() { pack_trees } else { rd_trees },
-            trees_k: if rd_trees_k { 1.0 } else { PACK_PROP_K },
-            wheat: if winter { snow().into_iter().collect() } else { crop("wheat") },
-            corn: if winter { snow().into_iter().collect() } else { crop("corn") },
-            roads: if winter {
-                // the winter set numbers its two straight roads the other way round
-                let mut r = rd_pieces("winter/road_winter", 15).unwrap_or_else(|| pieces("Roads/Winter", "road_winter", 15));
-                if r.len() > 2 { r.swap(1, 2); }
-                r
-            } else { rd_pieces("road", 15).unwrap_or_else(|| pieces("Roads/Spring", "road", 15)) },
-            rivers: if winter { rd_pieces("winter/river_winter", 17).unwrap_or_else(|| pieces("Rivers/Winter", "river_winter", 17)) }
-                else { rd_pieces("river", 17).unwrap_or_else(|| pieces("Rivers/Spring", "river", 17)) },
-            rivers_ice: if winter {
-                rd_pieces("winter/river_ice_winter", 17).unwrap_or_else(|| pieces("Rivers/Winter/Ice", "river_ice_winter", 17))
-            } else { vec![] },
-        };
-        // without the dark outline round their top faces, so the ground
-        // reads as one surface rather than a grid of tiles (lines inside a
-        // tile, like a road's or a riverbank's edges, stay)
-        set.map_blocks(strip_face_outline)
-    }
-
-    /// Every ground block put through `f` (the trees stay as they are)
-    fn map_blocks(&self, f: impl Fn(&Sprite) -> Sprite) -> TileSet {
-        TileSet {
-            grass: self.grass.as_ref().map(&f),
-            shore: self.shore.as_ref().map(&f),
-            hill: self.hill.as_ref().map(&f),
-            rock: self.rock.as_ref().map(&f),
-            water: self.water.as_ref().map(&f),
-            shallow: self.shallow.as_ref().map(&f),
-            deep: self.deep.as_ref().map(&f),
-            wheat: self.wheat.iter().map(&f).collect(),
-            corn: self.corn.iter().map(&f).collect(),
-            roads: self.roads.iter().map(&f).collect(),
-            rivers: self.rivers.iter().map(&f).collect(),
-            rivers_ice: self.rivers_ice.iter().map(&f).collect(),
-            trees: self.trees.clone(),
-            trees_k: self.trees_k,
-        }
-    }
-
-    /// The block for map tile (x, y), joined up with its neighbours
-    fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
-        let sea = |dx: i32, dy: i32| map.get(x + dx, y + dy) == Some(Tile::Water);
-        let by_sea = || NEIGHBOURS.iter().any(|&(dx, dy)| sea(dx, dy));
-        let by_land = || NEIGHBOURS.iter().any(|&(dx, dy)| !sea(dx, dy) && map.get(x + dx, y + dy) != Some(Tile::River));
-        match map.get(x, y)? {
-            // the shore wears sand, the hills go parched, the tops bare (the
-            // pack's dirt block is orange and read as a stray bit of road)
-            Tile::Grass if by_sea() => self.shore.as_ref().or(self.grass.as_ref()),
-            Tile::Grass => self.grass.as_ref(),
-            Tile::Hill => self.hill.as_ref().or(self.grass.as_ref()),
-            Tile::Rock => self.rock.as_ref().or(self.hill.as_ref()).or(self.grass.as_ref()),
-            Tile::Water if by_land() => self.shallow.as_ref().or(self.water.as_ref()),
-            Tile::Water if noise(x, y, 9) < 0.35 => self.deep.as_ref().or(self.water.as_ref()),
-            Tile::Water => self.water.as_ref(),
-            Tile::Wheat => pick(&self.wheat, x, y, 5),
-            Tile::Corn => pick(&self.corn, x, y, 6),
-            Tile::Road => self.roads.get(map.piece(x, y)? as usize - 1),
-            Tile::River => {
-                let p = map.piece(x, y)? as usize - 1;
-                // in winter stretches of the river freeze right over
-                if noise(x, y, 13) < 0.45 { self.rivers_ice.get(p).or(self.rivers.get(p)) } else { self.rivers.get(p) }
-            }
-            Tile::Bridge => self.rivers.get(map.piece(x, y)? as usize - 1),
-        }
-    }
-}
-
-/// The pack's ground blocks are 94px wide; the top face inside its outline
-/// is about 91x50, starting 1.5px down. A block is scaled so that face is
-/// exactly one map tile (neighbours' outlines overlap, as in the pack).
-const BLOCK_FACE: (f32, f32, f32) = (91.0, 50.0, 1.5);
-
-/// Size and top-left of the block drawn for the tile centred on (sx, sy)
-fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32, i32) {
-    let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
-    let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
-    let (w, h) = ((block.width as f32 * kx).round() as usize, (block.height as f32 * ky).round() as usize);
-    (w, h, sx - w as i32 / 2, sy - (TILE_H as f32 * zoom + BLOCK_FACE.2 * ky).round() as i32)
-}
-
-/// The scale the pack's props (trees, rocks) draw at on zoom 1: its block scale
-const PACK_PROP_K: f32 = 2.0 * TILE_W as f32 / BLOCK_FACE.0;
-
-/// Draw a building standing on the tile centred on (sx, sy): scaled so its
-/// base spans exactly one tile, its front corner on the tile's front corner
-fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    let w = (2.0 * TILE_W as f32 * zoom).round() as usize;
-    let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
-    s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
-}
-
-/// Draw a generated piece standing on the tile centred on (sx, sy) at its
-/// own 1x size (no slab, so it's narrower than a tile and isn't stretched to
-/// one): a footprint w wide is a w/4-deep diamond's front half, so its
-/// bottom sits w/4 below the tile centre (at most the tile's front corner)
-fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    let (w, h) = ((s.width as f32 * zoom).round() as i32, (s.height as f32 * zoom).round() as i32);
-    let bottom = sy + ((s.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
-    draw_zoomed(buf, s, sx - w / 2, bottom - h, zoom);
-}
-
-/// Draw a piece of the town wall standing on the tile centred on (sx, sy):
-/// scaled like the ground blocks (the pack draws its castle pieces for the
-/// same 91x50 block face), so the piece's footprint is exactly the tile face
-/// and its base lands on the tile's edges instead of overhanging them
-fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
-    let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
-    let (w, h) = ((s.width as f32 * kx).round() as usize, (s.height as f32 * ky).round().max(1.0) as usize);
-    s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
-}
-
-/// Where a windmill's sails turn: on the front of its tower, just below the
-/// roof (MILL_HUB, in the tower sprite's pixels), for a tower drawn with
-/// draw_on_tile on the tile centred on (sx, sy)
-/// The generated windmill's hub on screen, its tower standing on (sx, sy)
-/// as draw_standing puts it
-fn mill_hub_rd(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
-    let (w, h) = ((tower.width as f32 * zoom).round() as i32, (tower.height as f32 * zoom).round() as i32);
-    let bottom = sy + ((tower.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
-    (sx - w / 2 + (MILL_HUB_RD.0 * zoom).round() as i32, bottom - h + (MILL_HUB_RD.1 * zoom).round() as i32)
-}
-
-fn mill_hub(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
-    let k = 2.0 * TILE_W as f32 * zoom / tower.width as f32;
-    let (w, h) = ((2.0 * TILE_W as f32 * zoom).round() as i32, (tower.height as f32 * k).round() as i32);
-    let top = sy + (TILE_H as f32 * zoom).round() as i32 - h;
-    (sx - w / 2 + (MILL_HUB.0 * k).round() as i32, top + (MILL_HUB.1 * k).round() as i32)
-}
-const MILL_HUB: (f32, f32) = (24.5, 44.0);
-/// Where the generated tower's sails turn, in its own pixels (the front of
-/// the cap, assets/rd/windmill/tower.png)
-const MILL_HUB_RD: (f32, f32) = (19.5, 31.0);
-
-/// Index into Art::trades_winter
-fn trade_index(b: BSprite) -> usize {
-    match b { BSprite::Blacksmith => 0, BSprite::Guildhall => 1, BSprite::RivalHouse => 2, _ => 3 }
-}
-/// The sails' size against the tower's (the pack draws them about as tall)
-const MILL_SAILS: f32 = 0.7;
-
-/// The puffs of smoke over a home on the tile centred on (sx, sy), at frame
-/// `frame`: (x, y, size, grey) for each, rising from the roof over
-/// SMOKE_SECS, drifting right and shrinking as they go
-fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u8)> {
-    let period = SMOKE_SECS * FPS;
-    (0..3).map(|k| {
-        let t = ((frame + k * period / 3) % period) as f32 / period as f32; // 0 at the chimney, 1 gone
-        let x = sx as f32 + (10.0 + 8.0 * t) * zoom;
-        let y = sy as f32 - (34.0 + 26.0 * t) * zoom;
-        let size = ((4.0 - 2.5 * t) * zoom).round().max(1.0) as i32;
-        (x as i32, y as i32, size, (150.0 + 70.0 * t) as u8)
-    }).collect()
-}
-const SMOKE_SECS: u32 = 2;
-
-/// Draw a tree or boulder standing in the middle of the tile centred on
-/// (sx, sy), k times its size at zoom 1 (PACK_PROP_K for the pack's, 1 for
-/// generated art)
-fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, k: f32) {
-    let k = k * zoom;
-    let (w, h) = ((s.width as f32 * k).round() as i32, (s.height as f32 * k).round() as i32);
-    draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
-}
-
-/// A villager sprite cropped to its standing frame (each sheet is a grid
-/// of 32x32 cells)
-fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
-    match at(rel) {
-        Some(s) => s.crop(0, 0, 32, 32),
-        None => { println!("sprite load {}", rel); Sprite { width: 1, height: 1, pixels: vec![255, 0, 255, 255] } }
-    }
-}
-
-/// The sprite for `houses[i]`, or none where nothing loaded
-static NO_SPRITE: Option<Sprite> = None;
-
-impl Art {
-    /// Load every sprite through `fetch` (rel path -> png bytes): the file
-    /// system on desktop, a bundled pack on the web.
-    /// Load from an asset folder on disk ("assets" from the repo root).
-    pub fn load_fs(root: &str, seed: u64) -> Art {
-        let root = std::path::PathBuf::from(root);
-        Self::load(&move |rel: &str| std::fs::read(root.join(rel)).ok(), seed)
-    }
-
-    /// The cottage `i` wraps round to (the house list cycles)
-    fn house(&self, i: usize) -> &Option<Sprite> {
-        self.houses.get(i % self.houses.len().max(1)).unwrap_or(&NO_SPRITE)
-    }
-
-    /// The same cottage in winter: the generated ones stand on a grass
-    /// base, which snows over (and moss on a thatch roof gets a dusting)
-    fn house_winter(&self, i: usize) -> &Option<Sprite> {
-        self.houses_winter.get(i % self.houses_winter.len().max(1)).unwrap_or(&NO_SPRITE)
-    }
-
-    /// Load every sprite, `seed` settling which variant each single-choice
-    /// building wears this map (the mill's colour, the corner towers, the
-    /// church's keep) - the same map seed looks the same every run
-    pub fn load(fetch: &dyn Fn(&str) -> Option<Vec<u8>>, seed: u64) -> Art {
-        let at = |rel: &str| fetch(rel).and_then(|b| Sprite::decode(&b).ok());
-        let assets = Assets::new("");
-        let pack = |rel: &str| at(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/{}", rel));
-
-        // one variant out of several, chosen by the seed (None if it won't
-        // load, or the first that did)
-        let chosen = |v: Vec<Option<Sprite>>| -> Option<Sprite> {
-            if v.is_empty() { return None; }
-            v.get(seed as usize % v.len()).and_then(|s| s.clone())
-                .or_else(|| v.into_iter().find_map(|s| s))
-        };
-
-        // Load villager sprites (every look the villagers pack has, one
-        // each): role and gender as villager_sprite knows them
-        let vpeople: [(&str, &str); 8] = [
-            ("peasant", "m"), ("peasant", "f"), ("elder", "m"), ("noble", "m"),
-            ("princess", "f"), ("worker", "m"), ("elder", "f"), ("noble", "f"),
-        ];
-        let villager_sprites: Vec<Sprite> = vpeople.iter()
-            .map(|&(role, gender)| figure(&at, &assets.villager_sprite(role, gender))).collect();
-        // the rivals: same figures, the outlined look, and their matriarch
-        // is the pack's queen - every villager sprite ends up in use
-        let rival_sprites: Vec<Sprite> = ["MiniVillagerMan", "MiniWorker", "MiniQueen"].iter()
-            .map(|n| figure(&at, &format!("MinifolksVillagers/MinifolksVillagers/Outline/{}.png", n))).collect();
-        // the watch at the gates: soldiers from the humans pack
-        let guards: Vec<Sprite> = ["MiniSpearMan", "MiniSwordMan", "MiniShieldMan", "MiniHalberdMan"].iter()
-            .map(|n| figure(&at, &format!("MinifolksHumans/Without Outline/{}.png", n))).collect();
-
-        // the cottages: plaster and timber fronts in every colour, with the
-        // door and gable in different spots, so no two homes look alike
-        let houses: Vec<Option<Sprite>> = [
-            "Buildings/house/White houses/Blue house/white_blue_house(1).png",
-            "Buildings/house/Wood houses/Blue house/wood_blue_house(1).png",
-            "Buildings/house/White houses/Green house/white_green_house(3).png",
-            "Buildings/house/Wood houses/Red house/wood_red_house(2).png",
-            "Buildings/house/White houses/Wood house/white_wood_house(4).png",
-            "Buildings/house/Wood houses/Green house/wood_green_house(2).png",
-            "Buildings/house/White houses/Red house/white_red_house(3).png",
-            "Buildings/house/Wood houses/Wood house/wood_house(4).png",
-            "Buildings/house/Wood houses/Wood house/wood_house(2).png",
-            "Buildings/house/White houses/Blue house/white_blue_house(4).png",
-        ].iter().map(|rel| pack(rel)).collect();
-        // the generated cottages (assets/rd/buildings) replace the pack's
-        // looks when present: a matched street, not a mix
-        let rd_houses: Vec<Option<Sprite>> = (1..=9).filter_map(|i| at(&format!("rd/buildings/cottage{}.png", i))).map(Some).collect();
-        let houses = if rd_houses.is_empty() { houses } else { rd_houses };
-        let houses_winter: Vec<Option<Sprite>> = houses.iter()
-            .map(|h| h.as_ref().map(|s| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85)))).collect();
-
-        // walk cycles: the player's, and the villager looks that have one
-        // (same order as vpeople: the peasant man and woman so far)
-        let walk = |rel: &str| at(rel).map(|s| WalkSheet::from_sheet(&s));
-        let player_walk = walk("rd/player/walk.png");
-        let villager_walks: Vec<Option<WalkSheet>> = vpeople.iter()
-            .map(|&(role, gender)| walk(&format!("rd/villagers/{}-{}.png", role, gender))).collect();
-
-        // the animals: generated art if it's there, else the hand-drawn
-        // fallback doubled so both draw at the same 1x scale
-        let doubled = |s: Sprite| s.scaled(s.width * 2, s.height * 2);
-        let rd = |name: &str| at(&format!("rd/farm-animals/{}.png", name));
-        let rd_set = |names: &[&str]| -> Vec<Sprite> { names.iter().filter_map(|n| rd(n)).collect() };
-        let hens = rd_set(&["hen", "hen", "rooster"]);
-        let hens = if hens.is_empty() { vec![doubled(chicken_sprite())] } else { hens };
-
-        // ground specks for open grass: tufts and flowers, snow lumps in
-        // winter, the green set gone gold in autumn
-        let gold = |s: Sprite| recolour_greens(&s, |c| blend(c, (185, 125, 45), 0.45));
-        let detail_set = |dir: &str, name: &str, gild: bool| -> Vec<Sprite> {
-            (1..=9).filter_map(|i| pack(&format!("Enviroument/{}/{}({}).png", dir, name, i)).map(|s| if gild { gold(s) } else { s })).collect()
-        };
-        // generated tufts and flowers (assets/rd/tufts, a winter set
-        // beside them): both sets or neither, so the seasons match
-        let rd_tufts: Vec<Sprite> = (1..=14).filter_map(|i| at(&format!("rd/tufts/tuft{}.png", i))).collect();
-        let rd_tufts_w: Vec<Sprite> = (1..=12).filter_map(|i| at(&format!("rd/tufts/winter/tuft{}.png", i))).collect();
-        let (details, details_k) = if rd_tufts.is_empty() || rd_tufts_w.is_empty() {
-            ([
-                detail_set("Spring", "grass_detail", false),
-                detail_set("Spring", "grass_detail", true),
-                detail_set("Winter", "snow_detail", false),
-            ], PACK_PROP_K)
-        } else {
-            let autumn = rd_tufts.iter().map(|s| gold(s.clone())).collect();
-            ([rd_tufts, autumn, rd_tufts_w], 1.0)
-        };
-        // the generated windmill: a tower and its sails' four turning frames
-        let rd_mill_tower = at("rd/windmill/tower.png");
-        let rd_sails: Vec<Sprite> = (1..=4).filter_map(|i| at(&format!("rd/windmill/sails{}.png", i))).collect();
-        let mill_rd = rd_mill_tower.is_some() && rd_sails.len() == 4;
-        // the trade halls and the rival village: generated when present
-        let rd_b = |name: &str| chosen((1..=2).map(|i| at(&format!("rd/buildings/{}{}.png", name, i))).collect());
-        let trades = [rd_b("smithy"), rd_b("guildhall"), rd_b("rival-house"), rd_b("rival-woodhouse")];
-        let trades_winter = trades.clone().map(|t| t.map(|s| recolour_greens(&s, |c| blend(c, (236, 240, 246), 0.85))));
-        let [smithy, guildhall, rival_house, rival_woodhouse] = trades;
-        let rival_walks: Vec<Option<WalkSheet>> = ["man", "worker", "queen"].iter()
-            .map(|n| walk(&format!("rd/rivals/{}.png", n))).collect();
-
-        // boulders and flat stone scatters from one generated sheet
-        // (assets/rd/stones), drawn at 1x like the rest of the generated art
-        let rd_stones: Vec<Sprite> = (1..=12).filter_map(|i| at(&format!("rd/stones/stone{}.png", i))).collect();
-        let rd_grounds: Vec<Sprite> = (1..=6).filter_map(|i| at(&format!("rd/stones/ground{}.png", i))).collect();
-        // the generated town wall: one wall block, gatehouse and postern
-        // block, mirrored for the other axis (the files say which), and a
-        // few towers; all of it or none, so a wall never mixes looks
-        struct RdCastle { walls: [Option<Sprite>; 4], posts: [Option<Sprite>; 2], towers: Option<Sprite> }
-        let c = |n: &str| at(&format!("rd/castle/{}.png", n));
-        let rd_castle = Some(RdCastle {
-            walls: [c("wall_x"), c("wall_y"), c("gate_x"), c("gate_y")],
-            posts: [c("postern_x"), c("postern_y")],
-            towers: chosen((1..=4).map(|i| c(&format!("tower{}", i))).collect()),
-        }).filter(|r| r.walls.iter().chain(&r.posts).all(|s| s.is_some()) && r.towers.is_some());
-        let (rd_stones, rd_grounds) = if rd_stones.is_empty() || rd_grounds.is_empty() { (vec![], vec![]) } else { (rd_stones, rd_grounds) };
-
-        Art {
-            villager_sprites,
-            rival_sprites,
-            houses,
-            houses_winter,
-            tiles: [TileSet::load(&at, 0), TileSet::load(&at, 1), TileSet::load(&at, 2)],
-            faces: [0, 1, 2].map(|season| TileSet::load(&at, season).map_blocks(face_only)),
-            mill_frames: if mill_rd { rd_sails } else { (1..=4).filter_map(|i|
-                at(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))
-            ).collect() },
-            mill_tower: if mill_rd { rd_mill_tower } else { chosen(["wood", "blue", "green", "red"].iter()
-                .map(|c| pack(&format!("Buildings/mill/mill_{}.png", c))).collect()) },
-            mill_rd,
-            blacksmith_s: smithy.or_else(|| at(&assets.building_sprite("blacksmith", "green"))),
-            trades_winter,
-            // stone(1) is a tiny pebble that's nearly all dark outline - on
-            // the map it read as a black hole, so the boulders stand instead
-            stones_k: if rd_stones.is_empty() { PACK_PROP_K } else { 1.0 },
-            stones: if rd_stones.is_empty() {
-                (2..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone({}).png", i))).collect()
-            } else { rd_stones },
-            stone_grounds: if rd_grounds.is_empty() {
-                (1..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone_ground ({}).png", i))).collect()
-            } else { rd_grounds },
-            player_walk,
-            villager_walks,
-            player_s: at("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png").map(|s| s.crop(0, 0, 32, 32)),
-            // the pack's corner towers: flat-top, capped or keeps - the
-            // whole watch matches within a map, but varies between runs
-            castle_rd: rd_castle.is_some(),
-            tower_s: if let Some(c) = &rd_castle { c.towers.clone() } else { chosen([("Wood towers", "castle_tower_wood", 1), ("Wood towers", "castle_tower_wood", 4),
-                             ("Wood towers", "castle_tower_wood", 5), ("Blue towers", "castle_tower_blue", 4)]
-                .iter().map(|(d, n, i)| pack(&format!("Towers/{}/{}({}).png", d, n, i))).collect()) },
-            // the pack's castle_wall(2) runs along x, (1) along y; (5) and (6) are gatehouses
-            walls: match &rd_castle { Some(c) => c.walls.clone(),
-                None => [2, 1, 5, 6].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))) },
-            // wall(4) and wall(3): the same runs with a postern door in them
-            wall_posts: match &rd_castle { Some(c) => c.posts.clone(),
-                None => [4, 3].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))) },
-            // a generated stone church, else one of the pack's tall keeps
-            church_s: chosen((1..=2).map(|i| at(&format!("rd/buildings/church{}.png", i))).collect())
-                .or_else(|| chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect())),
-            guildhall_s: guildhall.or_else(|| at(&assets.building_sprite("blacksmith", "wood"))),
-            rival_house: rival_house.or_else(|| at(&assets.building_sprite("house", "red"))),
-            rival_woodhouse: rival_woodhouse.or_else(|| at(&assets.building_sprite("woodhouse", "red"))),
-            priest_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniMage.png")),
-            priest_walk: walk("rd/villagers/priest.png"),
-            guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
-            traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
-            rival_walks,
-            traveller_walk: walk("rd/traveller/courier.png"),
-            guards,
-            dog: rd("dog").or_else(|| Some(doubled(dog_sprite()))),
-            cat: rd("cat").or_else(|| Some(doubled(cat_sprite()))),
-            hens,
-            // no fallback sprite: draw_beast's blocks stand in
-            sheep: rd_set(&["sheep", "sheep2"]),
-            goats: rd_set(&["goat", "goat2"]),
-            gull: Some(gull_sprite()),
-            details,
-            details_k,
-        }
-    }
-}
 
 /// A house being built: first its road is laid out from the village's
 /// roads a tile every ROAD_TILE_FRAMES, then the house rises over
@@ -1936,23 +845,6 @@ fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) ->
     best.map(|(p, _)| p)
 }
 
-/// The visible ground viewport, cached for a fixed camera, zoom, season and map revision.
-/// Scaled ground blocks with their opaque runs, keyed by the source
-/// block's address; valid for one zoom and tile set
-#[derive(Default)]
-pub struct BlockCache {
-    zoom: f32,
-    set: usize,
-    blocks: std::collections::HashMap<usize, (Sprite, Vec<(u16, u16, u16)>)>,
-}
-
-pub struct GroundCache {
-    pub buf: Buffer,
-    pub camera: (i32, i32),
-    pub zoom: f32,
-    pub season: Season, // the season it was drawn in (Spring and Summer share a tile set but not their fallback colours)
-    pub rev: u64,       // map.rev() when it was drawn
-}
 
 /// Which sprite a building draws with: the sim names the look and the view
 /// resolves it to the art pack's pixels, so the sim itself never holds art.
@@ -3314,67 +2206,6 @@ impl Game {
         g
     }
 
-    /// The tuning panel's gauges: what the village's innards read at
-    /// this tick - trail heat, people power, the economy's pulse
-    pub fn telemetry(&self) -> Vec<(&'static str, f64)> {
-        let alive = self.villagers.iter().filter(|&&v| !villager::is_dead(&self.world, v)).count();
-        // hungry = below the sim's own seek-food line (30); a villager between
-        // 30-40 is just low on the eat cycle, not in trouble
-        let hungry = self.villagers.iter().filter(|&&v|
-            self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false)).count();
-        // starving = the hard line: a real food crisis, not the bottom of a meal cycle
-        let starving = self.villagers.iter().filter(|&&v|
-            self.world.get_component::<Hunger>(v).map(|h| h.value <= 10.0).unwrap_or(false)).count();
-        let trail_heat: f32 = self.trails.values().map(|t| t.strength).sum();
-        let trail_max = self.trails.values().map(|t| t.strength).fold(0.0f32, f32::max);
-        let power = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
-            .map(|p| p.capacity).unwrap_or(0.0);
-        let grain = self.world.get_component::<Building>(self.market_food)
-            .map(|b| b.stock.get("grain").copied().unwrap_or(0)).unwrap_or(0) as f64;
-        let bread = self.world.get_component::<Building>(self.market_food)
-            .map(|b| b.stock.get("bread").copied().unwrap_or(0)).unwrap_or(0) as f64;
-        let food = self.world.get_component::<villager::FoodSource>(self.market_food)
-            .map(|f| f.servings).unwrap_or(0) as f64;
-        // the village's gold: mean purse and the top/mean spread - the
-        // economy's pulse while prices sit on a fixed table
-        let purses: Vec<f32> = self.villagers.iter()
-            .filter(|&&v| !villager::is_dead(&self.world, v))
-            .filter_map(|&v| self.world.get_component::<Purse>(v).map(|p| p.gold))
-            .collect();
-        let gold_mean = if purses.is_empty() { 0.0 } else { purses.iter().sum::<f32>() / purses.len() as f32 };
-        let gold_top = purses.iter().copied().fold(0.0f32, f32::max);
-        let org_members = self.world.get_component::<Organization>(self.org)
-            .map(|o| o.members.len()).unwrap_or(0);
-        let sanctioned = self.sanctioned.len();
-        let tree_cover = self.land.tree_cover.values().sum::<f32>() / self.land.tree_cover.len().max(1) as f32;
-        vec![
-            ("villagers.alive", alive as f64),
-            ("villagers.hungry", hungry as f64),
-            ("villagers.starving", starving as f64),
-            ("econ.gold_mean", gold_mean as f64),
-            ("econ.gold_spread", (gold_top / gold_mean.max(1.0)) as f64),
-            ("org.members", org_members as f64),
-            ("org.power", power as f64),
-            ("org.lord_esteem", self.lord_esteem as f64),
-            ("sanctioned", sanctioned as f64),
-            ("trails.heat", trail_heat as f64),
-            ("trails.max", trail_max as f64),
-            ("stock.grain", grain),
-            ("stock.bread", bread),
-            ("stock.food", food),
-            ("env.tree_cover", tree_cover as f64),
-            ("price.grain", goods::worth_at(&self.world, "grain") as f64),
-            ("price.wood", goods::worth_at(&self.world, "wood") as f64),
-            ("price.fish", goods::worth_at(&self.world, "fish") as f64),
-            ("winter.harsh", if self.harsh_winter { 1.0 } else { 0.0 }),
-        ]
-    }
-
-    /// The gauges as overlay lines: "org.power 0.4" for the tuning panel
-    pub fn telemetry_lines(&self) -> Vec<String> {
-        self.telemetry().iter().map(|(k, v)| format!("{} {:.2}", k, v)).collect()
-    }
-
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~7s/day normal, ~1.2s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
@@ -3598,6 +2429,8 @@ impl Game {
     /// One frame of game time: the sim ticks every few frames, and between
     /// ticks villagers keep strolling
     pub fn update(&mut self) {
+        // the whole update, poses and facing included, so it matches the bench's update stage
+        let _frame = crate::infra::perf::scope("total.frame");
         self.advance_frame();
         // after every move this frame (the player's command, the sim, the
         // strolling), so the model's poses match its positions
@@ -3615,11 +2448,11 @@ impl Game {
         let mut ticked = false;
         if !self.paused && self.frame_n % ticks_per_frame == 0 {
             self.tick += 1;
-            self.sched.tick(&mut self.world);
+            crate::timed!("total.ecs", self.sched.tick(&mut self.world));
             ticked = true;
         }
         // the town's business each day: work, errands, taxes
-        if ticked { self.livelihood_tick(self.tick); }
+        if ticked { crate::timed!("total.day", self.livelihood_tick(self.tick)); }
         if ticked { self.note_leader(); }
         // where everyone stood, so no one ends the frame inside a wall or a house
         let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
@@ -3876,17 +2709,17 @@ impl Game {
                 for &(x, y) in &w.road[laid..w.road_laid()] { self.map.pave(x, y); }
             }
             self.works.retain(|w| w.risen() < 1.0);
-            self.advance_meeting();
-            self.advance_player_talks();
-            self.advance_travels();
+            crate::timed!("sim.advance_meeting", self.advance_meeting());
+            crate::timed!("sim.advance_player_talks", self.advance_player_talks());
+            crate::timed!("sim.advance_travels", self.advance_travels());
             // and those with nowhere to walk keep to the day's plan
             self.amble();
-            self.advance_minstrel();
-            self.advance_pedlar();
-            self.advance_circus();
-            self.advance_ink_boiler();
+            crate::timed!("sim.advance_minstrel", self.advance_minstrel());
+            crate::timed!("sim.advance_pedlar", self.advance_pedlar());
+            crate::timed!("sim.advance_circus", self.advance_circus());
+            crate::timed!("sim.advance_ink_boiler", self.advance_ink_boiler());
             // and the rare events walk their roads
-            self.advance_rare();
+            crate::timed!("sim.advance_rare", self.advance_rare());
             // the flock grazes: each animal drifts to a spot of its own
             // picking round the day's grazing point, at its own pace, and
             // only onto ground it can stand on - no walls, no water
@@ -5043,7 +3876,7 @@ impl Game {
         // caps to leave, a patch at a time
         if tick % 25 == 7 { self.teach_shrooms(tick); }
         // the amatoxin course keeps its own calendar: belly, false mend, liver
-        self.ailment_tick(tick);
+        crate::timed!("sim.ailment", self.ailment_tick(tick));
         // a damp year: the rye carries the fire and the bread gets the blame.
         // The wetter the harvest the surer the outbreak
         let chance = (self.harvest_wetness(tick) * 30.0) as i32;
@@ -7643,29 +6476,29 @@ impl Game {
             }
         }
         // the herb-wife keeps her shelf brewed and her patches picked
-        self.herbologist_tick(tick);
+        crate::timed!("sim.herbologist", self.herbologist_tick(tick));
         // the fold grazes, yields, and now and then howls
-        self.livestock_tick(tick);
+        crate::timed!("sim.livestock", self.livestock_tick(tick));
         // the heart-helper walks a lonely heart toward someone
-        self.matchmaker_tick(tick);
+        crate::timed!("sim.matchmaker", self.matchmaker_tick(tick));
         // a poor soul gathers in the wood, and damp years bring the fire
-        self.mushroom_tick(tick);
+        crate::timed!("sim.mushroom", self.mushroom_tick(tick));
         // the skeps yield, the church burns wax, a swarm wanders off
-        self.apiary_tick(tick);
+        crate::timed!("sim.apiary", self.apiary_tick(tick));
         // the larder keeps its own score: spoilage, vermin, the cat's job
-        self.spoilage_tick(tick);
+        crate::timed!("sim.spoilage", self.spoilage_tick(tick));
         // the dead hand on: benches, purses, and the lord's fifth
-        self.succession_tick(tick);
+        crate::timed!("sim.succession", self.succession_tick(tick));
         // and the young grow into their trades
-        self.lifecycle_tick(tick);
+        crate::timed!("sim.lifecycle", self.lifecycle_tick(tick));
         // the worn paths fade toward green where no one walks
-        self.trail_tick();
+        crate::timed!("sim.trail", self.trail_tick());
         // the land keeps score: canopy, pit water, the reach
-        self.land_tick(tick);
+        crate::timed!("sim.land", self.land_tick(tick));
         // the ladder of shame climbs one rung at a time
-        self.sanction_tick(tick);
+        crate::timed!("sim.sanction", self.sanction_tick(tick));
         // and the year has its feast days
-        self.festival_tick(tick);
+        crate::timed!("sim.festival", self.festival_tick(tick));
         // winter hearths burn a bundle every few days - faggots, turf,
         // the dry leavings, charcoal off the road; a house with nothing
         // to burn eats cold, and that's a trouble the village can hear
@@ -7727,58 +6560,58 @@ impl Game {
             }
         }
         // the gardens fill in a little more each week
-        self.garden_tick(tick);
+        crate::timed!("sim.garden", self.garden_tick(tick));
         // and the kitchen pot: staples off the garden beds feed the
         // hungry at home, and a week's peas and roots become pottage
-        self.kitchen_tick(tick);
+        crate::timed!("sim.kitchen", self.kitchen_tick(tick));
         // and the circus, while it camps, works its pull
-        self.circus_tick(tick);
+        crate::timed!("sim.circus", self.circus_tick(tick));
         // the oil boils, the crusts fry, and the black goes in
-        self.ink_boiler_tick(tick);
+        crate::timed!("sim.ink_boiler", self.ink_boiler_tick(tick));
         // and the hundred small fortunes: what's due comes on
-        self.events_tick(tick);
+        crate::timed!("sim.events", self.events_tick(tick));
         // and whatever the day caught, the fire runs on
-        self.fire_tick(tick);
+        crate::timed!("sim.fire", self.fire_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
-        self.cheese_tick(tick);
+        crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman
-        self.drink_tick(tick);
+        crate::timed!("sim.drink", self.drink_tick(tick));
         // the keeper lays in a barrel, and the bench fills
-        self.tavern_tick(tick);
+        crate::timed!("sim.tavern", self.tavern_tick(tick));
         // the day's work leaves its smell - unless the rain washes it off
-        self.smell_tick(tick);
+        crate::timed!("sim.smell", self.smell_tick(tick));
         // power atrophies; the lord's estimate creeps toward the truth
-        self.power_tick(tick);
+        crate::timed!("sim.power", self.power_tick(tick));
         // and now and then something rides over the walls
-        self.sky_tick(tick);
+        crate::timed!("sim.sky", self.sky_tick(tick));
         // and the soundscape's cues rise with the days
-        self.sfx_tick(tick);
+        crate::timed!("sim.sfx", self.sfx_tick(tick));
         // and a truth sits unsaid somewhere, ripening
-        self.discovery_tick(tick);
+        crate::timed!("sim.discovery", self.discovery_tick(tick));
         // and the castle sends its writs on a season's turn
-        self.edict_tick(tick);
+        crate::timed!("sim.edict", self.edict_tick(tick));
         // and every other winter runs long and tests the village
-        self.winter_tick(tick);
+        crate::timed!("sim.winter", self.winter_tick(tick));
         // and the painter lays color on the village's halls
-        self.painter_tick(tick);
+        crate::timed!("sim.painter", self.painter_tick(tick));
         // and now and then a maker makes a thing to outlast them
-        self.heirloom_tick(tick);
+        crate::timed!("sim.heirloom", self.heirloom_tick(tick));
         // and the literate put word to those they think of
-        self.letter_tick(tick);
+        crate::timed!("sim.letter", self.letter_tick(tick));
         // and theirs check on the ones who need checking on
-        self.care_tick(tick);
+        crate::timed!("sim.care", self.care_tick(tick));
         // and the river gives up its catch, season on season
-        self.fisher_tick(tick);
+        crate::timed!("sim.fisher", self.fisher_tick(tick));
         // and if the player's gone, the work goes on in another pair of hands
-        self.continuation_tick(tick);
+        crate::timed!("sim.continuation", self.continuation_tick(tick));
         // and the martyr's grave keeps its vigil
-        self.martyr_tick(tick);
+        crate::timed!("sim.martyr", self.martyr_tick(tick));
         // and the castle's prisoners wait on the org's answer
-        self.dungeon_tick(tick);
+        crate::timed!("sim.dungeon", self.dungeon_tick(tick));
         // and the posted knights stand only their tour
-        self.guards_tick(tick);
+        crate::timed!("sim.guards", self.guards_tick(tick));
         // and the marks a cause leaves fade on their own clock
-        self.marks_tick(tick);
+        crate::timed!("sim.marks", self.marks_tick(tick));
         let mut rng = Rng(self.rng.next());
         // the country's carts and stewards, and its granaries
         self.country_tick(tick);
@@ -8952,6 +7785,15 @@ impl Game {
     /// The frame a client draws: the authoritative sim's whole view of the
     /// world this seat should see. One per player seat per broadcast.
     pub fn ui_model_at(&self, seat: usize) -> UiModel {
+        let mut m = self.ui_model_parts_at(seat);
+        // the debug readout shows what this seat could know, never the
+        // secret gauges: the model goes over the wire to remote clients
+        m.debug_lines = kpi::kpi_lines(&kpi::public_kpis(&m));
+        m
+    }
+
+    /// The seat's frame, all but the lines derived from the frame itself
+    fn ui_model_parts_at(&self, seat: usize) -> UiModel {
         let world = &self.world;
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
         let in_reach = self.villagers_in_reach_at(seat);
@@ -9111,7 +7953,14 @@ impl Game {
             .collect();
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
             .map(|o| o.issues.iter().map(|t| desires::issue_name(t.clone())).collect()).unwrap_or_default();
-        let p = world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap();
+        // a player seat drives a PlayerCharacter; an agent seat drives a plain
+        // villager, whose panel is their own name and purse
+        let me = self.seats[seat].player;
+        let (my_name, my_influence, my_gold) = match world.get_component::<PlayerCharacter>(me) {
+            Some(p) => (p.name.clone(), p.influence, p.resources),
+            None => (self.name_of(me), 0.0,
+                world.get_component::<Purse>(me).map(|p| p.gold).unwrap_or(0.0)),
+        };
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
         let guilds = world.query::<Guild>().len();
         let name_of = |e: Entity| {
@@ -9173,8 +8022,8 @@ impl Game {
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
             inspector,
             panel: PanelV {
-                name: p.name.clone(), standing: crate::game::player::standing(p.influence).to_string(),
-                influence: p.influence, gold: p.resources,
+                name: my_name, standing: crate::game::player::standing(my_influence).to_string(),
+                influence: my_influence, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
             },
             mill: Some((MILL_TILE.0, MILL_TILE.1)),
@@ -9204,7 +8053,7 @@ impl Game {
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
-            debug_lines: self.telemetry_lines(),
+            debug_lines: vec![],
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
         }
     }
@@ -9610,1186 +8459,6 @@ impl Game {
 
 }
 
-
-/// Everything a frame needs that isn't the game itself: the sprite pack,
-/// the camera and UI toggles, and the caches repainting costs too much to
-/// redo every frame. One View per client (or per local player).
-pub struct View {
-    pub art: Art,
-    pub cam_x: i32,
-    pub cam_y: i32,
-    pub zoom: f32,
-    pub inspector_open: bool,
-    pub help_open: bool,
-    /// The ground layer repainted only when stale
-    ground: std::cell::RefCell<Option<GroundCache>>,
-    /// Ground blocks at the current zoom, as opaque runs (draw_ground):
-    /// kept across frames so panning doesn't rescale them every pass
-    blocks: std::cell::RefCell<BlockCache>,
-    /// A finished frame handed back with recycle(), reused by the next
-    /// render instead of a fresh 5.5MB buffer
-    spare: std::cell::RefCell<Option<Buffer>>,
-    last_zoom: std::cell::Cell<f32>,
-    last_camera: std::cell::Cell<(i32, i32)>,
-    /// The frame being drawn is winter: buildings use their snowy looks
-    winter: std::cell::Cell<bool>,
-}
-
-impl View {
-    /// A view of the game drawn with `art`, looking at the market to start
-    pub fn new(art: Art) -> View {
-        View {
-            art,
-            cam_x: camera_on(16.0, 16.0).0,
-            cam_y: camera_on(16.0, 16.0).1,
-            zoom: 1.0,
-            inspector_open: true,
-            help_open: false,
-            ground: std::cell::RefCell::new(None),
-            blocks: std::cell::RefCell::new(BlockCache::default()),
-            spare: std::cell::RefCell::new(None),
-            last_zoom: std::cell::Cell::new(f32::NAN),
-            last_camera: std::cell::Cell::new((i32::MIN, i32::MIN)),
-            winter: std::cell::Cell::new(false),
-        }
-    }
-
-    /// The sprite a building draws with
-    fn sprite_of(&self, b: BSprite) -> &Option<Sprite> {
-        match b {
-            BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
-            BSprite::House(i) => self.art.house(i),
-            BSprite::Blacksmith | BSprite::Guildhall | BSprite::RivalHouse | BSprite::RivalWoodhouse
-                if self.winter.get() && self.art.trades_winter[trade_index(b)].is_some() =>
-                &self.art.trades_winter[trade_index(b)],
-            BSprite::Blacksmith => &self.art.blacksmith_s,
-            BSprite::Church => &self.art.church_s,
-            BSprite::Guildhall => &self.art.guildhall_s,
-            BSprite::RivalHouse => &self.art.rival_house,
-            BSprite::RivalWoodhouse => &self.art.rival_woodhouse,
-            BSprite::CastleKeep => &self.art.tower_s,
-        }
-    }
-
-    /// The frame: ground, everything standing on it (in depth order),
-    /// then the side panel. Draws the model the sim produced - the same
-    /// code a remote client runs on the frame it gets over the wire.
-    pub fn render(&self, m: &UiModel, mouse: (i32, i32)) -> Buffer {
-        let (mx, my) = mouse;
-        let art = &self.art;
-        let (tick, cam_x, cam_y, zoom) = (m.tick, self.cam_x, self.cam_y, self.zoom);
-        self.winter.set(season_tiles(m.season) == 2);
-        let mut prof = Prof::new();
-
-        // a recycled frame needs no clearing: the ground (cached or drawn
-        // over the background fill), the strip below and the panel cover
-        // every pixel
-        let mut buf = self.spare.borrow_mut().take().filter(|b| b.width == W && b.height == H).unwrap_or_else(|| Buffer::new(W, H));
-        // the background: the map area gets it only when the ground is drawn
-        // straight in (the cached ground carries its own); the gap between
-        // the map and the panel always
-        buf.rect(MAP_W as i32, 0, UI_X as i32 - MAP_W as i32, H as i32, 25, 25, 38);
-
-        // terrain rendered in the SAME projection as entities (unified map).
-        // The ground is thousands of tile blits, so it's painted once into a
-        // world-space layer and each frame just blits the window the camera
-        // shows; it's redrawn only when the zoom, the season or the map
-        // itself has changed since the last pass.
-        let season = m.season;
-        let camera = (cam_x, cam_y);
-        if self.last_zoom.get() != zoom || self.last_camera.get() != camera {
-            // Pan and zoom input can change every frame. Draw only the visible
-            // viewport while moving; rebuild its compact cache when settled.
-            buf.rect(0, 0, MAP_W as i32, H as i32, 25, 25, 38);
-            self.draw_ground(m, &mut buf, cam_x, cam_y, zoom);
-        } else {
-            let stale = match *self.ground.borrow() {
-                Some(ref g) => g.zoom != zoom || g.camera != camera || g.season != season || g.rev != m.map.rev(),
-                None => true,
-            };
-            if stale { *self.ground.borrow_mut() = Some(self.render_ground(m, zoom, camera)); }
-            let g = self.ground.borrow();
-            let g = g.as_ref().unwrap();
-            buf.blit_from(&g.buf, 0, 0, 0, 0, MAP_W as i32, H as i32);
-        }
-        self.last_zoom.set(zoom);
-        self.last_camera.set(camera);
-        prof.mark("ground");
-
-        // everything standing on the map, people included, drawn back to
-        // front in one painter's-order pass: whatever is nearer covers what
-        // is behind it (people used to be painted over the lot and the
-        // occluders re-drawn on top, which flipped nearer pieces back behind
-        // farther ones - glitched seams, e.g. on the town wall)
-        #[derive(Clone, Copy)]
-        enum Piece<'a> {
-            Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
-            Prop(Option<&'a Sprite>, f32),     // a tree or boulder in the middle of its tile, and its zoom-1 scale
-            Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
-            Herb,                              // a wild herb tuft, flat on the meadow
-            Shroom,                            // a wild mushroom in the shade
-            Skep,                              // a woven beehive in the apiary's yard
-            Swarm,                             // a swarm of bees on the wing
-        }
-        #[derive(Clone, Copy)]
-        enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
-
-        // a workplace nobody works stands dimmed - derelict
-        let tint_cache: std::collections::HashMap<usize, Option<Sprite>> = m.buildings.iter().enumerate()
-            .filter(|(_, b)| b.derelict)
-            .map(|(i, b)| (i, self.sprite_of(b.sprite).as_ref().map(|sp| tint(sp, (40, 40, 55), 0.6))))
-            .collect();
-        let mut standing: Vec<(f32, f32, Piece)> = vec![];
-        for (i, b) in m.buildings.iter().enumerate() {
-            let s = self.sprite_of(b.sprite);
-            let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) } else { s.as_ref() };
-            standing.push((b.x, b.y, Piece::Building(sprite, b.risen)));
-        }
-        standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
-            (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
-        // (a generated keep stands like the wall's towers, at its own size)
-        standing.extend(m.castle_keeps.iter().map(|&(x, y)| (x, y, if art.castle_rd {
-            Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref())
-        } else { Piece::Building(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0) })));
-        // a wood is a mix of the pack's trees, stable per tile
-        standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4), art.tiles[season_tiles(season)].trees_k))));
-        // boulders and flat rocks, a different one each time
-        let rock_prop = |x: i32, y: i32| if noise(x, y, 14) < 0.5 {
-            pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
-        standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
-        // wild herb tufts, ready for the picking
-        standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
-        standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
-        standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, Piece::Skep)));
-        if let Some((wx, wy)) = m.swarm { standing.push((wx, wy, Piece::Swarm)); }
-        // the land's score shows: stumps where the canopy went, the foul
-        // reach below town, the pit filled to a pond
-        for &(tx, ty) in &m.stumps {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(1.0), sy - k(4.0), k(2.0), k(4.0), 95, 75, 50);
-            buf.rect(sx - k(2.0), sy - k(5.0), k(4.0), k(1.0), 120, 95, 65);
-        }
-        for &(tx, ty) in &m.murk {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 85, 70, 45);
-        }
-        if let Some((tx, ty)) = m.pond {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 60, 90, 120);
-        }
-        // something riding over the walls: a bright head and a fading
-        // tail across the top of the frame
-        if let Some(kind) = m.sky.as_deref() {
-            let (hx, hy) = (buf.width as i32 * 2 / 3, buf.height as i32 / 8);
-            let head = if kind == "comet" { (255, 245, 200) } else { (180, 60, 50) };
-            for t in 0..14 {
-                let (x, y) = (hx - t * 6, hy - t * 3);
-                let f = 1.0 - t as f32 / 14.0;
-                let (r, g, b) = ((head.0 as f32 * f) as u8, (head.1 as f32 * f) as u8, (head.2 as f32 * f) as u8);
-                if x >= 0 && y >= 0 { buf.rect(x - 2, y - 1, 4, 3, r, g, b); }
-            }
-            buf.rect(hx - 3, hy - 3, 6, 6, 255, 250, 230);
-        }
-        // the cave mouth: a dark hollow at the map's edge, desaturated
-        if let Some((cx, cy)) = m.cave {
-            let (sx, sy) = iso_to_screen_cam(cx, cy, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(6.0), sy - k(6.0), k(12.0), k(7.0), 18, 18, 22);
-            buf.rect(sx - k(4.0), sy - k(4.0), k(8.0), k(5.0), 8, 8, 10);
-            buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
-        }
-        // the painted halls: a bright trim above the door
-        for &(tx, ty) in &m.painted {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(4.0), sy - k(9.0), k(8.0), k(2.0), 200, 160, 40);
-            buf.rect(sx - k(4.0), sy - k(9.0), k(2.0), k(5.0), 160, 60, 140);
-            buf.rect(sx + k(2.0), sy - k(9.0), k(2.0), k(5.0), 60, 100, 160);
-        }
-        // the garden beds: soil strip, greener as it fills in
-        for &(tx, ty, g) in &m.gardens {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(3.0), sy - k(1.0), k(6.0), k(3.0), 110, 85, 55);
-            if g > 0.4 {
-                buf.rect(sx - k(2.0), sy - k(2.0), k(4.0), k(1.0), 80, (120.0 + 60.0 * g) as u8, 60);
-            }
-            if g >= 1.0 {
-                buf.rect(sx - k(1.0), sy - k(3.0), k(2.0), k(1.0), 220, 180, 80);
-            }
-        }
-        // the scorched ground: dark scars where the fire's been
-        for &(tx, ty) in &m.scorched {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 30, 26, 24);
-        }
-        // and what's alight: a flame's worth of colour over the tile
-        for &(tx, ty) in &m.burning {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            let lick = (m.frame % 9 < 5) as i32; // it gutters
-            buf.rect(sx - k(4.0), sy - k(2.0 + lick as f32), k(8.0), k(5.0 + lick as f32), 160, 45, 20);
-            buf.rect(sx - k(2.0), sy - k(3.0 + lick as f32), k(4.0), k(4.0), 235, 150, 40);
-        }
-        // the desire-lines: where feet keep wearing, the ground shows it
-        for &(tx, ty, s) in &m.trails {
-            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
-            let k = |v: f32| ((v * zoom).round() as i32).max(1);
-            let shade = (30.0 * s) as u8;
-            buf.rect(sx - k(3.0), sy - k(1.0), k(6.0), k(2.0),
-                95u8.saturating_sub(shade), 75u8.saturating_sub(shade), 55u8.saturating_sub(shade));
-        }
-        let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
-            .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
-        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
-        standing.extend(m.map.walls.iter().map(|&((x, y), piece)| {
-            // the odd stretch of wall has a postern door in it
-            let postern = noise(x, y, 15) < 0.15;
-            let sprite = match piece {
-                WallPiece::AlongX => art.wall_posts[0].as_ref().filter(|_| postern).or(art.walls[0].as_ref()),
-                WallPiece::AlongY => art.wall_posts[1].as_ref().filter(|_| postern).or(art.walls[1].as_ref()),
-                WallPiece::GateAlongX => art.walls[2].as_ref(),
-                WallPiece::GateAlongY => art.walls[3].as_ref(),
-                WallPiece::Tower => art.tower_s.as_ref(),
-            };
-            (x as f32, y as f32, Piece::Castle(sprite))
-        }));
-        // only what can reach the view goes into the sort (the whole map's
-        // trees and rocks are in the list)
-        standing.retain(|&(x, y, _)| { let (sx, sy) = iso_to_screen_cam(x, y, cam_x, cam_y, zoom); !off_view(sx, sy, zoom) });
-        standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-        let draw_piece = |buf: &mut Buffer, &(bx, by, piece): &(f32, f32, Piece)| {
-            let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
-            // the whole map's trees, rocks and walls are in this list: skip
-            // what can't reach the view (most of it when zoomed in)
-            if off_view(sx, sy, zoom) { return; }
-            match piece {
-                Piece::Prop(sprite, k) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom, k); },
-                Piece::Herb => herb_tuft(buf, sx, sy, zoom),
-                Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
-                Piece::Skep => draw_skep(buf, sx, sy, zoom),
-                Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
-                Piece::Castle(sprite) => if let Some(s) = sprite {
-                    if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
-                },
-                Piece::Building(sprite, up) => if let Some(s) = sprite {
-                    if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
-                    else if up > 0.0 {
-                        // going up: the bottom of the house, from the ground up
-                        let rows = ((s.height as f32 * up).round() as usize).max(1);
-                        draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
-                    }
-                },
-            }
-        };
-
-        prof.mark("scene-setup");
-        // people share the pass, along with the windmill and the chimney
-        // smoke, which stand where their tower and houses stand
-        let mut people: Vec<(f32, f32, Who)> = vec![];
-        if art.mill_tower.is_some() {
-            if let Some((mx_, my_)) = m.mill { people.push((mx_, my_, Who::Mill)); }
-        }
-        if art.house(0).is_some() {
-            for (i, b) in m.buildings.iter().enumerate().filter(|(_, b)| b.smoke).take(3) {
-                people.push((b.x, b.y, Who::Smoke(i)));
-            }
-        }
-        people.extend(m.people.iter().filter(|p| p.kind != PKind::Gull).map(|p| (p.pos.0, p.pos.1, Who::P(p))));
-        people.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
-
-        // market food stock: shown in the HUD (top-left), not on the market
-        // tile, where villagers always gather to eat and covered it up
-        let food_stock = m.panel.food;
-
-
-        // name labels are drawn after every sprite (so no sprite covers one)
-        // and de-overlapped: (text, x, y, colour, hungry, selected)
-        let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
-        let mut standing = standing.iter().peekable();
-        for &(px, py, who) in &people {
-            while let Some(st) = standing.next_if(|st| st.0 + st.1 <= px + py) { draw_piece(&mut buf, st); }
-            {
-                let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                if off_view(sx, sy, zoom) { continue; }
-            }
-            match who {
-                // windmill: the tower on its tile, its sails turning on the
-                // tower's face (frame cycles every 10 ticks)
-                Who::Mill => {
-                    if let (Some(tower), true) = (&art.mill_tower, art.mill_rd) {
-                        let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                        draw_standing(&mut buf, tower, msx, msy, zoom);
-                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
-                            let (hx, hy) = mill_hub_rd(tower, msx, msy, zoom);
-                            let (w, h) = ((sails.width as f32 * zoom).round() as i32, (sails.height as f32 * zoom).round() as i32);
-                            draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, zoom);
-                        }
-                    } else if let Some(tower) = &art.mill_tower {
-                        let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                        draw_on_tile(&mut buf, tower, msx, msy, zoom);
-                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
-                            let (hx, hy) = mill_hub(tower, msx, msy, zoom);
-                            let k = MILL_SAILS * 2.0 * TILE_W as f32 * zoom / tower.width as f32;
-                            let (w, h) = ((sails.width as f32 * k).round() as i32, (sails.height as f32 * k).round() as i32);
-                            draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, k);
-                        }
-                    }
-                },
-                // chimney smoke: a few small puffs rising off each home's
-                // roof, drifting with the wind and thinning out (the pack's
-                // smoke sprite is a cluster of balls, which just read as
-                // circles on the roof)
-                Who::Smoke(i) => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    for (x, y, size, grey) in smoke_puffs(m.frame + i as u32 * 37, sx, sy, zoom) {
-                        buf.rect(x, y, size, size, grey, grey, grey + 6);
-                    }
-                },
-                Who::P(pv) if let PKind::Villager(i) = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    // the dead get a gravestone where they fell, not their standing figure
-                    if pv.dead {
-                        let top = draw_grave(&mut buf, sx, sy, zoom);
-                        let (lx, _) = name_label_pos(sx, sy, vill_name(i));
-                        labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
-                    } else {
-                        let look = i % art.villager_sprites.len().max(1);
-                        let fig = &art.villager_sprites[look];
-                        let anchor = if let Some(Some(ws)) = art.villager_walks.get(look) {
-                            // a generated walk cycle: facing and striding as they move
-                            let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
-                            let scale = if pv.kid { 0.6 * zoom } else { zoom };
-                            ws.draw(&mut buf, facing, walking, m.frame + pv.e * 7, sx, sy, scale) - SPRITE_HEAD
-                        } else {
-                            // children draw small and flagged: the pack has no
-                            // figure for them, so they're a scaled villager
-                            if pv.kid {
-                                draw_kid(&mut buf, fig, sx, sy, zoom);
-                            } else {
-                                draw_character(&mut buf, fig, sx, sy, zoom);
-                            }
-                            sprite_label_anchor(fig, sy, zoom)
-                        };
-                        let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
-                        let (lx, ly) = name_label_pos(sx, anchor, &lbl);
-                        // bright when close enough to talk, recruit or meet; dim otherwise
-                        let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
-                        labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected));
-                        // sick: a green cross on the other side of the head
-                        if pv.sick {
-                            let (mk, (r, g, b), _) = MARK_SICK;
-                            draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), mk, r, g, b);
-                        }
-                        // activity marker beside the head
-                        if pv.act_mark > 0 {
-                            let (mk, (r, g, b), _) = if pv.act_mark == 1 { MARK_FOOD } else { MARK_BUSY };
-                            draw_text_outlined(&mut buf, sx + 10, head_y(sy, zoom), mk, r, g, b);
-                        }
-                    }
-                },
-                Who::P(pv) if matches!(pv.kind, PKind::Sheep | PKind::Goat) => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    let set = if pv.kind == PKind::Sheep { &art.sheep } else { &art.goats };
-                    match variant(set, pv.e) {
-                        Some(s) => { draw_animal(&mut buf, s, sx, sy, zoom); }
-                        None => draw_beast(&mut buf, sx, sy, zoom, pv.kind == PKind::Sheep),
-                    }
-                },
-                Who::P(pv) if let PKind::Pet(species) = pv.kind => {
-                    let sprite = match species { Species::Dog => &self.art.dog, Species::Cat => &self.art.cat, _ => &NO_SPRITE };
-                    let (dx, dy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    // standing on its spot, drawn at the villagers' scale
-                    let h = match sprite {
-                        Some(s) => draw_animal(&mut buf, s, dx, dy, zoom),
-                        None => 0,
-                    };
-                    if pv.bond {
-                        labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
-                    }
-                },
-                // the watch: soldiers from the humans pack at the gates
-                Who::P(pv) if let PKind::Guard(i) = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(Some(ws)) = art.guard_walks.get(i % art.guard_walks.len().max(1)) {
-                        ws.draw(&mut buf, 2, false, 0, sx, sy, zoom);
-                    } else if !art.guards.is_empty() {
-                        draw_character(&mut buf, &art.guards[i % art.guards.len()], sx, sy, zoom);
-                    }
-                },
-                Who::P(pv) if let PKind::Priest = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(ws) = &art.priest_walk { ws.draw(&mut buf, 2, false, 0, sx, sy, zoom); }
-                    else if let Some(s) = &art.priest_s { draw_character(&mut buf, s, sx, sy, zoom); }
-                },
-                Who::P(pv) if let PKind::Traveller = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(ws) = &art.traveller_walk {
-                        let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
-                        ws.draw(&mut buf, facing, walking, m.frame + pv.e * 7, sx, sy, zoom);
-                    } else if let Some(s) = &art.traveller_s { draw_character(&mut buf, s, sx, sy, zoom); }
-                },
-                Who::P(pv) if let PKind::Chicken = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(c) = variant(&art.hens, pv.e) {
-                        draw_animal(&mut buf, c, sx, sy, zoom);
-                    }
-                },
-                // rival villagers (foreign settlement): the outlined figures
-                Who::P(pv) if let PKind::Rival(i) = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    let anchor = match (art.rival_walks.get(i), art.rival_sprites.get(i)) {
-                        (Some(Some(ws)), _) => {
-                            let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
-                            ws.draw(&mut buf, facing, walking, m.frame + pv.e * 7, sx, sy, zoom) - SPRITE_HEAD
-                        }
-                        (_, Some(rs)) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
-                        _ => label_anchor(sy, zoom),
-                    };
-                    let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
-                    labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false));
-                },
-                // player sprite at their actual position
-                Who::P(pv) if let PKind::Player = pv.kind => {
-                    let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    let (facing, walking) = m.player_pose;
-                    let mut anchor = None;
-                    if let Some(ws) = &art.player_walk {
-                        // gold ring under player, then the 1x frame on its feet
-                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
-                        let head = ws.draw(&mut buf, facing, walking, m.frame, sx, sy, zoom);
-                        anchor = Some(head - SPRITE_HEAD);
-                    } else if let Some(ps) = &art.player_s {
-                        draw_character(&mut buf, ps, sx, sy, zoom);
-                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
-                    } else {
-                        draw_rect(&mut buf, sx - 4, sy - 8, 8, 8, 255, 255, 255);
-                    }
-                    let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
-                    let (lx, ly) = name_label_pos(sx, anchor, "YOU");
-                    labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
-                },
-                Who::P(_) => {},
-            }
-        }
-        for st in standing { draw_piece(&mut buf, st); }
-        prof.mark("sprites");
-
-        // gulls wheel over the open sea
-        if let Some(gull) = &art.gull {
-            for (i, pv) in m.people.iter().filter(|p| p.kind == PKind::Gull).enumerate() {
-                let (gx, gy) = pv.pos;
-                let t = m.frame as f32 * 0.05 + i as f32 * 2.1;
-                let (sx, sy) = iso_to_screen_cam(gx + t.cos() * 0.6, gy + t.sin() * 0.3, cam_x, cam_y, zoom);
-                draw_zoomed(&mut buf, gull, sx - gull.width as i32, sy - (14.0 * zoom) as i32, 2.0 * zoom);
-            }
-        }
-
-        // all name labels, on top of every sprite, nudged apart where they'd overlap
-        let boxes: Vec<(i32, i32, i32)> = labels.iter()
-            .map(|(t, x, y, _, hungry, _)| (*x, *y, t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 }))
-            .collect();
-        let placed = place_labels(&boxes);
-        // where each name finally sits, so a speech bubble can clear it
-        let label_ys: Vec<(&String, i32)> = labels.iter().zip(&placed).map(|(l, y)| (&l.0, *y)).collect();
-        for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(placed) {
-            draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
-            // hunger indicator, right after the name
-            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, m, r, g, b); }
-            // selection: underline the selected villager's name
-            if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
-        }
-
-        prof.mark("gulls+labels");
-        // --- UI PANEL ---
-        draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
-        draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
-
-        // status: influence bar, members, season, tick
-        let p = &m.panel;
-        let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        // influence bar runs to the win: reach WIN_INFLUENCE and the village
-        // follows you; the tick marks where recruiting starts to work
-        const BAR_W: i32 = 120;
-        draw_text(&mut buf, UI_X as i32 + 10, 30, "Influence", 200, 200, 200);
-        draw_rect(&mut buf, UI_X as i32 + 70, 30, BAR_W, 10, 40, 40, 60);
-        let infl_w = ((p.influence / WIN_INFLUENCE).clamp(0.0, 1.0) * BAR_W as f32) as i32;
-        draw_rect(&mut buf, UI_X as i32 + 70, 30, infl_w, 10, 255, 200, 80);
-        let recruit_x = UI_X as i32 + 70 + ((recruit_influence_needed() / WIN_INFLUENCE) * BAR_W as f32) as i32;
-        draw_rect(&mut buf, recruit_x, 28, 1, 14, 120, 255, 120);
-        draw_text(&mut buf, UI_X as i32 + 70 + BAR_W + 6, 31, &format!("{:.2}/{:.1} lead", p.influence, WIN_INFLUENCE), 255, 220, 130);
-        draw_text(&mut buf, UI_X as i32 + 10, 44, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
-
-        // buttons
-        for (i, b) in action_buttons().iter().enumerate() {
-            if !action_shown(m, i) { continue; }
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            let reason = m.blocked[i].as_deref();
-            draw_button(&mut buf, b, hover, reason.is_some());
-            // a greyed-out button always says why; others explain themselves on hover
-            if let Some(r) = &reason {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, r, 200, 140, 120);
-            } else if hover {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 12, TOOLTIPS[i], 220, 220, 160);
-            }
-        }
-
-        // inspector: a villager's card, or a building's when one's clicked
-        // inspector: a villager's card, or a building's when one's clicked
-        if self.inspector_open {
-            draw_rect(&mut buf, UI_X as i32 + 10, 316, 270, 140, 45, 45, 65);
-            if let Some(insp) = &m.inspector {
-                if insp.dead {
-                    draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);
-                } else if let Some(fig_i) = insp.fig {
-                    let fig = &art.villager_sprites[fig_i % art.villager_sprites.len().max(1)];
-                    fig.blit_scaled(&mut buf, UI_X as i32 + 6, 322, 2);
-                }
-                for line in &insp.lines {
-                    if line.text.starts_with('\u{1}') {
-                        // "METER:name:frac:note" sentinel from the sim
-                        let mut it = line.text[3..].split('\u{2}');
-                        let (name, rest) = (it.next().unwrap_or(""), it.next().unwrap_or(""));
-                        let (frac, note) = rest.split_once(':')
-                            .map(|(a, b)| (a.parse::<f32>().unwrap_or(0.0), b))
-                            .unwrap_or((0.0, ""));
-                        draw_meter(&mut buf, UI_X as i32 + line.x, line.y, name, frac, note);
-                    } else {
-                        draw_text(&mut buf, UI_X as i32 + line.x, line.y, &line.text, line.rgb.0, line.rgb.1, line.rgb.2);
-                    }
-                }
-            }
-        }
-
-        // contextual actions: after the inspector, so the ones that live on
-        // the card's bottom edge (Seat/Strike) stay visible. Meet sits on
-        // the campaign's FIGHT line, the rest under the main buttons
-        // two passes: the buttons first, then any greyed reason on hover -
-        // drawn last so a neighbouring button or status line can't cover it
-        let ctx_btns: Vec<(Button, Option<&String>)> = m.ctx.iter().map(|a| ctx_button(*a))
-            .zip(m.ctx_blocked.iter()).map(|(b, r)| (b, r.as_ref())).collect();
-        for (b, reason) in &ctx_btns {
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            draw_button(&mut buf, b, hover, reason.is_some());
-        }
-        for (b, reason) in &ctx_btns {
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            if let Some(r) = reason.filter(|_| hover) {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 255, 180, 140);
-            }
-        }
-
-        // organization: who has joined, by name
-        let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
-        draw_text(&mut buf, UI_X as i32 + 18, 464, MEMBERS_LABEL, 255, 215, 0);
-        draw_text(&mut buf, UI_X as i32 + 18 + (MEMBERS_LABEL.len() as i32 + 1) * GLYPH_W, 464, &members_line(&member_names), 220, 220, 180);
-
-        // the issues the organizer has pieced together
-        draw_text(&mut buf, UI_X as i32 + 18, 476, "ISSUES", 255, 215, 0);
-        let issue_line = if m.panel.issues.is_empty() { "none heard yet".to_string() } else { m.panel.issues.join("; ") };
-        for (n, line) in wrap_text(&issue_line, 42).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }).enumerate() {
-            draw_text(&mut buf, UI_X as i32 + 18 + (7 * GLYPH_W), 476 + n as i32 * 11, line, 220, 190, 140);
-        }
-        // the campaign the org fights for, once it's taken its vote - the
-        // Meet button (a ctx action) sits to the right of the issue line
-        if let Some(c) = &m.panel.campaign {
-            draw_text(&mut buf, UI_X as i32 + 18, 488,
-                &format!("FIGHT {}", c.issue), 255, 180, 120);
-            let due = if c.due { "meet due" } else { "meet to come" };
-            // cadence leads: it's the bit you set - the seats can trail off
-            draw_text(&mut buf, UI_X as i32 + 18, 500,
-                &format!("every {}d - {} - {}", c.cadence_days, due, c.seats.join(" ")), 120, 120, 140);
-        } else {
-            draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
-        }
-
-        // event log
-        draw_rect(&mut buf, UI_X as i32 + 10, 512, 270, 110, 25, 25, 40);
-        draw_text(&mut buf, UI_X as i32 + 14, 516, "LOG", 150, 150, 180);
-        // newest first, word-wrapped to the box instead of cut off mid-word
-        const LOG_CHARS: usize = 43;      // (box width - padding) / glyph width
-        const LOG_ROWS: usize = 8;
-        let mut row = 0;
-        'log: for entry in &m.log {
-            let (r, g, b) = log_colour(entry);
-            // "day 120" in dim grey, then the message in its colour
-            let (day, msg) = log_parts(entry);
-            let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
-            for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
-                if row == LOG_ROWS { break 'log; }
-                let y = 530 + row as i32 * 12;
-                match &day {
-                    Some(d) if n == 0 && line.starts_with(d.as_str()) => {
-                        draw_text(&mut buf, UI_X as i32 + 14, y, d, 120, 120, 145);
-                        draw_text(&mut buf, UI_X as i32 + 14 + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
-                    }
-                    _ => { draw_text(&mut buf, UI_X as i32 + 14, y, line, r, g, b); }
-                }
-                row += 1;
-            }
-        }
-
-        // the TALK panel under the minimap: conversations, apart from the log
-        dialogue::draw_talk_panel(&mut buf, &m.talk, (mx, my));
-
-        // the conversation box, top-right of the map: a Talk under way or
-        // a house meeting's lines as they're said - and the call one leaves
-        if let Some(c) = &m.convo { dialogue::draw_convo_panel(&mut buf, c, (mx, my)); }
-
-        // what the marks over villagers' heads mean, under the log
-        let mut mx = UI_X as i32 + 14;
-        for (m, (r, g, b), word) in MAP_MARKS {
-            draw_text(&mut buf, mx, LEGEND_Y, m, r, g, b);
-            mx += (m.len() as i32 + 1) * GLYPH_W;
-            draw_text(&mut buf, mx, LEGEND_Y, word, 150, 150, 170);
-            mx += (word.len() as i32 + 2) * GLYPH_W;
-        }
-
-        // season change: subtle banner notification instead of flash
-        if tick > 10 && tick % 90 < 3 {
-            let sname = match season { Season::Spring => "Spring", Season::Summer => "Summer", Season::Autumn => "Autumn", Season::Winter => "Winter" };
-            let banner = format!("{} arrives", sname);
-            let bw = banner.len() as i32 * GLYPH_W + 16;
-            buf.rect(MAP_W as i32 / 2 - bw / 2, 56, bw, 16, 20, 20, 35);
-            draw_text(&mut buf, MAP_W as i32 / 2 - bw / 2 + 8, 60, &banner, 255, 220, 130);
-        }
-
-
-        prof.mark("ui-panel");
-        // weather over the map: overcast, falling rain or snow, the rainbow after rain
-        draw_weather(&mut buf, m.precip, m.frame as u64, m.rainbow_from.map(|f| (m.frame - f) as u64));
-        prof.mark("weather");
-
-        // minimap (top-right of map area): the map in miniature, same projection
-        // and colours, with villagers, the player and the visible area marked
-        buf.rect(MM_LEFT - 2, MM_TOP - 2, MM_W + 4, MM_H + 4, 20, 20, 30);
-        let (w_t, h_t) = (m.map.width as f32, m.map.height as f32);
-        let k = mm_k(w_t, h_t);
-        // the woods as a flat grid for the per-pixel lookup below (a
-        // contains() on the Vec walked the whole woods for every pixel)
-        let mut tree_at = vec![false; m.map.width * m.map.height];
-        for &(tx, ty) in &m.map.trees { tree_at[ty as usize * m.map.width + tx as usize] = true; }
-        for my in 0..MM_H { for mx in 0..MM_W {
-            if let Some((tx, ty)) = minimap_tile((MM_LEFT + mx) as f32 + 0.5, (MM_TOP + my) as f32 + 0.5, w_t, h_t) {
-                let (r, g, b) = m.map.get(tx as i32, ty as i32).map(|t| tile_colour(t, season)).unwrap_or((20, 20, 30));
-                // the woods show darker
-                let (r, g, b) = if tree_at[ty as usize * m.map.width + tx as usize] { blend((r, g, b), (20, 70, 35), 0.5) } else { (r, g, b) };
-                buf.set(MM_LEFT + mx, MM_TOP + my, r, g, b);
-            }
-        }}
-        let mm_dot = |buf: &mut Buffer, tx: f32, ty: f32, r: u8, g: u8, b: u8| {
-            let (x, y) = tile_to_minimap(tx, ty, k);
-            buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
-        };
-        // graves go down last: a crowd at the graveside mustn't hide one
-        let (living, graves): (Vec<&PersonV>, Vec<&PersonV>) = m.people.iter()
-            .partition(|pv| !(matches!(pv.kind, PKind::Villager(_)) && pv.dead));
-        for pv in living.into_iter().chain(graves) {
-            match pv.kind {
-                PKind::Villager(_) => {
-                    // the dead are graves now: grey, not a living red villager
-                    let (r, g, b) = if !pv.dead { MM_VILLAGER } else { MM_GRAVE };
-                    mm_dot(&mut buf, pv.pos.0, pv.pos.1, r, g, b);
-                }
-                PKind::Rival(_) => mm_dot(&mut buf, pv.pos.0, pv.pos.1, 255, 160, 60),
-                PKind::Player => mm_dot(&mut buf, pv.pos.0, pv.pos.1, 255, 255, 0),
-                _ => {}
-            }
-        }
-        // outline of what the map view is showing, clipped to the minimap box
-        let (vx0, vy0) = screen_to_minimap(0.0, 0.0, cam_x, cam_y, zoom, w_t, h_t);
-        let (vx1, vy1) = screen_to_minimap(MAP_W as f32, H as f32, cam_x, cam_y, zoom, w_t, h_t);
-        let (x0, x1) = ((vx0 as i32).max(MM_LEFT), (vx1 as i32).min(MM_LEFT + MM_W - 1));
-        let (y0, y1) = ((vy0 as i32).max(MM_TOP), (vy1 as i32).min(MM_TOP + MM_H - 1));
-        if x0 < x1 && y0 < y1 {
-            buf.rect(x0, y0, x1 - x0 + 1, 1, 255, 255, 255);
-            buf.rect(x0, y1, x1 - x0 + 1, 1, 255, 255, 255);
-            buf.rect(x0, y0, 1, y1 - y0 + 1, 255, 255, 255);
-            buf.rect(x1, y0, 1, y1 - y0 + 1, 255, 255, 255);
-        }
-
-        prof.mark("minimap");
-        // speech bubbles over whoever is speaking
-        for bv in &m.bubbles {
-            let (text, thought) = (bv.text.as_str(), bv.thought);
-            {
-                {
-                    let (sx, sy) = iso_to_screen_cam(bv.pos.0, bv.pos.1, cam_x, cam_y, zoom);
-                    // off the map view (e.g. under the panel): the log already
-                    // has what they said, so don't float a bubble over the panel
-                    // the drawn label carries the marks - the plain name
-                    // is its prefix, not the whole string
-                    let label_y = bv.name.as_deref().and_then(|n| label_ys.iter().find(|(t, _)| t.starts_with(n)).map(|(_, y)| *y));
-                    if let Some((bx, by, bw)) = bubble_rect(sx, sy, zoom, text, label_y) {
-                        let tail_x = (sx - 4).clamp(bx + 2, bx + bw - 10);
-                        if thought {
-                            // a thought: pale blue, its corners rounded off, a
-                            // trail of shrinking puffs down to the thinker
-                            let c = (225, 235, 250);
-                            buf.rect(bx + 2, by, bw - 4, BUBBLE_H, c.0, c.1, c.2);
-                            buf.rect(bx, by + 2, bw, BUBBLE_H - 4, c.0, c.1, c.2);
-                            buf.rect(tail_x + 2, by + BUBBLE_H + 1, 4, 4, c.0, c.1, c.2);
-                            buf.rect(tail_x + 4, by + BUBBLE_H + 6, 2, 2, c.0, c.1, c.2);
-                        } else {
-                            buf.rect(bx, by, bw, BUBBLE_H, 240, 240, 220);        // cream bubble
-                            buf.rect(tail_x, by + BUBBLE_H - 2, 8, 6, 240, 240, 220); // tail, under the speaker
-                        }
-                        draw_text(&mut buf, bx + 6, by + 5, text, 40, 30, 20);
-                    }
-                }
-            }
-        }
-
-        // toasts (big moments)
-        let mut ty = 40;
-        for msg in m.toasts.iter() {
-            {
-                let tw = msg.len() as i32 * 6 + 16;
-                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 20, 20, 20, 35);
-                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 1, 255, 215, 0);
-                draw_text(&mut buf, MAP_W as i32 / 2 - tw / 2 + 8, ty + 6, msg, 255, 220, 130);
-                ty += 26;
-            }
-        }
-
-        // season banner
-        let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.speed);
-        // on a dark strip so it reads over any terrain the camera shows
-        buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
-        draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
-
-        // help overlay
-        if self.help_open { draw_help(&mut buf); }
-
-        // pause menu overlay
-        if m.paused {
-            draw_overlay(&mut buf, PAUSE_W, "PAUSED", (255, 255, 255), &PAUSE_LINES, PAUSE_ROW, None);
-        }
-
-        buf
-    }
-    /// The ground pass: every tile's block (or flat diamond where there's no
-    /// art) drawn back to front so nearer blocks cover farther ones, plus the
-    /// odd tuft or flower on open grass. Drawn into `buf` at camera
-    /// (cam_x, cam_y) - called for the world-space cache layer, not per frame.
-    /// The ground pass: every tile's block (or flat diamond where there's no
-    /// art) drawn back to front so nearer blocks cover farther ones, plus the
-    /// odd tuft or flower on open grass. Drawn into `buf` at camera
-    /// (cam_x, cam_y) - called for the world-space cache layer, not per frame.
-    /// The ground pass: every tile's block (or flat diamond where there's no
-    /// art) drawn back to front so nearer blocks cover farther ones, plus the
-    /// odd tuft or flower on open grass. Drawn into `buf` at camera
-    /// (cam_x, cam_y) - called for the world-space cache layer, not per frame.
-    pub fn draw_ground(&self, m: &UiModel, buf: &mut Buffer, cam_x: i32, cam_y: i32, zoom: f32) {
-        let season = m.season;
-        let tw = (TILE_W as f32 * zoom) as i32;
-        let th = (TILE_H as f32 * zoom) as i32;
-        // the sea is level with the land, or the shore blocks' sides showed
-        // over it like a strip of grass. Blocks resize as they blit (no
-        // scaled copies).
-        let set = &self.art.tiles[season_tiles(season)];
-        let faces = &self.art.faces[season_tiles(season)];
-        let mut cache = self.blocks.borrow_mut();
-        if cache.zoom != zoom || cache.set != season_tiles(season) {
-            *cache = BlockCache { zoom, set: season_tiles(season), blocks: Default::default() };
-        }
-        let (w_t, h_t) = (m.map.width as i32, m.map.height as i32);
-        let (x0, y0, x1, y1) = visible_tile_bounds(cam_x, cam_y, zoom, buf.width, buf.height, w_t, h_t);
-        if x0 > x1 || y0 > y1 { return; }
-        for d in x0 + y0..=x1 + y1 {
-            for tx in (d - y1).max(x0)..=d.min(x1).min(d - y0) {
-                let ty = d - tx;
-                let Some(tile) = m.map.get(tx, ty) else { continue };
-                let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
-                if sx < -2 * tw || sx > buf.width as i32 + 2 * tw || sy < -4 * th || sy > buf.height as i32 + 4 * th { continue; }
-                // inland the blocks in front cover a tile's sides: just its face
-                let inland = tx + 1 < w_t && ty + 1 < h_t;
-                let set = if inland { faces } else { set };
-                match set.block(&m.map, tx, ty) {
-                    Some(block) => {
-                        let (w, h, x, y) = block_rect(block, sx, sy, zoom);
-                        let (scaled, runs) = cache.blocks.entry(block as *const Sprite as usize).or_insert_with(|| {
-                            let mut s = block.scaled(w, h);
-                            let runs = s.opaque_runs();
-                            (s, runs)
-                        });
-                        scaled.blit_runs(runs, buf, x, y);
-                    }
-                    None => {
-                        let (r, g, b) = tile_colour(tile, season);
-                        buf.diamond(sx, sy, tw, th, r, g, b);
-                        buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
-                    }
-                }
-                // the odd tuft or flower on open grass outside the walls
-                let in_town = (m.town_wall.0..=m.town_wall.2).contains(&tx)
-                    && (m.town_wall.1..=m.town_wall.3).contains(&ty);
-                if tile == Tile::Grass && !in_town && !m.map.is_occupied(tx, ty) && noise(tx, ty, 7) < 0.10 {
-                    if let Some(d) = pick(&self.art.details[season_tiles(season)], tx, ty, 8) {
-                        let k = self.art.details_k * zoom;
-                        let (dw, dh) = ((d.width as f32 * k).round() as i32, (d.height as f32 * k).round().max(1.0) as i32);
-                        let (jx, jy) = (noise(tx, ty, 10) - 0.5, noise(tx, ty, 11) - 0.5);
-                        draw_zoomed(buf, d,
-                            sx + (jx * TILE_W as f32 * zoom) as i32 - dw / 2,
-                            sy + ((jy - 0.6) * TILE_H as f32 * zoom) as i32 - dh, k);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Hand a frame from render() back once it's been shown, so the next
-    /// render can draw into it
-    pub fn recycle(&self, buf: Buffer) { *self.spare.borrow_mut() = Some(buf); }
-
-    /// Render just the visible ground viewport. Cache size is independent of
-    /// total map area, so enlarging the country cannot allocate a giant layer.
-    pub fn render_ground(&self, m: &UiModel, zoom: f32, camera: (i32, i32)) -> GroundCache {
-        let mut buf = Buffer::new(MAP_W, H);
-        buf.rect(0, 0, MAP_W as i32, H as i32, 25, 25, 38);
-        self.draw_ground(m, &mut buf, camera.0, camera.1, zoom);
-        GroundCache { buf, camera, zoom, season: m.season, rev: m.map.rev() }
-    }
-
-}
-
-/// Draw a child's figure - the pack has none, so they're a scaled-down
-/// villager flagged "(child)" on the label
-fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    draw_zoomed(buf, sprite, sx - (19.0 * zoom).round() as i32, sy - (36.0 * zoom).round() as i32, 1.2 * zoom);
-}
-
-/// Overcast, falling rain/snow and the post-rain rainbow over the map view.
-/// `since_clear` is frames since rain stopped (drives the rainbow fade).
-/// The terrain runs right up to the panel, so this covers to UI_X, not MAP_W.
-fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_clear: Option<u64>) {
-    // a clear sky draws nothing: don't scan a million pixels for a mask
-    // only rain, snow and the rainbow ever use
-    if kind.is_none() && since_clear.is_none() { return; }
-    let mask = weather_fx::background_mask(buf, UI_X, (25, 25, 38));
-    match kind {
-        Some(k) => {
-            if k.is_snow() {
-                weather_fx::overcast(buf, UI_X, k);
-            } else {
-                // rain: an even, cool dimming, deeper the harder it falls.
-                // Each channel maps on its own and the mapping is fixed for the
-                // frame, so it's three 256-entry tables (the per-pixel float
-                // blends with round() cost ~30ms a frame)
-                let t = 0.4 + 0.6 * k.intensity();
-                let lut: [[u8; 256]; 3] = std::array::from_fn(|ch| std::array::from_fn(|v| {
-                    let v = v as u8;
-                    let c = [(v, 0, 0), (0, v, 0), (0, 0, v)][ch];
-                    let (r, g, b) = blend(c, rain_wash(c), t);
-                    [r, g, b][ch]
-                }));
-                for y in 0..H {
-                    let row = &mut buf.pixels[y * W * 4..(y * W + UI_X) * 4];
-                    for px in row.chunks_exact_mut(4) {
-                        px[0] = lut[0][px[0] as usize]; px[1] = lut[1][px[1] as usize]; px[2] = lut[2][px[2] as usize];
-                    }
-                }
-            }
-            weather_fx::draw_precip(buf, UI_X, &mask, k, frame);
-        }
-        None => if let Some(f) = since_clear {
-            weather_fx::draw_rainbow(buf, UI_X, &mask, weather_fx::rainbow_alpha(f));
-        },
-    }
-}
-
-/// The top-left status line: season, day, the village food store, weather, speed
-fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32) -> String {
-    format!("{:?} | day {} | food store {}{}{}", season, day, food,
-        weather.map(|w| format!(" | {}", w)).unwrap_or_default(),
-        if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
-}
-
-/// The panel's standing reminder of the keys - the only on-screen pointer
-/// to the help overlay once the title screen is gone
-const PANEL_HINT: &str = "1-8 select villager   H help";
-
-const HELP_LINES: [&str; 9] = [
-    "click button / key: take action",
-    "click villager: select + inspect",
-    "bright name: close enough to talk",
-    "1-8: select villager",
-    "T talk  R recruit  I invest",
-    "O organize  B build",
-    "WASD: move   arrows: pan   +/-: zoom",
-    "Space: pause   0: speed 4x",
-    "F12: screenshot   Esc: quit",
-];
-const HELP_W: i32 = 420;
-const HELP_ROW: i32 = 22;
-
-#[cfg(test)] // only the tests check against it
-/// Where the help box sits: centred on the map view, as tall as its text
-fn help_rect() -> (i32, i32, i32, i32) {
-    overlay_rect(HELP_W, HELP_LINES.len(), HELP_ROW, true)
-}
-
-fn draw_help(buf: &mut Buffer) {
-    draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
-}
-
-const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-8: select villager"];
-const PAUSE_W: i32 = 260;
-const PAUSE_ROW: i32 = 20;
-
-#[cfg(test)]
-fn pause_rect() -> (i32, i32, i32, i32) {
-    overlay_rect(PAUSE_W, PAUSE_LINES.len(), PAUSE_ROW, false)
-}
-
-/// A modal box over the map (help, pause): centred on the map view and
-/// sized to its lines, which are centred as a block under a scale-2 title
-fn overlay_rect(w: i32, lines: usize, row: i32, footer: bool) -> (i32, i32, i32, i32) {
-    let h = 55 + lines as i32 * row + if footer { 30 } else { 12 };
-    (MAP_W as i32 / 2 - w / 2, H as i32 / 2 - h / 2, w, h)
-}
-
-fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8, u8, u8), lines: &[&str], row: i32, footer: Option<&str>) {
-    let (x, y, w, h) = overlay_rect(w, lines.len(), row, footer.is_some());
-    let cx = x + w / 2;
-    buf.rect(x, y, w, h, 20, 20, 35);
-    buf.rect(x, y, w, 2, 200, 200, 220);
-    draw_centered_at(buf, cx, y + 15, title, 2, title_rgb);
-    // the block of lines is centred as a whole, left-aligned within it
-    let block = lines.iter().map(|l| text_width(l, 1)).max().unwrap_or(0);
-    for (i, l) in lines.iter().enumerate() {
-        draw_text(buf, cx - block / 2, y + 55 + i as i32 * row, l, 210, 210, 210);
-    }
-    if let Some(f) = footer { draw_centered_at(buf, cx, y + h - 22, f, 1, (150, 150, 170)); }
-}
-
-/// The panel's status line: your organization by name, your gold, and the
-/// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
-/// 2.0" - a count of guild objects, and the goal the bar already shows)
-fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> String {
-    let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
-    format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
-}
-
-/// Label for who's in your organization, on the villager card ("Org:" never
-/// said which, and the status line calls it the Harvesters)
-const MEMBERS_LABEL: &str = "Joined";
-/// Characters that fit after the label, inside the villager card
-const MEMBERS_CHARS: usize = 36;
-
-/// The card's member list, cut at a whole name with ".." when it won't fit
-fn members_line(names: &[&str]) -> String {
-    if names.is_empty() { return "nobody yet - recruit!".into(); }
-    let all = names.join(", ");
-    if all.len() <= MEMBERS_CHARS { return all; }
-    let mut line = names[0].to_string();
-    for n in &names[1..] {
-        let next = format!("{}, {}", line, n);
-        if next.len() + 3 > MEMBERS_CHARS { break; }
-        line = next;
-    }
-    format!("{} ..", line)
-}
-
-/// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
-/// spacing, and the last space doesn't count
-fn text_width(text: &str, scale: usize) -> i32 {
-    (text.chars().count() * 6 * scale) as i32 - scale as i32
-}
-
-/// Draw `text` horizontally centred on x = `cx` at row `y`
-fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
-    draw_text_scaled(buf, cx - text_width(text, scale) / 2, y, text, scale, r, g, b);
-}
-
-/// Draw `text` horizontally centred on the screen at row `y`
-fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, rgb: (u8, u8, u8)) {
-    draw_centered_at(buf, W as i32 / 2, y, text, scale, rgb);
-}
-
-/// The title screen shown until the player presses Enter: what the game
-/// is, how organizing works, the main keys, and how to start
-pub fn render_title() -> Buffer {
-    let mut tbuf = Buffer::new(W, H);
-    tbuf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
-    draw_centered(&mut tbuf, 160, "THE WANDERER", 4, (255, 220, 130));
-    draw_centered(&mut tbuf, 230, "an outsider builds power", 2, (200, 200, 200));
-    draw_centered(&mut tbuf, 290, "Talk with the villagers, win their trust, organize.", 1, (190, 190, 205));
-    draw_centered(&mut tbuf, 306, "Win them over, then found a campaign at a house meeting.", 1, (190, 190, 205));
-    draw_centered(&mut tbuf, 340, "WASD move   T talk   R recruit   O organize   H help", 1, (140, 140, 160));
-    draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
-    tbuf
-}
-
-/// Copy a Buffer to the window
-/// Headless verification: play the game (no input) until tick N, then
-/// render that frame through the same Game::render the window uses and save
-/// it as a BMP.
-pub fn run_headless(art: Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64) {
-    run_headless_focus(art, target_tick, out, zoom, cam, weather, seed, None)
-}
-
-thread_local! {
-    /// Per-section render time, summed over bench frames (bench_frames)
-    static PROF: std::cell::RefCell<Vec<(&'static str, f64)>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-/// Whether render's section timers record (only while bench_frames runs)
-static PROF_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Marks section boundaries in render; only bench_frames reads them
-struct Prof(std::time::Instant);
-impl Prof {
-    fn new() -> Prof { Prof(std::time::Instant::now()) }
-    fn mark(&mut self, name: &'static str) {
-        if !PROF_ON.load(std::sync::atomic::Ordering::Relaxed) { return; }
-        let now = std::time::Instant::now();
-        let ms = (now - self.0).as_secs_f64() * 1e3;
-        self.0 = now;
-        PROF.with(|p| {
-            let mut p = p.borrow_mut();
-            match p.iter_mut().find(|e| e.0 == name) { Some(e) => e.1 += ms, None => p.push((name, ms)) }
-        });
-    }
-}
-
-/// Time `n` frames of what the window does each frame: update the game,
-/// build the model, render it. Prints the average and worst per stage.
-pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
-    // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
-    // (the ground can't use its cache then)
-    let pan = std::env::var("GAME2_BENCH_PAN").is_ok_and(|v| !v.is_empty());
-    // GAME2_BENCH_ZOOM=1: the zoom drifts every frame, as while scrolling
-    let zooming = std::env::var("GAME2_BENCH_ZOOM").is_ok_and(|v| !v.is_empty());
-    // this run's sections only, and off again after (see the end)
-    PROF.with(|p| p.borrow_mut().clear());
-    PROF_ON.store(true, std::sync::atomic::Ordering::Relaxed);
-    use std::time::Instant;
-    let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
-    for _ in 0..n.max(1) {
-        if pan { view.cam_x += 3; view.cam_y += 1; }
-        if zooming { view.zoom = (view.zoom * 1.003).min(2.0); }
-        let t0 = Instant::now();
-        game.update();
-        let t1 = Instant::now();
-        let m = game.ui_model();
-        let t2 = Instant::now();
-        let buf = view.render(&m, (-1, -1));
-        let t3 = Instant::now();
-        std::hint::black_box(&buf);
-        view.recycle(buf);
-        tu.push((t1 - t0).as_secs_f64() * 1e3);
-        tm.push((t2 - t1).as_secs_f64() * 1e3);
-        tr.push((t3 - t2).as_secs_f64() * 1e3);
-    }
-    PROF.with(|p| {
-        let p = p.borrow();
-        let line: Vec<String> = p.iter().map(|(k, v)| format!("{} {:.1}", k, v / n.max(1) as f64)).collect();
-        println!("render sections (ms/frame): {}", line.join(", "));
-    });
-    PROF_ON.store(false, std::sync::atomic::Ordering::Relaxed);
-    let stat = |v: &Vec<f64>| (v.iter().sum::<f64>() / v.len() as f64, v.iter().cloned().fold(0.0, f64::max));
-    let ((au, wu), (am, wm), (ar, wr)) = (stat(&tu), stat(&tm), stat(&tr));
-    println!("bench weather: precip {:?}, rainbow {:?}, season {:?}", game.precip, game.rainbow_from.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
-    println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
-        n, au, wu, am, wm, ar, wr, au + am + ar);
-}
-
-/// The camera offset that puts map point (tx, ty) at the zoom pivot (the
-/// view centre), so it stays centred at any zoom
-pub fn cam_centred_on(tx: f32, ty: f32) -> (i32, i32) {
-    let cx = ZOOM_PIVOT.0 - MAP_W as f32 / 2.0 - (tx - ty) * TILE_W as f32;
-    let cy = ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32;
-    (cx.round() as i32, cy.round() as i32)
-}
-
-/// Does a scene figure answer to `--focus <name>`? (dog, cat, chicken,
-/// sheep, goat, gull, guard, priest, traveller, player, rival, villager)
-fn focus_matches(kind: PKind, name: &str) -> bool {
-    match (kind, name) {
-        (PKind::Pet(Species::Dog), "dog") | (PKind::Pet(Species::Cat), "cat") => true,
-        (PKind::Chicken, "chicken" | "hen") | (PKind::Sheep, "sheep") | (PKind::Goat, "goat") => true,
-        (PKind::Gull, "gull") | (PKind::Guard(_), "guard") | (PKind::Priest, "priest") => true,
-        (PKind::Traveller, "traveller") | (PKind::Player, "player") => true,
-        (PKind::Rival(_), "rival") | (PKind::Villager(_), "villager") => true,
-        _ => false,
-    }
-}
-
-/// run_headless, optionally centring the camera on the first figure of a
-/// kind (`--focus sheep`): screenshot checks for new art land on it
-/// without hunting for --cam coordinates
-#[allow(clippy::too_many_arguments)]
-pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64, focus: Option<&str>) {
-    let mut game = Game::new_seeded(seed);
-    let mut view = View::new(art);
-    view.zoom = zoom;
-    if let Some(cam) = cam { (view.cam_x, view.cam_y) = cam; }
-    while game.tick < target_tick { game.update(); }
-    // GAME2_DUMP_WALK=dx,dy: walk the player that way for the last few
-    // frames, so a dump shows the walk cycle mid-stride
-    if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()
-        .and_then(|v| v.split_once(',')).and_then(|(x, y)| Some((x.parse::<f32>().ok()?, y.parse::<f32>().ok()?))) {
-        for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
-        println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
-    }
-    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|town|castle`), for props
-    // and buildings: the first of each, a tree in a wood rather than a
-    // lone one
-    let m = game.ui_model();
-    let woods = |&&(x, y): &&(i32, i32)| m.map.trees.iter().filter(|&&(tx, ty)| (tx - x).abs() + (ty - y).abs() <= 2).count() >= 5;
-    let feature = match focus {
-        Some("tree") => m.map.trees.iter().find(woods).map(|&(x, y)| (x as f32, y as f32)),
-        Some("stone") => m.stones.first().map(|&(x, y)| (x as f32, y as f32)),
-        Some("wall") => m.map.walls.iter().find(|w| w.1 == WallPiece::Tower).map(|&((x, y), _)| (x as f32, y as f32)),
-        Some("gate") => m.map.walls.iter().find(|w| matches!(w.1, WallPiece::GateAlongX | WallPiece::GateAlongY))
-            .map(|&((x, y), _)| (x as f32, y as f32)),
-        Some("church") => m.buildings.iter().find(|b| b.sprite == BSprite::Church).map(|b| (b.x, b.y)),
-        Some("smithy") => m.buildings.iter().find(|b| b.sprite == BSprite::Blacksmith).map(|b| (b.x, b.y)),
-        Some("guildhall") => m.buildings.iter().find(|b| b.sprite == BSprite::Guildhall).map(|b| (b.x, b.y)),
-        Some("rivals") => m.buildings.iter().find(|b| b.sprite == BSprite::RivalHouse).map(|b| (b.x, b.y)),
-        Some("mill") => m.mill,
-        // the country's first town or castle
-        Some("town") => m.map.towns.first().map(|&(x, y, _)| (x as f32, y as f32)),
-        Some("castle") => m.map.castles.first().map(|&(x, y, _)| (x as f32, y as f32)),
-        _ => None,
-    };
-    if let Some((x, y)) = feature {
-        (view.cam_x, view.cam_y) = cam_centred_on(x, y);
-        println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", focus.unwrap_or(""), x, y, view.cam_x, view.cam_y);
-    } else if let Some(name) = focus {
-        match game.ui_model().people.iter().find(|p| focus_matches(p.kind, name)) {
-            Some(p) => {
-                (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);
-                println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y);
-            }
-            None => eprintln!("focus {}: nothing of that kind on the map at tick {}", name, target_tick),
-        }
-    }
-    // force the sky for a screenshot of each kind of weather
-    if let Some(w) = weather {
-        game.precip = match w {
-            "drizzle" => Some(PrecipKind::Drizzle), "light" => Some(PrecipKind::LightRain),
-            "showers" => Some(PrecipKind::Showers), "rain" => Some(PrecipKind::Rain),
-            "heavy" => Some(PrecipKind::HeavyRain), "flurries" => Some(PrecipKind::Flurries),
-            "snow" => Some(PrecipKind::Snow), "blizzard" => Some(PrecipKind::HeavySnow),
-            _ => None,
-        };
-        game.rainbow_from = (w == "rainbow").then(|| game.frame_n.saturating_sub(100));
-    }
-    // GAME2_BENCH=N: time N more frames (sim, model, render) and report
-    if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
-        bench_frames(&mut game, &mut view, n);
-    }
-    let buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
-    let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
-    buf.save_bmp(&path).unwrap();
-    println!("frame {} saved to {}", target_tick, path);
-}
 
 /// Run the game until the house meeting under way is over
 #[cfg(test)]

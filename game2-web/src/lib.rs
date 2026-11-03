@@ -77,9 +77,10 @@ impl WasmGame {
         }
     }
 
-    /// The tuning panel's lines, for a debug readout
+    /// The secret gauges, for a debug readout (omniscient on purpose: the
+    /// page runs the whole sim in the browser - a dev tool, not a player view)
     pub fn telemetry(&self) -> String {
-        self.game.telemetry_lines().join("\n")
+        self.game.secret_kpi_lines().join("\n")
     }
 
     /// A staged start for the harness: "ordinary", "fever", "famine",

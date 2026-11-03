@@ -1015,6 +1015,27 @@ pub struct Art {
     pub details: [Vec<Sprite>; 3],
     /// Their size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/tufts)
     pub details_k: f32,
+    /// The workplaces' own looks (assets/rd/buildings), by WorkLook, and
+    /// the same snowed over; an empty set wears a cottage instead
+    pub works: [Vec<Option<Sprite>>; WorkLook::N],
+    pub works_winter: [Vec<Option<Sprite>>; WorkLook::N],
+    /// The market cross with its notice board, and the maypole that
+    /// stands there on a feast day
+    pub market_cross: Option<Sprite>,
+    pub maypole: Option<Sprite>,
+    /// Market-day stalls (sellers' looks), and the pedlar's striped booth
+    pub stalls: Vec<Sprite>,
+    pub trader_stall: Option<Sprite>,
+    /// The footbridge over the river: deck along x, along y
+    pub bridges: [Option<Sprite>; 2],
+    /// Small generated props (assets/rd/bits); empty: the old blocks stand in
+    pub skeps: Vec<Sprite>,
+    pub graves: Vec<Sprite>,
+    pub herbs: Vec<Sprite>,
+    pub shrooms: Vec<Sprite>,
+    /// Flames (frames to flicker between) and the scorched patch left behind
+    pub fires: Vec<Sprite>,
+    pub burnt: Vec<Sprite>,
     /// Ground blocks for the green seasons, autumn and winter (season_tiles),
     /// and the same as top faces only, for inland tiles
     pub tiles: [TileSet; 3],
@@ -1557,6 +1578,13 @@ impl Art {
         }).filter(|r| r.walls.iter().chain(&r.posts).all(|s| s.is_some()) && r.towers.is_some());
         let (rd_stones, rd_grounds) = if rd_stones.is_empty() || rd_grounds.is_empty() { (vec![], vec![]) } else { (rd_stones, rd_grounds) };
 
+        // the workplaces' own looks, one or two each, snowed over in winter
+        let snowed = |s: &Sprite| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85));
+        let works = WorkLook::ALL.map(|w| (1..=2).filter_map(|i| at(&format!("rd/buildings/{}{}.png", w.file(), i))).map(Some).collect::<Vec<_>>());
+        let works_winter = works.clone().map(|set| set.iter().map(|s| s.as_ref().map(snowed)).collect());
+        // the village's small things (assets/rd/bits), numbered from 1
+        let bits = |name: &str| -> Vec<Sprite> { (1..=6).filter_map(|i| at(&format!("rd/bits/{}{}.png", name, i))).collect() };
+
         Art {
             villager_sprites,
             rival_sprites,
@@ -1618,6 +1646,19 @@ impl Art {
             gull: Some(gull_sprite()),
             details,
             details_k,
+            works,
+            works_winter,
+            market_cross: at("rd/bits/market-cross.png"),
+            maypole: at("rd/bits/maypole.png"),
+            stalls: bits("stall"),
+            trader_stall: at("rd/bits/trader-stall.png"),
+            bridges: [at("rd/bits/bridge_x.png"), at("rd/bits/bridge_y.png")],
+            skeps: bits("skep"),
+            graves: bits("grave"),
+            herbs: bits("herb"),
+            shrooms: bits("shroom"),
+            fires: bits("fire"),
+            burnt: bits("burnt"),
         }
     }
 }
@@ -1914,6 +1955,45 @@ pub enum BSprite {
     RivalHouse,
     RivalWoodhouse,
     CastleKeep,
+    /// A workplace's own look; the index picks the variant (and the
+    /// cottage that stands in when that look has no art)
+    Work(WorkLook, usize),
+}
+
+/// The workplaces that wear their own look instead of a cottage's
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop }
+
+impl WorkLook {
+    pub const N: usize = 8;
+    const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
+        WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop];
+
+    /// Its sprites' name under assets/rd/buildings (name1.png, name2.png)
+    fn file(self) -> &'static str {
+        match self {
+            WorkLook::Tavern => "tavern", WorkLook::Bakery => "bakery", WorkLook::Granary => "granary",
+            WorkLook::WatchHouse => "watch-house", WorkLook::Fold => "fold", WorkLook::Apiary => "apiary",
+            WorkLook::Cellar => "cheese-cellar", WorkLook::Workshop => "workshop",
+        }
+    }
+
+    /// The look a kind of building wears: None keeps a cottage (homes, the
+    /// farmhouse) or a look of its own (the smithy, the church)
+    pub fn of(kind: BuildingKind) -> Option<WorkLook> {
+        Some(match kind {
+            BuildingKind::Shop(Vocation::Taverner | Vocation::Alewife | Vocation::Brewer) => WorkLook::Tavern,
+            BuildingKind::Shop(Vocation::Baker) => WorkLook::Bakery,
+            BuildingKind::Shop(Vocation::Farmer | Vocation::Toolmaker) => return None,
+            BuildingKind::Shop(_) => WorkLook::Workshop,
+            BuildingKind::Granary => WorkLook::Granary,
+            BuildingKind::WatchPost => WorkLook::WatchHouse,
+            BuildingKind::Pasture => WorkLook::Fold,
+            BuildingKind::Apiary => WorkLook::Apiary,
+            BuildingKind::Cellar => WorkLook::Cellar,
+            BuildingKind::Home | BuildingKind::Church | BuildingKind::Mill | BuildingKind::TraderStall => return None,
+        })
+    }
 }
 
 /// What a seat tells the sim: the same actions the window's keys and clicks
@@ -2647,6 +2727,12 @@ impl Game {
             }
             Some(e)
         });
+        // a workplace wears its own look, not a cottage's (the index still
+        // picks the stand-in cottage when that look has no art)
+        for (i, &e) in building_entities.iter().enumerate() {
+            let Some(look) = world.get_component::<Building>(e).and_then(|b| WorkLook::of(b.kind)) else { continue };
+            if let BSprite::House(h) = buildings[i].2 { buildings[i].2 = BSprite::Work(look, h); }
+        }
         // the trader's stall is the guildhall slot (index 5), stocked with imports
         let trader_stall = building_entities[5];
         for g in ["cloth", "paper", "ink", "pigment"] {
@@ -9066,6 +9152,10 @@ impl Game {
             skeps: self.hives.iter().filter_map(|&h| world.get_component::<Pos>(h)
                 .map(|p| (p.x, p.y))).collect(),
             swarm: self.swarm.and_then(|(w, _)| world.get_component::<Pos>(w).map(|p| (p.x, p.y))),
+            market: world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y)),
+            feast: self.villagers.iter().any(|&v| world.get_component::<routine::Routine>(v)
+                .is_some_and(|r| r.mode == routine::Mode::Feasting && r.day == self.tick)),
+            stalls: self.stalls_standing(),
             trails: self.trails.iter().filter(|(_, t)| t.strength > 0.15)
                 .map(|(&(x, y), t)| (x as f32, y as f32, t.strength)).collect(),
             stumps: self.land.tree_cover.iter().filter(|(_, &c)| c < 0.3)
@@ -9549,6 +9639,10 @@ impl View {
             BSprite::RivalHouse => &self.art.rival_house,
             BSprite::RivalWoodhouse => &self.art.rival_woodhouse,
             BSprite::CastleKeep => &self.art.tower_s,
+            BSprite::Work(w, i) => {
+                let set = if self.winter.get() { &self.art.works_winter[w as usize] } else { &self.art.works[w as usize] };
+                if set.is_empty() { self.sprite_of(BSprite::House(i)) } else { &set[i % set.len()] }
+            }
         }
     }
 
@@ -9611,6 +9705,7 @@ impl View {
             Shroom,                            // a wild mushroom in the shade
             Skep,                              // a woven beehive in the apiary's yard
             Swarm,                             // a swarm of bees on the wing
+            Stand(&'a Sprite),                 // a generated prop at its own size (draw_standing)
         }
         #[derive(Clone, Copy)]
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
@@ -9639,9 +9734,36 @@ impl View {
             pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
         standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
         // wild herb tufts, ready for the picking
-        standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
-        standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
-        standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, Piece::Skep)));
+        // the small things: generated when there's art, else the old blocks
+        fn small(set: &[Sprite], x: f32, y: f32, salt: u32) -> Option<&Sprite> { pick(set, (x * 7.0) as i32, (y * 7.0) as i32, salt) }
+        standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, small(&art.herbs, x, y, 51).map_or(Piece::Herb, Piece::Stand))));
+        standing.extend(m.mush.iter().map(|&(x, y)| (x, y, small(&art.shrooms, x, y, 52).map_or(Piece::Shroom, Piece::Stand))));
+        standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, small(&art.skeps, x, y, 53).map_or(Piece::Skep, Piece::Stand))));
+        // the market cross, or the maypole on a feast day
+        if let Some((x, y)) = m.market {
+            let s = if m.feast { art.maypole.as_ref().or(art.market_cross.as_ref()) } else { art.market_cross.as_ref() };
+            if let Some(s) = s { standing.push((x, y, Piece::Stand(s))); }
+        }
+        // today's stalls round the square, and the pedlar's booth
+        for &(x, y, look) in &m.stalls {
+            let s = if look == routine::STALL_TRADER { art.trader_stall.as_ref() }
+                else if art.stalls.is_empty() { None } else { Some(&art.stalls[look as usize % art.stalls.len()]) };
+            if let Some(s) = s { standing.push((x, y, Piece::Stand(s))); }
+        }
+        // the footbridges: deck across the river, so along whichever axis
+        // the water doesn't run
+        for (x, y) in m.map.bridges() {
+            let wet = |dx: i32, dy: i32| matches!(m.map.get(x + dx, y + dy), Some(Tile::River | Tile::Water));
+            let along_y = wet(1, 0) || wet(-1, 0);
+            if let Some(s) = art.bridges[along_y as usize].as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
+        }
+        // what's alight: flames flickering between frames
+        if !art.fires.is_empty() {
+            for &(x, y) in &m.burning {
+                let f = (m.frame as usize / 4 + (noise(x as i32, y as i32, 54) * 7.0) as usize) % art.fires.len();
+                standing.push((x, y, Piece::Stand(&art.fires[f])));
+            }
+        }
         if let Some((wx, wy)) = m.swarm { standing.push((wx, wy, Piece::Swarm)); }
         // the land's score shows: stumps where the canopy went, the foul
         // reach below town, the pit filled to a pond
@@ -9705,11 +9827,13 @@ impl View {
         // the scorched ground: dark scars where the fire's been
         for &(tx, ty) in &m.scorched {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            if let Some(b) = pick(&art.burnt, tx as i32, ty as i32, 55) { draw_standing(&mut buf, b, sx, sy, zoom); continue; }
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 30, 26, 24);
         }
-        // and what's alight: a flame's worth of colour over the tile
-        for &(tx, ty) in &m.burning {
+        // and what's alight: a flame's worth of colour over the tile (the
+        // generated flames stand with everything else)
+        for &(tx, ty) in m.burning.iter().filter(|_| art.fires.is_empty()) {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             let lick = (m.frame % 9 < 5) as i32; // it gutters
@@ -9754,6 +9878,7 @@ impl View {
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
+                Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),
                 Piece::Castle(sprite) => if let Some(s) = sprite {
                     if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
                 },
@@ -9835,7 +9960,13 @@ impl View {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                     // the dead get a gravestone where they fell, not their standing figure
                     if pv.dead {
-                        let top = draw_grave(&mut buf, sx, sy, zoom);
+                        let top = match variant(&art.graves, pv.e) {
+                            Some(g) => {
+                                draw_standing(&mut buf, g, sx, sy, zoom);
+                                sy + ((g.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32 - (g.height as f32 * zoom).round() as i32
+                            }
+                            None => draw_grave(&mut buf, sx, sy, zoom),
+                        };
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {
@@ -14196,6 +14327,11 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     view.zoom = zoom;
     if let Some(cam) = cam { (view.cam_x, view.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
+    // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
+    // folk where the day's plan took them (stalls up, a congregation seated)
+    let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    for _ in 0..more { game.update(); }
+    if more > 0 { let m = game.ui_model(); println!("day {} + {} frames: {} stalls, feast {}", m.tick, more, m.stalls.len(), m.feast); }
     // GAME2_DUMP_WALK=dx,dy: walk the player that way for the last few
     // frames, so a dump shows the walk cycle mid-stride
     if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()
@@ -14203,7 +14339,8 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
         println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
     }
-    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill`), for props
+    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|market|bridge`,
+    // or a workplace's look: tavern|bakery|workshop|fold|apiary|cheese|granary|watch), for props
     // and buildings: the first of each, a tree in a wood rather than a
     // lone one
     let m = game.ui_model();
@@ -14219,6 +14356,11 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         Some("guildhall") => m.buildings.iter().find(|b| b.sprite == BSprite::Guildhall).map(|b| (b.x, b.y)),
         Some("rivals") => m.buildings.iter().find(|b| b.sprite == BSprite::RivalHouse).map(|b| (b.x, b.y)),
         Some("mill") => m.mill,
+        Some("market") => m.market,
+        Some("bridge") => m.map.bridges().next().map(|(x, y)| (x as f32, y as f32)),
+        // a workplace by its look: tavern, bakery, workshop, fold, apiary...
+        Some(look) => m.buildings.iter().find(|b| matches!(b.sprite, BSprite::Work(w, _) if w.file().starts_with(look)))
+            .map(|b| (b.x, b.y)),
         _ => None,
     };
     if let Some((x, y)) = feature {
@@ -14518,10 +14660,15 @@ mod death_tests {
         let p = *game.world.get_component::<Pos>(corvin).unwrap();
         let (sx, sy) = iso_to_screen_cam(p.x, p.y, view.cam_x, view.cam_y, view.zoom);
         let px = |x: i32, y: i32| { let i = (y as usize * W + x as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
-        // the stone is there, beside the carved cross down its middle -
-        // checked across a small patch so a passer-by's edge can't hide it
+        // the stone is there (the generated one's colours, else the drawn
+        // stone's) - checked across a small patch so a passer-by's edge
+        // can't hide it
+        let stone: Vec<(u8, u8, u8)> = match variant(&view.art.graves, corvin) {
+            Some(g) => g.pixels.chunks(4).filter(|c| c[3] > 128).map(|c| (c[0], c[1], c[2])).collect(),
+            None => vec![GRAVE_STONE],
+        };
         let stone_shows = (sy - 7..sy - 1).any(|y| (sx - 6..sx + 1)
-            .any(|x| px(x, y) == GRAVE_STONE));
+            .any(|x| stone.contains(&px(x, y))));
         assert!(stone_shows, "no gravestone where Corvin fell");
         // and nothing is standing on it: the space where a living head would be
         // shows no sprite colours from Corvin's figure
@@ -14722,6 +14869,30 @@ mod dog_sprite_tests {
         assert!(art.blacksmith_s.is_some() && art.guildhall_s.is_some() && art.rival_house.is_some());
         assert!(art.trades_winter.iter().all(|s| s.is_none()));
         assert!(art.rival_walks.iter().all(|w| w.is_none()) && art.traveller_walk.is_none());
+    }
+
+    #[test]
+    fn test_workplaces_wear_their_own_look() {
+        let g = Game::new();
+        let view = View::new(Art::load_fs("../assets", 0));
+        // the village's workshops aren't cottages any more, and a tavern stands
+        let looks: Vec<WorkLook> = g.buildings.iter().filter_map(|b| match b.2 { BSprite::Work(w, _) => Some(w), _ => None }).collect();
+        assert!(looks.contains(&WorkLook::Tavern), "the taverner's house is a tavern: {:?}", looks);
+        assert!(looks.contains(&WorkLook::Fold) && looks.contains(&WorkLook::Apiary), "{:?}", looks);
+        for (i, &e) in g.building_entities.iter().enumerate() {
+            let kind = g.world.get_component::<Building>(e).unwrap().kind;
+            if kind == BuildingKind::Home { assert!(!matches!(g.buildings[i].2, BSprite::Work(..)), "a home wears a cottage"); }
+        }
+        // every look resolves to its generated art, summer and winter
+        for w in WorkLook::ALL {
+            assert!(!view.art.works[w as usize].is_empty() && !view.art.works_winter[w as usize].is_empty(), "{:?} has art", w);
+            assert!(view.sprite_of(BSprite::Work(w, 3)).is_some());
+        }
+        // and the market, stall, bridge and small props loaded
+        let a = &view.art;
+        assert!(a.market_cross.is_some() && a.maypole.is_some() && a.trader_stall.is_some() && a.stalls.len() == 2);
+        assert!(a.bridges.iter().all(|b| b.is_some()));
+        for set in [&a.skeps, &a.graves, &a.herbs, &a.shrooms, &a.fires, &a.burnt] { assert!(!set.is_empty()); }
     }
 
     #[test]

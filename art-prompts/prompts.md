@@ -1,6 +1,6 @@
 # Retro Diffusion art prompts
 
-610 prompts, est. $104.17 USD at list prices.
+623 prompts, est. $107.23 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
 
@@ -334,7 +334,20 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| windmill-tall-2af41b40 | single isometric medieval village asset: one tall round stone windmill tower with a conical wooden cap, small door, no sails, no blades | rd_pro__isometric | 96x96 | 2 | 0.36 | round 4: the windmill tower at 96px so it stands taller than the cottages |
+| apiary-319e6092 | single isometric medieval village asset: one beekeeper's yard, a little lean-to shelter with a row of woven straw bee skeps on a wooden bench | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| bakery-d7716c3c | single isometric medieval village asset: one small stone bakery with a big round brick bread oven built onto its side, chimney, a loaf sign over the door | rd_pro__isometric | 64x64 | 2 | 0.36 | round 5: workplaces, market and feast landmarks |
+| bridge-plank-8231d8b5 | single isometric medieval village asset: one short wooden plank footbridge with handrails, deck running from the lower left to the upper right, nothing under it | rd_pro__isometric | 64x64 | 2 | 0.36 | round 5: drawn over the river tile; mirrored for the other axis |
+| cheese-cellar-c733061d | single isometric medieval village asset: one stone cellar door built into a small grassy mound, wooden door, a little stone vent on top | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| fold-3dc80650 | single isometric medieval village asset: one small sheep fold, a ring of woven wattle fencing round a little open thatched shelter, hay inside | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| granary-8dc8268d | single isometric medieval village asset: one small wooden granary barn raised up on mushroom-shaped staddle stones, plank walls, thatched roof | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| market-cross-18afbb27 | single isometric medieval village asset: one stone market cross on stepped base with a wooden notice board beside it, papers pinned to the board | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| market-stall-28b03a79 | single isometric medieval village asset: one small wooden market stall with a plain cloth awning and baskets of produce on its counter | rd_pro__isometric | 64x64 | 2 | 0.36 | round 5: workplaces, market and feast landmarks |
+| maypole-8880205c | single isometric medieval village asset: one tall maypole with coloured ribbons and a flower garland on top, on a small patch of grass | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| sheet-village-bits-2f424f42 | sprite sheet of small medieval village props: woven straw bee skeps, grey gravestones, wooden grave crosses, clumps of wild herbs, red-capped mushrooms, small campfires, bonfire flames, a charred burnt patch, isometric view, many variations | rd_pro__spritesheet | 256x256 | 1 | 0.18 | round 5: skeps, graves, herbs, mushrooms, fire |
+| tavern-9e1afbdf | single isometric medieval village asset: one timber-frame village tavern with a hanging painted sign over the door, ale barrels stacked outside, warm lit windows | rd_pro__isometric | 64x64 | 2 | 0.36 | round 5: workplaces, market and feast landmarks |
+| trader-stall-2a8f49f6 | single isometric medieval village asset: one open wooden market booth with a striped red and yellow cloth awning, crates and bolts of cloth on its counter | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| watch-house-3e86225f | single isometric medieval village asset: one small square timber watch tower on a stone base, a little bell under its roof, spears leaning by the door | rd_pro__isometric | 64x64 | 1 | 0.18 | round 5: workplaces, market and feast landmarks |
+| workshop-0ec15a11 | single isometric medieval village asset: one small timber workshop with a wide open front, a workbench and tools inside, shingle roof | rd_pro__isometric | 64x64 | 2 | 0.36 | round 5: workplaces, market and feast landmarks |
 
 ## P0 - needed now (replaces assets the game already draws) / tiles/bridges
 

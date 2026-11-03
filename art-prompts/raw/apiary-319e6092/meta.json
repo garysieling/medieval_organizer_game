@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744061,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 42.15,
+ "request_id": "55d2347c-f16e-4bab-b5f3-7c0fd629e81d",
+ "outputs_retained_until": 1793830423,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 42.15
+ },
+ "id": "apiary-319e6092",
+ "prompt": "single isometric medieval village asset: one beekeeper's yard, a little lean-to shelter with a row of woven straw bee skeps on a wooden bench",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:14:21",
+ "seconds": 38.7
+}

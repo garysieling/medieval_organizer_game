@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744700,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 39.45,
+ "request_id": "987462a9-bed1-4dbf-8bd4-58b937629a62",
+ "outputs_retained_until": 1793831071,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 39.45
+ },
+ "id": "trader-stall-2a8f49f6",
+ "prompt": "single isometric medieval village asset: one open wooden market booth with a striped red and yellow cloth awning, crates and bolts of cloth on its counter",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:25:00",
+ "seconds": 29.7
+}

@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744385,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 40.89,
+ "request_id": "2887101b-93fc-4b2a-a9c1-44ca5ac28113",
+ "outputs_retained_until": 1793830764,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 40.89
+ },
+ "id": "granary-8dc8268d",
+ "prompt": "single isometric medieval village asset: one small wooden granary barn raised up on mushroom-shaped staddle stones, plank walls, thatched roof",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:19:45",
+ "seconds": 21.2
+}

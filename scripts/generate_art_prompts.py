@@ -331,6 +331,46 @@ add("props", "windmill-sails",
     "four wooden windmill sails in a cross, lattice frames with cloth, seen straight on, "
     "nothing else", style="rd_pro__default", w=64, h=64, n=2,
     notes="round 4: one still cross of sails, rotated in rd_slice for the turning frames")
+# Round 5: the workplaces that still borrowed a cottage, the bits of the
+# map drawn as coloured blocks, the market and feast landmarks, the bridge.
+for slug, subj, n in [
+    ("tavern", "one timber-frame village tavern with a hanging painted sign over the door, "
+               "ale barrels stacked outside, warm lit windows", 2),
+    ("bakery", "one small stone bakery with a big round brick bread oven built onto its side, "
+               "chimney, a loaf sign over the door", 2),
+    ("granary", "one small wooden granary barn raised up on mushroom-shaped staddle stones, "
+                "plank walls, thatched roof", 1),
+    ("watch-house", "one small square timber watch tower on a stone base, a little bell under "
+                    "its roof, spears leaning by the door", 1),
+    ("trader-stall", "one open wooden market booth with a striped red and yellow cloth awning, "
+                     "crates and bolts of cloth on its counter", 1),
+    ("fold", "one small sheep fold, a ring of woven wattle fencing round a little open "
+             "thatched shelter, hay inside", 1),
+    ("apiary", "one beekeeper's yard, a little lean-to shelter with a row of woven straw "
+               "bee skeps on a wooden bench", 1),
+    ("cheese-cellar", "one stone cellar door built into a small grassy mound, wooden door, "
+                      "a little stone vent on top", 1),
+    ("workshop", "one small timber workshop with a wide open front, a workbench and tools "
+                 "inside, shingle roof", 2),
+    ("market-stall", "one small wooden market stall with a plain cloth awning and baskets "
+                     "of produce on its counter", 2),
+    ("market-cross", "one stone market cross on stepped base with a wooden notice board "
+                     "beside it, papers pinned to the board", 1),
+    ("maypole", "one tall maypole with coloured ribbons and a flower garland on top, "
+                "on a small patch of grass", 1),
+]:
+    add("props", slug, f"{ISO}: {subj}", w=64, h=64, n=n, ref=PROP_REF,
+        notes="round 5: workplaces, market and feast landmarks")
+add("props", "sheet-village-bits",
+    "sprite sheet of small medieval village props: woven straw bee skeps, grey gravestones, "
+    "wooden grave crosses, clumps of wild herbs, red-capped mushrooms, small campfires, "
+    "bonfire flames, a charred burnt patch, isometric view, many variations",
+    style="rd_pro__spritesheet", w=256, h=256, remove_bg=False,
+    notes="round 5: skeps, graves, herbs, mushrooms, fire")
+add("props", "bridge-plank",
+    f"{ISO}: one short wooden plank footbridge with handrails, deck running from the lower left "
+    "to the upper right, nothing under it", w=64, h=64, n=2, ref=PROP_REF,
+    notes="round 5: drawn over the river tile; mirrored for the other axis")
 for slug, subj in [
     ("rival-man", "male villager with tan skin and short black hair, deep red wool tunic, grey trousers"),
     ("rival-worker", "female labourer with fair skin and a red headscarf, brown apron over a red "

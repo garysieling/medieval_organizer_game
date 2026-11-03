@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744296,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 41.25,
+ "request_id": "9eb7a163-11bf-46cc-96dc-ba264bc6b602",
+ "outputs_retained_until": 1793830616,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 41.25
+ },
+ "id": "cheese-cellar-c733061d",
+ "prompt": "single isometric medieval village asset: one stone cellar door built into a small grassy mound, wooden door, a little stone vent on top",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:18:16",
+ "seconds": 80.3
+}

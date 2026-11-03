@@ -249,6 +249,16 @@ pub struct UiModel {
     /// The skeps of the apiary, and a swarm out following someone
     pub skeps: Vec<(f32, f32)>,
     pub swarm: Option<(f32, f32)>,
+    /// The market cross (where the notices go up), and whether today's a
+    /// feast (the maypole stands there instead)
+    #[serde(default)]
+    pub market: Option<(f32, f32)>,
+    #[serde(default)]
+    pub feast: bool,
+    /// Stalls standing today: (x, y, look) - a seller's stall by look
+    /// index, or STALL_TRADER for the pedlar's booth
+    #[serde(default)]
+    pub stalls: Vec<(f32, f32, u8)>,
     /// Where feet have worn the ground in (x, y, strength)
     pub trails: Vec<(f32, f32, f32)>,
     /// The land's score: stump tiles, the foul reach, the drowned pit

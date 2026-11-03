@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 610,
-  "est_total_usd": 104.17
+  "count": 623,
+  "est_total_usd": 107.23
  },
  "prompts": [
   {
@@ -3937,21 +3937,240 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
-   "id": "windmill-tall-2af41b40",
+   "id": "apiary-319e6092",
    "tier": "p0",
    "group": "props",
-   "title": "windmill tall",
-   "prompt": "single isometric medieval village asset: one tall round stone windmill tower with a conical wooden cap, small door, no sails, no blades",
+   "title": "apiary",
+   "prompt": "single isometric medieval village asset: one beekeeper's yard, a little lean-to shelter with a row of woven straw bee skeps on a wooden bench",
    "request": {
     "prompt_style": "rd_pro__isometric",
-    "width": 96,
-    "height": 96,
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "bakery-d7716c3c",
+   "tier": "p0",
+   "group": "props",
+   "title": "bakery",
+   "prompt": "single isometric medieval village asset: one small stone bakery with a big round brick bread oven built onto its side, chimney, a loaf sign over the door",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
     "num_images": 2,
     "remove_bg": true,
     "reference_image_path": "assets/rd/buildings/cottage1.png"
    },
    "est_cost_usd": 0.36,
-   "notes": "round 4: the windmill tower at 96px so it stands taller than the cottages"
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "bridge-plank-8231d8b5",
+   "tier": "p0",
+   "group": "props",
+   "title": "bridge plank",
+   "prompt": "single isometric medieval village asset: one short wooden plank footbridge with handrails, deck running from the lower left to the upper right, nothing under it",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.36,
+   "notes": "round 5: drawn over the river tile; mirrored for the other axis"
+  },
+  {
+   "id": "cheese-cellar-c733061d",
+   "tier": "p0",
+   "group": "props",
+   "title": "cheese cellar",
+   "prompt": "single isometric medieval village asset: one stone cellar door built into a small grassy mound, wooden door, a little stone vent on top",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "fold-3dc80650",
+   "tier": "p0",
+   "group": "props",
+   "title": "fold",
+   "prompt": "single isometric medieval village asset: one small sheep fold, a ring of woven wattle fencing round a little open thatched shelter, hay inside",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "granary-8dc8268d",
+   "tier": "p0",
+   "group": "props",
+   "title": "granary",
+   "prompt": "single isometric medieval village asset: one small wooden granary barn raised up on mushroom-shaped staddle stones, plank walls, thatched roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "market-cross-18afbb27",
+   "tier": "p0",
+   "group": "props",
+   "title": "market cross",
+   "prompt": "single isometric medieval village asset: one stone market cross on stepped base with a wooden notice board beside it, papers pinned to the board",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "market-stall-28b03a79",
+   "tier": "p0",
+   "group": "props",
+   "title": "market stall",
+   "prompt": "single isometric medieval village asset: one small wooden market stall with a plain cloth awning and baskets of produce on its counter",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.36,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "maypole-8880205c",
+   "tier": "p0",
+   "group": "props",
+   "title": "maypole",
+   "prompt": "single isometric medieval village asset: one tall maypole with coloured ribbons and a flower garland on top, on a small patch of grass",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "sheet-village-bits-2f424f42",
+   "tier": "p0",
+   "group": "props",
+   "title": "sheet village bits",
+   "prompt": "sprite sheet of small medieval village props: woven straw bee skeps, grey gravestones, wooden grave crosses, clumps of wild herbs, red-capped mushrooms, small campfires, bonfire flames, a charred burnt patch, isometric view, many variations",
+   "request": {
+    "prompt_style": "rd_pro__spritesheet",
+    "width": 256,
+    "height": 256,
+    "num_images": 1
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: skeps, graves, herbs, mushrooms, fire"
+  },
+  {
+   "id": "tavern-9e1afbdf",
+   "tier": "p0",
+   "group": "props",
+   "title": "tavern",
+   "prompt": "single isometric medieval village asset: one timber-frame village tavern with a hanging painted sign over the door, ale barrels stacked outside, warm lit windows",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.36,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "trader-stall-2a8f49f6",
+   "tier": "p0",
+   "group": "props",
+   "title": "trader stall",
+   "prompt": "single isometric medieval village asset: one open wooden market booth with a striped red and yellow cloth awning, crates and bolts of cloth on its counter",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "watch-house-3e86225f",
+   "tier": "p0",
+   "group": "props",
+   "title": "watch house",
+   "prompt": "single isometric medieval village asset: one small square timber watch tower on a stone base, a little bell under its roof, spears leaning by the door",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 1,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.18,
+   "notes": "round 5: workplaces, market and feast landmarks"
+  },
+  {
+   "id": "workshop-0ec15a11",
+   "tier": "p0",
+   "group": "props",
+   "title": "workshop",
+   "prompt": "single isometric medieval village asset: one small timber workshop with a wide open front, a workbench and tools inside, shingle roof",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 64,
+    "height": 64,
+    "num_images": 2,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.36,
+   "notes": "round 5: workplaces, market and feast landmarks"
   },
   {
    "id": "bridge-x-8711bda1",

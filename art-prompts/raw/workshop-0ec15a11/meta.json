@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744834,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 38.91,
+ "request_id": "202b30c5-7b4a-4410-b9f8-d3d93e759052",
+ "outputs_retained_until": 1793831173,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 38.91
+ },
+ "id": "workshop-0ec15a11",
+ "prompt": "single isometric medieval village asset: one small timber workshop with a wide open front, a workbench and tools inside, shingle roof",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:27:15",
+ "seconds": 61.6
+}

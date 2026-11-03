@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744540,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 40.17,
+ "request_id": "c04a5e40-568a-4087-b129-9c8eaecdc916",
+ "outputs_retained_until": 1793830903,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 40.17
+ },
+ "id": "maypole-8880205c",
+ "prompt": "single isometric medieval village asset: one tall maypole with coloured ribbons and a flower garland on top, on a small patch of grass",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:22:20",
+ "seconds": 37.7
+}

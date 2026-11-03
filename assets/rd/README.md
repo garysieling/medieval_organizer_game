@@ -169,3 +169,40 @@ Screenshots: `evidence/rd-round4/`.
 Still pack art: no sprite on the map (the ground blocks keep the pack's geometry). Its figures (`player_s`,
 `priest_s`, `traveller_s`, rival stills) and buildings remain only as
 fallbacks when `assets/rd` is missing.
+
+## Workplaces, market, bridge and the small things (2026-11-03, $3.42)
+
+Round 5 (`props` group, notes "round 5"): every 64px piece uses
+`buildings/cottage1.png` as reference.
+
+- **Workplaces** (`buildings/{tavern,bakery,granary,watch-house,fold,
+  apiary,cheese-cellar,workshop}{1,2}.png`, `--flush-base`): shops used
+  to wear a random cottage. `WorkLook::of(BuildingKind)` now picks the
+  look at setup (`BSprite::Work(look, i)`): taverner/alewife/brewer get a
+  tavern, the baker a bakery, the shepherd's fold, the apiary, the cheese
+  cellar and the watch post their own, any other shop the open-fronted
+  workshop. The farmhouse and the smithy keep theirs. Each look snows
+  over in winter like the cottages. With no art it falls back to the cottage.
+- **Small things** (`bits/`): one `rd_pro__spritesheet` sliced into
+  `skep1..4@14`, `herb1..4@10`, `shroom1..4@9`, `grave1..6@16`,
+  `fire1..4@17` (the flames flicker between them) and `burnt1..2@8`. They
+  replace the coloured-rectangle skeps, herb tufts, mushrooms, gravestones,
+  flames and scorch marks; drawn at 1x by `draw_standing`.
+- **Market** (`bits/market-cross.png@30`, `maypole.png@46` with
+  `--flush-base --strip-slab`, `stall1..2@34`, `trader-stall@38`): the
+  cross with its notice board stands on the market tile, swapped for the
+  maypole on a feast day (`UiModel.feast`). On market day each seller who
+  reaches their pitch gets a stall between them and the square
+  (`Game::stalls_standing`, `UiModel.stalls`); the pedlar's pitch gets
+  the striped booth. Use `--gap 8` when slicing: the cross and its board are
+  separate blobs.
+- **Bridge** (`bits/bridge_y.png`, `bridge_x.png` = `--mirror`,
+  `@62x53`): bridge tiles used to draw as plain river. The generated
+  deck runs along y (bottom-left to top-right on screen); the view picks
+  the axis that crosses the water.
+
+`--focus` also takes `market`, `bridge` and a workplace look (`tavern`,
+`fold`, `apiary`, `cheese`, `watch`, `workshop`...). `GAME2_DUMP_FRAMES=N`
+plays N frames into the dumped day, so stalls and congregations show
+(e.g. `--dump-frame 110 --seed 7` + 100 frames: two stalls).
+Screenshots: `evidence/rd-round5/`.

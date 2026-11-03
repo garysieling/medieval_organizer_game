@@ -49,3 +49,8 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - Ground-block prompts use `ISO_GROUND`, never `ISO` (it draws a house on the block). Tile/building swaps need the whole set (roads/rivers carry their own grass).
 - Ground tiles are composed (`scripts/rd_compose_tiles.py`), not generated per piece. Walk prompts: describe appearance positively (negatives like "no helmet" backfire).
 - Animation dumps: `GAME2_DUMP_WALK=dx,dy game_ui --dump-frame N --focus player` walks the player 8 frames before the shot.
+
+## Render performance
+- Measure with `GAME2_BENCH=N game_ui --dump-frame T --zoom Z ...` (prints update/model/render ms and per-section render times); add `GAME2_BENCH_PAN=1` to slide the camera every frame (uncached ground).
+- Never `sprite.scaled(w, h).blit(..)` in a per-frame path: use `blit_resized` (same pixels, no copy, clipped). Anything drawn per map piece must go through `off_view` culling.
+- Generated buildings on a grass slab are exported with `rd_slice.py --flush-base`, or they float above their tile.

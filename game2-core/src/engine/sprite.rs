@@ -61,13 +61,32 @@ impl Sprite {
 
     /// Blit this sprite onto a buffer at (x,y) - top-left anchor
     pub fn blit(&self, buf: &mut Buffer, x: i32, y: i32) {
-        for sy in 0..self.height {
-            for sx in 0..self.width {
-                let idx = (sy * self.width + sx) * 4;
-                let a = self.pixels[idx + 3];
-                if a > 128 { // skip transparent
-                    buf.set(x + sx as i32, y + sy as i32,
-                        self.pixels[idx], self.pixels[idx+1], self.pixels[idx+2]);
+        self.blit_resized(buf, x, y, self.width, self.height);
+    }
+
+    /// Draw this sprite resized to w x h (nearest-neighbour) with its
+    /// top-left at (x, y), straight into the buffer: the same pixels as
+    /// `scaled(w, h).blit(..)` without building the resized copy, and
+    /// only the rows and columns that land on the buffer are visited
+    pub fn blit_resized(&self, buf: &mut Buffer, x: i32, y: i32, w: usize, h: usize) {
+        if w == 0 || h == 0 || self.width == 0 || self.height == 0 { return; }
+        let (x0, x1) = (x.max(0), (x + w as i32).min(buf.width as i32));
+        let (y0, y1) = (y.max(0), (y + h as i32).min(buf.height as i32));
+        if x0 >= x1 || y0 >= y1 { return; }
+        let same = w == self.width && h == self.height;
+        // source column for each destination column, worked out once
+        let cols: Vec<usize> = if same { vec![] } else { (x0..x1).map(|dx| (dx - x) as usize * self.width / w).collect() };
+        for dy in y0..y1 {
+            let sy = if same { (dy - y) as usize } else { (dy - y) as usize * self.height / h };
+            let srow = &self.pixels[sy * self.width * 4..(sy + 1) * self.width * 4];
+            let drow = &mut buf.pixels[dy as usize * buf.width * 4..(dy as usize + 1) * buf.width * 4];
+            for (i, dx) in (x0..x1).enumerate() {
+                let sx = if same { (dx - x) as usize } else { cols[i] };
+                let src = &srow[sx * 4..sx * 4 + 4];
+                if src[3] > 128 { // skip transparent
+                    let di = dx as usize * 4;
+                    drow[di..di + 3].copy_from_slice(&src[..3]);
+                    drow[di + 3] = 255;
                 }
             }
         }
@@ -85,17 +104,7 @@ impl Sprite {
 
     /// Blit scaled (nearest-neighbor)
     pub fn blit_scaled(&self, buf: &mut Buffer, x: i32, y: i32, scale: usize) {
-        for sy in 0..self.height {
-            for sx in 0..self.width {
-                let idx = (sy * self.width + sx) * 4;
-                if self.pixels[idx + 3] > 128 {
-                    let (r, g, b) = (self.pixels[idx], self.pixels[idx+1], self.pixels[idx+2]);
-                    for dy in 0..scale { for dx in 0..scale {
-                        buf.set(x + (sx*scale+dx) as i32, y + (sy*scale+dy) as i32, r, g, b);
-                    }}
-                }
-            }
-        }
+        self.blit_resized(buf, x, y, self.width * scale, self.height * scale);
     }
 
     /// Extract a sub-sprite from a spritesheet (for animated frames)
@@ -130,6 +139,33 @@ impl Sprite {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_blit_resized_matches_scaling_then_blitting() {
+        // blit_resized replaced scaled(w, h).blit(..) on every draw (it was
+        // most of the frame); it must put down exactly the same pixels,
+        // clipped at every edge
+        let (sw, sh) = (7, 5);
+        let pixels: Vec<u8> = (0..sw * sh).flat_map(|i| {
+            let i = i as u8;
+            [i.wrapping_mul(37), i.wrapping_mul(91), i.wrapping_mul(13), if i % 3 == 0 { 0 } else { 255 }]
+        }).collect();
+        let s = Sprite { width: sw, height: sh, pixels };
+        for (w, h) in [(7, 5), (14, 10), (3, 2), (11, 9), (1, 1)] {
+            for (x, y) in [(0, 0), (5, 4), (-4, -3), (16, 12), (-20, 0)] {
+                let mut a = Buffer::new(20, 15);
+                let mut b = Buffer::new(20, 15);
+                // the old way: a resized copy, then a pixel-by-pixel set()
+                let r = s.scaled(w, h);
+                for sy in 0..r.height { for sx in 0..r.width {
+                    let i = (sy * r.width + sx) * 4;
+                    if r.pixels[i + 3] > 128 { a.set(x + sx as i32, y + sy as i32, r.pixels[i], r.pixels[i + 1], r.pixels[i + 2]); }
+                }}
+                s.blit_resized(&mut b, x, y, w, h);
+                assert_eq!(a.pixels, b.pixels, "{}x{} at ({}, {})", w, h, x, y);
+            }
+        }
+    }
 
     #[test]
     fn test_scaled_resizes_and_keeps_corners() {

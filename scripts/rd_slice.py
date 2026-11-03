@@ -165,6 +165,41 @@ def fit_height(im, h):
     return r
 
 
+def flush_base(im, max_rows=6):
+    """Cut the earth edge off a building's grass slab, so the slab's grass
+    is the sprite's bottom: the game stands a building's bottom on the
+    tile's front corner, and with the edge left on, the grass (and the
+    house) floats that many pixels above the ground.
+
+    The edge is as thick all the way round, so it's measured once - the
+    usual distance from a column's lowest pixel up to its first green one
+    - and that many rows come off the bottom of every column (a dirt path
+    or a corner post on the slab gets the same cut). A sprite where most
+    columns find no green in reach has no slab (a stone foundation): it's
+    left alone. Returns the re-cropped sprite."""
+    im = im.copy()
+    px = im.load()
+    w, h = im.size
+    bottoms, cuts = {}, []
+    for x in range(w):
+        ys = [y for y in range(h) if px[x, y][3] >= 128]
+        if not ys:
+            continue
+        bottoms[x] = ys[-1]
+        for k in range(max_rows + 1):
+            r, g, b, a = px[x, ys[-1] - k] if ys[-1] - k >= 0 else (0, 0, 0, 0)
+            if a >= 128 and g > r and g >= b and g > 60:
+                cuts.append(k)
+                break
+    if len(cuts) < len(bottoms) / 2:
+        return im
+    t = sorted(cuts)[len(cuts) // 2]
+    for x, bottom in bottoms.items():
+        for y in range(max(0, bottom - t + 1), bottom + 1):
+            px[x, y] = (0, 0, 0, 0)
+    return im.crop(im.getbbox())
+
+
 def preview(im, cells, path, scale=4):
     big = Image.new("RGBA", im.size, (60, 70, 60, 255))
     big.alpha_composite(im)
@@ -189,6 +224,8 @@ def main():
     ap.add_argument("--tol", type=int, default=24, help="background colour tolerance per channel")
     ap.add_argument("--min-px", type=int, default=12, help="ignore specks smaller than this")
     ap.add_argument("--gap", type=int, default=1, help="merge blobs this close together")
+    ap.add_argument("--flush-base", action="store_true",
+                    help="cut a building's grass-slab edge so it stands flush on its tile")
     ap.add_argument("--keep-clipped", action="store_true",
                     help="keep sprites that touch the sheet edge")
     ap.add_argument("--half", action="store_true",
@@ -219,6 +256,8 @@ def main():
                 sys.exit(f"no cell {cell} (see the preview for names)")
             spr = im.crop(cells[cell])
             name, _, height = name.partition("@")
+            if args.flush_base:
+                spr = flush_base(spr)
             if args.half:
                 spr = halve(spr)
             if "x" in height:

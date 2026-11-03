@@ -106,6 +106,14 @@ fn visible_tile_bounds(cam_x: i32, cam_y: i32, zoom: f32, width: usize, height: 
     (x0, y0, x1, y1)
 }
 
+/// Can nothing standing on screen point (sx, sy) reach the map view? A
+/// piece draws up from its tile (tall towers ~260px at zoom 1), a little
+/// below it, and at most ~150px to either side
+fn off_view(sx: i32, sy: i32, zoom: f32) -> bool {
+    let z = |v: f32| (v * zoom).round() as i32;
+    sx < -z(150.0) || sx > MAP_W as i32 + z(150.0) || sy < -z(40.0) || sy > H as i32 + z(300.0)
+}
+
 /// Draw `sprite` with its top-left at (x, y), scaled by `scale`
 fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     if (scale - 1.0).abs() < 0.01 {
@@ -114,7 +122,7 @@ fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
         sprite.blit_scaled(buf, x, y, 2);
     } else {
         let (w, h) = ((sprite.width as f32 * scale).round().max(1.0) as usize, (sprite.height as f32 * scale).round().max(1.0) as usize);
-        sprite.scaled(w, h).blit(buf, x, y);
+        sprite.blit_resized(buf, x, y, w, h);
     }
 }
 
@@ -1289,7 +1297,7 @@ fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32
 fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let w = (2.0 * TILE_W as f32 * zoom).round() as usize;
     let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
-    s.scaled(w, h).blit(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32);
+    s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }
 
 /// Draw a piece of the town wall standing on the tile centred on (sx, sy):
@@ -1300,7 +1308,7 @@ fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
     let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
     let (w, h) = ((s.width as f32 * kx).round() as usize, (s.height as f32 * ky).round().max(1.0) as usize);
-    s.scaled(w, h).blit(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32);
+    s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }
 
 /// Where a windmill's sails turn: on the front of its tower, just below the
@@ -9208,6 +9216,7 @@ impl View {
         let art = &self.art;
         let (tick, cam_x, cam_y, zoom) = (m.tick, self.cam_x, self.cam_y, self.zoom);
         self.winter.set(season_tiles(m.season) == 2);
+        let mut prof = Prof::new();
 
         let mut buf = Buffer::new(W, H);
         buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
@@ -9235,6 +9244,7 @@ impl View {
         }
         self.last_zoom.set(zoom);
         self.last_camera.set(camera);
+        prof.mark("ground");
 
         // everything standing on the map, people included, drawn back to
         // front in one painter's-order pass: whatever is nearer covers what
@@ -9379,6 +9389,9 @@ impl View {
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
         let draw_piece = |buf: &mut Buffer, &(bx, by, piece): &(f32, f32, Piece)| {
             let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
+            // the whole map's trees, rocks and walls are in this list: skip
+            // what can't reach the view (most of it when zoomed in)
+            if off_view(sx, sy, zoom) { return; }
             match piece {
                 Piece::Prop(sprite) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom); },
                 Piece::Herb => herb_tuft(buf, sx, sy, zoom),
@@ -9397,6 +9410,7 @@ impl View {
             }
         };
 
+        prof.mark("scene-setup");
         // people share the pass, along with the windmill and the chimney
         // smoke, which stand where their tower and houses stand
         let mut people: Vec<(f32, f32, Who)> = vec![];
@@ -9422,6 +9436,10 @@ impl View {
         let mut standing = standing.iter().peekable();
         for &(px, py, who) in &people {
             while let Some(st) = standing.next_if(|st| st.0 + st.1 <= px + py) { draw_piece(&mut buf, st); }
+            {
+                let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                if off_view(sx, sy, zoom) { continue; }
+            }
             match who {
                 // windmill: the tower on its tile, its sails turning on the
                 // tower's face (frame cycles every 10 ticks)
@@ -9567,6 +9585,7 @@ impl View {
             }
         }
         for st in standing { draw_piece(&mut buf, st); }
+        prof.mark("sprites");
 
         // gulls wheel over the open sea
         if let Some(gull) = &art.gull {
@@ -9593,6 +9612,7 @@ impl View {
             if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
         }
 
+        prof.mark("gulls+labels");
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
         draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
@@ -9743,8 +9763,10 @@ impl View {
         }
 
 
+        prof.mark("ui-panel");
         // weather over the map: overcast, falling rain or snow, the rainbow after rain
         draw_weather(&mut buf, m.precip, m.frame as u64, m.rainbow_from.map(|f| (m.frame - f) as u64));
+        prof.mark("weather");
 
         // minimap (top-right of map area): the map in miniature, same projection
         // and colours, with villagers, the player and the visible area marked
@@ -9791,6 +9813,7 @@ impl View {
             buf.rect(x1, y0, 1, y1 - y0 + 1, 255, 255, 255);
         }
 
+        prof.mark("minimap");
         // speech bubbles over whoever is speaking
         for bv in &m.bubbles {
             let (text, thought) = (bv.text.as_str(), bv.thought);
@@ -9867,11 +9890,10 @@ impl View {
         let tw = (TILE_W as f32 * zoom) as i32;
         let th = (TILE_H as f32 * zoom) as i32;
         // the sea is level with the land, or the shore blocks' sides showed
-        // over it like a strip of grass. Blocks are scaled once per pass,
-        // not once per tile.
+        // over it like a strip of grass. Blocks resize as they blit (no
+        // scaled copies).
         let set = &self.art.tiles[season_tiles(season)];
         let faces = &self.art.faces[season_tiles(season)];
-        let mut scaled: Vec<(*const Sprite, Sprite)> = vec![];
         let (w_t, h_t) = (m.map.width as i32, m.map.height as i32);
         let (x0, y0, x1, y1) = visible_tile_bounds(cam_x, cam_y, zoom, buf.width, buf.height, w_t, h_t);
         if x0 > x1 || y0 > y1 { return; }
@@ -9887,9 +9909,7 @@ impl View {
                 match set.block(&m.map, tx, ty) {
                     Some(block) => {
                         let (w, h, x, y) = block_rect(block, sx, sy, zoom);
-                        let key = block as *const Sprite;
-                        if !scaled.iter().any(|(k, _)| *k == key) { scaled.push((key, block.scaled(w, h))); }
-                        scaled.iter().find(|(k, _)| *k == key).unwrap().1.blit(buf, x, y);
+                        block.blit_resized(buf, x, y, w, h);
                     }
                     None => {
                         let (r, g, b) = tile_colour(tile, season);
@@ -13588,6 +13608,64 @@ pub fn run_headless(art: Art, target_tick: u64, out: Option<String>, zoom: f32, 
     run_headless_focus(art, target_tick, out, zoom, cam, weather, seed, None)
 }
 
+thread_local! {
+    /// Per-section render time, summed over bench frames (bench_frames)
+    static PROF: std::cell::RefCell<Vec<(&'static str, f64)>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Whether render's section timers record (only while bench_frames runs)
+static PROF_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Marks section boundaries in render; only bench_frames reads them
+struct Prof(std::time::Instant);
+impl Prof {
+    fn new() -> Prof { Prof(std::time::Instant::now()) }
+    fn mark(&mut self, name: &'static str) {
+        if !PROF_ON.load(std::sync::atomic::Ordering::Relaxed) { return; }
+        let now = std::time::Instant::now();
+        let ms = (now - self.0).as_secs_f64() * 1e3;
+        self.0 = now;
+        PROF.with(|p| {
+            let mut p = p.borrow_mut();
+            match p.iter_mut().find(|e| e.0 == name) { Some(e) => e.1 += ms, None => p.push((name, ms)) }
+        });
+    }
+}
+
+/// Time `n` frames of what the window does each frame: update the game,
+/// build the model, render it. Prints the average and worst per stage.
+pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
+    // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
+    // (the ground can't use its cache then)
+    let pan = std::env::var("GAME2_BENCH_PAN").is_ok();
+    PROF_ON.store(true, std::sync::atomic::Ordering::Relaxed);
+    use std::time::Instant;
+    let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
+    for _ in 0..n.max(1) {
+        if pan { view.cam_x += 3; view.cam_y += 1; }
+        let t0 = Instant::now();
+        game.update();
+        let t1 = Instant::now();
+        let m = game.ui_model();
+        let t2 = Instant::now();
+        let buf = view.render(&m, (-1, -1));
+        let t3 = Instant::now();
+        std::hint::black_box(&buf);
+        tu.push((t1 - t0).as_secs_f64() * 1e3);
+        tm.push((t2 - t1).as_secs_f64() * 1e3);
+        tr.push((t3 - t2).as_secs_f64() * 1e3);
+    }
+    PROF.with(|p| {
+        let p = p.borrow();
+        let line: Vec<String> = p.iter().map(|(k, v)| format!("{} {:.1}", k, v / n.max(1) as f64)).collect();
+        println!("render sections (ms/frame): {}", line.join(", "));
+    });
+    let stat = |v: &Vec<f64>| (v.iter().sum::<f64>() / v.len() as f64, v.iter().cloned().fold(0.0, f64::max));
+    let ((au, wu), (am, wm), (ar, wr)) = (stat(&tu), stat(&tm), stat(&tr));
+    println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
+        n, au, wu, am, wm, ar, wr, au + am + ar);
+}
+
 /// The camera offset that puts map point (tx, ty) at the zoom pivot (the
 /// view centre), so it stays centred at any zoom
 pub fn cam_centred_on(tx: f32, ty: f32) -> (i32, i32) {
@@ -13645,6 +13723,10 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
             _ => None,
         };
         game.rainbow_from = (w == "rainbow").then(|| game.frame_n.saturating_sub(100));
+    }
+    // GAME2_BENCH=N: time N more frames (sim, model, render) and report
+    if let Some(n) = std::env::var("GAME2_BENCH").ok().and_then(|v| v.parse::<u32>().ok()) {
+        bench_frames(&mut game, &mut view, n);
     }
     let buf = view.render(&game.ui_model(), (-1, -1)); // cursor off-screen: no hover
     let path = out.unwrap_or_else(|| format!("evidence/frame-check-{}.bmp", target_tick));
@@ -14039,6 +14121,20 @@ mod dog_sprite_tests {
         let ws = art.villager_walks[0].as_ref().unwrap();
         assert_eq!((ws.frames.len(), ws.frames[0].len()), (4, 4));
         assert!((28..=40).contains(&(ws.feet - ws.head)), "a grown-up is ~35px tall, not {}", ws.feet - ws.head);
+    }
+
+    #[test]
+    fn test_cottages_stand_flush_on_their_tile() {
+        // the generated cottages came on a grass slab with an earth edge;
+        // with the edge on, the slab (and house) floated above the ground.
+        // Exported with rd_slice --flush-base, a slab's bottom row is its
+        // grass (the stone-foundation cottage has no slab: left as it was)
+        let art = Art::load_fs("../assets", 0);
+        let green_bottom = art.houses.iter().flatten().filter(|s| {
+            let y = s.height - 1;
+            (0..s.width).any(|x| { let p = &s.pixels[(y * s.width + x) * 4..][..4]; p[3] > 128 && p[1] > p[0] && p[1] >= p[2] })
+        }).count();
+        assert!(green_bottom >= 8, "only {} of {} cottages end in grass", green_bottom, art.houses.len());
     }
 
     #[test]

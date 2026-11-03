@@ -1,0 +1,27 @@
+{
+ "created_at": 1793734172,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 43.76,
+ "request_id": "59716aef-b40a-4dea-8b38-66e0cff22fcb",
+ "outputs_retained_until": 1793820526,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 43.76
+ },
+ "id": "windmill-sails-19eb398c",
+ "prompt": "four wooden windmill sails in a cross, lattice frames with cloth, seen straight on, nothing else",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-03T14:29:32",
+ "seconds": 46.6
+}

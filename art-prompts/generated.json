@@ -14,6 +14,9 @@
   "ground-set-soil-4fbbfde4",
   "ground-set-water-dc517000",
   "ground-set-wheat-0bdc40c3",
+  "guildhall-83a490a8",
+  "rival-house-a2666135",
+  "rival-woodhouse-88ad111f",
   "scale-animals-128-fee3e3fa",
   "scale-cottage-a42c70c2",
   "scale-player-walk-48-8c625b7d",
@@ -21,6 +24,9 @@
   "scale-tile-grass-905df9f7",
   "sheet-farm-animals-a628136d",
   "sheet-stones-4512d275",
+  "sheet-tufts-9ff12838",
+  "sheet-tufts-winter-e50a8bd9",
+  "smithy-535da115",
   "tree-broadleaf-5ecb6ac6",
   "tree-conifer-32ce40fb",
   "tree-winter-bare-06595116",
@@ -39,6 +45,14 @@
   "walk4-peasant-m-90538b5c",
   "walk4-priest-6b8e0e6e",
   "walk4-princess-f-8354ea8d",
-  "walk4-worker-m-e2bc3937"
+  "walk4-rival-man-f1ee6971",
+  "walk4-rival-queen-ac8bf955",
+  "walk4-rival-worker-15e6370e",
+  "walk4-traveller-eac563ed",
+  "walk4-traveller-horse-e8bb29cc",
+  "walk4-worker-m-e2bc3937",
+  "windmill-body-c34719e9",
+  "windmill-sails-19eb398c",
+  "windmill-tall-2af41b40"
  ]
 }

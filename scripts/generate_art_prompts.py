@@ -301,6 +301,49 @@ add("props", "sheet-stones",
     style="rd_pro__spritesheet", w=256, h=256, remove_bg=False,
     notes="slice the boulders as stones, the flat scatters as stone_grounds")
 
+# Round 4: the rest of the pack art - ground tufts, the town's two trade
+# halls, the windmill, the rival village and the traveller.
+for slug, subj in [
+    ("sheet-tufts", "sprite sheet of small grass tufts, wildflower clumps, clover, ferns and tiny "
+                    "green bushes, isometric view, many variations"),
+    ("sheet-tufts-winter", "sprite sheet of small snow-covered grass tufts, snowy little shrubs, "
+                           "dry reeds and dead stalks poking out of snow, isometric view, many variations"),
+]:
+    add("props", slug, subj, style="rd_pro__spritesheet", w=256, h=256, remove_bg=False,
+        notes="round 4: the ground details sprinkled on open grass (Art.details)")
+for slug, subj, n in [
+    ("smithy", "one small stone blacksmith forge with a timber roof, open front with an anvil, "
+               "chimney with smoke", 3),
+    ("guildhall", "one timber-frame medieval guildhall, two storeys, jettied upper floor, "
+                  "tiled roof, wide door", 3),
+    ("windmill-body", "one round stone windmill tower with a conical wooden cap, small door, "
+                      "no sails, no blades", 2),
+    ("rival-house", "one small cottage of dark tarred timber with a red tiled roof and red shutters", 2),
+    ("rival-woodhouse", "one log cabin woodshed with a red roof, stacked firewood beside it", 2),
+]:
+    add("props", slug, f"{ISO}: {subj}", w=64, h=64, n=n, ref=PROP_REF,
+        notes="round 4 buildings in the cottages' look")
+# at 64px the tower came out cottage-sized; a mill should stand over the roofs
+add("props", "windmill-tall", f"{ISO}: one tall round stone windmill tower with a conical wooden cap, "
+    "small door, no sails, no blades", w=96, h=96, n=2, ref=PROP_REF,
+    notes="round 4: the windmill tower at 96px so it stands taller than the cottages")
+add("props", "windmill-sails",
+    "four wooden windmill sails in a cross, lattice frames with cloth, seen straight on, "
+    "nothing else", style="rd_pro__default", w=64, h=64, n=2,
+    notes="round 4: one still cross of sails, rotated in rd_slice for the turning frames")
+for slug, subj in [
+    ("rival-man", "male villager with tan skin and short black hair, deep red wool tunic, grey trousers"),
+    ("rival-worker", "female labourer with fair skin and a red headscarf, brown apron over a red "
+                     "dress, carrying a wooden mallet"),
+    ("rival-queen", "proud village headwoman with dark skin, gold circlet, long crimson gown with "
+                    "a fur collar"),
+    ("traveller", "courier riding a brown horse, green cloak and hood, leather satchel"),
+    ("traveller-horse", "brown saddled horse trotting, with a rider in a green cloak sitting on its back"),
+]:
+    add("anim/walk", f"walk4-{slug}", subj + ", medieval",
+        style="rd_animation__four_angle_walking", w=48, h=48, sheet=True,
+        notes="round 4: the rival village's folk and the traveller")
+
 # ---------------------------------------------------------------------------
 # P0: buildings - every BuildingKind the game places, plus shop per vocation.
 

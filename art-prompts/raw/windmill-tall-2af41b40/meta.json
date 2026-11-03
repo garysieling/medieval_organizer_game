@@ -1,0 +1,28 @@
+{
+ "created_at": 1793737877,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 42.33,
+ "request_id": "594bdf75-cac4-464c-ab0c-e9b8a05a410b",
+ "outputs_retained_until": 1793824184,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 42.33
+ },
+ "id": "windmill-tall-2af41b40",
+ "prompt": "single isometric medieval village asset: one tall round stone windmill tower with a conical wooden cap, small door, no sails, no blades",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 96,
+  "height": 96,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T15:31:18",
+ "seconds": 95.2
+}

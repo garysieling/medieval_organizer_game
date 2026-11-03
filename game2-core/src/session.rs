@@ -7477,6 +7477,9 @@ impl Game {
                 continue;
             }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
+            // a seat's own villager answers only its commands - never a
+            // routine walk sent behind its back
+            if self.seats.iter().any(|s| s.player == v) { continue; }
             // last night's cup still has them - they sleep it off
             if self.world.get_component::<villager::Drunk>(v)
                 .map(|d| tick < d.until).unwrap_or(false) { self.plan_rest(v, tick); continue; }

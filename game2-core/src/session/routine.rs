@@ -169,7 +169,7 @@ impl Game {
     /// as the crow flies) is at most `steps` long
     fn go_keep_within(&mut self, v: Entity, r: Routine, steps: usize) -> bool {
         if !self.go_keep(v, r, steps as i32) { return false; }
-        let long = self.travels.iter().rev().find(|t| t.who == v).map(|t| t.path.len() > steps).unwrap_or(false);
+        let long = self.travels.iter().rev().find(|t| t.who == v).map(|t| t.path.len().saturating_sub(1) > steps).unwrap_or(false);
         if long {
             self.travels.retain(|t| t.who != v);
             if let Some(rm) = self.world.get_component_mut::<Routine>(v) { rm.mode = Mode::Resting; rm.spot = Spot::Here; }
@@ -213,7 +213,8 @@ impl Game {
         if roll < work {
             // market day: a crafter with something made takes a stall
             if is_market_day(tick) && rng.below(2) == 0 && self.stall_for(v, tick) { return DayPlan::Sell; }
-            self.plan_bench(v, tick);
+            // the input/bench branches in livelihood_tick start exactly one
+            // walk for Work - don't start a second one here
             return DayPlan::Work;
         }
         if roll < work + wander && self.plan_stroll(v, tick, rng) { return DayPlan::Free; }

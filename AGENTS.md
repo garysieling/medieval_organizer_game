@@ -2,7 +2,7 @@
 
 ## Layout
 - Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs render. The split of `session.rs` is in progress there; put new code in its target layer.
-- Session tests live in `game2-core/src/session/tests/<subsystem>.rs` (start with `use crate::session::*;`). Add new ones to the matching file, or add a file and list it in `tests/mod.rs`. Don't put them back in `session.rs`.
+- Session tests live in `game2-core/src/session/tests/<subsystem>.rs` (start with `use crate::session::*;` when the file uses session items; it reaches private ones too). Add new ones to the matching file, or add a file and list it in `tests/mod.rs`. Don't put them back in `session.rs`.
 
 ## Build & Test Instructions
 

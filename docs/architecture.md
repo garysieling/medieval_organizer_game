@@ -74,8 +74,10 @@ Later, once these seams hold, the layers get promoted to crates
 
 ## The order we're taking it in
 
-Each step is its own PR and moves code without changing behaviour. The test
-list must be identical before and after (`cargo test -p game2-core --lib -- --list`).
+Each step is its own PR and moves code without changing behaviour. Every test
+on main must still be listed afterwards (`cargo test -p game2-core --lib -- --list`,
+module paths aside). New tests the step adds on purpose (layering guards, perf
+stats) are fine: name them in the PR.
 
 1. ~~Tests out of `session.rs` into `session/tests/`.~~ (#457)
 2. ~~Render layer: `View`, `Art`, `TileSet`, draw helpers, HUD and the bench

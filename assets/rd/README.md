@@ -120,7 +120,10 @@ pack's block scale (`TileSet.trees_k`, `Art.stones_k`, `Art.castle_rd`).
 - **Stones** (`stones/stone1..12` boulders and piles, `ground1..6` flat
   scatters) from one `rd_pro__spritesheet` ($0.18). The heavily mossy
   boulders in the sheet (rows 2-3) are left out: they read as bushes on
-  rock and snow.
+  rock and snow. The first export missed the grass slab under each piece
+  (visible on snow and rock); `rd_slice.py --strip-fringe` takes it off
+  without `--strip-slab`'s bottom-only, one-piece crop, which would eat
+  most of a flat scatter's separate stones.
 - **Town wall** (`castle/`): one wall block, gatehouse and postern
   (the wall call's second image has a door), exported again with `--mirror`
   for the other axis (`_x` / `_y`), and 4 towers (one per map, like the

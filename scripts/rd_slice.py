@@ -243,6 +243,27 @@ def strip_slab(im, frac=0.4):
     return largest_piece(im)
 
 
+def strip_fringe(im):
+    """Take the same grass/earth/path colours off a loose scatter of pieces
+    (a boulder pile, a handful of flat stones) that strip_slab takes off a
+    single standing one. strip_slab only looks at the bottom of the sprite
+    and keeps one connected piece - wrong here, since a flat scatter's
+    stones sit low in the frame as several separate blobs and the slab
+    shows between them, not just underneath. This scans the whole sprite
+    and keeps every piece, so each stone in the scatter survives."""
+    im = im.copy()
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            grass = g > r + 8 and g > b + 4
+            ground = b < 0.7 * max(r, g) and g >= 0.72 * r and max(r, g) > 30
+            if a and (grass or ground):
+                px[x, y] = (0, 0, 0, 0)
+    return im
+
+
 def largest_piece(im):
     px = im.load()
     w, h = im.size
@@ -302,6 +323,9 @@ def main():
                     help="remove the patch of ground a tree or prop stands on")
     ap.add_argument("--strip-slab", action="store_true",
                     help="with --flush-base: remove a stone piece's grass slab too")
+    ap.add_argument("--strip-fringe", action="store_true",
+                    help="remove grass/earth colour from a scatter of loose pieces "
+                         "(keeps every piece, unlike --strip-slab)")
     ap.add_argument("--mirror", action="store_true",
                     help="flip left-right (the other wall axis from one generated piece)")
     ap.add_argument("--keep-clipped", action="store_true",
@@ -340,6 +364,8 @@ def main():
                 spr = strip_base(spr)
             if args.strip_slab:
                 spr = strip_slab(spr)
+            if args.strip_fringe:
+                spr = strip_fringe(spr)
             if args.mirror:
                 spr = spr.transpose(Image.FLIP_LEFT_RIGHT)
             if args.half:

@@ -8374,8 +8374,8 @@ impl Game {
         let msg = match act {
             CtxAct::Work => {
                 let pe = self.seats[seat].player;
-                let (voc, workplace) = self.world.get_component::<Craft>(pe)
-                    .map(|c| (Some(c.vocation), c.workplace)).unwrap_or((None, None));
+                let (voc, workplace, tasked_by) = self.world.get_component::<Craft>(pe)
+                    .map(|c| (Some(c.vocation), c.workplace, c.tasked_by)).unwrap_or((None, None, None));
                 // nothing comes of a day without the makings: say what's
                 // short and how to come by it, not just "nothing yet"
                 let missing: Vec<&'static str> = voc.map(|v| vocation::inputs(v).iter().copied()
@@ -8402,6 +8402,15 @@ impl Game {
                     let stocked_before = workplace
                         .and_then(|b| self.world.get_component::<Building>(b))
                         .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+                    // a tasked junior's share goes through the senior's shop
+                    // and comes back as pay - neither is lost work
+                    let senior_shop = tasked_by
+                        .and_then(|s| self.world.get_component::<Craft>(s))
+                        .and_then(|c| c.workplace);
+                    let senior_before = senior_shop
+                        .and_then(|b| self.world.get_component::<Building>(b))
+                        .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
+                    let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
                     let (made, up) = livelihood::work_day(&mut self.world, pe, tick);
                     match up {
                         Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
@@ -8411,12 +8420,22 @@ impl Game {
                             let stocked = workplace
                                 .and_then(|b| self.world.get_component::<Building>(b))
                                 .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
+                            let senior = senior_shop
+                                .and_then(|b| self.world.get_component::<Building>(b))
+                                .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32;
+                            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0) - gold_before;
                             let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
                                 .map(|b| b.name.as_str()).unwrap_or("the shop");
                             let mut parts: Vec<String> = vec![];
                             if stocked > 0 { parts.push(format!("{} stocked at {}", stocked, shop)); }
                             if held > 0 { parts.push(format!("{} in your satchel", held)); }
-                            let lost = made as i32 - stocked - held;
+                            if senior > 0 {
+                                let sname = tasked_by.and_then(|s| self.villagers.iter().position(|v| *v == s))
+                                    .map(|i| vill_name(i)).unwrap_or("your senior");
+                                parts.push(format!("{} through {}'s shop", senior, sname));
+                            }
+                            if gold > 0.0 { parts.push(format!("{:.0}g earned", gold)); }
+                            let lost = made as i32 - stocked - held - senior;
                             if lost > 0 { parts.push(format!("{} spoiled - no room for it", lost)); }
                             let went = if parts.is_empty() { String::new() } else { format!(" - {}", parts.join(", ")) };
                             format!("You work - {:.0} {} made{}.", made, what, went)

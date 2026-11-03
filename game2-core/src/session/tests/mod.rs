@@ -49,6 +49,7 @@ mod illness;
 mod ink_boiler;
 mod inspector;
 mod key;
+mod kpi;
 mod label;
 mod layering;
 mod land;

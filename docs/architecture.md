@@ -64,7 +64,8 @@ Rules:
 | World generation | `session/setup.rs` | `Game::new_seeded` |
 | Seats & commands | `session/seat.rs` | `Seat`, `Command`, `command_at`, ctx actions |
 | Public views | `session/model.rs`, `session/view_model.rs`, `session/net.rs` | `UiModel`, `AgentObs` |
-| Omniscient | `session/probe.rs`, `session/kpi.rs` | probe + secret/public KPIs |
+| KPIs | `session/kpi/public.rs`, `session/kpi/secret.rs` | public: from a view only; secret: `Game::secret_kpis` |
+| Omniscient | `session/probe.rs` | `ProbeView` for tests and the probe socket |
 | Sim subsystems | `session/sim/<subsystem>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
 | Rare events | `session/events/` | split by category |
 | Pure rules | `game/`, `sim/` | ECS components & systems, no `Game` |
@@ -89,8 +90,10 @@ stats) are fine: name them in the PR.
    Replays, multiplayer lockstep and golden-frame tests all need this fixed.
 4. World generation (`new_seeded`) into `setup.rs`.
 5. Seats, commands, the agent API and `ui_model_at` into their own files.
-6. Public vs secret KPIs (`kpi.rs`), plus a test that the agent/player views
-   carry nothing from the probe.
+6. ~~Public vs secret KPIs: `session/kpi/{public,secret}.rs`.~~ `public_kpis(&UiModel)` /
+   `agent_kpis(&AgentObs)` can't see the sim by construction (layering test). `Game::secret_kpis`
+   is the old `telemetry()`. This closed two leaks: `UiModel.debug_lines` carried the secret
+   gauges to every client, and an agent's `Welcome` carried seat 0's frame.
 7. Sim tick families into `session/sim/`, a few per PR.
 8. `events.rs` split by category.
 

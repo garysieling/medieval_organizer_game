@@ -63,7 +63,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
     print!("{}", summary.table(25));
     if let Some(path) = std::env::var("GAME2_BENCH_JSON").ok().filter(|p| !p.is_empty()) {
         let json = serde_json::json!({
-            "frames": n, "ticks": [start_tick, game.tick], "zoom": view.zoom, "pan": pan, "zooming": zooming,
+            "frames": frames, "ticks": [start_tick, game.tick], "zoom": view.zoom, "pan": pan, "zooming": zooming,
             "stages": [su, sm, sr],
             "sections": summary.sections.iter().map(|s| {
                 let mut v = serde_json::to_value(s).unwrap_or_default();

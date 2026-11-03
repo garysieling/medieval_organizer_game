@@ -2348,7 +2348,9 @@ impl Game {
     /// One frame of game time: the sim ticks every few frames, and between
     /// ticks villagers keep strolling
     pub fn update(&mut self) {
-        crate::timed!("total.frame", self.advance_frame());
+        // the whole update, poses and facing included, so it matches the bench's update stage
+        let _frame = crate::infra::perf::scope("total.frame");
+        self.advance_frame();
         // after every move this frame (the player's command, the sim, the
         // strolling), so the model's poses match its positions
         self.track_poses();

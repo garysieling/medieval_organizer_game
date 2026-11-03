@@ -1,5 +1,10 @@
 {
  "done": [
+  "castle-gatehouse-254f6e79",
+  "castle-postern-fad4bf21",
+  "castle-tower-a0345b4d",
+  "castle-wall-run-90fc13ee",
+  "church-keep-d1bef8ec",
   "cottages-plaster-e17812fc",
   "cottages-timber-6883e4c7",
   "ground-set-dirt-0ff45e1d",
@@ -15,6 +20,11 @@
   "scale-tile-grass-0b26af48",
   "scale-tile-grass-905df9f7",
   "sheet-farm-animals-a628136d",
+  "sheet-stones-4512d275",
+  "tree-broadleaf-5ecb6ac6",
+  "tree-conifer-32ce40fb",
+  "tree-winter-bare-06595116",
+  "tree-winter-fir-3f3e275a",
   "walk4-elder-f-22c11ed8",
   "walk4-elder-m-8e48b326",
   "walk4-guard-halberd-4ed709fd",

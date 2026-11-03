@@ -1,0 +1,28 @@
+{
+ "created_at": 1793721133,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 48.08,
+ "request_id": "e02d3858-ea8e-45be-9bee-0e8700de15eb",
+ "outputs_retained_until": 1793807417,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 48.08
+ },
+ "id": "tree-winter-bare-06595116",
+ "prompt": "single isometric medieval village asset: one bare leafless winter tree with snow on its branches, standing alone, no ground",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T10:52:13",
+ "seconds": 115.7
+}

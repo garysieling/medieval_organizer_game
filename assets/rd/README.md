@@ -104,5 +104,34 @@ soldier, "bareheaded ... no helmet" a bald man.
   water) composed like the green set. Blocks with crops or snow above the
   face are measured at their widest row and taken as 2:1.
 
-Still pack art: windmill, church tower, walls, guildhall/blacksmith,
-rival town, traveller, trees, stones.
+Still pack art after this pass: windmill, church tower, walls,
+guildhall/blacksmith, rival town, traveller, trees, stones.
+
+## Props and the town wall (2026-11-03, $4.32)
+
+All `rd_pro__isometric` 64px with `buildings/cottage1.png` as
+`reference_images` (the `props` group in generate_art_prompts.py), except
+the stones sheet. Drawn at 1x like the cottages and figures, not at the
+pack's block scale (`TileSet.trees_k`, `Art.stones_k`, `Art.castle_rd`).
+
+- **Trees** (`trees/tree1..8`: 4 broadleaf, 4 fir; `trees/winter/tree1..4`:
+  2 bare, 2 snowy fir). Autumn is the green set recoloured, as before. The
+  firs came on a little dirt patch: `rd_slice.py --strip-base` takes it off.
+- **Stones** (`stones/stone1..12` boulders and piles, `ground1..6` flat
+  scatters) from one `rd_pro__spritesheet` ($0.18). The heavily mossy
+  boulders in the sheet (rows 2-3) are left out: they read as bushes on
+  rock and snow.
+- **Town wall** (`castle/`): one wall block, gatehouse and postern
+  (the wall call's second image has a door), exported again with `--mirror`
+  for the other axis (`_x` / `_y`), and 4 towers (one per map, like the
+  pack's). `--flush-base --strip-slab` takes off their grass slab so they
+  stand on snow and rock without a green fringe; they draw at their own
+  size centred on the tile (`draw_standing`), so a run of blocks joins up.
+  The separate `castle-postern` call wasn't used (a different stone).
+- **Church** (`buildings/church1..2`): drawn like the cottages
+  (`draw_on_tile`, slab kept).
+
+Screenshots: `evidence/rd-props/` (before | after). `--focus` also takes
+`tree`, `stone`, `wall`, `gate` and `church` now.
+
+Still pack art: windmill, guildhall/blacksmith, rival town, traveller.

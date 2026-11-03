@@ -1,0 +1,28 @@
+{
+ "created_at": 1793721399,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 47.18,
+ "request_id": "4909c704-cfdc-4543-8c68-d0a30e221440",
+ "outputs_retained_until": 1793807748,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 47.18
+ },
+ "id": "castle-gatehouse-254f6e79",
+ "prompt": "single isometric medieval village asset: one square block of grey stone castle wall with an open arched gateway through it, battlements along the top",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T10:56:39",
+ "seconds": 51.2
+}

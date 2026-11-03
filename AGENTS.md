@@ -65,6 +65,8 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 
 ## Render performance
 - Measure with `GAME2_BENCH=N game_ui --dump-frame T --zoom Z ...` (prints update/model/render ms, per-section render times and the weather); `GAME2_BENCH_PAN=1` slides the camera every frame (uncached ground), `GAME2_BENCH_ZOOM=1` drifts the zoom. Benchmark late ticks too (600, 1500): weather and a grown village only show up there. `--weather` doesn't survive bench frames.
+- The bench also prints p50/p95 per stage and a table of the slowest sections across layers: `render.*` (View passes), `sim.*` (daily ticks, per-frame advances), `ecs.*` (scheduler systems), `total.*` (wrappers that hold their children, so they don't add up with them). `GAME2_BENCH_JSON=path` writes the run as JSON. Sim ticks only run on day frames, so check their p95/max, not their mean.
+- New sim work: wrap it as `crate::timed!("sim.<name>", ...)` (or `infra::perf::scope`) so it shows in the table. It's free when no bench runs.
 - Per-pixel full-frame passes (weather, tints) must not do float maths per pixel: a fixed per-channel mapping is a 256-entry table (`f32::round` is a libm call here).
 - Never `sprite.scaled(w, h).blit(..)` in a per-frame path: use `blit_resized` (same pixels, no copy, clipped). Anything drawn per map piece must go through `off_view` culling.
 - Generated buildings on a grass slab are exported with `rd_slice.py --flush-base`, or they float above their tile.

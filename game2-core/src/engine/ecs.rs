@@ -164,6 +164,8 @@ impl World {
 pub trait System: Send {
     /// Run the system once against the world
     fn run(&mut self, world: &mut World);
+    /// What perf telemetry calls this system (its type path)
+    fn name(&self) -> &'static str { std::any::type_name::<Self>() }
 }
 
 /// Scheduler runs registered systems in order each tick
@@ -184,6 +186,7 @@ impl Scheduler {
     /// Run all systems once (one tick)
     pub fn tick(&mut self, world: &mut World) {
         for system in &mut self.systems {
+            let _s = crate::infra::perf::scope(system.name());
             system.run(world);
         }
     }

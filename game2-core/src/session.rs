@@ -2408,6 +2408,8 @@ impl Game {
     /// One frame of game time: the sim ticks every few frames, and between
     /// ticks villagers keep strolling
     pub fn update(&mut self) {
+        // the whole update, poses and facing included, so it matches the bench's update stage
+        let _frame = crate::infra::perf::scope("total.frame");
         self.advance_frame();
         // after every move this frame (the player's command, the sim, the
         // strolling), so the model's poses match its positions
@@ -2425,11 +2427,11 @@ impl Game {
         let mut ticked = false;
         if !self.paused && self.frame_n % ticks_per_frame == 0 {
             self.tick += 1;
-            self.sched.tick(&mut self.world);
+            crate::timed!("total.ecs", self.sched.tick(&mut self.world));
             ticked = true;
         }
         // the town's business each day: work, errands, taxes
-        if ticked { self.livelihood_tick(self.tick); }
+        if ticked { crate::timed!("total.day", self.livelihood_tick(self.tick)); }
         if ticked { self.note_leader(); }
         // where everyone stood, so no one ends the frame inside a wall or a house
         let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
@@ -2680,17 +2682,17 @@ impl Game {
                 for &(x, y) in &w.road[laid..w.road_laid()] { self.map.pave(x, y); }
             }
             self.works.retain(|w| w.risen() < 1.0);
-            self.advance_meeting();
-            self.advance_player_talks();
-            self.advance_travels();
+            crate::timed!("sim.advance_meeting", self.advance_meeting());
+            crate::timed!("sim.advance_player_talks", self.advance_player_talks());
+            crate::timed!("sim.advance_travels", self.advance_travels());
             // and those with nowhere to walk keep to the day's plan
             self.amble();
-            self.advance_minstrel();
-            self.advance_pedlar();
-            self.advance_circus();
-            self.advance_ink_boiler();
+            crate::timed!("sim.advance_minstrel", self.advance_minstrel());
+            crate::timed!("sim.advance_pedlar", self.advance_pedlar());
+            crate::timed!("sim.advance_circus", self.advance_circus());
+            crate::timed!("sim.advance_ink_boiler", self.advance_ink_boiler());
             // and the rare events walk their roads
-            self.advance_rare();
+            crate::timed!("sim.advance_rare", self.advance_rare());
             // the flock grazes: each animal drifts to a spot of its own
             // picking round the day's grazing point, at its own pace, and
             // only onto ground it can stand on - no walls, no water
@@ -3845,7 +3847,7 @@ impl Game {
         // caps to leave, a patch at a time
         if tick % 25 == 7 { self.teach_shrooms(tick); }
         // the amatoxin course keeps its own calendar: belly, false mend, liver
-        self.ailment_tick(tick);
+        crate::timed!("sim.ailment", self.ailment_tick(tick));
         // a damp year: the rye carries the fire and the bread gets the blame.
         // The wetter the harvest the surer the outbreak
         let chance = (self.harvest_wetness(tick) * 30.0) as i32;
@@ -6429,29 +6431,29 @@ impl Game {
             }
         }
         // the herb-wife keeps her shelf brewed and her patches picked
-        self.herbologist_tick(tick);
+        crate::timed!("sim.herbologist", self.herbologist_tick(tick));
         // the fold grazes, yields, and now and then howls
-        self.livestock_tick(tick);
+        crate::timed!("sim.livestock", self.livestock_tick(tick));
         // the heart-helper walks a lonely heart toward someone
-        self.matchmaker_tick(tick);
+        crate::timed!("sim.matchmaker", self.matchmaker_tick(tick));
         // a poor soul gathers in the wood, and damp years bring the fire
-        self.mushroom_tick(tick);
+        crate::timed!("sim.mushroom", self.mushroom_tick(tick));
         // the skeps yield, the church burns wax, a swarm wanders off
-        self.apiary_tick(tick);
+        crate::timed!("sim.apiary", self.apiary_tick(tick));
         // the larder keeps its own score: spoilage, vermin, the cat's job
-        self.spoilage_tick(tick);
+        crate::timed!("sim.spoilage", self.spoilage_tick(tick));
         // the dead hand on: benches, purses, and the lord's fifth
-        self.succession_tick(tick);
+        crate::timed!("sim.succession", self.succession_tick(tick));
         // and the young grow into their trades
-        self.lifecycle_tick(tick);
+        crate::timed!("sim.lifecycle", self.lifecycle_tick(tick));
         // the worn paths fade toward green where no one walks
-        self.trail_tick();
+        crate::timed!("sim.trail", self.trail_tick());
         // the land keeps score: canopy, pit water, the reach
-        self.land_tick(tick);
+        crate::timed!("sim.land", self.land_tick(tick));
         // the ladder of shame climbs one rung at a time
-        self.sanction_tick(tick);
+        crate::timed!("sim.sanction", self.sanction_tick(tick));
         // and the year has its feast days
-        self.festival_tick(tick);
+        crate::timed!("sim.festival", self.festival_tick(tick));
         // winter hearths burn a bundle every few days - faggots, turf,
         // the dry leavings, charcoal off the road; a house with nothing
         // to burn eats cold, and that's a trouble the village can hear
@@ -6513,58 +6515,58 @@ impl Game {
             }
         }
         // the gardens fill in a little more each week
-        self.garden_tick(tick);
+        crate::timed!("sim.garden", self.garden_tick(tick));
         // and the kitchen pot: staples off the garden beds feed the
         // hungry at home, and a week's peas and roots become pottage
-        self.kitchen_tick(tick);
+        crate::timed!("sim.kitchen", self.kitchen_tick(tick));
         // and the circus, while it camps, works its pull
-        self.circus_tick(tick);
+        crate::timed!("sim.circus", self.circus_tick(tick));
         // the oil boils, the crusts fry, and the black goes in
-        self.ink_boiler_tick(tick);
+        crate::timed!("sim.ink_boiler", self.ink_boiler_tick(tick));
         // and the hundred small fortunes: what's due comes on
-        self.events_tick(tick);
+        crate::timed!("sim.events", self.events_tick(tick));
         // and whatever the day caught, the fire runs on
-        self.fire_tick(tick);
+        crate::timed!("sim.fire", self.fire_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
-        self.cheese_tick(tick);
+        crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman
-        self.drink_tick(tick);
+        crate::timed!("sim.drink", self.drink_tick(tick));
         // the keeper lays in a barrel, and the bench fills
-        self.tavern_tick(tick);
+        crate::timed!("sim.tavern", self.tavern_tick(tick));
         // the day's work leaves its smell - unless the rain washes it off
-        self.smell_tick(tick);
+        crate::timed!("sim.smell", self.smell_tick(tick));
         // power atrophies; the lord's estimate creeps toward the truth
-        self.power_tick(tick);
+        crate::timed!("sim.power", self.power_tick(tick));
         // and now and then something rides over the walls
-        self.sky_tick(tick);
+        crate::timed!("sim.sky", self.sky_tick(tick));
         // and the soundscape's cues rise with the days
-        self.sfx_tick(tick);
+        crate::timed!("sim.sfx", self.sfx_tick(tick));
         // and a truth sits unsaid somewhere, ripening
-        self.discovery_tick(tick);
+        crate::timed!("sim.discovery", self.discovery_tick(tick));
         // and the castle sends its writs on a season's turn
-        self.edict_tick(tick);
+        crate::timed!("sim.edict", self.edict_tick(tick));
         // and every other winter runs long and tests the village
-        self.winter_tick(tick);
+        crate::timed!("sim.winter", self.winter_tick(tick));
         // and the painter lays color on the village's halls
-        self.painter_tick(tick);
+        crate::timed!("sim.painter", self.painter_tick(tick));
         // and now and then a maker makes a thing to outlast them
-        self.heirloom_tick(tick);
+        crate::timed!("sim.heirloom", self.heirloom_tick(tick));
         // and the literate put word to those they think of
-        self.letter_tick(tick);
+        crate::timed!("sim.letter", self.letter_tick(tick));
         // and theirs check on the ones who need checking on
-        self.care_tick(tick);
+        crate::timed!("sim.care", self.care_tick(tick));
         // and the river gives up its catch, season on season
-        self.fisher_tick(tick);
+        crate::timed!("sim.fisher", self.fisher_tick(tick));
         // and if the player's gone, the work goes on in another pair of hands
-        self.continuation_tick(tick);
+        crate::timed!("sim.continuation", self.continuation_tick(tick));
         // and the martyr's grave keeps its vigil
-        self.martyr_tick(tick);
+        crate::timed!("sim.martyr", self.martyr_tick(tick));
         // and the castle's prisoners wait on the org's answer
-        self.dungeon_tick(tick);
+        crate::timed!("sim.dungeon", self.dungeon_tick(tick));
         // and the posted knights stand only their tour
-        self.guards_tick(tick);
+        crate::timed!("sim.guards", self.guards_tick(tick));
         // and the marks a cause leaves fade on their own clock
-        self.marks_tick(tick);
+        crate::timed!("sim.marks", self.marks_tick(tick));
         let mut rng = Rng(self.rng.next());
         // the holy day calls the faithful before anyone's planned the rest
         self.routine_dawn(tick, &mut rng);

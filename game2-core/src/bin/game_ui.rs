@@ -19,10 +19,15 @@ const MAX_ZOOM: f32 = 2.0;
 const SPEED: bool = cfg!(feature = "speed-timer");
 
 fn present(window: &mut Window, buf: &Buffer) {
-    // RGBA -> 0xRRGGBB u32 pixels for minifb
-    let px: Vec<u32> = buf.pixels.chunks_exact(4)
-        .map(|c| session::rgb(c[0], c[1], c[2])).collect();
-    window.update_with_buffer(&px, W, H).unwrap();
+    // RGBA -> 0xRRGGBB u32 pixels for minifb, into one buffer kept across
+    // frames (a fresh 5.5MB Vec every frame was a measurable cost)
+    thread_local! { static PX: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) }; }
+    PX.with(|px| {
+        let mut px = px.borrow_mut();
+        px.clear();
+        px.extend(buf.pixels.chunks_exact(4).map(|c| session::rgb(c[0], c[1], c[2])));
+        window.update_with_buffer(&px, W, H).unwrap();
+    });
 }
 
 /// A claim token kept on disk: relaunch and you're the same wanderer (the
@@ -217,6 +222,8 @@ fn main() {
         if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)  { view.cam_y -= 2; }
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", cur_model.as_ref().map(|m| m.frame).unwrap_or(0))).ok(); }
+        // the frame's done with: the next render draws into it
+        view.recycle(buf);
 
         let spent = frame_at.elapsed();
         if spent < frame_len { std::thread::sleep(frame_len - spent); }

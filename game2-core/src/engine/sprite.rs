@@ -64,6 +64,47 @@ impl Sprite {
         self.blit_resized(buf, x, y, self.width, self.height);
     }
 
+    /// The sprite as opaque runs, for blit_runs: per row, (row, first
+    /// column, end column) of each stretch of pixels a blit would draw
+    /// (alpha > 128). Those pixels' alpha is set to 255 in `self` so a run
+    /// copies byte for byte what blit would write.
+    pub fn opaque_runs(&mut self) -> Vec<(u16, u16, u16)> {
+        let mut runs = vec![];
+        for y in 0..self.height {
+            let mut x = 0;
+            while x < self.width {
+                if self.pixels[(y * self.width + x) * 4 + 3] > 128 {
+                    let start = x;
+                    while x < self.width && self.pixels[(y * self.width + x) * 4 + 3] > 128 {
+                        self.pixels[(y * self.width + x) * 4 + 3] = 255;
+                        x += 1;
+                    }
+                    runs.push((y as u16, start as u16, x as u16));
+                } else {
+                    x += 1;
+                }
+            }
+        }
+        runs
+    }
+
+    /// blit, using runs from opaque_runs (on this same sprite): each run is
+    /// one copy instead of a per-pixel test. Clipped to the buffer.
+    pub fn blit_runs(&self, runs: &[(u16, u16, u16)], buf: &mut Buffer, x: i32, y: i32) {
+        let (bw, bh) = (buf.width as i32, buf.height as i32);
+        if x >= bw || y >= bh || x + self.width as i32 <= 0 || y + self.height as i32 <= 0 { return; }
+        for &(ry, x0, x1) in runs {
+            let dy = y + ry as i32;
+            if dy < 0 || dy >= bh { continue; }
+            let (a, b) = ((x + x0 as i32).max(0), (x + x1 as i32).min(bw));
+            if a >= b { continue; }
+            let sx = (a - x) as usize;
+            let src = &self.pixels[(ry as usize * self.width + sx) * 4..(ry as usize * self.width + sx + (b - a) as usize) * 4];
+            let di = (dy as usize * buf.width + a as usize) * 4;
+            buf.pixels[di..di + src.len()].copy_from_slice(src);
+        }
+    }
+
     /// Draw this sprite resized to w x h (nearest-neighbour) with its
     /// top-left at (x, y), straight into the buffer: the same pixels as
     /// `scaled(w, h).blit(..)` without building the resized copy, and
@@ -139,6 +180,25 @@ impl Sprite {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_blit_runs_matches_blit() {
+        let (sw, sh) = (9, 6);
+        let pixels: Vec<u8> = (0..sw * sh).flat_map(|i| {
+            let i = i as u8;
+            [i.wrapping_mul(37), i.wrapping_mul(91), i.wrapping_mul(13), [0, 255, 200, 129, 128, 60][i as usize % 6]]
+        }).collect();
+        let s = Sprite { width: sw, height: sh, pixels };
+        let mut r = Sprite { width: sw, height: sh, pixels: s.pixels.clone() };
+        let runs = r.opaque_runs();
+        for (x, y) in [(0, 0), (3, 2), (-5, -4), (14, 10), (-9, 0), (18, 0)] {
+            let mut a = Buffer::new(20, 15);
+            let mut b = Buffer::new(20, 15);
+            s.blit(&mut a, x, y);
+            r.blit_runs(&runs, &mut b, x, y);
+            assert_eq!(a.pixels, b.pixels, "at ({}, {})", x, y);
+        }
+    }
 
     #[test]
     fn test_blit_resized_matches_scaling_then_blitting() {

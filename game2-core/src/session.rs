@@ -1761,6 +1761,15 @@ fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) ->
 }
 
 /// The visible ground viewport, cached for a fixed camera, zoom, season and map revision.
+/// Scaled ground blocks with their opaque runs, keyed by the source
+/// block's address; valid for one zoom and tile set
+#[derive(Default)]
+pub struct BlockCache {
+    zoom: f32,
+    set: usize,
+    blocks: std::collections::HashMap<usize, (Sprite, Vec<(u16, u16, u16)>)>,
+}
+
 pub struct GroundCache {
     pub buf: Buffer,
     pub camera: (i32, i32),
@@ -9171,6 +9180,12 @@ pub struct View {
     pub help_open: bool,
     /// The ground layer repainted only when stale
     ground: std::cell::RefCell<Option<GroundCache>>,
+    /// Ground blocks at the current zoom, as opaque runs (draw_ground):
+    /// kept across frames so panning doesn't rescale them every pass
+    blocks: std::cell::RefCell<BlockCache>,
+    /// A finished frame handed back with recycle(), reused by the next
+    /// render instead of a fresh 5.5MB buffer
+    spare: std::cell::RefCell<Option<Buffer>>,
     last_zoom: std::cell::Cell<f32>,
     last_camera: std::cell::Cell<(i32, i32)>,
     /// The frame being drawn is winter: buildings use their snowy looks
@@ -9188,6 +9203,8 @@ impl View {
             inspector_open: true,
             help_open: false,
             ground: std::cell::RefCell::new(None),
+            blocks: std::cell::RefCell::new(BlockCache::default()),
+            spare: std::cell::RefCell::new(None),
             last_zoom: std::cell::Cell::new(f32::NAN),
             last_camera: std::cell::Cell::new((i32::MIN, i32::MIN)),
             winter: std::cell::Cell::new(false),
@@ -9218,8 +9235,14 @@ impl View {
         self.winter.set(season_tiles(m.season) == 2);
         let mut prof = Prof::new();
 
-        let mut buf = Buffer::new(W, H);
-        buf.rect(0, 0, W as i32, H as i32, 25, 25, 38);
+        // a recycled frame needs no clearing: the ground (cached or drawn
+        // over the background fill), the strip below and the panel cover
+        // every pixel
+        let mut buf = self.spare.borrow_mut().take().filter(|b| b.width == W && b.height == H).unwrap_or_else(|| Buffer::new(W, H));
+        // the background: the map area gets it only when the ground is drawn
+        // straight in (the cached ground carries its own); the gap between
+        // the map and the panel always
+        buf.rect(MAP_W as i32, 0, UI_X as i32 - MAP_W as i32, H as i32, 25, 25, 38);
 
         // terrain rendered in the SAME projection as entities (unified map).
         // The ground is thousands of tile blits, so it's painted once into a
@@ -9231,6 +9254,7 @@ impl View {
         if self.last_zoom.get() != zoom || self.last_camera.get() != camera {
             // Pan and zoom input can change every frame. Draw only the visible
             // viewport while moving; rebuild its compact cache when settled.
+            buf.rect(0, 0, MAP_W as i32, H as i32, 25, 25, 38);
             self.draw_ground(m, &mut buf, cam_x, cam_y, zoom);
         } else {
             let stale = match *self.ground.borrow() {
@@ -9386,6 +9410,9 @@ impl View {
             };
             (x as f32, y as f32, Piece::Castle(sprite))
         }));
+        // only what can reach the view goes into the sort (the whole map's
+        // trees and rocks are in the list)
+        standing.retain(|&(x, y, _)| { let (sx, sy) = iso_to_screen_cam(x, y, cam_x, cam_y, zoom); !off_view(sx, sy, zoom) });
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
         let draw_piece = |buf: &mut Buffer, &(bx, by, piece): &(f32, f32, Piece)| {
             let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
@@ -9894,6 +9921,10 @@ impl View {
         // scaled copies).
         let set = &self.art.tiles[season_tiles(season)];
         let faces = &self.art.faces[season_tiles(season)];
+        let mut cache = self.blocks.borrow_mut();
+        if cache.zoom != zoom || cache.set != season_tiles(season) {
+            *cache = BlockCache { zoom, set: season_tiles(season), blocks: Default::default() };
+        }
         let (w_t, h_t) = (m.map.width as i32, m.map.height as i32);
         let (x0, y0, x1, y1) = visible_tile_bounds(cam_x, cam_y, zoom, buf.width, buf.height, w_t, h_t);
         if x0 > x1 || y0 > y1 { return; }
@@ -9909,7 +9940,12 @@ impl View {
                 match set.block(&m.map, tx, ty) {
                     Some(block) => {
                         let (w, h, x, y) = block_rect(block, sx, sy, zoom);
-                        block.blit_resized(buf, x, y, w, h);
+                        let (scaled, runs) = cache.blocks.entry(block as *const Sprite as usize).or_insert_with(|| {
+                            let mut s = block.scaled(w, h);
+                            let runs = s.opaque_runs();
+                            (s, runs)
+                        });
+                        scaled.blit_runs(runs, buf, x, y);
                     }
                     None => {
                         let (r, g, b) = tile_colour(tile, season);
@@ -9933,6 +9969,10 @@ impl View {
             }
         }
     }
+
+    /// Hand a frame from render() back once it's been shown, so the next
+    /// render can draw into it
+    pub fn recycle(&self, buf: Buffer) { *self.spare.borrow_mut() = Some(buf); }
 
     /// Render just the visible ground viewport. Cache size is independent of
     /// total map area, so enlarging the country cannot allocate a giant layer.
@@ -12545,6 +12585,30 @@ mod ground_cache_tests {
     use super::*;
 
     #[test]
+    fn test_recycled_frames_match_fresh_ones() {
+        // render draws into the last frame handed back with recycle(),
+        // without clearing it: every pixel must still be repainted. Two
+        // views go through the same frames - a pan (ground drawn straight
+        // in), then still (cached ground), in rain - one recycling, one not
+        let mut g = Game::new_seeded(3);
+        for _ in 0..30 { g.update(); }
+        g.precip = Some(PrecipKind::Rain);
+        let recycling = View::new(Art::load_fs("../assets", 0));
+        let fresh = View::new(Art::load_fs("../assets", 0));
+        let mut cams = vec![(0, 0), (240, -90), (240, -90), (-300, 200), (-300, 200)];
+        let (mut recycling, mut fresh) = (recycling, fresh);
+        for (i, cam) in cams.drain(..).enumerate() {
+            for v in [&mut recycling, &mut fresh] { (v.cam_x, v.cam_y) = cam; v.zoom = if i < 3 { 1.0 } else { 1.6 }; }
+            let m = g.ui_model();
+            let a = recycling.render(&m, (-1, -1));
+            let b = fresh.render(&m, (-1, -1));
+            assert!(a.pixels == b.pixels, "frame {} (camera {:?}): a recycled buffer showed through", i, cam);
+            recycling.recycle(a);
+            g.update();
+        }
+    }
+
+    #[test]
     fn test_cached_ground_matches_drawing_it_straight() {
         // the world-space layer blitted each frame must be exactly what the
         // tile pass would have drawn - any tile dropped or shifted shows up
@@ -13458,14 +13522,21 @@ fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_cl
             if k.is_snow() {
                 weather_fx::overcast(buf, UI_X, k);
             } else {
-                // rain: an even, cool dimming, deeper the harder it falls
+                // rain: an even, cool dimming, deeper the harder it falls.
+                // Each channel maps on its own and the mapping is fixed for the
+                // frame, so it's three 256-entry tables (the per-pixel float
+                // blends with round() cost ~30ms a frame)
                 let t = 0.4 + 0.6 * k.intensity();
+                let lut: [[u8; 256]; 3] = std::array::from_fn(|ch| std::array::from_fn(|v| {
+                    let v = v as u8;
+                    let c = [(v, 0, 0), (0, v, 0), (0, 0, v)][ch];
+                    let (r, g, b) = blend(c, rain_wash(c), t);
+                    [r, g, b][ch]
+                }));
                 for y in 0..H {
-                    for x in 0..UI_X {
-                        let idx = (y * W + x) * 4;
-                        let c = (buf.pixels[idx], buf.pixels[idx + 1], buf.pixels[idx + 2]);
-                        let (r, g, b) = blend(c, rain_wash(c), t);
-                        buf.pixels[idx] = r; buf.pixels[idx + 1] = g; buf.pixels[idx + 2] = b;
+                    let row = &mut buf.pixels[y * W * 4..(y * W + UI_X) * 4];
+                    for px in row.chunks_exact_mut(4) {
+                        px[0] = lut[0][px[0] as usize]; px[1] = lut[1][px[1] as usize]; px[2] = lut[2][px[2] as usize];
                     }
                 }
             }
@@ -13637,7 +13708,9 @@ impl Prof {
 pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
     // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
     // (the ground can't use its cache then)
-    let pan = std::env::var("GAME2_BENCH_PAN").is_ok();
+    let pan = std::env::var("GAME2_BENCH_PAN").is_ok_and(|v| !v.is_empty());
+    // GAME2_BENCH_ZOOM=1: the zoom drifts every frame, as while scrolling
+    let zooming = std::env::var("GAME2_BENCH_ZOOM").is_ok_and(|v| !v.is_empty());
     // this run's sections only, and off again after (see the end)
     PROF.with(|p| p.borrow_mut().clear());
     PROF_ON.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -13645,6 +13718,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
     let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
     for _ in 0..n.max(1) {
         if pan { view.cam_x += 3; view.cam_y += 1; }
+        if zooming { view.zoom = (view.zoom * 1.003).min(2.0); }
         let t0 = Instant::now();
         game.update();
         let t1 = Instant::now();
@@ -13653,6 +13727,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
         let buf = view.render(&m, (-1, -1));
         let t3 = Instant::now();
         std::hint::black_box(&buf);
+        view.recycle(buf);
         tu.push((t1 - t0).as_secs_f64() * 1e3);
         tm.push((t2 - t1).as_secs_f64() * 1e3);
         tr.push((t3 - t2).as_secs_f64() * 1e3);
@@ -13665,6 +13740,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
     PROF_ON.store(false, std::sync::atomic::Ordering::Relaxed);
     let stat = |v: &Vec<f64>| (v.iter().sum::<f64>() / v.len() as f64, v.iter().cloned().fold(0.0, f64::max));
     let ((au, wu), (am, wm), (ar, wr)) = (stat(&tu), stat(&tm), stat(&tr));
+    println!("bench weather: precip {:?}, rainbow {:?}, season {:?}", game.precip, game.rainbow_from.map(|f| game.frame_n.saturating_sub(f)), game.ui_model().season);
     println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",
         n, au, wu, am, wm, ar, wr, au + am + ar);
 }

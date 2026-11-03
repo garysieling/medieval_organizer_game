@@ -60,6 +60,7 @@ Rules:
 | Tests | `session/tests/<subsystem>.rs` | one file per subsystem; `use crate::session::*;` |
 | Render (client) | `session/render/` | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays |
 | Perf bench | `session/render/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
+| Still in `session.rs`, bound for the view model | log filters (`visible_log`), inspector words, minimap/screen hit-testing | used by `ui_model_at` / `click_map_at` |
 | World generation | `session/setup.rs` | `Game::new_seeded` |
 | Seats & commands | `session/seat.rs` | `Seat`, `Command`, `command_at`, ctx actions |
 | Public views | `session/model.rs`, `session/view_model.rs`, `session/net.rs` | `UiModel`, `AgentObs` |
@@ -73,12 +74,19 @@ Later, once these seams hold, the layers get promoted to crates
 
 ## The order we're taking it in
 
-Each step is its own PR and moves code without changing behaviour. The test
-list must be identical before and after (`cargo test -p game2-core --lib -- --list`).
+Each step is its own PR and moves code without changing behaviour. Every test
+on main must still be listed afterwards (`cargo test -p game2-core --lib -- --list`,
+module paths aside). New tests the step adds on purpose (layering guards, perf
+stats) are fine: name them in the PR.
 
-1. Tests out of `session.rs` into `session/tests/`.
-2. Render layer: `View`, `Art`, `TileSet`, draw helpers into `session/render/`.
-3. Perf bench & headless runners into `render/bench.rs`; add p50/p95/max.
+1. ~~Tests out of `session.rs` into `session/tests/`.~~ (#457)
+2. ~~Render layer: `View`, `Art`, `TileSet`, draw helpers, HUD and the bench
+   runners into `session/render/`.~~ `tests/layering.rs` fails if the render
+   files mention `Game`/`World`.
+3. Perf bench: add p50/p95/max and machine-readable output.
+3b. Determinism: with a fixed `--seed`, two runs of main diverge after
+   ~tick 300 (likely `HashMap` iteration order leaking into the sim).
+   Replays, multiplayer lockstep and golden-frame tests all need this fixed.
 4. World generation (`new_seeded`) into `setup.rs`.
 5. Seats, commands, the agent API and `ui_model_at` into their own files.
 6. Public vs secret KPIs (`kpi.rs`), plus a test that the agent/player views

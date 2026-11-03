@@ -1,0 +1,28 @@
+{
+ "created_at": 1793734238,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 42.97,
+ "request_id": "29ce8d9b-d71d-4ef2-86a9-85e3b58d56a3",
+ "outputs_retained_until": 1793820630,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.07,
+  "balance_left": 42.97
+ },
+ "id": "walk4-rival-man-f1ee6971",
+ "prompt": "male villager with tan skin and short black hair, deep red wool tunic, grey trousers, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-03T14:30:38",
+ "seconds": 7.8
+}

@@ -1,0 +1,28 @@
+{
+ "created_at": 1793733967,
+ "credit_cost": 3,
+ "balance_cost": 0.54,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 45.02,
+ "request_id": "9c15e4d1-9a9f-4fbc-8ae7-9622c6d42870",
+ "outputs_retained_until": 1793820309,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.54,
+  "balance_left": 45.02
+ },
+ "id": "smithy-535da115",
+ "prompt": "single isometric medieval village asset: one small stone blacksmith forge with a timber roof, open front with an anvil, chimney with smoke",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 3,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T14:26:08",
+ "seconds": 58.4
+}

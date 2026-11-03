@@ -1,0 +1,28 @@
+{
+ "created_at": 1793734259,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 42.76,
+ "request_id": "56028f87-7320-46a3-9c74-f93eca2dee26",
+ "outputs_retained_until": 1793820653,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.07,
+  "balance_left": 42.76
+ },
+ "id": "walk4-traveller-eac563ed",
+ "prompt": "courier riding a brown horse, green cloak and hood, leather satchel, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-03T14:31:00",
+ "seconds": 6.9
+}

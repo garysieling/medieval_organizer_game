@@ -8,8 +8,8 @@
    "two-stage entries need input_image from the earlier still",
    "reference_images (rd_pro) keeps characters consistent - reuse your favourite output"
   ],
-  "count": 617,
-  "est_total_usd": 105.13
+  "count": 610,
+  "est_total_usd": 104.17
  },
  "prompts": [
   {
@@ -27,22 +27,6 @@
    },
    "est_cost_usd": 0.18,
    "notes": ""
-  },
-  {
-   "id": "cottages-set-f395312a",
-   "tier": "p0",
-   "group": "buildings",
-   "title": "cottages set",
-   "prompt": "isometric medieval cottages: timber-frame and plastered fronts, thatched and tiled roofs, varied door and gable positions",
-   "request": {
-    "prompt_style": "rd_pro__isometric",
-    "width": 192,
-    "height": 192,
-    "num_images": 4,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.72,
-   "notes": "batch of 4 distinct cottage variants; repeat calls for more variety"
   },
   {
    "id": "granary-107d49b6",
@@ -3953,6 +3937,23 @@
    "notes": "use a saved reference_image of your base villager for look consistency"
   },
   {
+   "id": "windmill-tall-2af41b40",
+   "tier": "p0",
+   "group": "props",
+   "title": "windmill tall",
+   "prompt": "single isometric medieval village asset: one tall round stone windmill tower with a conical wooden cap, small door, no sails, no blades",
+   "request": {
+    "prompt_style": "rd_pro__isometric",
+    "width": 96,
+    "height": 96,
+    "num_images": 2,
+    "remove_bg": true,
+    "reference_image_path": "assets/rd/buildings/cottage1.png"
+   },
+   "est_cost_usd": 0.36,
+   "notes": "round 4: the windmill tower at 96px so it stands taller than the cottages"
+  },
+  {
    "id": "bridge-x-8711bda1",
    "tier": "p0",
    "group": "tiles/bridges",
@@ -4241,11 +4242,11 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-autumn-6c4b7b8e",
+   "id": "ground-grass-autumn-6fa8ea7d",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground grass autumn",
-   "prompt": "single isometric medieval village asset: flat grassy ground block, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat grassy ground block, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4259,11 +4260,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-autumn-1aa3d317",
+   "id": "ground-hill-autumn-c7cb1bf1",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground hill autumn",
-   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: raised earthen hill ground block with grass top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4277,11 +4278,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-autumn-b4749b17",
+   "id": "ground-rock-autumn-4a5a6fba",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground rock autumn",
-   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: bare grey rock ground block, craggy top, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4295,11 +4296,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-autumn-00d3bc0b",
+   "id": "ground-shore-autumn-9d613667",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "ground shore autumn",
-   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: sandy shoreline ground block where land meets water, golden autumn, orange and amber foliage, fallen leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4313,11 +4314,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-autumn-a0de6907",
+   "id": "water-deep-autumn-18eadffd",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "water deep autumn",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, golden autumn, orange and amber foliage, fallen leaves, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: deep open-sea water ground block, dark blue, golden autumn, orange and amber foliage, fallen leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4331,11 +4332,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-autumn-08c0e5ce",
+   "id": "water-shallow-autumn-56629ecc",
    "tier": "p0",
    "group": "tiles/ground-autumn",
    "title": "water shallow autumn",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, golden autumn, orange and amber foliage, fallen leaves, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: shallow clear water ground block, shore edge visible, golden autumn, orange and amber foliage, fallen leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4349,11 +4350,11 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-spring-ee148db8",
+   "id": "ground-grass-spring-ca7af953",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground grass spring",
-   "prompt": "single isometric medieval village asset: flat grassy ground block, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat grassy ground block, fresh green spring, small flowers, new leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4367,11 +4368,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-spring-fd5a07ad",
+   "id": "ground-hill-spring-f6434629",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground hill spring",
-   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: raised earthen hill ground block with grass top, fresh green spring, small flowers, new leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4385,11 +4386,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-spring-8f0b6b5c",
+   "id": "ground-rock-spring-937935db",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground rock spring",
-   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: bare grey rock ground block, craggy top, fresh green spring, small flowers, new leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4403,11 +4404,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-spring-5691597e",
+   "id": "ground-shore-spring-d29b71cc",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "ground shore spring",
-   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, fresh green spring, small flowers, new leaves, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: sandy shoreline ground block where land meets water, fresh green spring, small flowers, new leaves, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4421,11 +4422,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-spring-19c75b9b",
+   "id": "water-deep-spring-68c6c855",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "water deep spring",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, fresh green spring, small flowers, new leaves, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: deep open-sea water ground block, dark blue, fresh green spring, small flowers, new leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4439,11 +4440,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-spring-98a074b6",
+   "id": "water-shallow-spring-edc2a9ad",
    "tier": "p0",
    "group": "tiles/ground-spring",
    "title": "water shallow spring",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, fresh green spring, small flowers, new leaves, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: shallow clear water ground block, shore edge visible, fresh green spring, small flowers, new leaves, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4457,11 +4458,11 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-summer-c6023073",
+   "id": "ground-grass-summer-a44c88ac",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground grass summer",
-   "prompt": "single isometric medieval village asset: flat grassy ground block, lush deep-green summer, dense foliage, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat grassy ground block, lush deep-green summer, dense foliage, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4475,11 +4476,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-summer-7c7ffcd8",
+   "id": "ground-hill-summer-5ef11d39",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground hill summer",
-   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, lush deep-green summer, dense foliage, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: raised earthen hill ground block with grass top, lush deep-green summer, dense foliage, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4493,11 +4494,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-summer-d1a0f884",
+   "id": "ground-rock-summer-1a5c7add",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground rock summer",
-   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, lush deep-green summer, dense foliage, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: bare grey rock ground block, craggy top, lush deep-green summer, dense foliage, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4511,11 +4512,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-summer-f3c4d095",
+   "id": "ground-shore-summer-da8bd516",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "ground shore summer",
-   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, lush deep-green summer, dense foliage, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: sandy shoreline ground block where land meets water, lush deep-green summer, dense foliage, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4529,11 +4530,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-summer-c92242a1",
+   "id": "water-deep-summer-8cb172ca",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "water deep summer",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, lush deep-green summer, dense foliage, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: deep open-sea water ground block, dark blue, lush deep-green summer, dense foliage, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4547,11 +4548,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-summer-afae2700",
+   "id": "water-shallow-summer-10e8b6b3",
    "tier": "p0",
    "group": "tiles/ground-summer",
    "title": "water shallow summer",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, lush deep-green summer, dense foliage, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: shallow clear water ground block, shore edge visible, lush deep-green summer, dense foliage, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4565,11 +4566,11 @@
    "notes": ""
   },
   {
-   "id": "ground-grass-winter-05652a40",
+   "id": "ground-grass-winter-7dcfd5f6",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground grass winter",
-   "prompt": "single isometric medieval village asset: flat grassy ground block, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: flat grassy ground block, snow-covered winter, bare branches, white drifts, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4583,11 +4584,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-hill-winter-a4a35ee9",
+   "id": "ground-hill-winter-a15d1a71",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground hill winter",
-   "prompt": "single isometric medieval village asset: raised earthen hill ground block with grass top, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: raised earthen hill ground block with grass top, snow-covered winter, bare branches, white drifts, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4601,11 +4602,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-rock-winter-8589a971",
+   "id": "ground-rock-winter-28ed4e6d",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground rock winter",
-   "prompt": "single isometric medieval village asset: bare grey rock ground block, craggy top, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: bare grey rock ground block, craggy top, snow-covered winter, bare branches, white drifts, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4619,11 +4620,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "ground-shore-winter-c738cb11",
+   "id": "ground-shore-winter-31652b1e",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "ground shore winter",
-   "prompt": "single isometric medieval village asset: sandy shoreline ground block where land meets water, snow-covered winter, bare branches, white drifts, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: sandy shoreline ground block where land meets water, snow-covered winter, bare branches, white drifts, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4637,11 +4638,11 @@
    "notes": "ground block like the Isometric Medieval Pack; tile_x+tile_y set so edges meet"
   },
   {
-   "id": "water-deep-winter-9f3fcb43",
+   "id": "water-deep-winter-9638cfec",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "water deep winter",
-   "prompt": "single isometric medieval village asset: deep open-sea water ground block, dark blue, snow-covered winter, bare branches, white drifts, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: deep open-sea water ground block, dark blue, snow-covered winter, bare branches, white drifts, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -4655,11 +4656,11 @@
    "notes": ""
   },
   {
-   "id": "water-shallow-winter-0a3321c5",
+   "id": "water-shallow-winter-2d0e3530",
    "tier": "p0",
    "group": "tiles/ground-winter",
    "title": "water shallow winter",
-   "prompt": "single isometric medieval village asset: shallow clear water ground block, shore edge visible, snow-covered winter, bare branches, white drifts, square isometric water block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: shallow clear water ground block, shore edge visible, snow-covered winter, bare branches, white drifts, square isometric water block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5209,11 +5210,11 @@
    "notes": "wang tileset: 16px or 32px tiles, all edge combinations in one sheet"
   },
   {
-   "id": "boreal-ground-17583cd5",
+   "id": "boreal-ground-60b6c2c2",
    "tier": "p1",
    "group": "biomes/boreal",
    "title": "boreal ground",
-   "prompt": "single isometric medieval village asset: ground block, northern pine forest, moss and dark earth",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: ground block, northern pine forest, moss and dark earth",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5274,11 +5275,11 @@
    "notes": ""
   },
   {
-   "id": "country-barley-field-bc87cae6",
+   "id": "country-barley-field-9c9c7dc0",
    "tier": "p1",
    "group": "biomes/countryside",
    "title": "country barley field",
-   "prompt": "single isometric medieval village asset: barley field ground block, ripe gold, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: barley field ground block, ripe gold, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5292,11 +5293,11 @@
    "notes": ""
   },
   {
-   "id": "country-chalk-down-7fa09ca4",
+   "id": "country-chalk-down-95bda484",
    "tier": "p1",
    "group": "biomes/countryside",
    "title": "country chalk down",
-   "prompt": "single isometric medieval village asset: chalk downland ground block, short turf, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: chalk downland ground block, short turf, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5374,11 +5375,11 @@
    "notes": ""
   },
   {
-   "id": "country-meadow-e27e4113",
+   "id": "country-meadow-7c44a88a",
    "tier": "p1",
    "group": "biomes/countryside",
    "title": "country meadow",
-   "prompt": "single isometric medieval village asset: meadow ground block, long grass, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: meadow ground block, long grass, sage greens, honey limestone, drystone grey, drizzle-grey sky, square isometric ground block",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5439,11 +5440,11 @@
    "notes": ""
   },
   {
-   "id": "desert-ground-86e81955",
+   "id": "desert-ground-87242bfd",
    "tier": "p1",
    "group": "biomes/desert",
    "title": "desert ground",
-   "prompt": "single isometric medieval village asset: ground block, desert sand and rock, oasis fringe",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: ground block, desert sand and rock, oasis fringe",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5504,11 +5505,11 @@
    "notes": ""
   },
   {
-   "id": "highland-ground-6fc5e27c",
+   "id": "highland-ground-748910d2",
    "tier": "p1",
    "group": "biomes/highland",
    "title": "highland ground",
-   "prompt": "single isometric medieval village asset: ground block, rugged grey highland, heather and stone",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: ground block, rugged grey highland, heather and stone",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -5569,11 +5570,11 @@
    "notes": ""
   },
   {
-   "id": "mediterranean-ground-80245292",
+   "id": "mediterranean-ground-9e728c23",
    "tier": "p1",
    "group": "biomes/mediterranean",
    "title": "mediterranean ground",
-   "prompt": "single isometric medieval village asset: ground block, mediterranean coast, dry grass and cypress",
+   "prompt": "single isometric terrain tile, bare ground only, no buildings, no props: ground block, mediterranean coast, dry grass and cypress",
    "request": {
     "prompt_style": "rd_pro__isometric",
     "width": 128,
@@ -7168,21 +7169,6 @@
    "group": "sheets/sprites",
    "title": "sheet crop growth",
    "prompt": "isometric wheat field patch growth stages: bare soil, green shoots, half-grown, ripe golden heads, consistent matched set",
-   "request": {
-    "prompt_style": "rd_pro__spritesheet",
-    "width": 256,
-    "height": 256,
-    "num_images": 1
-   },
-   "est_cost_usd": 0.18,
-   "notes": "one call returns the whole grid; slice per cell"
-  },
-  {
-   "id": "sheet-farm-animals-a628136d",
-   "tier": "p1",
-   "group": "sheets/sprites",
-   "title": "sheet farm animals",
-   "prompt": "small medieval farm animals: dog, cat, hen, goat, sheep, pig, cow, consistent matched set",
    "request": {
     "prompt_style": "rd_pro__spritesheet",
     "width": 256,
@@ -9734,7 +9720,7 @@
    "notes": ""
   },
   {
-   "id": "walk4-child-m-047d48ed",
+   "id": "walk4-child-m-3e45bc41",
    "tier": "anim",
    "group": "anim/walk",
    "title": "walk4 child m",
@@ -9744,45 +9730,14 @@
     "width": 48,
     "height": 48,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "return_spritesheet": true
    },
    "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
+   "notes": "48px 4-direction walk cycle: return_spritesheet gives a 4x4 PNG grid (rows up/right/down/left); 32px requests fail"
   },
   {
-   "id": "walk4-elder-m-6faa1efe",
-   "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 elder m",
-   "prompt": "elderly man with stick, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
-  },
-  {
-   "id": "walk4-guard-spear-c02dbe22",
-   "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 guard spear",
-   "prompt": "guard with spear, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
-  },
-  {
-   "id": "walk4-minstrel-fab90a72",
+   "id": "walk4-minstrel-03c6db39",
    "tier": "anim",
    "group": "anim/walk",
    "title": "walk4 minstrel",
@@ -9792,77 +9747,14 @@
     "width": 48,
     "height": 48,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "return_spritesheet": true
    },
    "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
+   "notes": "48px 4-direction walk cycle: return_spritesheet gives a 4x4 PNG grid (rows up/right/down/left); 32px requests fail"
   },
   {
-   "id": "walk4-noble-f-10d4b1a6",
-   "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 noble f",
-   "prompt": "noblewoman in gown, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
-  },
-  {
-   "id": "walk4-peasant-f-17041b54",
-   "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 peasant f",
-   "prompt": "female peasant villager, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
-  },
-  {
-   "id": "walk4-peasant-m-35444cad",
-   "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 peasant m",
-   "prompt": "male peasant villager, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
-  },
-  {
-   "id": "walk4-priest-59493604",
-   "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 priest",
-   "prompt": "village priest in robes, medieval",
-   "request": {
-    "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
-    "num_images": 1,
-    "remove_bg": true
-   },
-   "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
-  },
-  {
-   "id": "walk4-tax-collector-283de18c",
+   "id": "walk4-tax-collector-04d61af0",
    "tier": "anim",
    "group": "anim/walk",
    "title": "walk4 tax collector",
@@ -9872,26 +9764,28 @@
     "width": 48,
     "height": 48,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "return_spritesheet": true
    },
    "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
+   "notes": "48px 4-direction walk cycle: return_spritesheet gives a 4x4 PNG grid (rows up/right/down/left); 32px requests fail"
   },
   {
-   "id": "walk4-worker-m-591144ac",
+   "id": "scale-player-walk-32-d95d2983",
    "tier": "anim",
-   "group": "anim/walk",
-   "title": "walk4 worker m",
-   "prompt": "male labourer, medieval",
+   "group": "scale-tests",
+   "title": "scale player walk 32",
+   "prompt": "young villager in a green tunic and brown trousers, medieval",
    "request": {
     "prompt_style": "rd_animation__four_angle_walking",
-    "width": 48,
-    "height": 48,
+    "width": 32,
+    "height": 32,
     "num_images": 1,
-    "remove_bg": true
+    "remove_bg": true,
+    "return_spritesheet": true
    },
    "est_cost_usd": 0.07,
-   "notes": "48px 4-direction walk cycle, transparent GIF"
+   "notes": "player still + walk cycle; figure should end up ~24px tall"
   }
  ]
 }

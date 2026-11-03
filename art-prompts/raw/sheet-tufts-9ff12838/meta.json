@@ -1,0 +1,26 @@
+{
+ "created_at": 1793733872,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 45.74,
+ "request_id": "029375bf-3402-4c3d-a3a1-91784cdbbfa9",
+ "outputs_retained_until": 1793820223,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 45.74
+ },
+ "id": "sheet-tufts-9ff12838",
+ "prompt": "sprite sheet of small grass tufts, wildflower clumps, clover, ferns and tiny green bushes, isometric view, many variations",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-03T14:24:32",
+ "seconds": 48.8
+}

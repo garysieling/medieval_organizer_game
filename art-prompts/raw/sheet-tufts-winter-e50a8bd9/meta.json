@@ -1,0 +1,26 @@
+{
+ "created_at": 1793733909,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 45.56,
+ "request_id": "aa7a8f89-d0a5-4991-9802-e7f79766945f",
+ "outputs_retained_until": 1793820272,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 45.56
+ },
+ "id": "sheet-tufts-winter-e50a8bd9",
+ "prompt": "sprite sheet of small snow-covered grass tufts, snowy little shrubs, dry reeds and dead stalks poking out of snow, isometric view, many variations",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-03T14:25:09",
+ "seconds": 37.0
+}

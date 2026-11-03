@@ -955,7 +955,14 @@ pub struct Art {
     pub houses_winter: Vec<Option<Sprite>>,
     pub mill_frames: Vec<Sprite>, // the sails only: they turn on mill_tower
     pub mill_tower: Option<Sprite>,
+    /// The windmill is generated (assets/rd/windmill): the tower stands at
+    /// its own size (draw_standing) and the sails turn at 1x on MILL_HUB_RD
+    pub mill_rd: bool,
     pub blacksmith_s: Option<Sprite>,
+    /// The trade halls and the rival village's homes with their grass
+    /// snowed over (blacksmith, guildhall, rival house, rival woodhouse);
+    /// None for the pack's, which keep their summer look
+    pub trades_winter: [Option<Sprite>; 4],
     pub stones: Vec<Sprite>,        // boulders, a few shapes
     pub stone_grounds: Vec<Sprite>, // flat rocks
     /// The rocks' size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/stones)
@@ -988,6 +995,10 @@ pub struct Art {
     pub priest_s: Option<Sprite>,
     pub priest_walk: Option<WalkSheet>,
     pub traveller_s: Option<Sprite>, // a courier riding the road between villages
+    /// Generated walk cycles: the rivals' (by RIVAL_NAMES index) and the
+    /// travellers' (courier, minstrel, pedlar, the rare visitors)
+    pub rival_walks: Vec<Option<WalkSheet>>,
+    pub traveller_walk: Option<WalkSheet>,
     /// The animals: Retro Diffusion art (assets/rd/farm-animals, sliced
     /// from one generated sheet - see assets/rd/README.md), drawn at 1x
     /// zoom by draw_animal. If those files are missing the old hand-drawn
@@ -1002,6 +1013,8 @@ pub struct Art {
     pub gull: Option<Sprite>,
     /// Ground specks scattered on open grass, per season set
     pub details: [Vec<Sprite>; 3],
+    /// Their size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/tufts)
+    pub details_k: f32,
     /// Ground blocks for the green seasons, autumn and winter (season_tiles),
     /// and the same as top faces only, for inland tiles
     pub tiles: [TileSet; 3],
@@ -1346,6 +1359,14 @@ fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
 /// Where a windmill's sails turn: on the front of its tower, just below the
 /// roof (MILL_HUB, in the tower sprite's pixels), for a tower drawn with
 /// draw_on_tile on the tile centred on (sx, sy)
+/// The generated windmill's hub on screen, its tower standing on (sx, sy)
+/// as draw_standing puts it
+fn mill_hub_rd(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
+    let (w, h) = ((tower.width as f32 * zoom).round() as i32, (tower.height as f32 * zoom).round() as i32);
+    let bottom = sy + ((tower.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
+    (sx - w / 2 + (MILL_HUB_RD.0 * zoom).round() as i32, bottom - h + (MILL_HUB_RD.1 * zoom).round() as i32)
+}
+
 fn mill_hub(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
     let k = 2.0 * TILE_W as f32 * zoom / tower.width as f32;
     let (w, h) = ((2.0 * TILE_W as f32 * zoom).round() as i32, (tower.height as f32 * k).round() as i32);
@@ -1353,6 +1374,14 @@ fn mill_hub(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
     (sx - w / 2 + (MILL_HUB.0 * k).round() as i32, top + (MILL_HUB.1 * k).round() as i32)
 }
 const MILL_HUB: (f32, f32) = (24.5, 44.0);
+/// Where the generated tower's sails turn, in its own pixels (the front of
+/// the cap, assets/rd/windmill/tower.png)
+const MILL_HUB_RD: (f32, f32) = (19.5, 31.0);
+
+/// Index into Art::trades_winter
+fn trade_index(b: BSprite) -> usize {
+    match b { BSprite::Blacksmith => 0, BSprite::Guildhall => 1, BSprite::RivalHouse => 2, _ => 3 }
+}
 /// The sails' size against the tower's (the pack draws them about as tall)
 const MILL_SAILS: f32 = 0.7;
 
@@ -1486,11 +1515,31 @@ impl Art {
         let detail_set = |dir: &str, name: &str, gild: bool| -> Vec<Sprite> {
             (1..=9).filter_map(|i| pack(&format!("Enviroument/{}/{}({}).png", dir, name, i)).map(|s| if gild { gold(s) } else { s })).collect()
         };
-        let details = [
-            detail_set("Spring", "grass_detail", false),
-            detail_set("Spring", "grass_detail", true),
-            detail_set("Winter", "snow_detail", false),
-        ];
+        // generated tufts and flowers (assets/rd/tufts, a winter set
+        // beside them): both sets or neither, so the seasons match
+        let rd_tufts: Vec<Sprite> = (1..=14).filter_map(|i| at(&format!("rd/tufts/tuft{}.png", i))).collect();
+        let rd_tufts_w: Vec<Sprite> = (1..=12).filter_map(|i| at(&format!("rd/tufts/winter/tuft{}.png", i))).collect();
+        let (details, details_k) = if rd_tufts.is_empty() || rd_tufts_w.is_empty() {
+            ([
+                detail_set("Spring", "grass_detail", false),
+                detail_set("Spring", "grass_detail", true),
+                detail_set("Winter", "snow_detail", false),
+            ], PACK_PROP_K)
+        } else {
+            let autumn = rd_tufts.iter().map(|s| gold(s.clone())).collect();
+            ([rd_tufts, autumn, rd_tufts_w], 1.0)
+        };
+        // the generated windmill: a tower and its sails' four turning frames
+        let rd_mill_tower = at("rd/windmill/tower.png");
+        let rd_sails: Vec<Sprite> = (1..=4).filter_map(|i| at(&format!("rd/windmill/sails{}.png", i))).collect();
+        let mill_rd = rd_mill_tower.is_some() && rd_sails.len() == 4;
+        // the trade halls and the rival village: generated when present
+        let rd_b = |name: &str| chosen((1..=2).map(|i| at(&format!("rd/buildings/{}{}.png", name, i))).collect());
+        let trades = [rd_b("smithy"), rd_b("guildhall"), rd_b("rival-house"), rd_b("rival-woodhouse")];
+        let trades_winter = trades.clone().map(|t| t.map(|s| recolour_greens(&s, |c| blend(c, (236, 240, 246), 0.85))));
+        let [smithy, guildhall, rival_house, rival_woodhouse] = trades;
+        let rival_walks: Vec<Option<WalkSheet>> = ["man", "worker", "queen"].iter()
+            .map(|n| walk(&format!("rd/rivals/{}.png", n))).collect();
 
         // boulders and flat stone scatters from one generated sheet
         // (assets/rd/stones), drawn at 1x like the rest of the generated art
@@ -1515,12 +1564,14 @@ impl Art {
             houses_winter,
             tiles: [TileSet::load(&at, 0), TileSet::load(&at, 1), TileSet::load(&at, 2)],
             faces: [0, 1, 2].map(|season| TileSet::load(&at, season).map_blocks(face_only)),
-            mill_frames: (1..=4).map(|i|
-                at(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i)).unwrap()
-            ).collect(),
-            mill_tower: chosen(["wood", "blue", "green", "red"].iter()
-                .map(|c| pack(&format!("Buildings/mill/mill_{}.png", c))).collect()),
-            blacksmith_s: at(&assets.building_sprite("blacksmith", "green")),
+            mill_frames: if mill_rd { rd_sails } else { (1..=4).filter_map(|i|
+                at(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/Buildings/mill/mill({}).png", i))
+            ).collect() },
+            mill_tower: if mill_rd { rd_mill_tower } else { chosen(["wood", "blue", "green", "red"].iter()
+                .map(|c| pack(&format!("Buildings/mill/mill_{}.png", c))).collect()) },
+            mill_rd,
+            blacksmith_s: smithy.or_else(|| at(&assets.building_sprite("blacksmith", "green"))),
+            trades_winter,
             // stone(1) is a tiny pebble that's nearly all dark outline - on
             // the map it read as a black hole, so the boulders stand instead
             stones_k: if rd_stones.is_empty() { PACK_PROP_K } else { 1.0 },
@@ -1548,13 +1599,15 @@ impl Art {
             // a generated stone church, else one of the pack's tall keeps
             church_s: chosen((1..=2).map(|i| at(&format!("rd/buildings/church{}.png", i))).collect())
                 .or_else(|| chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect())),
-            guildhall_s: at(&assets.building_sprite("blacksmith", "wood")),
-            rival_house: at(&assets.building_sprite("house", "red")),
-            rival_woodhouse: at(&assets.building_sprite("woodhouse", "red")),
+            guildhall_s: guildhall.or_else(|| at(&assets.building_sprite("blacksmith", "wood"))),
+            rival_house: rival_house.or_else(|| at(&assets.building_sprite("house", "red"))),
+            rival_woodhouse: rival_woodhouse.or_else(|| at(&assets.building_sprite("woodhouse", "red"))),
             priest_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniMage.png")),
             priest_walk: walk("rd/villagers/priest.png"),
             guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
+            rival_walks,
+            traveller_walk: walk("rd/traveller/courier.png"),
             guards,
             dog: rd("dog").or_else(|| Some(doubled(dog_sprite()))),
             cat: rd("cat").or_else(|| Some(doubled(cat_sprite()))),
@@ -1564,6 +1617,7 @@ impl Art {
             goats: rd_set(&["goat", "goat2"]),
             gull: Some(gull_sprite()),
             details,
+            details_k,
         }
     }
 }
@@ -3274,8 +3328,16 @@ impl Game {
             }
             seat.last_pos = Some(now);
         }
-        for i in 0..self.villagers.len() {
-            let v = self.villagers[i];
+        // villagers, the rivals and the travelling figures (minstrel,
+        // pedlar, circus, ink-boiler, the rare visitors) all walk a cycle
+        let movers: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied()
+            .chain(self.minstrel.as_ref().map(|m| m.e))
+            .chain(self.pedlar.as_ref().map(|m| m.e))
+            .chain(self.circus.as_ref().map(|c| c.e))
+            .chain(self.ink_boiler.as_ref().map(|b| b.e))
+            .chain(self.rare.iter().filter_map(|r| r.e)).collect();
+        self.villager_poses.retain(|e, _| movers.contains(e));
+        for &v in &movers {
             let Some(p) = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y)) else { continue };
             let pose = self.villager_poses.entry(v).or_insert((p, 2, false));
             let (dx, dy) = (p.0 - pose.0.0, p.1 - pose.0.1);
@@ -3291,11 +3353,14 @@ impl Game {
 
     /// Where the courier is on the road between the villages: there and
     /// back along `traveller_path`, at a riding pace
-    pub fn traveller_pos(&self) -> Option<(f32, f32)> {
+    pub fn traveller_pos(&self) -> Option<(f32, f32)> { self.traveller_pos_at(self.frame_n) }
+
+    /// Where the courier is at frame `frame`
+    fn traveller_pos_at(&self, frame: u32) -> Option<(f32, f32)> {
         let n = self.traveller_path.len();
         if n < 2 || self.traveller_path.is_empty() { return None; }
         let leg = (n - 1) as f32;
-        let mut s = (self.frame_n as f32 * TRAVELLER_SPEED) % (leg * 2.0);
+        let mut s = (frame as f32 * TRAVELLER_SPEED) % (leg * 2.0);
         if s > leg { s = leg * 2.0 - s; }
         let (i, f) = (s as usize, s.fract());
         let (a, b) = (self.traveller_path[i], self.traveller_path[(i + 1).min(n - 1)]);
@@ -8788,7 +8853,10 @@ impl Game {
         };
         UiModel {
             player_pose: (self.seats[seat].facing, self.seats[seat].walking),
-            poses: self.villager_poses.iter().map(|(&e, &(_, f, w))| (e, f, w)).collect(),
+            // the courier (entity 0 in people) faces the way it rides
+            poses: self.villager_poses.iter().map(|(&e, &(_, f, w))| (e, f, w))
+                .chain(self.traveller_pos().zip(self.traveller_pos_at(self.frame_n.wrapping_sub(1)))
+                    .map(|(now, was)| (0, facing_on_screen(now.0 - was.0, now.1 - was.1), true))).collect(),
             tick: self.tick, frame: self.frame_n,
             map: self.map.clone(), town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
@@ -9293,6 +9361,9 @@ impl View {
         match b {
             BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
             BSprite::House(i) => self.art.house(i),
+            BSprite::Blacksmith | BSprite::Guildhall | BSprite::RivalHouse | BSprite::RivalWoodhouse
+                if self.winter.get() && self.art.trades_winter[trade_index(b)].is_some() =>
+                &self.art.trades_winter[trade_index(b)],
             BSprite::Blacksmith => &self.art.blacksmith_s,
             BSprite::Church => &self.art.church_s,
             BSprite::Guildhall => &self.art.guildhall_s,
@@ -9552,7 +9623,15 @@ impl View {
                 // windmill: the tower on its tile, its sails turning on the
                 // tower's face (frame cycles every 10 ticks)
                 Who::Mill => {
-                    if let Some(tower) = &art.mill_tower {
+                    if let (Some(tower), true) = (&art.mill_tower, art.mill_rd) {
+                        let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
+                        draw_standing(&mut buf, tower, msx, msy, zoom);
+                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                            let (hx, hy) = mill_hub_rd(tower, msx, msy, zoom);
+                            let (w, h) = ((sails.width as f32 * zoom).round() as i32, (sails.height as f32 * zoom).round() as i32);
+                            draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, zoom);
+                        }
+                    } else if let Some(tower) = &art.mill_tower {
                         let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                         draw_on_tile(&mut buf, tower, msx, msy, zoom);
                         if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
@@ -9651,7 +9730,10 @@ impl View {
                 },
                 Who::P(pv) if let PKind::Traveller = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    if let Some(s) = &art.traveller_s { draw_character(&mut buf, s, sx, sy, zoom); }
+                    if let Some(ws) = &art.traveller_walk {
+                        let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
+                        ws.draw(&mut buf, facing, walking, m.frame + pv.e * 7, sx, sy, zoom);
+                    } else if let Some(s) = &art.traveller_s { draw_character(&mut buf, s, sx, sy, zoom); }
                 },
                 Who::P(pv) if let PKind::Chicken = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
@@ -9662,9 +9744,13 @@ impl View {
                 // rival villagers (foreign settlement): the outlined figures
                 Who::P(pv) if let PKind::Rival(i) = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    let anchor = match art.rival_sprites.get(i) {
-                        Some(rs) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
-                        None => label_anchor(sy, zoom),
+                    let anchor = match (art.rival_walks.get(i), art.rival_sprites.get(i)) {
+                        (Some(Some(ws)), _) => {
+                            let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
+                            ws.draw(&mut buf, facing, walking, m.frame + pv.e * 7, sx, sy, zoom) - SPRITE_HEAD
+                        }
+                        (_, Some(rs)) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
+                        _ => label_anchor(sy, zoom),
                     };
                     let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
                     labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false));
@@ -10039,7 +10125,7 @@ impl View {
                     && (m.town_wall.1..=m.town_wall.3).contains(&ty);
                 if tile == Tile::Grass && !in_town && !m.map.is_occupied(tx, ty) && noise(tx, ty, 7) < 0.10 {
                     if let Some(d) = pick(&self.art.details[season_tiles(season)], tx, ty, 8) {
-                        let k = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+                        let k = self.art.details_k * zoom;
                         let (dw, dh) = ((d.width as f32 * k).round() as i32, (d.height as f32 * k).round().max(1.0) as i32);
                         let (jx, jy) = (noise(tx, ty, 10) - 0.5, noise(tx, ty, 11) - 0.5);
                         draw_zoomed(buf, d,
@@ -13869,7 +13955,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
         println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
     }
-    // map features too (`--focus tree|stone|wall|gate|church`), for props
+    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill`), for props
     // and buildings: the first of each, a tree in a wood rather than a
     // lone one
     let m = game.ui_model();
@@ -13881,6 +13967,10 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         Some("gate") => m.map.walls.iter().find(|w| matches!(w.1, WallPiece::GateAlongX | WallPiece::GateAlongY))
             .map(|&((x, y), _)| (x as f32, y as f32)),
         Some("church") => m.buildings.iter().find(|b| b.sprite == BSprite::Church).map(|b| (b.x, b.y)),
+        Some("smithy") => m.buildings.iter().find(|b| b.sprite == BSprite::Blacksmith).map(|b| (b.x, b.y)),
+        Some("guildhall") => m.buildings.iter().find(|b| b.sprite == BSprite::Guildhall).map(|b| (b.x, b.y)),
+        Some("rivals") => m.buildings.iter().find(|b| b.sprite == BSprite::RivalHouse).map(|b| (b.x, b.y)),
+        Some("mill") => m.mill,
         _ => None,
     };
     if let Some((x, y)) = feature {
@@ -14360,6 +14450,46 @@ mod dog_sprite_tests {
     }
 
     #[test]
+    fn test_round4_art_loads_and_falls_back() {
+        // generated: tufts at 1x (gilded for autumn, a snowy winter set),
+        // the windmill and its four sail frames, the trade halls and the
+        // rival village with snowed-over winter looks, and walk cycles for
+        // the rivals and the travellers
+        let art = Art::load_fs("../assets", 0);
+        assert_eq!((art.details[0].len(), art.details[1].len(), art.details[2].len(), art.details_k), (14, 14, 12, 1.0));
+        assert!(art.mill_rd && art.mill_frames.len() == 4 && art.mill_tower.as_ref().is_some_and(|t| t.width < 40));
+        assert!(art.trades_winter.iter().all(|s| s.is_some()));
+        assert!(art.rival_walks.len() == 3 && art.rival_walks.iter().all(|w| w.is_some()));
+        assert!(art.traveller_walk.is_some());
+        // without them: the pack's, at the pack's scale, and no winter looks
+        let fetch = |rel: &str| -> Option<Vec<u8>> {
+            if ["rd/tufts", "rd/windmill", "rd/rivals", "rd/traveller", "rd/buildings/smithy", "rd/buildings/guildhall",
+                "rd/buildings/rival"].iter().any(|p| rel.starts_with(p)) { return None; }
+            std::fs::read(format!("../assets/{}", rel)).ok()
+        };
+        let art = Art::load(&fetch, 0);
+        assert_eq!(art.details_k, PACK_PROP_K);
+        assert!(!art.details[0].is_empty());
+        assert!(!art.mill_rd && art.mill_frames.len() == 4 && art.mill_tower.is_some());
+        assert!(art.blacksmith_s.is_some() && art.guildhall_s.is_some() && art.rival_house.is_some());
+        assert!(art.trades_winter.iter().all(|s| s.is_none()));
+        assert!(art.rival_walks.iter().all(|w| w.is_none()) && art.traveller_walk.is_none());
+    }
+
+    #[test]
+    fn test_rivals_and_travellers_get_poses() {
+        // the rivals walk a cycle like villagers: they need a facing each
+        let mut g = Game::new_seeded(7);
+        for _ in 0..30 { g.update(); }
+        let m = g.ui_model();
+        assert!(!g.rivals.is_empty());
+        assert!(g.rivals.iter().all(|r| m.poses.iter().any(|p| p.0 == *r)), "a pose for every rival");
+        if g.traveller_pos().is_some() {
+            assert!(m.poses.iter().any(|p| p.0 == 0 && p.2), "the courier rides with a facing");
+        }
+    }
+
+    #[test]
     fn test_standing_pieces_sit_on_their_tile() {
         // a 1x generated piece is centred on the tile and its bottom (the
         // footprint's front corner) a quarter of its width below the centre
@@ -14377,7 +14507,7 @@ mod dog_sprite_tests {
         let mut g = Game::new_seeded(7);
         for _ in 0..200 { g.update(); }
         let m = g.ui_model();
-        assert_eq!(m.poses.len(), g.villagers.len(), "a pose for every villager");
+        assert!(g.villagers.iter().all(|v| m.poses.iter().any(|p| p.0 == *v)), "a pose for every villager");
         assert!(m.poses.iter().all(|p| p.1 < 4), "facings are walk-sheet rows");
         // the model straight after an update: whoever moved in that update
         // is mid-stride, facing that way; whoever didn't is standing (no

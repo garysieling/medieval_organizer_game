@@ -51,6 +51,7 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - Animation dumps: `GAME2_DUMP_WALK=dx,dy game_ui --dump-frame N --focus player` walks the player 8 frames before the shot.
 
 ## Render performance
-- Measure with `GAME2_BENCH=N game_ui --dump-frame T --zoom Z ...` (prints update/model/render ms and per-section render times); add `GAME2_BENCH_PAN=1` to slide the camera every frame (uncached ground).
+- Measure with `GAME2_BENCH=N game_ui --dump-frame T --zoom Z ...` (prints update/model/render ms, per-section render times and the weather); `GAME2_BENCH_PAN=1` slides the camera every frame (uncached ground), `GAME2_BENCH_ZOOM=1` drifts the zoom. Benchmark late ticks too (600, 1500): weather and a grown village only show up there. `--weather` doesn't survive bench frames.
+- Per-pixel full-frame passes (weather, tints) must not do float maths per pixel: a fixed per-channel mapping is a 256-entry table (`f32::round` is a libm call here).
 - Never `sprite.scaled(w, h).blit(..)` in a per-frame path: use `blit_resized` (same pixels, no copy, clipped). Anything drawn per map piece must go through `off_view` culling.
 - Generated buildings on a grass slab are exported with `rd_slice.py --flush-base`, or they float above their tile.

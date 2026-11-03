@@ -54,9 +54,17 @@ impl Layer<'_> {
 pub fn overcast(buf: &mut Buffer, map_w: usize, kind: PrecipKind) {
     let k = kind.intensity();
     // snow skies are grey: dimming the (often snow-white) ground lets white flakes show
-    let (tint, a) = if kind.is_snow() { ((110, 115, 135), 0.14 + 0.18 * k) } else { ((40, 50, 75), 0.10 + 0.22 * k) };
-    for y in 0..buf.height as i32 {
-        for x in 0..map_w as i32 { blend(buf, x, y, tint, a); }
+    let (tint, a): ((u8, u8, u8), f32) = if kind.is_snow() { ((110, 115, 135), 0.14 + 0.18 * k) } else { ((40, 50, 75), 0.10 + 0.22 * k) };
+    // the same mix as blend(), per channel, as tables: a million float
+    // blends a frame was a visible cost
+    let mix = |dst: u8, src: u8| (dst as f32 + (src as f32 - dst as f32) * a.min(1.0)) as u8;
+    let lut: [[u8; 256]; 3] = std::array::from_fn(|ch| std::array::from_fn(|v| mix(v as u8, [tint.0, tint.1, tint.2][ch])));
+    let w = map_w.min(buf.width);
+    for y in 0..buf.height {
+        let row = &mut buf.pixels[y * buf.width * 4..(y * buf.width + w) * 4];
+        for px in row.chunks_exact_mut(4) {
+            px[0] = lut[0][px[0] as usize]; px[1] = lut[1][px[1] as usize]; px[2] = lut[2][px[2] as usize];
+        }
     }
 }
 

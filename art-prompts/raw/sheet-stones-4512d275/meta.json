@@ -1,0 +1,26 @@
+{
+ "created_at": 1793721183,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 47.9,
+ "request_id": "004784b5-9c07-447d-82c8-c0208c547eaa",
+ "outputs_retained_until": 1793807533,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 47.9
+ },
+ "id": "sheet-stones-4512d275",
+ "prompt": "sprite sheet of grey field boulders, mossy rocks, rock piles and flat scatters of small stones lying on grass, isometric view, many variations",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-03T10:53:03",
+ "seconds": 50.5
+}

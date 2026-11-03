@@ -958,6 +958,8 @@ pub struct Art {
     pub blacksmith_s: Option<Sprite>,
     pub stones: Vec<Sprite>,        // boulders, a few shapes
     pub stone_grounds: Vec<Sprite>, // flat rocks
+    /// The rocks' size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/stones)
+    pub stones_k: f32,
     pub player_s: Option<Sprite>,
     /// The player's walk cycle (assets/rd/player/walk.png). None: the
     /// pack's still figure (player_s) stands in.
@@ -966,6 +968,10 @@ pub struct Art {
     /// villager_sprites (None: that look is still the pack's figure)
     pub villager_walks: Vec<Option<WalkSheet>>,
     pub tower_s: Option<Sprite>,
+    /// The town wall, its towers and gatehouses are generated
+    /// (assets/rd/castle): drawn one tile wide like the cottages instead of
+    /// on the pack's block scale
+    pub castle_rd: bool,
     /// Town wall blocks: running along x, along y, and the two gatehouses
     pub walls: [Option<Sprite>; 4],
     /// The odd wall stretch with a postern door in it: along x, along y
@@ -1066,6 +1072,9 @@ pub struct TileSet {
     /// Winter only: iced-over river stretches
     pub rivers_ice: Vec<Sprite>,
     pub trees: Vec<Sprite>,
+    /// How big the trees draw at zoom 1: the pack's are drawn on its block
+    /// scale (PACK_PROP_K), the generated ones (assets/rd/trees) at 1x
+    pub trees_k: f32,
 }
 
 /// Which TileSet a season draws with
@@ -1209,11 +1218,18 @@ impl TileSet {
             rd_pieces(name, 2).unwrap_or_else(||
                 (1..=2).filter_map(|i| load(&format!("Buildings/{}/{}({}).png", name, name, i))).map(&gold).collect())
         };
+        // the generated woods (assets/rd/trees: broadleaf and fir, winter's
+        // bare and snowed-on) if there, else the pack's four
+        let rd_trees: Vec<Sprite> = (1..=8)
+            .filter_map(|i| at(&format!("rd/trees/{}tree{}.png", if winter { "winter/" } else { "" }, i))).map(&gold).collect();
+        let rd_trees_k = !rd_trees.is_empty();
+        let pack_trees: Vec<Sprite> = (1..=4).filter_map(|i|
+            load(&format!("Enviroument/{}/trees/tree({}).png", if winter { "Winter" } else { "Spring" }, i)).map(&gold)).collect();
         let set = TileSet {
             shore, hill, rock, water, shallow, deep,
             grass: ground,
-            trees: (1..=4).filter_map(|i|
-                load(&format!("Enviroument/{}/trees/tree({}).png", if winter { "Winter" } else { "Spring" }, i)).map(&gold)).collect(),
+            trees: if rd_trees.is_empty() { pack_trees } else { rd_trees },
+            trees_k: if rd_trees_k { 1.0 } else { PACK_PROP_K },
             wheat: if winter { snow().into_iter().collect() } else { crop("wheat") },
             corn: if winter { snow().into_iter().collect() } else { crop("corn") },
             roads: if winter {
@@ -1250,6 +1266,7 @@ impl TileSet {
             rivers: self.rivers.iter().map(&f).collect(),
             rivers_ice: self.rivers_ice.iter().map(&f).collect(),
             trees: self.trees.clone(),
+            trees_k: self.trees_k,
         }
     }
 
@@ -1294,12 +1311,25 @@ fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32
     (w, h, sx - w as i32 / 2, sy - (TILE_H as f32 * zoom + BLOCK_FACE.2 * ky).round() as i32)
 }
 
+/// The scale the pack's props (trees, rocks) draw at on zoom 1: its block scale
+const PACK_PROP_K: f32 = 2.0 * TILE_W as f32 / BLOCK_FACE.0;
+
 /// Draw a building standing on the tile centred on (sx, sy): scaled so its
 /// base spans exactly one tile, its front corner on the tile's front corner
 fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let w = (2.0 * TILE_W as f32 * zoom).round() as usize;
     let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
+}
+
+/// Draw a generated piece standing on the tile centred on (sx, sy) at its
+/// own 1x size (no slab, so it's narrower than a tile and isn't stretched to
+/// one): a footprint w wide is a w/4-deep diamond's front half, so its
+/// bottom sits w/4 below the tile centre (at most the tile's front corner)
+fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+    let (w, h) = ((s.width as f32 * zoom).round() as i32, (s.height as f32 * zoom).round() as i32);
+    let bottom = sy + ((s.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
+    draw_zoomed(buf, s, sx - w / 2, bottom - h, zoom);
 }
 
 /// Draw a piece of the town wall standing on the tile centred on (sx, sy):
@@ -1342,9 +1372,10 @@ fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u
 const SMOKE_SECS: u32 = 2;
 
 /// Draw a tree or boulder standing in the middle of the tile centred on
-/// (sx, sy), at the ground blocks' scale (the pack draws them for its blocks)
-fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    let k = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+/// (sx, sy), k times its size at zoom 1 (PACK_PROP_K for the pack's, 1 for
+/// generated art)
+fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, k: f32) {
+    let k = k * zoom;
     let (w, h) = ((s.width as f32 * k).round() as i32, (s.height as f32 * k).round() as i32);
     draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
 }
@@ -1461,6 +1492,22 @@ impl Art {
             detail_set("Winter", "snow_detail", false),
         ];
 
+        // boulders and flat stone scatters from one generated sheet
+        // (assets/rd/stones), drawn at 1x like the rest of the generated art
+        let rd_stones: Vec<Sprite> = (1..=12).filter_map(|i| at(&format!("rd/stones/stone{}.png", i))).collect();
+        let rd_grounds: Vec<Sprite> = (1..=6).filter_map(|i| at(&format!("rd/stones/ground{}.png", i))).collect();
+        // the generated town wall: one wall block, gatehouse and postern
+        // block, mirrored for the other axis (the files say which), and a
+        // few towers; all of it or none, so a wall never mixes looks
+        struct RdCastle { walls: [Option<Sprite>; 4], posts: [Option<Sprite>; 2], towers: Option<Sprite> }
+        let c = |n: &str| at(&format!("rd/castle/{}.png", n));
+        let rd_castle = Some(RdCastle {
+            walls: [c("wall_x"), c("wall_y"), c("gate_x"), c("gate_y")],
+            posts: [c("postern_x"), c("postern_y")],
+            towers: chosen((1..=4).map(|i| c(&format!("tower{}", i))).collect()),
+        }).filter(|r| r.walls.iter().chain(&r.posts).all(|s| s.is_some()) && r.towers.is_some());
+        let (rd_stones, rd_grounds) = if rd_stones.is_empty() || rd_grounds.is_empty() { (vec![], vec![]) } else { (rd_stones, rd_grounds) };
+
         Art {
             villager_sprites,
             rival_sprites,
@@ -1476,22 +1523,31 @@ impl Art {
             blacksmith_s: at(&assets.building_sprite("blacksmith", "green")),
             // stone(1) is a tiny pebble that's nearly all dark outline - on
             // the map it read as a black hole, so the boulders stand instead
-            stones: (2..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone({}).png", i))).collect(),
-            stone_grounds: (1..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone_ground ({}).png", i))).collect(),
+            stones_k: if rd_stones.is_empty() { PACK_PROP_K } else { 1.0 },
+            stones: if rd_stones.is_empty() {
+                (2..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone({}).png", i))).collect()
+            } else { rd_stones },
+            stone_grounds: if rd_grounds.is_empty() {
+                (1..=4).filter_map(|i| pack(&format!("Enviroument/Spring/stones/stone_ground ({}).png", i))).collect()
+            } else { rd_grounds },
             player_walk,
             villager_walks,
             player_s: at("MinifolksVillagers/MinifolksVillagers/Without Outline/MiniPeasant.png").map(|s| s.crop(0, 0, 32, 32)),
             // the pack's corner towers: flat-top, capped or keeps - the
             // whole watch matches within a map, but varies between runs
-            tower_s: chosen([("Wood towers", "castle_tower_wood", 1), ("Wood towers", "castle_tower_wood", 4),
+            castle_rd: rd_castle.is_some(),
+            tower_s: if let Some(c) = &rd_castle { c.towers.clone() } else { chosen([("Wood towers", "castle_tower_wood", 1), ("Wood towers", "castle_tower_wood", 4),
                              ("Wood towers", "castle_tower_wood", 5), ("Blue towers", "castle_tower_blue", 4)]
-                .iter().map(|(d, n, i)| pack(&format!("Towers/{}/{}({}).png", d, n, i))).collect()),
+                .iter().map(|(d, n, i)| pack(&format!("Towers/{}/{}({}).png", d, n, i))).collect()) },
             // the pack's castle_wall(2) runs along x, (1) along y; (5) and (6) are gatehouses
-            walls: [2, 1, 5, 6].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))),
+            walls: match &rd_castle { Some(c) => c.walls.clone(),
+                None => [2, 1, 5, 6].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))) },
             // wall(4) and wall(3): the same runs with a postern door in them
-            wall_posts: [4, 3].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))),
-            // the church is one of the pack's tall keeps
-            church_s: chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect()),
+            wall_posts: match &rd_castle { Some(c) => c.posts.clone(),
+                None => [4, 3].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))) },
+            // a generated stone church, else one of the pack's tall keeps
+            church_s: chosen((1..=2).map(|i| at(&format!("rd/buildings/church{}.png", i))).collect())
+                .or_else(|| chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect())),
             guildhall_s: at(&assets.building_sprite("blacksmith", "wood")),
             rival_house: at(&assets.building_sprite("house", "red")),
             rival_woodhouse: at(&assets.building_sprite("woodhouse", "red")),
@@ -9299,7 +9355,7 @@ impl View {
         #[derive(Clone, Copy)]
         enum Piece<'a> {
             Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
-            Prop(Option<&'a Sprite>),          // a tree or boulder in the middle of its tile
+            Prop(Option<&'a Sprite>, f32),     // a tree or boulder in the middle of its tile, and its zoom-1 scale
             Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
             Herb,                              // a wild herb tuft, flat on the meadow
             Shroom,                            // a wild mushroom in the shade
@@ -9322,14 +9378,16 @@ impl View {
         }
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
-        standing.extend(m.castle_keeps.iter().map(|&(x, y)|
-            (x, y, Piece::Building(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0))));
+        // (a generated keep stands like the wall's towers, at its own size)
+        standing.extend(m.castle_keeps.iter().map(|&(x, y)| (x, y, if art.castle_rd {
+            Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref())
+        } else { Piece::Building(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0) })));
         // a wood is a mix of the pack's trees, stable per tile
-        standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4)))));
+        standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4), art.tiles[season_tiles(season)].trees_k))));
         // boulders and flat rocks, a different one each time
         let rock_prop = |x: i32, y: i32| if noise(x, y, 14) < 0.5 {
             pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
-        standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
+        standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
         // wild herb tufts, ready for the picking
         standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
@@ -9418,7 +9476,7 @@ impl View {
         }
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
-        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y)))));
+        standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
         standing.extend(m.map.walls.iter().map(|&((x, y), piece)| {
             // the odd stretch of wall has a postern door in it
             let postern = noise(x, y, 15) < 0.15;
@@ -9441,12 +9499,14 @@ impl View {
             // what can't reach the view (most of it when zoomed in)
             if off_view(sx, sy, zoom) { return; }
             match piece {
-                Piece::Prop(sprite) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom); },
+                Piece::Prop(sprite, k) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom, k); },
                 Piece::Herb => herb_tuft(buf, sx, sy, zoom),
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
-                Piece::Castle(sprite) => if let Some(s) = sprite { draw_castle(buf, s, sx, sy, zoom); },
+                Piece::Castle(sprite) => if let Some(s) = sprite {
+                    if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
+                },
                 Piece::Building(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
                     else if up > 0.0 {
@@ -13809,7 +13869,24 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
         println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
     }
-    if let Some(name) = focus {
+    // map features too (`--focus tree|stone|wall|gate|church`), for props
+    // and buildings: the first of each, a tree in a wood rather than a
+    // lone one
+    let m = game.ui_model();
+    let woods = |&&(x, y): &&(i32, i32)| m.map.trees.iter().filter(|&&(tx, ty)| (tx - x).abs() + (ty - y).abs() <= 2).count() >= 5;
+    let feature = match focus {
+        Some("tree") => m.map.trees.iter().find(woods).map(|&(x, y)| (x as f32, y as f32)),
+        Some("stone") => m.stones.first().map(|&(x, y)| (x as f32, y as f32)),
+        Some("wall") => m.map.walls.iter().find(|w| w.1 == WallPiece::Tower).map(|&((x, y), _)| (x as f32, y as f32)),
+        Some("gate") => m.map.walls.iter().find(|w| matches!(w.1, WallPiece::GateAlongX | WallPiece::GateAlongY))
+            .map(|&((x, y), _)| (x as f32, y as f32)),
+        Some("church") => m.buildings.iter().find(|b| b.sprite == BSprite::Church).map(|b| (b.x, b.y)),
+        _ => None,
+    };
+    if let Some((x, y)) = feature {
+        (view.cam_x, view.cam_y) = cam_centred_on(x, y);
+        println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", focus.unwrap_or(""), x, y, view.cam_x, view.cam_y);
+    } else if let Some(name) = focus {
         match game.ui_model().people.iter().find(|p| focus_matches(p.kind, name)) {
             Some(p) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);
@@ -14240,6 +14317,59 @@ mod dog_sprite_tests {
             (0..s.width).any(|x| { let p = &s.pixels[(y * s.width + x) * 4..][..4]; p[3] > 128 && p[1] > p[0] && p[1] >= p[2] })
         }).count();
         assert!(green_bottom >= 8, "only {} of {} cottages end in grass", green_bottom, art.houses.len());
+    }
+
+    #[test]
+    fn test_generated_props_and_castle_load_at_1x() {
+        let art = Art::load_fs("../assets", 0);
+        // woods: broadleaf and fir in the green seasons and autumn, bare and
+        // snowed-on in winter, all drawn at 1x (not the pack's block scale)
+        for (season, n) in [(0, 8), (1, 8), (2, 4)] {
+            let t = &art.tiles[season];
+            assert_eq!(t.trees.len(), n, "season {}: generated trees", season);
+            assert_eq!(t.trees_k, 1.0);
+            assert!(t.trees.iter().all(|s| (40..=62).contains(&s.height)), "a tree is about a cottage tall");
+        }
+        assert_eq!((art.stones.len(), art.stone_grounds.len(), art.stones_k), (12, 6, 1.0));
+        // the town wall is generated as a set, the church too
+        assert!(art.castle_rd);
+        assert!(art.walls.iter().chain(&art.wall_posts).all(|s| s.is_some()) && art.tower_s.is_some());
+        assert!(art.church_s.as_ref().is_some_and(|c| c.width < 70), "the generated church, not the pack's keep");
+        // the wall pieces stand on the map's own ground: no grass slab left
+        // on their bottom rows to show green on snow or rock
+        let greenish = |s: &Sprite| (s.height - 3..s.height).flat_map(|y| (0..s.width).map(move |x| (x, y)))
+            .filter(|&(x, y)| { let p = &s.pixels[(y * s.width + x) * 4..][..4]; p[3] > 128 && p[1] > p[0] + 8 && p[1] > p[2] + 4 }).count();
+        for s in art.walls.iter().chain(&art.wall_posts).chain([&art.tower_s]).flatten() {
+            assert!(greenish(s) <= 2, "a wall piece still has its grass slab ({} green px)", greenish(s));
+        }
+    }
+
+    #[test]
+    fn test_falls_back_to_pack_props_and_castle() {
+        // without assets/rd/{trees,stones,castle} the pack's art draws, at
+        // the pack's scale
+        let fetch = |rel: &str| -> Option<Vec<u8>> {
+            if ["rd/trees", "rd/stones", "rd/castle", "rd/buildings/church"].iter().any(|p| rel.starts_with(p)) { return None; }
+            std::fs::read(format!("../assets/{}", rel)).ok()
+        };
+        let art = Art::load(&fetch, 0);
+        assert_eq!((art.tiles[0].trees.len(), art.tiles[0].trees_k), (4, PACK_PROP_K));
+        assert_eq!((art.stones.len(), art.stones_k), (3, PACK_PROP_K));
+        assert!(!art.castle_rd && art.walls.iter().all(|s| s.is_some()));
+        assert!(art.church_s.as_ref().is_some_and(|c| c.width > 90), "the pack's keep stands in for the church");
+    }
+
+    #[test]
+    fn test_standing_pieces_sit_on_their_tile() {
+        // a 1x generated piece is centred on the tile and its bottom (the
+        // footprint's front corner) a quarter of its width below the centre
+        let s = Sprite { width: 40, height: 50, pixels: vec![255; 40 * 50 * 4] };
+        let mut buf = Buffer::new(200, 200);
+        draw_standing(&mut buf, &s, 100, 100, 1.0);
+        let lit = |x: usize, y: usize| buf.pixels[(y * 200 + x) * 4] == 255;
+        assert!(lit(100, 109) && !lit(100, 110), "bottom row at the front corner (centre + 10)");
+        assert!(lit(80, 100) && !lit(79, 100) && lit(119, 100) && !lit(120, 100), "centred");
+        assert!(lit(100, 60) && !lit(100, 59), "50px tall");
     }
 
     #[test]

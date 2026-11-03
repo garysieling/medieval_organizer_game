@@ -1,0 +1,28 @@
+{
+ "created_at": 1793721347,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 47.54,
+ "request_id": "e1ef11be-9631-4123-98d6-1bd991946f94",
+ "outputs_retained_until": 1793807685,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 47.54
+ },
+ "id": "castle-wall-run-90fc13ee",
+ "prompt": "single isometric medieval village asset: one square block of crenellated grey stone castle curtain wall, battlements along the top, a straight wall section",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T10:55:47",
+ "seconds": 62.4
+}

@@ -271,6 +271,36 @@ for slug, t in [
 ]:
     add("tiles/walls", f"wall-{slug}", f"{ISO}: {t}", w=128, h=128)
 
+# The props the map is full of, in the cottages' look (rd_pro__isometric
+# 64px with a cottage as reference: ~56px wide, one tile). Castle pieces are
+# whole blocks like the pack's, so a run of them makes a wall; one
+# orientation is generated and mirrored for the other axis.
+PROP_REF = "assets/rd/buildings/cottage1.png"
+for slug, subj, n in [
+    ("tree-broadleaf", "one leafy deciduous tree, full rounded green canopy, short brown trunk, "
+                       "standing alone, no ground", 4),
+    ("tree-conifer", "one tall dark green fir tree, layered pointed branches, short brown trunk, "
+                     "standing alone, no ground", 4),
+    ("tree-winter-fir", "one dark green fir tree with snow lying on its branches, standing alone, no ground", 2),
+    ("tree-winter-bare", "one bare leafless winter tree with snow on its branches, standing alone, no ground", 2),
+    ("castle-wall-run", "one square block of crenellated grey stone castle curtain wall, "
+                        "battlements along the top, a straight wall section", 2),
+    ("castle-gatehouse", "one square block of grey stone castle wall with an open arched gateway "
+                         "through it, battlements along the top", 2),
+    ("castle-postern", "one square block of grey stone castle wall with a small wooden door in it, "
+                       "battlements along the top", 1),
+    ("castle-tower", "one square grey stone castle corner tower, taller than the wall, "
+                     "battlements on top", 4),
+    ("church-keep", "one small grey stone village church with a tall square bell tower and slate roof", 2),
+]:
+    add("props", slug, f"{ISO}: {subj}", w=64, h=64, n=n, ref=PROP_REF,
+        notes="round 3 props: trees, castle pieces and church in the cottages' look")
+add("props", "sheet-stones",
+    "sprite sheet of grey field boulders, mossy rocks, rock piles and flat scatters of small stones "
+    "lying on grass, isometric view, many variations",
+    style="rd_pro__spritesheet", w=256, h=256, remove_bg=False,
+    notes="slice the boulders as stones, the flat scatters as stone_grounds")
+
 # ---------------------------------------------------------------------------
 # P0: buildings - every BuildingKind the game places, plus shop per vocation.
 

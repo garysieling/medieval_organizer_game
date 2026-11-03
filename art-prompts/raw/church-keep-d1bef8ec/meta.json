@@ -1,0 +1,28 @@
+{
+ "created_at": 1793721746,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 45.92,
+ "request_id": "a0880929-028b-41e7-8dc5-7e3d177e6447",
+ "outputs_retained_until": 1793807932,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 45.92
+ },
+ "id": "church-keep-d1bef8ec",
+ "prompt": "single isometric medieval village asset: one small grey stone village church with a tall square bell tower and slate roof",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T11:02:26",
+ "seconds": 214.2
+}

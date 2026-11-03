@@ -200,6 +200,99 @@ def flush_base(im, max_rows=6):
     return im.crop(im.getbbox())
 
 
+def strip_base(im, min_px=15):
+    """Take away the little patch of ground a prop (a tree) was drawn
+    standing on, so it stands on the game's own grass. The patch is the
+    olive/earth ramp (red ~ green, little blue) in the bottom half: foliage
+    is bluer, the trunk redder, so both stay. A sprite with no patch is
+    returned as it is. Returns the re-cropped sprite."""
+    im = im.copy()
+    px = im.load()
+    w, h = im.size
+
+    def earth(c):
+        r, g, b, a = c
+        return (a >= 128 and r > 60 and b < 0.7 * min(r, g)
+                and abs(r - g) <= 0.15 * max(r, g))
+
+    hits = [(x, y) for y in range(h // 2, h) for x in range(w) if earth(px[x, y])]
+    if len(hits) < min_px:
+        return im
+    for x, y in hits:
+        px[x, y] = (0, 0, 0, 0)
+    return largest_piece(im)
+
+
+def strip_slab(im, frac=0.4):
+    """Take the grass slab off a stone piece (wall, tower) so it stands on
+    whatever ground the map has - grass, rock or snow - with no green
+    fringe. Run after flush_base (which takes the slab's earth edge): what's
+    left of the slab is grass, olive earth and sandy path, the only colours
+    with little blue in the bottom of a grey stone sprite. A door's wood is
+    redder (red > 1.38 green) and stays."""
+    im = im.copy()
+    px = im.load()
+    w, h = im.size
+    for y in range(int(h * (1 - frac)), h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            grass = g > r + 8 and g > b + 4
+            ground = b < 0.7 * max(r, g) and g >= 0.72 * r and max(r, g) > 30
+            if a and (grass or ground):
+                px[x, y] = (0, 0, 0, 0)
+    return largest_piece(im)
+
+
+def strip_fringe(im):
+    """Take the same grass/earth/path colours off a loose scatter of pieces
+    (a boulder pile, a handful of flat stones) that strip_slab takes off a
+    single standing one. strip_slab only looks at the bottom of the sprite
+    and keeps one connected piece - wrong here, since a flat scatter's
+    stones sit low in the frame as several separate blobs and the slab
+    shows between them, not just underneath. This scans the whole sprite
+    and keeps every piece, so each stone in the scatter survives."""
+    im = im.copy()
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            grass = g > r + 8 and g > b + 4
+            ground = b < 0.7 * max(r, g) and g >= 0.72 * r and max(r, g) > 30
+            if a and (grass or ground):
+                px[x, y] = (0, 0, 0, 0)
+    return im
+
+
+def largest_piece(im):
+    px = im.load()
+    w, h = im.size
+    """Keep only the biggest connected piece, re-cropped: specks of a
+    removed patch's dark rim are left hanging otherwise"""
+    seen, best = set(), []
+    for y0 in range(h):
+        for x0 in range(w):
+            if (x0, y0) in seen or not px[x0, y0][3]:
+                continue
+            comp, stack = [], [(x0, y0)]
+            seen.add((x0, y0))
+            while stack:
+                x, y = stack.pop()
+                comp.append((x, y))
+                for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= n[0] < w and 0 <= n[1] < h and n not in seen and px[n][3]:
+                        seen.add(n)
+                        stack.append(n)
+            if len(comp) > len(best):
+                best = comp
+    keep = set(best)
+    for y in range(h):
+        for x in range(w):
+            if (x, y) not in keep:
+                px[x, y] = (0, 0, 0, 0)
+    return im.crop(im.getbbox())
+
+
 def preview(im, cells, path, scale=4):
     big = Image.new("RGBA", im.size, (60, 70, 60, 255))
     big.alpha_composite(im)
@@ -226,6 +319,15 @@ def main():
     ap.add_argument("--gap", type=int, default=1, help="merge blobs this close together")
     ap.add_argument("--flush-base", action="store_true",
                     help="cut a building's grass-slab edge so it stands flush on its tile")
+    ap.add_argument("--strip-base", action="store_true",
+                    help="remove the patch of ground a tree or prop stands on")
+    ap.add_argument("--strip-slab", action="store_true",
+                    help="with --flush-base: remove a stone piece's grass slab too")
+    ap.add_argument("--strip-fringe", action="store_true",
+                    help="remove grass/earth colour from a scatter of loose pieces "
+                         "(keeps every piece, unlike --strip-slab)")
+    ap.add_argument("--mirror", action="store_true",
+                    help="flip left-right (the other wall axis from one generated piece)")
     ap.add_argument("--keep-clipped", action="store_true",
                     help="keep sprites that touch the sheet edge")
     ap.add_argument("--half", action="store_true",
@@ -258,6 +360,14 @@ def main():
             name, _, height = name.partition("@")
             if args.flush_base:
                 spr = flush_base(spr)
+            if args.strip_base:
+                spr = strip_base(spr)
+            if args.strip_slab:
+                spr = strip_slab(spr)
+            if args.strip_fringe:
+                spr = strip_fringe(spr)
+            if args.mirror:
+                spr = spr.transpose(Image.FLIP_LEFT_RIGHT)
             if args.half:
                 spr = halve(spr)
             if "x" in height:

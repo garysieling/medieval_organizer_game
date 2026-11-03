@@ -63,3 +63,4 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - Per-pixel full-frame passes (weather, tints) must not do float maths per pixel: a fixed per-channel mapping is a 256-entry table (`f32::round` is a libm call here).
 - Never `sprite.scaled(w, h).blit(..)` in a per-frame path: use `blit_resized` (same pixels, no copy, clipped). Anything drawn per map piece must go through `off_view` culling.
 - Generated buildings on a grass slab are exported with `rd_slice.py --flush-base`, or they float above their tile.
+- Props and wall pieces that must sit on any ground (snow, rock): `--strip-base` (a tree's dirt patch) or `--flush-base --strip-slab` (a stone piece's grass slab); they draw at 1x via `draw_prop(k=1)` / `draw_standing`. One wall/gate block is generated and `--mirror`ed for the other axis.

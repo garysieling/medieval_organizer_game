@@ -13638,6 +13638,8 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
     // GAME2_BENCH_PAN=1: the camera slides every frame, as while panning
     // (the ground can't use its cache then)
     let pan = std::env::var("GAME2_BENCH_PAN").is_ok();
+    // this run's sections only, and off again after (see the end)
+    PROF.with(|p| p.borrow_mut().clear());
     PROF_ON.store(true, std::sync::atomic::Ordering::Relaxed);
     use std::time::Instant;
     let (mut tu, mut tm, mut tr) = (vec![], vec![], vec![]);
@@ -13660,6 +13662,7 @@ pub fn bench_frames(game: &mut Game, view: &mut View, n: u32) {
         let line: Vec<String> = p.iter().map(|(k, v)| format!("{} {:.1}", k, v / n.max(1) as f64)).collect();
         println!("render sections (ms/frame): {}", line.join(", "));
     });
+    PROF_ON.store(false, std::sync::atomic::Ordering::Relaxed);
     let stat = |v: &Vec<f64>| (v.iter().sum::<f64>() / v.len() as f64, v.iter().cloned().fold(0.0, f64::max));
     let ((au, wu), (am, wm), (ar, wr)) = (stat(&tu), stat(&tm), stat(&tr));
     println!("bench {} frames: update {:.2}ms (max {:.1}), model {:.2}ms (max {:.1}), render {:.2}ms (max {:.1}), total {:.2}ms/frame",

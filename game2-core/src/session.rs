@@ -8420,9 +8420,12 @@ impl Game {
                             let stocked = workplace
                                 .and_then(|b| self.world.get_component::<Building>(b))
                                 .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - stocked_before as i32;
-                            let senior = senior_shop
-                                .and_then(|b| self.world.get_component::<Building>(b))
-                                .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32;
+                            // an heir keeps the senior's bench: when it's the
+                            // same shelf, its take is already counted above
+                            let senior = if senior_shop == workplace { 0 } else {
+                                senior_shop.and_then(|b| self.world.get_component::<Building>(b))
+                                    .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - senior_before as i32
+                            };
                             let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0) - gold_before;
                             let shop = workplace.and_then(|b| self.world.get_component::<Building>(b))
                                 .map(|b| b.name.as_str()).unwrap_or("the shop");
@@ -13571,6 +13574,31 @@ mod blocker_tests {
         g.ctx_act_at(0, 0);
         let last = g.log.last().unwrap();
         assert!(last.contains("1 bread made") && last.contains("in your satchel"), "{}", last);
+    }
+
+    #[test]
+    fn test_a_tasked_heir_reports_the_inherited_shop_once() {
+        let mut g = Game::new();
+        // the player's bench is the shop their senior left them - the
+        // senior's card still names it as their workplace too
+        let senior = g.villagers[5];
+        let shop = g.building_entities.iter().copied().find(|&b|
+            g.world.get_component::<Building>(b)
+                .map(|bb| matches!(bb.kind, BuildingKind::Shop(_))).unwrap_or(false)).unwrap();
+        let mut craft = vocation::craft(Vocation::Fisher, 0.3);
+        craft.workplace = Some(shop);
+        craft.tasked_by = Some(senior);
+        g.world.add_component(g.player, craft);
+        if g.world.get_component::<Craft>(senior).is_none() {
+            g.world.add_component(senior, vocation::craft(Vocation::Fisher, 0.9));
+        }
+        g.world.get_component_mut::<Craft>(senior).unwrap().workplace = Some(shop);
+        g.seats[0].ctx_actions = vec![CtxAct::Work];
+        g.ctx_act_at(0, 0);
+        let last = g.log.last().unwrap();
+        assert!(last.contains("1 fish made"), "{}", last);
+        // the shared shelf's take is named once - not again as the senior's
+        assert!(!last.contains("through"), "{}", last);
     }
 }
 

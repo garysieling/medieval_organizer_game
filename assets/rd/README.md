@@ -137,4 +137,35 @@ pack's block scale (`TileSet.trees_k`, `Art.stones_k`, `Art.castle_rd`).
 Screenshots: `evidence/rd-props/` (before | after). `--focus` also takes
 `tree`, `stone`, `wall`, `gate` and `church` now.
 
-Still pack art: windmill, guildhall/blacksmith, rival town, traveller.
+Still pack art after this pass: windmill, guildhall/blacksmith, rival town, traveller.
+
+## The rest of the pack (2026-11-03, $3.59)
+
+Same recipe as the props (`props` and `anim/walk` groups, round 4).
+
+- **Ground tufts** (`tufts/tuft1..14`, `tufts/winter/tuft1..12`): two
+  `rd_pro__spritesheet` calls (green tufts/flowers/ferns, snowy tufts and
+  dead reeds), resampled `@14` and drawn at 1x (`Art.details_k`); autumn is
+  the green set gilded, as before.
+- **Blacksmith, guildhall** (`buildings/smithy1..2`, `guildhall1..2`) and
+  **the rival village** (`buildings/rival-house1..2`, `rival-woodhouse1..2`):
+  64px isometric with the cottage as reference, `--flush-base`, drawn like
+  the cottages. Each gets a snowed-over winter look (`Art.trades_winter`).
+- **Windmill** (`windmill/tower.png` + `sails1..4`): a 96px tower with no sails (at 64px it came out cottage-sized)
+  (`--flush-base`, drawn at its own size by `draw_standing`) and one cross
+  of sails (`rd_pro__default`), rotated 0/22.5/45/67.5 degrees and box
+  resampled to 58px for the turning frames; they turn on `MILL_HUB_RD`.
+  `windmill/tower2.png` is the spare tower.
+- **Rivals and travellers** (`rivals/{man,worker,queen}.png`,
+  `traveller/courier.png`): raw four_angle_walking sheets. They face and
+  stride as they move (`villager_poses` tracks them too). The walking
+  style only draws people: "courier riding a horse" (and a second,
+  horse-first prompt) came back as a hooded walker, so the courier and the
+  other travellers now go on foot.
+
+`--focus` also takes `smithy`, `guildhall`, `mill` and `rivals`.
+Screenshots: `evidence/rd-round4/`.
+
+Still pack art: no sprite on the map (the ground blocks keep the pack's geometry). Its figures (`player_s`,
+`priest_s`, `traveller_s`, rival stills) and buildings remain only as
+fallbacks when `assets/rd` is missing.

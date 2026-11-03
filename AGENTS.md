@@ -1,5 +1,9 @@
 # AGENTS.md - Game2 Project Instructions & Learned Information
 
+## Layout
+- Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs render. The split of `session.rs` is in progress there; put new code in its target layer.
+- Session tests live in `game2-core/src/session/tests/<subsystem>.rs` (start with `use crate::session::*;`). Add new ones to the matching file, or add a file and list it in `tests/mod.rs`. Don't put them back in `session.rs`.
+
 ## Build & Test Instructions
 
 ### Windows GNU Toolchain Note
@@ -62,6 +66,7 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - RD sprite pixel size is fixed (~25px objects, ~35px walk figures): request 256 sheets and resample; a smaller canvas only clips. `four_angle_walking` needs 48px (32 fails).
 - Ground-block prompts use `ISO_GROUND`, never `ISO` (it draws a house on the block). Tile/building swaps need the whole set (roads/rivers carry their own grass).
 - Ground tiles are composed (`scripts/rd_compose_tiles.py`), not generated per piece. Walk prompts: describe appearance positively (negatives like "no helmet" backfire).
+- `four_angle_walking` only draws people: a rider or animal comes back as a walker. `rd_pro__isometric` sizes the object to the canvas (64px ~ a cottage); ask 96px for something that should tower over the roofs (the windmill).
 - Animation dumps: `GAME2_DUMP_WALK=dx,dy game_ui --dump-frame N --focus player` walks the player 8 frames before the shot.
 
 ## Render performance

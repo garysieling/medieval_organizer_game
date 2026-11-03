@@ -1,0 +1,28 @@
+{
+ "created_at": 1793734253,
+ "credit_cost": 10,
+ "balance_cost": 0.07,
+ "model": "rd_plus",
+ "remaining_credits": 0,
+ "remaining_balance": 42.83,
+ "request_id": "9fcab91b-ea59-4c52-9b73-0863f944e81a",
+ "outputs_retained_until": 1793820645,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.07,
+  "balance_left": 42.83
+ },
+ "id": "walk4-rival-queen-ac8bf955",
+ "prompt": "proud village headwoman with dark skin, gold circlet, long crimson gown with a fur collar, medieval",
+ "request": {
+  "prompt_style": "rd_animation__four_angle_walking",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true,
+  "return_spritesheet": true
+ },
+ "generated_at": "2026-11-03T14:30:53",
+ "seconds": 8.4
+}

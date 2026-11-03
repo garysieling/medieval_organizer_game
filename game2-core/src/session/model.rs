@@ -153,6 +153,10 @@ pub struct TalkRowV {
     pub you: bool,
     /// A "day 12" divider between conversations
     pub rule: bool,
+    /// The speaker as a villager index, when it's one of ours - a click on
+    /// the line selects them (None: narration, the player, an outsider)
+    #[serde(default)]
+    pub who: Option<usize>,
 }
 
 /// The TALK panel: conversations, kept apart from the event log
@@ -165,6 +169,23 @@ pub struct TalkPanelV {
     pub options: Vec<String>,
     /// Mid-Talk: Leave is on offer too
     pub in_talk: bool,
+}
+
+/// The conversation box at the map's top-right: a Talk under way, a house
+/// meeting's lines as they're said, or the call the meeting left the
+/// organizer to make. Each line is its own button - a named one selects
+/// the speaker - and the choices under it are clickable
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ConvoPanelV {
+    pub title: String,
+    /// Conversation lines, oldest first; the box shows the newest that fit
+    pub rows: Vec<TalkRowV>,
+    /// The choices on offer: Talk replies, or the founding call's framings
+    pub options: Vec<String>,
+    /// The options are the post-meeting call (Command::Decide), not Talk replies
+    pub decides: bool,
+    /// "Take your leave" is on offer (a Talk under way)
+    pub leave: bool,
 }
 
 /// Everything `View::render` draws that comes from the simulation.
@@ -203,6 +224,10 @@ pub struct UiModel {
     /// The TALK panel, apart from the log
     #[serde(default)]
     pub talk: TalkPanelV,
+    /// The conversation box, top-right of the map (a Talk or meeting under
+    /// way, the call after one) - None most of the time
+    #[serde(default)]
+    pub convo: Option<ConvoPanelV>,
     pub sel: Selection,
     /// Villager indices within talk/meeting reach
     pub reach: Vec<usize>,

@@ -28,8 +28,8 @@ use crate::game::villager::{self, Hunger};
 use crate::game::vocation::{Craft, Kid, TownRole, Vocation};
 use crate::sim::psychology::{AttachmentHistory, EpisodeKind};
 use crate::ui::font::draw_text;
-use super::model::{TalkPanelV, TalkRowV};
-use super::{Game, UI_X, GLYPH_W};
+use super::model::{ConvoPanelV, TalkPanelV, TalkRowV};
+use super::{Game, MAP_W, UI_X, GLYPH_W};
 
 /// Conversations kept in the talk history (oldest drop first)
 pub const TALK_LOG_MAX: usize = 240;
@@ -425,12 +425,13 @@ impl Game {
         // newest conversations last, as many as could ever fit
         for r in self.talk_log.iter().rev().filter(|r| r.with.contains(&focus) && !r.lines.is_empty()).take(4) {
             shown.push(r.id);
-            let mut block: Vec<TalkRowV> = vec![TalkRowV { name: None, text: format!("day {}", r.tick), gist: false, you: false, rule: true }];
+            let mut block: Vec<TalkRowV> = vec![TalkRowV { name: None, text: format!("day {}", r.tick), gist: false, you: false, rule: true, who: None }];
             block.extend(r.lines.iter().map(|l| TalkRowV {
                 // your own lines read "You"; another seat's keep their name
                 name: if l.who == Some(s.player) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
                 text: l.text.clone(), gist: l.gist,
                 you: l.who.map(|w| w == s.player).unwrap_or(false), rule: false,
+                who: l.who.and_then(|e| self.villagers.iter().position(|v| *v == e)),
             }));
             block.extend(rows);
             rows = block;
@@ -441,8 +442,65 @@ impl Game {
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
-        if rows.is_empty() { rows.push(TalkRowV { name: None, text: empty.into(), gist: false, you: false, rule: false }); }
+        if rows.is_empty() { rows.push(TalkRowV { name: None, text: empty.into(), gist: false, you: false, rule: false, who: None }); }
         TalkPanelV { title, rows, options, in_talk }
+    }
+
+    /// A talk record's lines as conversation-box rows: "You" leads the
+    /// seat's own lines; the speaker carries their villager index so a
+    /// click on the line selects them
+    fn record_rows(&self, seat: usize, id: u64) -> Vec<TalkRowV> {
+        let Some(r) = self.talk_log.iter().find(|r| r.id == id) else { return vec![] };
+        let pe = self.seats[seat].player;
+        r.lines.iter().map(|l| TalkRowV {
+            name: if l.who == Some(pe) { Some("You".into()) } else { (!l.name.is_empty()).then(|| l.name.clone()) },
+            text: l.text.clone(), gist: l.gist,
+            you: l.who == Some(pe), rule: false,
+            who: l.who.and_then(|e| self.villagers.iter().position(|v| *v == e)),
+        }).collect()
+    }
+
+    /// The conversation box for a seat, top-right of the map: the founding
+    /// call a house meeting left open first, then a meeting under way,
+    /// then the seat's Talk
+    pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
+        let s = &self.seats[seat];
+        if let Some(d) = &s.pending_founding {
+            let issue = crate::game::desires::issue_name(d.vote.winner.clone());
+            let mut rows = self.record_rows(seat, d.record);
+            rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                text: format!("The room leans to {} - your call.", issue) });
+            return Some(ConvoPanelV {
+                title: format!("{} - YOUR CALL", d.org_name.to_uppercase()),
+                rows,
+                options: vec![
+                    format!("Take it on, {} - a burden shared", issue),
+                    format!("Take it on, {} - and name the foe", issue),
+                    format!("Take it on, {} - a duty the village owes", issue),
+                    "Let it rest - keep talking".into(),
+                ],
+                decides: true, leave: false });
+        }
+        if let Some(m) = &self.meeting {
+            if m.seat == seat {
+                let mut rows = self.record_rows(seat, m.talk_id);
+                if m.talk_from.is_none() {
+                    rows.push(TalkRowV { name: None, gist: false, you: false, rule: false, who: None,
+                        text: "folk are on their way".into() });
+                }
+                return Some(ConvoPanelV {
+                    title: format!("HOUSE MEETING - {}", m.label.to_uppercase()),
+                    rows, options: vec![], decides: false, leave: false });
+            }
+        }
+        if let Some(t) = &s.talk {
+            return Some(ConvoPanelV {
+                title: format!("TALK - {}", t.villager.name.to_uppercase()),
+                rows: self.record_rows(seat, t.id),
+                options: t.options.iter().map(|o| o.1.clone()).collect(),
+                decides: false, leave: true });
+        }
+        None
     }
 }
 
@@ -555,6 +613,152 @@ pub fn talk_click(p: &TalkPanelV, mx: i32, my: i32) -> Option<Option<usize>> {
     talk_layout(p).1.into_iter()
         .find(|&(x, y, w, h, _)| mx >= x && mx < x + w && my >= y && my < y + h)
         .map(|r| r.4)
+}
+
+// ---------- the conversation box (top-right of the map) ----------
+
+/// Where the box sits: up at the map's top-right, over the ground
+pub const CONVO_X: i32 = MAP_W as i32 - 344;
+pub const CONVO_Y: i32 = 46;
+pub const CONVO_W: i32 = 336;
+/// Characters to a row inside a button: the box less its padding
+const CONVO_CHARS: usize = ((CONVO_W - 24) / GLYPH_W) as usize;
+const CONVO_ROW_H: i32 = 10;
+/// The tallest the box gets before the oldest lines drop off the top
+const CONVO_MAX_H: i32 = 300;
+
+/// What a click on one of the box's buttons means
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ConvoClick {
+    /// Select the speaker (a villager index)
+    Speaker(usize),
+    /// A Talk reply; None is Take your leave
+    Reply(Option<usize>),
+    /// The founding call after a house meeting
+    Decide(usize),
+}
+
+/// One bordered button in the box: a speaker's line (its wrapped rows
+/// together) or a clickable choice under the talk
+pub struct ConvoBox {
+    pub x: i32, pub y: i32, pub w: i32, pub h: i32,
+    /// (y, text, colour, the speaker's name leading the first row)
+    pub rows: Vec<TalkRow>,
+    /// What a click does - a named line selects its speaker
+    pub click: Option<ConvoClick>,
+    /// A choice button, drawn raised, vs a line of what was said
+    pub choice: bool,
+}
+
+/// Wrap each conversation line and choice into its own button: the lines
+/// keep the tail that fits, the choices sit under them. Returns the
+/// boxes and how tall the panel needs to be
+pub fn convo_layout(p: &ConvoPanelV) -> (Vec<ConvoBox>, i32) {
+    // the choices' space is held first - lines give way to them
+    let mut opts: Vec<Vec<String>> = vec![];
+    let opt_count = p.options.len() + p.leave as usize;
+    for (i, o) in p.options.iter().enumerate() {
+        let label = format!("{}) {}", i + 1, o);
+        let mut ws = super::wrap_text(&label, CONVO_CHARS);
+        ws.truncate(3);
+        opts.push(ws);
+    }
+    if p.leave {
+        opts.push(vec!["x) Take your leave".into()]);
+    }
+    // wrap every line, then keep the newest that fit beside the choices
+    let wrap_line = |r: &TalkRowV| -> Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)> {
+        let body = if r.gist { (255, 215, 120) } else if r.name.is_none() { (150, 150, 170) } else { (215, 215, 200) };
+        let ncol = if r.you { (255, 255, 120) } else { (150, 200, 255) };
+        let mut ws = vec![];
+        match &r.name {
+            Some(n) => {
+                let lead = format!("{}: ", n);
+                for (k, w) in super::wrap_text(&format!("{}{}", lead, r.text), CONVO_CHARS).into_iter().enumerate() {
+                    match w.strip_prefix(lead.trim_end()) {
+                        Some(rest) if k == 0 => ws.push((rest.trim_start().to_string(), body, Some((lead.clone(), ncol)))),
+                        _ => ws.push((w, body, None)),
+                    }
+                }
+            }
+            None => for w in super::wrap_text(&r.text, CONVO_CHARS) { ws.push((w, body, None)) },
+        }
+        ws
+    };
+    let lines: Vec<Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)>> =
+        p.rows.iter().map(|r| wrap_line(r)).collect();
+    // room for lines = the box less the title and the choice buttons
+    let opt_h = opts.iter().map(|ws| ws.len() as i32 * CONVO_ROW_H + 6).sum::<i32>() + 3 * opt_count as i32;
+    let mut kept: Vec<(usize, &Vec<(String, (u8, u8, u8), Option<(String, (u8, u8, u8))>)>)> = vec![];
+    let mut room = CONVO_MAX_H - 18 - opt_h;
+    for (i, ws) in lines.iter().enumerate().rev() {
+        let h = ws.len() as i32 * CONVO_ROW_H + 9;
+        if h > room && !kept.is_empty() { break; }
+        room -= h;
+        kept.push((i, ws));
+    }
+    kept.reverse();
+    // lay the buttons out top to bottom
+    let mut boxes: Vec<ConvoBox> = vec![];
+    let mut y = CONVO_Y + 16;
+    for (i, ws) in kept {
+        let h = ws.len() as i32 * CONVO_ROW_H + 6;
+        let rows = ws.iter().enumerate()
+            .map(|(k, (t, c, n))| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), *c, n.clone()))
+            .collect();
+        let click = p.rows[i].who.map(ConvoClick::Speaker);
+        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click, choice: false });
+        y += h + 3;
+    }
+    for (i, ws) in opts.into_iter().enumerate() {
+        let h = ws.len() as i32 * CONVO_ROW_H + 6;
+        let pick = if p.decides { ConvoClick::Decide(i) }
+            else if i < p.options.len() { ConvoClick::Reply(Some(i)) }
+            else { ConvoClick::Reply(None) };
+        let colour = if matches!(pick, ConvoClick::Reply(None)) { (200, 150, 130) } else { (140, 230, 140) };
+        let rows = ws.iter().enumerate()
+            .map(|(k, t)| (y + 3 + k as i32 * CONVO_ROW_H, t.clone(), colour, None))
+            .collect();
+        boxes.push(ConvoBox { x: CONVO_X + 4, y, w: CONVO_W - 8, h, rows, click: Some(pick), choice: true });
+        y += h + 3;
+    }
+    (boxes, y - CONVO_Y + 4)
+}
+
+/// Draw the conversation box; a button under the mouse lights up
+pub fn draw_convo_panel(buf: &mut Buffer, p: &ConvoPanelV, mouse: (i32, i32)) {
+    let (boxes, h) = convo_layout(p);
+    buf.rect(CONVO_X - 2, CONVO_Y - 2, CONVO_W + 4, h + 2, 20, 20, 32);
+    buf.rect(CONVO_X, CONVO_Y, CONVO_W, h, 25, 25, 40);
+    draw_text(buf, CONVO_X + 6, CONVO_Y + 4, &p.title, 150, 150, 180);
+    for b in &boxes {
+        let hover = b.click.is_some()
+            && mouse.0 >= b.x && mouse.0 < b.x + b.w && mouse.1 >= b.y && mouse.1 < b.y + b.h;
+        let (r, g, bcol) = if hover { (52, 64, 54) } else if b.choice { (36, 48, 38) } else { (31, 31, 47) };
+        buf.rect(b.x, b.y, b.w, b.h, r, g, bcol);
+        // the button's edge: choices get a frame, lines a left rule
+        if b.choice {
+            let edge = if hover { (150, 230, 150) } else { (70, 110, 70) };
+            buf.rect(b.x, b.y, b.w, 1, edge.0, edge.1, edge.2);
+            buf.rect(b.x, b.y + b.h - 1, b.w, 1, edge.0, edge.1, edge.2);
+            buf.rect(b.x, b.y, 1, b.h, edge.0, edge.1, edge.2);
+            buf.rect(b.x + b.w - 1, b.y, 1, b.h, edge.0, edge.1, edge.2);
+        } else {
+            buf.rect(b.x, b.y, 2, b.h, 90, 110, 140);
+        }
+        for (y, text, (r, g, b), name) in &b.rows {
+            let mut x = CONVO_X + 10;
+            if let Some((n, (nr, ng, nb))) = name { x += draw_text(buf, x, *y, n, *nr, *ng, *nb); }
+            draw_text(buf, x, *y, text, *r, *g, *b);
+        }
+    }
+}
+
+/// What a click at (mx, my) on the conversation box means, if anything
+pub fn convo_click(p: &ConvoPanelV, mx: i32, my: i32) -> Option<ConvoClick> {
+    convo_layout(p).0.into_iter()
+        .find(|b| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
+        .and_then(|b| b.click)
 }
 
 #[cfg(test)]
@@ -693,7 +897,7 @@ mod tests {
         let long = "word ".repeat(40);
         let p = TalkPanelV {
             title: "TALK".into(),
-            rows: (0..6).map(|k| TalkRowV { name: Some(format!("Speaker{}", k)), text: long.clone(), gist: k == 2, you: k % 2 == 1, rule: false }).collect(),
+            rows: (0..6).map(|k| TalkRowV { name: Some(format!("Speaker{}", k)), text: long.clone(), gist: k == 2, you: k % 2 == 1, rule: false, who: None }).collect(),
             options: vec![long.clone(), "Short one.".into()],
             in_talk: true,
         };
@@ -756,5 +960,99 @@ mod tests {
         for _ in 0..super::super::FPS * 60 * 2 { g.update(); }
         let chats = g.talk_log.iter().filter(|r| r.kind == TalkKind::Chat).count();
         assert!(chats > 0, "villagers who meet should talk");
+    }
+
+    #[test]
+    fn test_the_talk_fills_the_conversation_box_with_clickable_lines() {
+        let mut g = Game::new();
+        let i = adults(&g)[0];
+        talk_beside(&mut g, i);
+        let c = g.convo_panel_at(0).expect("the talk on the conversation box");
+        assert!(c.leave && !c.decides && !c.options.is_empty(), "{:?}", c.options);
+        // a reply button clicks through as that reply
+        let (boxes, _) = convo_layout(&c);
+        let reply = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Reply(Some(0)))))
+            .expect("a reply button");
+        assert_eq!(convo_click(&c, reply.x + 2, reply.y + 2), Some(ConvoClick::Reply(Some(0))));
+        // and the villager's own line selects them
+        let line = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Speaker(_))))
+            .expect("a speaker's line");
+        match convo_click(&c, line.x + 2, line.y + 2) {
+            Some(ConvoClick::Speaker(v)) => assert_eq!(v, i),
+            other => panic!("a speaker's line clicked: {:?}", other),
+        }
+    }
+
+    /// An org ready for the vote: three living members, one issue heard
+    fn org_ready(g: &mut Game) {
+        for &v in &g.villagers[..3] {
+            crate::game::desires::add_grievance(&mut g.world, v, crate::game::desires::Problem::Taxed, g.tick + 200);
+        }
+        g.world.get_component_mut::<crate::sim::community::Organization>(g.org).unwrap().members =
+            g.villagers[..3].to_vec();
+        g.world.get_component_mut::<crate::game::desires::Organizer>(g.player).unwrap()
+            .issues.push("the taxes".into());
+    }
+
+    #[test]
+    fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
+        let mut g = Game::new();
+        org_ready(&mut g);
+        let came = g.villagers[..3].to_vec();
+        let id = g.open_meeting_record(g.player, &came);
+        let msg = g.resolve_meeting(&came, 0, id);
+        // the room leans, but nothing is founded until the organizer says so
+        assert!(g.seats[0].pending_founding.is_some(), "{}", msg);
+        assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
+        let c = g.convo_panel_at(0).expect("the call on the box");
+        assert!(c.decides && c.options.len() == 4, "{:?}", c.options);
+        let issue = crate::game::desires::issue_name("the taxes".into());
+        assert!(c.options.iter().take(3).all(|o| o.contains(&issue)), "{:?} vs {}", c.options, issue);
+        // letting it rest answers the call and founds nothing
+        let (boxes, _) = convo_layout(&c);
+        let rest = boxes.iter().find(|b| matches!(b.click, Some(ConvoClick::Decide(3))))
+            .expect("the let-it-rest button");
+        assert_eq!(convo_click(&c, rest.x + 2, rest.y + 2), Some(ConvoClick::Decide(3)));
+        g.decide_at(0, 3);
+        assert!(g.seats[0].pending_founding.is_none());
+        assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
+    }
+
+    #[test]
+    fn test_the_conversation_box_draws_its_buttons() {
+        let p = ConvoPanelV {
+            title: "THE HARVESTERS - YOUR CALL".into(),
+            rows: vec![
+                TalkRowV { name: Some("Eliza".into()), text: "word ".repeat(30), gist: false, you: false, rule: false, who: Some(2) },
+                TalkRowV { name: None, text: "The room leans to the taxes - your call.".into(), gist: true, you: false, rule: false, who: None },
+            ],
+            options: vec!["Take it on - a burden shared".into(), "Let it rest".into()],
+            decides: true, leave: false,
+        };
+        let mut buf = Buffer::new(super::super::W, super::super::H);
+        draw_convo_panel(&mut buf, &p, (-1, -1));
+        let (boxes, h) = convo_layout(&p);
+        for b in &boxes {
+            assert!(b.y >= CONVO_Y && b.y + b.h <= CONVO_Y + h, "a button sits inside the box");
+            assert!(b.x >= CONVO_X && b.x + b.w <= CONVO_X + CONVO_W);
+        }
+    }
+
+    #[test]
+    fn test_deciding_founds_the_campaign_on_the_picked_framing() {
+        let mut g = Game::new();
+        org_ready(&mut g);
+        let came = g.villagers[..3].to_vec();
+        let id = g.open_meeting_record(g.player, &came);
+        g.resolve_meeting(&came, 0, id);
+        g.decide_at(0, 1); // take it on, naming the foe
+        let c = crate::game::campaign::campaign_of(&g.world, g.org).expect("the campaign founded");
+        let cp = g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap();
+        assert_eq!(cp.issue, "the taxes");
+        assert!(matches!(cp.framing, crate::game::campaign::Framing::CommonFoe));
+        assert!(g.seats[0].pending_founding.is_none());
+        // and the outcome lands on the meeting's record
+        let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
+        assert!(rec.lines.iter().any(|l| l.text.contains("they'll fight for the taxes")), "{:?}", rec.lines);
     }
 }

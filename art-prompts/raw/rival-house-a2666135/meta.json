@@ -1,0 +1,28 @@
+{
+ "created_at": 1793734200,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 43.4,
+ "request_id": "7996d56d-68b6-4c33-989f-e7ecbce7535d",
+ "outputs_retained_until": 1793820572,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 43.4
+ },
+ "id": "rival-house-a2666135",
+ "prompt": "single isometric medieval village asset: one small cottage of dark tarred timber with a red tiled roof and red shutters",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T14:30:00",
+ "seconds": 28.4
+}

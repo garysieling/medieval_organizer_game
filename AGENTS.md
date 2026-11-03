@@ -39,6 +39,14 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
   - House meetings use `run_meeting` lines for attendees who don't reveal an issue, and are recorded as they're said.
   - The TALK panel (under the minimap) shows the picked villager's conversations, or the player's own. The event LOG holds only events.
 
+## Villager Routines (`session/routine.rs`)
+- Each day a villager gets a `Routine` (mode + named spot + anchor): Working (bench door, or fetching inputs), Selling (a stall round the market on market day), Wandering (notices, creek, woods, stones, tavern, a visitor), Resting (home door), Worshipping (holy day, every 7th), Feasting (festival ring). Kids play.
+- Planning sits in the daily loop after hunger/sickness/meetings/errands; traits weight it (Lazy rests, Pious worships, Gregarious strolls, Ambitious works). No work on rest/worship/selling days.
+- Walks use `Travel` paths; between walks `amble` drifts about the anchor, never onto a blocked tile, and paths back if carried off. Holding a slot (worship, feast, stall) means not yielding to the crowd push.
+- Holy day: church rows face the priest at the door; the old faith (1 in 5) rings the stones or circles their elder in the grove. The call only reaches a day's walk (`CALL_REACH`), so the service fills before it ends.
+- Routine-steered villagers carry `villager::Steered`, which turns off `SeekFoodSystem`'s blind idle drift (it hopped folk into houses).
+- Tests that teleport a villager somewhere must also give them a plan there (e.g. `plan_visit`), or they'll walk back to today's.
+
 ## Art Pipeline (Retro Diffusion)
 - Full recipe: `assets/rd/README.md`. Pick from `art-prompts/prompts.md` -> `scripts/rd_generate.py <id>` (use `--dry-run` first; `--max-usd` guard defaults to $2) -> `scripts/rd_slice.py` -> wire into `Art::load` with a fallback -> verify with `game_ui --dump-frame N --zoom 2 --focus <kind>`.
 - API token: `$RETRODIFFUSION_API_KEY` or `~/.config/retrodiffusion/token`. Never commit it.

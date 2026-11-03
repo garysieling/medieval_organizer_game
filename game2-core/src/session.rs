@@ -9,6 +9,7 @@ pub mod events;
 pub mod probe;
 pub mod stage;
 pub mod dialogue;
+pub mod routine;
 
 pub use model::*;
 pub use net::*;
@@ -677,6 +678,7 @@ fn makes_room(world: &World, v: Entity) -> bool {
     !villager::is_dead(world, v)
         && world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none()
         && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
+        && !routine::holds_slot(world, v)
 }
 
 /// A villager's attachment style as a player would put it: the card showed
@@ -3369,6 +3371,8 @@ impl Game {
         // after every move this frame (the player's command, the sim, the
         // strolling), so the model's poses match its positions
         self.track_poses();
+        // and those standing for something turn to face it
+        self.face_routines();
     }
 
     fn advance_frame(&mut self) {
@@ -3441,23 +3445,8 @@ impl Game {
             }
         }
 
-        // idle villagers wander (village feels alive); direction changes daily,
-        // step is per frame so they stroll ~0.6 tiles/day instead of racing to the edge
-        if !self.paused {
-            let step = 0.6 / ticks_per_frame as f32;
-            for v in villagers.iter() {
-                let idle = world.get_component::<Villager>(*v).map(|x| x.activity == Activity::Idle).unwrap_or(false);
-                if idle && !crate::game::dungeon::unavailable(world, *v) {
-                    if let Some(p) = world.get_component_mut::<Pos>(*v) {
-                        let wob = ((tick + *v as u64) % 8) as f32;
-                        if wob < 1.0 { p.x += step; } else if wob < 2.0 { p.y += step; }
-                        else if wob < 3.0 { p.x -= step; } else if wob < 4.0 { p.y -= step; }
-                        p.x = p.x.clamp(2.0, self.map.width as f32 - 2.0);
-                        p.y = p.y.clamp(2.0, self.map.height as f32 - 2.0);
-                    }
-                }
-            }
-        }
+        // idle villagers keep to the day's plan (session::routine::amble,
+        // after the errands walk) - no more drifting a step each way and back
 
         // rivals keep to their own village: idle drift is a random walk, so
         // without a pull home they'd wander across the river into ours
@@ -3515,6 +3504,12 @@ impl Game {
                     }
                 };
                 let food_tile = dest.map(|(hx, hy)| (hx.round() as i32, hy.round() as i32));
+                // the day's plan and the errands walk their own roads (the
+                // creek, the stones, the flock): the pull is only for
+                // strays with neither
+                let planned = world.get_component::<routine::Routine>(*v)
+                    .map(|r| r.day + 1 >= tick && r.spot != routine::Spot::Here).unwrap_or(false)
+                    || self.travels.iter().any(|t| t.who == *v);
                 let Some(p) = world.get_component_mut::<Pos>(*v) else { continue };
                 let Some((hx, hy)) = dest else { continue };
                 let (dx, dy) = (hx - p.x, hy - p.y);
@@ -3524,7 +3519,7 @@ impl Game {
                 // against the town wall or a building for good, so take the
                 // way round (an idle stray comes home the same way)
                 let heading_home = seeking && dx.abs() + dy.abs() > 0.5
-                    || !seeking && d > VILLAGE_RADIUS;
+                    || !seeking && !planned && d > VILLAGE_RADIUS;
                 if heading_home {
                     let step = 1.0 / ticks_per_frame as f32;
                     let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
@@ -3647,6 +3642,8 @@ impl Game {
             self.advance_meeting();
             self.advance_player_talks();
             self.advance_travels();
+            // and those with nowhere to walk keep to the day's plan
+            self.amble();
             self.advance_minstrel();
             self.advance_pedlar();
             self.advance_circus();
@@ -6566,11 +6563,11 @@ impl Game {
                 && self.world.get_component::<TownRole>(v).is_none()
                 && !self.shunned(v))
             .collect();
+        // everyone comes to market for the day, in a ring round the cross
         let store = self.market_food;
+        for &v in &gathered { self.travels.retain(|t| t.who != v); }
+        self.gather_feast(tick, &gathered);
         for &v in &gathered {
-            // everyone comes to market for the day
-            self.travels.retain(|t| t.who != v);
-            self.send(v, Goal::HeadHome(store));
             // the day feeds the wants that never quite get fed
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 90);
             desires::satisfy(&mut self.world, v, Want::Music, tick + 90);
@@ -7443,6 +7440,8 @@ impl Game {
         // and the marks a cause leaves fade on their own clock
         self.marks_tick(tick);
         let mut rng = Rng(self.rng.next());
+        // the holy day calls the faithful before anyone's planned the rest
+        self.routine_dawn(tick, &mut rng);
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
             let v = villagers[i];
@@ -7467,11 +7466,20 @@ impl Game {
                 continue;
             }
             if self.travels.iter().any(|t| t.who == v) { continue; }
-            if self.world.get_component::<Kid>(v).is_some() { continue; }
+            // today's rite or feast already has them
+            let gathered = self.world.get_component::<routine::Routine>(v)
+                .map(|r| r.day == tick && matches!(r.mode, routine::Mode::Worshipping | routine::Mode::Feasting))
+                .unwrap_or(false);
+            if gathered { continue; }
+            if self.world.get_component::<Kid>(v).is_some() {
+                // a child off the errand list plays
+                if self.world.get_component::<OddJob>(v).is_none() { self.plan_play(v, tick, &mut rng); }
+                continue;
+            }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
             // last night's cup still has them - they sleep it off
             if self.world.get_component::<villager::Drunk>(v)
-                .map(|d| tick < d.until).unwrap_or(false) { continue; }
+                .map(|d| tick < d.until).unwrap_or(false) { self.plan_rest(v, tick); continue; }
             // at a meeting they're not off working
             if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }
             // the sick call on the herb-wife: out to her hut for a remedy,
@@ -7484,27 +7492,31 @@ impl Game {
             }
             // a shopping day, now and then: something they want is for sale
             if rng.below(100) < 12 {
-                if let Some(g) = self.want_shopping(v, tick) { self.send(v, g); continue; }
-            }
-            // far from home and far from your work? the day's done - walk back
-            if let Some(home) = household::home_of(&self.world, v) {
-                let hp = self.world.get_component::<Pos>(home).copied();
-                let post = self.world.get_component::<Craft>(v).and_then(|c| c.workplace)
-                    .and_then(|b| self.world.get_component::<Pos>(b).copied());
-                if let (Some(hp), Some(p)) = (hp, self.world.get_component::<Pos>(v).copied()) {
-                    let far_home = (p.x - hp.x).abs() + (p.y - hp.y).abs() > 6.0;
-                    let far_post = post.map(|pp| (p.x - pp.x).abs() + (p.y - pp.y).abs() > 6.0).unwrap_or(true);
-                    if far_home && far_post && self.send(v, Goal::HeadHome(home)) { continue; }
+                if let Some(g) = self.want_shopping(v, tick) {
+                    let good = match &g { Goal::BuyAt(_, good, _) => *good, _ => "something" };
+                    if self.send(v, g) { self.plan_errand(v, tick, routine::Spot::Errand(good)); continue; }
                 }
+            }
+            // the day's mode: work, a stall on market day, a stroll, a day in
+            match self.plan_day(v, tick, &mut rng) {
+                routine::DayPlan::Work => {}
+                routine::DayPlan::Sell | routine::DayPlan::Free => continue,
             }
             // out of raw goods: send a kid, or go get it, or sit with the problem
             if let Some(input) = livelihood::needs_input(&self.world, v) {
-                if !self.errand_for_input(v, input, i) {
+                if self.errand_for_input(v, input, i) {
+                    // a kid may have taken the errand: then they wait at the bench
+                    if self.travels.iter().any(|t| t.who == v) {
+                        self.plan_errand(v, tick, routine::Spot::Supplies(input));
+                    } else { self.plan_bench(v, tick); }
+                } else {
                     desires::add_grievance(&mut self.world, v, Problem::NoInput(input), tick + 3);
+                    self.plan_bench(v, tick);
                 }
                 continue;
             }
-            // a day at the craft
+            // a day at the craft, at the bench
+            self.plan_bench(v, tick);
             let (made, up) = livelihood::work_day(&mut self.world, v, tick);
             let _ = made;
             if let Some(level) = up {
@@ -8901,7 +8913,13 @@ impl Game {
                 .unwrap_or(false) {
                 " \u{00b7} woke"
             } else if org_members.contains(&v) { " \u{00b7} with you" } else { "" };
-            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, activity_text(vil.activity), cause), rgb: (200, 160, 160) });
+            // what they're about: the day's plan, unless hunger has them
+            let bench = world.get_component::<Craft>(v).and_then(|c| c.workplace)
+                .and_then(|b| world.get_component::<Building>(b)).map(|b| b.name.clone());
+            let doing = (vil.activity == Activity::Idle)
+                .then(|| routine::routine_text(world, v, bench.as_deref())).flatten()
+                .unwrap_or_else(|| activity_text(vil.activity).to_string());
+            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
         }
         InspectorV { fig: Some(i), dead: false, died_day: None, lines }
     }
@@ -11093,9 +11111,10 @@ mod festival_tests {
         g.festival_tick(45);
         assert!(g.log.iter().any(|l| l.contains("the village gathers")),
             "the log names the feast");
-        let walkers = g.travels.iter()
-            .filter(|t| matches!(t.goal, Goal::HeadHome(_))).count();
-        assert!(walkers > 10, "the whole village walks to market");
+        // to a place in the ring round the market cross
+        let walkers = g.villagers.iter().filter(|&&v| g.world.get_component::<routine::Routine>(v)
+            .map(|r| r.mode == routine::Mode::Feasting && r.day == 45).unwrap_or(false)).count();
+        assert!(walkers > 10, "the whole village walks to market, {} did", walkers);
         // and the collector comes uninvited
         let c = g.collector.unwrap();
         assert!(g.travels.iter().any(|t| t.who == c), "he always shows");
@@ -12448,6 +12467,10 @@ mod progression_tests {
             for _ in 0..40 {
                 if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v)
                     || villager::is_dead(&game.world, v) { break; }
+                // they go about their days between meetings: walk back over
+                if let Some(&Pos { x: vx, y: vy }) = game.world.get_component::<Pos>(v) {
+                    let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy;
+                }
                 // trust decays a little every day - a meeting a fortnight
                 // apart won't climb past it unless the talking keeps up
                 game.act(0);

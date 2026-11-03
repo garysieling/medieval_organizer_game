@@ -40,6 +40,11 @@ pub struct Villager {
     pub target_food: Option<Entity>,
 }
 
+/// Movement is steered elsewhere - the windowed game's daily routines walk
+/// them on real paths - so the idle drift here leaves them be (it knows
+/// nothing of walls and houses, and hopped folk into them)
+pub struct Steered;
+
 /// Marks an entity as permanently dead. The windowed game removes `Health`
 /// on death (for its grave/alive checks) rather than leaving it at 0, so
 /// this marker is the durable record `is_dead` can still see afterward.
@@ -204,6 +209,13 @@ impl System for SeekFoodSystem {
             } else {
                 activity = Activity::Idle;
                 target = None;
+                if world.get_component::<Steered>(v).is_some() {
+                    if let Some(vill) = world.get_component_mut::<Villager>(v) {
+                        vill.activity = activity;
+                        vill.target_food = target;
+                    }
+                    continue;
+                }
                 // wander when idle: drift a little so they don't pile up
                 let seed = (v as u64).wrapping_add((pos.x * 7.0 + pos.y * 13.0) as u64);
                 let mut dx = ((seed % 7) as f32 - 3.0) * 0.06;

@@ -3155,6 +3155,8 @@ mod tests {
             // stand her near his pitch
             g.world.get_component_mut::<Pos>(seller).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(seller).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(seller, t); }
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the rag-and-bone man")),
                 "the frame shows the rag man on {:?}", st);
@@ -3273,6 +3275,8 @@ mod tests {
             let (a, b) = (living[0], living[1]);
             g.world.get_component_mut::<Pos>(a).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(a).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(a, t); }
             let r = g.world.create_entity();
             g.world.add_component(r, crate::game::relationships::Relationship {
                 from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
@@ -3325,6 +3329,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Health>(v).unwrap().condition = 0.4;
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             let model = g.ui_model();
@@ -3354,6 +3360,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Health>(v).unwrap().condition = 0.5;
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             let model = g.ui_model();
@@ -3383,6 +3391,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             // she's one who feels the lack of it
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
@@ -3414,6 +3424,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
             let model = g.ui_model();
@@ -3444,13 +3456,18 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 30);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the pardoner")),
                 "the frame shows the pardoner on {:?}", st);
             stage::run_days(&mut g, 1);
-            assert!(g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.is_empty(),
+            // the weight he was paid for is gone (the day may have laid a
+            // fresh one of its own - an empty flour bin isn't his to pardon)
+            assert!(!g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.iter()
+                .any(|(p, _)| *p == desires::Problem::Taxed),
                 "the pardon lifted her on {:?}", st);
             stage::run_days(&mut g, 4);
             assert!(g.rare.iter().all(|r| r.id != EventId::Pardoner), "he moved on from {:?}", st);
@@ -3473,6 +3490,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
             let model = g.ui_model();
@@ -3502,6 +3521,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
             let model = g.ui_model();
@@ -3531,6 +3552,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Joy];
             // she's a kid for the front row: no hat money changes hands
@@ -3564,6 +3587,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Music];
             let model = g.ui_model();
@@ -3595,6 +3620,8 @@ mod tests {
             let b = g.villagers.iter().copied().find(|&v| !villager::is_dead(&g.world, v) && v != a).unwrap();
             g.world.get_component_mut::<Pos>(a).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(a).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(a, t); }
             let bond = g.world.create_entity();
             g.world.add_component(bond, crate::game::relationships::Relationship {
                 from: a, other: b, kind: crate::game::relationships::RelKind::Friend,
@@ -3628,6 +3655,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.add_component(v, crate::game::vocation::Kid);
             let before = g.villagers.len();
             let model = g.ui_model();
@@ -3660,6 +3689,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a deserter")),
                 "the frame shows him on {:?}", st);
@@ -3715,6 +3746,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a leper band")),
@@ -3744,13 +3777,16 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Love];
             desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 30);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a wandering friar")),
                 "the frame shows him on {:?}", st);
             stage::run_days(&mut g, 1);
-            assert!(g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.is_empty(),
+            assert!(!g.world.get_component::<desires::InnerLife>(v).unwrap().grievances.iter()
+                .any(|(p, _)| *p == desires::Problem::Taxed),
                 "the weight came off on {:?}", st);
             assert!(g.world.get_component::<desires::Known>(v)
                 .map(|k| k.revealed.contains(&desires::Reveal::Want(Want::Love))).unwrap_or(false),
@@ -3781,6 +3817,8 @@ mod tests {
             for v in [even, odd] {
                 g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
                 g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+                // come to see the visitor: that's today's place
+                { let t = g.tick; g.plan_visit(v, t); }
                 g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Faith];
             }
             desires::satisfy(&mut g.world, even, Want::Faith, g.tick + 60);
@@ -3826,6 +3864,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a drover")),
@@ -3856,6 +3896,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::GoodFood];
             let model = g.ui_model();
@@ -3917,6 +3959,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::GoodFood];
             let model = g.ui_model();
@@ -3947,6 +3991,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             let food0 = g.probe().food_servings;
             let model = g.ui_model();
@@ -4026,6 +4072,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             // lettered like the book-buyers are: give her the priest's craft
             if !g.literate(v) {
@@ -4060,6 +4108,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             let cond0 = g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("a charcoal burner")),
@@ -4117,6 +4167,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the tanner")),
                 "the frame shows the vats on {:?}", st);
@@ -4147,6 +4199,8 @@ mod tests {
             let h = household::home_of(&g.world, v).unwrap();
             g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(h, t); }
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the glazier")),
                 "the frame shows him on {:?}", st);
@@ -4176,6 +4230,8 @@ mod tests {
             let h = household::home_of(&g.world, v).unwrap();
             g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(h, t); }
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the thatcher")),
                 "the frame shows his ladder on {:?}", st);
@@ -4232,6 +4288,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::Love];
             let model = g.ui_model();
@@ -4264,6 +4322,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the astrologer")),
                 "the frame shows his charts on {:?}", st);
@@ -4293,6 +4353,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<crate::game::livelihood::Satchel>(v)
                 .unwrap().goods.insert("witch's hazel".into(), 1);
             let gold0 = g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0);
@@ -4326,6 +4388,8 @@ mod tests {
                 .find(|&v| !villager::is_dead(&g.world, v)).unwrap();
             g.world.get_component_mut::<Pos>(v).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(v, t); }
             g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
             let cond0 = g.world.get_component::<Health>(v).map(|h| h.condition).unwrap_or(0.0);
             let model = g.ui_model();
@@ -4358,6 +4422,8 @@ mod tests {
             let h = household::home_of(&g.world, v).unwrap();
             g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(h, t); }
             // a small one in the house for her to tend
             let k = villager::spawn_villager(&mut g.world, at.0 as f32, at.1 as f32);
             g.world.add_component(k, Health { condition: 0.5, immunity: 0.5 });
@@ -4517,6 +4583,8 @@ mod tests {
                     .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).unwrap();
             g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(h, t); }
             g.world.get_component_mut::<household::Building>(h).unwrap().stock.insert("tallow".into(), 1);
             let model = g.ui_model();
             assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the candle-maker")),
@@ -4547,6 +4615,8 @@ mod tests {
                     .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).unwrap();
             g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(h, t); }
             // someone home to buy a crock
             let k = villager::spawn_villager(&mut g.world, at.0 as f32, at.1 as f32);
             g.world.add_component(k, Health { condition: 0.5, immunity: 0.5 });
@@ -4587,6 +4657,8 @@ mod tests {
             }
             g.world.get_component_mut::<Pos>(h).unwrap().x = at.0 as f32;
             g.world.get_component_mut::<Pos>(h).unwrap().y = at.1 as f32;
+            // come to see the visitor: that's today's place
+            { let t = g.tick; g.plan_visit(h, t); }
             g.world.get_component_mut::<household::Building>(h).unwrap().stock.insert("eggs".into(), 2);
             let k = villager::spawn_villager(&mut g.world, at.0 as f32, at.1 as f32);
             g.world.add_component(k, Health { condition: 0.5, immunity: 0.5 });

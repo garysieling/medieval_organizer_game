@@ -40,6 +40,9 @@ fn main() {
         save_every: Duration::from_secs(arg("--save-every").and_then(|v| v.parse().ok()).unwrap_or(30)),
     };
     let tokened = cfg.probe_token.is_some();
+    // the handler goes in first: a SIGTERM while the world's being built (a
+    // long save replay) is still heard
+    term::install();
     let h = serve(cfg).expect("can't start the server");
     if let Some(r) = &h.restored {
         eprintln!("game_server: restored {} frames, {} inputs from the save ({})", r.frames, r.inputs,
@@ -51,7 +54,6 @@ fn main() {
     }
     // run until asked to stop (SIGTERM from docker stop / kubernetes, or
     // Ctrl-C), then stop properly: the final save goes to disk
-    term::install();
     while !term::asked() { std::thread::sleep(Duration::from_millis(200)); }
     eprintln!("game_server: stopping (saving the village first, if --save)");
     h.stop();

@@ -126,7 +126,7 @@ impl ServerHandle {
     /// threads notice (each polls the stop flag). Returns once the world
     /// loop has ended and the listening ports are released.
     pub fn stop(mut self) {
-        self.stop.store(true, Ordering::Relaxed);
+        self.stop.store(true, Ordering::SeqCst);
         if let Some(w) = self.world.take() { let _ = w.join(); }
         for a in self.accepts.drain(..) { let _ = a.join(); }
     }
@@ -139,7 +139,7 @@ impl ServerHandle {
 }
 
 impl Drop for ServerHandle {
-    fn drop(&mut self) { self.stop.store(true, Ordering::Relaxed); }
+    fn drop(&mut self) { self.stop.store(true, Ordering::SeqCst); }
 }
 
 /// One connected client. The conn thread owns the socket: it polls reads on
@@ -292,7 +292,7 @@ fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
     listener.set_nonblocking(true).ok();
     let handle = Arc::new(handle);
     std::thread::spawn(move || {
-        while !stop.load(Ordering::Relaxed) {
+        while !stop.load(Ordering::SeqCst) {
             match listener.accept() {
                 Ok((stream, _)) => {
                     if open.fetch_add(1, Ordering::Relaxed) >= MAX_CONNS {
@@ -326,7 +326,7 @@ fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSoc
     // held while the handshake's under way
     let mut buf = vec![0u8; MAX_UPGRADE_REQUEST];
     loop {
-        if stop.load(Ordering::Relaxed) || Instant::now() > until { return None; }
+        if stop.load(Ordering::SeqCst) || Instant::now() > until { return None; }
         match stream.peek(&mut buf) {
             Ok(0) => return None, // closed
             // the request ends at a blank line (CRLF, or the bare LF the
@@ -447,7 +447,7 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
 
 fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Duration, save_every: Duration) {
     let mut saved_at = Instant::now();
-    while !stop.load(Ordering::Relaxed) {
+    while !stop.load(Ordering::SeqCst) {
         if saved_at.elapsed() >= save_every {
             server.lock().unwrap().save_or_warn();
             saved_at = Instant::now();
@@ -510,7 +510,7 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
     // soon, or the socket's dropped
     let hello_by = Instant::now() + HELLO_WITHIN;
     let conn = loop {
-        if stop.load(Ordering::Relaxed) || Instant::now() > hello_by { return; }
+        if stop.load(Ordering::SeqCst) || Instant::now() > hello_by { return; }
         let msg = match ws.read() {
             Ok(m) => m,
             Err(e) if idle_read(&e) => continue,
@@ -520,6 +520,9 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
             let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
             if let ClientMsg::Hello { token: tok, kind, name: _, secret } = cm {
                 let mut s = server.lock().unwrap();
+                // stopping: the final save may be written already - take no
+                // new seat it wouldn't hold
+                if stop.load(Ordering::SeqCst) { return; }
                 // the gate: the join secret, when the server has one
                 if s.join_secret.is_some() && secret != s.join_secret {
                     drop(s);
@@ -582,7 +585,7 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
     // they reach the world's lock (one Denied a window says so)
     let (mut window, mut used, mut warned) = (Instant::now(), 0u32, false);
     loop {
-        if conn.lock().unwrap().dead || stop.load(Ordering::Relaxed) { break; }
+        if conn.lock().unwrap().dead || stop.load(Ordering::SeqCst) { break; }
         let out = conn.lock().unwrap().take_out();
         let mut alive = true;
         for s_out in out {
@@ -602,6 +605,9 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                 }
                 let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
                 let mut s = server.lock().unwrap();
+                // stopping: checked under the world's lock, so an input either
+                // lands before the final save (which then holds it) or not at all
+                if stop.load(Ordering::SeqCst) { break; }
                 // reclaimed while the message waited: the seat has a new
                 // driver - don't run this conn's stale command on it
                 if conn.lock().unwrap().dead { break; }
@@ -650,7 +656,7 @@ fn handle_probe(stream: TcpStream, server: Arc<Mutex<Server>>, token: Option<Str
     if let Some(t) = &token {
         let by = Instant::now() + HELLO_WITHIN;
         let ok = loop {
-            if stop.load(Ordering::Relaxed) || Instant::now() > by { break false; }
+            if stop.load(Ordering::SeqCst) || Instant::now() > by { break false; }
             match ws.read() {
                 Ok(tungstenite::Message::Text(m)) => break *m == *t,
                 Err(e) if idle_read(&e) => continue,
@@ -666,7 +672,7 @@ fn handle_probe(stream: TcpStream, server: Arc<Mutex<Server>>, token: Option<Str
         s.probes.push(conn.clone());
     }
     loop {
-        if conn.lock().unwrap().dead || stop.load(Ordering::Relaxed) { break; }
+        if conn.lock().unwrap().dead || stop.load(Ordering::SeqCst) { break; }
         let out = conn.lock().unwrap().take_out();
         let mut alive = true;
         for s_out in out {

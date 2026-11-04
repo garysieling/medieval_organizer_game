@@ -10,6 +10,7 @@
 use serde::{Deserialize, Serialize};
 use crate::engine::ecs::Entity;
 use super::{Command, UiModel};
+use crate::game::tilemap::TileMap;
 
 /// Who is connecting: a person behind a UI, or an API agent steering a villager
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -49,7 +50,8 @@ pub enum ServerMsg {
         /// Your seat's first render model
         model: Box<UiModel>,
     },
-    /// A frame for your seat (sent at the broadcast cadence)
+    /// A frame for your seat (sent at the broadcast cadence). Its `map` is
+    /// empty: the map comes as `Map` (see `SceneCache`)
     Scene(Box<UiModel>),
     /// An agent's observation of the world around its villager
     Obs(Box<AgentObs>),
@@ -59,6 +61,40 @@ pub enum ServerMsg {
     Denied { reason: String },
     /// Answer to Ping
     Pong(u64),
+    /// The tile map. Scenes and the Welcome carry an empty `map` - it's 98%
+    /// of a frame - so the server sends this after the Welcome and again
+    /// whenever the map changes. Keep the last one and put it into each
+    /// scene before drawing (`SceneCache` does that).
+    Map(Box<TileMap>),
+}
+
+/// Client-side reassembly of the scene stream: remembers the last `Map` and
+/// puts it into every scene, so a frame is whole again before it's drawn
+#[derive(Default)]
+pub struct SceneCache {
+    map: Option<TileMap>,
+}
+
+impl SceneCache {
+    pub fn new() -> SceneCache { SceneCache::default() }
+
+    /// Take a server message. A `Map` is kept; a `Scene` (or the Welcome's
+    /// first frame) comes back with the kept map in it. Anything else, or a
+    /// scene before any map, gives None.
+    pub fn apply(&mut self, msg: ServerMsg) -> Option<UiModel> {
+        match msg {
+            ServerMsg::Map(m) => { self.map = Some(*m); None }
+            ServerMsg::Scene(s) | ServerMsg::Welcome { model: s, .. } => {
+                let mut s = *s;
+                s.map = self.map.as_ref()?.clone();
+                Some(s)
+            }
+            _ => None,
+        }
+    }
+
+    /// The map as last sent, if one's come
+    pub fn map(&self) -> Option<&TileMap> { self.map.as_ref() }
 }
 
 // ---------------- the agent (bot) surface ----------------

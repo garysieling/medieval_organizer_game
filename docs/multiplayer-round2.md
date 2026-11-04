@@ -30,9 +30,10 @@ Still open:
   input gathering (`BuyFrom`/`Gather` when the bench needs stock), sell
   surplus, rest at own home, train juniors, occasional `TalkTo` for ties —
   keep the village-first bias, add probabilities not just priorities.
-- **Scene bandwidth** — every broadcast serializes the whole `UiModel`,
-  ~1 MB, 98% of it the `TileMap`: ~10 MB/s per human seat at 10 scenes/s.
-  Send the map once per claim and again only when it changes.
+- ~~**Scene bandwidth**~~ — done: a scene was ~1 MB, 98% of it the
+  `TileMap` (~10 MB/s per human seat). Scenes now go without the map (~22 KB);
+  `ServerMsg::Map` follows the Welcome and goes again only when
+  `TileMap::digest` moves. Clients rebuild frames with `SceneCache`.
 - ~~**No scripted multiplayer regression**~~ — done: the server is a
   library (`game2-core/src/server.rs`, `serve(ServerConfig)`), and
   `game2-core/tests/multiplayer.rs` plays one over real sockets: a human and

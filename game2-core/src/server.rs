@@ -110,8 +110,14 @@ struct Conn {
     /// replace each other: a slow client gets the freshest one instead of a
     /// backlog that grows without bound
     latest: Option<String>,
+    /// The newest unsent map (a snapshot as well, ~1 MB: a slow client
+    /// gets only the latest, written before the scene that's drawn on it)
+    latest_map: Option<String>,
     /// Another connection reclaimed this seat: the read loop ends
     dead: bool,
+    /// The digest of the map this client was last sent (`TileMap::digest`):
+    /// the map goes out again only when the world's moves off it
+    map_sent: Option<u64>,
 }
 
 struct Server {
@@ -138,6 +144,11 @@ fn send_msg(c: &mut Conn, msg: &ServerMsg) {
     if let Ok(s) = serde_json::to_string(msg) { c.outbox.push(s); }
 }
 
+/// Queue the map, replacing any the client hasn't been sent yet
+fn send_map(c: &mut Conn, map: &crate::game::tilemap::TileMap) {
+    if let Ok(s) = serde_json::to_string(&ServerMsg::Map(Box::new(map.clone()))) { c.latest_map = Some(s); }
+}
+
 /// Queue a snapshot, replacing any the client hasn't been sent yet
 fn send_snapshot(c: &mut Conn, msg: &ServerMsg) {
     if let Ok(s) = serde_json::to_string(msg) { c.latest = Some(s); }
@@ -145,12 +156,13 @@ fn send_snapshot(c: &mut Conn, msg: &ServerMsg) {
 
 impl Conn {
     fn new(seat: usize, kind: ClientKind) -> Conn {
-        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, dead: false }
+        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, latest_map: None, dead: false, map_sent: None }
     }
 
     /// What to write next: the queued replies, then the newest snapshot
     fn take_out(&mut self) -> Vec<String> {
         let mut out: Vec<String> = self.outbox.drain(..).collect();
+        out.extend(self.latest_map.take());
         out.extend(self.latest.take());
         out
     }
@@ -299,11 +311,18 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
             for seat in idle_for { driver::drive_player(&mut s.game, seat); }
         }
         if s.frame % SCENE_EVERY == 0 {
+            // the map is 98% of a frame: scenes go without it, and a seat is
+            // sent the map only when it's new to them
+            let digest = s.game.map.digest();
             for conn in s.conns.iter() {
                 let mut c = conn.lock().unwrap();
                 match c.kind {
                     ClientKind::Human => {
-                        let model = s.game.ui_model_at(c.seat);
+                        if c.map_sent != Some(digest) {
+                            send_map(&mut c, &s.game.map);
+                            c.map_sent = Some(digest);
+                        }
+                        let model = s.game.ui_model_lean_at(c.seat);
                         send_snapshot(&mut c, &ServerMsg::Scene(Box::new(model)));
                     }
                     ClientKind::Agent => match s.game.agent_obs(c.seat) {
@@ -355,9 +374,18 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs
-                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_at(seat)) };
+                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)) };
                 let conn = Arc::new(Mutex::new(Conn::new(seat, kind)));
-                send_msg(&mut conn.lock().unwrap(), &first);
+                {
+                    // the Welcome, then (for a player, who draws scenes) the
+                    // map its frame is drawn on; an agent reads Obs, no map
+                    let mut c = conn.lock().unwrap();
+                    send_msg(&mut c, &first);
+                    if kind == ClientKind::Human {
+                        send_map(&mut c, &s.game.map);
+                        c.map_sent = Some(s.game.map.digest());
+                    }
+                }
                 // a claim takes the seat back: any earlier connection
                 // steering it is stale, so one character has one driver
                 for c in s.conns.iter() {

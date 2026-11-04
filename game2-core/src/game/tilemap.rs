@@ -125,6 +125,32 @@ pub struct TileMap {
     rev: u64,
 }
 
+impl Default for TileMap {
+    /// An empty map: what a remote scene's `map` holds until the server's
+    /// `ServerMsg::Map` fills it in (see `session::net::SceneCache`)
+    fn default() -> Self {
+        TileMap { width: 0, height: 0, tiles: vec![], buildings: vec![], occupied: vec![], trees: vec![],
+            walls: vec![], castles: vec![], castle_keeps: vec![], castle_approaches: vec![], towns: vec![],
+            settlement_houses: vec![], gates: vec![], hub: (0, 0), rev: 0 }
+    }
+}
+
+impl TileMap {
+    /// A cheap fingerprint of the whole map: equal digests, equal maps. The
+    /// tiles and occupancy only change through `set`/`occupy`, which bump
+    /// `rev`, so they count by `rev`; the public lists are hashed outright.
+    /// The server sends a seat the map again only when this moves.
+    pub fn digest(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (self.rev, self.width, self.height, self.hub).hash(&mut h);
+        (&self.buildings, &self.trees, &self.castles, &self.castle_keeps, &self.castle_approaches,
+            &self.towns, &self.settlement_houses, &self.gates).hash(&mut h);
+        for (t, w) in &self.walls { (t, *w as u8).hash(&mut h); }
+        h.finish()
+    }
+}
+
 /// A repeatable per-tile random number in 0..1
 pub fn noise(x: i32, y: i32, salt: u32) -> f32 {
     let mut h = (x as u32).wrapping_mul(374761393) ^ (y as u32).wrapping_mul(668265263) ^ salt.wrapping_mul(2246822519);
@@ -612,6 +638,24 @@ mod tests {
         let mut t = Terrain::generate_country(33, 0.7, 42);
         let m = TileMap::generate(&mut t, &layout());
         (t, m)
+    }
+
+    #[test]
+    fn test_the_digest_moves_when_the_map_does() {
+        let (_, mut m) = map();
+        let d = m.digest();
+        assert_eq!(m.clone().digest(), d, "the same map, the same digest");
+        assert_eq!(m.digest(), d, "and it's stable");
+        // a tile laid as road (as a build does) is a different map
+        let spot = (0..m.height as i32).flat_map(|y| (0..m.width as i32).map(move |x| (x, y)))
+            .find(|&(x, y)| matches!(m.get(x, y), Some(Tile::Grass)) && !m.is_occupied(x, y)).unwrap();
+        m.pave(spot.0, spot.1);
+        assert_ne!(m.digest(), d, "a paved tile changes the digest");
+        let d2 = m.digest();
+        // and so does a change to a public list nobody tells the map about
+        m.trees.push((1, 1));
+        assert_ne!(m.digest(), d2, "a new tree changes the digest");
+        assert_eq!(TileMap::default().width, 0, "the empty map a lean scene carries");
     }
 
     #[test]

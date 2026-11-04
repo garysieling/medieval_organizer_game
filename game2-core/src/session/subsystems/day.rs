@@ -6,6 +6,7 @@ impl Game {
     /// The town's business each day: work, errands, the tax round, the
     /// trader's restock, the odd minstrel, a tune in the street
     pub fn livelihood_tick(&mut self, tick: u64) {
+        let prelude = crate::infra::perf::scope("sim.day.prelude");
         // an organizer's founding call that goes unanswered too long lapses
         // on its own, same as "let it rest" - otherwise a seat with no
         // control wired to Command::Decide (the browser canvas shim has
@@ -73,6 +74,7 @@ impl Game {
                 self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
             }
         }
+        drop(prelude);
         // the herb-wife keeps her shelf brewed and her patches picked
         crate::timed!("sim.herbologist", self.herbologist_tick(tick));
         // the fold grazes, yields, and now and then howls
@@ -97,6 +99,7 @@ impl Game {
         crate::timed!("sim.sanction", self.sanction_tick(tick));
         // and the year has its feast days
         crate::timed!("sim.festival", self.festival_tick(tick));
+        let hearths = crate::infra::perf::scope("sim.day.hearths");
         // winter hearths burn a bundle every few days - faggots, turf,
         // the dry leavings, charcoal off the road; a house with nothing
         // to burn eats cold, and that's a trouble the village can hear
@@ -157,6 +160,7 @@ impl Game {
                 }
             }
         }
+        drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));
         // and the kitchen pot: staples off the garden beds feed the
@@ -212,9 +216,10 @@ impl Game {
         crate::timed!("sim.marks", self.marks_tick(tick));
         let mut rng = Rng(self.rng.next());
         // the country's carts and stewards, and its granaries
-        self.country_tick(tick);
+        crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
-        self.routine_dawn(tick, &mut rng);
+        crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
+        let folk = crate::infra::perf::scope("sim.day.villagers");
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
             let v = villagers[i];
@@ -311,6 +316,8 @@ impl Game {
                 self.log.push(format!("t{}: {} is now a {} {}.", tick, vill_name(i), vocation::level_name(level).to_lowercase(), voc));
             }
         }
+        drop(folk);
+        let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
         for (i, &v) in villagers.iter().enumerate() {

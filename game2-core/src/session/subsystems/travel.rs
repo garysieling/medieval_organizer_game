@@ -1,0 +1,609 @@
+//! Walks: sending someone somewhere (path memo, the door, forage and gather trips), advancing the walks under way, and what happens on arrival.
+
+use crate::session::*;
+
+impl Game {
+    /// Send `who` walking toward `goal` (a person, a shop or a tile).
+    /// Returns whether a way was found - otherwise nothing happens
+    pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
+        // the held take no errands - the jailer's rounds aren't theirs;
+        // the dead take none either, however short the walk
+        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        let to = match &goal {
+            Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
+                .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
+            Goal::TendGarden(i) => self.gardens.get(*i).map(|(_, t, _, _)| *t),
+            Goal::Exile => {
+                // the nearest edge of the world
+                self.world.get_component::<Pos>(who).copied().and_then(|from| {
+                    let (w, h) = (self.map.width as i32, self.map.height as i32);
+                    [(2, from.y.round() as i32), (w - 3, from.y.round() as i32),
+                     (from.x.round() as i32, 2), (from.x.round() as i32, h - 3)]
+                        .iter().copied()
+                        .filter(|&(x, y)| self.map.passable(x, y))
+                        .min_by_key(|&(x, y)| ((x as f32 - from.x).abs() + (y as f32 - from.y).abs()) as i32)
+                })
+            }
+            Goal::BuyFrom(e, _, _) | Goal::BuyAt(e, _, _) | Goal::CollectTax(e) | Goal::TalkTo(e) =>
+                self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
+            Goal::Gather(..) => return false, // gathers go through send_gather
+            Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
+            Goal::RunOddJob => self.world.get_component::<OddJob>(who)
+                .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
+                .map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::Eat => {
+                // the village table while it's laid: folk eat at their
+                // own market, and only a bare shelf sends them hunting
+                // for the next source
+                let market_laid = self.world.get_component::<villager::FoodSource>(self.market_food)
+                    .map(|f| f.servings > 0).unwrap_or(false);
+                if market_laid {
+                    self.world.get_component::<Pos>(self.market_food)
+                        .map(|p| (p.x.round() as i32, p.y.round() as i32))
+                } else {
+                    self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter_map(|f| self.world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x.round() as i32, fp.y.round() as i32),
+                                (fp.x - from.x).abs() + (fp.y - from.y).abs())))
+                        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                        .map(|(p, _)| p)
+                }
+            }
+        };
+        let Some(to) = to else { return false };
+        // nobody hikes halfway to the next village on an errand (the tax
+        // man's round reaches the outskirts - that's his job; so does a
+        // sick walk out to the herb hut)
+        let legs = ((to.0 as f32 - from.x).abs() + (to.1 as f32 - from.y).abs()) as i32;
+        // urgent errands get the long reach: the sick, the hungry, the
+        // flock, home - and a worker's inputs, or the craft starves
+        let cap = match &goal { Goal::CollectTax(_) => 24,
+            Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat
+            | Goal::BuyFrom(..) | Goal::BuyAt(..) => 30,
+            Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
+        if legs > cap { return false; }
+        if to == (from.x.round() as i32, from.y.round() as i32) {
+            self.travels.push(Travel { who, path: vec![to], goal });
+            return true;
+        }
+        match self.walk_memo((from.x.round() as i32, from.y.round() as i32), to) {
+            Some(mut path) => { path.push(to); self.travels.push(Travel { who, path, goal }); true }
+            None => false,
+        }
+    }
+
+    /// Raise an audio cue: a kind, a place, an intensity - the audio
+    /// layer turns it into sound
+    pub fn emit_sfx(&mut self, kind: &'static str, x: f32, y: f32, intensity: f32) {
+        self.sfx.push(SfxCue { kind, x, y, intensity });
+    }
+
+    /// The BFS is the game's hot line - a path's the same all day, so
+    /// remember it until the map might have moved
+    pub(in crate::session) fn walk_memo(&mut self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
+        if self.path_tick != self.tick {
+            self.path_cache.clear();
+            self.path_tick = self.tick;
+        }
+        if let Some(cached) = self.path_cache.get(&(from, to)) { return cached.clone(); }
+        let p = self.map.walk_path(from, to);
+        self.path_cache.insert((from, to), p.clone());
+        p
+    }
+
+    /// A passable tile right next to a building's (occupied) one: where a
+    /// caller at the door actually stands, south side preferred
+    pub(in crate::session) fn at_the_door(&self, x: i32, y: i32) -> Option<(i32, i32)> {
+        if self.map.passable(x, y) { return Some((x, y)); }
+        [(0, 1), (-1, 0), (1, 0), (0, -1), (-1, 1), (1, 1), (-1, -1), (1, -1)]
+            .iter().map(|(dx, dy)| (x + dx, y + dy))
+            .find(|&(qx, qy)| self.map.passable(qx, qy))
+    }
+
+    /// Walk `who` to tile `t` carrying `goal` (shared by the forage sends)
+    pub(in crate::session) fn send_tile_walk(&mut self, who: Entity, t: (i32, i32), goal: Goal, max_d: i32) -> bool {
+        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > max_d { return false; }
+        match self.walk_memo((from.x.round() as i32, from.y.round() as i32), t) {
+            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal }); true }
+            None => false,
+        }
+    }
+
+    /// Send `who` out to pick herb patch `pi`
+    pub fn send_forage(&mut self, who: Entity, pi: usize) -> bool {
+        let Some(t) = self.herb_patches.get(pi).map(|p| p.tile) else { return false };
+        self.send_tile_walk(who, t, Goal::Forage(pi), 16)
+    }
+
+    /// Send `who` out to gather at mushroom patch `pi`
+    pub fn send_shroom(&mut self, who: Entity, pi: usize) -> bool {
+        let Some(t) = self.mush_patches.get(pi).map(|p| p.tile) else { return false };
+        self.send_tile_walk(who, t, Goal::ForageShroom(pi), 16)
+    }
+
+    /// Send `who` to gather `good` at tile `t`
+    pub fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
+        // the held take no errands - a forage is no freer a walk than
+        // the others
+        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
+        // gathers get the forage-errand reach: wood and stone have no
+        // other source, and the craft can't wait on a near tree
+        if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 16 { return false; }
+        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
+            Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good, t) }); true }
+            None => false,
+        }
+    }
+
+    /// One frame of every walk under way: step along the path, and do the
+    /// errand when it runs out
+    pub fn advance_travels(&mut self) {
+        let mut arrived: Vec<(Entity, Goal)> = vec![];
+        for t in self.travels.iter_mut() {
+            if t.path.is_empty() { continue; }
+            // the dead finish no errands - the errand ends where they fell
+            if villager::is_dead(&self.world, t.who) { t.path.clear(); continue; }
+            // a well-worn path is quicker underfoot - trails::movement_cost
+            // is the one place the worn-way discount is worked out
+            let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
+            // a lame leg covers less ground in a day
+            let slow = self.world.get_component::<villager::Condition>(t.who)
+                .map(|c| if c.kind == "a lame leg" { 0.6 } else { 1.0 }).unwrap_or(1.0);
+            let stride = MEETING_WALK / trails::movement_cost(1.0, worn, TRAIL_K) * slow;
+            let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
+            let ot = (p.x.round() as i32, p.y.round() as i32);
+            let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);
+            let (dx, dy) = (nx - p.x, ny - p.y);
+            let d = (dx * dx + dy * dy).sqrt();
+            let (stepx, stepy) = if d <= stride { (nx, ny) } else { (p.x + dx / d * stride, p.y + dy / d * stride) };
+            // never step somewhere they can't stand: a wall in the way
+            // aborts the errand rather than leaving them walking into it
+            // (and starving on the spot) forever - an exile aborting at
+            // the rocks still takes the road, else he stands banished
+            // and breathing at the border until hunger does it
+            if !self.map.passable(stepx.round() as i32, stepy.round() as i32) {
+                if matches!(t.goal, Goal::Exile) { arrived.push((t.who, t.goal.clone())); }
+                t.path.clear(); continue;
+            }
+            p.x = stepx; p.y = stepy;
+            let nt = (p.x.round() as i32, p.y.round() as i32);
+            if nt != ot {
+                let tr = self.trails.entry(nt).or_insert(Trail::wild());
+                trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
+            }
+            if d <= stride { t.path.remove(0); }
+            if t.path.is_empty() { arrived.push((t.who, t.goal.clone())); }
+        }
+        self.travels.retain(|t| !t.path.is_empty());
+        for (who, goal) in arrived { self.arrive(who, goal); }
+    }
+
+    /// What happens when a walk reaches its end: the trade, the
+    /// collection, the gather, the delivery
+    pub fn arrive(&mut self, who: Entity, goal: Goal) {
+        let tick = self.tick;
+        match goal {
+            Goal::BuyFrom(seller, good, qty) => {
+                // seller may be a person (satchel) or a building (the stall)
+                let mut paid = if self.world.get_component::<Building>(seller).is_some() {
+                    household::buy_at_shop(&mut self.world, seller, who, good, qty)
+                } else {
+                    livelihood::trade_person(&mut self.world, who, seller, good, qty)
+                };
+                // short of coin, a neighbour still swaps: the buyer offers
+                // out of the satchel toward what the ask is worth, and a
+                // few coppers to boot squares it
+                if paid.is_none() && self.world.get_component::<Building>(seller).is_none() {
+                    let want_worth = goods::worth_at(&self.world, good) * qty as f32;
+                    let offer = livelihood::pick_offer(&self.world, who, want_worth, good);
+                    if !offer.is_empty() {
+                        let offer_refs: Vec<(&str, u32)> = offer.iter()
+                            .map(|(g, q)| (g.as_str(), *q)).collect();
+                        if let Some(deal) = livelihood::barter_person(
+                            &mut self.world, who, seller, &[(good, qty)], &offer_refs) {
+                            paid = Some(deal.boot);
+                            let an = self.villagers.iter().position(|v| *v == who).map(vill_name);
+                            let bn = self.villagers.iter().position(|v| *v == seller).map(vill_name);
+                            if let (Some(a), Some(b)) = (an, bn) {
+                                self.log.push(format!("t{}: {} swaps {} with {}.", tick, a,
+                                    livelihood::barter_terms(&offer, &[(good.into(), qty)], deal.boot), b));
+                            }
+                            // the deal lands on the bond: fair swaps warm a
+                            // little, a short sack leaves a mark, generosity
+                            // reads as aid
+                            use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+                            let (kind, who_records) = if deal.fairness < 0.85 {
+                                (InteractionKind::Conflict, seller)
+                            } else if deal.fairness > 1.15 {
+                                (InteractionKind::Aid, who)
+                            } else {
+                                (InteractionKind::Conversation, who)
+                            };
+                            record_interaction(&mut self.world, who_records,
+                                Interaction { other: if who_records == who { seller } else { who },
+                                    kind, intensity: (1.0 - deal.fairness).abs().clamp(0.2, 1.0) });
+                        }
+                    }
+                }
+                // trade with the road's accounts loses a little to the
+                // reckoning - unless the village has a clerk for it
+                if Some(seller) == self.trader_stall && vocation::imported(good)
+                    && self.numeracy != Numeracy::Positional && self.translator.is_none() {
+                    self.reckonings += 1;
+                    // the tally leans on what was actually paid - a shelf
+                    // emptied just now doesn't swell the reckoning's cut
+                    let skim = paid.unwrap_or(0.0) * 0.1;
+                    if let Some(p) = self.world.get_component_mut::<Purse>(who) {
+                        p.gold = (p.gold - skim).max(0.0);
+                    }
+                    if self.reckonings % 3 == 0 {
+                        desires::add_grievance(&mut self.world, who, desires::Problem::ShortChanged, tick + 40);
+                        if self.reckonings == 3 {
+                            self.log.push(format!("t{}: the reckoning didn't add up - he counted it his way.", tick));
+                        }
+                    }
+                    // enough of these and a clerk steps up to keep the
+                    // tallies straight - the dragoman problem solved
+                    if self.reckonings >= 8 {
+                        let clerk = self.villagers.iter().copied().find(|&v|
+                            self.world.get_component::<Craft>(v)
+                                .map(|c| c.vocation == Vocation::Printmaker || c.vocation == Vocation::Priest)
+                                .unwrap_or(false)
+                            && !crate::game::dungeon::unavailable(&self.world, v));
+                        if let Some(c) = clerk {
+                            self.translator = Some(c);
+                            let name = self.name_of(c);
+                            self.log.push(format!("t{}: {} keeps the tallies straight now - no more foreign reckonings.", tick, name));
+                        }
+                    }
+                }
+                // a dab of perfume: the buyer smells of roses for days
+                if good == "perfume" {
+                    if let Some(s) = self.world.get_component_mut::<Smell>(who) {
+                        s.kind = "roses"; s.intensity = 0.8;
+                    } else {
+                        self.world.add_component(who, Smell { kind: "roses", intensity: 0.8 });
+                    }
+                }
+            }
+            Goal::BuyAt(shop, good, want) => {
+                if household::buy_at_shop(&mut self.world, shop, who, good, 1).is_some() {
+                    if let Some(w) = want {
+                        desires::satisfy(&mut self.world, who, w, tick + 60);
+                        // consumable goods are enjoyed, not kept
+                        if matches!(good, "bread" | "faith" | "security" | "pamphlets" | "garments"
+                            | "lodging") {
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                                if let Some(q) = s.goods.get_mut(good) { *q = q.saturating_sub(1); }
+                            }
+                        }
+                    }
+                    if vocation::is_drink(good) {
+                        // a cup goes down at the counter, not home in the
+                        // bag: company, a small lift - and sometimes the
+                        // morning after
+                        desires::satisfy(&mut self.world, who, Want::Drink, tick + 60);
+                        desires::satisfy(&mut self.world, who, Want::Joy, tick + 15);
+                        if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                            if let Some(q) = s.goods.get_mut(good) { *q = q.saturating_sub(1); }
+                        }
+                        // the keeper hears everyone's business - a cup
+                        // buys a chat, and the alehouse earns its name
+                        if let Some(k) = self.world.get_component::<Building>(shop)
+                            .and_then(|b| b.worker).filter(|&k| k != who) {
+                            relationships::record_interaction(&mut self.world, who, relationships::Interaction {
+                                other: k, kind: relationships::InteractionKind::Conversation,
+                                intensity: CHAT_INTENSITY,
+                            });
+                        }
+                        if self.rng.below(100) < 15 {
+                            self.world.add_component(who, villager::Drunk { until: tick + 2 });
+                            self.say(who, "One more won't hurt.", CHAT_BUBBLE_SECS);
+                        }
+                    }
+                }
+            }
+            Goal::Gather(good, tile) => {
+                // the land keeps score: the canopy thins, the pit fills
+                let qty = match good {
+                    "wood" => {
+                        let cover = self.land.tree_cover.get(&tile).copied().unwrap_or(0.6);
+                        if let Some(c) = self.land.tree_cover.get_mut(&tile) { *c = (*c - 0.12).max(0.0); }
+                        crate::sim::environment::wood_yield(cover)
+                    }
+                    "stone" => {
+                        let y = crate::sim::environment::stone_yield(self.land.pit_water);
+                        self.land.pit_water = (self.land.pit_water + 0.03).min(1.0);
+                        if self.land.pit_water >= 1.0 && self.pit == Some(tile) {
+                            self.log.push(format!("t{}: the pit's drowned - no stone comes out of a pond.", tick));
+                        }
+                        y
+                    }
+                    _ => 2,
+                };
+                if qty > 0 {
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                        *s.goods.entry(good.to_string()).or_insert(0) += qty;
+                    }
+                }
+            }
+            Goal::CollectTax(target) => {
+                let Some(c) = self.collector else { return };
+                if villager::is_dead(&self.world, target) { return; }
+                // the lord's reply turns on his estimate of the org:
+                // a stranger he squeezes, a power he negotiates, a force
+                // he passes by
+                if target == self.player && self.lord_esteem > 0.6 {
+                    self.log.push(format!("t{}: the collector passes you by - the lord knows an organized man when he sees one.", tick));
+                    return;
+                }
+                let cut = livelihood::collect_tax(&mut self.world, c, target, tick);
+                // the levy rides the books as the lord's, not the man's
+                self.takings += cut;
+                let taken = cut
+                    * if target == self.player && self.lord_esteem > 0.3 {
+                        self.log.push(format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
+                        0.5
+                    } else { 1.0 };
+                // the assize's share on the barrel: a shop stocked with
+                // drink pays a cut on what it pours - the alehouse, the
+                // brewery and the still are the lord's best takings
+                let excise = self.world.get_component::<Craft>(target)
+                    .and_then(|cr| cr.workplace)
+                    .and_then(|b| self.world.get_component::<Building>(b))
+                    .map(|b| b.stock.iter()
+                        .filter(|(g, _)| vocation::is_drink(g))
+                        .map(|(g, q)| goods::worth_at(&self.world, g) * *q as f32).sum::<f32>())
+                    .map(|v| (v * livelihood::DRINK_EXCISE).round())
+                    .unwrap_or(0.0);
+                if excise > 0.0 {
+                    // he takes what the purse can bear, no more - the
+                    // lord can't coin what isn't there
+                    let paid = self.world.get_component::<Purse>(target)
+                        .map(|p| p.gold.min(excise)).unwrap_or(0.0);
+                    if let Some(p) = self.world.get_component_mut::<Purse>(target) { p.gold -= paid; }
+                    if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold += paid; }
+                    self.takings += paid;
+                    let name = self.villagers.iter().position(|v| *v == target)
+                        .map(|i| vill_name(i)).unwrap_or("you");
+                    self.log.push(format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));
+                }
+                // a grant nobody kept watch over is clawed back: if the
+                // campaign that won it has lapsed, the collector takes the
+                // full cut though the grant still stands on paper
+                let seat_orgs: Vec<Entity> = self.seats.iter().map(|s| s.org).collect();
+                for o in seat_orgs {
+                    if let Some(camp) = crate::game::campaign::campaign_of(&self.world, o) {
+                        if crate::game::reactions::hollow_if_unguarded(&mut self.world, camp, tick) {
+                            self.log.push(format!("t{}: the lord's grant still stands on paper - but nobody kept watch, and the collector takes the full cut. Meet again and put your demands to the Reeve to win it back.", tick));
+                        }
+                    }
+                }
+                // a grant carried home lightens the round for the cause's
+                // own - wherever the grant was won, not just seat zero's
+                // fight: half the cut back and the taxing doesn't count;
+                // a partial grant gives a quarter back and the grievance
+                // stands; a hollowed one gives nothing
+                let relief = self.seats.iter()
+                    .filter(|s| self.world.get_component::<Organization>(s.org)
+                        .map(|o| o.members.contains(&target)).unwrap_or(false))
+                    .filter_map(|s| self.world.get_component::<crate::game::reactions::LordGrant>(s.org))
+                    .filter(|g| g.issue == "the taxes")
+                    .map(|g| g.relief(tick))
+                    .fold(0.0f32, f32::max);
+                let granted = relief > 0.0;
+                if granted {
+                    let back = taken * relief;
+                    if let Some(p) = self.world.get_component_mut::<Purse>(target) { p.gold += back; }
+                    if relief >= crate::game::reactions::FULL_RELIEF {
+                        crate::game::desires::lift_grievance(&mut self.world, target, crate::game::desires::Problem::Taxed);
+                    }
+                }
+                self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
+                if target == self.player {
+                    self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
+                }
+                if granted {
+                    let name = self.villagers.iter().position(|v| *v == target).map(|i| vill_name(i)).unwrap_or("them");
+                    if relief >= crate::game::reactions::FULL_RELIEF {
+                        self.log.push(format!("t{}: the lord's grant covers {} - half the cut comes back.", tick, name));
+                    } else {
+                        self.log.push(format!("t{}: the lord's part-grant covers {} - a quarter of the cut comes back.", tick, name));
+                    }
+                }
+            }
+            Goal::TalkTo(e) => {
+                // whoever they meant to greet is gone, behind bars, or
+                // down the road and dusted - no conversation at any of them
+                if crate::game::dungeon::unavailable(&self.world, e)
+                    || self.world.get_component::<Pos>(e).is_none() {
+                    self.say(who, "Oh.", TALK_BUBBLE_SECS);
+                } else if Some(e) == self.matchmaker && who != e {
+                    // a lonely heart comes to sit with the heart-helper
+                    self.match_attempt(who, tick, Some(e), "the heart-helper");
+                } else if self.ink_boiler.as_ref().map(|b| b.e) == Some(e) && who != e {
+                    // crusts for the pot, and a fried taste for carrying them
+                    desires::satisfy(&mut self.world, who, Want::GoodFood, tick + 30);
+                    self.say(who, "The crusts come back fried.", CHAT_BUBBLE_SECS);
+                } else {
+                    // stand and chat: a conversation, a step toward a tie
+                    relationships::record_interaction(&mut self.world, who, relationships::Interaction {
+                        other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
+                    });
+                    self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+                }
+            }
+            Goal::Wander => {}
+            Goal::Eat => {
+                // a real meal off the nearest table - if the day's hunger
+                // system already fed them mid-errand, no second helping
+                let still_hungry = self.world.get_component::<Hunger>(who)
+                    .map(|h| h.value < 100.0).unwrap_or(false);
+                let table = self.world.get_component::<Pos>(who).copied()
+                    .map(|p| self.world.query::<villager::FoodSource>().iter().copied()
+                        .filter(|&f| self.world.get_component::<villager::FoodSource>(f)
+                            .map(|fs| fs.servings > 0).unwrap_or(false))
+                        .filter(|&f| self.world.get_component::<Pos>(f)
+                            .map(|fp| (fp.x - p.x).abs() + (fp.y - p.y).abs() < 3.0).unwrap_or(false))
+                        .next());
+                if still_hungry {
+                    if let Some(Some(t)) = table {
+                        let served = self.world.get_component_mut::<villager::FoodSource>(t)
+                            .map(|f| { f.servings -= 1; true }).unwrap_or(false);
+                        if served {
+                            if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                        }
+                    }
+                }
+            }
+            Goal::Herd(_) => {}
+            Goal::HeadHome(_) => {}
+            Goal::TendGarden(gi) => {
+                // weeding and picking: the bed yields into the house's
+                // stock, and the tending itself is a small joy
+                if let Some((home, _, g, kitchen)) = self.gardens.get_mut(gi) {
+                    if *g >= 1.0 {
+                        *g = 0.0;
+                        // a kitchen bed comes up roots, potherbs and peas
+                        // in turn; a herb bed keeps its flowers
+                        let good = if *kitchen {
+                            ["roots", "potherbs", "peas"][(tick / 7 % 3) as usize]
+                        } else if tick % 2 == 0 { "marigold" } else { "feverfew" };
+                        if let Some(b) = self.world.get_component_mut::<Building>(*home) {
+                            household::add_stock(b, good, 1);
+                        }
+                        let home = *home;
+                        if let Some(b) = self.world.get_component::<Building>(home) {
+                            for &o in &b.occupants.clone() {
+                                desires::satisfy(&mut self.world, o, Want::Joy, tick + 20);
+                            }
+                        }
+                    }
+                }
+            }
+            Goal::Exile => {
+                // at the world's edge they don't come back - unless the
+                // castle's keeping them: the dungeon's a held state, and
+                // the org may yet ransom them home
+                let name = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
+                if self.dungeon.iter().any(|(e, _)| *e == who) {
+                    self.log.push(format!("t{}: {} is held at the castle - the org may yet ransom them.", tick, name));
+                } else {
+                    self.world.add_component(who, villager::Dead);
+                    self.log.push(format!("t{}: {} is driven out - the road takes them.", tick, name));
+                }
+            }
+            Goal::ForageShroom(pi) => {
+                self.shroom_breaks.push((who, tick));
+                if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = tick + 60; }
+                let Some(kind) = self.mush_patches.get(pi).map(|p| p.kind) else { return };
+                self.shroom_take(who, pi, kind, tick);
+            }
+            Goal::Forage(pi) => {
+                // picked clean for a season; two bundles dry on the hut's beams
+                if let Some(p) = self.herb_patches.get_mut(pi) { p.next_ready = tick + 90; }
+                let herb = self.herb_patches.get(pi).map(|p| p.herb);
+                if let (Some(herb), Some(hut)) = (herb, self.herb_hut) {
+                    if let Some(b) = self.world.get_component_mut::<Building>(hut) {
+                        household::add_stock(b, herb, 2);
+                    }
+                }
+            }
+            Goal::SeekRemedy(_) => {
+                if villager::is_dead(&self.world, who) { return; }
+                self.remedy_visits.push((who, tick));
+                let Some(her) = self.herbologist else { return };
+                if villager::is_dead(&self.world, her) { return; }
+                let illness = disease_of(&self.world, who).map(|(n, _)| n);
+                let hut = self.herb_hut.unwrap_or(0);
+                let efficacy = herbology::best_remedy(&mut self.world, her)
+                    .or_else(|| herbology::brew_from_stock(&mut self.world, her, hut));
+                match efficacy {
+                    Some(eff) => {
+                        herbology::apply_efficacy(&mut self.world, who, eff);
+                        let fee = (2.0 + eff * 8.0).min(8.0)
+                            .min(self.world.get_component::<Purse>(who).map(|p| p.gold).unwrap_or(0.0));
+                        if let Some(p) = self.world.get_component_mut::<Purse>(who) { p.gold -= fee; }
+                        if let Some(p) = self.world.get_component_mut::<Purse>(her) { p.gold += fee; }
+                        let patient = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
+                        self.say(her, "Steep it and rest - it'll turn.", CHAT_BUBBLE_SECS);
+                        self.cured += 1;
+                        self.log.push(format!("t{}: {} treats {}'s {}.", tick, vill_name(HERB_IDX), patient, illness.unwrap_or_else(|| "illness".into())));
+                    }
+                    None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
+                }
+            }
+            Goal::RunOddJob => {
+                let Some(job) = self.world.get_component_mut::<OddJob>(who)
+                    .map(|j| OddJob { hirer: j.hirer, good: j.good.clone(), qty: j.qty, from: j.from, to: j.to, pay: j.pay, loaded: j.loaded })
+                else { return };
+                if !job.loaded {
+                    // at the source: the hirer already paid for it - goods
+                    // into the kid's satchel, then walk them to the hirer
+                    let took = if let Some(b) = self.world.get_component_mut::<Building>(job.from) {
+                        household::take_stock(b, &job.good, job.qty)
+                    } else {
+                        self.world.get_component_mut::<Satchel>(job.from)
+                            .and_then(|s| s.goods.get_mut(&job.good).map(|q| { let n = (*q).min(job.qty); *q -= n; n }))
+                            .unwrap_or(0)
+                    };
+                    if took == 0 { self.world.remove_component::<OddJob>(who); return; }
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                        *s.goods.entry(job.good.clone()).or_insert(0) += took;
+                    }
+                    if let Some(j) = self.world.get_component_mut::<OddJob>(who) { j.loaded = true; }
+                    // walk the second leg to the hirer
+                    if let (Some(from_p), Some(to_p)) = (
+                        self.world.get_component::<Pos>(who).copied(),
+                        self.world.get_component::<Pos>(job.to).copied()) {
+                        let to = (to_p.x.round() as i32, to_p.y.round() as i32);
+                        if let Some(mut path) = self.map.walk_path((from_p.x.round() as i32, from_p.y.round() as i32), to) {
+                            path.push(to);
+                            self.travels.push(Travel { who, path, goal: Goal::RunOddJob });
+                        }
+                    }
+                } else {
+                    // delivered: goods to the hirer, pay to the kid. A hirer
+                    // who died waiting gets no satchel and pays no coin - the
+                    // goods land in the place's stock if there is one
+                    let qty = self.world.get_component_mut::<Satchel>(who)
+                        .and_then(|s| s.goods.get_mut(&job.good).map(|q| { let n = (*q).min(job.qty); *q -= n; n }))
+                        .unwrap_or(0);
+                    if villager::is_dead(&self.world, job.hirer) {
+                        if let Some(b) = self.world.get_component_mut::<Building>(job.to) {
+                            *b.stock.entry(job.good.clone()).or_insert(0) += qty;
+                        } else {
+                            // no place to leave them: the kid keeps what they carried
+                            if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                                *s.goods.entry(job.good.clone()).or_insert(0) += qty;
+                            }
+                        }
+                        self.say(who, "...he's gone.", CHAT_BUBBLE_SECS);
+                        self.world.remove_component::<OddJob>(who);
+                        return;
+                    }
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(job.hirer) {
+                        *s.goods.entry(job.good).or_insert(0) += qty;
+                    }
+                    if let Some(h) = self.world.get_component_mut::<Purse>(job.hirer) { h.gold -= job.pay.min(h.gold); }
+                    if let Some(k) = self.world.get_component_mut::<Purse>(who) { k.gold += job.pay; }
+                    // an errand run is a bond: the hirer they run for
+                    // most is their likeliest master
+                    if let Some(g) = self.world.get_component_mut::<KidGrowth>(who) {
+                        if let Some((_, n)) = g.errands.iter_mut().find(|(e, _)| *e == job.hirer) { *n += 1; }
+                        else { g.errands.push((job.hirer, 1)); }
+                    }
+                    self.say(who, "All delivered!", CHAT_BUBBLE_SECS);
+                    self.world.remove_component::<OddJob>(who);
+                }
+            }
+        }
+    }
+}

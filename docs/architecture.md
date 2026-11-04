@@ -56,7 +56,7 @@ Rules:
 
 | Area | Path | Notes |
 |------|------|-------|
-| Session state & frame loop | `session.rs` (shrinking) | `Game` struct, `update`, glue |
+| Session state & frame loop | `session.rs` (~1.4k lines) | `Game` struct and its types, `update`/`advance_frame` |
 | Tests | `session/tests/<subsystem>.rs` | one file per subsystem; `use crate::session::*;` |
 | Render (client) | `session/render/` | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays |
 | Perf bench | `session/render/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
@@ -95,7 +95,9 @@ stats) are fine: name them in the PR.
    `agent_kpis(&AgentObs)` can't see the sim by construction (layering test). `Game::secret_kpis`
    is the old `telemetry()`. This closed two leaks: `UiModel.debug_lines` carried the secret
    gauges to every client, and an agent's `Welcome` carried seat 0's frame.
-7. Sim tick families into `session/subsystems/`, a few per PR. (1/2: visitors, animals, wood, people.)
+7. ~~Sim tick families into `session/subsystems/`~~: visitors, animals, wood, people (#465); economy,
+   society, land, travel, meetings and the day (`livelihood_tick`). `session.rs` now holds the
+   `Game` struct, its types and the frame loop (`update`/`advance_frame`).
 8. `events.rs` split by category.
 
 ### Working alongside the split

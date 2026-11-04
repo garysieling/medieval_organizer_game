@@ -1,10 +1,10 @@
 # AGENTS.md - Game2 Project Instructions & Learned Information
 
 ## Layout
-- Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs the client (`game2-core/src/client/`, draws a `UiModel`, uses only `session`'s public API). The split of `session.rs` is in progress there; put new code in its target layer.
+- Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs the client (the `game2-client` crate: draws a `UiModel`, owns the window bins, and depends on `game2-core`, never the reverse). The split of `session.rs` is in progress there; put new code in its target layer.
 - The sim is deterministic per seed: in `game/`, `sim/`, `session/`, `engine/` use `crate::engine::det::{HashMap, HashSet}` (build with `::default()`), never std's randomly-seeded ones, and don't let iteration order depend on anything but the seed. `tests/layering.rs` and `tests/determinism.rs` enforce it.
 - Session tests live in `game2-core/src/session/tests/<subsystem>.rs` (start with `use crate::session::*;` when the file uses session items; it reaches private ones too). Add new ones to the matching file, or add a file and list it in `tests/mod.rs`. Don't put them back in `session.rs`.
-- Tests that draw (a `View`, `Art`, a panel, a label, a frame) live in `game2-core/src/client/tests/<area>.rs`. They see only `session`'s public API, like the client itself; build games with `Game::new_seeded(MAP_SEED)`, since `Game::new()` is session-test-only.
+- Tests that draw (a `View`, `Art`, a panel, a label, a frame) live in `game2-client/src/tests/<area>.rs`; run them with `cargo test -p game2-client --lib`. They see only `session`'s public API, like the client itself; build games with `Game::new_seeded(MAP_SEED)`, since `Game::new()` is session-test-only.
 
 ## Build & Test Instructions
 
@@ -20,6 +20,8 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
   cargo test -p game2-core --lib game::conversation
   cargo test -p game2-core --lib
   ```
+- The window, dumps, bench and recordings are in `game2-client`: run `game_ui` / `record_video` from the repo root (art loads from `assets/`), e.g. `cargo run -p game2-client --bin game_ui -- --dump-frame 300`. Inside `game2-core/` a plain `cargo run --bin game_ui` no longer finds the bin.
+- Multiplayer over real sockets: `cargo test -p game2-core --test multiplayer` (starts a `server::serve` on an ephemeral port). Change the protocol or the server loop? Extend it.
 - Build binaries:
   ```bash
   cargo check --bin conversation_demo --bin dialogue_gen

@@ -1,4 +1,3 @@
-use crate::session::*;
 use crate::client::*;
 
 #[test]
@@ -16,7 +15,7 @@ fn test_help_box_is_centred_on_the_map_and_fits_its_text() {
     assert!(widest + 40 <= w, "help text too wide for its box");
 
     // in a real frame, the drawn text inside the box is balanced left/right
-    let game = Game::new();
+    let game = Game::new_seeded(MAP_SEED);
     let mut view = View::new(Art::load_fs("../assets", 0));
     view.help_open = true;
     let buf = view.render(&game.ui_model(), (-1, -1));

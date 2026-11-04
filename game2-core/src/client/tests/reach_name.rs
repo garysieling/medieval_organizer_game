@@ -1,9 +1,9 @@
-use crate::session::*;
 use crate::client::*;
+use crate::game::villager::Pos;
 
 #[test]
 fn test_names_are_bright_only_within_reach() {
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     // one villager beside the player, one far across the village
     let (px, py) = game.player_pos();

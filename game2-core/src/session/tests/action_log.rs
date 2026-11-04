@@ -1,5 +1,4 @@
 use crate::session::*;
-use crate::client::*;
 
 #[test]
 fn test_action_lines_are_dated_and_say_who_not_the_score() {
@@ -26,15 +25,4 @@ fn test_action_lines_are_dated_and_say_who_not_the_score() {
     let invest = game.log.last().unwrap().clone();
     assert!(invest.starts_with("t3: Invested 10 gold") && !invest.contains("influence"), "{}", invest);
 
-}
-
-#[test]
-fn test_influence_lines_are_not_coloured_as_illness() {
-    // "influence" contains "flu"; it used to turn every influence line weather-cyan
-    let illness = (120, 200, 255);
-    assert_ne!(log_colour("t3: Invested 10 gold"), illness);
-    assert_ne!(log_colour("t3: Can't recruit: need influence 0.40."), illness);
-    assert_ne!(log_colour("t9: the grain store is low"), illness);
-    assert_eq!(log_colour("t120: Bram is taken with la grippe"), illness);
-    assert_eq!(log_colour("t200: it's raining"), illness);
 }

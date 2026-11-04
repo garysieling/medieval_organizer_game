@@ -24,6 +24,7 @@ mod dead_portrait;
 mod death;
 mod depth;
 mod determinism;
+mod dialogue;
 mod disclosure;
 mod dog;
 mod dog_sprite;

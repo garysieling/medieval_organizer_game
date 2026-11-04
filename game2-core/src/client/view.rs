@@ -684,11 +684,11 @@ impl View {
         }
 
         // the TALK panel under the minimap: conversations, apart from the log
-        dialogue::draw_talk_panel(&mut buf, &m.talk, (mx, my));
+        talk::draw_talk_panel(&mut buf, &m.talk, (mx, my));
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
-        if let Some(c) = &m.convo { dialogue::draw_convo_panel(&mut buf, c, (mx, my)); }
+        if let Some(c) = &m.convo { talk::draw_convo_panel(&mut buf, c, (mx, my)); }
 
         // what the marks over villagers' heads mean, under the log
         let mut mx = UI_X as i32 + 14;

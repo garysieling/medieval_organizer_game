@@ -107,7 +107,9 @@ stats) are fine: name them in the PR.
 9. Crates, in stages:
    - ~~3a: the client moves out of `session` to `crate::client` and uses only `session`'s
      public API. Shared screen geometry is public in `session/layout.rs`; `session.rs` no
-     longer imports any drawing types.~~
+     longer imports any drawing types.~~ The TALK and conversation panels' layout, drawing and
+     click mapping moved from `session/dialogue.rs` to `client/talk.rs`; `tests/layering.rs`
+     fails if `session` draws (`session_never_draws`) or names the client.
    - 3b: `client/` (+ `ui/`, the window bins) become a `game2-client` crate on top of the sim.
      The session tests that draw frames move with it.
 

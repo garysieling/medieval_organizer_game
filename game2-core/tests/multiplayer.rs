@@ -366,9 +366,15 @@ fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
     std::thread::sleep(Duration::from_millis(200));
     server.stop();
     assert!(save.exists());
-    assert!(!dir.join("village.tmp.saving").exists(), "the write file was left behind");
+    let leftovers: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten()
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".saving")).collect();
+    assert!(leftovers.is_empty(), "the write file was left behind");
+    // and a file that happens to sit where a write file might is left alone
+    let bystander = dir.join("village.tmp.saving");
+    std::fs::write(&bystander, "another village").unwrap();
     let server = start_with(cfg());
     assert!(server.restored.as_ref().is_some_and(|r| r.digest_matched), "the .tmp-named save restores");
     server.stop();
+    assert_eq!(std::fs::read_to_string(&bystander).unwrap(), "another village", "a save wrote over a bystander");
     let _ = std::fs::remove_dir_all(&dir);
 }

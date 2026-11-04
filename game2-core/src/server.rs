@@ -202,13 +202,19 @@ impl Server {
             minted: self.minted, digest: self.game.state_digest(),
         };
         let text = serde_json::to_string(&file).map_err(std::io::Error::other)?;
-        // beside the save, under a name no save can have (`village.json` ->
-        // `village.json.saving`), so the last good save is never the one written
+        // written beside the save, then renamed over it, so a crash mid-write
+        // leaves the last good save. The write file is made fresh
+        // (`create_new`, named for this process and this write), so it can
+        // never be - or overwrite - an existing file, a save or anything else
+        use std::io::Write;
+        static WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let mut name = path.file_name().unwrap_or_default().to_os_string();
-        name.push(".saving");
+        name.push(format!(".{}.{}.saving", std::process::id(), WRITES.fetch_add(1, Ordering::Relaxed)));
         let tmp = path.with_file_name(name);
-        std::fs::write(&tmp, text)?;
-        std::fs::rename(&tmp, path)
+        let written = std::fs::OpenOptions::new().write(true).create_new(true).open(&tmp)
+            .and_then(|mut f| { f.write_all(text.as_bytes())?; f.sync_all() });
+        if let Err(e) = written { let _ = std::fs::remove_file(&tmp); return Err(e); }
+        std::fs::rename(&tmp, path).inspect_err(|_| { let _ = std::fs::remove_file(&tmp); })
     }
 
     /// Save, and say so if it fails: play goes on, but the operator must know

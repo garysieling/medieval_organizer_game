@@ -62,13 +62,20 @@ fn connect_remote(url: &str) -> Arc<Remote> {
             // scenes arrive without the map (it's sent apart, when it
             // changes): the cache puts the last one back in
             let mut cache = SceneCache::new();
+            let mut welcomed = false;
             loop {
                 let msg = remote.ws.lock().unwrap().read();
                 match msg {
                     Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
                         Ok(msg) => {
                             if let ServerMsg::Welcome { token, .. } = &msg { *remote.token_seen.lock().unwrap() = Some(token.clone()); }
-                            if let ServerMsg::Denied { reason } = &msg { *remote.denied.lock().unwrap() = Some(reason.clone()); }
+                            // a Denied before the Welcome is a refusal (we're not
+                            // in); after it, it's a warning ("slow down") and play goes on
+                            if let ServerMsg::Welcome { .. } = &msg { welcomed = true; }
+                            if let ServerMsg::Denied { reason } = &msg {
+                                if welcomed { eprintln!("game_ui: the server says: {reason}"); }
+                                else { *remote.denied.lock().unwrap() = Some(reason.clone()); }
+                            }
                             if let Some(scene) = cache.apply(msg) { *remote.latest.lock().unwrap() = Some(scene); }
                         }
                         Err(_) => {}

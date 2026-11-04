@@ -172,8 +172,9 @@ appear.
 ```
 
 `Denied` before a `Welcome` means you weren't let in ("wrong join secret",
-"the village is full") and the socket closes. After one it means your seat
-is gone.
+"the village is full") and the socket closes. After one it's a notice, not
+an ending: "slow down" (you're past the message budget, and the excess was
+dropped) or "seat gone".
 
 ## Limits
 

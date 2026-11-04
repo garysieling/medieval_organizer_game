@@ -178,6 +178,8 @@ is gone.
 ## Limits
 
 - `Hello` within 10s of connecting; at most 256 sockets open at once.
+- At most 240 messages a second per connection: past that they're dropped
+  (not queued), and one `Denied {"reason":"slow down"}` a second says so.
 - `--max-seats` (default 64) new characters per server; reclaims don't count.
 - Scenes, observations and maps are snapshots: a slow client is sent the
   newest, never a backlog. Replies (`Welcome`, `CmdDone`, `Pong`) are never

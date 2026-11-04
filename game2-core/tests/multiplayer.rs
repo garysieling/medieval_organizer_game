@@ -378,3 +378,28 @@ fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
     assert_eq!(std::fs::read_to_string(&bystander).unwrap(), "another village", "a save wrote over a bystander");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_flooding_client_is_told_to_slow_down_and_others_play_on() {
+    let server = start(None);
+    let mut flood = connect(server.addr);
+    hello(&mut flood, None, ClientKind::Human);
+    // 2000 pings in a burst, far past the budget
+    for n in 0..2000u64 { send(&mut flood, &ClientMsg::Ping(n)); }
+    let (mut pongs, mut slowed) = (0, false);
+    let end = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < end {
+        if let Got::Msg(t) = read_text(&mut flood) {
+            if t.starts_with("{\"Pong\"") { pongs += 1; }
+            if t.contains("slow down") { slowed = true; }
+        }
+    }
+    assert!(slowed, "the flood wasn't told to slow down");
+    assert!(pongs < 1000, "{pongs} of 2000 pings answered: no budget");
+    // and someone else still plays
+    let mut other = connect(server.addr);
+    hello(&mut other, None, ClientKind::Human);
+    send(&mut other, &ClientMsg::Ping(9));
+    until("a pong for the other client", &mut other, 10, |m, _| matches!(m, ServerMsg::Pong(9)).then_some(()));
+    server.stop();
+}

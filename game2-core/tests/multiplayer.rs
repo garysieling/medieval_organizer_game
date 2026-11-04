@@ -14,10 +14,27 @@ type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
 
 /// A fast server: 200 frames a second, so a scene comes every 10ms
 fn start(probe_token: Option<&str>) -> ServerHandle {
-    serve(ServerConfig {
-        bind: "127.0.0.1".into(), port: 0, seed: MAP_SEED, idle: Duration::from_secs(600),
-        tick_hz: 200, probe_port: Some(0), probe_token: probe_token.map(String::from),
-    }).expect("server starts")
+    start_with(ServerConfig { probe_token: probe_token.map(String::from), ..fast() })
+}
+
+fn fast() -> ServerConfig {
+    ServerConfig { bind: "127.0.0.1".into(), port: 0, seed: MAP_SEED, idle: Duration::from_secs(600),
+        tick_hz: 200, probe_port: Some(0), ..ServerConfig::default() }
+}
+
+fn start_with(cfg: ServerConfig) -> ServerHandle {
+    serve(cfg).expect("server starts")
+}
+
+/// Say Hello with a secret, and see whether the server lets us in
+fn admitted(addr: std::net::SocketAddr, token: Option<String>, secret: Option<&str>) -> Result<String, String> {
+    let mut ws = connect(addr);
+    send(&mut ws, &ClientMsg::Hello { token, kind: ClientKind::Human, name: None, secret: secret.map(String::from) });
+    until("a welcome or a refusal", &mut ws, 10, |m, _| match m {
+        ServerMsg::Welcome { token, .. } => Some(Ok(token.clone())),
+        ServerMsg::Denied { reason } => Some(Err(reason.clone())),
+        _ => None,
+    })
 }
 
 fn connect(addr: std::net::SocketAddr) -> Ws {
@@ -55,7 +72,7 @@ fn until<T>(what: &str, ws: &mut Ws, secs: u64, mut want: impl FnMut(&ServerMsg,
 }
 
 fn hello(ws: &mut Ws, token: Option<String>, kind: ClientKind) -> (game2_core::engine::ecs::Entity, String) {
-    send(ws, &ClientMsg::Hello { token, kind, name: Some("test".into()) });
+    send(ws, &ClientMsg::Hello { token, kind, name: Some("test".into()), secret: None });
     until("a welcome", ws, 10, |m, _| match m {
         ServerMsg::Welcome { you, token, .. } => Some((*you, token.clone())),
         _ => None,
@@ -259,4 +276,24 @@ fn a_failed_bind_leaves_nothing_running() {
     assert!(r.is_err(), "the probe's port was taken");
     // the game port wasn't left bound behind the error
     assert!(std::net::TcpListener::bind(("127.0.0.1", game_port)).is_ok(), "the game port leaked");
+}
+
+#[test]
+fn a_join_secret_keeps_strangers_out() {
+    let server = start_with(ServerConfig { join_secret: Some("open sesame".into()), ..fast() });
+    assert_eq!(admitted(server.addr, None, None), Err("wrong join secret".into()), "no secret, no seat");
+    assert_eq!(admitted(server.addr, None, Some("guess")), Err("wrong join secret".into()));
+    assert!(admitted(server.addr, None, Some("open sesame")).is_ok(), "the right secret gets a seat");
+    server.stop();
+}
+
+#[test]
+fn the_village_hands_out_only_so_many_seats() {
+    let server = start_with(ServerConfig { max_seats: 2, ..fast() });
+    let first = admitted(server.addr, None, None).expect("seat one");
+    admitted(server.addr, None, None).expect("seat two");
+    assert_eq!(admitted(server.addr, None, None), Err("the village is full".into()), "no third seat");
+    // but a claim still takes its own seat back when the village is full
+    assert_eq!(admitted(server.addr, Some(first.clone()), None), Ok(first), "a reclaim always works");
+    server.stop();
 }

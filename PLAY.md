@@ -300,9 +300,11 @@ API agents. Connecting claims a character - the server hands back a token,
 and presenting it on reconnect resumes the same one (the windowed client
 keeps it in `game2.claim`; the browser will keep it in localStorage).
 
-- `game_server [--port 8787] [--seed N] [--idle-secs 300]` - sim + WebSocket
+- `game_server [--port 8787] [--seed N] [--idle-secs 300] [--join-secret W] [--max-seats 64]`
+  - sim + WebSocket. With a join secret, clients need `GAME2_JOIN_SECRET=W`
 - `game_ui --connect ws://host:port` - the same View renders the server's
-  `Scene` (a serialized `UiModel`); input goes back as `Command`s
+  `Scene` (a serialized `UiModel`, sent without its map; the map comes as
+  `Map` once and again when it changes); input goes back as `Command`s
 - Go quiet past `--idle-secs` and the fallback driver steers your wanderer
   until you come back; an agent's villager reverts to its own goals
 - `game_bots ws://host:8787 N` - N heuristic villagers (eat, work, gather,

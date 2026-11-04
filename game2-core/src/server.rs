@@ -56,12 +56,19 @@ pub struct ServerConfig {
     pub probe_port: Option<u16>,
     /// The word a probe client must send first, if any
     pub probe_token: Option<String>,
+    /// The word every Hello must carry, if any: a light gate on who may play
+    pub join_secret: Option<String>,
+    /// New seats this server will hand out, in all. Anyone can say Hello, and
+    /// every fresh Hello mints a character, so the world's size is capped.
+    /// Reclaiming a seat with its token always works.
+    pub max_seats: usize,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         ServerConfig { bind: "0.0.0.0".into(), port: 8787, seed: crate::session::MAP_SEED,
-            idle: Duration::from_secs(300), tick_hz: 20, probe_port: None, probe_token: None }
+            idle: Duration::from_secs(300), tick_hz: 20, probe_port: None, probe_token: None,
+            join_secret: None, max_seats: 64 }
     }
 }
 
@@ -129,6 +136,10 @@ struct Server {
     probes: Vec<Arc<Mutex<Conn>>>,
     frame: u64,
     idle: Duration,
+    join_secret: Option<String>,
+    max_seats: usize,
+    /// Seats handed out so far (see ServerConfig::max_seats)
+    minted: usize,
 }
 
 fn token() -> String {
@@ -239,6 +250,15 @@ fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSoc
     Some(ws)
 }
 
+/// Turn a client away before it has a seat: say why, then close
+fn deny(mut ws: tungstenite::WebSocket<TcpStream>, reason: &str) {
+    if let Ok(t) = serde_json::to_string(&ServerMsg::Denied { reason: reason.into() }) {
+        let _ = ws.send(tungstenite::Message::Text(t.into()));
+    }
+    let _ = ws.close(None);
+    let _ = ws.flush();
+}
+
 /// A read that timed out (nothing yet), as opposed to one that failed
 fn idle_read(e: &tungstenite::Error) -> bool {
     matches!(e, tungstenite::Error::Io(e)
@@ -254,6 +274,9 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
         probes: vec![],
         frame: 0,
         idle: cfg.idle,
+        join_secret: cfg.join_secret.clone(),
+        max_seats: cfg.max_seats,
+        minted: 0,
     }));
     let stop = Arc::new(AtomicBool::new(false));
     let open: Open = Default::default();
@@ -360,16 +383,29 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
         };
         if let tungstenite::Message::Text(t) = msg {
             let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
-            if let ClientMsg::Hello { token: tok, kind, name: _ } = cm {
+            if let ClientMsg::Hello { token: tok, kind, name: _, secret } = cm {
                 let mut s = server.lock().unwrap();
-                let seat = tok.as_deref().and_then(|t| s.claims.get(t).copied())
-                    .unwrap_or_else(|| match kind {
+                // the gate: the join secret, when the server has one
+                if s.join_secret.is_some() && secret != s.join_secret {
+                    drop(s);
+                    return deny(ws, "wrong join secret");
+                }
+                let claimed = tok.as_deref().and_then(|t| s.claims.get(t).copied());
+                // a fresh character, unless the world's handed out its last
+                if claimed.is_none() && s.minted >= s.max_seats {
+                    drop(s);
+                    return deny(ws, "the village is full");
+                }
+                let seat = claimed.unwrap_or_else(|| {
+                    s.minted += 1;
+                    match kind {
                         ClientKind::Human => s.game.add_seat(),
                         ClientKind::Agent => match s.game.free_villager() {
                             Some(i) => { let v = s.game.villagers[i]; s.game.add_agent_seat(v) },
                             None => s.game.add_seat(), // village full: park them on a wanderer
                         },
-                    });
+                    }
+                });
                 let tok = tok.unwrap_or_else(token);
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;

@@ -48,7 +48,8 @@ struct Remote {
 fn connect_remote(url: &str) -> Arc<Remote> {
     let (mut ws, _) = tungstenite::connect(url).expect("can't reach the server");
     ws.send(tungstenite::Message::Text(
-        serde_json::to_string(&ClientMsg::Hello { token: claim_token(), kind: ClientKind::Human, name: None }).unwrap().into()
+        serde_json::to_string(&ClientMsg::Hello { token: claim_token(), kind: ClientKind::Human, name: None,
+            secret: std::env::var("GAME2_JOIN_SECRET").ok().filter(|s| !s.is_empty()) }).unwrap().into()
     )).ok();
     let remote = Arc::new(Remote {
         ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None),

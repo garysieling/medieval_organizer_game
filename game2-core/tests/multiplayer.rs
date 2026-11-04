@@ -313,3 +313,38 @@ fn claim_tokens_are_the_servers_own_and_long() {
     assert_ne!(admitted(server.addr, Some("mine".into()), None).expect("a seat"), "mine");
     server.stop();
 }
+
+#[test]
+fn a_saved_village_comes_back_after_a_restart() {
+    let dir = std::env::temp_dir().join(format!("game2-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.json");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+
+    // play a while: a human walks, an agent steers
+    let server = start_with(cfg());
+    assert!(server.restored.is_none(), "a fresh world");
+    let mut human = connect(server.addr);
+    let (me, token) = hello(&mut human, None, ClientKind::Human);
+    for _ in 0..30 { send(&mut human, &ClientMsg::Command(Command::Walk(1.0, 0.0))); }
+    let mut agent = connect(server.addr);
+    hello(&mut agent, None, ClientKind::Agent);
+    send(&mut agent, &ClientMsg::AgentCmd(AgentCmd::GoTo { x: 20, y: 20 }));
+    until("CmdDone", &mut agent, 10, |m, _| matches!(m, ServerMsg::CmdDone { .. }).then_some(()));
+    std::thread::sleep(Duration::from_millis(500));
+    server.stop(); // writes the save
+    assert!(save.exists(), "stopping wrote the village to disk");
+
+    // a new server on the same file: the same world, replayed
+    let server = start_with(cfg());
+    let r = server.restored.clone().expect("the village was restored");
+    assert!(r.frames > 50 && r.inputs >= 3, "replayed {} frames, {} inputs", r.frames, r.inputs);
+    assert!(r.digest_matched, "the replayed world isn't the one that was saved");
+    // and the claim still holds: the same character comes back
+    let mut back = connect(server.addr);
+    let (me_again, _) = hello(&mut back, Some(token), ClientKind::Human);
+    assert_eq!(me_again, me, "the token claims the same character after the restart");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}

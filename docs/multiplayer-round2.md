@@ -64,5 +64,6 @@ Still open:
   the word plays.
 - ~~**Protocol docs**~~ — done: `docs/protocol.md`, with every message's
   JSON shape; its examples are parsed by `tests/protocol_doc.rs`.
-- **Obs polish** — agent obs could carry shop stock, wants, and craft
-  level so bots can plan, not just react.
+- ~~**Obs polish**~~ — done: `AgentObs.me` carries the villager's own
+  trade and rung, home, bench and its stock, the input the trade lacks,
+  and their unmet wants (their own only). Shop stock elsewhere is still out.

@@ -137,6 +137,30 @@ pub struct AgentObs {
     /// Burning tiles near you - walk around, not through
     #[serde(default)]
     pub burning: Vec<(f32, f32)>,
+    /// What your villager knows about themself: their trade, home and
+    /// bench, what the bench lacks, what they want. Only their own - other
+    /// people's wants stay theirs (the probe's, not the agent's)
+    #[serde(default)]
+    pub me: ObsSelf,
+}
+
+/// An agent's villager's knowledge of themself, to plan by rather than
+/// only react
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ObsSelf {
+    /// The trade ("baker") and its rung ("Journeyman"), if they have one
+    pub trade: Option<String>,
+    pub level: Option<String>,
+    /// Their home and their bench (workplace), as entities near_buildings
+    /// and AgentCmd use
+    pub home: Option<Entity>,
+    pub bench: Option<Entity>,
+    /// What's on the bench's shelf
+    pub bench_stock: Vec<(String, u32)>,
+    /// The raw good the trade is short of, if it is: fetch it or buy it
+    pub needs: Option<String>,
+    /// What they want and haven't got ("Joy", "BetterTools"...)
+    pub wants: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

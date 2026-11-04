@@ -1,0 +1,10 @@
+# The image builds from source; keep the build context small
+target
+target-*
+**/target
+.git
+assets
+art-prompts
+evidence
+screenshots
+wiki

@@ -8,6 +8,8 @@ COPY Cargo.toml Cargo.lock* ./
 COPY game2-core ./game2-core
 COPY game2-client ./game2-client
 COPY game2-web ./game2-web
+# data the sim compiles in (include_str!): the landform catalog
+COPY data/landforms ./data/landforms
 RUN cargo build --release -p game2-core --bin game_server
 
 FROM debian:bookworm-slim

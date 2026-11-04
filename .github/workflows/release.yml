@@ -37,8 +37,30 @@ env:
   BINS: game_ui game game_server
 
 jobs:
+  resolve:
+    name: Resolve the release commit
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # need every tag to look $TAG up by name
+
+      - name: Resolve the commit this release builds and ships from
+        id: resolve
+        run: |
+          # $TAG already exists (a re-run, or releasing an older tag by
+          # hand): build and ship exactly what it points to, not whatever
+          # ref triggered this run. Otherwise (a fresh tag) it's this run's
+          # own commit - a push of the tag, or a manual dispatch that will
+          # create it here.
+          sha=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || echo "$GITHUB_SHA")
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.name }}
+    needs: resolve
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +86,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -128,11 +152,12 @@ jobs:
 
   release:
     name: Publish release
-    needs: build
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ needs.resolve.outputs.sha }}
           fetch-depth: 0   # the whole history, for the previous tag and the log
 
       - uses: actions/download-artifact@v5
@@ -141,12 +166,13 @@ jobs:
           merge-multiple: true
 
       - name: Write release notes header
+        env:
+          HEAD_SHA: ${{ needs.resolve.outputs.sha }}
         run: |
           # The previous release tag: the newest v* tag that isn't this one
-          # and is an ancestor of this commit (none on the first release).
-          head=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || git rev-parse HEAD)
-          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$head" | grep -vx "$TAG" | head -n1 || true)
-          range="$head"; [ -n "$prev" ] && range="$prev..$head"
+          # and is an ancestor of the release commit (none on the first release).
+          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$HEAD_SHA" | grep -vx "$TAG" | head -n1 || true)
+          range="$HEAD_SHA"; [ -n "$prev" ] && range="$prev..$HEAD_SHA"
           {
             echo "## Downloads"
             echo
@@ -163,9 +189,15 @@ jobs:
             echo
             echo "## Commits"
             echo
-            if [ -n "$prev" ]; then echo "Since \`$prev\`:"; else echo "Initial release (last 50 commits):"; fi
-            echo
-            git log --no-merges --format='- %s (%h)' -n 50 "$range"
+            if [ -n "$prev" ]; then
+              echo "Since \`$prev\`:"
+              echo
+              git log --no-merges --format='- %s (%h)' "$range"
+            else
+              echo "Initial release (last 50 commits):"
+              echo
+              git log --no-merges --format='- %s (%h)' -n 50 "$range"
+            fi
             echo
           } > notes.md
           cat notes.md
@@ -174,20 +206,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ github.event.inputs.prerelease }}
+          HEAD_SHA: ${{ needs.resolve.outputs.sha }}
         run: |
           flags=()
-          # a manual run's checkbox, or a tag like v0.2.0-rc.1
-          if [ "$PRERELEASE" = true ] || [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+          # a manual run's checkbox, or a tag like v0.2.0-rc.1 - a build
+          # suffix after a + (v1.2.3+build-7) doesn't itself make it a
+          # pre-release, so only the version part before it counts
+          if [ "$PRERELEASE" = true ] || [[ "${TAG%%+*}" == *-* ]]; then flags+=(--prerelease); fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             # a re-run: refresh the packages, keep the notes as edited
             gh release upload "$TAG" dist/* --clobber
           else
-            # --generate-notes appends GitHub's merged-PR list after notes.md;
-            # --target only matters when the tag doesn't exist yet (manual run)
+            # --generate-notes appends GitHub's merged-PR list after notes.md
             gh release create "$TAG" dist/* \
               --title "game2 $TAG" \
               --notes-file notes.md \
               --generate-notes \
-              --target "$GITHUB_SHA" \
+              --target "$HEAD_SHA" \
               "${flags[@]}"
           fi

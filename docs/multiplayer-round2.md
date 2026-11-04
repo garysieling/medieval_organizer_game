@@ -62,7 +62,7 @@ Still open:
   Reclaims with a token always work. Sockets have a 10s handshake/Hello
   deadline and at most 256 are open at once. Not real accounts: anyone with
   the word plays.
-- **Protocol docs** — `docs/protocol.md` with the JSON shapes + a sample
-  agent session, for people writing bots.
+- ~~**Protocol docs**~~ — done: `docs/protocol.md`, with every message's
+  JSON shape; its examples are parsed by `tests/protocol_doc.rs`.
 - **Obs polish** — agent obs could carry shop stock, wants, and craft
   level so bots can plan, not just react.

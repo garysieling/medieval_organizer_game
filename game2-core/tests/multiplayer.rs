@@ -1,0 +1,161 @@
+//! Multiplayer over real sockets: a server on an ephemeral port, played by
+//! a human client, an agent and a probe through the public API only - the
+//! same JSON-over-WebSocket protocol `game_ui --connect` and the bots speak.
+
+use std::net::TcpStream;
+use std::time::{Duration, Instant};
+
+use game2_core::server::{serve, ServerConfig, ServerHandle};
+use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, ServerMsg, MAP_SEED};
+use tungstenite::stream::MaybeTlsStream;
+use tungstenite::{Message, WebSocket};
+
+type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
+
+/// A fast server: 200 frames a second, so a scene comes every 10ms
+fn start(probe_token: Option<&str>) -> ServerHandle {
+    serve(ServerConfig {
+        bind: "127.0.0.1".into(), port: 0, seed: MAP_SEED, idle: Duration::from_secs(600),
+        tick_hz: 200, probe_port: Some(0), probe_token: probe_token.map(String::from),
+    }).expect("server starts")
+}
+
+fn connect(addr: std::net::SocketAddr) -> Ws {
+    let (ws, _) = tungstenite::connect(format!("ws://{addr}")).expect("connects");
+    if let MaybeTlsStream::Plain(s) = ws.get_ref() { s.set_read_timeout(Some(Duration::from_millis(100))).ok(); }
+    ws
+}
+
+fn send(ws: &mut Ws, m: &ClientMsg) {
+    ws.send(Message::Text(serde_json::to_string(m).unwrap().into())).expect("sends");
+}
+
+enum Got { Msg(String), Closed, Nothing }
+
+fn read_text(ws: &mut Ws) -> Got {
+    match ws.read() {
+        Ok(Message::Text(t)) => Got::Msg(t.to_string()),
+        Ok(Message::Close(_)) => Got::Closed,
+        Ok(_) => Got::Nothing,
+        Err(tungstenite::Error::Io(e)) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => Got::Nothing,
+        Err(_) => Got::Closed,
+    }
+}
+
+/// Read server messages until `want` picks one out (or `secs` pass)
+fn until<T>(what: &str, ws: &mut Ws, secs: u64, mut want: impl FnMut(&ServerMsg, &str) -> Option<T>) -> T {
+    let end = Instant::now() + Duration::from_secs(secs);
+    while Instant::now() < end {
+        if let Got::Msg(t) = read_text(ws) {
+            let m: ServerMsg = serde_json::from_str(&t).expect("server sends ServerMsg JSON");
+            if let Some(x) = want(&m, &t) { return x; }
+        }
+    }
+    panic!("waited {secs}s for {what}");
+}
+
+fn hello(ws: &mut Ws, token: Option<String>, kind: ClientKind) -> (game2_core::engine::ecs::Entity, String) {
+    send(ws, &ClientMsg::Hello { token, kind, name: Some("test".into()) });
+    until("a welcome", ws, 10, |m, _| match m {
+        ServerMsg::Welcome { you, token, .. } => Some((*you, token.clone())),
+        _ => None,
+    })
+}
+
+#[test]
+fn a_human_and_an_agent_play_one_world() {
+    let server = start(None);
+
+    // a human claims a seat and the scenes stream in
+    let mut human = connect(server.addr);
+    let (me, token) = hello(&mut human, None, ClientKind::Human);
+    assert!(!token.is_empty(), "a claim token to come back with");
+    let at = |m: &ServerMsg| match m {
+        ServerMsg::Scene(s) => s.people.iter().find(|p| p.e == me).map(|p| p.pos),
+        _ => None,
+    };
+    let start_pos = until("my figure in a scene", &mut human, 10, |m, _| at(m));
+
+    // commands land: a few steps east move the character east
+    for _ in 0..20 { send(&mut human, &ClientMsg::Command(Command::Walk(1.0, 0.0))); }
+    let moved = until("my figure to move", &mut human, 10, |m, _| at(m).filter(|p| (p.0 - start_pos.0).abs() + (p.1 - start_pos.1).abs() > 0.2));
+    assert!(moved != start_pos);
+
+    // and the seat answers a ping
+    send(&mut human, &ClientMsg::Ping(41));
+    until("a pong", &mut human, 10, |m, _| matches!(m, ServerMsg::Pong(41)).then_some(()));
+
+    // an agent takes a villager, watches it, and steers it
+    let mut agent = connect(server.addr);
+    let (villager, _) = hello(&mut agent, None, ClientKind::Agent);
+    assert_ne!(villager, me, "the agent drives its own character");
+    let obs_you = until("the agent's obs", &mut agent, 10, |m, _| match m { ServerMsg::Obs(o) => Some(o.you), _ => None });
+    assert_eq!(obs_you, villager, "the obs is about the agent's own villager");
+    send(&mut agent, &ClientMsg::AgentCmd(AgentCmd::Idle));
+    let ok = until("CmdDone", &mut agent, 10, |m, _| match m { ServerMsg::CmdDone { ok, .. } => Some(*ok), _ => None });
+    assert!(ok, "Idle is always accepted");
+
+    // nothing secret on the wire: the secret gauges' names never appear
+    for _ in 0..5 {
+        let scene = until("a scene", &mut human, 10, |m, t| matches!(m, ServerMsg::Scene(_)).then(|| t.to_string()));
+        let obs = until("an obs", &mut agent, 10, |m, t| matches!(m, ServerMsg::Obs(_)).then(|| t.to_string()));
+        for secret in ["org.power", "org.lord_esteem", "villagers.starving", "poison_mushrooms"] {
+            assert!(!scene.contains(secret) && !obs.contains(secret), "{secret} leaked to a client");
+        }
+    }
+
+    // a reconnect with the token gets the same character back, and the old
+    // connection is retired: one character, one driver
+    let mut again = connect(server.addr);
+    let (me_again, _) = hello(&mut again, Some(token.clone()), ClientKind::Human);
+    assert_eq!(me_again, me, "the claim resumes the same character");
+    let end = Instant::now() + Duration::from_secs(10);
+    let mut closed = false;
+    while Instant::now() < end {
+        if let Got::Closed = read_text(&mut human) { closed = true; break; }
+    }
+    assert!(closed, "the reclaimed seat's old socket is closed");
+    until("my figure after the reclaim", &mut again, 10, |m, _| at(m));
+
+    server.stop();
+}
+
+#[test]
+fn the_probe_is_its_own_tokened_socket() {
+    let server = start(Some("sesame"));
+    let probe = server.probe_addr.expect("a probe port");
+    assert!(probe.ip().is_loopback(), "the secret state never leaves the box");
+    assert_ne!(probe.port(), server.addr.port());
+
+    // the wrong word: nothing comes, and the socket goes nowhere
+    let mut wrong = connect(probe);
+    wrong.send(Message::Text("open up".into())).unwrap();
+    let end = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < end {
+        if let Got::Msg(_) = read_text(&mut wrong) { panic!("the probe talked without its token"); }
+    }
+
+    // the right word: the omniscient view streams
+    let mut right = connect(probe);
+    right.send(Message::Text("sesame".into())).unwrap();
+    let end = Instant::now() + Duration::from_secs(10);
+    let mut seen = None;
+    while Instant::now() < end && seen.is_none() {
+        if let Got::Msg(t) = read_text(&mut right) { seen = Some(t); }
+    }
+    let pv: serde_json::Value = serde_json::from_str(&seen.expect("probe frames arrive")).unwrap();
+    for k in ["lord_esteem", "org_power", "poison_mushrooms", "inner"] {
+        assert!(pv.get(k).is_some(), "the probe shows {k}");
+    }
+    server.stop();
+}
+
+#[test]
+fn a_stopped_server_lets_go_of_its_port() {
+    let server = start(None);
+    let addr = server.addr;
+    server.stop();
+    std::thread::sleep(Duration::from_millis(100));
+    // the port's free again: a new listener can take it
+    assert!(std::net::TcpListener::bind(addr).is_ok(), "the stopped server still holds {addr}");
+}

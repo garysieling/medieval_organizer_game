@@ -137,3 +137,33 @@ fn test_the_organizer_names_a_seat_and_takes_the_street() {
     g.ctx_act_at(0, 1);
     assert!(g.log.last().unwrap().contains("march in the street"), "{:?}", g.log.last());
 }
+
+#[test]
+fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id);
+    assert!(g.seats[0].pending_founding.is_some());
+    // held open: the calendar runs at the house-meeting's half pace
+    let base = if g.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+    assert_eq!(g.ticks_per_frame(), base * 2);
+    // short of a week unanswered: still held open, still slow
+    g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS - 1);
+    assert!(g.seats[0].pending_founding.is_some());
+    assert_eq!(g.ticks_per_frame(), base * 2);
+    // a week unanswered (no client ever sent Command::Decide): the
+    // call lapses on its own, same as letting it rest, and the
+    // calendar returns to its ordinary pace
+    g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS);
+    assert!(g.seats[0].pending_founding.is_none());
+    assert_eq!(g.ticks_per_frame(), base);
+    assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
+}

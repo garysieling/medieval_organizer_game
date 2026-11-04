@@ -5,7 +5,7 @@ use crate::engine::ecs::{Entity, World};
 /// Resource stockpile
 #[derive(Debug)]
 pub struct Stockpile {
-    pub goods: std::collections::HashMap<String, u32>,
+    pub goods: crate::engine::det::HashMap<String, u32>,
 }
 
 /// A building that produces/consumes resources
@@ -18,7 +18,7 @@ pub struct Producer {
     pub efficiency: f32,
     /// Fractions of an output unit made but not yet whole, carried to the
     /// next cycle so efficiency below 1.0 still yields its share over time
-    pub partial: std::collections::HashMap<String, f32>,
+    pub partial: crate::engine::det::HashMap<String, f32>,
 }
 
 /// System: each producer runs one cycle per tick against the village
@@ -52,7 +52,7 @@ fn run_cycle(
     inputs: &[(String, u32)],
     outputs: &[(String, u32)],
     efficiency: f32,
-    partial: &mut std::collections::HashMap<String, f32>,
+    partial: &mut crate::engine::det::HashMap<String, f32>,
 ) -> bool {
     // Check inputs available
     for (g, qty) in inputs {

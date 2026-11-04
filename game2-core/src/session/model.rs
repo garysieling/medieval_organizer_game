@@ -276,7 +276,8 @@ pub struct UiModel {
     pub painted: Vec<(f32, f32)>,
     /// The cave mouth at the map's edge
     pub cave: Option<(f32, f32)>,
-    /// The tuning panel's gauge lines, for the debug overlay
+    /// The seat's public KPIs as lines, for a debug overlay. Never the
+    /// secret gauges (`Game::secret_kpis`): this goes over the wire
     pub debug_lines: Vec<String>,
     /// The audio cues this frame raised, for the sound layer
     pub sfx: Vec<String>,

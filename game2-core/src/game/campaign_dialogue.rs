@@ -19,7 +19,7 @@
 //! Selection is pure (`walk`); state changes happen only through
 //! `apply_hook`, so a chosen line never mutates the world by itself.
 
-use std::collections::HashSet;
+use crate::engine::det::HashSet;
 
 use crate::engine::ecs::{Entity, World};
 use crate::game::campaign::{Campaign, CampaignMeeting, DecisionRule, Framing, MeetingOutcome, Role};
@@ -290,13 +290,13 @@ pub struct Walker {
 
 impl Walker {
     pub fn new(start: Phase) -> Self {
-        Walker { phase: Some(start), spent: HashSet::new() }
+        Walker { phase: Some(start), spent: HashSet::default() }
     }
 
     /// Play the next beat against `facts`; None once the walk closed or the
     /// phase has nothing unspent left to say
     pub fn step(&mut self, beats: &'static [Beat], facts: &Facts, rng: &mut Rng) -> Option<Step> {
-        self.step_avoiding(beats, facts, &HashSet::new(), rng)
+        self.step_avoiding(beats, facts, &HashSet::default(), rng)
     }
 
     /// As `step`, but a beat in `avoid` (heard lately) plays only when the
@@ -386,7 +386,7 @@ pub fn meeting_facts_with(world: &World, campaign: Entity, out: &MeetingOutcome,
 /// The `room:trait:*` and `room:want:*` facts one attendee brings in.
 /// The room holds the union; a line about them belongs in their mouth.
 pub fn personal_facts(world: &World, who: Entity, tick: u64) -> HashSet<String> {
-    let mut out = HashSet::new();
+    let mut out = HashSet::default();
     if let Some(p) = world.get_component::<crate::game::traits::Personality>(who) {
         for t in &p.traits { out.insert(format!("room:trait:{}", trait_fact(*t))); }
     }
@@ -582,7 +582,7 @@ mod tests {
     use crate::game::conversation::Criterion::{Has, Lacks};
     use crate::sim::community::Organization;
     use crate::sim::organized_power::OrganizedPower;
-    use std::collections::HashMap;
+    use crate::engine::det::HashMap;
 
     fn library(l: Library) -> &'static [Beat] {
         match l { Library::HouseMeeting => MEETING_BEATS, Library::CampaignArc => ARC_BEATS }
@@ -673,7 +673,7 @@ mod tests {
         // a seeded spread of rooms: each draws a consistent handful of
         // facts, walks a meeting, and the sample is reported per phase
         let facts_pool: Vec<&str> = KNOWN_FACTS.iter().copied().filter(|f| !f.starts_with("arc:")).collect();
-        let mut played: HashSet<&str> = HashSet::new();
+        let mut played: HashSet<&str> = HashSet::default();
         for seed in 0..6000u64 {
             let mut rng = Rng::new(seed);
             let mut f = Facts::default();
@@ -811,7 +811,7 @@ mod tests {
     #[test]
     fn test_seeded_sample_reaches_most_of_the_arc_library() {
         let facts_pool: Vec<&str> = KNOWN_FACTS.iter().copied().filter(|f| arc_fact(f)).collect();
-        let mut played: HashSet<&str> = HashSet::new();
+        let mut played: HashSet<&str> = HashSet::default();
         for seed in 0..8000u64 {
             let mut rng = Rng::new(seed);
             let mut f = Facts::default();
@@ -881,11 +881,11 @@ mod tests {
 
     #[test]
     fn test_ids_unique_and_required_fields_present() {
-        let mut ids = HashSet::new();
+        let mut ids = HashSet::default();
         for b in MEETING_BEATS.iter().chain(ARC_BEATS) {
             assert!(ids.insert(b.id), "duplicate beat id {}", b.id);
             assert!(!b.lines.is_empty() && !b.moves.is_empty() && !b.sources.is_empty(), "{} is missing a field", b.id);
-            let mut mids = HashSet::new();
+            let mut mids = HashSet::default();
             for m in b.moves {
                 assert!(mids.insert(m.id), "{} repeats move id {}", b.id, m.id);
                 assert!(m.weight.is_finite() && m.weight > 0.0, "{}.{} weight", b.id, m.id);
@@ -901,7 +901,7 @@ mod tests {
     fn test_every_fact_and_source_tag_resolves() {
         let tags: HashSet<&str> = SOURCE_PATTERNS.iter().map(|s| s.tag).collect();
         assert_eq!(tags.len(), SOURCE_PATTERNS.len(), "duplicate source tag");
-        let mut cited = HashSet::new();
+        let mut cited = HashSet::default();
         for b in MEETING_BEATS.iter().chain(ARC_BEATS) {
             for c in b.criteria.iter().chain(b.moves.iter().flat_map(|m| m.criteria)) {
                 assert!(KNOWN_FACTS.contains(&fact_of(c)), "{} tests unknown fact {}", b.id, fact_of(c));
@@ -943,7 +943,7 @@ mod tests {
                 }
             }
             // every phase is reachable from the start
-            let mut seen = HashSet::from([start]);
+            let mut seen: HashSet<_> = [start].into_iter().collect();
             let mut frontier = vec![start];
             while let Some(p) = frontier.pop() {
                 for b in beats.iter().filter(|b| b.phase == p) {
@@ -1018,7 +1018,7 @@ mod tests {
     fn test_text_is_distinct_and_in_register() {
         let modern = ["okay", " ok ", "guys", "deadline", "meeting minutes", "agenda item", "stakeholder", "leverage", "vote yes"];
         for l in [Library::HouseMeeting, Library::CampaignArc] {
-            let mut seen: HashMap<String, &str> = HashMap::new();
+            let mut seen: HashMap<String, &str> = HashMap::default();
             for b in library(l) {
                 for line in b.lines.iter().chain(b.moves.iter().flat_map(|m| m.lines)) {
                     let norm: String = line.to_lowercase().chars().filter(|c| c.is_alphanumeric() || *c == ' ').collect();
@@ -1062,7 +1062,7 @@ mod tests {
 
     #[test]
     fn test_most_specific_beat_leads_and_generic_falls_back() {
-        let spent = HashSet::new();
+        let spent = HashSet::default();
         let bare = facts(&[]);
         let b = pick_beat(MEETING_BEATS, Phase::Agenda, &bare, &spent, &mut Rng::new(1)).unwrap();
         assert!(b.criteria.is_empty(), "nothing known: the generic opener");
@@ -1107,7 +1107,7 @@ mod tests {
         // the consensus room leans to talking an objection out; a majority
         // room leans to calling the question - both stay possible
         let count = |f: &Facts| {
-            let mut by_next: HashMap<String, usize> = HashMap::new();
+            let mut by_next: HashMap<String, usize> = HashMap::default();
             for seed in 0..2000 {
                 let b = MEETING_BEATS.iter().find(|b| b.id == "hm_objection_generic").unwrap();
                 let m = pick_move(b, f, &mut Rng::new(seed)).unwrap();

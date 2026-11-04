@@ -16,7 +16,7 @@ pub struct Good {
 #[derive(Debug)]
 pub struct Trader {
     pub gold: f32,
-    pub inventory: std::collections::HashMap<String, u32>,
+    pub inventory: crate::engine::det::HashMap<String, u32>,
 }
 
 /// Price assumed for a good nobody has registered a base value for
@@ -25,10 +25,10 @@ pub const DEFAULT_BASE_PRICE: f32 = 10.0;
 /// Market price for a good at a location
 #[derive(Debug, Default)]
 pub struct Market {
-    pub prices: std::collections::HashMap<String, f32>,
-    pub supply: std::collections::HashMap<String, u32>,
+    pub prices: crate::engine::det::HashMap<String, f32>,
+    pub supply: crate::engine::det::HashMap<String, u32>,
     /// Each good's resting price, which prices drift back to and are bounded around
-    pub base_prices: std::collections::HashMap<String, f32>,
+    pub base_prices: crate::engine::det::HashMap<String, f32>,
 }
 
 impl Market {

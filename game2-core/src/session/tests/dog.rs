@@ -31,7 +31,7 @@ fn test_dog_goes_with_its_new_owner_when_aldric_dies() {
     let buf = view.render(&game.ui_model(), (-1, -1));
     // the dog's coat: its sprite's commonest colour (whichever art loaded)
     let dog_s = view.art.dog.as_ref().unwrap();
-    let mut counts: std::collections::HashMap<(u8, u8, u8), usize> = std::collections::HashMap::new();
+    let mut counts: crate::engine::det::HashMap<(u8, u8, u8), usize> = crate::engine::det::HashMap::default();
     for p in dog_s.pixels.chunks(4).filter(|p| p[3] > 0) { *counts.entry((p[0], p[1], p[2])).or_default() += 1; }
     let (coat_rgb, coat_n) = counts.into_iter().max_by_key(|&(c, n)| (n, c)).unwrap();
     let need = 20.min(coat_n / 2);

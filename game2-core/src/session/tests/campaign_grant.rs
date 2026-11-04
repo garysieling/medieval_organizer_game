@@ -36,7 +36,7 @@ fn test_carried_demands_lighten_the_tax_round() {
     assert!(crate::game::campaign_arc::arc_facts(&g.world, c, g.tick).has("arc:won"));
     let talk = g.talk_log.last().expect("no campaign talk recorded");
     assert!(talk.lines.len() >= 2 && talk.tick == g.tick, "{:?}", talk.lines.len());
-    let arc_lines: std::collections::HashSet<String> = crate::game::campaign_dialogue::ARC_BEATS.iter()
+    let arc_lines: crate::engine::det::HashSet<String> = crate::game::campaign_dialogue::ARC_BEATS.iter()
         .flat_map(|b| b.lines.iter().chain(b.moves.iter().flat_map(|m| m.lines)))
         .map(|l| crate::game::campaign_dialogue::fill(l, "the taxes")).collect();
     assert!(arc_lines.contains(&talk.lines[0].text), "not an arc line: {:?}", talk.lines[0].text);

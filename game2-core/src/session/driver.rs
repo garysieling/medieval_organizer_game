@@ -53,9 +53,8 @@ pub fn drive_player(game: &mut Game, seat: usize) {
 
 /// What a bot's villager does next, from its observation: nothing while
 /// held or mid-errand, eat when hungry, let a running errand run, talk
-/// to whoever's near - the ties are what the village runs on - else put
-/// in a day's work. The obs carries no craft inputs or sellers' goods,
-/// so bench provisioning stays a decision only a real bot can make.
+/// to whoever's near - the ties are what the village runs on - fetch what
+/// the bench is short of, else put in a day's work.
 pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
     // the cell takes no errands
     if obs.held { return AgentCmd::Idle; }
@@ -74,6 +73,9 @@ pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
     if obs.tick % 4 == 0 && near.is_some() {
         return AgentCmd::TalkTo { e: near.unwrap().e };
     }
+    // the bench is short of its raw good: go and get it (two days in
+    // three - a fetch that keeps failing mustn't keep them from the bench)
+    if obs.me.needs.is_some() && obs.tick % 3 != 2 { return AgentCmd::FetchInput; }
     // default: a day's work - village first
     AgentCmd::WorkDay
 }
@@ -88,7 +90,7 @@ mod tests {
             tick: 0, you: 1, pos: (0.0, 0.0), gold: 10.0, hunger: 80.0,
             busy: Some("Idle".into()), near: vec![], near_buildings: vec![],
             satchel: vec![], walking: false, held: false,
-            orgs: vec![], campaigns: vec![], burning: vec![],
+            orgs: vec![], campaigns: vec![], burning: vec![], me: Default::default(),
         }
     }
 

@@ -229,6 +229,22 @@ impl Game {
                 self.travels.retain(|t| t.who != who);
                 if self.send_gather(who, g, (x, y)) { Ok(()) } else { Err("nothing to gather there".into()) }
             }
+            AgentCmd::FetchInput => {
+                // the villagers' own errand: a kid runs it, or they go
+                let Some(input) = livelihood::needs_input(&self.world, who) else {
+                    return Err("the bench wants for nothing".into()) };
+                // one errand at a time: the bench stays empty until a fetch
+                // lands, so a second ask would buy the same goods twice
+                // (a child under way on the job: one who broke off for food
+                // keeps the OddJob but not the walk, and doesn't count)
+                let hired = self.travels.iter().any(|t| matches!(t.goal, Goal::RunOddJob)
+                    && self.world.get_component::<OddJob>(t.who).is_some_and(|j| j.hirer == who));
+                if hired || self.travels.iter().any(|t| t.who == who) {
+                    return Err("someone's already fetching it".into());
+                }
+                let i = self.villagers.iter().position(|&v| v == who).unwrap_or(0);
+                if self.errand_for_input(who, input, i) { Ok(()) } else { Err(format!("no {} to be had", input)) }
+            }
             AgentCmd::WorkDay => {
                 let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
                 if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }

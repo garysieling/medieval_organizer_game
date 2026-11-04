@@ -105,7 +105,18 @@ impl Game {
     /// The frame a client draws: the authoritative sim's whole view of the
     /// world this seat should see. One per player seat per broadcast.
     pub fn ui_model_at(&self, seat: usize) -> UiModel {
-        let mut m = self.ui_model_parts_at(seat);
+        self.ui_model_with(seat, true)
+    }
+
+    /// The seat's frame without the tile map (an empty `TileMap` in its
+    /// place): what the server streams, since the map - 98% of a frame -
+    /// goes out separately, only when it changes (`ServerMsg::Map`)
+    pub fn ui_model_lean_at(&self, seat: usize) -> UiModel {
+        self.ui_model_with(seat, false)
+    }
+
+    fn ui_model_with(&self, seat: usize, with_map: bool) -> UiModel {
+        let mut m = self.ui_model_parts_at(seat, with_map);
         // the debug readout shows what this seat could know, never the
         // secret gauges: the model goes over the wire to remote clients
         m.debug_lines = kpi::kpi_lines(&kpi::public_kpis(&m));
@@ -113,7 +124,7 @@ impl Game {
     }
 
     /// The seat's frame, all but the lines derived from the frame itself
-    pub(in crate::session) fn ui_model_parts_at(&self, seat: usize) -> UiModel {
+    pub(in crate::session) fn ui_model_parts_at(&self, seat: usize, with_map: bool) -> UiModel {
         let world = &self.world;
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
         let in_reach = self.villagers_in_reach_at(seat);
@@ -323,7 +334,7 @@ impl Game {
                 .chain(self.traveller_pos().zip(self.traveller_pos_at(self.frame_n.wrapping_sub(1)))
                     .map(|(now, was)| (0, facing_on_screen(now.0 - was.0, now.1 - was.1), true))).collect(),
             tick: self.tick, frame: self.frame_n,
-            map: self.map.clone(), town_wall: self.town_wall,
+            map: if with_map { self.map.clone() } else { crate::game::tilemap::TileMap::default() }, town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
             paused: self.paused, speed: self.speed,
             stones: self.stones.clone(), buildings, people, bubbles,
@@ -593,11 +604,30 @@ impl Game {
         let burning: Vec<(f32, f32)> = self.fire.burning.keys()
             .filter(|&&(x, y)| ((x as f32 - p.x).powi(2) + (y as f32 - p.y).powi(2)).sqrt() < 12.0)
             .map(|&(x, y)| (x as f32, y as f32)).collect();
+        // what they know of themself: their trade, home and bench, the want
+        // list - their own only
+        let craft = self.world.get_component::<Craft>(who);
+        let bench = craft.and_then(|c| c.workplace);
+        let mut bench_stock: Vec<(String, u32)> = bench.and_then(|b| self.world.get_component::<Building>(b))
+            .map(|b| b.stock.iter().filter(|(_, q)| **q > 0).map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
+        bench_stock.sort();
+        let wants: Vec<String> = self.world.get_component::<InnerLife>(who)
+            .map(|l| l.wants.iter().filter(|w| !desires::is_satisfied(&self.world, who, **w, self.tick))
+                .map(|w| format!("{:?}", w)).collect()).unwrap_or_default();
+        let me = ObsSelf {
+            trade: craft.map(|c| vocation::vocation_name(c.vocation).to_string()),
+            level: craft.map(|c| format!("{:?}", vocation::level_of(c.skill))),
+            home: household::home_of(&self.world, who),
+            bench,
+            bench_stock,
+            needs: livelihood::needs_input(&self.world, who).map(String::from),
+            wants,
+        };
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
             near, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
-            held, orgs, campaigns, burning,
+            held, orgs, campaigns, burning, me,
         })
     }
 }

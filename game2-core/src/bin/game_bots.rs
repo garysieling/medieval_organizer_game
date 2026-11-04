@@ -34,7 +34,8 @@ fn run_bot(url: &str, n: usize) {
         Ok(x) => x, Err(e) => { eprintln!("bot {}: connect failed: {}", n, e); return; }
     };
     ws.send(tungstenite::Message::Text(
-        serde_json::to_string(&ClientMsg::Hello { token: saved, kind: ClientKind::Agent, name: Some(format!("bot-{}", n)) }).unwrap().into()
+        serde_json::to_string(&ClientMsg::Hello { token: saved, kind: ClientKind::Agent, name: Some(format!("bot-{}", n)),
+            secret: std::env::var("GAME2_JOIN_SECRET").ok().filter(|s| !s.is_empty()) }).unwrap().into()
     )).ok();
     eprintln!("bot {}: connected", n);
     let mut last_tick = 0u64;

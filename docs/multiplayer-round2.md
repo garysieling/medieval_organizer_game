@@ -26,13 +26,15 @@ Fixed since this list was written:
 
 Still open:
 
-- **`drive_agent` heuristic is thin** (Eat → WorkDay → Idle). Wants: craft
+- **`drive_agent` heuristic is thin** — better: it fetches what the bench
+  is short of (`AgentCmd::FetchInput`, from `Obs.me.needs`). Still wanted: Wants: craft
   input gathering (`BuyFrom`/`Gather` when the bench needs stock), sell
   surplus, rest at own home, train juniors, occasional `TalkTo` for ties —
   keep the village-first bias, add probabilities not just priorities.
-- **Scene bandwidth** — every broadcast serializes the whole `UiModel`,
-  ~1 MB, 98% of it the `TileMap`: ~10 MB/s per human seat at 10 scenes/s.
-  Send the map once per claim and again only when it changes.
+- ~~**Scene bandwidth**~~ — done: a scene was ~1 MB, 98% of it the
+  `TileMap` (~10 MB/s per human seat). Scenes now go without the map (~22 KB);
+  `ServerMsg::Map` follows the Welcome and goes again only when
+  `TileMap::digest` moves. Clients rebuild frames with `SceneCache`.
 - ~~**No scripted multiplayer regression**~~ — done: the server is a
   library (`game2-core/src/server.rs`, `serve(ServerConfig)`), and
   `game2-core/tests/multiplayer.rs` plays one over real sockets: a human and
@@ -51,12 +53,24 @@ Still open:
   `wasm32` CI step so it doesn't rot.
 - **Pause/speed retirement** — `speed-timer` feature stays off by default;
   web/remote never see it. Drop the key and `speed` field fully later.
-- **Persistence** — the world dies with the process; `save_load` only has
-  entity counts. Serialize `World`/components (serde-ify components) so a
-  pod restart keeps the village.
-- **Auth** — claims are unguessable tokens but anyone can mint seats; a
-  shared secret or per-seat cap would harden it lightly.
-- **Protocol docs** — `docs/protocol.md` with the JSON shapes + a sample
-  agent session, for people writing bots.
-- **Obs polish** — agent obs could carry shop stock, wants, and craft
-  level so bots can plan, not just react.
+- ~~**Persistence**~~ — first cut done, via the journal
+  (`session/journal.rs`): the server applies every input through
+  `Game::apply_input` and notes it with its frame; the sim is deterministic,
+  so seed + journal rebuild the world exactly. `game_server --save FILE`
+  writes journal, claims and frame every `--save-every` seconds (30) and on
+  stop, and a server started on the file replays it (checking a state
+  digest) - tokens keep their characters across restarts. Limit: a restore
+  replays every frame (~25s per hour of play), so long-lived servers will
+  want periodic snapshots (serde-ified components) on top.
+- ~~**Auth**~~ — done, lightly: `game_server --join-secret W` (or
+  `GAME2_JOIN_SECRET`) makes every Hello carry the word (`Hello.secret`;
+  `game_ui --connect` and `game_bots` read `GAME2_JOIN_SECRET`), and
+  `--max-seats N` (default 64) caps the characters a server hands out.
+  Reclaims with a token always work. Sockets have a 10s handshake/Hello
+  deadline and at most 256 are open at once. Not real accounts: anyone with
+  the word plays.
+- ~~**Protocol docs**~~ — done: `docs/protocol.md`, with every message's
+  JSON shape; its examples are parsed by `tests/protocol_doc.rs`.
+- ~~**Obs polish**~~ — done: `AgentObs.me` carries the villager's own
+  trade and rung, home, bench and its stock, the input the trade lacks,
+  and their unmet wants (their own only). Shop stock elsewhere is still out.

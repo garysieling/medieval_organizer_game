@@ -6,7 +6,7 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use game2_core::server::{serve, ServerConfig, ServerHandle};
-use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, ServerMsg, MAP_SEED};
+use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, SceneCache, ServerMsg, MAP_SEED};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
@@ -14,10 +14,27 @@ type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
 
 /// A fast server: 200 frames a second, so a scene comes every 10ms
 fn start(probe_token: Option<&str>) -> ServerHandle {
-    serve(ServerConfig {
-        bind: "127.0.0.1".into(), port: 0, seed: MAP_SEED, idle: Duration::from_secs(600),
-        tick_hz: 200, probe_port: Some(0), probe_token: probe_token.map(String::from),
-    }).expect("server starts")
+    start_with(ServerConfig { probe_token: probe_token.map(String::from), ..fast() })
+}
+
+fn fast() -> ServerConfig {
+    ServerConfig { bind: "127.0.0.1".into(), port: 0, seed: MAP_SEED, idle: Duration::from_secs(600),
+        tick_hz: 200, probe_port: Some(0), ..ServerConfig::default() }
+}
+
+fn start_with(cfg: ServerConfig) -> ServerHandle {
+    serve(cfg).expect("server starts")
+}
+
+/// Say Hello with a secret, and see whether the server lets us in
+fn admitted(addr: std::net::SocketAddr, token: Option<String>, secret: Option<&str>) -> Result<String, String> {
+    let mut ws = connect(addr);
+    send(&mut ws, &ClientMsg::Hello { token, kind: ClientKind::Human, name: None, secret: secret.map(String::from) });
+    until("a welcome or a refusal", &mut ws, 10, |m, _| match m {
+        ServerMsg::Welcome { token, .. } => Some(Ok(token.clone())),
+        ServerMsg::Denied { reason } => Some(Err(reason.clone())),
+        _ => None,
+    })
 }
 
 fn connect(addr: std::net::SocketAddr) -> Ws {
@@ -55,7 +72,7 @@ fn until<T>(what: &str, ws: &mut Ws, secs: u64, mut want: impl FnMut(&ServerMsg,
 }
 
 fn hello(ws: &mut Ws, token: Option<String>, kind: ClientKind) -> (game2_core::engine::ecs::Entity, String) {
-    send(ws, &ClientMsg::Hello { token, kind, name: Some("test".into()) });
+    send(ws, &ClientMsg::Hello { token, kind, name: Some("test".into()), secret: None });
     until("a welcome", ws, 10, |m, _| match m {
         ServerMsg::Welcome { you, token, .. } => Some((*you, token.clone())),
         _ => None,
@@ -74,12 +91,41 @@ fn a_human_and_an_agent_play_one_world() {
         ServerMsg::Scene(s) => s.people.iter().find(|p| p.e == me).map(|p| p.pos),
         _ => None,
     };
+    // the map comes apart from the scenes: once after the Welcome, and
+    // scenes carry an empty one - the map is 98% of a frame
+    let map = until("the map", &mut human, 10, |m, _| match m { ServerMsg::Map(m) => Some(m.clone()), _ => None });
+    assert!(map.width > 0 && map.height > 0, "a real map");
+    let (lean, json_len) = until("a scene", &mut human, 10, |m, t| match m {
+        ServerMsg::Scene(s) => Some((s.map.width, t.len())),
+        _ => None,
+    });
+    assert_eq!(lean, 0, "scenes don't carry the map");
+    assert!(json_len < 200_000, "a scene is {json_len} bytes - the map is riding along again?");
+    // and a client puts the two back together
+    let mut cache = SceneCache::new();
+    assert!(cache.apply(ServerMsg::Map(map.clone())).is_none());
+    let whole = until("a scene to rebuild", &mut human, 10, |m, _| match m {
+        ServerMsg::Scene(_) => cache.apply(m.clone()),
+        _ => None,
+    });
+    assert_eq!(whole.map.digest(), map.digest(), "the rebuilt scene has the map");
     let start_pos = until("my figure in a scene", &mut human, 10, |m, _| at(m));
 
     // commands land: a few steps east move the character east
     for _ in 0..20 { send(&mut human, &ClientMsg::Command(Command::Walk(1.0, 0.0))); }
     let moved = until("my figure to move", &mut human, 10, |m, _| at(m).filter(|p| (p.0 - start_pos.0).abs() + (p.1 - start_pos.1).abs() > 0.2));
     assert!(moved != start_pos);
+
+    // the map isn't sent again while it hasn't changed
+    let resent = {
+        let end = Instant::now() + Duration::from_millis(500);
+        let mut n = 0;
+        while Instant::now() < end {
+            if let Got::Msg(t) = read_text(&mut human) { if t.starts_with("{\"Map\"") { n += 1; } }
+        }
+        n
+    };
+    assert!(resent <= 1, "the unchanged map was sent {resent} times in half a second");
 
     // and the seat answers a ping
     send(&mut human, &ClientMsg::Ping(41));
@@ -89,7 +135,18 @@ fn a_human_and_an_agent_play_one_world() {
     let mut agent = connect(server.addr);
     let (villager, _) = hello(&mut agent, None, ClientKind::Agent);
     assert_ne!(villager, me, "the agent drives its own character");
-    let obs_you = until("the agent's obs", &mut agent, 10, |m, _| match m { ServerMsg::Obs(o) => Some(o.you), _ => None });
+    // an agent reads Obs, not scenes: it's never sent the map
+    let mut agent_maps = 0;
+    let obs_you = until("the agent's obs", &mut agent, 10, |m, _| match m {
+        ServerMsg::Map(_) => { agent_maps += 1; None }
+        ServerMsg::Obs(o) => Some(o.you),
+        _ => None,
+    });
+    let end = Instant::now() + Duration::from_millis(300);
+    while Instant::now() < end {
+        if let Got::Msg(t) = read_text(&mut agent) { if t.starts_with("{\"Map\"") { agent_maps += 1; } }
+    }
+    assert_eq!(agent_maps, 0, "an agent was sent the map");
     assert_eq!(obs_you, villager, "the obs is about the agent's own villager");
     send(&mut agent, &ClientMsg::AgentCmd(AgentCmd::Idle));
     let ok = until("CmdDone", &mut agent, 10, |m, _| match m { ServerMsg::CmdDone { ok, .. } => Some(*ok), _ => None });
@@ -219,4 +276,105 @@ fn a_failed_bind_leaves_nothing_running() {
     assert!(r.is_err(), "the probe's port was taken");
     // the game port wasn't left bound behind the error
     assert!(std::net::TcpListener::bind(("127.0.0.1", game_port)).is_ok(), "the game port leaked");
+}
+
+#[test]
+fn a_join_secret_keeps_strangers_out() {
+    let server = start_with(ServerConfig { join_secret: Some("open sesame".into()), ..fast() });
+    assert_eq!(admitted(server.addr, None, None), Err("wrong join secret".into()), "no secret, no seat");
+    assert_eq!(admitted(server.addr, None, Some("guess")), Err("wrong join secret".into()));
+    assert!(admitted(server.addr, None, Some("open sesame")).is_ok(), "the right secret gets a seat");
+    server.stop();
+}
+
+#[test]
+fn the_village_hands_out_only_so_many_seats() {
+    let server = start_with(ServerConfig { max_seats: 2, ..fast() });
+    let first = admitted(server.addr, None, None).expect("seat one");
+    admitted(server.addr, None, None).expect("seat two");
+    assert_eq!(admitted(server.addr, None, None), Err("the village is full".into()), "no third seat");
+    // but a claim still takes its own seat back when the village is full
+    assert_eq!(admitted(server.addr, Some(first.clone()), None), Ok(first), "a reclaim always works");
+    server.stop();
+}
+
+#[test]
+fn claim_tokens_are_the_servers_own_and_long() {
+    let server = start(None);
+    // a token the client made up isn't adopted: the new seat gets the server's
+    let issued = admitted(server.addr, Some("mine".into()), None).expect("a seat");
+    assert_ne!(issued, "mine", "the server took a client-picked token as a claim");
+    let other = admitted(server.addr, None, None).expect("another seat");
+    for t in [&issued, &other] {
+        assert!(t.len() == 32 && t.chars().all(|c| c.is_ascii_hexdigit()), "a 128-bit token, not {t:?}");
+    }
+    assert_ne!(issued, other);
+    // and "mine" still claims nothing
+    assert_ne!(admitted(server.addr, Some("mine".into()), None).expect("a seat"), "mine");
+    server.stop();
+}
+
+#[test]
+fn a_saved_village_comes_back_after_a_restart() {
+    let dir = std::env::temp_dir().join(format!("game2-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.json");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+
+    // play a while: a human walks, an agent steers
+    let server = start_with(cfg());
+    assert!(server.restored.is_none(), "a fresh world");
+    let mut human = connect(server.addr);
+    let (me, token) = hello(&mut human, None, ClientKind::Human);
+    for _ in 0..30 { send(&mut human, &ClientMsg::Command(Command::Walk(1.0, 0.0))); }
+    let mut agent = connect(server.addr);
+    hello(&mut agent, None, ClientKind::Agent);
+    send(&mut agent, &ClientMsg::AgentCmd(AgentCmd::GoTo { x: 20, y: 20 }));
+    until("CmdDone", &mut agent, 10, |m, _| matches!(m, ServerMsg::CmdDone { .. }).then_some(()));
+    std::thread::sleep(Duration::from_millis(500));
+    server.stop(); // writes the save
+    assert!(save.exists(), "stopping wrote the village to disk");
+
+    // a new server on the same file: the same world, replayed
+    let server = start_with(cfg());
+    let r = server.restored.clone().expect("the village was restored");
+    assert!(r.frames > 50 && r.inputs >= 3, "replayed {} frames, {} inputs", r.frames, r.inputs);
+    assert!(r.digest_matched, "the replayed world isn't the one that was saved");
+    // and the claim still holds: the same character comes back
+    let mut back = connect(server.addr);
+    let (me_again, _) = hello(&mut back, Some(token), ClientKind::Human);
+    assert_eq!(me_again, me, "the token claims the same character after the restart");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
+    // a save in a folder that isn't there: the server won't start, rather
+    // than play for an hour and lose it
+    let bad = std::env::temp_dir().join(format!("game2-nowhere-{}", std::process::id())).join("village.json");
+    assert!(serve(ServerConfig { save: Some(bad), ..fast() }).is_err(), "an unwritable save started anyway");
+
+    // a save named like a temp file still saves and restores
+    let dir = std::env::temp_dir().join(format!("game2-tmpname-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.tmp");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+    let server = start_with(cfg());
+    std::thread::sleep(Duration::from_millis(200));
+    server.stop();
+    assert!(save.exists());
+    let leftovers: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten()
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".saving")).collect();
+    assert!(leftovers.is_empty(), "the write file was left behind");
+    // and a file that happens to sit where a write file might is left alone
+    let bystander = dir.join("village.tmp.saving");
+    std::fs::write(&bystander, "another village").unwrap();
+    let server = start_with(cfg());
+    assert!(server.restored.as_ref().is_some_and(|r| r.digest_matched), "the .tmp-named save restores");
+    server.stop();
+    assert_eq!(std::fs::read_to_string(&bystander).unwrap(), "another village", "a save wrote over a bystander");
+    let _ = std::fs::remove_dir_all(&dir);
 }

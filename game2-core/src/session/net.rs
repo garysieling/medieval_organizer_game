@@ -10,6 +10,7 @@
 use serde::{Deserialize, Serialize};
 use crate::engine::ecs::Entity;
 use super::{Command, UiModel};
+use crate::game::tilemap::TileMap;
 
 /// Who is connecting: a person behind a UI, or an API agent steering a villager
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -28,6 +29,10 @@ pub enum ClientMsg {
         kind: ClientKind,
         /// Display name for the roster
         name: Option<String>,
+        /// The server's join secret, when it runs with one (`game_server
+        /// --join-secret`); clients take it from GAME2_JOIN_SECRET
+        #[serde(default)]
+        secret: Option<String>,
     },
     /// One input toward the player's character
     Command(Command),
@@ -49,7 +54,8 @@ pub enum ServerMsg {
         /// Your seat's first render model
         model: Box<UiModel>,
     },
-    /// A frame for your seat (sent at the broadcast cadence)
+    /// A frame for your seat (sent at the broadcast cadence). Its `map` is
+    /// empty: the map comes as `Map` (see `SceneCache`)
     Scene(Box<UiModel>),
     /// An agent's observation of the world around its villager
     Obs(Box<AgentObs>),
@@ -59,6 +65,40 @@ pub enum ServerMsg {
     Denied { reason: String },
     /// Answer to Ping
     Pong(u64),
+    /// The tile map. Scenes and the Welcome carry an empty `map` - it's 98%
+    /// of a frame - so the server sends this after the Welcome and again
+    /// whenever the map changes. Keep the last one and put it into each
+    /// scene before drawing (`SceneCache` does that).
+    Map(Box<TileMap>),
+}
+
+/// Client-side reassembly of the scene stream: remembers the last `Map` and
+/// puts it into every scene, so a frame is whole again before it's drawn
+#[derive(Default)]
+pub struct SceneCache {
+    map: Option<TileMap>,
+}
+
+impl SceneCache {
+    pub fn new() -> SceneCache { SceneCache::default() }
+
+    /// Take a server message. A `Map` is kept; a `Scene` (or the Welcome's
+    /// first frame) comes back with the kept map in it. Anything else, or a
+    /// scene before any map, gives None.
+    pub fn apply(&mut self, msg: ServerMsg) -> Option<UiModel> {
+        match msg {
+            ServerMsg::Map(m) => { self.map = Some(*m); None }
+            ServerMsg::Scene(s) | ServerMsg::Welcome { model: s, .. } => {
+                let mut s = *s;
+                s.map = self.map.as_ref()?.clone();
+                Some(s)
+            }
+            _ => None,
+        }
+    }
+
+    /// The map as last sent, if one's come
+    pub fn map(&self) -> Option<&TileMap> { self.map.as_ref() }
 }
 
 // ---------------- the agent (bot) surface ----------------
@@ -97,6 +137,30 @@ pub struct AgentObs {
     /// Burning tiles near you - walk around, not through
     #[serde(default)]
     pub burning: Vec<(f32, f32)>,
+    /// What your villager knows about themself: their trade, home and
+    /// bench, what the bench lacks, what they want. Only their own - other
+    /// people's wants stay theirs (the probe's, not the agent's)
+    #[serde(default)]
+    pub me: ObsSelf,
+}
+
+/// An agent's villager's knowledge of themself, to plan by rather than
+/// only react
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ObsSelf {
+    /// The trade ("baker") and its rung ("Journeyman"), if they have one
+    pub trade: Option<String>,
+    pub level: Option<String>,
+    /// Their home and their bench (workplace), as entities near_buildings
+    /// and AgentCmd use
+    pub home: Option<Entity>,
+    pub bench: Option<Entity>,
+    /// What's on the bench's shelf
+    pub bench_stock: Vec<(String, u32)>,
+    /// The raw good the trade is short of, if it is: fetch it or buy it
+    pub needs: Option<String>,
+    /// What they want and haven't got ("Joy", "BetterTools"...)
+    pub wants: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -142,4 +206,7 @@ pub enum AgentCmd {
     /// Write letters for a prisoner's release - your voice adds pressure
     /// the jailer can't ignore
     Press { prisoner: Entity },
+    /// Get the raw good the bench is short of (`AgentObs.me.needs`): the
+    /// villager's own errand - send a kid, or go to where it's had
+    FetchInput,
 }

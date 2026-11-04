@@ -8,7 +8,7 @@ use minifb::{Key, Window, WindowOptions, MouseMode};
 use game2_core::engine::render::Buffer;
 use game2_client::{self as client, Art, View};
 use game2_core::session::{
-    self, ClientKind, ClientMsg, Command, Game, ServerMsg, UiModel, MAP_TILES,
+    self, ClientKind, ClientMsg, Command, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
 };
 
 const W: usize = session::W;
@@ -43,27 +43,38 @@ struct Remote {
     ws: Mutex<tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>>,
     latest: Mutex<Option<UiModel>>,
     token_seen: Mutex<Option<String>>,
+    /// The server turned us away (a wrong join secret, a full village)
+    denied: Mutex<Option<String>>,
 }
 
 fn connect_remote(url: &str) -> Arc<Remote> {
     let (mut ws, _) = tungstenite::connect(url).expect("can't reach the server");
     ws.send(tungstenite::Message::Text(
-        serde_json::to_string(&ClientMsg::Hello { token: claim_token(), kind: ClientKind::Human, name: None }).unwrap().into()
+        serde_json::to_string(&ClientMsg::Hello { token: claim_token(), kind: ClientKind::Human, name: None,
+            secret: std::env::var("GAME2_JOIN_SECRET").ok().filter(|s| !s.is_empty()) }).unwrap().into()
     )).ok();
     let remote = Arc::new(Remote {
-        ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None),
+        ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None), denied: Mutex::new(None),
     });
     {
         let remote = remote.clone();
-        std::thread::spawn(move || loop {
-            let msg = remote.ws.lock().unwrap().read();
-            match msg {
-                Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
-                    Ok(ServerMsg::Scene(m)) => { *remote.latest.lock().unwrap() = Some(*m); }
-                    Ok(ServerMsg::Welcome { token, .. }) => { *remote.token_seen.lock().unwrap() = Some(token); }
-                    _ => {}
-                },
-                _ => break,
+        std::thread::spawn(move || {
+            // scenes arrive without the map (it's sent apart, when it
+            // changes): the cache puts the last one back in
+            let mut cache = SceneCache::new();
+            loop {
+                let msg = remote.ws.lock().unwrap().read();
+                match msg {
+                    Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
+                        Ok(msg) => {
+                            if let ServerMsg::Welcome { token, .. } = &msg { *remote.token_seen.lock().unwrap() = Some(token.clone()); }
+                            if let ServerMsg::Denied { reason } = &msg { *remote.denied.lock().unwrap() = Some(reason.clone()); }
+                            if let Some(scene) = cache.apply(msg) { *remote.latest.lock().unwrap() = Some(scene); }
+                        }
+                        Err(_) => {}
+                    },
+                    _ => break,
+                }
             }
         });
     }
@@ -134,6 +145,14 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_at = std::time::Instant::now();
+        // a refusal (a wrong join secret, a full village) ends the session
+        // with the server's reason, not a silent title card
+        if let Some(r) = &remote {
+            if let Some(why) = r.denied.lock().unwrap().take() {
+                eprintln!("game_ui: the server turned us away: {why}");
+                std::process::exit(2);
+            }
+        }
         if !started {
             present(&mut window, &client::render_title());
             if window.is_key_down(Key::Enter) { started = true; }

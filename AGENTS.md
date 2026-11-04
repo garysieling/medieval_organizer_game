@@ -21,6 +21,7 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
   cargo test -p game2-core --lib
   ```
 - The window, dumps, bench and recordings are in `game2-client`: run `game_ui` / `record_video` from the repo root (art loads from `assets/`), e.g. `cargo run -p game2-client --bin game_ui -- --dump-frame 300`. Inside `game2-core/` a plain `cargo run --bin game_ui` no longer finds the bin.
+- The wire protocol is documented in `docs/protocol.md`; its JSON examples are tested (`tests/protocol_doc.rs`), so a protocol change updates the doc.
 - Multiplayer over real sockets: `cargo test -p game2-core --test multiplayer` (starts a `server::serve` on an ephemeral port). Change the protocol or the server loop? Extend it.
 - Build binaries:
   ```bash

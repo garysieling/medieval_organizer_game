@@ -11,6 +11,7 @@ pub mod dialogue;
 pub mod routine;
 pub mod country;
 
+pub mod journal;
 pub mod kpi;
 pub mod layout;
 pub mod seat;

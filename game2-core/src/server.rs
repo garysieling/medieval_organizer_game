@@ -22,6 +22,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use crate::session::journal::{self, Applied, Input, Journal};
 use crate::session::{driver, ClientKind, ClientMsg, Command, Game, ServerMsg};
 
 /// Frames between broadcasts to a client (2 = ~10 scenes a second at 20Hz)
@@ -56,12 +57,24 @@ pub struct ServerConfig {
     pub probe_port: Option<u16>,
     /// The word a probe client must send first, if any
     pub probe_token: Option<String>,
+    /// The word every Hello must carry, if any: a light gate on who may play
+    pub join_secret: Option<String>,
+    /// New seats this server will hand out, in all. Anyone can say Hello, and
+    /// every fresh Hello mints a character, so the world's size is capped.
+    /// Reclaiming a seat with its token always works.
+    pub max_seats: usize,
+    /// Keep the village across restarts: the journal (seed + every input),
+    /// the claims and the frame are written here every `save_every` and on
+    /// stop, and a server started on an existing file replays it
+    pub save: Option<std::path::PathBuf>,
+    pub save_every: Duration,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         ServerConfig { bind: "0.0.0.0".into(), port: 8787, seed: crate::session::MAP_SEED,
-            idle: Duration::from_secs(300), tick_hz: 20, probe_port: None, probe_token: None }
+            idle: Duration::from_secs(300), tick_hz: 20, probe_port: None, probe_token: None,
+            join_secret: None, max_seats: 64, save: None, save_every: Duration::from_secs(30) }
     }
 }
 
@@ -73,7 +86,37 @@ pub struct ServerHandle {
     world: Option<std::thread::JoinHandle<()>>,
     /// The accept loops: joined on stop, so their ports are free after
     accepts: Vec<std::thread::JoinHandle<()>>,
+    /// What a start from a save file rebuilt, if it did
+    pub restored: Option<Restored>,
+    /// The world's seed (a save file's, when one was restored)
+    pub seed: u64,
 }
+
+/// A village brought back from its save file
+#[derive(Debug, Clone, PartialEq)]
+pub struct Restored {
+    /// Frames replayed
+    pub frames: u64,
+    /// Inputs replayed
+    pub inputs: usize,
+    /// Whether the replayed world's state digest matched the one saved: a
+    /// mismatch means the sim isn't deterministic somewhere
+    pub digest_matched: bool,
+}
+
+/// What the save file holds
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SaveFile {
+    version: u32,
+    journal: Journal,
+    frame: u64,
+    claims: Vec<(String, usize)>,
+    minted: usize,
+    /// `Game::state_digest` at `frame`, to check the replay against
+    digest: u64,
+}
+
+const SAVE_VERSION: u32 = 1;
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their
@@ -110,8 +153,14 @@ struct Conn {
     /// replace each other: a slow client gets the freshest one instead of a
     /// backlog that grows without bound
     latest: Option<String>,
+    /// The newest unsent map (a snapshot as well, ~1 MB: a slow client
+    /// gets only the latest, written before the scene that's drawn on it)
+    latest_map: Option<String>,
     /// Another connection reclaimed this seat: the read loop ends
     dead: bool,
+    /// The digest of the map this client was last sent (`TileMap::digest`):
+    /// the map goes out again only when the world's moves off it
+    map_sent: Option<u64>,
 }
 
 struct Server {
@@ -123,19 +172,84 @@ struct Server {
     probes: Vec<Arc<Mutex<Conn>>>,
     frame: u64,
     idle: Duration,
+    join_secret: Option<String>,
+    max_seats: usize,
+    /// Seats handed out so far (see ServerConfig::max_seats)
+    minted: usize,
+    /// Every input the world took (see session::journal)
+    journal: Journal,
+    save: Option<std::path::PathBuf>,
 }
 
+impl Server {
+    /// Take an input: note it in the journal, then apply it. Every change
+    /// the server makes to the world goes through here, so a replay of the
+    /// journal makes the same world.
+    fn apply(&mut self, input: Input) -> Applied {
+        let frame = self.frame;
+        let r = self.game.apply_input(&input);
+        self.journal.record(frame, input);
+        r
+    }
+
+    /// Write the save file, if there is one (write then rename, so a crash
+    /// mid-write leaves the last good save)
+    fn save(&self) -> std::io::Result<()> {
+        let Some(path) = &self.save else { return Ok(()) };
+        let file = SaveFile {
+            version: SAVE_VERSION, journal: self.journal.clone(), frame: self.frame,
+            claims: self.claims.iter().map(|(t, s)| (t.clone(), *s)).collect(),
+            minted: self.minted, digest: self.game.state_digest(),
+        };
+        let text = serde_json::to_string(&file).map_err(std::io::Error::other)?;
+        // written beside the save, then renamed over it, so a crash mid-write
+        // leaves the last good save. The write file is made fresh
+        // (`create_new`, named for this process and this write), so it can
+        // never be - or overwrite - an existing file, a save or anything else
+        use std::io::Write;
+        static WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let mut name = path.file_name().unwrap_or_default().to_os_string();
+        name.push(format!(".{}.{}.saving", std::process::id(), WRITES.fetch_add(1, Ordering::Relaxed)));
+        let tmp = path.with_file_name(name);
+        let written = std::fs::OpenOptions::new().write(true).create_new(true).open(&tmp)
+            .and_then(|mut f| { f.write_all(text.as_bytes())?; f.sync_all() });
+        if let Err(e) = written { let _ = std::fs::remove_file(&tmp); return Err(e); }
+        std::fs::rename(&tmp, path).inspect_err(|_| { let _ = std::fs::remove_file(&tmp); })
+    }
+
+    /// Save, and say so if it fails: play goes on, but the operator must know
+    /// the village isn't reaching the disk
+    fn save_or_warn(&self) {
+        if let Err(e) = self.save() {
+            let p = self.save.as_ref().map(|p| p.display().to_string()).unwrap_or_default();
+            eprintln!("game_server: SAVE FAILED ({p}): {e} - the village since the last good save would be lost on a restart");
+        }
+    }
+}
+
+/// A claim token: 128 bits no one can guess. std's `RandomState` keys its
+/// SipHash from the OS's randomness, so hashing a counter (and the time)
+/// through two of them gives output an outsider can't predict - without
+/// pulling in a crate for it. The token is the seat's only credential.
 fn token() -> String {
-    // unguessable-enough session token: time + counter, hashed
-    use std::hash::{Hash, Hasher};
+    use std::hash::{BuildHasher, Hash, Hasher};
     static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    (Instant::now(), N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)).hash(&mut h);
-    format!("{:x}", h.finish())
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let half = |salt: u64| {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        (salt, n, std::time::SystemTime::now()).hash(&mut h);
+        h.finish()
+    };
+    format!("{:016x}{:016x}", half(0x5eed), half(0xc1a1))
 }
 
 fn send_msg(c: &mut Conn, msg: &ServerMsg) {
     if let Ok(s) = serde_json::to_string(msg) { c.outbox.push(s); }
+}
+
+/// Queue the map, replacing any the client hasn't been sent yet
+fn send_map(c: &mut Conn, map: &crate::game::tilemap::TileMap) {
+    if let Ok(s) = serde_json::to_string(&ServerMsg::Map(Box::new(map.clone()))) { c.latest_map = Some(s); }
 }
 
 /// Queue a snapshot, replacing any the client hasn't been sent yet
@@ -145,12 +259,13 @@ fn send_snapshot(c: &mut Conn, msg: &ServerMsg) {
 
 impl Conn {
     fn new(seat: usize, kind: ClientKind) -> Conn {
-        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, dead: false }
+        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, latest_map: None, dead: false, map_sent: None }
     }
 
     /// What to write next: the queued replies, then the newest snapshot
     fn take_out(&mut self) -> Vec<String> {
         let mut out: Vec<String> = self.outbox.drain(..).collect();
+        out.extend(self.latest_map.take());
         out.extend(self.latest.take());
         out
     }
@@ -227,6 +342,15 @@ fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSoc
     Some(ws)
 }
 
+/// Turn a client away before it has a seat: say why, then close
+fn deny(mut ws: tungstenite::WebSocket<TcpStream>, reason: &str) {
+    if let Ok(t) = serde_json::to_string(&ServerMsg::Denied { reason: reason.into() }) {
+        let _ = ws.send(tungstenite::Message::Text(t.into()));
+    }
+    let _ = ws.close(None);
+    let _ = ws.flush();
+}
+
 /// A read that timed out (nothing yet), as opposed to one that failed
 fn idle_read(e: &tungstenite::Error) -> bool {
     matches!(e, tungstenite::Error::Io(e)
@@ -235,13 +359,44 @@ fn idle_read(e: &tungstenite::Error) -> bool {
 
 /// Start a server: bind its ports, start the world loop, and return at once
 pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
+    // a save file brings the village back: replay its journal to its frame
+    let mut restored = None;
+    let saved: Option<SaveFile> = match &cfg.save {
+        Some(p) if p.exists() => {
+            let text = std::fs::read_to_string(p)?;
+            let f: SaveFile = serde_json::from_str(&text).map_err(|e|
+                std::io::Error::new(std::io::ErrorKind::InvalidData, format!("bad save file {}: {e}", p.display())))?;
+            if f.version != SAVE_VERSION {
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData,
+                    format!("save file {} is version {}, this server reads {}", p.display(), f.version, SAVE_VERSION)));
+            }
+            Some(f)
+        }
+        _ => None,
+    };
+    let (game, journal, frame, claims, minted) = match saved {
+        Some(f) => {
+            let game = journal::replay(&f.journal, f.frame);
+            let matched = game.state_digest() == f.digest;
+            if !matched { eprintln!("game_server: the replayed world doesn't match its save - the sim isn't deterministic somewhere"); }
+            restored = Some(Restored { frames: f.frame, inputs: f.journal.entries.len(), digest_matched: matched });
+            (game, f.journal, f.frame, f.claims.into_iter().collect(), f.minted)
+        }
+        None => (Game::new_seeded(cfg.seed), Journal::new(cfg.seed), 0, Default::default(), 0),
+    };
+    let seed = journal.seed;
     let server = Arc::new(Mutex::new(Server {
-        game: Game::new_seeded(cfg.seed),
-        claims: Default::default(),
+        game,
+        claims,
         conns: vec![],
         probes: vec![],
-        frame: 0,
+        frame,
         idle: cfg.idle,
+        join_secret: cfg.join_secret.clone(),
+        max_seats: cfg.max_seats,
+        minted,
+        journal,
+        save: cfg.save.clone(),
     }));
     let stop = Arc::new(AtomicBool::new(false));
     let open: Open = Default::default();
@@ -258,6 +413,10 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
         None => None,
     };
     let probe_addr = match &probe { Some(pl) => Some(pl.local_addr()?), None => None };
+
+    // a first save before anyone plays: an unwritable path fails the start,
+    // not an hour of play later
+    server.lock().unwrap().save()?;
 
     let mut accepts = vec![];
     {
@@ -277,13 +436,19 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
     let frame_len = Duration::from_micros(1_000_000 / cfg.tick_hz.max(1));
     let world = {
         let (server, stop) = (Arc::clone(&server), Arc::clone(&stop));
-        std::thread::spawn(move || world_loop(server, stop, frame_len))
+        let save_every = cfg.save_every;
+        std::thread::spawn(move || world_loop(server, stop, frame_len, save_every))
     };
-    Ok(ServerHandle { addr, probe_addr, stop, world: Some(world), accepts })
+    Ok(ServerHandle { addr, probe_addr, stop, world: Some(world), accepts, restored, seed })
 }
 
-fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Duration) {
+fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Duration, save_every: Duration) {
+    let mut saved_at = Instant::now();
     while !stop.load(Ordering::Relaxed) {
+        if saved_at.elapsed() >= save_every {
+            server.lock().unwrap().save_or_warn();
+            saved_at = Instant::now();
+        }
         let at = Instant::now();
         let mut s = server.lock().unwrap();
         s.game.update();
@@ -296,14 +461,21 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
                     let c = c.lock().unwrap();
                     (c.kind == ClientKind::Human && c.last_active.elapsed() > s.idle).then_some(c.seat)
                 }).collect();
-            for seat in idle_for { driver::drive_player(&mut s.game, seat); }
+            for seat in idle_for { s.apply(Input::DriveIdle { seat }); }
         }
         if s.frame % SCENE_EVERY == 0 {
+            // the map is 98% of a frame: scenes go without it, and a seat is
+            // sent the map only when it's new to them
+            let digest = s.game.map.digest();
             for conn in s.conns.iter() {
                 let mut c = conn.lock().unwrap();
                 match c.kind {
                     ClientKind::Human => {
-                        let model = s.game.ui_model_at(c.seat);
+                        if c.map_sent != Some(digest) {
+                            send_map(&mut c, &s.game.map);
+                            c.map_sent = Some(digest);
+                        }
+                        let model = s.game.ui_model_lean_at(c.seat);
                         send_snapshot(&mut c, &ServerMsg::Scene(Box::new(model)));
                     }
                     ClientKind::Agent => match s.game.agent_obs(c.seat) {
@@ -325,6 +497,8 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
         let spent = at.elapsed();
         if spent < frame_len { std::thread::sleep(frame_len - spent); }
     }
+    // stopping: the village as it stands goes to disk
+    server.lock().unwrap().save_or_warn();
 }
 
 fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>) {
@@ -341,23 +515,51 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
         };
         if let tungstenite::Message::Text(t) = msg {
             let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
-            if let ClientMsg::Hello { token: tok, kind, name: _ } = cm {
+            if let ClientMsg::Hello { token: tok, kind, name: _, secret } = cm {
                 let mut s = server.lock().unwrap();
-                let seat = tok.as_deref().and_then(|t| s.claims.get(t).copied())
-                    .unwrap_or_else(|| match kind {
-                        ClientKind::Human => s.game.add_seat(),
+                // the gate: the join secret, when the server has one
+                if s.join_secret.is_some() && secret != s.join_secret {
+                    drop(s);
+                    return deny(ws, "wrong join secret");
+                }
+                let claimed = tok.as_deref().and_then(|t| s.claims.get(t).copied());
+                // a fresh character, unless the world's handed out its last
+                if claimed.is_none() && s.minted >= s.max_seats {
+                    drop(s);
+                    return deny(ws, "the village is full");
+                }
+                let seat = claimed.unwrap_or_else(|| {
+                    s.minted += 1;
+                    let input = match kind {
+                        ClientKind::Human => Input::AddSeat,
                         ClientKind::Agent => match s.game.free_villager() {
-                            Some(i) => { let v = s.game.villagers[i]; s.game.add_agent_seat(v) },
-                            None => s.game.add_seat(), // village full: park them on a wanderer
+                            Some(i) => Input::AddAgentSeat { villager: s.game.villagers[i] },
+                            None => Input::AddSeat, // village full: park them on a wanderer
                         },
-                    });
-                let tok = tok.unwrap_or_else(token);
+                    };
+                    match s.apply(input) { Applied::Seat(n) => n, _ => unreachable!("a seat input makes a seat") }
+                });
+                // a known token keeps its seat; a new seat always gets a token
+                // of the server's making, never one the client picked
+                let tok = match (claimed, tok) {
+                    (Some(_), Some(t)) => t,
+                    _ => token(),
+                };
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs
-                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_at(seat)) };
+                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)) };
                 let conn = Arc::new(Mutex::new(Conn::new(seat, kind)));
-                send_msg(&mut conn.lock().unwrap(), &first);
+                {
+                    // the Welcome, then (for a player, who draws scenes) the
+                    // map its frame is drawn on; an agent reads Obs, no map
+                    let mut c = conn.lock().unwrap();
+                    send_msg(&mut c, &first);
+                    if kind == ClientKind::Human {
+                        send_map(&mut c, &s.game.map);
+                        c.map_sent = Some(s.game.map.digest());
+                    }
+                }
                 // a claim takes the seat back: any earlier connection
                 // steering it is stale, so one character has one driver
                 for c in s.conns.iter() {
@@ -394,12 +596,14 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                     ClientMsg::Command(cmd) => {
                         // speed and pause are local-only: the shared world runs at one pace
                         if !matches!(cmd, Command::TogglePause | Command::ToggleSpeed) {
-                            s.game.command_at(seat, cmd);
+                            s.apply(Input::Command { seat, cmd });
                         }
                     }
                     ClientMsg::AgentCmd(ac) => {
-                        let note = match s.game.agent_command(seat, ac) {
-                            Ok(()) => "ok".to_string(), Err(e) => e,
+                        let note = match s.apply(Input::AgentCmd { seat, cmd: ac }) {
+                            Applied::Agent(Ok(())) => "ok".to_string(),
+                            Applied::Agent(Err(e)) => e,
+                            _ => unreachable!("an agent command answers"),
                         };
                         send_msg(&mut conn.lock().unwrap(), &ServerMsg::CmdDone { ok: note == "ok", note });
                     }

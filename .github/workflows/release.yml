@@ -109,7 +109,12 @@ jobs:
         run: |
           args=()
           for b in $BINS; do args+=(--bin "$b"); done
-          cargo build --release -p game2-core -p game2-client --target ${{ matrix.target }} "${args[@]}"
+          # A tag from before the client split has no game2-client package
+          # (game_ui etc. still live in game2-core); build only what the
+          # checked-out commit's workspace actually has.
+          packages=(-p game2-core)
+          if [ -f game2-client/Cargo.toml ]; then packages+=(-p game2-client); fi
+          cargo build --release "${packages[@]}" --target ${{ matrix.target }} "${args[@]}"
 
       - name: Package
         id: pkg

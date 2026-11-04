@@ -694,7 +694,10 @@ impl View {
             let (x, y) = tile_to_minimap(tx, ty, k);
             buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
         };
-        for pv in &m.people {
+        // graves go down last: a crowd at the graveside mustn't hide one
+        let (living, graves): (Vec<&PersonV>, Vec<&PersonV>) = m.people.iter()
+            .partition(|pv| !(matches!(pv.kind, PKind::Villager(_)) && pv.dead));
+        for pv in living.into_iter().chain(graves) {
             match pv.kind {
                 PKind::Villager(_) => {
                     // the dead are graves now: grey, not a living red villager

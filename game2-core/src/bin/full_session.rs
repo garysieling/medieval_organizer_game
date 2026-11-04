@@ -98,7 +98,7 @@ fn main() {
         if tick % 10 == 0 && tick > 0 {
             let target = villagers[(tick / 10) as usize % 5];
             match tick % 30 {
-                0 => { let _r = act_talk(&mut world, player, target); }
+                0 => { let _r = act_talk(&mut world, player, target, tick); }
                 10 => { let r = act_recruit(&mut world, player, org, target); if r.success { println!("  {} recruited to guild", names[(tick/10) as usize % 5]); } }
                 20 => { let _r = act_invest(&mut world, player, 10.0); }
                 _ => {}

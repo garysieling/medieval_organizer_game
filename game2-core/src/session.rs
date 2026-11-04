@@ -265,10 +265,10 @@ const BUILD_SEARCH: i32 = 8;
 const FLU_DAY: u64 = 120;
 
 /// Keyboard shortcut for each action button, in button order (Talk, Recruit,
-/// Invest, Organize, Build). The input loop and the buttons' key hints
+/// Invest, Build). The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [char; 5] = ['T', 'R', 'I', 'O', 'B'];
+const ACTION_KEYS: [char; 4] = ['T', 'R', 'I', 'B'];
 /// Whether action button `i` is shown at all: Recruit only appears once
 /// there's a campaign to recruit into (founded at a house meeting)
 pub fn action_shown(m: &UiModel, i: usize) -> bool {
@@ -276,15 +276,14 @@ pub fn action_shown(m: &UiModel, i: usize) -> bool {
 }
 
 /// The action panel's buttons, in ACTION_KEYS order
-pub const ACTION_LABELS: [&str; 5] = ["Talk", "Recruit", "Invest", "Organize", "Build"];
+pub const ACTION_LABELS: [&str; 4] = ["Talk", "Recruit", "Invest", "Build"];
 /// The action panel's buttons, laid out the same for every player
-pub fn action_buttons() -> [Button; 5] {
+pub fn action_buttons() -> [Button; 4] {
     [
         Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
         Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
         Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
-        Button { label: ACTION_LABELS[3].into(), key: ACTION_KEYS[3], x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (120,100,40) },
-        Button { label: ACTION_LABELS[4].into(), key: ACTION_KEYS[4], x: UI_X as i32 + 10, y: 236, w: 130, h: 36, color: (80,60,120) },
+        Button { label: ACTION_LABELS[3].into(), key: ACTION_KEYS[3], x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (80,60,120) },
     ]
 }
 /// The button a contextual action draws with
@@ -307,6 +306,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // prisoner's petition sits where the seat button would
         CtxAct::Townhall => Button { label: "Demands".into(), key: ' ', x: UI_X as i32 + 146, y: 422, w: 62, h: 16, color: (150, 60, 60) },
         CtxAct::Petition => Button { label: "Petition".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (140, 80, 80) },
+        // Gather sits where Organize used to - the meeting is earned now
+        CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -377,6 +378,9 @@ pub struct Meeting {
     pub talk_id: u64,
     /// The seat that called it - resolution belongs to their org
     pub seat: usize,
+    /// Roles promised for this meeting: (snacks, notes, opener, song,
+    /// closer) - the meeting runs better for each kept
+    pub roles: (bool, bool, bool, bool, bool),
 }
 
 /// The founding call a finished house meeting left with its organizer:
@@ -390,8 +394,14 @@ pub struct Meeting {
 pub struct PendingFounding {
     /// The meeting's talk record - the convo box keeps its tail showing
     pub record: u64,
-    pub vote: crate::game::campaign::IssueVote,
+    /// The founding vote the room can take, if one is on the table - a
+    /// cause already founded leaves no vote, just the next steps
+    pub vote: Option<crate::game::campaign::IssueVote>,
     pub org_name: String,
+    /// Who'd come back for another meeting
+    pub meet_again: Vec<Entity>,
+    /// Whether "take it to the street" is on offer (a cause exists)
+    pub street: bool,
     /// The day the call was left, so an unanswered one can time out
     pub offered_tick: u64,
 }

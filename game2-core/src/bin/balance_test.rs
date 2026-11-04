@@ -115,10 +115,10 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
         return;
     }
     let ready: Vec<usize> = cands.iter().filter(|(_, s)| *s >= RECRUIT_MIN_TRUST).map(|(i, _)| *i).collect();
-    if ready.len() >= 2 && game.action_blocker_at(seat, 3).is_none() {
+    if ready.len() >= 2 && game.meeting.is_none() {
         // a house meeting joins everyone who already trusts you - better
         // value than recruiting them one by one
-        game.command_at(seat, Command::Act(3));
+        game.call_meeting_at(seat);
         return;
     }
     if let Some(&i) = ready.first() {

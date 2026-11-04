@@ -573,3 +573,343 @@ mod tests {
         assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.05).abs() < 1e-6, "plain talk, not a shared meal");
     }
 }
+
+/// How well the organizer knows a person: a ladder you climb by talking
+/// and learning what they care about - stranger, acquaintance, known
+/// (three pieces of their self-interest), follower (a real bond), and
+/// co-leader (a follower who has taken on a commitment).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RelStage {
+    Stranger,
+    Acquaintance,
+    Known,
+    Follower,
+    CoLeader,
+}
+
+/// The bond strength that makes someone a follower: the same trust the
+/// org asks before it counts them
+pub const FOLLOWER_TIE: f32 = crate::sim::community::RECRUIT_MIN_TRUST;
+/// Pieces of a person's self-interest that make them "known" to you
+pub const KNOWN_PIECES: usize = 3;
+
+/// Where `organizer` stands with `who`, read off the world. A stage is
+/// derived, not stored: bonds decay, so a follower who drifts is only a
+/// follower while the tie holds.
+pub fn stage_of(world: &World, organizer: Entity, who: Entity) -> RelStage {
+    use crate::game::relationships::{find_relationship, Relationship};
+    let Some(rel) = find_relationship(world, organizer, who)
+        .and_then(|r| world.get_component::<Relationship>(r))
+        .map(|r| (r.strength, r.interactions)) else { return RelStage::Stranger };
+    if rel.1 == 0 { return RelStage::Stranger; }
+    if rel.0 >= FOLLOWER_TIE {
+        // a follower who's taken on work - an org membership, a campaign
+        // seat, or a promise kept - has stepped up to co-lead
+        let committed = world.query::<Organization>().iter().any(|&o|
+            world.get_component::<Organization>(o)
+                .map(|oo| oo.leader == organizer && oo.members.contains(&who)).unwrap_or(false))
+            || world.get_component::<MeetingPlan>(organizer)
+                .map(|p| p.holders().contains(&who)).unwrap_or(false)
+            || world.query::<crate::game::campaign::Campaign>().iter().any(|&c|
+                world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.seats.iter().any(|s| s.holder == who)).unwrap_or(false));
+        return if committed { RelStage::CoLeader } else { RelStage::Follower };
+    }
+    let pieces = world.get_component::<crate::game::desires::Known>(who)
+        .map(|k| k.revealed.len()).unwrap_or(0);
+    if pieces >= KNOWN_PIECES { RelStage::Known } else { RelStage::Acquaintance }
+}
+
+/// The stage word, for the inspector and the tone of a talk
+pub fn stage_label(s: RelStage) -> &'static str {
+    match s {
+        RelStage::Stranger => "a stranger",
+        RelStage::Acquaintance => "an acquaintance",
+        RelStage::Known => "you know them",
+        RelStage::Follower => "a follower",
+        RelStage::CoLeader => "a co-leader",
+    }
+}
+
+/// What a meeting needs before it can happen, gathered one ask at a
+/// time. A promise lives on the org's plan; the more that come true,
+/// the better the meeting runs.
+#[derive(Debug, Default)]
+pub struct MeetingPlan {
+    /// Who said we could meet at their house, and the house they meant
+    pub venue: Option<(Entity, Entity)>,
+    /// Who said they'd bring something for the table
+    pub snacks: Option<Entity>,
+    /// Who said they'd keep the notes
+    pub notes: Option<Entity>,
+    /// Who said they'd open us with a word
+    pub opener: Option<Entity>,
+    /// Who said they'd give us a song
+    pub song: Option<Entity>,
+    /// Who said they'd close us out
+    pub closer: Option<Entity>,
+    /// Who said they'd come
+    pub coming: Vec<Entity>,
+    /// Who said they'd bring their friends
+    pub spreaders: Vec<Entity>,
+}
+
+impl MeetingPlan {
+    /// Everyone holding a promise on the plan
+    pub fn holders(&self) -> Vec<Entity> {
+        let mut v: Vec<Entity> = [self.venue.map(|(h, _)| h), self.snacks, self.notes,
+            self.opener, self.song, self.closer].into_iter().flatten().collect();
+        v.extend(self.coming.iter().copied());
+        v.extend(self.spreaders.iter().copied());
+        v
+    }
+    /// Promises that make the room warmer: everything past the venue and
+    /// the bare attendance a meeting needs at all
+    pub fn roles_filled(&self) -> usize {
+        [self.snacks, self.notes, self.opener, self.song, self.closer]
+            .iter().filter(|s| s.is_some()).count()
+    }
+    /// Can a meeting be called? A place to sit and someone who'll come
+    pub fn ready(&self) -> bool {
+        self.venue.is_some() && (!self.coming.is_empty() || !self.spreaders.is_empty())
+    }
+    /// What's still missing, for the button's reason
+    pub fn missing(&self) -> &'static str {
+        if self.venue.is_none() { "no place to meet - ask someone for their house" }
+        else { "no one's said they'll come" }
+    }
+}
+
+/// Get the org's meeting plan, making it if needed
+pub fn plan_for<'a>(world: &'a mut World, org: Entity) -> &'a mut MeetingPlan {
+    if world.get_component::<MeetingPlan>(org).is_none() {
+        world.add_component(org, MeetingPlan::default());
+    }
+    world.get_component_mut::<MeetingPlan>(org).unwrap()
+}
+
+/// A proposition the organizer can put to someone mid-talk
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PropKind {
+    /// "Will you come along?"
+    ComeAlong,
+    /// "Could we meet at your house?"
+    LendVenue,
+    /// "Could you bring something for the table?"
+    BringSnacks,
+    /// "Would you keep the notes of what we settle?"
+    TakeNotes,
+    /// "Would you open us with a word?"
+    OpenWithWord,
+    /// "Would you give us a song?"
+    GiveSong,
+    /// "Would you see us out with a word?"
+    CloseOut,
+    /// "Could you bring your friends along?"
+    InviteFriends,
+    /// "Is there someone I should know?"
+    Introduce,
+}
+
+/// The ask as the player sees it in the talk options
+pub fn prop_label(p: PropKind) -> &'static str {
+    match p {
+        PropKind::ComeAlong => "Ask them to come to a meeting",
+        PropKind::LendVenue => "Ask to meet at their house",
+        PropKind::BringSnacks => "Ask them to bring something for the table",
+        PropKind::TakeNotes => "Ask them to keep the notes",
+        PropKind::OpenWithWord => "Ask them to open with a word",
+        PropKind::GiveSong => "Ask them for a song",
+        PropKind::CloseOut => "Ask them to close us out",
+        PropKind::InviteFriends => "Ask them to bring their friends",
+        PropKind::Introduce => "Ask who you should talk to next",
+    }
+}
+
+/// Which asks are on the table: those you haven't already secured, plus
+/// the always-on asks (come along, an introduction). Everything needs at
+/// least one piece of their self-interest heard - you can't put a claim
+/// on a stranger.
+pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKind> {
+    let heard = world.get_component::<crate::game::desires::Known>(person)
+        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    if !heard { return vec![]; }
+    let mut out = vec![PropKind::ComeAlong, PropKind::Introduce];
+    let empty = MeetingPlan::default();
+    let plan = world.get_component::<MeetingPlan>(org).unwrap_or(&empty);
+    let promised = plan.holders().contains(&person);
+    if plan.venue.is_none() && crate::game::household::home_of(world, person).is_some() { out.push(PropKind::LendVenue); }
+    if plan.snacks.is_none() { out.push(PropKind::BringSnacks); }
+    if plan.notes.is_none() { out.push(PropKind::TakeNotes); }
+    if plan.opener.is_none() { out.push(PropKind::OpenWithWord); }
+    if plan.song.is_none() { out.push(PropKind::GiveSong); }
+    if plan.closer.is_none() { out.push(PropKind::CloseOut); }
+    if !plan.spreaders.contains(&person) { out.push(PropKind::InviteFriends); }
+    if promised { out.retain(|p| *p == PropKind::ComeAlong || *p == PropKind::Introduce); }
+    out
+}
+
+/// Whether the ask suits what you know of them: a pious soul opens, a
+/// singer sings, a lonely heart gathers people. `r` is a known piece of
+/// their self-interest.
+fn ask_suits(p: PropKind, r: &crate::game::desires::Reveal) -> bool {
+    use crate::game::desires::{Problem, Reveal, Want};
+    match p {
+        PropKind::OpenWithWord => matches!(r, Reveal::Want(Want::Faith)),
+        PropKind::GiveSong => matches!(r, Reveal::Want(Want::Music | Want::Instrument)),
+        PropKind::InviteFriends => matches!(r, Reveal::Want(Want::Love)),
+        PropKind::BringSnacks => matches!(r, Reveal::Want(Want::GoodFood) | Reveal::Problem(Problem::LongWinter)),
+        PropKind::LendVenue => matches!(r, Reveal::Want(Want::Shelter) | Reveal::Problem(Problem::NoHome)),
+        PropKind::ComeAlong => matches!(r, Reveal::Problem(_) | Reveal::Want(Want::Love)),
+        PropKind::TakeNotes | PropKind::CloseOut | PropKind::Introduce => false,
+    }
+}
+
+/// The chance a proposition lands: the stage they hold with you, lifted
+/// when the ask touches something you know they want, and quietly
+/// helped along by how practiced the organizer is at a 1-1.
+pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind) -> f32 {
+    let stage = stage_of(world, organizer, person);
+    let base = match stage {
+        RelStage::Stranger => 0.05,
+        RelStage::Acquaintance => 0.45,
+        RelStage::Known => 0.65,
+        RelStage::Follower | RelStage::CoLeader => 0.9,
+    };
+    let suited = world.get_component::<crate::game::desires::Known>(person)
+        .map(|k| k.revealed.iter().any(|r| ask_suits(p, r))).unwrap_or(false);
+    let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
+        .map(|o| o.one_on_one).unwrap_or(0.0);
+    (base + if suited { 0.2 } else { 0.0 } + skill * 0.15).min(0.98)
+}
+
+/// Put the proposition: the yes records the promise on the org's plan
+/// (or warms a new contact for Introduce); the no costs a small chill.
+/// `roll` is 0..1. Returns the log line.
+pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity, p: PropKind, name: &str, roll: f32, tick: u64) -> String {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    if yes_chance(world, organizer, person, p) <= roll {
+        record_interaction(world, organizer, Interaction {
+            other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
+        return format!("{} won't hear it - not yet.", name);
+    }
+    // the ask itself is practice at the craft
+    crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
+    let home = if p == PropKind::LendVenue { crate::game::household::home_of(world, person) } else { None };
+    let plan = plan_for(world, org);
+    let msg = match p {
+        PropKind::ComeAlong => {
+            if !plan.coming.contains(&person) { plan.coming.push(person); }
+            format!("{} says they'll come.", name)
+        }
+        PropKind::LendVenue => {
+            if let Some(h) = home { plan.venue = Some((person, h)); }
+            format!("{} says you can meet at their house.", name)
+        }
+        PropKind::BringSnacks => { plan.snacks = Some(person); format!("{} will bring something for the table.", name) }
+        PropKind::TakeNotes => { plan.notes = Some(person); format!("{} will keep the notes.", name) }
+        PropKind::OpenWithWord => { plan.opener = Some(person); format!("{} will open us with a word.", name) }
+        PropKind::GiveSong => { plan.song = Some(person); format!("{} will give us a song.", name) }
+        PropKind::CloseOut => { plan.closer = Some(person); format!("{} will see us out.", name) }
+        PropKind::InviteFriends => {
+            if !plan.spreaders.contains(&person) { plan.spreaders.push(person); }
+            format!("{} will bring their friends.", name)
+        }
+        PropKind::Introduce => return introduce(world, organizer, person, name, tick),
+    };
+    // a yes is a small warmth too
+    record_interaction(world, organizer, Interaction {
+        other: person, kind: InteractionKind::Aid, intensity: 0.2 });
+    msg
+}
+
+/// "Who should I talk to?": the strongest of their bonds that shares
+/// something with them - the same trade, or a trouble you've heard them
+/// voice. The word of a friend opens a door: the named person starts a
+/// little warm to you.
+fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, tick: u64) -> String {
+    use crate::game::relationships::{bonds_of, record_interaction, Interaction, InteractionKind, Relationship};
+    use crate::game::desires::{issue_tag, unrevealed, Known};
+    let voc = world.get_component::<crate::game::vocation::Craft>(person).map(|c| c.vocation);
+    let their_tags: Vec<String> = world.get_component::<Known>(person)
+        .map(|k| k.revealed.iter().map(|r| issue_tag(world, person, r)).collect()).unwrap_or_default();
+    // candidates: who they know, strongest first, sharing something
+    let mut cands: Vec<(f32, Entity)> = bonds_of(world, person).iter().filter_map(|&r| {
+        let rel = world.get_component::<Relationship>(r)?;
+        let other = if rel.from == person { rel.other } else { rel.from };
+        if other == organizer || crate::game::villager::is_dead(world, other) { return None; }
+        let same_trade = voc.is_some() && world.get_component::<crate::game::vocation::Craft>(other)
+            .map(|c| Some(c.vocation) == voc).unwrap_or(false);
+        let mut their_reveals = world.get_component::<Known>(other)
+            .map(|k| k.revealed.clone()).unwrap_or_default();
+        their_reveals.extend(unrevealed(world, other, tick));
+        let shared_trouble = their_reveals.iter()
+            .any(|r| their_tags.contains(&issue_tag(world, other, r)));
+        (same_trade || shared_trouble).then_some((rel.strength, other))
+    }).collect();
+    cands.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    match cands.first() {
+        Some(&(_, friend)) => {
+            // a friend's word opens a door: a little warmth to start on
+            record_interaction(world, organizer, Interaction {
+                other: friend, kind: InteractionKind::Conversation, intensity: 0.6 });
+            format!("{} names a friend - someone you should know. A word from {} opens the door.", name, name)
+        }
+        None => format!("{} can't think of anyone to send you to.", name),
+    }
+}
+
+/// Sick guests stay home
+fn is_sick_guest(world: &World, guest: Entity) -> bool {
+    world.query::<crate::sim::illness::Disease>().iter().any(|&d|
+        world.get_component::<crate::sim::illness::Disease>(d)
+            .map(|dd| dd.patient == guest && !matches!(dd.stage, crate::sim::illness::Stage::Recovering | crate::sim::illness::Stage::Latent))
+            .unwrap_or(false))
+}
+
+/// Whether an invited guest shows: the base rate is a coin's toss -
+/// sickness and distance keep folk home, a personal yes and a friend
+/// pulling for them bring them out. The dead and the held never come.
+pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i32), promised: bool, roll: f32) -> bool {
+    use crate::game::relationships::{find_relationship, Relationship};
+    if crate::game::dungeon::unavailable(world, guest) || is_sick_guest(world, guest) { return false; }
+    let mut p = if promised { 0.8 } else { 0.5 };
+    if let Some(r) = find_relationship(world, organizer, guest)
+        .and_then(|r| world.get_component::<Relationship>(r)) {
+        p += r.strength.max(0.0) / 4.0;
+    }
+    if let Some(pos) = world.get_component::<crate::game::villager::Pos>(guest) {
+        let d = ((pos.x - venue.0 as f32).powi(2) + (pos.y - venue.1 as f32).powi(2)).sqrt();
+        if d > 20.0 { p *= 0.5; } else if d > 10.0 { p *= 0.8; }
+    }
+    let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
+        .map(|o| o.turnout).unwrap_or(0.0);
+    roll < (p + skill * 0.1).min(0.98)
+}
+
+/// Who a spreader brings: their strongest living bonds, strongest first
+pub fn friends_of(world: &World, spreader: Entity, n: usize) -> Vec<Entity> {
+    use crate::game::relationships::{bonds_of, Relationship};
+    let mut out: Vec<(f32, Entity)> = bonds_of(world, spreader).iter().filter_map(|&r| {
+        let rel = world.get_component::<Relationship>(r)?;
+        let other = if rel.from == spreader { rel.other } else { rel.from };
+        (!crate::game::villager::is_dead(world, other)).then_some((rel.strength, other))
+    }).collect();
+    out.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    out.into_iter().take(n).map(|(_, e)| e).collect()
+}
+
+/// Who stands over an issue - the target a cut issue can name. The
+/// commons' hurts (the taxes, the writs, the death duty) point at the
+/// Reeve; the overseers' cut points at whoever holds the posting; a
+/// hurt nobody stands over is for the village to mend itself.
+pub fn target_for(world: &World, tag: &crate::game::desires::IssueTag, collector: Option<Entity>) -> Option<Entity> {
+    let base = tag.split_once(" (").map(|(b, _)| b).unwrap_or(tag.as_str());
+    match base {
+        "the taxes" | "the bailiff's writ" | "the death duty" => collector,
+        "the overseers' cut" => world.query::<crate::game::vocation::TownRole>().iter().copied()
+            .find(|&e| world.get_component::<crate::game::vocation::TownRole>(e)
+                .map(|r| *r == crate::game::vocation::TownRole::Overseer).unwrap_or(false)),
+        _ => None,
+    }
+}

@@ -28,7 +28,7 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
             // trust decays a little every day - a meeting a fortnight
             // apart won't climb past it unless the talking keeps up
             game.act(0);
-            game.act(3);
+            game.call_meeting();
             finish_meeting(&mut game);
         }
         // he may have died mid-courtship - the years this takes carry

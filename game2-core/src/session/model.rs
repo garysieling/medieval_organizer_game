@@ -133,7 +133,7 @@ pub struct PanelV {
     pub campaign: Option<CampaignV>,
 }
 
-/// Which of the five action buttons is blocked and why
+/// Which of the four action buttons is blocked and why
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Selection {
     pub target: usize,
@@ -234,7 +234,7 @@ pub struct UiModel {
     /// Whom Talk/Recruit would go to now (a villager index)
     pub reach_target: usize,
     /// Disabled reason per action button
-    pub blocked: [Option<String>; 5],
+    pub blocked: [Option<String>; 4],
     pub ctx: Vec<CtxAct>,
     /// Disabled reason per ctx button, same index order as `ctx`
     pub ctx_blocked: Vec<Option<String>>,

@@ -171,7 +171,7 @@ fn test_a_house_meeting_is_kept_on_the_talk_panel() {
     for (i, v) in g.villagers.clone().into_iter().enumerate() {
         if i != 1 && i != 2 { *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
     }
-    g.act(3);
+    g.call_meeting();
     for _ in 0..crate::session::FPS * 60 { if g.meeting.is_none() { break; } g.update(); }
     assert!(g.meeting.is_none(), "the meeting ran its course");
     let r = g.talk_log.iter().rev().find(|r| r.kind == TalkKind::Meeting).expect("a meeting on the record");
@@ -246,7 +246,7 @@ fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    let msg = g.resolve_meeting(&came, 0, id);
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     // the room leans, but nothing is founded until the organizer says so
     assert!(g.seats[0].pending_founding.is_some(), "{}", msg);
     assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
@@ -290,7 +290,7 @@ fn test_deciding_founds_the_campaign_on_the_picked_framing() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     g.decide_at(0, 1); // take it on, naming the foe
     let c = crate::game::campaign::campaign_of(&g.world, g.org).expect("the campaign founded");
     let cp = g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap();

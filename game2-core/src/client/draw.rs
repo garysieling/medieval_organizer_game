@@ -482,10 +482,9 @@ pub(crate) fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8,
     buf.rect(x, y, w, h, r, g, b);
 }
 
-pub(crate) const TOOLTIPS: [&str; 5] = [
+pub(crate) const TOOLTIPS: [&str; 4] = [
     "talk to someone nearby",
     "recruit villager to your org",
     "spend gold for influence",
-    "call a house meeting",
     "commission a new house",
 ];

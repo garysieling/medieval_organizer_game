@@ -96,6 +96,8 @@ pub struct PlayerTalk {
     pub since: u64,
     /// Narration after the gist ("You talk the helplessness out of them.")
     pub notes: Vec<String>,
+    /// Propositions on offer after the replies (self-interest known)
+    pub asks: Vec<crate::game::organizing::PropKind>,
 }
 
 /// The village dialogue library, built once
@@ -295,7 +297,16 @@ impl Game {
     pub fn open_player_talk(&mut self, seat: usize, v: Entity, rel: Relation, gist: &str) {
         let pe = self.seats[seat].player;
         let name = self.name_of(v);
-        let villager = speaker_of(&self.world, v, &name, self.tick);
+        let mut villager = speaker_of(&self.world, v, &name, self.tick);
+        // how well they know you colours the talk - the trees key on the
+        // stage as a status fact
+        match crate::game::organizing::stage_of(&self.world, pe, v) {
+            crate::game::organizing::RelStage::Known => villager.status.push("known"),
+            crate::game::organizing::RelStage::Follower => villager.status.push("follower"),
+            crate::game::organizing::RelStage::CoLeader => villager.status.push("coleader"),
+            _ => {}
+        }
+        let asks = crate::game::organizing::props_on_offer(&self.world, self.seats[seat].org, v);
         let pname = self.world.get_component::<crate::game::player::PlayerCharacter>(pe)
             .map(|p| p.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| "friend".into());
         // spoken to, "The Wanderer" is "wanderer": "A peaceful day to thee, wanderer."
@@ -306,7 +317,7 @@ impl Game {
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         self.seats[seat].talk = Some(PlayerTalk {
             id, who: v, villager, player, rel, seed, picks: vec![], gist: gist.to_string(),
-            options: vec![], since: self.tick, notes: vec![],
+            options: vec![], since: self.tick, notes: vec![], asks,
         });
         self.refresh_player_talk(seat);
     }
@@ -373,10 +384,23 @@ impl Game {
     pub fn talk_pick_at(&mut self, seat: usize, pick: Option<usize>) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
         let (who, n) = (t.who, t.options.len());
-        let Some(i) = pick.filter(|&i| i < n) else {
+        let Some(i) = pick.filter(|&i| i < n + t.asks.len()) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
+        // a pick past the replies is a proposition: the ask lands or it
+        // doesn't, and the word of it goes on the record
+        if i >= n {
+            let p = t.asks[i - n];
+            let (pe, oe, name) = (self.seats[seat].player, self.seats[seat].org, t.villager.name.clone());
+            let roll = (self.rng.next() % 1000) as f32 / 1000.0;
+            let msg = crate::game::organizing::propose(&mut self.world, pe, oe, who, p, &name, roll, self.tick);
+            self.say(who, &msg, 5);
+            self.narrate_talk(seat, &msg);
+            self.seats[seat].talk.as_mut().unwrap().asks.retain(|a| *a != p);
+            self.refresh_player_talk(seat);
+            return;
+        }
         let act = t.options[i].0;
         let pe = self.seats[seat].player;
         // how you answer them counts for a little either way
@@ -436,7 +460,8 @@ impl Game {
         }
         let in_talk = matches!(&s.talk, Some(t) if shown.contains(&t.id));
         let options = match &s.talk {
-            Some(t) if in_talk => t.options.iter().map(|o| o.1.clone()).collect(),
+            Some(t) if in_talk => t.options.iter().map(|o| o.1.clone())
+                .chain(t.asks.iter().map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
@@ -464,20 +489,29 @@ impl Game {
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
         if let Some(d) = &s.pending_founding {
-            let issue = crate::game::desires::issue_name(d.vote.winner.clone());
             let mut rows = self.record_rows(seat, d.record);
-            rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
-                text: format!("The room leans to {} - your call.", issue) });
+            let (lean, options) = match &d.vote {
+                Some(v) => {
+                    let issue = crate::game::desires::issue_name(v.winner.clone());
+                    (format!("The room leans to {} - your call.", issue), vec![
+                        format!("Take it on, {} - a burden shared", issue),
+                        format!("Take it on, {} - and name the foe", issue),
+                        format!("Take it on, {} - a duty the village owes", issue),
+                        "Let it rest - keep talking".into(),
+                    ])
+                }
+                None => {
+                    let mut opts = vec![];
+                    if !d.meet_again.is_empty() { opts.push("Meet again - they'll come back".into()); }
+                    if d.street { opts.push("Take it to the street - show the numbers".into()); }
+                    opts.push("Let it rest - keep talking".into());
+                    ("They'd gather again - or take it further. Your call.".to_string(), opts)
+                }
+            };
+            rows.push(TalkRowV { name: None, gist: true, you: false, rule: false, who: None, text: lean });
             return Some(ConvoPanelV {
                 title: format!("{} - YOUR CALL", d.org_name.to_uppercase()),
-                rows,
-                options: vec![
-                    format!("Take it on, {} - a burden shared", issue),
-                    format!("Take it on, {} - and name the foe", issue),
-                    format!("Take it on, {} - a duty the village owes", issue),
-                    "Let it rest - keep talking".into(),
-                ],
-                decides: true, leave: false });
+                rows, options, decides: true, leave: false });
         }
         if let Some(m) = &self.meeting {
             if m.seat == seat {
@@ -495,7 +529,8 @@ impl Game {
             return Some(ConvoPanelV {
                 title: format!("TALK - {}", t.villager.name.to_uppercase()),
                 rows: self.record_rows(seat, t.id),
-                options: t.options.iter().map(|o| o.1.clone()).collect(),
+                options: t.options.iter().map(|o| o.1.clone())
+                    .chain(t.asks.iter().map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
                 decides: false, leave: true });
         }
         None

@@ -178,9 +178,11 @@ fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
                     let slot = Slot(Arc::clone(&open));
                     stream.set_nonblocking(false).ok();
                     stream.set_nodelay(true).ok();
-                    // reads time out, so a silent socket can't hold its
-                    // thread past the hello deadline or a stop
-                    stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
+                    // the handshake gets the whole hello deadline as its read
+                    // timeout (a short one reads as a failed handshake on
+                    // Windows, where a timed-out read is TimedOut, not
+                    // WouldBlock); accept_ws shortens it after
+                    stream.set_read_timeout(Some(HELLO_WITHIN)).ok();
                     let handle = Arc::clone(&handle);
                     std::thread::spawn(move || { handle(stream); drop(slot); });
                 }
@@ -190,20 +192,24 @@ fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
     })
 }
 
-/// The WebSocket handshake, polled against the hello deadline and `stop`
+/// The WebSocket handshake, within the hello deadline (the socket's read
+/// timeout). After it, reads poll on a short timeout, so the Hello wait and
+/// the command loop can check the deadline and `stop` between them.
 fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSocket<TcpStream>> {
     let until = Instant::now() + HELLO_WITHIN;
     let mut hs = tungstenite::accept(stream);
-    loop {
+    let ws = loop {
         match hs {
-            Ok(ws) => return Some(ws),
+            Ok(ws) => break ws,
             Err(tungstenite::HandshakeError::Interrupted(mid)) => {
                 if stop.load(Ordering::Relaxed) || Instant::now() > until { return None; }
                 hs = mid.handshake();
             }
             Err(tungstenite::HandshakeError::Failure(_)) => return None,
         }
-    }
+    };
+    ws.get_ref().set_read_timeout(Some(Duration::from_millis(100))).ok();
+    Some(ws)
 }
 
 /// A read that timed out (nothing yet), as opposed to one that failed

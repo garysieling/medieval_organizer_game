@@ -168,6 +168,32 @@ fn a_stopped_server_lets_go_of_its_ports_even_with_a_silent_socket_open() {
 }
 
 #[test]
+fn a_slow_handshake_still_gets_in() {
+    // a client that pauses mid-handshake (over the server's poll interval)
+    // is still let in, well inside the hello deadline
+    use std::io::Write;
+    let server = start(None);
+    let mut tcp = TcpStream::connect(server.addr).unwrap();
+    let req = format!("GET / HTTP/1.1
+Host: {}
+Upgrade: websocket
+Connection: Upgrade
+", server.addr);
+    tcp.write_all(req.as_bytes()).unwrap();
+    std::thread::sleep(Duration::from_millis(400)); // the pause
+    tcp.write_all(b"Sec-WebSocket-Version: 13
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+
+").unwrap();
+    tcp.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let mut buf = [0u8; 256];
+    let n = std::io::Read::read(&mut tcp, &mut buf).unwrap_or(0);
+    let reply = String::from_utf8_lossy(&buf[..n]);
+    assert!(reply.starts_with("HTTP/1.1 101"), "the slow client was turned away: {reply:?}");
+    server.stop();
+}
+
+#[test]
 fn a_failed_bind_leaves_nothing_running() {
     // a free port for the game, and the probe's port already taken
     let game_port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();

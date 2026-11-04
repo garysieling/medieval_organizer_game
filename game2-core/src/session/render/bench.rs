@@ -121,7 +121,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
         println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
     }
-    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|market|bridge`,
+    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|town|castle|market|bridge`,
     // or a workplace's look: tavern|bakery|workshop|fold|apiary|cheese|granary|watch), for props
     // and buildings: the first of each, a tree in a wood rather than a
     // lone one
@@ -138,6 +138,9 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         Some("guildhall") => m.buildings.iter().find(|b| b.sprite == BSprite::Guildhall).map(|b| (b.x, b.y)),
         Some("rivals") => m.buildings.iter().find(|b| b.sprite == BSprite::RivalHouse).map(|b| (b.x, b.y)),
         Some("mill") => m.mill,
+        // the country's first town or castle
+        Some("town") => m.map.towns.first().map(|&(x, y, _)| (x as f32, y as f32)),
+        Some("castle") => m.map.castles.first().map(|&(x, y, _)| (x as f32, y as f32)),
         Some("market") => m.market,
         Some("bridge") => m.map.bridges().next().map(|(x, y)| (x as f32, y as f32)),
         // a workplace by its look: tavern, bakery, workshop, fold, apiary...

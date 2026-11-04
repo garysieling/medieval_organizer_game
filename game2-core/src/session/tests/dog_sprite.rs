@@ -226,7 +226,8 @@ fn test_workplaces_wear_their_own_look() {
     let looks: Vec<WorkLook> = g.buildings.iter().filter_map(|b| match b.2 { BSprite::Work(w, _) => Some(w), _ => None }).collect();
     assert!(looks.contains(&WorkLook::Tavern), "the taverner's house is a tavern: {:?}", looks);
     assert!(looks.contains(&WorkLook::Fold) && looks.contains(&WorkLook::Apiary), "{:?}", looks);
-    for (i, &e) in g.building_entities.iter().enumerate() {
+    // (the country's homes get entities past the map's own buildings)
+    for (i, &e) in g.building_entities.iter().enumerate().take(g.buildings.len()) {
         let kind = g.world.get_component::<Building>(e).unwrap().kind;
         if kind == BuildingKind::Home { assert!(!matches!(g.buildings[i].2, BSprite::Work(..)), "a home wears a cottage"); }
     }

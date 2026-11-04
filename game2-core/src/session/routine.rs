@@ -14,7 +14,7 @@ use super::*;
 /// One day in seven is the holy day: no work, and the faithful gather
 pub const HOLY_EVERY: u64 = 7;
 /// Market day, once a month (the org's market_day pays out the same day)
-const MARKET_DAY: u64 = 20;
+pub(super) const MARKET_DAY: u64 = 20;
 /// How far a free day's stroll reaches from where they stand
 const STROLL_REACH: i32 = 14;
 /// Farther than this from the anchor and they walk back on a path
@@ -166,7 +166,7 @@ impl Game {
         self.world.get_component::<Pos>(v).map(|p| (p.x.round() as i32, p.y.round() as i32))
     }
 
-    fn set_routine(&mut self, v: Entity, r: Routine) {
+    pub(super) fn set_routine(&mut self, v: Entity, r: Routine) {
         if self.world.get_component::<Routine>(v).is_some() {
             *self.world.get_component_mut::<Routine>(v).unwrap() = r;
         } else {
@@ -647,10 +647,16 @@ mod tests {
         let stalls = g.stalls_standing();
         assert!(sellers > 0, "someone sells on market day");
         assert!(!stalls.is_empty(), "the sellers who reached their pitch get a stall ({} selling)", sellers);
-        // each stall stands between its seller and the square, within reach of the cross
+        // each stall stands just in front of a seller's pitch, on the side
+        // facing the square
         let mp = *g.world.get_component::<Pos>(g.market_food).unwrap();
+        let d = |a: (f32, f32), b: (f32, f32)| ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt();
         for &(x, y, _) in &stalls {
-            assert!((x - mp.x).abs() + (y - mp.y).abs() < 5.0, "stall at ({:.1},{:.1}) is off the square", x, y);
+            let pitch = g.villagers.iter().filter_map(|&v| g.world.get_component::<Routine>(v))
+                .filter(|r| r.mode == Mode::Selling && r.day == MARKET_DAY)
+                .map(|r| r.anchor).find(|&a| (d(a, (x, y)) - 0.6).abs() < 0.01);
+            let Some(a) = pitch else { panic!("stall at ({:.1},{:.1}) isn't at a seller's pitch", x, y) };
+            assert!(d((x, y), (mp.x, mp.y)) < d(a, (mp.x, mp.y)), "stall at ({:.1},{:.1}) faces away from the square", x, y);
         }
     }
 

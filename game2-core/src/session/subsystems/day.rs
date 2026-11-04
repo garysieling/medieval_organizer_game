@@ -6,6 +6,20 @@ impl Game {
     /// The town's business each day: work, errands, the tax round, the
     /// trader's restock, the odd minstrel, a tune in the street
     pub fn livelihood_tick(&mut self, tick: u64) {
+        // an organizer's founding call that goes unanswered too long lapses
+        // on its own, same as "let it rest" - otherwise a seat with no
+        // control wired to Command::Decide (the browser canvas shim has
+        // none yet) would hold the whole game at half pace forever
+        for seat in 0..self.seats.len() {
+            let stale = self.seats[seat].pending_founding.as_ref()
+                .map(|d| tick.saturating_sub(d.offered_tick) >= FOUNDING_OFFER_EXPIRY_DAYS)
+                .unwrap_or(false);
+            if stale {
+                let d = self.seats[seat].pending_founding.take().unwrap();
+                self.log.push(format!("t{}: the talk stays talk for now - no cause taken up.", tick));
+                self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+            }
+        }
         // the felt worths slide a little back toward ordinary each day
         goods::drift(&mut self.world);
         // market day, once a month: the org's members sell their work and
@@ -197,6 +211,8 @@ impl Game {
         // and the marks a cause leaves fade on their own clock
         crate::timed!("sim.marks", self.marks_tick(tick));
         let mut rng = Rng(self.rng.next());
+        // the country's carts and stewards, and its granaries
+        self.country_tick(tick);
         // the holy day calls the faithful before anyone's planned the rest
         self.routine_dawn(tick, &mut rng);
         let villagers = self.villagers.clone();
@@ -213,16 +229,26 @@ impl Game {
                 // an exile walks on, belly and all - the road's the
                 // only errand his sentence leaves him
                 if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile)) {
-                    let at_store = self.world.get_component::<Pos>(self.market_food)
+                    let at_store = self.world.get_component::<Pos>(self.store_of(v))
                         .zip(self.world.get_component::<Pos>(v))
                         .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
                         .unwrap_or(false);
                     if at_store { self.arrive(v, Goal::Eat); }
-                    else { self.send(v, Goal::Eat); }
+                    else if !self.send(v, Goal::Eat) && self.site_of(v).is_some() {
+                        // out on the country's roads: the nearest granary
+                        // with food in it, however far
+                        let sp = self.world.get_component::<Pos>(self.store_of(v)).copied();
+                        if let Some(d) = sp.and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) {
+                            self.send_far(v, d, Goal::Eat);
+                        }
+                    }
                 }
                 continue;
             }
             if self.travels.iter().any(|t| t.who == v) { continue; }
+            // a carter at the market, a steward on the road: the country's
+            // business has them
+            if self.is_away(v) { continue; }
             // today's rite or feast already has them
             let gathered = self.world.get_component::<routine::Routine>(v)
                 .map(|r| r.day == tick && matches!(r.mode, routine::Mode::Worshipping | routine::Mode::Feasting))

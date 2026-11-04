@@ -496,6 +496,8 @@ impl Game {
         let gathered: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| !villager::is_dead(&self.world, v)
                 && self.world.get_component::<TownRole>(v).is_none()
+                // the village's feast: the country keeps its own
+                && self.site_of(v).is_none()
                 && !self.shunned(v))
             .collect();
         // everyone comes to market for the day, in a ring round the cross

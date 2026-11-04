@@ -52,6 +52,12 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - Routine-steered villagers carry `villager::Steered`, which turns off `SeekFoodSystem`'s blind idle drift (it hopped folk into houses).
 - Tests that teleport a villager somewhere must also give them a plan there (e.g. `plan_visit`), or they'll walk back to today's.
 
+## The Country and the Town Plan (`session/country.rs`)
+- Each seed places two market towns (lowland) and two castles (high ground) via `country::plan_country`, on its own Rng stream (`seed ^ 0x5173_C0DE`) so the village's vocation rolls don't move. Sites keep clear of the river line, each other and the village, on dry land that walks back to it.
+- `settle_country` runs after the `Game` is built: a granary (FoodSource) and Home buildings per site (appended to `building_entities`, drawn as `map.settlement_houses` / keeps), and 8 country folk appended to `villagers` after the fixed 31 (they carry `country::Outlander`). Towns hold farmers; castles a knight lord plus a chaplain or second knight.
+- Country folk eat at their own granary (`store_of`), are pulled to their own ground, sit out the village feast, and aren't on the collector's roll. A town's carrier carts its wheat to the village market timed for market day, sells from the satchel for a couple of days, then walks home; a castle's steward rides to the nearest town for provisions every 20 days (`Goal::Cart/Levy/Deliver`, long walks via `send_far`).
+- The village itself: streets every 4th row/column through the market cross (`town_streets`, paved by `Layout::streets` before anything's built), the square left open, the church on its north side (`CHURCH_TILE`). Workshops take the street-fronting plots nearest the square (`town_plots`, first `TRADE_PLOTS`), homes spread over the outer ring. Farmers/herders prefer homes outside the wall, the gentry inside (`country::prefers_outside`).
+
 ## Art Pipeline (Retro Diffusion)
 - Full recipe: `assets/rd/README.md`. Pick from `art-prompts/prompts.md` -> `scripts/rd_generate.py <id>` (use `--dry-run` first; `--max-usd` guard defaults to $2) -> `scripts/rd_slice.py` -> wire into `Art::load` with a fallback -> verify with `game_ui --dump-frame N --zoom 2 --focus <kind>`.
 - API token: `$RETRODIFFUSION_API_KEY` or `~/.config/retrodiffusion/token`. Never commit it.

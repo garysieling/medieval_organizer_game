@@ -367,7 +367,8 @@ fn generated_country_has_repeatable_connected_satellite_sites() {
     assert_eq!(game.map.castles.len(), 2, "two satellite castles plus the main walled seat");
     assert_eq!(game.map.castle_keeps.len(), 2);
     assert_eq!(game.map.towns.len() + 2, 4, "main and rival towns plus two satellites");
-    assert_eq!(game.map.settlement_houses.len(), 10);
+    // five to seven houses round each town's green
+    assert!((10..=14).contains(&game.map.settlement_houses.len()), "{} town houses", game.map.settlement_houses.len());
     assert_eq!(game.map.castles, replay.map.castles);
     assert_eq!(game.map.towns, replay.map.towns);
     assert_eq!(game.map.settlement_houses, replay.map.settlement_houses);
@@ -387,7 +388,7 @@ fn generated_country_has_repeatable_connected_satellite_sites() {
     }
     let model = game.ui_model();
     assert_eq!(model.castle_keeps.len(), 2, "castle keeps render in their courtyards");
-    assert_eq!(model.settlement_houses.len(), 10, "remote towns render as map scenery");
+    assert_eq!(model.settlement_houses.len(), game.map.settlement_houses.len(), "remote towns render as map scenery");
     assert_eq!(game.guards.len(), 4, "the village watch is posted only at the main gates");
     for seed in [0, 1, 42, 9999] {
         let sample = Game::new_seeded(seed);

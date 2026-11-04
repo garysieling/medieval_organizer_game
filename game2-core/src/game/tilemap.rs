@@ -86,6 +86,9 @@ pub struct Layout {
     /// Decorative satellite houses (the simulation remains focused on the
     /// main village); each site is occupied and connected to the roads.
     pub settlement_houses: Vec<(i32, i32)>,
+    /// The town's streets and square, paved before anything is built so
+    /// the houses take the plots between them
+    pub streets: Vec<(i32, i32)>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -240,6 +243,7 @@ impl TileMap {
             if map.get(x, y) == Some(Tile::Grass) { map.set(x, y, crop); }
         }
         if let Some(rect) = layout.town_wall { map.build_wall(rect); }
+        for &(x, y) in &layout.streets { map.pave(x, y); }
         for &(cx, cy, r) in &layout.castles { map.build_wall((cx - r, cy - r, cx + r, cy + r)); }
         for &(x, y, _) in &layout.castles { map.occupy(x, y); }
         for &(x, y) in &layout.buildings {

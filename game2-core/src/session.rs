@@ -10,6 +10,7 @@ pub mod probe;
 pub mod stage;
 pub mod dialogue;
 pub mod routine;
+pub mod country;
 pub mod render;
 pub mod kpi;
 pub mod seat;
@@ -262,6 +263,47 @@ const INVEST_GOLD: f32 = 10.0;
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
 const MILL_TILE: (f32, f32) = (10.0, 9.0);
+/// The church: on the market square's north side, facing the cross
+const CHURCH_TILE: (i32, i32) = (16, 13);
+/// Every fourth row and column through the market is a street: blocks
+/// three plots deep, the houses fronting the street and a yard behind
+const STREET_EVERY: i32 = 4;
+/// The market square: open ground this far round the cross
+const SQUARE_R: i32 = 2;
+/// The plots nearest the square kept for the workshops
+const TRADE_PLOTS: usize = 26;
+
+/// The town's streets inside the wall: a grid through the market cross,
+/// every fourth row and column - the church and the mill keep their own
+/// tiles (the square round the cross is left open green, see town_plots)
+fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
+    let (hx, hy) = (16, 16);
+    let mut out = vec![];
+    for y in wall.1 + 1..wall.3 {
+        for x in wall.0 + 1..wall.2 {
+            let on_grid = (x - hx).rem_euclid(STREET_EVERY) == 0 || (y - hy).rem_euclid(STREET_EVERY) == 0;
+            if on_grid && (x, y) != CHURCH_TILE
+                && (x, y) != (MILL_TILE.0 as i32, MILL_TILE.1 as i32) {
+                out.push((x, y));
+            }
+        }
+    }
+    out
+}
+
+/// The building plots inside the wall: open cells fronting a street (the
+/// block's inner cells stay yards), nearest the market square first
+fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
+    let (hx, hy) = (16, 16);
+    let mut plots: Vec<(i32, i32)> = (wall.1 + 1..wall.3).flat_map(|y| (wall.0 + 1..wall.2).map(move |x| (x, y)))
+        .filter(|&(x, y)| map.buildable(x, y)
+            // the market square stays open: the stalls and the crowd's
+            && ((x - hx).abs() > SQUARE_R || (y - hy).abs() > SQUARE_R)
+            && NEIGHBOURS.iter().any(|(dx, dy)| map.get(x + dx, y + dy) == Some(Tile::Road)))
+        .collect();
+    plots.sort_by_key(|&(x, y)| ((x - hx).abs().max((y - hy).abs()), (x - hx).abs() + (y - hy).abs(), y, x));
+    plots
+}
 /// Frames drawn per second
 pub const FPS: u32 = 60;
 /// How long a reply to Talk, and a remark in passing, stay up (seconds)
@@ -455,13 +497,21 @@ pub struct Meeting {
 /// the vote the room took (kept for the stakes - grumbles get re-read
 /// against whichever framing the organizer picks), the record it was
 /// said on, and the org's name. Held on the calling seat until they
-/// answer it (Command::Decide) or their next meeting's offer supersedes it
+/// answer it (Command::Decide), their next meeting's offer supersedes
+/// it, or it lapses unanswered after FOUNDING_OFFER_EXPIRY_DAYS - a
+/// client with no control wired to Decide (the browser's canvas shim)
+/// would otherwise leave every seat at half pace (see ticks_per_frame) forever
 pub struct PendingFounding {
     /// The meeting's talk record - the convo box keeps its tail showing
     pub record: u64,
     pub vote: crate::game::campaign::IssueVote,
     pub org_name: String,
+    /// The day the call was left, so an unanswered one can time out
+    pub offered_tick: u64,
 }
+/// How long an organizer's call goes unanswered before it lapses on its
+/// own, same as if they'd let it rest
+const FOUNDING_OFFER_EXPIRY_DAYS: u64 = 7;
 /// How fast people walk to a meeting (tiles a frame), how long the host
 /// waits for them, and how long each turn to speak lasts
 const MEETING_WALK: f32 = 2.5 / FPS as f32;
@@ -542,6 +592,12 @@ pub enum Goal {
     /// An agent asked their villager to eat at the market store - arrival
     /// takes a real serving, not just a stand nearby
     Eat,
+    /// A town's cart on the road to the village market (site index)
+    Cart(usize),
+    /// A castle's steward riding to a town's granary (castle, town)
+    Levy(usize, usize),
+    /// The steward back up to the castle with the provisions
+    Deliver(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -967,6 +1023,8 @@ pub struct Game {
     /// The events' own rng stream - scheduling rolls off it, never off
     /// `rng`, so the events don't shift what the village would have rolled
     pub rare_seed: u64,
+    /// The country's towns and castles, and who keeps each
+    pub sites: Vec<country::Site>,
     /// The wood's own rng stream - visions, dark turns and the fire's
     /// blame roll off it, never off `rng`, so the wood doesn't shift
     /// what the village would have rolled either
@@ -1140,6 +1198,10 @@ impl Game {
         // where everyone stood, so no one ends the frame inside a wall or a house
         let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
         let stood: Vec<Option<Pos>> = people.iter().map(|e| self.world.get_component::<Pos>(*e).copied()).collect();
+        // the country's folk keep to their own granary and their own
+        // ground (a carter at the market eats there): None for the village's
+        let country_homes: Vec<Option<(Entity, Option<(f32, f32)>)>> = self.villagers.iter().map(|&v|
+            self.site_of(v).map(|_| (self.store_of(v), self.home_ground(v)))).collect();
         let Game { world, villagers, log, toasts, .. } = self;
         let tick = self.tick;
         // weather: log when rain or snow starts and stops; a rainbow follows rain
@@ -1219,16 +1281,18 @@ impl Game {
             // our own store keeps them home: while it still serves, no one
             // should be setting off for the rivals' granary just because
             // wandering took them far enough east that it was the nearer one
-            let market_has = world.get_component::<villager::FoodSource>(self.market_food)
-                .map(|f| f.servings > 0).unwrap_or(false);
-            for v in villagers.iter() {
+            for (vi, v) in villagers.iter().enumerate() {
                 if crate::game::dungeon::unavailable(world, *v) { continue; }
+                let (store, village_home) = country_homes.get(vi).copied().flatten()
+                    .unwrap_or((self.market_food, village_home));
+                let market_has = world.get_component::<villager::FoodSource>(store)
+                    .map(|f| f.servings > 0).unwrap_or(false);
                 let vdata = world.get_component::<Villager>(*v);
                 let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
                 let target_food = vdata.and_then(|x| x.target_food);
-                if seeking && market_has && target_food != Some(self.market_food) {
+                if seeking && market_has && target_food != Some(store) {
                     if let Some(vill) = world.get_component_mut::<Villager>(*v) {
-                        vill.target_food = Some(self.market_food);
+                        vill.target_food = Some(store);
                     }
                 }
                 // a seeking villager heads for the food source SeekFoodSystem

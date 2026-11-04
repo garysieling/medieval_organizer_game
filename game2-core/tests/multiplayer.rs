@@ -194,6 +194,22 @@ fn a_slow_handshake_still_gets_in() {
 }
 
 #[test]
+fn a_browser_with_a_big_cookie_gets_in() {
+    // upgrade headers well past 8 KB (a browser's cookies ride along)
+    use std::io::Write;
+    let server = start(None);
+    let mut tcp = TcpStream::connect(server.addr).unwrap();
+    let cookie = "x".repeat(20 * 1024);
+    let req = format!("GET / HTTP/1.1\r\nHost: {}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nCookie: c={cookie}\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n", server.addr);
+    tcp.write_all(req.as_bytes()).unwrap();
+    tcp.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let mut buf = [0u8; 256];
+    let n = std::io::Read::read(&mut tcp, &mut buf).unwrap_or(0);
+    assert!(String::from_utf8_lossy(&buf[..n]).starts_with("HTTP/1.1 101"), "a 20 KB upgrade request was turned away");
+    server.stop();
+}
+
+#[test]
 fn a_failed_bind_leaves_nothing_running() {
     // a free port for the game, and the probe's port already taken
     let game_port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();

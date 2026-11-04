@@ -35,6 +35,9 @@ const HELLO_WITHIN: Duration = Duration::from_secs(10);
 /// How often a waiting connection looks up from its socket (for the
 /// deadline and a stop)
 const POLL: Duration = Duration::from_millis(100);
+/// The longest upgrade request let in (headers and all): a browser's cookies
+/// ride along, so this is generous
+const MAX_UPGRADE_REQUEST: usize = 64 * 1024;
 
 /// How a server runs
 #[derive(Debug, Clone)]
@@ -201,7 +204,9 @@ fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
 /// a silent one is let go on a stop.
 fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSocket<TcpStream>> {
     let until = Instant::now() + HELLO_WITHIN;
-    let mut buf = [0u8; 8192];
+    // room for a browser's upgrade request with a big cookie header; only
+    // held while the handshake's under way
+    let mut buf = vec![0u8; MAX_UPGRADE_REQUEST];
     loop {
         if stop.load(Ordering::Relaxed) || Instant::now() > until { return None; }
         match stream.peek(&mut buf) {

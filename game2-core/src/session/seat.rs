@@ -226,6 +226,13 @@ impl Game {
                 self.travels.retain(|t| t.who != who);
                 if self.send_gather(who, g, (x, y)) { Ok(()) } else { Err("nothing to gather there".into()) }
             }
+            AgentCmd::FetchInput => {
+                // the villagers' own errand: a kid runs it, or they go
+                let Some(input) = livelihood::needs_input(&self.world, who) else {
+                    return Err("the bench wants for nothing".into()) };
+                let i = self.villagers.iter().position(|&v| v == who).unwrap_or(0);
+                if self.errand_for_input(who, input, i) { Ok(()) } else { Err(format!("no {} to be had", input)) }
+            }
             AgentCmd::WorkDay => {
                 let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
                 if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }

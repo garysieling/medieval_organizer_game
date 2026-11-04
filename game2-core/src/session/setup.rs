@@ -49,13 +49,14 @@ impl Game {
             river.iter().filter(|w| w.1 <= 30).map(|w| w.0).min().unwrap() - 1, 24 + rng.around(1));
         // the walled fields run out of the south gate to a little farm
         let (gate_x, farm_y) = ((wall.0 + wall.2) / 2, wall.3 + 2);
+        // the country beyond: where this seed's towns and castles stand
+        // (its own stream, so the village's rolls land as they always have)
+        let country_plan = country::plan_country(&terrain, &river, (16, 16), &mut Rng(seed ^ 0x5173_C0DE));
 
         // fields beside the food store, and strips either side of the lane
         // that runs out of the south gate, down through the farm - most of
         // the land the map grew is worked
         let mut fields: Vec<(i32, i32, Tile)> = vec![
-            (13, 14, Tile::Wheat), (14, 14, Tile::Wheat), (13, 15, Tile::Wheat), (14, 15, Tile::Wheat),
-            (17, 14, Tile::Corn), (18, 14, Tile::Corn), (18, 15, Tile::Corn),
             (gate_x - 2, wall.3 + 1, Tile::Wheat), (gate_x - 1, wall.3 + 1, Tile::Wheat),
             (gate_x - 2, wall.3 + 2, Tile::Wheat), (gate_x - 1, wall.3 + 2, Tile::Corn),
             (gate_x, wall.3 + 2, Tile::Corn), (gate_x + 1, wall.3 + 2, Tile::Wheat),
@@ -70,11 +71,14 @@ impl Game {
 
         // where each building wants to stand; the map moves one onto dry land if it must
         let planned: Vec<((i32, i32), BSprite)> = vec![
-            // homes around the market (the first three have chimney smoke)
-            ((13, 12), BSprite::House(0)), ((19, 12), BSprite::House(1)), ((12, 18), BSprite::House(2)),
-            ((19, 19), BSprite::Blacksmith),
-            // church (religion centre) + guild hall (merchant base)
-            ((14, 9), BSprite::Church), ((17, 10), BSprite::Guildhall),
+            // the better homes on the square's corners (the first three
+            // have chimney smoke)
+            ((14, 13), BSprite::House(0)), ((18, 13), BSprite::House(1)), ((14, 19), BSprite::House(2)),
+            // the smithy keeps its fire by the south gate
+            ((17, 21), BSprite::Blacksmith),
+            // the church stands on the market square's north side, the
+            // guild hall on its east
+            (CHURCH_TILE, BSprite::Church), ((19, 15), BSprite::Guildhall),
             // rival village across the river (red-roofed foreign houses)
             ((28, 13), BSprite::RivalHouse), ((30, 15), BSprite::RivalWoodhouse),
         ];
@@ -90,18 +94,16 @@ impl Game {
             fields,
             buildings: planned.iter().map(|(p, _)| *p).collect(),
             road_hub: (16, 16),
+            streets: town_streets(wall),
             // the lane out of the south gate runs down through the strips
             // to the farmstead, beside the road to the rivals' village
             road_ends: vec![(29, 14), (gate_x, farm_y + 8)],
             // two remote keeps and two satellite towns make the enlarged
             // country read as a settled region while the main village keeps
             // its existing simulation and political systems.
-            castles: vec![(126, 58, 5), (181, 164, 5)],
-            towns: vec![(92, 48, 8), (190, 111, 8)],
-            settlement_houses: [
-                (89, 46), (92, 44), (95, 46), (89, 50), (95, 50),
-                (187, 109), (190, 107), (193, 109), (187, 113), (193, 113),
-            ].to_vec(),
+            castles: country_plan.castles.clone(),
+            towns: country_plan.towns.clone(),
+            settlement_houses: country_plan.houses.clone(),
         };
         layout.buildings.push((MILL_TILE.0 as i32, MILL_TILE.1 as i32));
         let mut map = TileMap::generate(&mut terrain, &layout);
@@ -128,14 +130,24 @@ impl Game {
         // people have somewhere to live), the odd cottage outside, and a
         // workshop for most of the vocations that get rolled - the ~85%
         // coverage leaves the odd trade without a shop to work out of
-        for gy in (wall.1 + 3..wall.3 - 1).step_by(3) {
-            for gx in (wall.0 + 3..wall.2 - 1).step_by(3) {
-                if let Some((bx, by)) = map.nearest_buildable(gx + rng.around(1), gy + rng.around(1)) {
-                    map.build_at(bx, by);
-                    map.connect((bx, by));
-                    buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
-                }
-            }
+        // the plots between the streets, nearest the square first: the
+        // workshops take the inner ring (the market's trade), the homes the
+        // outer, out to the wall - the rolls still come in the old order
+        let plots = town_plots(&map, wall);
+        let n_homes = ((wall.1 + 3..wall.3 - 1).step_by(3).count()) * ((wall.0 + 3..wall.2 - 1).step_by(3).count());
+        // the inner ring (enough for every trade) stays for the workshops;
+        // the homes spread evenly over the rest, a yard or two apart
+        let mut outer: Vec<(i32, i32)> = plots.iter().copied().skip(TRADE_PLOTS).collect();
+        outer.sort_by_key(|&(x, y)| (y, x));
+        let stride = (outer.len() as f32 / n_homes.max(1) as f32).max(1.0);
+        let picks: Vec<(i32, i32)> = (0..n_homes).filter_map(|k| outer.get((k as f32 * stride) as usize).copied()).collect();
+        let mut outer = picks.into_iter();
+        for _ in 0..n_homes {
+            let _ = (rng.around(1), rng.around(1));
+            let Some((bx, by)) = outer.by_ref().find(|&(x, y)| map.buildable(x, y)) else { break };
+            map.build_at(bx, by);
+            map.connect((bx, by));
+            buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
         }
         for &(x, y) in &[(wall.0 - 3, wall.3 + 3), (wall.2 + 4, wall.3 + 2), (wall.0 - 5, (wall.1 + wall.3) / 2)] {
             if let Some((bx, by)) = map.nearest_buildable(x, y) {
@@ -252,7 +264,10 @@ impl Game {
             let (cx, cy) = if kind == BuildingKind::Shop(Vocation::Farmer) { (gate_x + 2, farm_y + 1) }
                 else if kind == BuildingKind::Shop(Vocation::Fisher) { (35, 18) }
                 else { (16 + rng.around(4), 15 + rng.around(4)) };
-            let Some((bx, by)) = map.nearest_buildable(cx, cy) else { continue };
+            let in_town = !matches!(kind, BuildingKind::Shop(Vocation::Farmer | Vocation::Fisher));
+            // a workshop takes the free plot nearest the square
+            let plot = if in_town { plots.iter().copied().find(|&(x, y)| map.buildable(x, y)) } else { None };
+            let Some((bx, by)) = plot.or_else(|| map.nearest_buildable(cx, cy)) else { continue };
             map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
@@ -401,7 +416,7 @@ impl Game {
                 WallPiece::GateAlongX => (x as f32, y as f32 + if y == wall.1 { 0.9 } else { -0.9 }),
                 _ => (x as f32 + if x == wall.0 { 0.9 } else { -0.9 }, y as f32),
             }).collect();
-        let priest = (14.7, 9.6);
+        let priest = (CHURCH_TILE.0 as f32 + 0.7, CHURCH_TILE.1 as f32 + 0.6);
         let traveller_path = map.walk_path((16, 16), (29, 14)).unwrap_or_default();
         let mut gulls = vec![];
         for y in 0..map.height as i32 { for x in 0..map.width as i32 {
@@ -521,12 +536,22 @@ impl Game {
                     placed = true;
                 }
             }
-            for k in 0..homes.len().max(1) {
-                if placed { break; }
-                let h = homes[(i * 7 + k) % homes.len()];
-                if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
-                    world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
-                    placed = true;
+            // farmers and herders take the cottages out by the fields, the
+            // gentry the houses inside the wall; whoever's left over
+            // (or finds their side full) takes any bed going
+            let wants_out = country::prefers_outside(&world, v);
+            for pass in 0..2 {
+                for k in 0..homes.len().max(1) {
+                    if placed { break; }
+                    let h = homes[(i * 7 + k) % homes.len()];
+                    let inside = world.get_component::<Pos>(h)
+                        .map(|p| (wall.0 as f32..=wall.2 as f32).contains(&p.x) && (wall.1 as f32..=wall.3 as f32).contains(&p.y))
+                        .unwrap_or(true);
+                    if pass == 0 && wants_out.map(|out| out == inside).unwrap_or(false) { continue; }
+                    if world.get_component::<Building>(h).map(|b| b.occupants.len() < 4).unwrap_or(false) {
+                        world.get_component_mut::<Building>(h).unwrap().occupants.push(v);
+                        placed = true;
+                    }
                 }
             }
             let _ = placed;
@@ -755,7 +780,7 @@ impl Game {
             livelihood::tax_round(&mut world, collector, &roster, 25, 11);
         }
 
-        Game {
+        let mut g = Game {
             world, sched, map, climate, villagers, rivals,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
@@ -871,7 +896,11 @@ impl Game {
             next_rare: events::initial_due(seed),
             rare_fired: vec![],
             rare_seed: seed ^ 0xAA55_5EED,
-        }
+            sites: vec![],
+        };
+        // and the country's folk, out in its towns and castles
+        g.settle_country(&country_plan, seed);
+        g
     }
 
     /// A village already mid-story: one of the saved scenarios - the

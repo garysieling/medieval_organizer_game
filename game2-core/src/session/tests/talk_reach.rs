@@ -22,6 +22,8 @@ fn test_talk_goes_to_whoever_is_beside_you_not_the_last_clicked() {
 /// A villager the player can walk to who's well out of talking distance
 fn far_villager(game: &Game) -> usize {
     (0..game.villagers.len())
+        // a villager across the village, not one out in the country
+        .filter(|&i| game.site_of(game.villagers[i]).is_none())
         .filter(|&i| game.dist_to(i) > 4.0 && game.path_to(i).is_some())
         .max_by(|&a, &b| game.dist_to(a).partial_cmp(&game.dist_to(b)).unwrap())
         .expect("someone to walk over to")

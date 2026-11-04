@@ -11,6 +11,17 @@
 use wasm_bindgen::prelude::*;
 use game2_core::session::{self, Game, Scenario, Command};
 
+/// A seed off the browser's randomness (wasm has no clock to take one
+/// from); seed 1 where there's none
+fn fresh_seed() -> u64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut b = [0u8; 8];
+        if getrandom::fill(&mut b).is_ok() { return u64::from_le_bytes(b) % 1_000_000; }
+    }
+    1
+}
+
 /// A wasm-held Game: the browser ticks it and asks for the scene
 #[wasm_bindgen]
 pub struct WasmGame {
@@ -19,10 +30,15 @@ pub struct WasmGame {
 
 #[wasm_bindgen]
 impl WasmGame {
-    /// The default village, mid-story
+    /// A fresh country each page load, like the window's launch
     #[wasm_bindgen(constructor)]
     pub fn new() -> WasmGame {
-        WasmGame { game: Game::new_seeded(1) }
+        WasmGame { game: Game::new_seeded(fresh_seed()) }
+    }
+
+    /// A particular country: the same seed draws the same map
+    pub fn with_seed(seed: u32) -> WasmGame {
+        WasmGame { game: Game::new_seeded(seed as u64) }
     }
 
     /// A saved scenario, mid-telling

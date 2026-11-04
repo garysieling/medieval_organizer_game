@@ -44,8 +44,16 @@ fn test_villagers_stay_in_their_own_village() {
             // for the fields just past it), not the far corner of the
             // market square, which is still home
             let (wx0, wy0, wx1, wy1) = game.town_wall;
-            let outside = p.x < wx0 as f32 - 4.0 || p.x > wx1 as f32 + 4.0
-                || p.y < wy0 as f32 - 4.0 || p.y > wy1 as f32 + 4.0;
+            let outside = match game.site_of(*v) {
+                // the country's folk keep to their own town (a carter
+                // on the market's business is where he should be)
+                Some(si) => !game.is_away(*v) && {
+                    let (cx, cy) = game.sites[si].centre;
+                    ((p.x - cx as f32).powi(2) + (p.y - cy as f32).powi(2)).sqrt() > 20.0
+                },
+                None => p.x < wx0 as f32 - 4.0 || p.x > wx1 as f32 + 4.0
+                    || p.y < wy0 as f32 - 4.0 || p.y > wy1 as f32 + 4.0,
+            };
             // newcomers (born or settled mid-run) have no slot in the
             // snapshot - look theirs up live
             let home = homes.get(i).copied().flatten()

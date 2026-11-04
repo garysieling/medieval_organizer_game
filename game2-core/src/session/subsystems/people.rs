@@ -18,6 +18,10 @@ impl Game {
         self.world.add_component(v, Purse { gold: 0.0 });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
+        // born out in the country, they belong to its town or castle
+        if let Some(si) = self.sites.iter().position(|s| s.homes.contains(&home)) {
+            self.world.add_component(v, country::Outlander { site: si });
+        }
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
@@ -67,7 +71,8 @@ impl Game {
         let room = self.building_entities.iter().copied().find(|&b|
             self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < 4
-                    && bb.name != "the herb hut" && bb.name != "a foreign house")
+                    && bb.name != "the herb hut" && bb.name != "a foreign house"
+                    && !bb.name.starts_with("a cottage in ") && !bb.name.starts_with("the keep at "))
                 .unwrap_or(false));
         match room {
             Some(h) => self.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(v),
@@ -154,9 +159,12 @@ impl Game {
             // the illiterate pay the priest a penny to hear it read out
             let literate = self.literate(to);
             if !literate {
+                // their own priest: a castle's chaplain reads for the castle
+                let home = self.site_of(to);
                 if let Some(priest) = self.villagers.iter().copied().find(|&v|
                     self.world.get_component::<Craft>(v)
                         .map(|c| c.vocation == Vocation::Priest).unwrap_or(false)
+                        && self.site_of(v) == home
                         && !crate::game::dungeon::unavailable(&self.world, v)) {
                     if let Some(p) = self.world.get_component_mut::<Purse>(to) {
                         if p.gold > 1.0 {

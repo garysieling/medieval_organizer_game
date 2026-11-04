@@ -130,7 +130,7 @@ impl Game {
     pub(in crate::session) fn founding_offer(&mut self, seat: usize, record: u64) -> Option<String> {
         let (vote, oname) = self.founding_vote(seat)?;
         let lean = format!("{} lean to {} - your call.", oname, desires::issue_name(vote.winner.clone()));
-        self.seats[seat].pending_founding = Some(PendingFounding { record, vote, org_name: oname });
+        self.seats[seat].pending_founding = Some(PendingFounding { record, vote, org_name: oname, offered_tick: self.tick });
         Some(lean)
     }
 

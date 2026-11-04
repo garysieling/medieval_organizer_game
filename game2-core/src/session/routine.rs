@@ -14,7 +14,7 @@ use super::*;
 /// One day in seven is the holy day: no work, and the faithful gather
 pub const HOLY_EVERY: u64 = 7;
 /// Market day, once a month (the org's market_day pays out the same day)
-const MARKET_DAY: u64 = 20;
+pub(super) const MARKET_DAY: u64 = 20;
 /// How far a free day's stroll reaches from where they stand
 const STROLL_REACH: i32 = 14;
 /// Farther than this from the anchor and they walk back on a path
@@ -145,7 +145,7 @@ impl Game {
         self.world.get_component::<Pos>(v).map(|p| (p.x.round() as i32, p.y.round() as i32))
     }
 
-    fn set_routine(&mut self, v: Entity, r: Routine) {
+    pub(super) fn set_routine(&mut self, v: Entity, r: Routine) {
         if self.world.get_component::<Routine>(v).is_some() {
             *self.world.get_component_mut::<Routine>(v).unwrap() = r;
         } else {

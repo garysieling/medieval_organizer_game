@@ -142,13 +142,20 @@ struct Server {
     minted: usize,
 }
 
+/// A claim token: 128 bits no one can guess. std's `RandomState` keys its
+/// SipHash from the OS's randomness, so hashing a counter (and the time)
+/// through two of them gives output an outsider can't predict - without
+/// pulling in a crate for it. The token is the seat's only credential.
 fn token() -> String {
-    // unguessable-enough session token: time + counter, hashed
-    use std::hash::{Hash, Hasher};
+    use std::hash::{BuildHasher, Hash, Hasher};
     static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    (Instant::now(), N.fetch_add(1, std::sync::atomic::Ordering::SeqCst)).hash(&mut h);
-    format!("{:x}", h.finish())
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let half = |salt: u64| {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        (salt, n, std::time::SystemTime::now()).hash(&mut h);
+        h.finish()
+    };
+    format!("{:016x}{:016x}", half(0x5eed), half(0xc1a1))
 }
 
 fn send_msg(c: &mut Conn, msg: &ServerMsg) {
@@ -406,7 +413,12 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                         },
                     }
                 });
-                let tok = tok.unwrap_or_else(token);
+                // a known token keeps its seat; a new seat always gets a token
+                // of the server's making, never one the client picked
+                let tok = match (claimed, tok) {
+                    (Some(_), Some(t)) => t,
+                    _ => token(),
+                };
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs

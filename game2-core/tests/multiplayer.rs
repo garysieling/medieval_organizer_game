@@ -297,3 +297,19 @@ fn the_village_hands_out_only_so_many_seats() {
     assert_eq!(admitted(server.addr, Some(first.clone()), None), Ok(first), "a reclaim always works");
     server.stop();
 }
+
+#[test]
+fn claim_tokens_are_the_servers_own_and_long() {
+    let server = start(None);
+    // a token the client made up isn't adopted: the new seat gets the server's
+    let issued = admitted(server.addr, Some("mine".into()), None).expect("a seat");
+    assert_ne!(issued, "mine", "the server took a client-picked token as a claim");
+    let other = admitted(server.addr, None, None).expect("another seat");
+    for t in [&issued, &other] {
+        assert!(t.len() == 32 && t.chars().all(|c| c.is_ascii_hexdigit()), "a 128-bit token, not {t:?}");
+    }
+    assert_ne!(issued, other);
+    // and "mine" still claims nothing
+    assert_ne!(admitted(server.addr, Some("mine".into()), None).expect("a seat"), "mine");
+    server.stop();
+}

@@ -88,7 +88,7 @@ stats) are fine: name them in the PR.
 3b. Determinism: with a fixed `--seed`, two runs of main diverge after
    ~tick 300 (likely `HashMap` iteration order leaking into the sim).
    Replays, multiplayer lockstep and golden-frame tests all need this fixed.
-4. World generation (`new_seeded`) into `setup.rs`.
+4. ~~World generation (`new`, `new_seeded`, `new_scenario`) into `setup.rs`.~~
 5. Seats, commands, the agent API and `ui_model_at` into their own files.
 6. ~~Public vs secret KPIs: `session/kpi/{public,secret}.rs`.~~ `public_kpis(&UiModel)` /
    `agent_kpis(&AgentObs)` can't see the sim by construction (layering test). `Game::secret_kpis`

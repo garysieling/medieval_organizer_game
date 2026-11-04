@@ -620,13 +620,21 @@ pub struct Meeting {
 /// the vote the room took (kept for the stakes - grumbles get re-read
 /// against whichever framing the organizer picks), the record it was
 /// said on, and the org's name. Held on the calling seat until they
-/// answer it (Command::Decide) or their next meeting's offer supersedes it
+/// answer it (Command::Decide), their next meeting's offer supersedes
+/// it, or it lapses unanswered after FOUNDING_OFFER_EXPIRY_DAYS - a
+/// client with no control wired to Decide (the browser's canvas shim)
+/// would otherwise leave every seat at half pace (see ticks_per_frame) forever
 pub struct PendingFounding {
     /// The meeting's talk record - the convo box keeps its tail showing
     pub record: u64,
     pub vote: crate::game::campaign::IssueVote,
     pub org_name: String,
+    /// The day the call was left, so an unanswered one can time out
+    pub offered_tick: u64,
 }
+/// How long an organizer's call goes unanswered before it lapses on its
+/// own, same as if they'd let it rest
+const FOUNDING_OFFER_EXPIRY_DAYS: u64 = 7;
 /// How fast people walk to a meeting (tiles a frame), how long the host
 /// waits for them, and how long each turn to speak lasts
 const MEETING_WALK: f32 = 2.5 / FPS as f32;
@@ -2152,7 +2160,7 @@ impl Game {
     fn founding_offer(&mut self, seat: usize, record: u64) -> Option<String> {
         let (vote, oname) = self.founding_vote(seat)?;
         let lean = format!("{} lean to {} - your call.", oname, desires::issue_name(vote.winner.clone()));
-        self.seats[seat].pending_founding = Some(PendingFounding { record, vote, org_name: oname });
+        self.seats[seat].pending_founding = Some(PendingFounding { record, vote, org_name: oname, offered_tick: self.tick });
         Some(lean)
     }
 
@@ -5486,6 +5494,20 @@ impl Game {
     /// The town's business each day: work, errands, the tax round, the
     /// trader's restock, the odd minstrel, a tune in the street
     pub fn livelihood_tick(&mut self, tick: u64) {
+        // an organizer's founding call that goes unanswered too long lapses
+        // on its own, same as "let it rest" - otherwise a seat with no
+        // control wired to Command::Decide (the browser canvas shim has
+        // none yet) would hold the whole game at half pace forever
+        for seat in 0..self.seats.len() {
+            let stale = self.seats[seat].pending_founding.as_ref()
+                .map(|d| tick.saturating_sub(d.offered_tick) >= FOUNDING_OFFER_EXPIRY_DAYS)
+                .unwrap_or(false);
+            if stale {
+                let d = self.seats[seat].pending_founding.take().unwrap();
+                self.log.push(format!("t{}: the talk stays talk for now - no cause taken up.", tick));
+                self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+            }
+        }
         // the felt worths slide a little back toward ordinary each day
         goods::drift(&mut self.world);
         // market day, once a month: the org's members sell their work and

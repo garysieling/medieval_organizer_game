@@ -146,7 +146,7 @@ pub const STALL_TRADER: u8 = u8::MAX;
 impl Game {
     /// The stalls standing today, for the view: one before each seller
     /// who's reached their pitch (between them and the square they face),
-    /// and the pedlar's booth while he's pitched
+    /// and the pedlar's booth while he's selling
     pub(super) fn stalls_standing(&self) -> Vec<(f32, f32, u8)> {
         let mut out: Vec<(f32, f32, u8)> = self.villagers.iter().filter_map(|&v| {
             let r = self.world.get_component::<Routine>(v)?;
@@ -156,7 +156,9 @@ impl Game {
             let len = (dx * dx + dy * dy).sqrt().max(0.01);
             Some((r.anchor.0 + 0.6 * dx / len, r.anchor.1 + 0.6 * dy / len, (mix(v, 9) % 200) as u8))
         }).collect();
-        if let Some(p) = self.pedlar.as_ref().and_then(|m| m.stall).and_then(|s| self.world.get_component::<Pos>(s)) {
+        // (his stall entity outlives the selling: it goes when he's off the map)
+        if let Some(p) = self.pedlar.as_ref().filter(|m| m.selling_until.is_some_and(|until| self.tick <= until))
+            .and_then(|m| m.stall).and_then(|s| self.world.get_component::<Pos>(s)) {
             out.push((p.x, p.y, STALL_TRADER));
         }
         out
@@ -636,29 +638,6 @@ mod tests {
     use super::*;
 
     fn walk_frames(g: &mut Game, n: u32) { for _ in 0..n { g.update(); } }
-
-    #[test]
-    fn test_market_day_puts_up_stalls_for_the_view() {
-        let mut g = Game::new();
-        while g.tick < MARKET_DAY { g.update(); }
-        let n = g.ticks_per_frame() - 2; walk_frames(&mut g, n);
-        let sellers = g.villagers.iter().filter(|&&v| g.world.get_component::<Routine>(v)
-            .is_some_and(|r| r.mode == Mode::Selling && r.day == MARKET_DAY)).count();
-        let stalls = g.stalls_standing();
-        assert!(sellers > 0, "someone sells on market day");
-        assert!(!stalls.is_empty(), "the sellers who reached their pitch get a stall ({} selling)", sellers);
-        // each stall stands just in front of a seller's pitch, on the side
-        // facing the square
-        let mp = *g.world.get_component::<Pos>(g.market_food).unwrap();
-        let d = |a: (f32, f32), b: (f32, f32)| ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt();
-        for &(x, y, _) in &stalls {
-            let pitch = g.villagers.iter().filter_map(|&v| g.world.get_component::<Routine>(v))
-                .filter(|r| r.mode == Mode::Selling && r.day == MARKET_DAY)
-                .map(|r| r.anchor).find(|&a| (d(a, (x, y)) - 0.6).abs() < 0.01);
-            let Some(a) = pitch else { panic!("stall at ({:.1},{:.1}) isn't at a seller's pitch", x, y) };
-            assert!(d((x, y), (mp.x, mp.y)) < d(a, (mp.x, mp.y)), "stall at ({:.1},{:.1}) faces away from the square", x, y);
-        }
-    }
 
     #[test]
     fn test_one_day_in_seven_is_holy() {

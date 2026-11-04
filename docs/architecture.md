@@ -110,8 +110,9 @@ stats) are fine: name them in the PR.
      longer imports any drawing types.~~ The TALK and conversation panels' layout, drawing and
      click mapping moved from `session/dialogue.rs` to `client/talk.rs`; `tests/layering.rs`
      fails if `session` draws (`session_never_draws`) or names the client.
-   - 3b: `client/` (+ `ui/`, the window bins) become a `game2-client` crate on top of the sim.
-     The session tests that draw frames move with it.
+   - 3b-1: ~~the tests that draw move from `session/tests/` to `client/tests/` and use only the
+     public API (58 tests; 22 files whole, 10 split).~~
+   - 3b-2: `client/` (+ the window bins) become a `game2-client` crate on top of the sim.
 
 ### Working alongside the split
 

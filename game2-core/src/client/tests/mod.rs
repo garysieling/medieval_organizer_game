@@ -1,0 +1,35 @@
+//! The client's tests: frames, panels, labels, the HUD. They see only
+//! `session`'s public API, as the client itself does.
+
+mod action_log;
+mod basics;
+mod blocker;
+mod bubble;
+mod campaign_part_grant;
+mod dead_portrait;
+mod death;
+mod depth;
+mod dialogue;
+mod dog;
+mod dog_sprite;
+mod ground_cache;
+mod help;
+mod hud;
+mod inspector;
+mod label;
+mod legend;
+mod log_day;
+mod member_line;
+mod minimap;
+mod minimap_dead;
+mod nature;
+mod panel;
+mod pause_box;
+mod rain;
+mod reach_name;
+mod real_frame;
+mod rival;
+mod season;
+mod status_line;
+mod title;
+mod zoom;

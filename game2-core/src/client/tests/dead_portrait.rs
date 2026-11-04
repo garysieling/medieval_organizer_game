@@ -1,9 +1,9 @@
-use crate::session::*;
 use crate::client::*;
+use crate::sim::illness::Health;
 
 #[test]
 fn test_a_dead_villagers_card_shows_a_gravestone() {
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     while game.tick < 60 { game.update(); }
     let corvin = game.villagers[3];

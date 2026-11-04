@@ -1,4 +1,3 @@
-use crate::session::*;
 use crate::client::*;
 
 #[test]
@@ -8,7 +7,7 @@ fn test_the_panel_explains_the_map_marks() {
     assert!(UI_X as i32 + 14 + chars as i32 * GLYPH_W <= W as i32 - 4, "legend runs off the panel");
     assert!(LEGEND_Y >= 450 + 170 && LEGEND_Y + GLYPH_H <= H as i32);
 
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     while game.tick < 30 { game.update(); }
     let buf = view.render(&game.ui_model(), (-1, -1));

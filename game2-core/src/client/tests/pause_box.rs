@@ -1,11 +1,10 @@
-use crate::session::*;
 use crate::client::*;
 
 #[test]
 fn test_pause_box_is_centred_with_balanced_text() {
     let (x, y, w, h) = pause_rect();
     assert!(((x + w / 2) - MAP_W as i32 / 2).abs() <= 1, "pause box not centred on the map view");
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     game.paused = true;
     let buf = view.render(&game.ui_model(), (-1, -1));

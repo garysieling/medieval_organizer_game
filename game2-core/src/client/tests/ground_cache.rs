@@ -1,4 +1,3 @@
-use crate::session::*;
 use crate::client::*;
 use crate::engine::render::Buffer;
 
@@ -31,7 +30,7 @@ fn test_cached_ground_matches_drawing_it_straight() {
     // the world-space layer blitted each frame must be exactly what the
     // tile pass would have drawn - any tile dropped or shifted shows up
     // as bare background or a seam
-    let game = Game::new();
+    let game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     // exact comparison at integer zooms, where the layer's draw shift is
     // a whole number of pixels so it lands exactly where the culled pass

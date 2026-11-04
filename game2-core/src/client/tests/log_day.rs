@@ -1,4 +1,3 @@
-use crate::session::*;
 use crate::client::*;
 
 #[test]
@@ -10,7 +9,7 @@ fn test_log_entries_show_the_day_like_the_hud() {
 
 #[test]
 fn test_the_log_draws_the_day_dim_and_the_message_in_colour() {
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     game.log.push("t5: The Merchant Guild formed!".into());
     let buf = view.render(&game.ui_model(), (-1, -1));

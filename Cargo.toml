@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "game2-core",
+    "game2-client",
     "game2-web",
 ]
 resolver = "2"
@@ -10,6 +11,10 @@ resolver = "2"
 # builds (PLAY.md runs `cargo run --bin game_ui`, a dev-profile binary) while
 # keeping debug info and assertions.
 [profile.dev.package.game2-core]
+opt-level = 2
+
+# the client repaints the frame too
+[profile.dev.package.game2-client]
 opt-level = 2
 
 [workspace.dependencies]

@@ -3,8 +3,12 @@
 FROM rust:1.83-bookworm AS build
 WORKDIR /app
 COPY Cargo.toml Cargo.lock* ./
+# every workspace member's manifest has to be there for cargo to load the
+# workspace, but only the sim crate is built: the server draws nothing
 COPY game2-core ./game2-core
-RUN cargo build --release --bin game_server
+COPY game2-client ./game2-client
+COPY game2-web ./game2-web
+RUN cargo build --release -p game2-core --bin game_server
 
 FROM debian:bookworm-slim
 RUN useradd -m game

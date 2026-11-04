@@ -4,6 +4,12 @@
 //! New subsystems go here as their own file, not into session.rs.
 
 mod animals;
+mod day;
+mod economy;
+mod land;
+mod meetings;
 mod people;
+mod society;
+mod travel;
 mod visitors;
 mod wood;

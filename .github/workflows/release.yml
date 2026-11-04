@@ -1,0 +1,192 @@
+# Release build + packaging.
+#
+# Push a tag like `v0.2.0` (or run it by hand from the Actions tab with a tag
+# name) and this builds the game for Windows, Linux and macOS, packs each
+# build with the art it loads at runtime, and publishes a GitHub release with
+# notes: the merged PRs since the previous tag (GitHub's generated notes) under
+# a header listing the downloads and the commits.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (created on the selected branch's HEAD if it doesn't exist), e.g. v0.2.0"
+        required: true
+      prerelease:
+        description: "Mark as a pre-release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  CARGO_TERM_COLOR: always
+  # The crate denies warnings to keep dev builds clean; a lint added by a newer
+  # stable toolchain shouldn't be able to block a release.
+  RUSTFLAGS: --cap-lints warn
+  # What ships: the windowed game, the text-mode game, the multiplayer server.
+  BINS: game_ui game game_server
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: .exe
+            archive: zip
+          - name: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            ext: ""
+            archive: tar.gz
+          - name: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            ext: ""
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      # minifb's X11/Wayland window needs the system headers to link
+      - name: Install Linux window-system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxcursor-dev libxrandr-dev libxi-dev \
+            libxkbcommon-dev libwayland-dev pkg-config
+
+      - name: Build
+        run: |
+          args=()
+          for b in $BINS; do args+=(--bin "$b"); done
+          cargo build --release -p game2-core --target ${{ matrix.target }} "${args[@]}"
+
+      - name: Package
+        id: pkg
+        run: |
+          pkg="game2-${TAG}-${{ matrix.name }}"
+          mkdir -p "dist/$pkg/evidence"   # F12 screenshots land here
+          for b in $BINS; do
+            cp "target/${{ matrix.target }}/release/${b}${{ matrix.ext }}" "dist/$pkg/"
+          done
+          # game_ui loads its sprites from ./assets relative to the working dir
+          cp -R assets "dist/$pkg/assets"
+          cp README.md PLAY.md "dist/$pkg/"
+          cat > "dist/$pkg/HOW-TO-RUN.txt" <<EOF
+          game2 ${TAG} (${{ matrix.name }})
+
+          Run the game from this folder so it can find ./assets:
+            game_ui${{ matrix.ext }}       the windowed game (see PLAY.md for controls)
+            game${{ matrix.ext }}          the text-mode game
+            game_server${{ matrix.ext }}   the multiplayer village server (--port 8787)
+          EOF
+          cd dist
+          if [ "${{ matrix.archive }}" = zip ]; then
+            7z a -tzip -bd "$pkg.zip" "$pkg" > /dev/null
+            file="$pkg.zip"
+          else
+            tar -czf "$pkg.tar.gz" "$pkg"
+            file="$pkg.tar.gz"
+          fi
+          if command -v sha256sum > /dev/null; then sha256sum "$file" > "$file.sha256"
+          else shasum -a 256 "$file" > "$file.sha256"; fi
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/${{ steps.pkg.outputs.file }}
+            dist/${{ steps.pkg.outputs.file }}.sha256
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the whole history, for the previous tag and the log
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write release notes header
+        run: |
+          # The previous release tag: the newest v* tag that isn't this one
+          # and is an ancestor of this commit (none on the first release).
+          head=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || git rev-parse HEAD)
+          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$head" | grep -vx "$TAG" | head -n1 || true)
+          range="$head"; [ -n "$prev" ] && range="$prev..$head"
+          {
+            echo "## Downloads"
+            echo
+            echo "| Platform | Package |"
+            echo "|---|---|"
+            for f in dist/*.zip dist/*.tar.gz; do
+              [ -e "$f" ] || continue
+              n=$(basename "$f")
+              plat=$(echo "$n" | sed -E "s/^game2-${TAG}-//; s/\.(zip|tar\.gz)$//")
+              echo "| $plat | \`$n\` |"
+            done
+            echo
+            echo "Unpack and run \`game_ui\` from the unpacked folder (it loads \`./assets\`). Controls are in \`PLAY.md\`. Each package has a \`.sha256\` checksum."
+            echo
+            echo "## Commits"
+            echo
+            if [ -n "$prev" ]; then echo "Since \`$prev\`:"; else echo "Initial release (last 50 commits):"; fi
+            echo
+            git log --no-merges --format='- %s (%h)' -n 50 "$range"
+            echo
+          } > notes.md
+          cat notes.md
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ github.event.inputs.prerelease }}
+        run: |
+          flags=()
+          [ "$PRERELEASE" = true ] && flags+=(--prerelease)
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # a re-run: refresh the packages, keep the notes as edited
+            gh release upload "$TAG" dist/* --clobber
+          else
+            # --generate-notes appends GitHub's merged-PR list after notes.md;
+            # --target only matters when the tag doesn't exist yet (manual run)
+            gh release create "$TAG" dist/* \
+              --title "game2 $TAG" \
+              --notes-file notes.md \
+              --generate-notes \
+              --target "$GITHUB_SHA" \
+              "${flags[@]}"
+          fi

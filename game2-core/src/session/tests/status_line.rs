@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_status_line_names_things_and_fits() {

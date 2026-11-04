@@ -1,6 +1,6 @@
 //! The layers hold (docs/architecture.md): the render client draws from a
 //! `UiModel` alone, never the authoritative `Game` or its ECS `World`.
-//! `render/bench.rs` is exempt - the headless runners drive a Game to time it.
+//! `client/bench.rs` is exempt - the headless runners drive a Game to time it.
 
 /// Source with `//` comments stripped (string literals here don't hold `//`)
 fn code_of(src: &str) -> String {
@@ -19,10 +19,10 @@ fn mentions(code: &str, word: &str) -> bool {
 #[test]
 fn render_and_public_kpis_never_reach_into_the_sim() {
     let files = [
-        ("render/art.rs", include_str!("../render/art.rs")),
-        ("render/draw.rs", include_str!("../render/draw.rs")),
-        ("render/hud.rs", include_str!("../render/hud.rs")),
-        ("render/view.rs", include_str!("../render/view.rs")),
+        ("client/art.rs", include_str!("../../client/art.rs")),
+        ("client/draw.rs", include_str!("../../client/draw.rs")),
+        ("client/hud.rs", include_str!("../../client/hud.rs")),
+        ("client/view.rs", include_str!("../../client/view.rs")),
         // public KPIs read a seat's view, never the sim
         ("kpi/public.rs", include_str!("../kpi/public.rs")),
     ];
@@ -58,4 +58,23 @@ fn sim_code_uses_deterministic_maps() {
         if random_map { bad.push(f.strip_prefix(&src).unwrap_or(f).display().to_string()); }
     }
     assert!(bad.is_empty(), "use crate::engine::det::{{HashMap, HashSet}} (fixed-key) in sim code, not std's: {bad:?}");
+}
+
+/// The sim never depends on the client: `session` (tests aside) must not
+/// name `crate::client`, so the client can become its own crate on top.
+#[test]
+fn session_never_depends_on_the_client() {
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for e in std::fs::read_dir(dir).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() { if !p.ends_with("tests") { walk(&p, out) } } else if p.extension().is_some_and(|x| x == "rs") { out.push(p) }
+        }
+    }
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut files = vec![src.join("session.rs")];
+    walk(&src.join("session"), &mut files);
+    let bad: Vec<String> = files.iter()
+        .filter(|f| { let c = code_of(&std::fs::read_to_string(f).unwrap()); c.contains("crate::client") || c.contains("client::") })
+        .map(|f| f.strip_prefix(&src).unwrap_or(f).display().to_string()).collect();
+    assert!(bad.is_empty(), "session code reaches into the client: {bad:?}");
 }

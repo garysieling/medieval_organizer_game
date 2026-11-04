@@ -4,15 +4,15 @@
 pub mod model;
 pub mod net;
 pub mod driver;
-pub mod record;
 pub mod events;
 pub mod probe;
 pub mod stage;
 pub mod dialogue;
 pub mod routine;
 pub mod country;
-pub mod render;
+
 pub mod kpi;
+pub mod layout;
 pub mod seat;
 pub mod setup;
 mod subsystems;
@@ -24,15 +24,11 @@ mod tests;
 pub use model::*;
 pub use net::*;
 pub use driver::*;
-pub use record::*;
-pub use render::*;
+pub use layout::*;
 pub use seat::*;
-use view_model::*;
+pub use view_model::*;
 
 use crate::engine::ecs::{Entity, Scheduler, World};
-use crate::engine::render::Buffer;
-use crate::engine::sprite::{Sprite, Assets};
-use crate::ui::font::{draw_text, draw_text_outlined, draw_text_scaled};
 use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
@@ -41,7 +37,6 @@ use crate::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, ca
 use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
-use crate::ui::weather_fx;
 use crate::sim::illness::{self, Health, Disease, DiseaseKind, Stage, IllnessSystem};
 #[allow(unused_imports)] // only the tests name attachment styles now
 use crate::sim::psychology::{AttachmentHistory, AttachmentStyle};
@@ -65,68 +60,11 @@ use crate::sim::trails::{self, Trail, TrailParams};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
 
-pub const W: usize = 1440;
-pub const H: usize = 960;
-pub const MAP_W: usize = 1080;
-pub const UI_X: usize = 1100;
-const TILE_W: i32 = 28;
-const TILE_H: i32 = 14;
 /// Influence at which the village recognizes the player as its leader (the
 /// win) - the same goal as the text game
-const WIN_INFLUENCE: f32 = crate::game::player::LEAD_INFLUENCE;
+pub const WIN_INFLUENCE: f32 = crate::game::player::LEAD_INFLUENCE;
 
 pub fn rgb(r: u8, g: u8, b: u8) -> u32 { ((r as u32) << 16) | ((g as u32) << 8) | b as u32 }
-
-fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8, g: u8, b: u8) {
-    buf.rect(x, y, w, h, r, g, b);
-}
-
-/// Convert world tile coords to screen isometric position
-/// Point the zoom scales about: the centre of the map view, so zooming
-/// keeps what you're looking at on screen
-const ZOOM_PIVOT: (f32, f32) = (MAP_W as f32 / 2.0, H as f32 / 2.0);
-
-pub fn iso_to_screen_cam(tx: f32, ty: f32, cam_x: i32, cam_y: i32, zoom: f32) -> (i32, i32) {
-    // position at zoom 1, then scaled about the view centre
-    let bx = MAP_W as f32 / 2.0 + (tx - ty) * TILE_W as f32 + cam_x as f32;
-    let by = -60.0 + (tx + ty) * TILE_H as f32 + cam_y as f32;
-    let sx = ZOOM_PIVOT.0 + (bx - ZOOM_PIVOT.0) * zoom;
-    let sy = ZOOM_PIVOT.1 + (by - ZOOM_PIVOT.1) * zoom;
-    (sx.round() as i32, sy.round() as i32)
-}
-
-/// Conservative tile bounds whose ground sprites can reach the viewport.
-/// The screen margins match draw_ground's sprite-overhang cull, then one tile
-/// is added to absorb rounding at fractional zooms.
-fn visible_tile_bounds(cam_x: i32, cam_y: i32, zoom: f32, width: usize, height: usize,
-    map_width: i32, map_height: i32) -> (i32, i32, i32, i32) {
-    let (mx, my) = ((2.0 * TILE_W as f32 * zoom).ceil(), (4.0 * TILE_H as f32 * zoom).ceil());
-    let corners = [(-mx, -my), (width as f32 + mx, -my), (-mx, height as f32 + my),
-        (width as f32 + mx, height as f32 + my)];
-    let mut min_x = f32::INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
-    for (sx, sy) in corners {
-        let u = ((sx - ZOOM_PIVOT.0) / zoom - cam_x as f32) / TILE_W as f32;
-        let v = ((sy - ZOOM_PIVOT.1) / zoom + 60.0 - cam_y as f32) / TILE_H as f32;
-        let (tx, ty) = ((u + v) * 0.5, (v - u) * 0.5);
-        min_x = min_x.min(tx); min_y = min_y.min(ty);
-        max_x = max_x.max(tx); max_y = max_y.max(ty);
-    }
-    let (x0, y0, x1, y1) = ((min_x.floor() as i32 - 40).max(0),
-        (min_y.floor() as i32 - 40).max(0), (max_x.ceil() as i32 + 40).min(map_width - 1),
-        (max_y.ceil() as i32 + 40).min(map_height - 1));
-    (x0, y0, x1, y1)
-}
-
-/// Can nothing standing on screen point (sx, sy) reach the map view? A
-/// piece draws up from its tile (tall towers ~260px at zoom 1), a little
-/// below it, and at most ~150px to either side
-fn off_view(sx: i32, sy: i32, zoom: f32) -> bool {
-    let z = |v: f32| (v * zoom).round() as i32;
-    sx < -z(150.0) || sx > MAP_W as i32 + z(150.0) || sy < -z(40.0) || sy > H as i32 + z(300.0)
-}
 
 
 /// Which way a step of (dx, dy) on the map looks on screen: 0 up, 1
@@ -162,51 +100,6 @@ const LOG_MAX: usize = 16384;
 /// Overflow trims down to this, so the trim is a rare memmove instead of
 /// a per-line churn.
 const LOG_TRIM_TO: usize = 12288;
-
-
-// Minimap: the same isometric projection as the map, shrunk to fit a box at
-// the bottom of the side panel (so up on the minimap is up on screen)
-pub const MM_W: i32 = 320;
-pub const MM_H: i32 = 160;
-pub const MM_LEFT: i32 = UI_X as i32 + 10;
-pub const MM_TOP: i32 = 660;
-
-/// Minimap px per tile step along the x/y diagonal: as small as the box
-/// needs so the whole map fits whatever its size
-fn mm_k(w_t: f32, h_t: f32) -> f32 {
-    let span = (w_t + h_t - 2.0).max(1.0);
-    ((MM_W - 24) as f32 / span).min((MM_H - 16) as f32 * 2.0 / span)
-}
-
-
-/// Minimap position of a world tile
-fn tile_to_minimap(tx: f32, ty: f32, k: f32) -> (f32, f32) {
-    (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * k, MM_TOP as f32 + 2.0 + (tx + ty) * k / 2.0)
-}
-
-/// The tile under minimap pixel (mx, my), if it's on the minimap's tiles
-/// (inverse of tile_to_minimap)
-/// Where a minimap click centres the camera, for any map (sim's or a model's)
-pub fn minimap_look_map(map: &TileMap, mx: i32, my: i32) -> Option<(i32, i32)> {
-    minimap_tile(mx as f32, my as f32, map.width as f32, map.height as f32)
-        .map(|(tx, ty)| camera_on(tx, ty))
-}
-
-pub fn minimap_tile(mx: f32, my: f32, w_t: f32, h_t: f32) -> Option<(f32, f32)> {
-    let k = mm_k(w_t, h_t);
-    let (cx, top) = (MM_LEFT as f32 + MM_W as f32 / 2.0, MM_TOP as f32 + 2.0);
-    let diff = mx - cx;
-    let sum = (my - top) * 2.0;
-    let (tx, ty) = ((sum / k + diff / k) / 2.0, (sum / k - diff / k) / 2.0);
-    let inside = mx >= MM_LEFT as f32 && mx < (MM_LEFT + MM_W) as f32 && my >= MM_TOP as f32 && my < (MM_TOP + MM_H) as f32;
-    (inside && tx >= 0.0 && ty >= 0.0 && tx < w_t && ty < h_t).then_some((tx, ty))
-}
-
-/// The camera offset that puts tile (tx, ty) in the middle of the map view
-/// (at any zoom: the zoom pivots about the view's centre)
-pub fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
-    (-((tx - ty) * TILE_W as f32).round() as i32, (ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32).round() as i32)
-}
 
 
 /// Whether the crowd-separation pass may push this villager aside: not the
@@ -436,7 +329,7 @@ const NEW_NAMES: [&str; 12] = [
 ];
 /// A villager's name by index - past the named roll, the second roll
 /// keeps them distinct; past that, a newcomer stands in
-fn vill_name(i: usize) -> &'static str {
+pub fn vill_name(i: usize) -> &'static str {
     NAMES.get(i).copied()
         .or_else(|| NEW_NAMES.get(i - NAMES.len()).copied())
         .unwrap_or("a newcomer")
@@ -445,14 +338,7 @@ fn vill_name(i: usize) -> &'static str {
 const KID_IDXS: [usize; 3] = [26, 27, 28];
 const COLLECTOR_IDX: usize = 29;
 const HERB_IDX: usize = 30;
-const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
-const TOOLTIPS: [&str; 5] = [
-    "talk to someone nearby",
-    "recruit villager to your org",
-    "spend gold for influence",
-    "call a house meeting",
-    "commission a new house",
-];
+pub const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 
 
 /// A house being built: first its road is laid out from the village's
@@ -755,11 +641,11 @@ pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, W
 
 impl WorkLook {
     pub const N: usize = 8;
-    const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
+    pub const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
         WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop];
 
     /// Its sprites' name under assets/rd/buildings (name1.png, name2.png)
-    fn file(self) -> &'static str {
+    pub fn file(self) -> &'static str {
         match self {
             WorkLook::Tavern => "tavern", WorkLook::Bakery => "bakery", WorkLook::Granary => "granary",
             WorkLook::WatchHouse => "watch-house", WorkLook::Fold => "fold", WorkLook::Apiary => "apiary",

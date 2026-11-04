@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 /// A tax campaign with six members, of whom only the first answers
 /// the organizer's call - a thin room

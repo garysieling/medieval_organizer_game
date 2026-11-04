@@ -1,4 +1,6 @@
 use crate::session::*;
+use crate::client::*;
+use crate::engine::render::Buffer;
 
 #[test]
 fn test_recycled_frames_match_fresh_ones() {

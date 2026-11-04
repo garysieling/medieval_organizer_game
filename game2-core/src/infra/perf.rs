@@ -2,7 +2,7 @@
 //!
 //! This measures the engine, not the game. It is separate from the game KPIs
 //! (`Game::telemetry`, the probe). It's off unless a bench turns it on
-//! (`GAME2_BENCH=N`, see `session::render::bench`), and when off a section
+//! (`GAME2_BENCH=N`, see `client::bench`), and when off a section
 //! costs one thread-local read.
 //!
 //! Sections are named by layer: `sim.*` for the daily ticks, `ecs.*` for

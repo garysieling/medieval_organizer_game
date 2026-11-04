@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_wrap_text_breaks_at_words() {

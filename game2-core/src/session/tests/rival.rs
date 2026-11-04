@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_rivals_stay_in_their_own_village() {

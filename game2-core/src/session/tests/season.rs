@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 fn brightness(c: (u8, u8, u8)) -> u32 { c.0 as u32 + c.1 as u32 + c.2 as u32 }
 

@@ -1,4 +1,7 @@
 use crate::session::*;
+use crate::client::*;
+use crate::engine::render::Buffer;
+use crate::engine::sprite::Sprite;
 
 #[test]
 fn test_zoom_keeps_the_view_centre_still() {

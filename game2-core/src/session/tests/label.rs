@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_overlapping_labels_are_stacked_apart() {

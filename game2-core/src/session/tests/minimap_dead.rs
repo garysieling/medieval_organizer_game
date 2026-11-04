@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_the_dead_show_as_graves_on_the_minimap() {

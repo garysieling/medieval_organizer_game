@@ -1,7 +1,7 @@
 # AGENTS.md - Game2 Project Instructions & Learned Information
 
 ## Layout
-- Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs render. The split of `session.rs` is in progress there; put new code in its target layer.
+- Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs the client (`game2-core/src/client/`, draws a `UiModel`, uses only `session`'s public API). The split of `session.rs` is in progress there; put new code in its target layer.
 - The sim is deterministic per seed: in `game/`, `sim/`, `session/`, `engine/` use `crate::engine::det::{HashMap, HashSet}` (build with `::default()`), never std's randomly-seeded ones, and don't let iteration order depend on anything but the seed. `tests/layering.rs` and `tests/determinism.rs` enforce it.
 - Session tests live in `game2-core/src/session/tests/<subsystem>.rs` (start with `use crate::session::*;` when the file uses session items; it reaches private ones too). Add new ones to the matching file, or add a file and list it in `tests/mod.rs`. Don't put them back in `session.rs`.
 

@@ -1,4 +1,6 @@
 use crate::session::*;
+use crate::client::*;
+use crate::engine::render::Buffer;
 
 #[test]
 fn test_hiding_someone_doesnt_flip_the_wall_piece_in_front() {

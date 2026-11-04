@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_dog_goes_with_its_new_owner_when_aldric_dies() {

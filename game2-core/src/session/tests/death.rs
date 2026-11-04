@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_the_dead_lie_under_a_gravestone_not_standing() {

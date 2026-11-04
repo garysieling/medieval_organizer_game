@@ -58,8 +58,9 @@ Rules:
 |------|------|-------|
 | Session state & frame loop | `session.rs` (~1.4k lines) | `Game` struct and its types, `update`/`advance_frame` |
 | Tests | `session/tests/<subsystem>.rs` | one file per subsystem; `use crate::session::*;` |
-| Render (client) | `session/render/` | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays |
-| Perf bench | `session/render/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
+| Render (client) | `client/` (beside `session`, not in it) | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays; uses only `session`'s public API |
+| Screen layout | `session/layout.rs` | window/tile sizes, camera maths, minimap box: shared by the client and click hit-testing |
+| Perf bench | `client/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
 | World generation | `session/setup.rs` | `Game::new_seeded` |
 | Seats & commands | `session/seat.rs` | `Seat`, `Command`, `CtxAct`, `command_at`, agent API, solo wrappers |
 | Player verbs | `session/verbs.rs` | `act_at`, `ctx_act_at`, blockers, approach-then-act |
@@ -102,6 +103,13 @@ stats) are fine: name them in the PR.
    scheduler and four thin dispatchers (`event_day/began/moment/end` -> `group(id)`); each
    family's arms live in `events/{road,sky,beasts,ill_luck,findings}.rs`; tests in `session/tests/events.rs`.
    A new event's handler goes in its family's file, in that family's `<family>_<handler>` fn.
+
+9. Crates, in stages:
+   - ~~3a: the client moves out of `session` to `crate::client` and uses only `session`'s
+     public API. Shared screen geometry is public in `session/layout.rs`; `session.rs` no
+     longer imports any drawing types.~~
+   - 3b: `client/` (+ `ui/`, the window bins) become a `game2-client` crate on top of the sim.
+     The session tests that draw frames move with it.
 
 ### Working alongside the split
 

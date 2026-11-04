@@ -1,13 +1,13 @@
 //! Art loading: the sprite pack, the generated (RD) sprites, walk sheets and ground tile sets.
 
-use crate::session::*;
+use super::*;
 
 /// The dog's coat
-pub(in crate::session) const DOG: (u8, u8, u8) = (139, 90, 43);
+pub(crate) const DOG: (u8, u8, u8) = (139, 90, 43);
 
 /// A little dog, facing left, as pixel art: o outline, b coat, n eye/nose,
 /// . transparent. Drawn 2x like the villagers.
-pub(in crate::session) const DOG_ART: [&str; 7] = [
+pub(crate) const DOG_ART: [&str; 7] = [
     "..oo.......",
     ".obbo....o.",
     "obnbboooobo",
@@ -17,7 +17,7 @@ pub(in crate::session) const DOG_ART: [&str; 7] = [
     "..oo....oo.",
 ];
 
-pub(in crate::session) fn dog_sprite() -> Sprite {
+pub(crate) fn dog_sprite() -> Sprite {
     let (w, h) = (DOG_ART[0].len(), DOG_ART.len());
     let mut pixels = vec![0u8; w * h * 4];
     for (y, row) in DOG_ART.iter().enumerate() {
@@ -30,11 +30,11 @@ pub(in crate::session) fn dog_sprite() -> Sprite {
 }
 
 /// The cat's coat (a grey tabby)
-pub(in crate::session) const CAT: (u8, u8, u8) = (95, 95, 105);
+pub(crate) const CAT: (u8, u8, u8) = (95, 95, 105);
 
 /// A little cat, facing right, sitting with its tail curled round: o
 /// outline, b coat, n eye/nose, . transparent. Drawn 2x like the dog.
-pub(in crate::session) const CAT_ART: [&str; 7] = [
+pub(crate) const CAT_ART: [&str; 7] = [
     "..o.....o..",
     ".obo...obo.",
     ".obbbnbbo..",
@@ -44,7 +44,7 @@ pub(in crate::session) const CAT_ART: [&str; 7] = [
     ".o..oo.....",
 ];
 
-pub(in crate::session) fn cat_sprite() -> Sprite {
+pub(crate) fn cat_sprite() -> Sprite {
     let (w, h) = (CAT_ART[0].len(), CAT_ART.len());
     let mut pixels = vec![0u8; w * h * 4];
     for (y, row) in CAT_ART.iter().enumerate() {
@@ -58,7 +58,7 @@ pub(in crate::session) fn cat_sprite() -> Sprite {
 
 /// A hen scratching round the farmyard, facing left: o outline, w white
 /// feathers, r comb, n eye/beak, l legs, . transparent
-pub(in crate::session) const CHICKEN_ART: [&str; 7] = [
+pub(crate) const CHICKEN_ART: [&str; 7] = [
     "....oo.....",
     "...orro....",
     "..owwno....",
@@ -68,7 +68,7 @@ pub(in crate::session) const CHICKEN_ART: [&str; 7] = [
     "..l..l.....",
 ];
 
-pub(in crate::session) fn chicken_sprite() -> Sprite {
+pub(crate) fn chicken_sprite() -> Sprite {
     let (w, h) = (CHICKEN_ART[0].len(), CHICKEN_ART.len());
     let mut pixels = vec![0u8; w * h * 4];
     for (y, row) in CHICKEN_ART.iter().enumerate() {
@@ -84,13 +84,13 @@ pub(in crate::session) fn chicken_sprite() -> Sprite {
 }
 
 /// A gull on the wing: just two white strokes and a grey under-shadow
-pub(in crate::session) const GULL_ART: [&str; 3] = [
+pub(crate) const GULL_ART: [&str; 3] = [
     "w.....w",
     ".w...w.",
     "..g.g..",
 ];
 
-pub(in crate::session) fn gull_sprite() -> Sprite {
+pub(crate) fn gull_sprite() -> Sprite {
     let (w, h) = (GULL_ART[0].len(), GULL_ART.len());
     let mut pixels = vec![0u8; w * h * 4];
     for (y, row) in GULL_ART.iter().enumerate() {
@@ -272,12 +272,12 @@ pub struct TileSet {
 }
 
 /// Which TileSet a season draws with
-pub(in crate::session) fn season_tiles(season: Season) -> usize {
+pub(crate) fn season_tiles(season: Season) -> usize {
     match season { Season::Autumn => 1, Season::Winter => 2, _ => 0 }
 }
 
 /// `block` with its greens recoloured by `f` (grass to water, or autumn gold)
-pub(in crate::session) fn recolour_greens(block: &Sprite, f: impl Fn((u8, u8, u8)) -> (u8, u8, u8)) -> Sprite {
+pub(crate) fn recolour_greens(block: &Sprite, f: impl Fn((u8, u8, u8)) -> (u8, u8, u8)) -> Sprite {
     let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
     for p in out.pixels.chunks_mut(4) {
         if p[3] > 0 && p[1] > p[0] && p[1] > p[2] {
@@ -290,16 +290,16 @@ pub(in crate::session) fn recolour_greens(block: &Sprite, f: impl Fn((u8, u8, u8
 
 /// The top face of the pack's 94x97 ground blocks: a diamond centred on
 /// (47, 26.5), 47 across and 26.5 down from its centre to its corners
-pub(in crate::session) const FACE_CENTRE: (f32, f32, f32, f32) = (47.0, 26.5, 47.0, 26.5);
+pub(crate) const FACE_CENTRE: (f32, f32, f32, f32) = (47.0, 26.5, 47.0, 26.5);
 
 /// How far the top face's outline runs either side of its edge, as a
 /// fraction of the way to the centre (measured on the grass block: 0.76
 /// to 1.12 - it's thickest at the corners)
-pub(in crate::session) const FACE_OUTLINE: (f32, f32) = (0.25, 0.15);
+pub(crate) const FACE_OUTLINE: (f32, f32) = (0.25, 0.15);
 
 /// `block` with the dark outline round its top face (and its soft,
 /// half-dark edge) painted over in the colour just inside it
-pub(in crate::session) fn strip_face_outline(block: &Sprite) -> Sprite {
+pub(crate) fn strip_face_outline(block: &Sprite) -> Sprite {
     let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
     let (cx, cy, rx, ry) = FACE_CENTRE;
     let px = |x: i32, y: i32| -> [u8; 4] {
@@ -329,7 +329,7 @@ pub(in crate::session) fn strip_face_outline(block: &Sprite) -> Sprite {
 /// Just the top face of a ground block, its sides cut away: inland, where
 /// the blocks in front cover the sides anyway, their edges only peeked
 /// between the tiles as faint lines
-pub(in crate::session) fn face_only(block: &Sprite) -> Sprite {
+pub(crate) fn face_only(block: &Sprite) -> Sprite {
     let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
     let (cx, cy, rx, ry) = FACE_CENTRE;
     for y in 0..block.height {
@@ -344,7 +344,7 @@ pub(in crate::session) fn face_only(block: &Sprite) -> Sprite {
 /// The sea: the pack has no open-water block, so it's the grass block with
 /// its grass turned to water, colder in winter. `shade` scales the blue
 /// per channel: shallow water is paler, the open sea darker.
-pub(in crate::session) fn water_block(grass: &Sprite, winter: bool, shade: (f32, f32, f32)) -> Sprite {
+pub(crate) fn water_block(grass: &Sprite, winter: bool, shade: (f32, f32, f32)) -> Sprite {
     let k = if winter { 0.8 } else { 1.0 };
     recolour_greens(grass, |(_, g, _)| {
         let l = g as f32 * k;
@@ -354,7 +354,7 @@ pub(in crate::session) fn water_block(grass: &Sprite, winter: bool, shade: (f32,
 
 /// Blend every drawn pixel of `block` toward `colour` by `t` (where
 /// recolour_greens only touches the greens - snow has none to take)
-pub(in crate::session) fn tint(block: &Sprite, colour: (u8, u8, u8), t: f32) -> Sprite {
+pub(crate) fn tint(block: &Sprite, colour: (u8, u8, u8), t: f32) -> Sprite {
     let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
     for p in out.pixels.chunks_mut(4) {
         if p[3] == 0 { continue; }
@@ -366,14 +366,14 @@ pub(in crate::session) fn tint(block: &Sprite, colour: (u8, u8, u8), t: f32) -> 
 
 /// A per-tile pick from a sprite list, stable for the tile (`salt` keeps
 /// different lists from lining up on the same tiles)
-pub(in crate::session) fn pick(v: &[Sprite], x: i32, y: i32, salt: u32) -> Option<&Sprite> {
+pub(crate) fn pick(v: &[Sprite], x: i32, y: i32, salt: u32) -> Option<&Sprite> {
     if v.is_empty() { None } else { v.get((noise(x, y, salt) * v.len() as f32) as usize % v.len()) }
 }
 
 impl TileSet {
     /// Load the blocks for the green seasons (0), autumn (1: the green set
     /// gone gold) or winter (2)
-    pub(in crate::session) fn load(at: &dyn Fn(&str) -> Option<Sprite>, season: usize) -> TileSet {
+    pub(crate) fn load(at: &dyn Fn(&str) -> Option<Sprite>, season: usize) -> TileSet {
         let load = |rel: &str| at(&format!("Isometric Medieval Pack/Isometric Medieval Pack/Sprites/{}", rel));
         let winter = season == 2;
         let gold = |s: Sprite| if season == 1 { recolour_greens(&s, |c| blend(c, (185, 125, 45), 0.45)) } else { s };
@@ -446,7 +446,7 @@ impl TileSet {
     }
 
     /// Every ground block put through `f` (the trees stay as they are)
-    pub(in crate::session) fn map_blocks(&self, f: impl Fn(&Sprite) -> Sprite) -> TileSet {
+    pub(crate) fn map_blocks(&self, f: impl Fn(&Sprite) -> Sprite) -> TileSet {
         TileSet {
             grass: self.grass.as_ref().map(&f),
             shore: self.shore.as_ref().map(&f),
@@ -466,7 +466,7 @@ impl TileSet {
     }
 
     /// The block for map tile (x, y), joined up with its neighbours
-    pub(in crate::session) fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
+    pub(crate) fn block(&self, map: &TileMap, x: i32, y: i32) -> Option<&Sprite> {
         let sea = |dx: i32, dy: i32| map.get(x + dx, y + dy) == Some(Tile::Water);
         let by_sea = || NEIGHBOURS.iter().any(|&(dx, dy)| sea(dx, dy));
         let by_land = || NEIGHBOURS.iter().any(|&(dx, dy)| !sea(dx, dy) && map.get(x + dx, y + dy) != Some(Tile::River));
@@ -495,7 +495,7 @@ impl TileSet {
 
 /// A villager sprite cropped to its standing frame (each sheet is a grid
 /// of 32x32 cells)
-pub(in crate::session) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
+pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
     match at(rel) {
         Some(s) => s.crop(0, 0, 32, 32),
         None => { println!("sprite load {}", rel); Sprite { width: 1, height: 1, pixels: vec![255, 0, 255, 255] } }
@@ -503,7 +503,7 @@ pub(in crate::session) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str)
 }
 
 /// The sprite for `houses[i]`, or none where nothing loaded
-pub(in crate::session) static NO_SPRITE: Option<Sprite> = None;
+pub(crate) static NO_SPRITE: Option<Sprite> = None;
 
 impl Art {
     /// Load every sprite through `fetch` (rel path -> png bytes): the file
@@ -515,13 +515,13 @@ impl Art {
     }
 
     /// The cottage `i` wraps round to (the house list cycles)
-    pub(in crate::session) fn house(&self, i: usize) -> &Option<Sprite> {
+    pub(crate) fn house(&self, i: usize) -> &Option<Sprite> {
         self.houses.get(i % self.houses.len().max(1)).unwrap_or(&NO_SPRITE)
     }
 
     /// The same cottage in winter: the generated ones stand on a grass
     /// base, which snows over (and moss on a thatch roof gets a dusting)
-    pub(in crate::session) fn house_winter(&self, i: usize) -> &Option<Sprite> {
+    pub(crate) fn house_winter(&self, i: usize) -> &Option<Sprite> {
         self.houses_winter.get(i % self.houses_winter.len().max(1)).unwrap_or(&NO_SPRITE)
     }
 

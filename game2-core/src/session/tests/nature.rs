@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_card_describes_nature_in_plain_words_that_fit() {

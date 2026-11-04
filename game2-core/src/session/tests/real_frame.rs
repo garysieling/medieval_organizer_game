@@ -2,6 +2,8 @@
 //! the real Game, Game::render(). (playtest_gate's UI checks use their own
 //! stripped-down renderer and passed even when the real panel was empty.)
 use crate::session::*;
+use crate::client::*;
+use crate::engine::render::Buffer;
 
 /// Pixels in a box that differ from the given background colour
 fn drawn(buf: &Buffer, x0: usize, y0: usize, x1: usize, y1: usize, bg: (u8, u8, u8)) -> usize {

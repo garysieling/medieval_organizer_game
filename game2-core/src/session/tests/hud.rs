@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_hud_speaks_in_days_and_names_the_food_store() {

@@ -6,8 +6,9 @@
 use std::sync::{Arc, Mutex};
 use minifb::{Key, Window, WindowOptions, MouseMode};
 use game2_core::engine::render::Buffer;
+use game2_core::client::{self, Art, View};
 use game2_core::session::{
-    self, Art, ClientKind, ClientMsg, Command, Game, ServerMsg, UiModel, View, MAP_TILES,
+    self, ClientKind, ClientMsg, Command, Game, ServerMsg, UiModel, MAP_TILES,
 };
 
 const W: usize = session::W;
@@ -114,7 +115,7 @@ fn main() {
 
     if let Some(target) = dump_at {
         let art = Art::load_fs("assets", seed);
-        session::run_headless_focus(art, target, out, zoom, cam, weather.as_deref(), seed, focus.as_deref());
+        client::run_headless_focus(art, target, out, zoom, cam, weather.as_deref(), seed, focus.as_deref());
         return;
     }
 
@@ -134,7 +135,7 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_at = std::time::Instant::now();
         if !started {
-            present(&mut window, &session::render_title());
+            present(&mut window, &client::render_title());
             if window.is_key_down(Key::Enter) { started = true; }
             continue;
         }
@@ -167,7 +168,7 @@ fn main() {
 
         let buf = match &cur_model {
             Some(m) => view.render(m, (mx, my)),
-            None => { present(&mut window, &session::render_title()); continue; }
+            None => { present(&mut window, &client::render_title()); continue; }
         };
         present(&mut window, &buf);
 

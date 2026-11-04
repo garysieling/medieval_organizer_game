@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_screen_and_tile_projections_agree_on_the_minimap() {

@@ -7,7 +7,7 @@ use crate::session::*;
 pub(in crate::session) const LOG_GOSSIP_SHOWN: usize = 2;
 
 /// Is this log entry idle gossip ("X tells Y - ...")?
-pub(in crate::session) fn is_gossip(entry: &str) -> bool { entry.contains(" tells ") }
+pub fn is_gossip(entry: &str) -> bool { entry.contains(" tells ") }
 
 /// Weather changes shown in the log at once (the HUD names today's weather)
 pub(in crate::session) const LOG_WEATHER_SHOWN: usize = 1;

@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_a_dead_villagers_card_shows_a_gravestone() {

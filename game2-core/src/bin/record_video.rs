@@ -13,7 +13,7 @@
 //!        --format FMT       gif | apng | avi | mp4 | webm | frames | ffmpeg (default gif)
 //!        --audio            attach the synthesised sfx track (avi always does)
 //!        --ffmpeg-path P    ffmpeg binary for mp4/webm (scripts/get-ffmpeg.ps1)
-//!        --script FILE      timed commands - see session::record docs
+//!        --script FILE      timed commands - see client::record docs
 //!        --game-speed N     in-game clock, 1 or 4 (default 1)
 //!        --zoom F --cam X,Y --seed N --out PATH
 //!
@@ -22,7 +22,8 @@
 //!   --play-time 1800 --speedup 60        half an hour in 30s of footage
 //!   --script jobs/walkabout.txt          drive the player from a file
 
-use game2_core::session::{self, Art, Format, RecordOpts};
+use game2_core::client::{self, Art, Format, RecordOpts};
+use game2_core::session;
 
 fn arg<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
     args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).map(|s| s.as_str())
@@ -33,7 +34,7 @@ fn main() {
     let mut opts = RecordOpts::default();
     opts.play_secs = arg(&args, "--play-time").and_then(|v| v.parse().ok()).unwrap_or(opts.play_secs);
     if let Some(s) = arg(&args, "--speed") {
-        match session::speed_preset(s) {
+        match client::speed_preset(s) {
             Some(v) => opts.speedup = v,
             None => { eprintln!("unknown --speed {} (realtime|1x|2x|5x|10x|60x)", s); std::process::exit(2); }
         }
@@ -65,7 +66,7 @@ fn main() {
     if let Some(p) = arg(&args, "--ffmpeg-path") { opts.ffmpeg = p.to_string(); }
     if let Some(s) = arg(&args, "--script") {
         match std::fs::read_to_string(s).map_err(|e| e.to_string())
-            .and_then(|t| session::parse_script(&t)) {
+            .and_then(|t| client::parse_script(&t)) {
             Ok(ops) => opts.script = ops,
             Err(e) => { eprintln!("can't read script {}: {}", s, e); std::process::exit(2); }
         }
@@ -88,7 +89,7 @@ fn main() {
     }
 
     let art = Art::load_fs("assets", seed);
-    if let Err(e) = session::run_recording(art, opts, seed) {
+    if let Err(e) = client::run_recording(art, opts, seed) {
         eprintln!("recording failed: {}", e);
         std::process::exit(1);
     }

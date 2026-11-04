@@ -1,4 +1,6 @@
 use crate::session::*;
+use crate::client::*;
+use crate::engine::render::Buffer;
 
 #[test]
 fn test_rain_dims_and_cools_evenly() {

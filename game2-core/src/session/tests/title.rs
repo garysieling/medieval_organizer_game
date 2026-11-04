@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_title_lines_are_centred_and_say_how_to_win() {

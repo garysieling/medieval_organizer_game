@@ -1,9 +1,9 @@
 //! Draw helpers for the map view: figures, props, bubbles, labels, colours, the minimap and weather.
 
-use crate::session::*;
+use super::*;
 
 /// Draw `sprite` with its top-left at (x, y), scaled by `scale`
-pub(in crate::session) fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
+pub(crate) fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, scale: f32) {
     if (scale - 1.0).abs() < 0.01 {
         sprite.blit(buf, x, y);
     } else if (scale - 2.0).abs() < 0.01 {
@@ -16,21 +16,21 @@ pub(in crate::session) fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32,
 
 /// Where the panel portrait's feet are: a 32px frame drawn 2x from
 /// (UI_X+6, 312), the figure centred in it and ending at its bottom row
-pub(in crate::session) const PORTRAIT_FOOT: (i32, i32) = (UI_X as i32 + 6 + 32, 322 + 62);
+pub(crate) const PORTRAIT_FOOT: (i32, i32) = (UI_X as i32 + 6 + 32, 322 + 62);
 
 /// Villager name colours on the map: within MEETING_REACH of the player
 /// (Talk, Recruit and Organize can reach them) or not
-pub(in crate::session) const NAME_IN_REACH: (u8, u8, u8) = (255, 255, 255);
+pub(crate) const NAME_IN_REACH: (u8, u8, u8) = (255, 255, 255);
 
-pub(in crate::session) const NAME_OUT_OF_REACH: (u8, u8, u8) = (150, 150, 165);
+pub(crate) const NAME_OUT_OF_REACH: (u8, u8, u8) = (150, 150, 165);
 
 /// Gravestone colours
-pub(in crate::session) const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
+pub(crate) const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 
-pub(in crate::session) const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
+pub(crate) const GRAVE_EDGE: (u8, u8, u8) = (55, 55, 65);
 
 /// A ready herb patch: a little spray of flowers low on the meadow tile
-pub(in crate::session) fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
     // green sprigs, then petal dots above them
     for (dx, dy) in [(-3, 0), (0, -1), (3, 0), (-1, -2), (1, -2)] {
@@ -42,14 +42,14 @@ pub(in crate::session) fn herb_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f3
 }
 
 /// A wild mushroom: a little cap on a pale stem
-pub(in crate::session) fn shroom_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn shroom_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
     buf.rect(sx - k(2), sy - k(4), 1.max(k(5)), 1.max(k(3)), 195, 70, 55);
     buf.rect(sx - k(1), sy - k(1), 1.max(k(3)), 1.max(k(2)), 235, 225, 200);
 }
 
 /// A woven skep: a small domed hive with banding
-pub(in crate::session) fn draw_skep(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_skep(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
     buf.rect(sx - k(4), sy - k(7), 1.max(k(8)), 1.max(k(6)), 210, 185, 120);
     buf.rect(sx - k(3), sy - k(9), 1.max(k(6)), 1.max(k(2)), 220, 198, 140);
@@ -57,7 +57,7 @@ pub(in crate::session) fn draw_skep(buf: &mut Buffer, sx: i32, sy: i32, zoom: f3
 }
 
 /// A swarm on the wing: a knot of dark specks
-pub(in crate::session) fn draw_swarm(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_swarm(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
     for (dx, dy) in [(-3, -8), (0, -10), (3, -8), (-1, -6), (2, -11), (-4, -10)] {
         buf.rect(sx + k(dx), sy + k(dy), 1.max(k(2)), 1.max(k(1)), 45, 35, 20);
@@ -65,7 +65,7 @@ pub(in crate::session) fn draw_swarm(buf: &mut Buffer, sx: i32, sy: i32, zoom: f
 }
 
 /// A grazing animal: a wool or hair blob low on four legs
-pub(in crate::session) fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
+pub(crate) fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, sheep: bool) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;
     let (body, dark) = if sheep { ((235, 230, 212), (205, 198, 180)) } else { ((148, 132, 110), (104, 92, 75)) };
     buf.rect(sx - k(5), sy - k(8), 2.max(k(10)), 1.max(k(5)), body.0, body.1, body.2);
@@ -75,20 +75,20 @@ pub(in crate::session) fn draw_beast(buf: &mut Buffer, sx: i32, sy: i32, zoom: f
 
 /// Draw an animal sprite (1px art, so 1x zoom) standing on screen point
 /// (sx, sy); returns its height on screen, for a label above it
-pub(in crate::session) fn draw_animal(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) -> i32 {
+pub(crate) fn draw_animal(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) -> i32 {
     let (w, h) = ((sprite.width as f32 * zoom).round() as i32, (sprite.height as f32 * zoom).round() as i32);
     draw_zoomed(buf, sprite, sx - w / 2, sy - h, zoom);
     h
 }
 
 /// One of a set of looks, the same one for the same animal every frame
-pub(in crate::session) fn variant(set: &[Sprite], key: Entity) -> Option<&Sprite> {
+pub(crate) fn variant(set: &[Sprite], key: Entity) -> Option<&Sprite> {
     if set.is_empty() { None } else { set.get(key as usize % set.len()) }
 }
 
 /// Draw a gravestone standing on screen point (sx, sy) at the current zoom;
 /// returns the y of its top, for the name label
-pub(in crate::session) fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) -> i32 {
+pub(crate) fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) -> i32 {
     let z = |v: f32| (v * zoom).round() as i32;
     let (w, h) = (z(12.0).max(4), z(16.0).max(5));
     let (x, top) = (sx - w / 2, sy - h);
@@ -104,20 +104,20 @@ pub(in crate::session) fn draw_grave(buf: &mut Buffer, sx: i32, sy: i32, zoom: f
 
 /// Draw a character sprite (a 32px frame drawn 2x at zoom 1) standing on
 /// screen point (sx, sy), at the current zoom
-pub(in crate::session) fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
     draw_zoomed(buf, sprite, sx - (32.0 * zoom).round() as i32, sy - (60.0 * zoom).round() as i32, 2.0 * zoom);
 }
 
 /// Screen y of a character's head at the current zoom
-pub(in crate::session) fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
+pub(crate) fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
 
 /// The point to hand name_label_pos so a label sits just above a zoomed head
-pub(in crate::session) fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
+pub(crate) fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
 
 /// How far below SPRITE_HEAD this sprite's head actually starts, in screen
 /// pixels at zoom 1: some figures (the old man) have blank rows above
 /// row 18, which left their name floating
-pub(in crate::session) fn head_drop(sprite: &Sprite) -> i32 {
+pub(crate) fn head_drop(sprite: &Sprite) -> i32 {
     let w = sprite.width as usize;
     let top = (0..sprite.height as usize)
         .find(|&y| (0..w).any(|x| sprite.pixels[(y * w + x) * 4 + 3] > 0))
@@ -126,19 +126,19 @@ pub(in crate::session) fn head_drop(sprite: &Sprite) -> i32 {
 }
 
 /// label_anchor for a particular sprite, so its name sits on its own head
-pub(in crate::session) fn sprite_label_anchor(sprite: &Sprite, sy: i32, zoom: f32) -> i32 {
+pub(crate) fn sprite_label_anchor(sprite: &Sprite, sy: i32, zoom: f32) -> i32 {
     label_anchor(sy, zoom) + (head_drop(sprite) as f32 * zoom).round() as i32
 }
 
 /// Height of a speech bubble
-pub(in crate::session) const BUBBLE_H: i32 = 18;
+pub(crate) const BUBBLE_H: i32 = 18;
 
 /// Where a speech bubble goes for a speaker standing on screen point
 /// (sx, sy): just above their (zoomed) name label, kept inside the map view.
 /// None when the speaker isn't on the map view at all.
 /// `label_y` is where the speaker's name label actually ended up: place_labels
 /// nudges crowded labels upward, and the bubble must clear the nudged one
-pub(in crate::session) fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) -> Option<(i32, i32, i32)> {
+pub(crate) fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, label_y: Option<i32>) -> Option<(i32, i32, i32)> {
     if sx < 0 || sx >= MAP_W as i32 || sy < 0 || sy >= H as i32 + 60 { return None; }
     let bw = (text.len() as i32 * GLYPH_W + 12).max(60).min(MAP_W as i32 - 8);
     let bx = (sx - bw / 2).clamp(4, MAP_W as i32 - 4 - bw);
@@ -150,50 +150,21 @@ pub(in crate::session) fn bubble_rect(sx: i32, sy: i32, zoom: f32, text: &str, l
 /// Top of a character's head relative to its ground point. Characters are
 /// 32px frames drawn 2x from (sx-32, sy-60), but the figure only fills the
 /// frame's bottom rows (18-31), so the head is at about sy-24.
-pub(in crate::session) const SPRITE_HEAD: i32 = -24;
+pub(crate) const SPRITE_HEAD: i32 = -24;
 
-/// Font glyph width and height (ui::font)
-pub(in crate::session) const GLYPH_W: i32 = 6;
-
-pub(in crate::session) const GLYPH_H: i32 = 7;
 
 /// Space between a name label and the head below it (the text outline
 /// adds one more pixel)
-pub(in crate::session) const LABEL_GAP: i32 = 1;
+pub(crate) const LABEL_GAP: i32 = 1;
 
-pub(in crate::session) fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
+pub(crate) fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
     (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
 }
 
-/// Word-wrap `text` into lines of at most `max` characters, breaking at
-/// spaces (a word longer than a whole line is split)
-pub(in crate::session) fn wrap_text(text: &str, max: usize) -> Vec<String> {
-    let mut lines = vec![];
-    let mut line = String::new();
-    for word in text.split_whitespace() {
-        let mut word = word.to_string();
-        while word.chars().count() > max {
-            if !line.is_empty() { lines.push(std::mem::take(&mut line)); }
-            let head: String = word.chars().take(max).collect();
-            word = word.chars().skip(max).collect();
-            lines.push(head);
-        }
-        if line.is_empty() {
-            line = word;
-        } else if line.chars().count() + 1 + word.chars().count() <= max {
-            line.push(' ');
-            line.push_str(&word);
-        } else {
-            lines.push(std::mem::replace(&mut line, word));
-        }
-    }
-    if !line.is_empty() { lines.push(line); }
-    lines
-}
 
 /// Base colour of a terrain tile by height - shared by the map and minimap
 /// so they agree on what is water, grass, fields, hills and peaks
-pub(in crate::session) fn terrain_colour(h: f32) -> (u8, u8, u8) {
+pub(crate) fn terrain_colour(h: f32) -> (u8, u8, u8) {
     if h < 0.15 { (30, 60, 180) }
     else if h < 0.35 { (60, 140, 60) }
     else if h < 0.55 { (140, 110, 50) }
@@ -202,12 +173,12 @@ pub(in crate::session) fn terrain_colour(h: f32) -> (u8, u8, u8) {
 }
 
 /// A pixel under rain: dimmed and cooled, like light through rain cloud
-pub(in crate::session) fn rain_wash(c: (u8, u8, u8)) -> (u8, u8, u8) {
+pub(crate) fn rain_wash(c: (u8, u8, u8)) -> (u8, u8, u8) {
     blend(c, (40, 55, 80), 0.25)
 }
 
 /// Mix colour `a` toward `b` by `t` (0 = all a, 1 = all b)
-pub(in crate::session) fn blend(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
+pub(crate) fn blend(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
     let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
     (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
 }
@@ -215,7 +186,7 @@ pub(in crate::session) fn blend(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8
 /// A tile's colour in the current season: snow lies on the land in winter
 /// and the water turns cold, grass goes gold in autumn and fresh in spring,
 /// summer is the base palette. Shared by the map and the minimap.
-pub(in crate::session) fn season_colour(h: f32, season: Season) -> (u8, u8, u8) {
+pub(crate) fn season_colour(h: f32, season: Season) -> (u8, u8, u8) {
     let base = terrain_colour(h);
     let water = h < 0.15;
     let peak = h >= 0.75;
@@ -232,7 +203,7 @@ pub(in crate::session) fn season_colour(h: f32, season: Season) -> (u8, u8, u8) 
 
 /// A map tile's colour in a season: the minimap's, and the map's own when
 /// a tile's block art is missing. Open ground follows season_colour.
-pub(in crate::session) fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
+pub(crate) fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
     let land = |c: (u8, u8, u8)| match season {
         Season::Winter => blend(c, (228, 232, 240), 0.65),
         _ => c,
@@ -250,13 +221,13 @@ pub(in crate::session) fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8
 }
 
 /// Minimap dot colours: living villagers, and the graves of the dead
-pub(in crate::session) const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
+pub(crate) const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
 
-pub(in crate::session) const MM_GRAVE: (u8, u8, u8) = (150, 150, 160);
+pub(crate) const MM_GRAVE: (u8, u8, u8) = (150, 150, 160);
 
 /// Minimap position of a point on screen (inverse of iso_to_screen_cam,
 /// then tile_to_minimap) - used to outline what the screen is showing
-pub(in crate::session) fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32, w_t: f32, h_t: f32) -> (f32, f32) {
+pub(crate) fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y: i32, zoom: f32, w_t: f32, h_t: f32) -> (f32, f32) {
     // undo the zoom about the view centre, then the zoom-1 projection
     let bx = ZOOM_PIVOT.0 + (sx - ZOOM_PIVOT.0) / zoom;
     let by = ZOOM_PIVOT.1 + (sy - ZOOM_PIVOT.1) / zoom;
@@ -269,7 +240,7 @@ pub(in crate::session) fn screen_to_minimap(sx: f32, sy: f32, cam_x: i32, cam_y:
 /// and, if it would sit on a label already placed, moves up a line at a time
 /// (at most a few lines) until it's clear. Labels nearer the bottom of the
 /// screen (characters in front) are placed first and keep their spot.
-pub(in crate::session) fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
+pub(crate) fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
     const LINE: i32 = GLYPH_H + 3;
     let mut order: Vec<usize> = (0..labels.len()).collect();
     order.sort_by_key(|&i| -labels[i].1);
@@ -292,26 +263,26 @@ pub(in crate::session) fn place_labels(labels: &[(i32, i32, i32)]) -> Vec<i32> {
 
 /// Marks drawn by villagers on the map: (glyph, colour, meaning). The
 /// panel's legend lists them, so the map and the key can't drift apart.
-pub(in crate::session) const MARK_HUNGRY: (&str, (u8, u8, u8), &str) = ("!", (255, 100, 100), "hungry");
+pub(crate) const MARK_HUNGRY: (&str, (u8, u8, u8), &str) = ("!", (255, 100, 100), "hungry");
 
-pub(in crate::session) const MARK_FOOD: (&str, (u8, u8, u8), &str) = ("o", (255, 200, 100), "finding food");
+pub(crate) const MARK_FOOD: (&str, (u8, u8, u8), &str) = ("o", (255, 200, 100), "finding food");
 
-pub(in crate::session) const MARK_BUSY: (&str, (u8, u8, u8), &str) = ("*", (180, 180, 255), "busy");
+pub(crate) const MARK_BUSY: (&str, (u8, u8, u8), &str) = ("*", (180, 180, 255), "busy");
 
-pub(in crate::session) const MARK_SICK: (&str, (u8, u8, u8), &str) = ("+", (140, 230, 110), "sick");
+pub(crate) const MARK_SICK: (&str, (u8, u8, u8), &str) = ("+", (140, 230, 110), "sick");
 
-pub(in crate::session) const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK_BUSY, MARK_SICK];
+pub(crate) const MAP_MARKS: [(&str, (u8, u8, u8), &str); 4] = [MARK_HUNGRY, MARK_FOOD, MARK_BUSY, MARK_SICK];
 
 /// The legend's row, between the log box and the bottom of the window
-pub(in crate::session) const LEGEND_Y: i32 = 627;
+pub(crate) const LEGEND_Y: i32 = 627;
 
 /// Green when high, amber in the middle, red when low (0..=1)
-pub(in crate::session) fn meter_colour(frac: f32) -> (u8, u8, u8) {
+pub(crate) fn meter_colour(frac: f32) -> (u8, u8, u8) {
     if frac >= 0.6 { (90, 200, 90) } else if frac >= 0.3 { (230, 180, 60) } else { (230, 80, 70) }
 }
 
 /// A small labelled meter: label, bar filled to `frac`, then a note
-pub(in crate::session) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &str, frac: f32, note: &str) {
+pub(crate) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &str, frac: f32, note: &str) {
     const BAR_X: i32 = 44;
     const BAR_W: i32 = 70;
     draw_text(buf, x, y, label, 200, 200, 200);
@@ -321,7 +292,7 @@ pub(in crate::session) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &s
     draw_text(buf, x + BAR_X + BAR_W + 6, y, note, r, g, b);
 }
 
-pub(in crate::session) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
+pub(crate) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool, disabled: bool) {
     let (mut r, mut g, mut bl) = b.color;
     if disabled { r = 50; g = 50; bl = 55; }
     else if hover { r = r.saturating_add(40); g = g.saturating_add(40); bl = bl.saturating_add(40); }
@@ -339,10 +310,10 @@ pub(in crate::session) fn draw_button(buf: &mut Buffer, b: &Button, hover: bool,
 /// The pack's ground blocks are 94px wide; the top face inside its outline
 /// is about 91x50, starting 1.5px down. A block is scaled so that face is
 /// exactly one map tile (neighbours' outlines overlap, as in the pack).
-pub(in crate::session) const BLOCK_FACE: (f32, f32, f32) = (91.0, 50.0, 1.5);
+pub(crate) const BLOCK_FACE: (f32, f32, f32) = (91.0, 50.0, 1.5);
 
 /// Size and top-left of the block drawn for the tile centred on (sx, sy)
-pub(in crate::session) fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32, i32) {
+pub(crate) fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize, usize, i32, i32) {
     let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
     let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
     let (w, h) = ((block.width as f32 * kx).round() as usize, (block.height as f32 * ky).round() as usize);
@@ -350,11 +321,11 @@ pub(in crate::session) fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32
 }
 
 /// The scale the pack's props (trees, rocks) draw at on zoom 1: its block scale
-pub(in crate::session) const PACK_PROP_K: f32 = 2.0 * TILE_W as f32 / BLOCK_FACE.0;
+pub(crate) const PACK_PROP_K: f32 = 2.0 * TILE_W as f32 / BLOCK_FACE.0;
 
 /// Draw a building standing on the tile centred on (sx, sy): scaled so its
 /// base spans exactly one tile, its front corner on the tile's front corner
-pub(in crate::session) fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let w = (2.0 * TILE_W as f32 * zoom).round() as usize;
     let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
@@ -364,7 +335,7 @@ pub(in crate::session) fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy
 /// own 1x size (no slab, so it's narrower than a tile and isn't stretched to
 /// one): a footprint w wide is a w/4-deep diamond's front half, so its
 /// bottom sits w/4 below the tile centre (at most the tile's front corner)
-pub(in crate::session) fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let (w, h) = ((s.width as f32 * zoom).round() as i32, (s.height as f32 * zoom).round() as i32);
     let bottom = sy + ((s.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
     draw_zoomed(buf, s, sx - w / 2, bottom - h, zoom);
@@ -374,7 +345,7 @@ pub(in crate::session) fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, s
 /// scaled like the ground blocks (the pack draws its castle pieces for the
 /// same 91x50 block face), so the piece's footprint is exactly the tile face
 /// and its base lands on the tile's edges instead of overhanging them
-pub(in crate::session) fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
     let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
     let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1;
     let (w, h) = ((s.width as f32 * kx).round() as usize, (s.height as f32 * ky).round().max(1.0) as usize);
@@ -386,37 +357,37 @@ pub(in crate::session) fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy:
 /// draw_on_tile on the tile centred on (sx, sy)
 /// The generated windmill's hub on screen, its tower standing on (sx, sy)
 /// as draw_standing puts it
-pub(in crate::session) fn mill_hub_rd(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
+pub(crate) fn mill_hub_rd(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
     let (w, h) = ((tower.width as f32 * zoom).round() as i32, (tower.height as f32 * zoom).round() as i32);
     let bottom = sy + ((tower.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
     (sx - w / 2 + (MILL_HUB_RD.0 * zoom).round() as i32, bottom - h + (MILL_HUB_RD.1 * zoom).round() as i32)
 }
 
-pub(in crate::session) fn mill_hub(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
+pub(crate) fn mill_hub(tower: &Sprite, sx: i32, sy: i32, zoom: f32) -> (i32, i32) {
     let k = 2.0 * TILE_W as f32 * zoom / tower.width as f32;
     let (w, h) = ((2.0 * TILE_W as f32 * zoom).round() as i32, (tower.height as f32 * k).round() as i32);
     let top = sy + (TILE_H as f32 * zoom).round() as i32 - h;
     (sx - w / 2 + (MILL_HUB.0 * k).round() as i32, top + (MILL_HUB.1 * k).round() as i32)
 }
 
-pub(in crate::session) const MILL_HUB: (f32, f32) = (24.5, 44.0);
+pub(crate) const MILL_HUB: (f32, f32) = (24.5, 44.0);
 
 /// Where the generated tower's sails turn, in its own pixels (the front of
 /// the cap, assets/rd/windmill/tower.png)
-pub(in crate::session) const MILL_HUB_RD: (f32, f32) = (19.5, 31.0);
+pub(crate) const MILL_HUB_RD: (f32, f32) = (19.5, 31.0);
 
 /// Index into Art::trades_winter
-pub(in crate::session) fn trade_index(b: BSprite) -> usize {
+pub(crate) fn trade_index(b: BSprite) -> usize {
     match b { BSprite::Blacksmith => 0, BSprite::Guildhall => 1, BSprite::RivalHouse => 2, _ => 3 }
 }
 
 /// The sails' size against the tower's (the pack draws them about as tall)
-pub(in crate::session) const MILL_SAILS: f32 = 0.7;
+pub(crate) const MILL_SAILS: f32 = 0.7;
 
 /// The puffs of smoke over a home on the tile centred on (sx, sy), at frame
 /// `frame`: (x, y, size, grey) for each, rising from the roof over
 /// SMOKE_SECS, drifting right and shrinking as they go
-pub(in crate::session) fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u8)> {
+pub(crate) fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -> Vec<(i32, i32, i32, u8)> {
     let period = SMOKE_SECS * FPS;
     (0..3).map(|k| {
         let t = ((frame + k * period / 3) % period) as f32 / period as f32; // 0 at the chimney, 1 gone
@@ -427,12 +398,12 @@ pub(in crate::session) fn smoke_puffs(frame: u32, sx: i32, sy: i32, zoom: f32) -
     }).collect()
 }
 
-pub(in crate::session) const SMOKE_SECS: u32 = 2;
+pub(crate) const SMOKE_SECS: u32 = 2;
 
 /// Draw a tree or boulder standing in the middle of the tile centred on
 /// (sx, sy), k times its size at zoom 1 (PACK_PROP_K for the pack's, 1 for
 /// generated art)
-pub(in crate::session) fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, k: f32) {
+pub(crate) fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, k: f32) {
     let k = k * zoom;
     let (w, h) = ((s.width as f32 * k).round() as i32, (s.height as f32 * k).round() as i32);
     draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
@@ -440,14 +411,14 @@ pub(in crate::session) fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i
 
 /// Draw a child's figure - the pack has none, so they're a scaled-down
 /// villager flagged "(child)" on the label
-pub(in crate::session) fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
+pub(crate) fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
     draw_zoomed(buf, sprite, sx - (19.0 * zoom).round() as i32, sy - (36.0 * zoom).round() as i32, 1.2 * zoom);
 }
 
 /// Overcast, falling rain/snow and the post-rain rainbow over the map view.
 /// `since_clear` is frames since rain stopped (drives the rainbow fade).
 /// The terrain runs right up to the panel, so this covers to UI_X, not MAP_W.
-pub(in crate::session) fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_clear: Option<u64>) {
+pub(crate) fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind>, frame: u64, since_clear: Option<u64>) {
     // a clear sky draws nothing: don't scan a million pixels for a mask
     // only rain, snow and the rainbow ever use
     if kind.is_none() && since_clear.is_none() { return; }
@@ -486,7 +457,7 @@ pub(in crate::session) fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind
 
 /// Split a log entry stored as "t120: message" into the day the player
 /// sees ("day 120", matching the HUD) and the message
-pub(in crate::session) fn log_parts(entry: &str) -> (Option<String>, &str) {
+pub(crate) fn log_parts(entry: &str) -> (Option<String>, &str) {
     if let Some((stamp, msg)) = entry.split_once(": ") {
         if let Some(day) = stamp.strip_prefix('t').filter(|d| !d.is_empty() && d.chars().all(|c| c.is_ascii_digit())) {
             return (Some(format!("day {}", day)), msg);
@@ -497,7 +468,7 @@ pub(in crate::session) fn log_parts(entry: &str) -> (Option<String>, &str) {
 
 /// Colour for a log entry: deaths red, guild events gold, joins green,
 /// weather/illness cyan, idle gossip dimmed so real events stand out
-pub(in crate::session) fn log_colour(entry: &str) -> (u8, u8, u8) {
+pub(crate) fn log_colour(entry: &str) -> (u8, u8, u8) {
     if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
     else if is_gossip(entry) { (140, 140, 160) } // gossip, even when it mentions the guild
     else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
@@ -506,3 +477,15 @@ pub(in crate::session) fn log_colour(entry: &str) -> (u8, u8, u8) {
     else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "drizzle" | "showers" | "snow" | "rainbow" | "grippe" | "scarlatina" | "gripes" | "sweats" | "consumption" | "fever" | "cholera" | "ague")) { (120, 200, 255) }
     else { (210, 210, 210) }
 }
+
+pub(crate) fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8, g: u8, b: u8) {
+    buf.rect(x, y, w, h, r, g, b);
+}
+
+pub(crate) const TOOLTIPS: [&str; 5] = [
+    "talk to someone nearby",
+    "recruit villager to your org",
+    "spend gold for influence",
+    "call a house meeting",
+    "commission a new house",
+];

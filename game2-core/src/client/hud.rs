@@ -1,9 +1,9 @@
 //! HUD text and overlays: the status line, help and pause boxes, the title card.
 
-use crate::session::*;
+use super::*;
 
 /// The top-left status line: season, day, the village food store, weather, speed
-pub(in crate::session) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32) -> String {
+pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32) -> String {
     format!("{:?} | day {} | food store {}{}{}", season, day, food,
         weather.map(|w| format!(" | {}", w)).unwrap_or_default(),
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
@@ -11,9 +11,9 @@ pub(in crate::session) fn hud_text(season: Season, day: u64, food: impl std::fmt
 
 /// The panel's standing reminder of the keys - the only on-screen pointer
 /// to the help overlay once the title screen is gone
-pub(in crate::session) const PANEL_HINT: &str = "1-8 select villager   H help";
+pub(crate) const PANEL_HINT: &str = "1-8 select villager   H help";
 
-pub(in crate::session) const HELP_LINES: [&str; 9] = [
+pub(crate) const HELP_LINES: [&str; 9] = [
     "click button / key: take action",
     "click villager: select + inspect",
     "bright name: close enough to talk",
@@ -25,39 +25,39 @@ pub(in crate::session) const HELP_LINES: [&str; 9] = [
     "F12: screenshot   Esc: quit",
 ];
 
-pub(in crate::session) const HELP_W: i32 = 420;
+pub(crate) const HELP_W: i32 = 420;
 
-pub(in crate::session) const HELP_ROW: i32 = 22;
+pub(crate) const HELP_ROW: i32 = 22;
 
 #[cfg(test)] // only the tests check against it
 /// Where the help box sits: centred on the map view, as tall as its text
-pub(in crate::session) fn help_rect() -> (i32, i32, i32, i32) {
+pub(crate) fn help_rect() -> (i32, i32, i32, i32) {
     overlay_rect(HELP_W, HELP_LINES.len(), HELP_ROW, true)
 }
 
-pub(in crate::session) fn draw_help(buf: &mut Buffer) {
+pub(crate) fn draw_help(buf: &mut Buffer) {
     draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
 }
 
-pub(in crate::session) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-8: select villager"];
+pub(crate) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-8: select villager"];
 
-pub(in crate::session) const PAUSE_W: i32 = 260;
+pub(crate) const PAUSE_W: i32 = 260;
 
-pub(in crate::session) const PAUSE_ROW: i32 = 20;
+pub(crate) const PAUSE_ROW: i32 = 20;
 
 #[cfg(test)]
-pub(in crate::session) fn pause_rect() -> (i32, i32, i32, i32) {
+pub(crate) fn pause_rect() -> (i32, i32, i32, i32) {
     overlay_rect(PAUSE_W, PAUSE_LINES.len(), PAUSE_ROW, false)
 }
 
 /// A modal box over the map (help, pause): centred on the map view and
 /// sized to its lines, which are centred as a block under a scale-2 title
-pub(in crate::session) fn overlay_rect(w: i32, lines: usize, row: i32, footer: bool) -> (i32, i32, i32, i32) {
+pub(crate) fn overlay_rect(w: i32, lines: usize, row: i32, footer: bool) -> (i32, i32, i32, i32) {
     let h = 55 + lines as i32 * row + if footer { 30 } else { 12 };
     (MAP_W as i32 / 2 - w / 2, H as i32 / 2 - h / 2, w, h)
 }
 
-pub(in crate::session) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8, u8, u8), lines: &[&str], row: i32, footer: Option<&str>) {
+pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8, u8, u8), lines: &[&str], row: i32, footer: Option<&str>) {
     let (x, y, w, h) = overlay_rect(w, lines.len(), row, footer.is_some());
     let cx = x + w / 2;
     buf.rect(x, y, w, h, 20, 20, 35);
@@ -74,20 +74,20 @@ pub(in crate::session) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, ti
 /// The panel's status line: your organization by name, your gold, and the
 /// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
 /// 2.0" - a count of guild objects, and the goal the bar already shows)
-pub(in crate::session) fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> String {
+pub(crate) fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> String {
     let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
     format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
 }
 
 /// Label for who's in your organization, on the villager card ("Org:" never
 /// said which, and the status line calls it the Harvesters)
-pub(in crate::session) const MEMBERS_LABEL: &str = "Joined";
+pub(crate) const MEMBERS_LABEL: &str = "Joined";
 
 /// Characters that fit after the label, inside the villager card
-pub(in crate::session) const MEMBERS_CHARS: usize = 36;
+pub(crate) const MEMBERS_CHARS: usize = 36;
 
 /// The card's member list, cut at a whole name with ".." when it won't fit
-pub(in crate::session) fn members_line(names: &[&str]) -> String {
+pub(crate) fn members_line(names: &[&str]) -> String {
     if names.is_empty() { return "nobody yet - recruit!".into(); }
     let all = names.join(", ");
     if all.len() <= MEMBERS_CHARS { return all; }
@@ -102,17 +102,17 @@ pub(in crate::session) fn members_line(names: &[&str]) -> String {
 
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
-pub(in crate::session) fn text_width(text: &str, scale: usize) -> i32 {
+pub(crate) fn text_width(text: &str, scale: usize) -> i32 {
     (text.chars().count() * 6 * scale) as i32 - scale as i32
 }
 
 /// Draw `text` horizontally centred on x = `cx` at row `y`
-pub(in crate::session) fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
+pub(crate) fn draw_centered_at(buf: &mut Buffer, cx: i32, y: i32, text: &str, scale: usize, (r, g, b): (u8, u8, u8)) {
     draw_text_scaled(buf, cx - text_width(text, scale) / 2, y, text, scale, r, g, b);
 }
 
 /// Draw `text` horizontally centred on the screen at row `y`
-pub(in crate::session) fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, rgb: (u8, u8, u8)) {
+pub(crate) fn draw_centered(buf: &mut Buffer, y: i32, text: &str, scale: usize, rgb: (u8, u8, u8)) {
     draw_centered_at(buf, W as i32 / 2, y, text, scale, rgb);
 }
 

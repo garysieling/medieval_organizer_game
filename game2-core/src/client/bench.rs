@@ -1,6 +1,6 @@
 //! Headless frames and the render benchmark (GAME2_BENCH*): per-section timings for perf work.
 
-use crate::session::*;
+use super::*;
 
 /// Copy a Buffer to the window
 /// Headless verification: play the game (no input) until tick N, then
@@ -12,7 +12,7 @@ pub fn run_headless(art: Art, target_tick: u64, out: Option<String>, zoom: f32, 
 
 /// The View's pass marks (render.ground, render.sprites, ...): perf telemetry,
 /// recorded only while a bench runs
-pub(in crate::session) type Prof = crate::infra::perf::Marks;
+pub(crate) type Prof = crate::infra::perf::Marks;
 
 /// Time `n` frames of what the window does each frame: update the game,
 /// build the model, render it. Prints the stage means and p95/max, the
@@ -88,7 +88,7 @@ pub fn cam_centred_on(tx: f32, ty: f32) -> (i32, i32) {
 
 /// Does a scene figure answer to `--focus <name>`? (dog, cat, chicken,
 /// sheep, goat, gull, guard, priest, traveller, player, rival, villager)
-pub(in crate::session) fn focus_matches(kind: PKind, name: &str) -> bool {
+pub(crate) fn focus_matches(kind: PKind, name: &str) -> bool {
     match (kind, name) {
         (PKind::Pet(Species::Dog), "dog") | (PKind::Pet(Species::Cat), "cat") => true,
         (PKind::Chicken, "chicken" | "hen") | (PKind::Sheep, "sheep") | (PKind::Goat, "goat") => true,

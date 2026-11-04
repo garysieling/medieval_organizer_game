@@ -27,7 +27,8 @@ use std::f32::consts::PI;
 use std::io::Write;
 
 use crate::engine::render::Buffer;
-use super::{action_buttons, camera_on, Art, Command, Game, View, FPS, MAP_TILES};
+use crate::session::{action_buttons, camera_on, Command, Game, FPS, MAP_TILES};
+use super::{Art, View};
 
 /// Which file the frames land in
 #[derive(Debug, Clone, Copy, PartialEq)]

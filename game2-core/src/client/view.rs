@@ -1,6 +1,6 @@
 //! The View: draws a UiModel. It never sees the Game - only what the seat's model carries.
 
-use crate::session::*;
+use super::*;
 
 /// The visible ground viewport, cached for a fixed camera, zoom, season and map revision.
 /// Scaled ground blocks with their opaque runs, keyed by the source
@@ -31,7 +31,7 @@ pub struct View {
     pub inspector_open: bool,
     pub help_open: bool,
     /// The ground layer repainted only when stale
-    pub(in crate::session) ground: std::cell::RefCell<Option<GroundCache>>,
+    pub(crate) ground: std::cell::RefCell<Option<GroundCache>>,
     /// Ground blocks at the current zoom, as opaque runs (draw_ground):
     /// kept across frames so panning doesn't rescale them every pass
     blocks: std::cell::RefCell<BlockCache>,
@@ -64,7 +64,7 @@ impl View {
     }
 
     /// The sprite a building draws with
-    pub(in crate::session) fn sprite_of(&self, b: BSprite) -> &Option<Sprite> {
+    pub(crate) fn sprite_of(&self, b: BSprite) -> &Option<Sprite> {
         match b {
             BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
             BSprite::House(i) => self.art.house(i),

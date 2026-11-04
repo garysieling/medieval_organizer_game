@@ -1,4 +1,7 @@
 use crate::session::*;
+use crate::client::*;
+use crate::engine::render::Buffer;
+use crate::engine::sprite::Sprite;
 
 #[test]
 fn test_ground_block_top_face_covers_one_tile() {

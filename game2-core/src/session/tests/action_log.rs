@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::client::*;
 
 #[test]
 fn test_action_lines_are_dated_and_say_who_not_the_score() {

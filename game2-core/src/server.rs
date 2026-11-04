@@ -194,17 +194,29 @@ impl Server {
 
     /// Write the save file, if there is one (write then rename, so a crash
     /// mid-write leaves the last good save)
-    fn save(&self) {
-        let Some(path) = &self.save else { return };
+    fn save(&self) -> std::io::Result<()> {
+        let Some(path) = &self.save else { return Ok(()) };
         let file = SaveFile {
             version: SAVE_VERSION, journal: self.journal.clone(), frame: self.frame,
             claims: self.claims.iter().map(|(t, s)| (t.clone(), *s)).collect(),
             minted: self.minted, digest: self.game.state_digest(),
         };
-        let Ok(text) = serde_json::to_string(&file) else { return };
-        let tmp = path.with_extension("tmp");
-        if std::fs::write(&tmp, text).is_ok() {
-            if let Err(e) = std::fs::rename(&tmp, path) { eprintln!("game_server: can't save to {}: {e}", path.display()); }
+        let text = serde_json::to_string(&file).map_err(std::io::Error::other)?;
+        // beside the save, under a name no save can have (`village.json` ->
+        // `village.json.saving`), so the last good save is never the one written
+        let mut name = path.file_name().unwrap_or_default().to_os_string();
+        name.push(".saving");
+        let tmp = path.with_file_name(name);
+        std::fs::write(&tmp, text)?;
+        std::fs::rename(&tmp, path)
+    }
+
+    /// Save, and say so if it fails: play goes on, but the operator must know
+    /// the village isn't reaching the disk
+    fn save_or_warn(&self) {
+        if let Err(e) = self.save() {
+            let p = self.save.as_ref().map(|p| p.display().to_string()).unwrap_or_default();
+            eprintln!("game_server: SAVE FAILED ({p}): {e} - the village since the last good save would be lost on a restart");
         }
     }
 }
@@ -396,6 +408,10 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
     };
     let probe_addr = match &probe { Some(pl) => Some(pl.local_addr()?), None => None };
 
+    // a first save before anyone plays: an unwritable path fails the start,
+    // not an hour of play later
+    server.lock().unwrap().save()?;
+
     let mut accepts = vec![];
     {
         let (server, stop2) = (Arc::clone(&server), Arc::clone(&stop));
@@ -424,7 +440,7 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
     let mut saved_at = Instant::now();
     while !stop.load(Ordering::Relaxed) {
         if saved_at.elapsed() >= save_every {
-            server.lock().unwrap().save();
+            server.lock().unwrap().save_or_warn();
             saved_at = Instant::now();
         }
         let at = Instant::now();
@@ -476,7 +492,7 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
         if spent < frame_len { std::thread::sleep(frame_len - spent); }
     }
     // stopping: the village as it stands goes to disk
-    server.lock().unwrap().save();
+    server.lock().unwrap().save_or_warn();
 }
 
 fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>) {

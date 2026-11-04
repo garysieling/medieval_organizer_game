@@ -348,3 +348,27 @@ fn a_saved_village_comes_back_after_a_restart() {
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
+    // a save in a folder that isn't there: the server won't start, rather
+    // than play for an hour and lose it
+    let bad = std::env::temp_dir().join(format!("game2-nowhere-{}", std::process::id())).join("village.json");
+    assert!(serve(ServerConfig { save: Some(bad), ..fast() }).is_err(), "an unwritable save started anyway");
+
+    // a save named like a temp file still saves and restores
+    let dir = std::env::temp_dir().join(format!("game2-tmpname-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.tmp");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+    let server = start_with(cfg());
+    std::thread::sleep(Duration::from_millis(200));
+    server.stop();
+    assert!(save.exists());
+    assert!(!dir.join("village.tmp.saving").exists(), "the write file was left behind");
+    let server = start_with(cfg());
+    assert!(server.restored.as_ref().is_some_and(|r| r.digest_matched), "the .tmp-named save restores");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}

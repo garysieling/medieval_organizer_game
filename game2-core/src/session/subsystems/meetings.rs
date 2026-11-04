@@ -239,7 +239,18 @@ impl Game {
             if !pool.iter().any(|(e, _)| *e == c) { pool.push((c, true)); }
         }
         pool.retain(|(e, _)| *e != pe && self.villagers.contains(e));
-        pool.dedup_by(|a, b| a.0 == b.0);
+        // one invite per person, however many roles brought them up -
+        // dedup_by only catches neighbours, and a holder can recur
+        // non-adjacently (e.g. the venue-lender also takes notes, with
+        // someone else's promise listed between the two)
+        let mut deduped: Vec<(Entity, bool)> = vec![];
+        for (e, promised) in pool {
+            match deduped.iter_mut().find(|(de, _)| *de == e) {
+                Some((_, p)) => *p = *p || promised,
+                None => deduped.push((e, promised)),
+            }
+        }
+        let pool = deduped;
         let mut invited: Vec<Entity> = pool.iter()
             .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
                 (self.rng.next() % 1000) as f32 / 1000.0))

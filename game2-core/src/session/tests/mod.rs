@@ -34,6 +34,7 @@ mod edict;
 mod events;
 mod festival;
 mod fisher;
+mod fixtures;
 mod flock;
 mod food_reach;
 mod free_villager;

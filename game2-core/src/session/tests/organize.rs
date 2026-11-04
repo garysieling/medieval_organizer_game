@@ -1,5 +1,6 @@
 use crate::session::*;
 use crate::game::relationships::RelKind;
+use super::fixtures::plan_ready_meeting;
 
 #[test]
 fn test_organize_holds_a_house_meeting_with_nearby_villagers() {

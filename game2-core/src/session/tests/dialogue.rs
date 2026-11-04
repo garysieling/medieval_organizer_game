@@ -3,6 +3,7 @@ use crate::session::*;
 use crate::session::dialogue::*;
 use crate::engine::ecs::Entity;
 use crate::engine::render::Buffer;
+use super::fixtures::plan_ready_meeting;
 use crate::game::conversation::Relation;
 use crate::game::relationships::RelKind;
 use crate::game::traits::Personality;

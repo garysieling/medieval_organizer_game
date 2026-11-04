@@ -1,4 +1,5 @@
 use crate::session::*;
+use super::fixtures::plan_ready_meeting;
 
 fn influence(game: &Game) -> f32 {
     game.world.get_component::<PlayerCharacter>(game.player).unwrap().influence

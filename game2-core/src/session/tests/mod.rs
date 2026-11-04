@@ -30,6 +30,7 @@ mod dog_sprite;
 mod drink;
 mod dungeon;
 mod edict;
+mod events;
 mod festival;
 mod fisher;
 mod flock;

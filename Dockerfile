@@ -13,7 +13,9 @@ COPY data/landforms ./data/landforms
 RUN cargo build --release -p game2-core --bin game_server
 
 FROM debian:bookworm-slim
-RUN useradd -m game
+RUN useradd -m game && mkdir /data && chown game /data
+# a save file lives here: mount a volume and pass --save /data/village.json
+VOLUME /data
 COPY --from=build /app/target/release/game_server /usr/local/bin/
 USER game
 EXPOSE 8787

@@ -49,5 +49,38 @@ fn main() {
     if let Some(p) = h.probe_addr {
         eprintln!("game_server: probe on {} (test API, secret state{})", p, if tokened { ", tokened" } else { "" });
     }
-    h.wait();
+    // run until asked to stop (SIGTERM from docker stop / kubernetes, or
+    // Ctrl-C), then stop properly: the final save goes to disk
+    term::install();
+    while !term::asked() { std::thread::sleep(Duration::from_millis(200)); }
+    eprintln!("game_server: stopping (saving the village first, if --save)");
+    h.stop();
+    eprintln!("game_server: stopped");
+}
+
+/// Shutdown on a signal. In a container the server is PID 1, and Linux
+/// ignores SIGTERM for a PID 1 with no handler, so without this `docker
+/// stop` waits out its timeout and kills the process before the save.
+/// libc's `signal` directly, so no crate for one flag.
+#[cfg(unix)]
+mod term {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static ASKED: AtomicBool = AtomicBool::new(false);
+    extern "C" fn on_signal(_: i32) { ASKED.store(true, Ordering::SeqCst); }
+    extern "C" { fn signal(sig: i32, handler: extern "C" fn(i32)) -> usize; }
+    const SIGINT: i32 = 2;
+    const SIGTERM: i32 = 15;
+    pub fn install() {
+        // SAFETY: the handler only stores to an atomic, which is signal-safe
+        unsafe { signal(SIGTERM, on_signal); signal(SIGINT, on_signal); }
+    }
+    pub fn asked() -> bool { ASKED.load(Ordering::SeqCst) }
+}
+
+/// Elsewhere (Windows) Ctrl-C ends the process as before; periodic saves
+/// cover it
+#[cfg(not(unix))]
+mod term {
+    pub fn install() {}
+    pub fn asked() -> bool { false }
 }

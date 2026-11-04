@@ -92,7 +92,7 @@ impl Game {
             self.path_tick = self.tick;
         }
         if let Some(cached) = self.path_cache.get(&(from, to)) { return cached.clone(); }
-        let p = self.map.walk_path(from, to);
+        let p = crate::timed!("sim.walk_path", self.map.walk_path(from, to));
         self.path_cache.insert((from, to), p.clone());
         p
     }

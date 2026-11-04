@@ -313,3 +313,68 @@ fn claim_tokens_are_the_servers_own_and_long() {
     assert_ne!(admitted(server.addr, Some("mine".into()), None).expect("a seat"), "mine");
     server.stop();
 }
+
+#[test]
+fn a_saved_village_comes_back_after_a_restart() {
+    let dir = std::env::temp_dir().join(format!("game2-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.json");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+
+    // play a while: a human walks, an agent steers
+    let server = start_with(cfg());
+    assert!(server.restored.is_none(), "a fresh world");
+    let mut human = connect(server.addr);
+    let (me, token) = hello(&mut human, None, ClientKind::Human);
+    for _ in 0..30 { send(&mut human, &ClientMsg::Command(Command::Walk(1.0, 0.0))); }
+    let mut agent = connect(server.addr);
+    hello(&mut agent, None, ClientKind::Agent);
+    send(&mut agent, &ClientMsg::AgentCmd(AgentCmd::GoTo { x: 20, y: 20 }));
+    until("CmdDone", &mut agent, 10, |m, _| matches!(m, ServerMsg::CmdDone { .. }).then_some(()));
+    std::thread::sleep(Duration::from_millis(500));
+    server.stop(); // writes the save
+    assert!(save.exists(), "stopping wrote the village to disk");
+
+    // a new server on the same file: the same world, replayed
+    let server = start_with(cfg());
+    let r = server.restored.clone().expect("the village was restored");
+    assert!(r.frames > 50 && r.inputs >= 3, "replayed {} frames, {} inputs", r.frames, r.inputs);
+    assert!(r.digest_matched, "the replayed world isn't the one that was saved");
+    // and the claim still holds: the same character comes back
+    let mut back = connect(server.addr);
+    let (me_again, _) = hello(&mut back, Some(token), ClientKind::Human);
+    assert_eq!(me_again, me, "the token claims the same character after the restart");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_unwritable_save_fails_the_start_and_a_tmp_named_save_is_safe() {
+    // a save in a folder that isn't there: the server won't start, rather
+    // than play for an hour and lose it
+    let bad = std::env::temp_dir().join(format!("game2-nowhere-{}", std::process::id())).join("village.json");
+    assert!(serve(ServerConfig { save: Some(bad), ..fast() }).is_err(), "an unwritable save started anyway");
+
+    // a save named like a temp file still saves and restores
+    let dir = std::env::temp_dir().join(format!("game2-tmpname-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let save = dir.join("village.tmp");
+    let _ = std::fs::remove_file(&save);
+    let cfg = || ServerConfig { save: Some(save.clone()), save_every: Duration::from_secs(3600), ..fast() };
+    let server = start_with(cfg());
+    std::thread::sleep(Duration::from_millis(200));
+    server.stop();
+    assert!(save.exists());
+    let leftovers: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten()
+        .filter(|e| e.file_name().to_string_lossy().ends_with(".saving")).collect();
+    assert!(leftovers.is_empty(), "the write file was left behind");
+    // and a file that happens to sit where a write file might is left alone
+    let bystander = dir.join("village.tmp.saving");
+    std::fs::write(&bystander, "another village").unwrap();
+    let server = start_with(cfg());
+    assert!(server.restored.as_ref().is_some_and(|r| r.digest_matched), "the .tmp-named save restores");
+    server.stop();
+    assert_eq!(std::fs::read_to_string(&bystander).unwrap(), "another village", "a save wrote over a bystander");
+    let _ = std::fs::remove_dir_all(&dir);
+}

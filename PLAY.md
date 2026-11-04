@@ -300,8 +300,9 @@ API agents. Connecting claims a character - the server hands back a token,
 and presenting it on reconnect resumes the same one (the windowed client
 keeps it in `game2.claim`; the browser will keep it in localStorage).
 
-- `game_server [--port 8787] [--seed N] [--idle-secs 300] [--join-secret W] [--max-seats 64]`
-  - sim + WebSocket. With a join secret, clients need `GAME2_JOIN_SECRET=W`
+- `game_server [--port 8787] [--seed N] [--idle-secs 300] [--join-secret W] [--max-seats 64] [--save FILE]`
+  - sim + WebSocket. With a join secret, clients need `GAME2_JOIN_SECRET=W`.
+  With `--save`, the village (and everyone's claim) survives a restart
 - `game_ui --connect ws://host:port` - the same View renders the server's
   `Scene` (a serialized `UiModel`, sent without its map; the map comes as
   `Map` once and again when it changes); input goes back as `Command`s

@@ -52,9 +52,15 @@ Still open:
   `wasm32` CI step so it doesn't rot.
 - **Pause/speed retirement** — `speed-timer` feature stays off by default;
   web/remote never see it. Drop the key and `speed` field fully later.
-- **Persistence** — the world dies with the process; `save_load` only has
-  entity counts. Serialize `World`/components (serde-ify components) so a
-  pod restart keeps the village.
+- ~~**Persistence**~~ — first cut done, via the journal
+  (`session/journal.rs`): the server applies every input through
+  `Game::apply_input` and notes it with its frame; the sim is deterministic,
+  so seed + journal rebuild the world exactly. `game_server --save FILE`
+  writes journal, claims and frame every `--save-every` seconds (30) and on
+  stop, and a server started on the file replays it (checking a state
+  digest) - tokens keep their characters across restarts. Limit: a restore
+  replays every frame (~25s per hour of play), so long-lived servers will
+  want periodic snapshots (serde-ified components) on top.
 - ~~**Auth**~~ — done, lightly: `game_server --join-secret W` (or
   `GAME2_JOIN_SECRET`) makes every Hello carry the word (`Hello.secret`;
   `game_ui --connect` and `game_bots` read `GAME2_JOIN_SECRET`), and

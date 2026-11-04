@@ -3,6 +3,7 @@
 //!
 //!   game_server [--port 8787] [--seed N] [--idle-secs 300] [--probe-port N]
 //!               [--probe-token W] [--join-secret W] [--max-seats 64]
+//!               [--save FILE] [--save-every 30]
 //!
 //! Clients are two kinds:
 //!   - Human: gets a wanderer seat and a UiModel every broadcast; sends
@@ -35,10 +36,16 @@ fn main() {
         probe_token: arg("--probe-token").or_else(|| std::env::var("GAME2_PROBE_TOKEN").ok()),
         join_secret: arg("--join-secret").or_else(|| std::env::var("GAME2_JOIN_SECRET").ok()).filter(|s| !s.is_empty()),
         max_seats: arg("--max-seats").and_then(|v| v.parse().ok()).unwrap_or(64),
+        save: arg("--save").map(std::path::PathBuf::from),
+        save_every: Duration::from_secs(arg("--save-every").and_then(|v| v.parse().ok()).unwrap_or(30)),
     };
-    let (seed, tokened) = (cfg.seed, cfg.probe_token.is_some());
-    let h = serve(cfg).expect("bind failed");
-    eprintln!("game_server: listening on {} (seed {})", h.addr, seed);
+    let tokened = cfg.probe_token.is_some();
+    let h = serve(cfg).expect("can't start the server");
+    if let Some(r) = &h.restored {
+        eprintln!("game_server: restored {} frames, {} inputs from the save ({})", r.frames, r.inputs,
+            if r.digest_matched { "state matches" } else { "STATE DIFFERS" });
+    }
+    eprintln!("game_server: listening on {} (seed {})", h.addr, h.seed);
     if let Some(p) = h.probe_addr {
         eprintln!("game_server: probe on {} (test API, secret state{})", p, if tokened { ", tokened" } else { "" });
     }

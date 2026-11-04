@@ -42,6 +42,7 @@ mod herb;
 mod illness;
 mod ink_boiler;
 mod inspector;
+mod journal;
 mod key;
 mod kpi;
 mod layering;

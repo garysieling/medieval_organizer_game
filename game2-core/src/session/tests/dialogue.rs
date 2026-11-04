@@ -1,6 +1,6 @@
 //! Conversations: the rules cascade in play, the talk log, and the TALK and conversation panels.
-use crate::session::dialogue::*;
 use crate::session::*;
+use crate::session::dialogue::*;
 use crate::engine::ecs::Entity;
 use crate::engine::render::Buffer;
 use crate::game::conversation::Relation;

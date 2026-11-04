@@ -1,0 +1,404 @@
+//! Seats: who's connected (players and agents), the commands they send, and the single-seat wrappers solo play uses.
+
+use crate::session::*;
+
+/// Walking over to someone to talk to or recruit them
+pub struct Approach {
+    pub who: usize,              // villager index
+    pub action: usize,           // the action button to take on arrival (Talk or Recruit)
+    pub path: Vec<(i32, i32)>,   // tiles still to walk, their tile last
+    pub stuck: u32,              // frames without headway
+}
+
+/// What a seat tells the sim: the same actions the window's keys and clicks
+/// map to, so a local loop, a remote client and a test all steer the same way.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum Command {
+    /// One of the five action buttons (Talk, Recruit, Invest, Organize, Build)
+    Act(usize),
+    /// A contextual action (Work, Pair up, Errand)
+    CtxAct(usize),
+    /// Held-direction walk, one frame's step
+    Walk(f32, f32),
+    /// Pick a villager by index (the 1-8 keys)
+    Select(usize),
+    /// Click the map through this camera (select villager or building)
+    ClickMap { mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32 },
+    TogglePause,
+    ToggleSpeed,
+    /// Drop any walk-over-to-talk in progress
+    CancelApproach,
+    /// Answer the villager mid-Talk with reply `n`, or None to take your leave
+    TalkPick(Option<usize>),
+    /// Answer the founding call a house meeting left open on the
+    /// conversation box: pick `n` of the framings, or the last option
+    /// (let it rest)
+    Decide(usize),
+}
+
+/// A contextual action offered under the main buttons: what the player can
+/// do depends on where they stand and who's picked.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum CtxAct {
+    /// Work the player's own craft (at their bench if they have one)
+    Work,
+    /// Pair the picked junior with a master of their trade
+    PairUp,
+    /// Send the picked child on a paid errand
+    Errand,
+    /// Put a word between two hearts the organizer knows are lonely
+    Matchmake,
+    /// Hold the campaign's meeting, on its cadence
+    Meet,
+    /// Take the campaign to the streets: a demonstration at the player
+    March,
+    /// Give the picked member a campaign seat (turnout, notes, chair)
+    Delegate,
+    /// Ballot the picked member's trade: nine of ten, or a public failure
+    Strike,
+    /// Put the campaign's demands to the collector, in public
+    Townhall,
+    /// Keep pressing for the prisoner's release
+    Petition,
+    /// Set how often the cause meets: the organizer's recommendation
+    Cadence,
+}
+
+/// One player's hold on the game: which character they steer, what they've
+/// picked, the walk-over-to-talk under way, their contextual buttons. A solo
+/// game has exactly one seat; a server keeps one per claimed connection.
+pub struct Seat {
+    /// The seat's character entity (a wanderer for people, a villager for agents)
+    pub player: Entity,
+    /// The seat's organization entity
+    pub org: Entity,
+    /// They picked the selected villager themselves and haven't walked off
+    /// since: Talk and Recruit go to them, however far
+    pub picked: bool,
+    /// A walk-over-to-act under way
+    pub approach: Option<Approach>,
+    /// Index into villagers[] of the villager currently selected
+    pub selected_target: usize,
+    /// A building the seat clicked, or None while a villager is selected
+    pub selected_building: Option<usize>,
+    /// Contextual actions that depend on where the player stands and who's picked
+    pub ctx_actions: Vec<CtxAct>,
+    /// An API-driven seat steers a villager, not a wanderer
+    pub agent: bool,
+    /// A Talk under way, waiting on the player's reply (session::dialogue)
+    pub talk: Option<dialogue::PlayerTalk>,
+    /// The founding call this seat's house meeting left open on the
+    /// conversation box, waiting on their pick (Command::Decide). Each
+    /// organizer holds their own - another seat's meeting can't erase it
+    pub pending_founding: Option<PendingFounding>,
+    /// Where the character stood last frame, which way they face (0 up,
+    /// 1 right, 2 down, 3 left on screen) and whether they moved: drives
+    /// the walk cycle
+    pub last_pos: Option<(f32, f32)>,
+    pub facing: u8,
+    pub walking: bool,
+}
+
+impl Default for Seat {
+    fn default() -> Seat {
+        Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
+               selected_building: None, ctx_actions: vec![], agent: false, talk: None,
+               pending_founding: None, last_pos: None, facing: 2, walking: false }
+    }
+}
+
+impl Game {
+    /// One input from this seat: what a key press or click means to the sim.
+    pub fn command_at(&mut self, seat: usize, cmd: Command) {
+        match cmd {
+            Command::Act(i) => self.act_at(seat, i),
+            Command::CtxAct(i) => self.ctx_act_at(seat, i),
+            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].picked = false; self.walk_at(seat, dx, dy); }
+            Command::Select(i) => {
+                // an index off the list is refused, not stored - a client
+                // that sends one can't crash the next scene
+                if i < self.villagers.len() {
+                    self.seats[seat].selected_target = i;
+                    self.seats[seat].picked = true;
+                }
+            }
+            Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
+            Command::TogglePause => self.paused = !self.paused,
+            Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },
+            Command::CancelApproach => self.seats[seat].approach = None,
+            Command::TalkPick(n) => self.talk_pick_at(seat, n),
+            Command::Decide(i) => self.decide_at(seat, i),
+        }
+    }
+
+    /// A new wanderer joins at the market: the same spawn as the first
+    /// player, with a class, a trade, a purse and an inner life.
+    pub fn add_seat(&mut self) -> usize {
+        let player = self.world.create_entity();
+        let gold = livelihood::seed_gold(SocialClass::Working, false, self.rng.next() as f32 / u64::MAX as f32);
+        self.world.add_component(player, PlayerCharacter {
+            name: "A Wanderer".into(), influence: 0.1, authority: 0.0, resources: gold, standing: 0.0 });
+        let mp = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x + 2.0, p.y + 1.0)).unwrap_or((10.0, 10.0));
+        self.world.add_component(player, Pos { x: mp.0, y: mp.1 });
+        self.world.add_component(player, vocation::craft(roll_vocation(&mut self.rng), 0.2));
+        self.world.add_component(player, Satchel::default());
+        self.world.add_component(player, Purse { gold });
+        self.world.add_component(player, Organizer::default());
+        let org = self.world.create_entity();
+        self.world.add_component(org, Organization {
+            name: "The Free Folk".into(), members: vec![], leader: player,
+            influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() });
+        self.seats.push(Seat { player, org, ..Seat::default() });
+        self.seats.len() - 1
+    }
+
+    /// An API agent takes the reins of a villager: the seat's character is
+    /// the villager entity itself; no PlayerCharacter, no org of their own.
+    pub fn add_agent_seat(&mut self, villager: Entity) -> usize {
+        let org = self.world.create_entity();
+        self.world.add_component(org, Organization {
+            name: "-".into(), members: vec![], leader: villager,
+            influence_pool: 0.0, resources: 0.0, charter: "-".into() });
+        self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
+        self.seats.len() - 1
+    }
+
+    /// The first living villager nobody drives yet. A posting isn't up
+    /// for the taking - a bot can claim a free hand, not the collector,
+    /// the herb-wife, the knight or the priest (postings ride either
+    /// TownRole or a PMC Craft); and a child is nobody's worker. The
+    /// town's duties stay the town's.
+    pub fn free_villager(&self) -> Option<usize> {
+        // an agent needs a villager who can answer - the grave and the
+        // lock-up keep their counsel
+        self.villagers.iter().position(|v| !crate::game::dungeon::unavailable(&self.world, *v)
+            && !self.seats.iter().any(|s| s.player == *v)
+            && self.world.get_component::<TownRole>(*v).is_none()
+            && self.world.get_component::<Kid>(*v).is_none()
+            && !self.world.get_component::<Craft>(*v)
+                .map(|c| vocation::is_pmc(c.vocation)).unwrap_or(false))
+    }
+
+    /// What an agent asks its villager to do. Maps to the same travel/goal
+    /// machinery the village's own errands use, so nothing happens until the
+    /// walking is done - arrival triggers the trade, the chat, the gather.
+    pub fn agent_command(&mut self, seat: usize, cmd: AgentCmd) -> Result<(), String> {
+        let who = self.seats.get(seat).map(|s| s.player).ok_or_else(|| "no such seat".to_string())?;
+        // the held can only stand down - walks, errands and gathers all
+        // pass the jailer first
+        if (self.world.get_component::<crate::game::dungeon::Imprisoned>(who).is_some()
+            || self.world.get_component::<crate::game::dungeon::CastleHeld>(who).is_some())
+            && !matches!(cmd, AgentCmd::Idle) {
+            return Err("held - the cell allows no errands".into());
+        }
+        match cmd {
+            AgentCmd::Idle => { self.travels.retain(|t| t.who != who); Ok(()) }
+            AgentCmd::GoTo { x, y } => {
+                let Some(p) = self.world.get_component::<Pos>(who) else { return Err("you aren't in the world".into()) };
+                let from = (p.x.round() as i32, p.y.round() as i32);
+                match self.map.walk_path(from, (x, y)) {
+                    Some(mut path) => {
+                        path.push((x, y));
+                        self.travels.retain(|t| t.who != who);
+                        self.travels.push(Travel { who, path, goal: Goal::Wander });
+                        Ok(())
+                    }
+                    None => Err("no way there".into()),
+                }
+            }
+            AgentCmd::TalkTo { e } => {
+                // a fresh command supersedes the walk underway
+                self.travels.retain(|t| t.who != who);
+                if self.send(who, Goal::TalkTo(e)) { Ok(()) } else { Err("no way to them".into()) }
+            }
+            AgentCmd::BuyFrom { seller, good, qty } => {
+                let g: &'static str = Box::leak(good.into_boxed_str());
+                self.travels.retain(|t| t.who != who);
+                if self.send(who, Goal::BuyFrom(seller, g, qty)) { Ok(()) } else { Err("no way to them".into()) }
+            }
+            AgentCmd::BuyAt { shop, good } => {
+                let g: &'static str = Box::leak(good.into_boxed_str());
+                self.travels.retain(|t| t.who != who);
+                if self.send(who, Goal::BuyAt(shop, g, None)) { Ok(()) } else { Err("no way to that shop".into()) }
+            }
+            AgentCmd::Gather { good, x, y } => {
+                let g: &'static str = Box::leak(good.into_boxed_str());
+                self.travels.retain(|t| t.who != who);
+                if self.send_gather(who, g, (x, y)) { Ok(()) } else { Err("nothing to gather there".into()) }
+            }
+            AgentCmd::WorkDay => {
+                let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
+                if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }
+            }
+            AgentCmd::Eat => {
+                // step to the market store; the hunger logic does the rest
+                let Some(p) = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
+                    return Err("no store".into()) };
+                match self.map.walk_path(
+                    self.world.get_component::<Pos>(who).map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(p), p)
+                {
+                    // already standing at the store: eat now, no walk to take
+                    Some(path) if path.is_empty() => { self.arrive(who, Goal::Eat); Ok(()) }
+                    Some(path) => { self.travels.retain(|t| t.who != who); self.travels.push(Travel { who, path, goal: Goal::Eat }); Ok(()) }
+                    None => Err("no way to the store".into()),
+                }
+            }
+            AgentCmd::JoinOrg => {
+                let oe = self.seats[seat].org;
+                if self.world.get_component::<Organization>(oe)
+                    .map(|o| o.members.contains(&who)).unwrap_or(false) { return Ok(()); }
+                // you sign on when the cause has woken you, or the fight's
+                // your own - either way the issue itself organizes you
+                let issue = crate::game::campaign::campaign_of(&self.world, oe)
+                    .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                    .map(|c| c.issue.clone());
+                let Some(issue) = issue else { return Err("no cause to sign on with".into()) };
+                let woken = self.world.get_component::<crate::game::reactions::Sympathized>(who)
+                    .map(|s| s.issues.iter().any(|(i, _)| *i == issue)).unwrap_or(false);
+                let own = crate::game::campaign::stake_for(&self.world, who, &issue, self.tick).is_some();
+                if !(woken || own) { return Err("the cause hasn't reached you - come to a meeting first".into()); }
+                if let Some(o) = self.world.get_component_mut::<Organization>(oe) { o.members.push(who); }
+                Ok(())
+            }
+            AgentCmd::Press { prisoner } => {
+                if self.world.get_component::<crate::game::dungeon::Imprisoned>(prisoner).is_none() {
+                    return Err("no one inside by that name".into());
+                }
+                // a letter home, a vigil, a name kept spoken
+                crate::game::dungeon::press(&mut self.world, prisoner, 0.1);
+                Ok(())
+            }
+        }
+    }
+
+    /// One frame's step of the player in direction (dx, dy) (tile axes),
+    /// quicker along a road and slower through the woods. Blocked straight on, they slide along whatever
+    /// is in the way where they can.
+    pub fn walk_at(&mut self, seat: usize, dx: f32, dy: f32) {
+        let (px, py) = self.player_pos_at(seat);
+        let at = (px.round() as i32, py.round() as i32);
+        // a well-worn path is quicker underfoot, whoever's feet wear it
+        let worn = self.trails.get(&at).map(|t| t.strength).unwrap_or(0.0);
+        let spd = WALK_SPEED / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
+            Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
+            _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
+            _ => 1.0,
+        };
+        // the same pace whichever way they go, diagonals included
+        let len = (dx * dx + dy * dy).sqrt();
+        // a still stick or noise on the wire: no step, and never a NaN position
+        if !(len.is_finite() && len > 0.0) { return; }
+        let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
+        let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
+        if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {
+            let ot = (p.x.round() as i32, p.y.round() as i32);
+            p.x = x;
+            p.y = y;
+            // feet wear the ground the player walks, same as any villager's
+            let nt = (p.x.round() as i32, p.y.round() as i32);
+            if nt != ot {
+                let tr = self.trails.entry(nt).or_insert(Trail::wild());
+                trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
+            }
+        }
+    }
+
+    pub fn player_pos_at(&self, seat: usize) -> (f32, f32) {
+        self.world.get_component::<Pos>(self.seats[seat].player).map(|p| (p.x, p.y)).unwrap_or((10.0, 10.0))
+    }
+
+    /// A left click on the map at screen point (mx, my), seen through the
+    /// caller's camera: rivals rebuff or greet you, villagers get selected
+    pub fn click_map_at(&mut self, seat: usize, mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32) {
+        let tick = self.tick;
+        // click on a rival villager -> they rebuff you (foreign village is wary)
+        for (i, rv) in self.rivals.clone().into_iter().enumerate() {
+            if let Some(p) = self.world.get_component::<Pos>(rv) {
+                let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
+                let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
+                if mx < MAP_W as i32 && d < 24.0 {
+                    let p_inf = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap().influence;
+                    let (msg, tag) = if p_inf > 1.5 {
+                        (format!("{}: we've heard of you - the organizer.", RIVAL_NAMES[i]), "opened")
+                    } else if p_inf > 0.8 {
+                        (format!("{}: word travels. state your business.", RIVAL_NAMES[i]), "wary")
+                    } else {
+                        (format!("{}: we don't know you, outsider.", RIVAL_NAMES[i]), "rebuffed")
+                    };
+                    self.say(rv, &msg, TALK_BUBBLE_SECS);
+                    self.log.push(format!("t{}: {} {} your approach.", tick, RIVAL_NAMES[i], tag));
+                }
+            }
+        }
+        // click on map selects nearest villager
+        let on_map = mx < MAP_W as i32;
+        let mut best = self.seats[seat].selected_target;
+        let mut best_d = 9999.0f32;
+        for (i, v) in self.villagers.iter().enumerate() {
+            if let Some(p) = self.world.get_component::<Pos>(*v) {
+                let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
+                let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
+                if on_map && d < 30.0 && d < best_d { best = i; best_d = d; }
+            }
+        }
+        // click on a building: the inspector shows what it's for, who
+        // works or lives there, and what it has for offer
+        let mut best_b: Option<usize> = None;
+        let mut best_bd = 9999.0f32;
+        for (i, (bx, by, _)) in self.buildings.iter().enumerate() {
+            let (sx, sy) = iso_to_screen_cam(*bx, *by, cam_x, cam_y, zoom);
+            let d = ((sx as f32 - mx as f32).powi(2) + ((sy as f32 - 14.0 * zoom) - my as f32).powi(2)).sqrt();
+            if on_map && d < 42.0 && d < best_bd { best_b = Some(i); best_bd = d; }
+        }
+        // a villager wins the click only if clearly nearer
+        self.seats[seat].selected_building = if best_d + 8.0 < best_bd { None } else { best_b };
+        if self.seats[seat].selected_building.is_some() { self.seats[seat].picked = false; return; }
+        if best_d < 30.0 { self.seats[seat].picked = true; }
+        self.seats[seat].selected_target = best;
+    }
+
+    /// The camera centre for the map tile under minimap point (mx, my),
+    /// if (mx, my) is on the minimap
+    pub fn minimap_look(&self, mx: i32, my: i32) -> Option<(i32, i32)> {
+        minimap_look_map(&self.map, mx, my)
+    }
+
+    // ---- seat-0 conveniences: the solo game and tests drive seat 0 ----
+    pub fn act(&mut self, i: usize) { self.act_at(0, i) }
+
+    pub fn ctx_act(&mut self, i: usize) { self.ctx_act_at(0, i) }
+
+    pub fn walk(&mut self, dx: f32, dy: f32) { self.walk_at(0, dx, dy) }
+
+    pub fn click_map(&mut self, mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32) { self.click_map_at(0, mx, my, cam_x, cam_y, zoom) }
+
+    pub fn command(&mut self, cmd: Command) { self.command_at(0, cmd) }
+
+    pub fn ui_model(&self) -> UiModel { self.ui_model_at(0) }
+
+    pub fn action_blocker(&self, i: usize) -> Option<String> { self.action_blocker_at(0, i) }
+
+    pub fn disabled_reason(&self, i: usize) -> Option<String> { self.disabled_reason_at(0, i) }
+
+    pub fn villagers_in_reach(&self) -> Vec<Entity> { self.villagers_in_reach_at(0) }
+
+    pub fn reach_target(&self) -> usize { self.reach_target_at(0) }
+
+    pub fn player_pos(&self) -> (f32, f32) { self.player_pos_at(0) }
+
+    pub fn update_ctx_actions(&mut self) { self.update_ctx_actions_at(0) }
+
+    pub fn advance_approach(&mut self) { self.advance_approach_at(0) }
+
+    pub fn call_meeting(&mut self) -> String { self.call_meeting_at(0) }
+
+    pub fn talk_to(&mut self, i: usize) -> String { self.talk_to_at(0, i) }
+
+    pub fn dist_to(&self, who: usize) -> f32 { self.dist_to_at(0, who) }
+
+    pub fn path_to(&self, who: usize) -> Option<Vec<(i32, i32)>> { self.path_to_at(0, who) }
+
+    pub fn start_approach(&mut self, who: usize, action: usize) -> Option<String> { self.start_approach_at(0, who, action) }
+
+    pub fn build_site(&self) -> Option<(f32, f32)> { self.build_site_at(0) }
+}

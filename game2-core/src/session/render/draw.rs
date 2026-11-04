@@ -482,3 +482,27 @@ pub(in crate::session) fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind
         },
     }
 }
+
+
+/// Split a log entry stored as "t120: message" into the day the player
+/// sees ("day 120", matching the HUD) and the message
+pub(in crate::session) fn log_parts(entry: &str) -> (Option<String>, &str) {
+    if let Some((stamp, msg)) = entry.split_once(": ") {
+        if let Some(day) = stamp.strip_prefix('t').filter(|d| !d.is_empty() && d.chars().all(|c| c.is_ascii_digit())) {
+            return (Some(format!("day {}", day)), msg);
+        }
+    }
+    (None, entry)
+}
+
+/// Colour for a log entry: deaths red, guild events gold, joins green,
+/// weather/illness cyan, idle gossip dimmed so real events stand out
+pub(in crate::session) fn log_colour(entry: &str) -> (u8, u8, u8) {
+    if entry.contains("died") || entry.contains("dead") { (255, 100, 100) }
+    else if is_gossip(entry) { (140, 140, 160) } // gossip, even when it mentions the guild
+    else if entry.contains("Guild") || entry.contains("guild") { (255, 215, 0) }
+    else if entry.contains("joined") { (120, 255, 120) }
+    // whole words only: "influence" contains "flu" and "grain" contains "rain"
+    else if entry.split(|c: char| !c.is_alphabetic()).any(|w| matches!(w, "storm" | "rain" | "raining" | "drizzle" | "showers" | "snow" | "rainbow" | "grippe" | "scarlatina" | "gripes" | "sweats" | "consumption" | "fever" | "cholera" | "ague")) { (120, 200, 255) }
+    else { (210, 210, 210) }
+}

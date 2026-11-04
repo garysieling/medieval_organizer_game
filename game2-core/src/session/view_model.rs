@@ -597,11 +597,30 @@ impl Game {
         let burning: Vec<(f32, f32)> = self.fire.burning.keys()
             .filter(|&&(x, y)| ((x as f32 - p.x).powi(2) + (y as f32 - p.y).powi(2)).sqrt() < 12.0)
             .map(|&(x, y)| (x as f32, y as f32)).collect();
+        // what they know of themself: their trade, home and bench, the want
+        // list - their own only
+        let craft = self.world.get_component::<Craft>(who);
+        let bench = craft.and_then(|c| c.workplace);
+        let mut bench_stock: Vec<(String, u32)> = bench.and_then(|b| self.world.get_component::<Building>(b))
+            .map(|b| b.stock.iter().filter(|(_, q)| **q > 0).map(|(g, q)| (g.clone(), *q)).collect()).unwrap_or_default();
+        bench_stock.sort();
+        let wants: Vec<String> = self.world.get_component::<InnerLife>(who)
+            .map(|l| l.wants.iter().filter(|w| !desires::is_satisfied(&self.world, who, **w, self.tick))
+                .map(|w| format!("{:?}", w)).collect()).unwrap_or_default();
+        let me = ObsSelf {
+            trade: craft.map(|c| vocation::vocation_name(c.vocation).to_string()),
+            level: craft.map(|c| format!("{:?}", vocation::level_of(c.skill))),
+            home: household::home_of(&self.world, who),
+            bench,
+            bench_stock,
+            needs: livelihood::needs_input(&self.world, who).map(String::from),
+            wants,
+        };
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
             near, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
-            held, orgs, campaigns, burning,
+            held, orgs, campaigns, burning, me,
         })
     }
 }

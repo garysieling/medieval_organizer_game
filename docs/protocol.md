@@ -139,14 +139,23 @@ org (see `docs/architecture.md`, public vs secret).
 
 ### Obs (agents)
 
-What an agent's villager knows: itself, who and what is near, its satchel.
+What an agent's villager knows: itself, who and what is near, its satchel,
+and (in `me`) its own trade, home, bench and wants.
 
 ```json obs
 {"tick":0,"you":49,"pos":[15.38,11.0],"gold":19.4,"hunger":100.0,"busy":"Idle",
  "near":[{"e":74,"name":"Greta","dist":0.7,"dead":false}],
  "near_buildings":[{"e":37,"name":"the bakery","kind":"shop","dist":2.0}],
- "satchel":[["bread",2]],"walking":false,"held":false,"orgs":[],"campaigns":[],"burning":[]}
+ "satchel":[["bread",2]],"walking":false,"held":false,"orgs":[],"campaigns":[],"burning":[],
+ "me":{"trade":"baker","level":"Journeyman","home":15,"bench":37,"bench_stock":[["bread",4]],
+       "needs":"grain","wants":["Joy","BetterTools"]}}
 ```
+
+`me` is what the villager knows of themself: their trade and its rung, their
+home and bench (entities, as `near_buildings` and `AgentCmd` use them), the
+bench's shelf, the raw good the trade is short of (`needs`: go and get it),
+and the wants they haven't met. It's only their own; nobody else's wants
+appear.
 
 ### CmdDone, Denied, Pong
 

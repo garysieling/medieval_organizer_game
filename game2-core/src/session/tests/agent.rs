@@ -123,3 +123,35 @@ fn test_the_agent_who_the_cause_reached_signs_on_and_writes_for_the_held() {
     assert!(g.world.get_component::<crate::game::dungeon::ReleaseCampaign>(held)
         .map(|r| r.pressure > 0.0).unwrap_or(false), "the letters pile up");
 }
+
+#[test]
+fn an_agent_knows_itself_and_no_one_elses_wants() {
+    let mut g = Game::new();
+    while g.tick < 2 { g.update(); }
+    // a villager with a trade and a bench
+    let i = (0..g.villagers.len()).find(|&i| {
+        let v = g.villagers[i];
+        !villager::is_dead(&g.world, v)
+            && g.world.get_component::<crate::game::vocation::TownRole>(v).is_none()
+            && g.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+            && g.world.get_component::<crate::game::vocation::Craft>(v).is_some_and(|c| c.workplace.is_some())
+    }).expect("a free tradesman");
+    let v = g.villagers[i];
+    let seat = g.add_agent_seat(v);
+    let obs = g.agent_obs(seat).unwrap();
+    let craft = g.world.get_component::<crate::game::vocation::Craft>(v).unwrap();
+    assert_eq!(obs.me.trade.as_deref(), Some(crate::game::vocation::vocation_name(craft.vocation)));
+    assert_eq!(obs.me.bench, craft.workplace);
+    assert!(obs.me.level.is_some());
+    // its own wants, as the sim holds them
+    let own: Vec<String> = g.world.get_component::<crate::game::desires::InnerLife>(v)
+        .map(|l| l.wants.iter().filter(|w| !crate::game::desires::is_satisfied(&g.world, v, **w, g.tick))
+            .map(|w| format!("{:?}", w)).collect()).unwrap_or_default();
+    assert_eq!(obs.me.wants, own);
+    // and nobody else's: the near list is names and distances only
+    let wire = serde_json::to_string(&obs).unwrap();
+    for n in &obs.near {
+        assert!(!wire.contains(&format!("\"{}\",\"wants\"", n.name)), "someone else's wants on the wire");
+    }
+    assert!(serde_json::to_value(&obs).unwrap()["near"][0].get("wants").is_none(), "a neighbour's wants in the obs");
+}

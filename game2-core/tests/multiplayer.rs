@@ -151,11 +151,30 @@ fn the_probe_is_its_own_tokened_socket() {
 }
 
 #[test]
-fn a_stopped_server_lets_go_of_its_port() {
+fn a_stopped_server_lets_go_of_its_ports_even_with_a_silent_socket_open() {
     let server = start(None);
-    let addr = server.addr;
+    let (addr, probe) = (server.addr, server.probe_addr.unwrap());
+    // a socket that connects and never says a word - no handshake, no Hello
+    let _silent = TcpStream::connect(addr).expect("connects");
+    // and one that shakes hands but never says Hello
+    let _mute = connect(addr);
+    std::thread::sleep(Duration::from_millis(200));
+    let t = Instant::now();
     server.stop();
-    std::thread::sleep(Duration::from_millis(100));
-    // the port's free again: a new listener can take it
+    assert!(t.elapsed() < Duration::from_secs(5), "stop waited on a silent socket");
+    // the ports are free the moment stop returns
     assert!(std::net::TcpListener::bind(addr).is_ok(), "the stopped server still holds {addr}");
+    assert!(std::net::TcpListener::bind(probe).is_ok(), "the stopped server still holds the probe {probe}");
+}
+
+#[test]
+fn a_failed_bind_leaves_nothing_running() {
+    // a free port for the game, and the probe's port already taken
+    let game_port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let r = serve(ServerConfig { bind: "127.0.0.1".into(), port: game_port, probe_port: Some(taken.local_addr().unwrap().port()),
+        ..ServerConfig::default() });
+    assert!(r.is_err(), "the probe's port was taken");
+    // the game port wasn't left bound behind the error
+    assert!(std::net::TcpListener::bind(("127.0.0.1", game_port)).is_ok(), "the game port leaked");
 }

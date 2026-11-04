@@ -26,6 +26,12 @@ use crate::session::{driver, ClientKind, ClientMsg, Command, Game, ServerMsg};
 
 /// Frames between broadcasts to a client (2 = ~10 scenes a second at 20Hz)
 const SCENE_EVERY: u64 = 2;
+/// Sockets open at once, game and probe together; past it new ones are
+/// turned away at the door, so a flood can't run the box out of threads
+const MAX_CONNS: usize = 256;
+/// How long a new socket has to finish the WebSocket handshake and say
+/// Hello before it's dropped
+const HELLO_WITHIN: Duration = Duration::from_secs(10);
 
 /// How a server runs
 #[derive(Debug, Clone)]
@@ -59,14 +65,18 @@ pub struct ServerHandle {
     pub probe_addr: Option<SocketAddr>,
     stop: Arc<AtomicBool>,
     world: Option<std::thread::JoinHandle<()>>,
+    /// The accept loops: joined on stop, so their ports are free after
+    accepts: Vec<std::thread::JoinHandle<()>>,
 }
 
 impl ServerHandle {
     /// Stop the world loop and the listeners; connections close as their
-    /// threads notice. Returns once the world loop has ended.
+    /// threads notice (each polls the stop flag). Returns once the world
+    /// loop has ended and the listening ports are released.
     pub fn stop(mut self) {
         self.stop.store(true, Ordering::Relaxed);
         if let Some(w) = self.world.take() { let _ = w.join(); }
+        for a in self.accepts.drain(..) { let _ = a.join(); }
     }
 
     /// Block until the server stops (it doesn't, unless `stop` is called
@@ -140,23 +150,66 @@ impl Conn {
     }
 }
 
-/// Accept on `listener` until `stop`, handing each stream to `handle`
-fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, handle: impl Fn(TcpStream) + Send + 'static) {
+/// Sockets open now (see MAX_CONNS)
+type Open = Arc<std::sync::atomic::AtomicUsize>;
+
+/// Counts a socket open for as long as its thread holds it
+struct Slot(Open);
+impl Drop for Slot {
+    fn drop(&mut self) { self.0.fetch_sub(1, Ordering::Relaxed); }
+}
+
+/// Accept on `listener` until `stop`, handing each stream (on its own
+/// thread, holding a slot) to `handle`. Past MAX_CONNS a socket is closed
+/// at once.
+fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
+    handle: impl Fn(TcpStream) + Send + Sync + 'static) -> std::thread::JoinHandle<()> {
     // non-blocking accepts, polled, so a stopped server lets go of its port
     listener.set_nonblocking(true).ok();
+    let handle = Arc::new(handle);
     std::thread::spawn(move || {
         while !stop.load(Ordering::Relaxed) {
             match listener.accept() {
                 Ok((stream, _)) => {
+                    if open.fetch_add(1, Ordering::Relaxed) >= MAX_CONNS {
+                        open.fetch_sub(1, Ordering::Relaxed);
+                        continue; // dropped: the door's shut
+                    }
+                    let slot = Slot(Arc::clone(&open));
                     stream.set_nonblocking(false).ok();
                     stream.set_nodelay(true).ok();
-                    handle(stream);
+                    // reads time out, so a silent socket can't hold its
+                    // thread past the hello deadline or a stop
+                    stream.set_read_timeout(Some(Duration::from_millis(100))).ok();
+                    let handle = Arc::clone(&handle);
+                    std::thread::spawn(move || { handle(stream); drop(slot); });
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(Duration::from_millis(10)),
                 Err(_) => std::thread::sleep(Duration::from_millis(10)),
             }
         }
-    });
+    })
+}
+
+/// The WebSocket handshake, polled against the hello deadline and `stop`
+fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSocket<TcpStream>> {
+    let until = Instant::now() + HELLO_WITHIN;
+    let mut hs = tungstenite::accept(stream);
+    loop {
+        match hs {
+            Ok(ws) => return Some(ws),
+            Err(tungstenite::HandshakeError::Interrupted(mid)) => {
+                if stop.load(Ordering::Relaxed) || Instant::now() > until { return None; }
+                hs = mid.handshake();
+            }
+            Err(tungstenite::HandshakeError::Failure(_)) => return None,
+        }
+    }
+}
+
+/// A read that timed out (nothing yet), as opposed to one that failed
+fn idle_read(e: &tungstenite::Error) -> bool {
+    matches!(e, tungstenite::Error::Io(e)
+        if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut)
 }
 
 /// Start a server: bind its ports, start the world loop, and return at once
@@ -170,29 +223,33 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
         idle: cfg.idle,
     }));
     let stop = Arc::new(AtomicBool::new(false));
+    let open: Open = Default::default();
 
+    // bind every port before starting anything, so a failed bind leaves
+    // nothing running behind it
     let listener = TcpListener::bind((cfg.bind.as_str(), cfg.port))?;
     let addr = listener.local_addr()?;
-    {
-        let (server, stop2) = (Arc::clone(&server), Arc::clone(&stop));
-        accept_loop(listener, Arc::clone(&stop), move |stream| {
-            let (server, stop) = (Arc::clone(&server), Arc::clone(&stop2));
-            std::thread::spawn(move || handle_conn(stream, server, stop));
-        });
-    }
-
     // the probe: a second, read-only listener for tests - the secret API.
     // It's bound to localhost only (the secret state never leaves the box),
     // and probe_token makes the client present the word before it reads
-    let mut probe_addr = None;
-    if let Some(pp) = cfg.probe_port {
-        let pl = TcpListener::bind(("127.0.0.1", pp))?;
-        probe_addr = Some(pl.local_addr()?);
+    let probe = match cfg.probe_port {
+        Some(pp) => Some(TcpListener::bind(("127.0.0.1", pp))?),
+        None => None,
+    };
+    let probe_addr = match &probe { Some(pl) => Some(pl.local_addr()?), None => None };
+
+    let mut accepts = vec![];
+    {
+        let (server, stop2) = (Arc::clone(&server), Arc::clone(&stop));
+        accepts.push(accept_loop(listener, Arc::clone(&stop), Arc::clone(&open), move |stream| {
+            handle_conn(stream, Arc::clone(&server), Arc::clone(&stop2))
+        }));
+    }
+    if let Some(pl) = probe {
         let (server, stop2, token) = (Arc::clone(&server), Arc::clone(&stop), cfg.probe_token.clone());
-        accept_loop(pl, Arc::clone(&stop), move |stream| {
-            let (server, stop, token) = (Arc::clone(&server), Arc::clone(&stop2), token.clone());
-            std::thread::spawn(move || handle_probe(stream, server, token, stop));
-        });
+        accepts.push(accept_loop(pl, Arc::clone(&stop), Arc::clone(&open), move |stream| {
+            handle_probe(stream, Arc::clone(&server), token.clone(), Arc::clone(&stop2))
+        }));
     }
 
     // sim + broadcast loop
@@ -201,7 +258,7 @@ pub fn serve(cfg: ServerConfig) -> std::io::Result<ServerHandle> {
         let (server, stop) = (Arc::clone(&server), Arc::clone(&stop));
         std::thread::spawn(move || world_loop(server, stop, frame_len))
     };
-    Ok(ServerHandle { addr, probe_addr, stop, world: Some(world) })
+    Ok(ServerHandle { addr, probe_addr, stop, world: Some(world), accepts })
 }
 
 fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Duration) {
@@ -250,12 +307,17 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
 }
 
 fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>) {
-    let mut ws = match tungstenite::accept(stream) {
-        Ok(ws) => ws, Err(_) => return,
-    };
-    // the first message must be Hello: claim or be assigned a seat
+    let Some(mut ws) = accept_ws(stream, &stop) else { return };
+    // the first message must be Hello: claim or be assigned a seat - and
+    // soon, or the socket's dropped
+    let hello_by = Instant::now() + HELLO_WITHIN;
     let conn = loop {
-        let msg = match ws.read() { Ok(m) => m, Err(_) => return };
+        if stop.load(Ordering::Relaxed) || Instant::now() > hello_by { return; }
+        let msg = match ws.read() {
+            Ok(m) => m,
+            Err(e) if idle_read(&e) => continue,
+            Err(_) => return,
+        };
         if let tungstenite::Message::Text(t) = msg {
             let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
             if let ClientMsg::Hello { token: tok, kind, name: _ } = cm {
@@ -342,13 +404,19 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
 /// frames at the broadcast cadence. Anything else the client sends is
 /// ignored: the secret view gives nothing back to play with.
 fn handle_probe(stream: TcpStream, server: Arc<Mutex<Server>>, token: Option<String>, stop: Arc<AtomicBool>) {
-    let mut ws = match tungstenite::accept(stream) {
-        Ok(ws) => ws, Err(_) => return,
-    };
-    ws.get_ref().set_read_timeout(Some(Duration::from_secs(5))).ok();
-    // the word, when one's set: first frame must be it or the conn goes nowhere
+    let Some(mut ws) = accept_ws(stream, &stop) else { return };
+    // the word, when one's set: first frame must be it (and soon) or the
+    // conn goes nowhere
     if let Some(t) = &token {
-        let ok = matches!(ws.read(), Ok(tungstenite::Message::Text(m)) if *m == *t);
+        let by = Instant::now() + HELLO_WITHIN;
+        let ok = loop {
+            if stop.load(Ordering::Relaxed) || Instant::now() > by { break false; }
+            match ws.read() {
+                Ok(tungstenite::Message::Text(m)) => break *m == *t,
+                Err(e) if idle_read(&e) => continue,
+                _ => break false,
+            }
+        };
         if !ok { return; }
     }
     ws.get_ref().set_read_timeout(Some(Duration::from_millis(50))).ok();

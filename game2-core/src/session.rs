@@ -337,7 +337,7 @@ pub fn vill_name(i: usize) -> &'static str {
 }
 /// Which villager indices are the children, the tax collector and the herb-wife
 const KID_IDXS: [usize; 3] = [26, 27, 28];
-const COLLECTOR_IDX: usize = 29;
+pub const COLLECTOR_IDX: usize = 29;
 const HERB_IDX: usize = 30;
 pub const RIVAL_NAMES: [&str; 3] = ["Wulfric","Sable","Miren"];
 

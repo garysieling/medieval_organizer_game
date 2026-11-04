@@ -1,5 +1,4 @@
 use crate::session::*;
-use crate::client::*;
 
 #[test]
 fn test_invest_is_greyed_out_with_no_gold() {
@@ -10,27 +9,6 @@ fn test_invest_is_greyed_out_with_no_gold() {
     assert!(game.log.last().unwrap().ends_with("Can't invest: need 10 gold."), "{}", game.log.last().unwrap());
     game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 10.0;
     assert_eq!(game.action_blocker(2), None);
-}
-
-#[test]
-fn test_recruit_is_greyed_out_for_a_member() {
-    let mut game = Game::new();
-    let view = View::new(Art::load_fs("../assets", 0));
-    let v = game.villagers[2];
-    game.world.get_component_mut::<Organization>(game.org).unwrap().members.push(v);
-    // beside them, so Recruit doesn't turn to someone nearer (reach_target)
-    let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
-    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: vx + 0.5, y: vy };
-    game.selected_target = 2;
-    assert_eq!(game.action_blocker(1).as_deref(), Some("already a member"));
-    // the log line mustn't read as a success (log_colour greens "joined")
-    game.act(1);
-    assert_ne!(log_colour(game.log.last().unwrap()), (120, 255, 120), "{}", game.log.last().unwrap());
-    // and the button is drawn disabled, with the reason beside it
-    let buf = view.render(&game.ui_model(), (-1, -1));
-    let b = &action_buttons()[1];
-    let i = ((b.y + 4) as usize * W + (b.x + 4) as usize) * 4;
-    assert_ne!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), b.color, "Recruit still drawn in its live colour");
 }
 
 #[test]

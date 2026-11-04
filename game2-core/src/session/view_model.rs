@@ -73,7 +73,7 @@ pub(in crate::session) fn visible_log(log: &[String]) -> Vec<&String> {
 
 /// A villager's attachment style as a player would put it: the card showed
 /// the psychology term ("Style: Disorganized"), which reads like a fault
-pub(in crate::session) fn nature_word(style: crate::sim::psychology::AttachmentStyle) -> &'static str {
+pub fn nature_word(style: crate::sim::psychology::AttachmentStyle) -> &'static str {
     use crate::sim::psychology::AttachmentStyle::*;
     match style {
         Secure => "steady and trusting",
@@ -85,7 +85,7 @@ pub(in crate::session) fn nature_word(style: crate::sim::psychology::AttachmentS
 
 /// How fed a villager is, in words. `Hunger` stores fullness (100 = just
 /// ate, 0 = starving), so the raw number reads backwards as "hunger".
-pub(in crate::session) fn fullness_word(fullness: f32) -> &'static str {
+pub fn fullness_word(fullness: f32) -> &'static str {
     if fullness >= 70.0 { "full" }
     else if fullness >= 40.0 { "peckish" }
     else if fullness >= 15.0 { "hungry" }

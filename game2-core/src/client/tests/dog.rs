@@ -1,9 +1,12 @@
-use crate::session::*;
 use crate::client::*;
+use crate::game::pets::Pet;
+use crate::game::relationships::Relationship;
+use crate::game::villager::Pos;
+use crate::sim::illness::Health;
 
 #[test]
 fn test_dog_goes_with_its_new_owner_when_aldric_dies() {
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     while game.tick < 60 { game.update(); }
     let aldric = game.villagers[0];

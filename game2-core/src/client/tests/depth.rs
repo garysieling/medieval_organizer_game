@@ -1,6 +1,6 @@
-use crate::session::*;
 use crate::client::*;
 use crate::engine::render::Buffer;
+use crate::game::villager::Pos;
 
 #[test]
 fn test_hiding_someone_doesnt_flip_the_wall_piece_in_front() {
@@ -8,7 +8,7 @@ fn test_hiding_someone_doesnt_flip_the_wall_piece_in_front() {
     // piece hiding them must not paint over the piece in FRONT of it (the
     // occluder re-draw used to flip the seam back to front, leaving a
     // glitched spot on the wall)
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     // a spot where the last wall piece and the front corner tower
     // overlap: the tower stands in front, so it owns the seam (the map
@@ -31,7 +31,7 @@ fn test_hiding_someone_doesnt_flip_the_wall_piece_in_front() {
 
 #[test]
 fn test_walking_behind_a_house_hides_the_player() {
-    let mut game = Game::new();
+    let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     let (bx, by, _) = game.buildings[0];
     // the player's yellow ring is drawn under them: behind the house it's covered

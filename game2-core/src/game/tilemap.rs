@@ -364,31 +364,47 @@ impl TileMap {
     pub fn walk_path(&self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
         let (w, h) = (self.width as i32, self.height as i32);
         if !self.passable(to.0, to.1) || from.0 < 0 || from.1 < 0 || from.0 >= w || from.1 >= h { return None; }
+        if from == to { return Some(vec![]); }
         let idx = |p: (i32, i32)| (p.1 * w + p.0) as usize;
-        let mut prev: Vec<Option<(i32, i32)>> = vec![None; (w * h) as usize];
-        let mut seen = vec![false; (w * h) as usize];
-        let mut queue = std::collections::VecDeque::from([from]);
-        seen[idx(from)] = true;
-        while let Some(p) = queue.pop_front() {
-            if p == to {
-                let mut path = vec![];
-                let mut at = Some(p);
-                while let Some(q) = at {
-                    if q != from { path.push(q); }
-                    at = prev[idx(q)];
+        // The same breadth-first search as ever (queue order, neighbour order,
+        // first-seen wins), so the same path. Two things make it cheap: the
+        // scratch is reused (a stamp per cell marks "seen this search", so
+        // nothing's allocated or cleared per call - that was most of the cost
+        // on a 245x245 map), and it stops when `to` is first reached rather
+        // than when it's dequeued (its prev is fixed at that point either way).
+        WALK_SCRATCH.with(|sc| {
+            let mut sc = sc.borrow_mut();
+            let n = (w * h) as usize;
+            if sc.stamp.len() != n { sc.stamp = vec![0; n]; sc.prev = vec![0; n]; sc.gen = 0; }
+            sc.gen = sc.gen.wrapping_add(1);
+            if sc.gen == 0 { sc.stamp.iter_mut().for_each(|s| *s = 0); sc.gen = 1; }
+            let gen = sc.gen;
+            let Scratch { stamp, prev, queue, .. } = &mut *sc;
+            queue.clear();
+            queue.push_back(from);
+            stamp[idx(from)] = gen;
+            while let Some(p) = queue.pop_front() {
+                for (dx, dy) in NEIGHBOURS {
+                    let q = (p.0 + dx, p.1 + dy);
+                    if q.0 < 0 || q.1 < 0 || q.0 >= w || q.1 >= h || stamp[idx(q)] == gen || !self.passable(q.0, q.1) { continue; }
+                    stamp[idx(q)] = gen;
+                    prev[idx(q)] = idx(p) as u32;
+                    if q == to {
+                        let mut path = vec![q];
+                        let mut at = idx(p);
+                        let start = idx(from);
+                        while at != start {
+                            path.push(((at as i32) % w, (at as i32) / w));
+                            at = prev[at] as usize;
+                        }
+                        path.reverse();
+                        return Some(path);
+                    }
+                    queue.push_back(q);
                 }
-                path.reverse();
-                return Some(path);
             }
-            for (dx, dy) in NEIGHBOURS {
-                let q = (p.0 + dx, p.1 + dy);
-                if q.0 < 0 || q.1 < 0 || q.0 >= w || q.1 >= h || seen[idx(q)] || !self.passable(q.0, q.1) { continue; }
-                seen[idx(q)] = true;
-                prev[idx(q)] = Some(p);
-                queue.push_back(q);
-            }
-        }
-        None
+            None
+        })
     }
 
     /// Run a road from the hub to a new building at `to`
@@ -758,4 +774,19 @@ mod tests {
             assert!(!m.buildable(x, y), "a tree's tile can't take a building");
         }
     }
+}
+
+/// Reused breadth-first-search scratch for `walk_path` (per thread)
+#[derive(Default)]
+struct Scratch {
+    /// The search number that last saw each cell
+    stamp: Vec<u32>,
+    /// Each seen cell's predecessor (a cell index)
+    prev: Vec<u32>,
+    gen: u32,
+    queue: std::collections::VecDeque<(i32, i32)>,
+}
+
+thread_local! {
+    static WALK_SCRATCH: std::cell::RefCell<Scratch> = std::cell::RefCell::new(Scratch::default());
 }

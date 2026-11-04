@@ -24,6 +24,8 @@ mod draw;
 mod hud;
 pub mod record;
 pub mod talk;
+#[cfg(test)]
+mod tests;
 mod view;
 
 pub use art::*;

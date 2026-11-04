@@ -198,3 +198,26 @@ fn test_a_meeting_with_a_cause_ends_in_next_steps() {
     let plan = g.world.get_component::<crate::game::organizing::MeetingPlan>(g.org).unwrap();
     assert!(!plan.coming.is_empty(), "the willing are on the next plan");
 }
+
+#[test]
+fn test_a_follower_greets_you_differently() {
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    // a follower: a real bond already earned
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    use crate::game::organizing::{stage_of, RelStage};
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::Follower);
+    g.talk_to(1);
+    let r = g.talk_log.iter().rev().find(|r| r.kind == crate::session::dialogue::TalkKind::Talk).expect("the talk record");
+    let first = &r.lines[0].text;
+    let expected: Vec<String> = [
+        "{other}! Good day - I was hoping I'd see thee about.",
+        "There thou art, {other}. Word is thou'rt still talking to folk.",
+        "A fair morning to thee, {other} - and to the work we share.",
+        "I saved thee a thought or two since last we spoke, {other}."]
+        .iter().map(|s| s.replace("{other}", "wanderer")).collect();
+    assert!(expected.contains(first), "a follower greets the bond: {}", first);
+}

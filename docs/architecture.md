@@ -66,7 +66,7 @@ Rules:
 | Public views | `session/model.rs`, `session/net.rs` (types); `session/view_model.rs` (`ui_model_at`, `agent_obs`, log filters) | what a seat may know is decided in `view_model.rs` |
 | KPIs | `session/kpi/public.rs`, `session/kpi/secret.rs` | public: from a view only; secret: `Game::secret_kpis` |
 | Omniscient | `session/probe.rs` | `ProbeView` for tests and the probe socket |
-| Sim subsystems | `session/sim/<subsystem>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
+| Sim subsystems | `session/subsystems/<family>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
 | Rare events | `session/events/` | split by category |
 | Pure rules | `game/`, `sim/` | ECS components & systems, no `Game` |
 
@@ -95,7 +95,7 @@ stats) are fine: name them in the PR.
    `agent_kpis(&AgentObs)` can't see the sim by construction (layering test). `Game::secret_kpis`
    is the old `telemetry()`. This closed two leaks: `UiModel.debug_lines` carried the secret
    gauges to every client, and an agent's `Welcome` carried seat 0's frame.
-7. Sim tick families into `session/sim/`, a few per PR.
+7. Sim tick families into `session/subsystems/`, a few per PR. (1/2: visitors, animals, wood, people.)
 8. `events.rs` split by category.
 
 ### Working alongside the split

@@ -230,6 +230,13 @@ impl Game {
                 // the villagers' own errand: a kid runs it, or they go
                 let Some(input) = livelihood::needs_input(&self.world, who) else {
                     return Err("the bench wants for nothing".into()) };
+                // one errand at a time: the bench stays empty until a fetch
+                // lands, so a second ask would buy the same goods twice
+                let hired = self.world.query::<OddJob>().into_iter()
+                    .any(|k| self.world.get_component::<OddJob>(k).is_some_and(|j| j.hirer == who));
+                if hired || self.travels.iter().any(|t| t.who == who) {
+                    return Err("someone's already fetching it".into());
+                }
                 let i = self.villagers.iter().position(|&v| v == who).unwrap_or(0);
                 if self.errand_for_input(who, input, i) { Ok(()) } else { Err(format!("no {} to be had", input)) }
             }

@@ -20,6 +20,7 @@ mod circus;
 mod continuation;
 mod determinism;
 mod dialogue;
+mod driver;
 mod disclosure;
 mod dog_sprite;
 mod drink;

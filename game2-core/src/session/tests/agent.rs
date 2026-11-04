@@ -175,7 +175,11 @@ fn an_agent_fetches_what_its_bench_is_short_of() {
     let r = g.agent_command(seat, AgentCmd::FetchInput);
     match r {
         // the errand's under way: a kid or the tradesman is walking for it
-        Ok(()) => assert!(g.travels.len() > walking_before, "a fetch that sent no one"),
+        Ok(()) => {
+            assert!(g.travels.len() > walking_before, "a fetch that sent no one");
+            assert_eq!(g.agent_command(seat, AgentCmd::FetchInput), Err("someone's already fetching it".into()),
+                "a second fetch while the first is out");
+        }
         Err(e) => assert!(e.starts_with("no "), "an unexpected refusal: {e}"),
     }
     // and a bench with all it needs is told so

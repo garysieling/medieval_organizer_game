@@ -95,20 +95,6 @@ mod tests {
     }
 
     #[test]
-    fn test_the_driver_fetches_what_the_bench_is_short_of() {
-        let mut o = obs();
-        o.tick = 1; // not a talk day
-        assert!(matches!(drive_agent(&o), AgentCmd::WorkDay), "nothing short: a day's work");
-        o.me.needs = Some("grain".into());
-        assert!(matches!(drive_agent(&o), AgentCmd::FetchInput), "short of grain: fetch it");
-        o.tick = 5; // the third day: to the bench anyway
-        assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
-        o.tick = 1;
-        o.hunger = 10.0;
-        assert!(matches!(drive_agent(&o), AgentCmd::Eat), "hunger still comes first");
-    }
-
-    #[test]
     fn test_the_driver_talks_to_whos_near_and_stands_down_when_held() {
         let mut o = obs();
         // company nearby and idle on a talk day: a word before the work

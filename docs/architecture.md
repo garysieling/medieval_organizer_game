@@ -58,9 +58,9 @@ Rules:
 |------|------|-------|
 | Session state & frame loop | `session.rs` (~1.4k lines) | `Game` struct and its types, `update`/`advance_frame` |
 | Tests | `session/tests/<subsystem>.rs` | one file per subsystem; `use crate::session::*;` |
-| Render (client) | `client/` (beside `session`, not in it) | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays; uses only `session`'s public API |
+| Render (client) | `game2-client/src/` (its own crate) | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays; uses only `session`'s public API |
 | Screen layout | `session/layout.rs` | window/tile sizes, camera maths, minimap box: shared by the client and click hit-testing |
-| Perf bench | `client/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
+| Perf bench | `game2-client/src/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
 | World generation | `session/setup.rs` | `Game::new_seeded` |
 | Seats & commands | `session/seat.rs` | `Seat`, `Command`, `CtxAct`, `command_at`, agent API, solo wrappers |
 | Player verbs | `session/verbs.rs` | `act_at`, `ctx_act_at`, blockers, approach-then-act |
@@ -71,8 +71,8 @@ Rules:
 | Rare events | `session/events/` | `mod.rs` (ids, table, scheduler, dispatch) + one file per family |
 | Pure rules | `game/`, `sim/` | ECS components & systems, no `Game` |
 
-Later, once these seams hold, the layers get promoted to crates
-(`game2-sim`, `game2-client`) so the compiler enforces rules 1-3.
+The client is its own crate (`game2-client`), so the compiler enforces rules 1 and 2;
+rule 3 (probe use) is still enforced by review and tests.
 
 ## The order we're taking it in
 
@@ -112,7 +112,8 @@ stats) are fine: name them in the PR.
      fails if `session` draws (`session_never_draws`) or names the client.
    - 3b-1: ~~the tests that draw move from `session/tests/` to `client/tests/` and use only the
      public API (58 tests; 22 files whole, 10 split).~~
-   - 3b-2: `client/` (+ the window bins) become a `game2-client` crate on top of the sim.
+   - 3b-2: ~~`client/` + `game_ui` + `record_video` become the `game2-client` crate on top of the
+     sim. `game2-core` drops minifb/gif/jpeg-encoder; the server image builds only the sim.~~
 
 ### Working alongside the split
 

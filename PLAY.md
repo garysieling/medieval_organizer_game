@@ -4,7 +4,7 @@
 
 ```bash
 cargo build                    # build everything
-cargo run --bin game_ui        # THE GAME - windowed UI, real sprites
+cargo run --bin game_ui        # THE GAME - windowed UI, real sprites (game2-client; run from the repo root)
 cargo run --bin game           # text-mode version
 ```
 
@@ -242,7 +242,7 @@ Every task produces software output:
 ## For Developers
 
 ```bash
-cargo test --lib              # run tests
+cargo test --lib              # run tests (sim: -p game2-core, drawing: -p game2-client)
 cargo run --bin agent_task    # real Ollama AI task
 cargo run --bin gary_review   # vision-alignment check
 cargo run --bin playtest      # goal-oriented tests

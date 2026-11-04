@@ -1,6 +1,6 @@
 //! The layers hold (docs/architecture.md): the render client draws from a
 //! `UiModel` alone, never the authoritative `Game` or its ECS `World`.
-//! `client/bench.rs` is exempt - the headless runners drive a Game to time it.
+//! `game2-client/src/bench.rs` is exempt - the headless runners drive a Game to time it.
 
 /// Source with `//` comments stripped (string literals here don't hold `//`)
 fn code_of(src: &str) -> String {
@@ -19,10 +19,10 @@ fn mentions(code: &str, word: &str) -> bool {
 #[test]
 fn render_and_public_kpis_never_reach_into_the_sim() {
     let files = [
-        ("client/art.rs", include_str!("../../client/art.rs")),
-        ("client/draw.rs", include_str!("../../client/draw.rs")),
-        ("client/hud.rs", include_str!("../../client/hud.rs")),
-        ("client/view.rs", include_str!("../../client/view.rs")),
+        ("game2-client/src/art.rs", include_str!("../../../../game2-client/src/art.rs")),
+        ("game2-client/src/draw.rs", include_str!("../../../../game2-client/src/draw.rs")),
+        ("game2-client/src/hud.rs", include_str!("../../../../game2-client/src/hud.rs")),
+        ("game2-client/src/view.rs", include_str!("../../../../game2-client/src/view.rs")),
         // public KPIs read a seat's view, never the sim
         ("kpi/public.rs", include_str!("../kpi/public.rs")),
     ];

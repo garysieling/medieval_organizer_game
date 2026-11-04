@@ -2,7 +2,6 @@
 //! Project structure staging ground for future work.
 
 pub mod engine;
-pub mod client;
 pub mod agents;
 pub mod game;
 pub mod infra;

@@ -67,7 +67,7 @@ Rules:
 | KPIs | `session/kpi/public.rs`, `session/kpi/secret.rs` | public: from a view only; secret: `Game::secret_kpis` |
 | Omniscient | `session/probe.rs` | `ProbeView` for tests and the probe socket |
 | Sim subsystems | `session/subsystems/<family>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
-| Rare events | `session/events/` | split by category |
+| Rare events | `session/events/` | `mod.rs` (ids, table, scheduler, dispatch) + one file per family |
 | Pure rules | `game/`, `sim/` | ECS components & systems, no `Game` |
 
 Later, once these seams hold, the layers get promoted to crates
@@ -98,7 +98,10 @@ stats) are fine: name them in the PR.
 7. ~~Sim tick families into `session/subsystems/`~~: visitors, animals, wood, people (#465); economy,
    society, land, travel, meetings and the day (`livelihood_tick`). `session.rs` now holds the
    `Game` struct, its types and the frame loop (`update`/`advance_frame`).
-8. `events.rs` split by category.
+8. ~~`events.rs` split by category~~: `events/mod.rs` keeps the ids, the `EVENTS` table, the
+   scheduler and four thin dispatchers (`event_day/began/moment/end` -> `group(id)`); each
+   family's arms live in `events/{road,sky,beasts,ill_luck,findings}.rs`; tests in `events/tests.rs`.
+   A new event's handler goes in its family's file, in that family's `<family>_<handler>` fn.
 
 ### Working alongside the split
 

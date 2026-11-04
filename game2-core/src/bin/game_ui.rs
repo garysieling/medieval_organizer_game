@@ -186,19 +186,19 @@ fn main() {
                     }
                 }
                 // a reply on the TALK panel
-                if let Some(pick) = session::dialogue::talk_click(&m.talk, mx, my) {
+                if let Some(pick) = client::talk::talk_click(&m.talk, mx, my) {
                     cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     cmds.push(Command::TalkPick(pick));
                 }
                 // the conversation box: a speaker's line selects them, a
                 // choice button answers it (a reply, leave, or the call)
                 if let Some(c) = &m.convo {
-                    if let Some(click) = session::dialogue::convo_click(c, mx, my) {
+                    if let Some(click) = client::talk::convo_click(c, mx, my) {
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                         match click {
-                            session::dialogue::ConvoClick::Speaker(i) => cmds.push(Command::Select(i)),
-                            session::dialogue::ConvoClick::Reply(n) => cmds.push(Command::TalkPick(n)),
-                            session::dialogue::ConvoClick::Decide(i) => cmds.push(Command::Decide(i)),
+                            client::talk::ConvoClick::Speaker(i) => cmds.push(Command::Select(i)),
+                            client::talk::ConvoClick::Reply(n) => cmds.push(Command::TalkPick(n)),
+                            client::talk::ConvoClick::Decide(i) => cmds.push(Command::Decide(i)),
                         }
                     }
                 }

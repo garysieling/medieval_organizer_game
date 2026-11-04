@@ -23,6 +23,7 @@ mod bench;
 mod draw;
 mod hud;
 pub mod record;
+pub mod talk;
 mod view;
 
 pub use art::*;

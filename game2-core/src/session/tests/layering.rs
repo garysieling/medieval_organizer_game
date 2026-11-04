@@ -60,10 +60,8 @@ fn sim_code_uses_deterministic_maps() {
     assert!(bad.is_empty(), "use crate::engine::det::{{HashMap, HashSet}} (fixed-key) in sim code, not std's: {bad:?}");
 }
 
-/// The sim never depends on the client: `session` (tests aside) must not
-/// name `crate::client`, so the client can become its own crate on top.
-#[test]
-fn session_never_depends_on_the_client() {
+/// session.rs and session/**, tests aside, as (path relative to src, code without comments)
+fn session_sources() -> Vec<(String, String)> {
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
         for e in std::fs::read_dir(dir).unwrap().flatten() {
             let p = e.path();
@@ -73,8 +71,28 @@ fn session_never_depends_on_the_client() {
     let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut files = vec![src.join("session.rs")];
     walk(&src.join("session"), &mut files);
-    let bad: Vec<String> = files.iter()
-        .filter(|f| { let c = code_of(&std::fs::read_to_string(f).unwrap()); c.contains("crate::client") || c.contains("client::") })
-        .map(|f| f.strip_prefix(&src).unwrap_or(f).display().to_string()).collect();
+    files.iter().map(|f| (f.strip_prefix(&src).unwrap_or(f).display().to_string(),
+        code_of(&std::fs::read_to_string(f).unwrap()))).collect()
+}
+
+/// The sim never depends on the client: `session` (tests aside) must not
+/// name `crate::client`, so the client can become its own crate on top.
+#[test]
+fn session_never_depends_on_the_client() {
+    let bad: Vec<String> = session_sources().into_iter()
+        .filter(|(_, c)| c.contains("crate::client") || c.contains("client::"))
+        .map(|(f, _)| f).collect();
     assert!(bad.is_empty(), "session code reaches into the client: {bad:?}");
+}
+
+/// The sim never draws: no pixel buffers, sprites, fonts or weather
+/// effects in `session` (tests aside). Panels are built as models there and
+/// drawn in the client.
+#[test]
+fn session_never_draws() {
+    let bad: Vec<String> = session_sources().into_iter()
+        .filter(|(_, c)| ["engine::render", "engine::sprite", "ui::font", "ui::weather_fx"].iter().any(|w| c.contains(w))
+            || mentions(c, "Buffer") || mentions(c, "Sprite"))
+        .map(|(f, _)| f).collect();
+    assert!(bad.is_empty(), "session code draws (move it to the client): {bad:?}");
 }

@@ -217,3 +217,28 @@ fn test_the_dog_is_a_proper_little_sprite() {
     // drawn 2x that's 4x as many on screen; the old two rectangles were 33 px
     assert!(coat * 4 >= 2 * 33, "only {} coat pixels ({} on screen)", coat, coat * 4);
 }
+
+#[test]
+fn test_workplaces_wear_their_own_look() {
+    let g = Game::new();
+    let view = View::new(Art::load_fs("../assets", 0));
+    // the village's workshops aren't cottages any more, and a tavern stands
+    let looks: Vec<WorkLook> = g.buildings.iter().filter_map(|b| match b.2 { BSprite::Work(w, _) => Some(w), _ => None }).collect();
+    assert!(looks.contains(&WorkLook::Tavern), "the taverner's house is a tavern: {:?}", looks);
+    assert!(looks.contains(&WorkLook::Fold) && looks.contains(&WorkLook::Apiary), "{:?}", looks);
+    // (the country's homes get entities past the map's own buildings)
+    for (i, &e) in g.building_entities.iter().enumerate().take(g.buildings.len()) {
+        let kind = g.world.get_component::<Building>(e).unwrap().kind;
+        if kind == BuildingKind::Home { assert!(!matches!(g.buildings[i].2, BSprite::Work(..)), "a home wears a cottage"); }
+    }
+    // every look resolves to its generated art, summer and winter
+    for w in WorkLook::ALL {
+        assert!(!view.art.works[w as usize].is_empty() && !view.art.works_winter[w as usize].is_empty(), "{:?} has art", w);
+        assert!(view.sprite_of(BSprite::Work(w, 3)).is_some());
+    }
+    // and the market, stall, bridge and small props loaded
+    let a = &view.art;
+    assert!(a.market_cross.is_some() && a.maypole.is_some() && a.trader_stall.is_some() && a.stalls.len() == 2);
+    assert!(a.bridges.iter().all(|b| b.is_some()));
+    for set in [&a.skeps, &a.graves, &a.herbs, &a.shrooms, &a.fires, &a.burnt] { assert!(!set.is_empty()); }
+}

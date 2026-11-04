@@ -59,6 +59,7 @@ mod letter;
 mod lifecycle;
 mod log_day;
 mod log_priority;
+mod market;
 mod member_line;
 mod minimap;
 mod minimap_dead;

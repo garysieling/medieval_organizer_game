@@ -343,6 +343,12 @@ impl Game {
             }
             Some(e)
         });
+        // a workplace wears its own look, not a cottage's (the index still
+        // picks the stand-in cottage when that look has no art)
+        for (i, &e) in building_entities.iter().enumerate() {
+            let Some(look) = world.get_component::<Building>(e).and_then(|b| WorkLook::of(b.kind)) else { continue };
+            if let BSprite::House(h) = buildings[i].2 { buildings[i].2 = BSprite::Work(look, h); }
+        }
         // the trader's stall is the guildhall slot (index 5), stocked with imports
         let trader_stall = building_entities[5];
         for g in ["cloth", "paper", "ink", "pigment"] {

@@ -77,6 +77,10 @@ impl View {
             BSprite::RivalHouse => &self.art.rival_house,
             BSprite::RivalWoodhouse => &self.art.rival_woodhouse,
             BSprite::CastleKeep => &self.art.tower_s,
+            BSprite::Work(w, i) => {
+                let set = if self.winter.get() { &self.art.works_winter[w as usize] } else { &self.art.works[w as usize] };
+                if set.is_empty() { self.sprite_of(BSprite::House(i)) } else { &set[i % set.len()] }
+            }
         }
     }
 
@@ -139,6 +143,7 @@ impl View {
             Shroom,                            // a wild mushroom in the shade
             Skep,                              // a woven beehive in the apiary's yard
             Swarm,                             // a swarm of bees on the wing
+            Stand(&'a Sprite),                 // a generated prop at its own size (draw_standing)
         }
         #[derive(Clone, Copy)]
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
@@ -167,9 +172,36 @@ impl View {
             pick(&art.stones, x, y, 16) } else { pick(&art.stone_grounds, x, y, 16) };
         standing.extend(m.stones.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
         // wild herb tufts, ready for the picking
-        standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, Piece::Herb)));
-        standing.extend(m.mush.iter().map(|&(x, y)| (x, y, Piece::Shroom)));
-        standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, Piece::Skep)));
+        // the small things: generated when there's art, else the old blocks
+        fn small(set: &[Sprite], x: f32, y: f32, salt: u32) -> Option<&Sprite> { pick(set, (x * 7.0) as i32, (y * 7.0) as i32, salt) }
+        standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, small(&art.herbs, x, y, 51).map_or(Piece::Herb, Piece::Stand))));
+        standing.extend(m.mush.iter().map(|&(x, y)| (x, y, small(&art.shrooms, x, y, 52).map_or(Piece::Shroom, Piece::Stand))));
+        standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, small(&art.skeps, x, y, 53).map_or(Piece::Skep, Piece::Stand))));
+        // the market cross, or the maypole on a feast day
+        if let Some((x, y)) = m.market {
+            let s = if m.feast { art.maypole.as_ref().or(art.market_cross.as_ref()) } else { art.market_cross.as_ref() };
+            if let Some(s) = s { standing.push((x, y, Piece::Stand(s))); }
+        }
+        // today's stalls round the square, and the pedlar's booth
+        for &(x, y, look) in &m.stalls {
+            let s = if look == routine::STALL_TRADER { art.trader_stall.as_ref() }
+                else if art.stalls.is_empty() { None } else { Some(&art.stalls[look as usize % art.stalls.len()]) };
+            if let Some(s) = s { standing.push((x, y, Piece::Stand(s))); }
+        }
+        // the footbridges: deck across the river, so along whichever axis
+        // the water doesn't run
+        for (x, y) in m.map.bridges() {
+            let wet = |dx: i32, dy: i32| matches!(m.map.get(x + dx, y + dy), Some(Tile::River | Tile::Water));
+            let along_y = wet(1, 0) || wet(-1, 0);
+            if let Some(s) = art.bridges[along_y as usize].as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
+        }
+        // what's alight: flames flickering between frames
+        if !art.fires.is_empty() {
+            for &(x, y) in &m.burning {
+                let f = (m.frame as usize / 4 + (noise(x as i32, y as i32, 54) * 7.0) as usize) % art.fires.len();
+                standing.push((x, y, Piece::Stand(&art.fires[f])));
+            }
+        }
         if let Some((wx, wy)) = m.swarm { standing.push((wx, wy, Piece::Swarm)); }
         // the land's score shows: stumps where the canopy went, the foul
         // reach below town, the pit filled to a pond
@@ -233,11 +265,13 @@ impl View {
         // the scorched ground: dark scars where the fire's been
         for &(tx, ty) in &m.scorched {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            if let Some(b) = pick(&art.burnt, tx as i32, ty as i32, 55) { draw_standing(&mut buf, b, sx, sy, zoom); continue; }
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 30, 26, 24);
         }
-        // and what's alight: a flame's worth of colour over the tile
-        for &(tx, ty) in &m.burning {
+        // and what's alight: a flame's worth of colour over the tile (the
+        // generated flames stand with everything else)
+        for &(tx, ty) in m.burning.iter().filter(|_| art.fires.is_empty()) {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             let lick = (m.frame % 9 < 5) as i32; // it gutters
@@ -282,6 +316,7 @@ impl View {
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
+                Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),
                 Piece::Castle(sprite) => if let Some(s) = sprite {
                     if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
                 },
@@ -363,7 +398,13 @@ impl View {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                     // the dead get a gravestone where they fell, not their standing figure
                     if pv.dead {
-                        let top = draw_grave(&mut buf, sx, sy, zoom);
+                        let top = match variant(&art.graves, pv.e) {
+                            Some(g) => {
+                                draw_standing(&mut buf, g, sx, sy, zoom);
+                                sy + ((g.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32 - (g.height as f32 * zoom).round() as i32
+                            }
+                            None => draw_grave(&mut buf, sx, sy, zoom),
+                        };
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {

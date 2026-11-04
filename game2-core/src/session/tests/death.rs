@@ -17,10 +17,15 @@ fn test_the_dead_lie_under_a_gravestone_not_standing() {
     let p = *game.world.get_component::<Pos>(corvin).unwrap();
     let (sx, sy) = iso_to_screen_cam(p.x, p.y, view.cam_x, view.cam_y, view.zoom);
     let px = |x: i32, y: i32| { let i = (y as usize * W + x as usize) * 4; (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) };
-    // the stone is there, beside the carved cross down its middle -
-    // checked across a small patch so a passer-by's edge can't hide it
+    // the stone is there (the generated one's colours, else the drawn
+    // stone's) - checked across a small patch so a passer-by's edge
+    // can't hide it
+    let stone: Vec<(u8, u8, u8)> = match variant(&view.art.graves, corvin) {
+        Some(g) => g.pixels.chunks(4).filter(|c| c[3] > 128).map(|c| (c[0], c[1], c[2])).collect(),
+        None => vec![GRAVE_STONE],
+    };
     let stone_shows = (sy - 7..sy - 1).any(|y| (sx - 6..sx + 1)
-        .any(|x| px(x, y) == GRAVE_STONE));
+        .any(|x| stone.contains(&px(x, y))));
     assert!(stone_shows, "no gravestone where Corvin fell");
     // and nothing is standing on it: the space where a living head would be
     // shows no sprite colours from Corvin's figure

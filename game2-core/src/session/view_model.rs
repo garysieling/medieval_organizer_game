@@ -354,6 +354,10 @@ impl Game {
             skeps: self.hives.iter().filter_map(|&h| world.get_component::<Pos>(h)
                 .map(|p| (p.x, p.y))).collect(),
             swarm: self.swarm.and_then(|(w, _)| world.get_component::<Pos>(w).map(|p| (p.x, p.y))),
+            market: world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y)),
+            feast: self.villagers.iter().any(|&v| world.get_component::<routine::Routine>(v)
+                .is_some_and(|r| r.mode == routine::Mode::Feasting && r.day == self.tick)),
+            stalls: self.stalls_standing(),
             trails: self.trails.iter().filter(|(_, t)| t.strength > 0.15)
                 .map(|(&(x, y), t)| (x as f32, y as f32, t.strength)).collect(),
             stumps: self.land.tree_cover.iter().filter(|(_, &c)| c < 0.3)

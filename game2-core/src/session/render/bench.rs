@@ -109,6 +109,11 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     view.zoom = zoom;
     if let Some(cam) = cam { (view.cam_x, view.cam_y) = cam; }
     while game.tick < target_tick { game.update(); }
+    // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
+    // folk where the day's plan took them (stalls up, a congregation seated)
+    let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    for _ in 0..more { game.update(); }
+    if more > 0 { let m = game.ui_model(); println!("day {} + {} frames: {} stalls, feast {}", m.tick, more, m.stalls.len(), m.feast); }
     // GAME2_DUMP_WALK=dx,dy: walk the player that way for the last few
     // frames, so a dump shows the walk cycle mid-stride
     if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()
@@ -116,7 +121,8 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         for _ in 0..8 { game.command(Command::Walk(dx, dy)); game.update(); }
         println!("walked ({}, {}): pose {:?}", dx, dy, game.ui_model().player_pose);
     }
-    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|town|castle`), for props
+    // map features too (`--focus tree|stone|wall|gate|church|smithy|guildhall|rivals|mill|town|castle|market|bridge`,
+    // or a workplace's look: tavern|bakery|workshop|fold|apiary|cheese|granary|watch), for props
     // and buildings: the first of each, a tree in a wood rather than a
     // lone one
     let m = game.ui_model();
@@ -135,6 +141,11 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         // the country's first town or castle
         Some("town") => m.map.towns.first().map(|&(x, y, _)| (x as f32, y as f32)),
         Some("castle") => m.map.castles.first().map(|&(x, y, _)| (x as f32, y as f32)),
+        Some("market") => m.market,
+        Some("bridge") => m.map.bridges().next().map(|(x, y)| (x as f32, y as f32)),
+        // a workplace by its look: tavern, bakery, workshop, fold, apiary...
+        Some(look) => m.buildings.iter().find(|b| matches!(b.sprite, BSprite::Work(w, _) if w.file().starts_with(look)))
+            .map(|b| (b.x, b.y)),
         _ => None,
     };
     if let Some((x, y)) = feature {

@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744773,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 39.27,
+ "request_id": "039da9e9-bd55-44c0-a0dd-93283526a232",
+ "outputs_retained_until": 1793831101,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 39.27
+ },
+ "id": "watch-house-3e86225f",
+ "prompt": "single isometric medieval village asset: one small square timber watch tower on a stone base, a little bell under its roof, spears leaning by the door",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:26:13",
+ "seconds": 72.6
+}

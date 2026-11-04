@@ -140,7 +140,30 @@ pub fn holds_slot(world: &World, v: Entity) -> bool {
     }).unwrap_or(false)
 }
 
+/// The look index the view reads as the pedlar's striped booth
+pub const STALL_TRADER: u8 = u8::MAX;
+
 impl Game {
+    /// The stalls standing today, for the view: one before each seller
+    /// who's reached their pitch (between them and the square they face),
+    /// and the pedlar's booth while he's selling
+    pub(super) fn stalls_standing(&self) -> Vec<(f32, f32, u8)> {
+        let mut out: Vec<(f32, f32, u8)> = self.villagers.iter().filter_map(|&v| {
+            let r = self.world.get_component::<Routine>(v)?;
+            if r.mode != Mode::Selling || r.day != self.tick || !r.reached { return None; }
+            let (fx, fy) = r.face?;
+            let (dx, dy) = (fx - r.anchor.0, fy - r.anchor.1);
+            let len = (dx * dx + dy * dy).sqrt().max(0.01);
+            Some((r.anchor.0 + 0.6 * dx / len, r.anchor.1 + 0.6 * dy / len, (mix(v, 9) % 200) as u8))
+        }).collect();
+        // (his stall entity outlives the selling: it goes when he's off the map)
+        if let Some(p) = self.pedlar.as_ref().filter(|m| m.selling_until.is_some_and(|until| self.tick <= until))
+            .and_then(|m| m.stall).and_then(|s| self.world.get_component::<Pos>(s)) {
+            out.push((p.x, p.y, STALL_TRADER));
+        }
+        out
+    }
+
     fn tile_of(&self, v: Entity) -> Option<(i32, i32)> {
         self.world.get_component::<Pos>(v).map(|p| (p.x.round() as i32, p.y.round() as i32))
     }

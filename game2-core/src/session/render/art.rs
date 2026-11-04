@@ -175,6 +175,27 @@ pub struct Art {
     pub details: [Vec<Sprite>; 3],
     /// Their size at zoom 1 (PACK_PROP_K for the pack's, 1 for assets/rd/tufts)
     pub details_k: f32,
+    /// The workplaces' own looks (assets/rd/buildings), by WorkLook, and
+    /// the same snowed over; an empty set wears a cottage instead
+    pub works: [Vec<Option<Sprite>>; WorkLook::N],
+    pub works_winter: [Vec<Option<Sprite>>; WorkLook::N],
+    /// The market cross with its notice board, and the maypole that
+    /// stands there on a feast day
+    pub market_cross: Option<Sprite>,
+    pub maypole: Option<Sprite>,
+    /// Market-day stalls (sellers' looks), and the pedlar's striped booth
+    pub stalls: Vec<Sprite>,
+    pub trader_stall: Option<Sprite>,
+    /// The footbridge over the river: deck along x, along y
+    pub bridges: [Option<Sprite>; 2],
+    /// Small generated props (assets/rd/bits); empty: the old blocks stand in
+    pub skeps: Vec<Sprite>,
+    pub graves: Vec<Sprite>,
+    pub herbs: Vec<Sprite>,
+    pub shrooms: Vec<Sprite>,
+    /// Flames (frames to flicker between) and the scorched patch left behind
+    pub fires: Vec<Sprite>,
+    pub burnt: Vec<Sprite>,
     /// Ground blocks for the green seasons, autumn and winter (season_tiles),
     /// and the same as top faces only, for inland tiles
     pub tiles: [TileSet; 3],
@@ -620,6 +641,13 @@ impl Art {
         }).filter(|r| r.walls.iter().chain(&r.posts).all(|s| s.is_some()) && r.towers.is_some());
         let (rd_stones, rd_grounds) = if rd_stones.is_empty() || rd_grounds.is_empty() { (vec![], vec![]) } else { (rd_stones, rd_grounds) };
 
+        // the workplaces' own looks, one or two each, snowed over in winter
+        let snowed = |s: &Sprite| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85));
+        let works = WorkLook::ALL.map(|w| (1..=2).filter_map(|i| at(&format!("rd/buildings/{}{}.png", w.file(), i))).map(Some).collect::<Vec<_>>());
+        let works_winter = works.clone().map(|set| set.iter().map(|s| s.as_ref().map(snowed)).collect());
+        // the village's small things (assets/rd/bits), numbered from 1
+        let bits = |name: &str| -> Vec<Sprite> { (1..=6).filter_map(|i| at(&format!("rd/bits/{}{}.png", name, i))).collect() };
+
         Art {
             villager_sprites,
             rival_sprites,
@@ -681,6 +709,19 @@ impl Art {
             gull: Some(gull_sprite()),
             details,
             details_k,
+            works,
+            works_winter,
+            market_cross: at("rd/bits/market-cross.png"),
+            maypole: at("rd/bits/maypole.png"),
+            stalls: bits("stall"),
+            trader_stall: at("rd/bits/trader-stall.png"),
+            bridges: [at("rd/bits/bridge_x.png"), at("rd/bits/bridge_y.png")],
+            skeps: bits("skep"),
+            graves: bits("grave"),
+            herbs: bits("herb"),
+            shrooms: bits("shroom"),
+            fires: bits("fire"),
+            burnt: bits("burnt"),
         }
     }
 }

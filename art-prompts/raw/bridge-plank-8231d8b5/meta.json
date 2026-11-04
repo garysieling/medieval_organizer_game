@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744216,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 41.43,
+ "request_id": "f2869be1-b9b6-4835-bc86-1dbc79e7ba92",
+ "outputs_retained_until": 1793830542,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 41.43
+ },
+ "id": "bridge-plank-8231d8b5",
+ "prompt": "single isometric medieval village asset: one short wooden plank footbridge with handrails, deck running from the lower left to the upper right, nothing under it",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:16:56",
+ "seconds": 74.1
+}

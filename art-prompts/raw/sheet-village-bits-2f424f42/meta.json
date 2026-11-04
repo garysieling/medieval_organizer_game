@@ -1,0 +1,26 @@
+{
+ "created_at": 1793744590,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 39.99,
+ "request_id": "bfdd6265-8800-4fcc-959d-181298d29ab4",
+ "outputs_retained_until": 1793830941,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 39.99
+ },
+ "id": "sheet-village-bits-2f424f42",
+ "prompt": "sprite sheet of small medieval village props: woven straw bee skeps, grey gravestones, wooden grave crosses, clumps of wild herbs, red-capped mushrooms, small campfires, bonfire flames, a charred burnt patch, isometric view, many variations",
+ "request": {
+  "prompt_style": "rd_pro__spritesheet",
+  "width": 256,
+  "height": 256,
+  "num_images": 1
+ },
+ "generated_at": "2026-11-03T17:23:10",
+ "seconds": 49.8
+}

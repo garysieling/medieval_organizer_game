@@ -744,6 +744,45 @@ pub enum BSprite {
     RivalHouse,
     RivalWoodhouse,
     CastleKeep,
+    /// A workplace's own look; the index picks the variant (and the
+    /// cottage that stands in when that look has no art)
+    Work(WorkLook, usize),
+}
+
+/// The workplaces that wear their own look instead of a cottage's
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop }
+
+impl WorkLook {
+    pub const N: usize = 8;
+    const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
+        WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop];
+
+    /// Its sprites' name under assets/rd/buildings (name1.png, name2.png)
+    fn file(self) -> &'static str {
+        match self {
+            WorkLook::Tavern => "tavern", WorkLook::Bakery => "bakery", WorkLook::Granary => "granary",
+            WorkLook::WatchHouse => "watch-house", WorkLook::Fold => "fold", WorkLook::Apiary => "apiary",
+            WorkLook::Cellar => "cheese-cellar", WorkLook::Workshop => "workshop",
+        }
+    }
+
+    /// The look a kind of building wears: None keeps a cottage (homes, the
+    /// farmhouse) or a look of its own (the smithy, the church)
+    pub fn of(kind: BuildingKind) -> Option<WorkLook> {
+        Some(match kind {
+            BuildingKind::Shop(Vocation::Taverner | Vocation::Alewife | Vocation::Brewer) => WorkLook::Tavern,
+            BuildingKind::Shop(Vocation::Baker) => WorkLook::Bakery,
+            BuildingKind::Shop(Vocation::Farmer | Vocation::Toolmaker) => return None,
+            BuildingKind::Shop(_) => WorkLook::Workshop,
+            BuildingKind::Granary => WorkLook::Granary,
+            BuildingKind::WatchPost => WorkLook::WatchHouse,
+            BuildingKind::Pasture => WorkLook::Fold,
+            BuildingKind::Apiary => WorkLook::Apiary,
+            BuildingKind::Cellar => WorkLook::Cellar,
+            BuildingKind::Home | BuildingKind::Church | BuildingKind::Mill | BuildingKind::TraderStall => return None,
+        })
+    }
 }
 
 

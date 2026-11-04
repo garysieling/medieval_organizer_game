@@ -1,0 +1,28 @@
+{
+ "created_at": 1793744670,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 39.63,
+ "request_id": "9ee8b046-c667-4229-9d86-c426c05aefa3",
+ "outputs_retained_until": 1793830990,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 39.63
+ },
+ "id": "tavern-9e1afbdf",
+ "prompt": "single isometric medieval village asset: one timber-frame village tavern with a hanging painted sign over the door, ale barrels stacked outside, warm lit windows",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-03T17:24:31",
+ "seconds": 80.4
+}

@@ -288,6 +288,12 @@ impl TileMap {
     /// How many times the map has been changed since it was made
     pub fn rev(&self) -> u64 { self.rev }
 
+    /// Every bridge tile on the map
+    pub fn bridges(&self) -> impl Iterator<Item = (i32, i32)> + '_ {
+        self.tiles.iter().enumerate().filter(|(_, &t)| t == Tile::Bridge)
+            .map(|(i, _)| ((i % self.width) as i32, (i / self.width) as i32))
+    }
+
     pub fn get(&self, x: i32, y: i32) -> Option<Tile> {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height { return None; }
         Some(self.tiles[y as usize * self.width + x as usize])

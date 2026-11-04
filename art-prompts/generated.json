@@ -1,12 +1,18 @@
 {
  "done": [
+  "apiary-319e6092",
+  "bakery-d7716c3c",
+  "bridge-plank-8231d8b5",
   "castle-gatehouse-254f6e79",
   "castle-postern-fad4bf21",
   "castle-tower-a0345b4d",
   "castle-wall-run-90fc13ee",
+  "cheese-cellar-c733061d",
   "church-keep-d1bef8ec",
   "cottages-plaster-e17812fc",
   "cottages-timber-6883e4c7",
+  "fold-3dc80650",
+  "granary-8dc8268d",
   "ground-set-dirt-0ff45e1d",
   "ground-set-greencrop-228d4299",
   "ground-set-ice-87f74ff0",
@@ -15,6 +21,9 @@
   "ground-set-water-dc517000",
   "ground-set-wheat-0bdc40c3",
   "guildhall-83a490a8",
+  "market-cross-18afbb27",
+  "market-stall-28b03a79",
+  "maypole-8880205c",
   "rival-house-a2666135",
   "rival-woodhouse-88ad111f",
   "scale-animals-128-fee3e3fa",
@@ -26,7 +35,10 @@
   "sheet-stones-4512d275",
   "sheet-tufts-9ff12838",
   "sheet-tufts-winter-e50a8bd9",
+  "sheet-village-bits-2f424f42",
   "smithy-535da115",
+  "tavern-9e1afbdf",
+  "trader-stall-2a8f49f6",
   "tree-broadleaf-5ecb6ac6",
   "tree-conifer-32ce40fb",
   "tree-winter-bare-06595116",
@@ -51,8 +63,10 @@
   "walk4-traveller-eac563ed",
   "walk4-traveller-horse-e8bb29cc",
   "walk4-worker-m-e2bc3937",
+  "watch-house-3e86225f",
   "windmill-body-c34719e9",
   "windmill-sails-19eb398c",
-  "windmill-tall-2af41b40"
+  "windmill-tall-2af41b40",
+  "workshop-0ec15a11"
  ]
 }

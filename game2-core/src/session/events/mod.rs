@@ -19,8 +19,6 @@ mod sky;
 mod beasts;
 mod ill_luck;
 mod findings;
-#[cfg(test)]
-mod tests;
 
 use serde::{Deserialize, Serialize};
 use crate::engine::ecs::Entity;

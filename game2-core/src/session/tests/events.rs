@@ -1,4 +1,6 @@
-use super::*;
+//! Rare events: each family's handlers, the scheduler and the staged harness.
+use crate::session::*;
+use crate::session::events::*;
 use crate::session::stage;
 use crate::session::PKind;
 

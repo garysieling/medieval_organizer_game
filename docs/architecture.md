@@ -100,7 +100,7 @@ stats) are fine: name them in the PR.
    `Game` struct, its types and the frame loop (`update`/`advance_frame`).
 8. ~~`events.rs` split by category~~: `events/mod.rs` keeps the ids, the `EVENTS` table, the
    scheduler and four thin dispatchers (`event_day/began/moment/end` -> `group(id)`); each
-   family's arms live in `events/{road,sky,beasts,ill_luck,findings}.rs`; tests in `events/tests.rs`.
+   family's arms live in `events/{road,sky,beasts,ill_luck,findings}.rs`; tests in `session/tests/events.rs`.
    A new event's handler goes in its family's file, in that family's `<family>_<handler>` fn.
 
 ### Working alongside the split

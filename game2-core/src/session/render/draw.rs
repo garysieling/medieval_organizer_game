@@ -483,15 +483,6 @@ pub(in crate::session) fn draw_weather(buf: &mut Buffer, kind: Option<PrecipKind
     }
 }
 
-/// An entry the player should still see rows later: illness and loss,
-/// the exile's road, the discovery told
-pub(in crate::session) fn is_important(entry: &str) -> bool {
-    entry.contains("is taken with") || entry.contains("recovered") || entry.contains("died")
-        || entry.contains("driven out") || entry.contains("run off")
-        || entry.contains("whispers it about") || entry.contains("stocks")
-        || entry.contains("born") || entry.contains("dead")
-        || entry.contains("taken for questioning")
-}
 
 /// Split a log entry stored as "t120: message" into the day the player
 /// sees ("day 120", matching the HUD) and the message

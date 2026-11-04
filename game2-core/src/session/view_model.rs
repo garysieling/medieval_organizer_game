@@ -40,6 +40,16 @@ pub(in crate::session) fn is_town_note(entry: &str) -> bool {
         || entry.contains("gets its colors")
 }
 
+/// An entry the player should still see rows later: illness and loss,
+/// the exile's road, the discovery told
+pub(in crate::session) fn is_important(entry: &str) -> bool {
+    entry.contains("is taken with") || entry.contains("recovered") || entry.contains("died")
+        || entry.contains("driven out") || entry.contains("run off")
+        || entry.contains("whispers it about") || entry.contains("stocks")
+        || entry.contains("born") || entry.contains("dead")
+        || entry.contains("taken for questioning")
+}
+
 /// The log entries to show, newest first: every event, but only the latest
 /// LOG_GOSSIP_SHOWN pieces of gossip and the latest weather change.
 /// The moments that matter - sickness, death, an exile - pin to the top:

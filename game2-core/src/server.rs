@@ -27,6 +27,9 @@ use crate::session::{driver, ClientKind, ClientMsg, Command, Game, ServerMsg};
 
 /// Frames between broadcasts to a client (2 = ~10 scenes a second at 20Hz)
 const SCENE_EVERY: u64 = 2;
+/// Messages a client may send a second (the window sends ~60 walk steps a
+/// second while a key's held); past it they're dropped, not queued
+const MAX_MSGS_PER_SEC: u32 = 240;
 /// Sockets open at once, game and probe together; past it new ones are
 /// turned away at the door, so a flood can't run the box out of threads
 const MAX_CONNS: usize = 256;
@@ -575,6 +578,9 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
     // command loop: poll reads on a short timeout and drain the outbox the
     // world loop fills, so a quiet client never stalls the broadcast
     ws.get_ref().set_read_timeout(Some(Duration::from_millis(50))).ok();
+    // the message budget: so many a second, past it they're dropped before
+    // they reach the world's lock (one Denied a window says so)
+    let (mut window, mut used, mut warned) = (Instant::now(), 0u32, false);
     loop {
         if conn.lock().unwrap().dead || stop.load(Ordering::Relaxed) { break; }
         let out = conn.lock().unwrap().take_out();
@@ -585,6 +591,15 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
         if !alive { break; }
         match ws.read() {
             Ok(tungstenite::Message::Text(t)) => {
+                if window.elapsed() >= Duration::from_secs(1) { (window, used, warned) = (Instant::now(), 0, false); }
+                used += 1;
+                if used > MAX_MSGS_PER_SEC {
+                    if !warned {
+                        send_msg(&mut conn.lock().unwrap(), &ServerMsg::Denied { reason: "slow down".into() });
+                        warned = true;
+                    }
+                    continue;
+                }
                 let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
                 let mut s = server.lock().unwrap();
                 // reclaimed while the message waited: the seat has a new

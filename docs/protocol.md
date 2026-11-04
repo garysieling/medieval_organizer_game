@@ -179,12 +179,15 @@ appear.
 ```
 
 `Denied` before a `Welcome` means you weren't let in ("wrong join secret",
-"the village is full") and the socket closes. After one it means your seat
-is gone.
+"the village is full") and the socket closes. After one it's a notice, not
+an ending: "slow down" (you're past the message budget, and the excess was
+dropped) or "seat gone".
 
 ## Limits
 
 - `Hello` within 10s of connecting; at most 256 sockets open at once.
+- At most 240 messages a second per connection: past that they're dropped
+  (not queued), and one `Denied {"reason":"slow down"}` a second says so.
 - `--max-seats` (default 64) new characters per server; reclaims don't count.
 - Scenes, observations and maps are snapshots: a slow client is sent the
   newest, never a backlog. Replies (`Welcome`, `CmdDone`, `Pong`) are never

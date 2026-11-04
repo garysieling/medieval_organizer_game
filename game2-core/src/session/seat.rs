@@ -232,8 +232,10 @@ impl Game {
                     return Err("the bench wants for nothing".into()) };
                 // one errand at a time: the bench stays empty until a fetch
                 // lands, so a second ask would buy the same goods twice
-                let hired = self.world.query::<OddJob>().into_iter()
-                    .any(|k| self.world.get_component::<OddJob>(k).is_some_and(|j| j.hirer == who));
+                // (a child under way on the job: one who broke off for food
+                // keeps the OddJob but not the walk, and doesn't count)
+                let hired = self.travels.iter().any(|t| matches!(t.goal, Goal::RunOddJob)
+                    && self.world.get_component::<OddJob>(t.who).is_some_and(|j| j.hirer == who));
                 if hired || self.travels.iter().any(|t| t.who == who) {
                     return Err("someone's already fetching it".into());
                 }

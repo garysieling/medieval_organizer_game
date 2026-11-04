@@ -179,6 +179,11 @@ fn an_agent_fetches_what_its_bench_is_short_of() {
             assert!(g.travels.len() > walking_before, "a fetch that sent no one");
             assert_eq!(g.agent_command(seat, AgentCmd::FetchInput), Err("someone's already fetching it".into()),
                 "a second fetch while the first is out");
+            // an errand abandoned (a hungry child breaks off: the walk goes,
+            // the OddJob stays) no longer blocks the next fetch
+            g.travels.clear();
+            assert_ne!(g.agent_command(seat, AgentCmd::FetchInput), Err("someone's already fetching it".into()),
+                "an abandoned errand still blocks fetching");
         }
         Err(e) => assert!(e.starts_with("no "), "an unexpected refusal: {e}"),
     }

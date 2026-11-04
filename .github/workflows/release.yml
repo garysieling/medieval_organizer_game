@@ -109,7 +109,7 @@ jobs:
         run: |
           args=()
           for b in $BINS; do args+=(--bin "$b"); done
-          cargo build --release -p game2-core --target ${{ matrix.target }} "${args[@]}"
+          cargo build --release -p game2-core -p game2-client --target ${{ matrix.target }} "${args[@]}"
 
       - name: Package
         id: pkg

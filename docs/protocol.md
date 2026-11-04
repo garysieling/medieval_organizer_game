@@ -96,6 +96,13 @@ Walks and errands for the agent's villager; each gets a `CmdDone`.
 {"AgentCmd":{"BuyFrom":{"seller":17,"good":"bread","qty":2}}}
 ```
 
+```json client
+{"AgentCmd":"FetchInput"}
+```
+
+`FetchInput` gets the raw good the bench is short of (`me.needs` in `Obs`):
+the villager's own errand, which sends a kid or walks to where it's had.
+
 Also: `"Idle"`, `"WorkDay"`, `"JoinOrg"`, `{"TalkTo":{"e":51}}`,
 `{"BuyAt":{"shop":37,"good":"bread"}}`,
 `{"Gather":{"good":"wood","x":40,"y":12}}`, `{"Press":{"prisoner":61}}`.

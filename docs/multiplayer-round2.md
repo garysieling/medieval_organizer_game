@@ -26,7 +26,8 @@ Fixed since this list was written:
 
 Still open:
 
-- **`drive_agent` heuristic is thin** (Eat → WorkDay → Idle). Wants: craft
+- **`drive_agent` heuristic is thin** — better: it fetches what the bench
+  is short of (`AgentCmd::FetchInput`, from `Obs.me.needs`). Still wanted: Wants: craft
   input gathering (`BuyFrom`/`Gather` when the bench needs stock), sell
   surplus, rest at own home, train juniors, occasional `TalkTo` for ties —
   keep the village-first bias, add probabilities not just priorities.

@@ -206,4 +206,7 @@ pub enum AgentCmd {
     /// Write letters for a prisoner's release - your voice adds pressure
     /// the jailer can't ignore
     Press { prisoner: Entity },
+    /// Get the raw good the bench is short of (`AgentObs.me.needs`): the
+    /// villager's own errand - send a kid, or go to where it's had
+    FetchInput,
 }

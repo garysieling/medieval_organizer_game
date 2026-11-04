@@ -155,3 +155,45 @@ fn an_agent_knows_itself_and_no_one_elses_wants() {
     }
     assert!(serde_json::to_value(&obs).unwrap()["near"][0].get("wants").is_none(), "a neighbour's wants in the obs");
 }
+
+#[test]
+fn an_agent_fetches_what_its_bench_is_short_of() {
+    let mut g = Game::new();
+    while g.tick < 2 { g.update(); }
+    // a free tradesman whose bench is short of its raw good
+    let short = (0..g.villagers.len()).map(|i| g.villagers[i]).find(|&v| {
+        !villager::is_dead(&g.world, v)
+            && g.world.get_component::<crate::game::vocation::TownRole>(v).is_none()
+            && g.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+            && crate::game::livelihood::needs_input(&g.world, v).is_some()
+            && !g.travels.iter().any(|t| t.who == v)
+    }).expect("a tradesman short of inputs");
+    let seat = g.add_agent_seat(short);
+    let need = g.agent_obs(seat).unwrap().me.needs.expect("the obs says what's short");
+    assert_eq!(Some(need.as_str()), crate::game::livelihood::needs_input(&g.world, short));
+    let walking_before = g.travels.len();
+    let r = g.agent_command(seat, AgentCmd::FetchInput);
+    match r {
+        // the errand's under way: a kid or the tradesman is walking for it
+        Ok(()) => {
+            assert!(g.travels.len() > walking_before, "a fetch that sent no one");
+            assert_eq!(g.agent_command(seat, AgentCmd::FetchInput), Err("someone's already fetching it".into()),
+                "a second fetch while the first is out");
+            // an errand abandoned (a hungry child breaks off: the walk goes,
+            // the OddJob stays) no longer blocks the next fetch
+            g.travels.clear();
+            assert_ne!(g.agent_command(seat, AgentCmd::FetchInput), Err("someone's already fetching it".into()),
+                "an abandoned errand still blocks fetching");
+        }
+        Err(e) => assert!(e.starts_with("no "), "an unexpected refusal: {e}"),
+    }
+    // and a bench with all it needs is told so
+    let full = (0..g.villagers.len()).map(|i| g.villagers[i]).find(|&v| {
+        !villager::is_dead(&g.world, v) && crate::game::livelihood::needs_input(&g.world, v).is_none()
+            && g.world.get_component::<crate::game::vocation::TownRole>(v).is_none()
+            && g.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+            && !g.seats.iter().any(|s| s.player == v)
+    }).expect("someone wanting for nothing");
+    let seat = g.add_agent_seat(full);
+    assert_eq!(g.agent_command(seat, AgentCmd::FetchInput), Err("the bench wants for nothing".into()));
+}

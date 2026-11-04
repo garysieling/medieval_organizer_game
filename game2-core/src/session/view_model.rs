@@ -321,7 +321,7 @@ impl Game {
             }
         });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
-                       self.action_blocker_at(seat, 3), self.action_blocker_at(seat, 4)];
+                       self.action_blocker_at(seat, 3)];
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector_at(seat)
         } else {
@@ -493,6 +493,13 @@ impl Game {
             (None, None) => "no home".into(),
         };
         lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
+        // how well the organizer knows them: the stage word beside the
+        // secrets they've told
+        let stage = crate::game::organizing::stage_of(world, self.seats[seat].player, v);
+        if stage > crate::game::organizing::RelStage::Stranger {
+            lines.push(Line { x: 60, y: 428,
+                text: crate::game::organizing::stage_label(stage).to_string(), rgb: (170, 200, 160) });
+        }
         if let Some(k) = world.get_component::<Known>(v) {
             for (n, r) in k.revealed.iter().take(2).enumerate() {
                 let text = match r {

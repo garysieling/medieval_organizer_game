@@ -62,6 +62,9 @@ pub enum CtxAct {
     Petition,
     /// Set how often the cause meets: the organizer's recommendation
     Cadence,
+    /// Call the house meeting the organizer has earned - a venue promised
+    /// and folk who've said they'll come
+    Gather,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -406,7 +409,13 @@ impl Game {
 
     pub fn advance_approach(&mut self) { self.advance_approach_at(0) }
 
-    pub fn call_meeting(&mut self) -> String { self.call_meeting_at(0) }
+    pub fn call_meeting(&mut self) -> String {
+        // calling a meeting is an action: the line goes in the log like
+        // the buttons' lines do (ctx_act_at logs for the Gather path)
+        let msg = self.call_meeting_at(0);
+        self.log.push(format!("t{}: {}", self.tick, msg));
+        msg
+    }
 
     pub fn talk_to(&mut self, i: usize) -> String { self.talk_to_at(0, i) }
 

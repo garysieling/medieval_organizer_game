@@ -70,6 +70,9 @@ pub struct Campaign {
     /// Delegated seats; a function nobody holds accrues to whoever has
     /// the strongest ties instead (the shadow elite)
     pub seats: Vec<Seat>,
+    /// Who the demands are put to - a cut issue names a target; a
+    /// mutual-aid cause has none
+    pub target: Option<Entity>,
 }
 
 /// The meeting a campaign holds on its cadence: turnout, resolutions,
@@ -244,7 +247,7 @@ pub fn found_campaign(world: &mut World, org: Entity, vote: &IssueVote, framing:
     let c = world.create_entity();
     world.add_component(c, Campaign {
         issue: vote.winner.clone(), framing, org, founded_day, dissenters,
-        decision_rule: rule, seats: vec![],
+        decision_rule: rule, seats: vec![], target: None,
     });
     c
 }

@@ -6,7 +6,7 @@ impl Game {
     /// Why action button `i` can't be used right now, if it can't: Build's
     /// own rules (gold, a free site), otherwise disabled_reason
     pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
-        if i == 4 {
+        if i == 3 {
             let gold = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).map(|p| p.resources).unwrap_or(0.0);
             if gold < BUILD_COST { return Some(format!("need {:.0} gold", BUILD_COST)); }
             if self.build_site_at(seat).is_none() { return Some("no room nearby".into()); }
@@ -24,6 +24,13 @@ impl Game {
                 let due = self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
                     .map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false);
                 if due { None } else { Some("not due to meet".into()) }
+            }
+            CtxAct::Gather => {
+                if self.meeting.is_some() { Some("a meeting is under way".into()) }
+                else {
+                    self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
+                        .map(|p| if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
+                }
             }
             CtxAct::Townhall => {
                 // the Reeve won't hear the same demands while he's honouring
@@ -54,9 +61,8 @@ impl Game {
         // Recruit is pointless on a member and Invest on an empty purse: say
         // so on the button, as Build does, rather than fail in the log
         // Talk and Recruit need the selected villager alive (they walk over
-        // to them); a house meeting (Organize) just needs someone nearby to come
+        // to them)
         let target = self.villagers[if (i == 0 || i == 1) && self.seats[seat].picked { self.seats[seat].selected_target } else { self.reach_target_at(seat) }];
-        let in_reach = self.villagers_in_reach_at(seat);
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let p = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
             .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
@@ -73,8 +79,6 @@ impl Game {
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
             && crate::game::player::rapport(&self.world, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
-        else if i == 3 && self.meeting.is_some() { Some("a meeting is under way".into()) }
-        else if i == 3 && in_reach.is_empty() { Some("no one nearby".into()) }
         else { None }
     }
 
@@ -165,7 +169,7 @@ impl Game {
         let pe = self.seats[seat].player;
         // the bond as it stood before this talk: a first talk is with a stranger
         let rel = dialogue::relation_with_wanderer(self.rel_kind(pe, v));
-        act_talk(&mut self.world, pe, v);
+        act_talk(&mut self.world, pe, v, self.tick);
         self.say(v, &said, TALK_BUBBLE_SECS);
         // a blow-off leaves them hollow: a real talk coaches them back
         let coached = if self.world.get_component::<crate::game::actions::Demoralized>(v).is_some()
@@ -250,7 +254,7 @@ impl Game {
         self.seats[seat].approach = Some(a);
     }
 
-    /// Take action button `i` (Talk, Recruit, Invest, Organize, Build)
+    /// Take action button `i` (Talk, Recruit, Invest, Build)
     pub fn act_at(&mut self, seat: usize, i: usize) {
         let tick = self.tick;
         // Talk and Recruit go to whoever the player picked; otherwise to
@@ -274,8 +278,7 @@ impl Game {
                     else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
                 }
                 2 => { let pe = self.seats[seat].player; let r = act_invest(&mut self.world, pe, INVEST_GOLD); r.description }
-                3 => self.call_meeting_at(seat),
-                4 => {
+                3 => {
                     // action_blocker checked there's gold and a site
                     let (bx, by) = self.build_site_at(seat).unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }
@@ -338,6 +341,12 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
             }
         }
+        // a house meeting is earned: the button shows once a place and a
+        // promise are on the plan
+        if self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
+            .map(|p| p.ready()).unwrap_or(false) {
+            self.seats[seat].ctx_actions.push(CtxAct::Gather);
+        }
         // the cause meets on its cadence and marches on the streets: the
         // buttons show once a campaign exists; seats go to the picked member
         let cause = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_some();
@@ -362,7 +371,9 @@ impl Game {
                     if self.world.get_component::<Craft>(v).is_some() {
                         self.seats[seat].ctx_actions.push(CtxAct::Strike);
                     }
-                    if Some(v) == self.collector {
+                    if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
+                        .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                        .map(|c| c.target == Some(v)).unwrap_or_else(|| Some(v) == self.collector) {
                         self.seats[seat].ctx_actions.push(CtxAct::Townhall);
                     }
                 }
@@ -575,104 +586,7 @@ impl Game {
                     }
                 }
             }
-            CtxAct::March => {
-                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                let pe = self.seats[seat].player;
-                match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
-                    Some(out) => {
-                        let n = out.turnout.len();
-                        // guards already posted stay posted - a second
-                        // crackdown doesn't pile more knights into the frame
-                        let posted_before = self.world
-                            .get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org).is_some();
-                        let r = crate::game::reactions::react(&mut self.world, c, &out.turnout, tick);
-                        // everyone who saw it and felt the cause wake in them
-                        let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
-                            .map(|cc| cc.issue.clone()).unwrap_or_default();
-                        let members: crate::engine::det::HashSet<Entity> =
-                            self.world.get_component::<Organization>(self.seats[seat].org)
-                                .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
-                        let mut woke = 0;
-                        for &v in &self.villagers {
-                            // a march is seen, not invited to: shunned or
-                            // not, whoever shares the stake or the friend
-                            // can feel the cause wake
-                            if !members.contains(&v) {
-                                woke += crate::game::reactions::witness(&mut self.world, v, &issue, &out.turnout, tick) as usize;
-                            }
-                        }
-                        let mut msg = match r {
-                            Some(crate::game::reactions::Reaction::Crackdown) => {
-                                self.toasts.push(("knights posted to the streets".into(), tick + 40));
-                                format!("{} march in the street - and the knights come out.", n)
-                            }
-                            Some(crate::game::reactions::Reaction::Watched) =>
-                                format!("{} march in the street - the names get taken.", n),
-                            _ => format!("{} march in the street - beneath notice, for now.", n),
-                        };
-                        if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
-                        // a crackdown takes the loudest - and the cause
-                        // becomes a prisoner
-                        if r == Some(crate::game::reactions::Reaction::Crackdown) {
-                            // the knights stand in the streets where everyone
-                            // can see them - once; posted guards stay posted
-                            if !posted_before {
-                                let (px, py) = self.player_pos_at(seat);
-                                let o = self.seats[seat].org;
-                                self.posted.push((o, px + 1.5, py));
-                                self.posted.push((o, px - 1.5, py));
-                            }
-                            // a campaign that keeps drawing the knights gets
-                            // a rule written against it - the movement
-                            // mattered enough to be outlawed
-                            if posted_before
-                                && self.world.get_component::<crate::game::reactions::AssemblyBan>(self.seats[seat].org).is_none() {
-                                self.world.add_component(self.seats[seat].org,
-                                    crate::game::reactions::AssemblyBan { cap: 2 });
-                                msg += " The Reeve proclaims it law: no more than two assembled.";
-                                self.toasts.push(("the ban is proclaimed".into(), tick + 40));
-                            }
-                            // every crackdown can still take someone
-                            if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
-                                // hauled off mid-errand: whatever they were doing is dropped
-                                self.travels.retain(|t| t.who != taken);
-                                let tn = self.villagers.iter().position(|v| *v == taken).map(|i| vill_name(i))
-                                    .unwrap_or("someone");
-                                msg += &format!(" {} is taken.", tn);
-                                // the release effort is a campaign of its own:
-                                // the issue is a person now, not a grievance
-                                let rc = crate::game::dungeon::found_release_campaign(&mut self.world,
-                                    self.seats[seat].org, taken, tick);
-                                // those who watched *them* hauled off - a friend
-                                // of the taken, not just anyone in the crowd -
-                                // sign on for their release, no organizing needed
-                                let scene = [taken];
-                                let mut signed = 0usize;
-                                for &v in &self.villagers.clone() {
-                                    if crate::game::reactions::witness(&mut self.world, v,
-                                            &"the prisoners".to_string(), &scene, tick)
-                                        && crate::game::dungeon::join(&mut self.world, rc, v) {
-                                        signed += 1;
-                                    }
-                                }
-                                if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
-                                self.toasts.push((format!("{} is taken", tn), tick + 40));
-                            }
-                        }
-                        // the campaign talks over what the street brought
-                        // (after any arrest, so the taken are counted)
-                        let ev = crate::game::campaign_arc::ArcEvent::March(
-                            r.unwrap_or(crate::game::reactions::Reaction::Ignored));
-                        if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
-                            let mut with = vec![pe];
-                            with.extend(out.turnout.iter().copied());
-                            self.record_campaign_talk(with, &d);
-                        }
-                        msg
-                    }
-                    None => "You call a march - and nobody comes. The street stays empty.".into(),
-                }
-            }
+            CtxAct::March => { let m = self.march_at(seat); self.log.push(format!("t{}: {}", tick, m)); return; }
             CtxAct::Strike => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
                 let v = self.villagers[self.seats[seat].selected_target];
@@ -694,7 +608,8 @@ impl Game {
             }
             CtxAct::Townhall => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
-                let Some(target) = self.collector else { return };
+                let Some(target) = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.target).unwrap_or(None).or(self.collector) else { return };
                 use crate::game::actions::{townhall, TargetResponse};
                 match townhall(&mut self.world, c, target, tick) {
                     Some(out) => { let msg = match out.response {
@@ -754,6 +669,7 @@ impl Game {
                     None => "Nobody turns out for the townhall.".into(),
                 }
             }
+            CtxAct::Gather => self.call_meeting_at(seat),
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 crate::game::dungeon::press(&mut self.world, v, 0.3);
@@ -772,28 +688,157 @@ impl Game {
         self.log.push(format!("t{}: {}", tick, msg));
     }
 
+    /// The street: the cause marches. Returns the log line - turnout, the
+    /// lord's reaction, and whatever the day brings back to the room
+    /// (a crackdown, a taking, the ban proclaimed).
+    fn march_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+            return "There's no cause to march for.".into() };
+        let pe = self.seats[seat].player;
+        match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
+            Some(out) => {
+                let n = out.turnout.len();
+                // guards already posted stay posted - a second
+                // crackdown doesn't pile more knights into the frame
+                let posted_before = self.world
+                    .get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org).is_some();
+                let r = crate::game::reactions::react(&mut self.world, c, &out.turnout, tick);
+                // everyone who saw it and felt the cause wake in them
+                let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.issue.clone()).unwrap_or_default();
+                let members: crate::engine::det::HashSet<Entity> =
+                    self.world.get_component::<Organization>(self.seats[seat].org)
+                        .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
+                let mut woke = 0;
+                for &v in &self.villagers {
+                    // a march is seen, not invited to: shunned or
+                    // not, whoever shares the stake or the friend
+                    // can feel the cause wake
+                    if !members.contains(&v) {
+                        woke += crate::game::reactions::witness(&mut self.world, v, &issue, &out.turnout, tick) as usize;
+                    }
+                }
+                let mut msg = match r {
+                    Some(crate::game::reactions::Reaction::Crackdown) => {
+                        self.toasts.push(("knights posted to the streets".into(), tick + 40));
+                        format!("{} march in the street - and the knights come out.", n)
+                    }
+                    Some(crate::game::reactions::Reaction::Watched) =>
+                        format!("{} march in the street - the names get taken.", n),
+                    _ => format!("{} march in the street - beneath notice, for now.", n),
+                };
+                if woke > 0 { msg += &format!(" {} watching feel the cause wake.", woke); }
+                // a crackdown takes the loudest - and the cause
+                // becomes a prisoner
+                if r == Some(crate::game::reactions::Reaction::Crackdown) {
+                    // the knights stand in the streets where everyone
+                    // can see them - once; posted guards stay posted
+                    if !posted_before {
+                        let (px, py) = self.player_pos_at(seat);
+                        let o = self.seats[seat].org;
+                        self.posted.push((o, px + 1.5, py));
+                        self.posted.push((o, px - 1.5, py));
+                    }
+                    // a campaign that keeps drawing the knights gets
+                    // a rule written against it - the movement
+                    // mattered enough to be outlawed
+                    if posted_before
+                        && self.world.get_component::<crate::game::reactions::AssemblyBan>(self.seats[seat].org).is_none() {
+                        self.world.add_component(self.seats[seat].org,
+                            crate::game::reactions::AssemblyBan { cap: 2 });
+                        msg += " The Reeve proclaims it law: no more than two assembled.";
+                        self.toasts.push(("the ban is proclaimed".into(), tick + 40));
+                    }
+                    // every crackdown can still take someone
+                    if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
+                        // hauled off mid-errand: whatever they were doing is dropped
+                        self.travels.retain(|t| t.who != taken);
+                        let tn = self.villagers.iter().position(|v| *v == taken).map(|i| vill_name(i))
+                            .unwrap_or("someone");
+                        msg += &format!(" {} is taken.", tn);
+                        // the release effort is a campaign of its own:
+                        // the issue is a person now, not a grievance
+                        let rc = crate::game::dungeon::found_release_campaign(&mut self.world,
+                            self.seats[seat].org, taken, tick);
+                        // those who watched *them* hauled off - a friend
+                        // of the taken, not just anyone in the crowd -
+                        // sign on for their release, no organizing needed
+                        let scene = [taken];
+                        let mut signed = 0usize;
+                        for &v in &self.villagers.clone() {
+                            if crate::game::reactions::witness(&mut self.world, v,
+                                    &"the prisoners".to_string(), &scene, tick)
+                                && crate::game::dungeon::join(&mut self.world, rc, v) {
+                                signed += 1;
+                            }
+                        }
+                        if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
+                        self.toasts.push((format!("{} is taken", tn), tick + 40));
+                    }
+                }
+                // the campaign talks over what the street brought
+                // (after any arrest, so the taken are counted)
+                let ev = crate::game::campaign_arc::ArcEvent::March(
+                    r.unwrap_or(crate::game::reactions::Reaction::Ignored));
+                if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
+                    let mut with = vec![pe];
+                    with.extend(out.turnout.iter().copied());
+                    self.record_campaign_talk(with, &d);
+                }
+                msg
+            }
+            None => "You call a march - and nobody comes. The street stays empty.".into(),
+        }
+    }
+
     /// The organizer's answer to the founding call on the conversation
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
-        let Some(mut d) = self.seats[seat].pending_founding.take() else { return };
+        let Some(d) = self.seats[seat].pending_founding.take() else { return };
         use crate::game::campaign::{self, DecisionRule, Framing};
-        let framing = match pick {
-            0 => Framing::SharedGrievance,
-            1 => Framing::CommonFoe,
-            2 => Framing::MoralDuty,
-            _ => {
-                self.log.push(format!("t{}: The talk stays talk for now - no cause taken up.", self.tick));
-                self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+        if let Some(mut vote) = d.vote {
+            let framing = match pick {
+                0 => Framing::SharedGrievance,
+                1 => Framing::CommonFoe,
+                2 => Framing::MoralDuty,
+                _ => {
+                    self.log.push(format!("t{}: The talk stays talk for now - no cause taken up.", self.tick));
+                    self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
+                    return;
+                }
+            };
+            // who grumbles is re-read against the framing actually picked
+            for b in &mut vote.ballots {
+                b.grumbles = b.stake.as_ref().map(|s| !campaign::framing_suits(framing, s)).unwrap_or(false);
+            }
+            let msg = self.found_and_note(seat, &vote, framing, DecisionRule::Majority);
+            self.log.push(format!("t{}: {}", self.tick, msg));
+            self.note_talk(d.record, None, &msg);
+            return;
+        }
+        // no founding on the table: the follow-up steps - meet again with
+        // the same folks, take it to the street, or let it rest
+        let mut idx = 0;
+        if !d.meet_again.is_empty() {
+            if pick == idx {
+                let oe = self.seats[seat].org;
+                let plan = crate::game::organizing::plan_for(&mut self.world, oe);
+                for &e in &d.meet_again { if !plan.coming.contains(&e) { plan.coming.push(e); } }
+                let msg = "They'll gather again - you'll need a place to meet.".to_string();
+                self.log.push(format!("t{}: {}", self.tick, msg));
+                self.note_talk(d.record, None, &msg);
                 return;
             }
-        };
-        // who grumbles is re-read against the framing actually picked
-        for b in &mut d.vote.ballots {
-            b.grumbles = b.stake.as_ref().map(|s| !campaign::framing_suits(framing, s)).unwrap_or(false);
+            idx += 1;
         }
-        let msg = self.found_and_note(seat, &d.vote, framing, DecisionRule::Majority);
-        self.log.push(format!("t{}: {}", self.tick, msg));
-        self.note_talk(d.record, None, &msg);
+        if d.street && pick == idx {
+            let msg = self.march_at(seat);
+            self.note_talk(d.record, None, &msg);
+            return;
+        }
+        self.log.push(format!("t{}: The talk stays talk for now.", self.tick));
+        self.note_talk(d.record, None, "The talk stays talk for now.");
     }
 }

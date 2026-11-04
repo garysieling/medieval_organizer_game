@@ -87,7 +87,7 @@ fn test_a_house_meeting_ends_in_the_organizers_call_not_a_done_deal() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    let msg = g.resolve_meeting(&came, 0, id);
+    let msg = g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     // the room leans, but nothing is founded until the organizer says so
     assert!(g.seats[0].pending_founding.is_some(), "{}", msg);
     assert!(game2_core::game::campaign::campaign_of(&g.world, g.org).is_none());

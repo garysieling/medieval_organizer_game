@@ -6,15 +6,15 @@ fn test_build_costs_gold_and_uses_free_land_near_the_player() {
     let gold0 = game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources;
     let start = game.buildings.len();
     let mut built = 0;
-    while game.action_blocker(4).is_none() {
-        game.act(4);
+    while game.action_blocker(3).is_none() {
+        game.act(3);
         built += 1;
         assert!(built < 100, "Build never stopped");
     }
     assert_eq!(built, (gold0 / BUILD_COST) as usize, "one house per {} gold", BUILD_COST);
     let gold = game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources;
     assert!((gold0 - gold - built as f32 * BUILD_COST).abs() < 1e-3, "gold should drop by the cost of each house");
-    assert_eq!(game.action_blocker(4), Some(format!("need {:.0} gold", BUILD_COST)));
+    assert_eq!(game.action_blocker(3), Some(format!("need {:.0} gold", BUILD_COST)));
     let (px, py) = game.player_pos();
     let new: Vec<_> = game.buildings[start..].iter().map(|(x, y, _)| (*x, *y)).collect();
     for (i, &(x, y)) in new.iter().enumerate() {

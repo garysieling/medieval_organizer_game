@@ -84,7 +84,7 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 let talks_before = world.get_component::<super::player::TalkCount>(t)
                     .map(|c| c.value).unwrap_or(0);
                 let (did, said) = super::organizing::talk_response(world, t, "They", talks_before);
-                act_talk(world, player, t);
+                act_talk(world, player, t, tick);
                 format!("{}: \"{}\"", did, said)
             } else { "No one to talk to.".into() }
         }

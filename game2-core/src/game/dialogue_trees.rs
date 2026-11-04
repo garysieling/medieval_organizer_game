@@ -2515,6 +2515,18 @@ pub fn village_library() -> Vec<DialogueTree> {
             root: &ELDER_GREET, rejoin: Some(&ELDER_WINTERS) },
         DialogueTree { name: "newborn_cradle", criteria: &[Has("self:status:newborn")],
             root: &NEWBORN_GREET, rejoin: Some(&NEWBORN_JOY) },
+        // the bond ladder: how well they know the organizer changes how
+        // they meet them - two criteria so it outranks friendship and the
+        // one-criterion circumstances: the stage speaks first
+        DialogueTree { name: "the_bond_known",
+            criteria: &[Has("self:status:known"), Has("any:status:known")],
+            root: &KNOWN_GREET, rejoin: Some(&BOND_CHAT) },
+        DialogueTree { name: "the_bond_follower",
+            criteria: &[Has("self:status:follower"), Has("any:status:follower")],
+            root: &FOLLOWER_GREET, rejoin: Some(&BOND_CHAT) },
+        DialogueTree { name: "the_bond_coleader",
+            criteria: &[Has("self:status:coleader"), Has("any:status:coleader")],
+            root: &COLEADER_GREET, rejoin: Some(&BOND_CHAT) },
         DialogueTree { name: "village_smalltalk", criteria: &[],
             root: &SMALL_GREET, rejoin: Some(&SMALL_CHAT) },
     ]
@@ -2568,3 +2580,88 @@ pub fn backstory(s: &Speaker) -> String {
     }
     parts.join(" ")
 }
+
+/// The bond ladder, spoken aloud: how a villager meets someone who has
+/// heard their self-interest (known), earned their trust (follower), or
+/// taken them on as a leader beside them (co-leader)
+const KNOWN_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "smalltalk"],
+    calls: &[
+        "Ah, {other} - thou knowest well what weighs on me by now.",
+        "Thou askest after my cares like an old friend, {other}.",
+        "The stranger who asks twice is a stranger no longer, eh {other}?",
+        "{other}! Thou'rt coming to know my mind, I'll grant.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["smalltalk"],
+            lines: &["And I mean to do right by what I've heard.", "I listen because it matters, friend.", "Thy troubles are the village's troubles."],
+            then: Some(BOND_CHAT), end: None },
+        Reply { criteria: &[], weight: 0.30, bias: &[(Proud, 2.0)],
+            act: Act::PushBack, concepts: &["smalltalk"],
+            lines: &["Knowing and doing are two different things.", "I'd not presume to know all of it."],
+            then: Some(SMALL_FADE), end: None },
+    ],
+};
+
+const FOLLOWER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "smalltalk"],
+    calls: &[
+        "{other}! Good day - I was hoping I'd see thee about.",
+        "There thou art, {other}. Word is thou'rt still talking to folk.",
+        "A fair morning to thee, {other} - and to the work we share.",
+        "I saved thee a thought or two since last we spoke, {other}.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["smalltalk"],
+            lines: &["Speak it, then - I came to hear.", "Thou'rt not alone in it, remember.", "Tell me what folk are saying."],
+            then: Some(BOND_CHAT), end: None },
+        Reply { criteria: &[], weight: 0.30, bias: &[(Lazy, 2.0)],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["The work keeps, friend - tell me of thy day instead.", "Rest a moment first."],
+            then: Some(SMALL_FADE), end: None },
+    ],
+};
+
+const COLEADER_GREET: Exchange = Exchange {
+    act: Act::Greet,
+    concepts: &["greeting", "smalltalk"],
+    calls: &[
+        "We stand in it together now, {other} - what news?",
+        "{other}, good - I've a mind on what comes next.",
+        "The others ask when we meet again, {other}.",
+        "Thou and I have work to plan, {other}.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["smalltalk"],
+            lines: &["Let's talk it through - what's on thy mind?", "Then let's settle the next step."],
+            then: Some(BOND_CHAT), end: None },
+    ],
+};
+
+/// Where a bond talk goes after the greet: what follows in their minds
+const BOND_CHAT: Exchange = Exchange {
+    act: Act::Remark,
+    concepts: &["smalltalk", "the_cause"],
+    calls: &[
+        "I still think on what was said of the Reeve.",
+        "Thou'lt call a meeting soon, aye? My kitchen's ready when the word comes.",
+        "Folk ask me why I listen to thee - I tell them thou listenest first.",
+        "Say the word and I'll bring my cousin too.",
+        "The talk goes further than me, mind - folk repeat what thou askest about.",
+    ],
+    replies: &[
+        Reply { criteria: &[], weight: 1.00, bias: &[],
+            act: Act::Agree, concepts: &["the_cause"],
+            lines: &["We take it up together, then.", "It'll be soon - keep the word to thyself till then.", "Thou'lt not stand alone in it."],
+            then: Some(SMALL_FADE), end: None },
+        Reply { criteria: &[], weight: 0.40, bias: &[(Lazy, 2.0)],
+            act: Act::Remark, concepts: &["smalltalk"],
+            lines: &["Patience - these things want doing right.", "Not yet, but the day's coming."],
+            then: Some(SMALL_FADE), end: None },
+    ],
+};

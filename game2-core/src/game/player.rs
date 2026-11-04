@@ -39,9 +39,18 @@ pub struct Rapport { pub value: f32 }
 /// How many times the player has talked with this villager - uncapped,
 /// unlike `Rapport` (which caps at 1.0 for influence/relationship purposes).
 /// talk_response uses this so the recurring hunger/sickness concern keeps
-/// coming up on schedule even once rapport itself has maxed out.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct TalkCount { pub value: usize }
+/// coming up on schedule even once rapport itself has maxed out. `value`
+/// is shared across every player so dialogue variety still advances
+/// regardless of who's talking; the same-day cooldown below is per
+/// player, since one seat's talk shouldn't block another's bond.
+#[derive(Debug, Clone, Default)]
+pub struct TalkCount {
+    pub value: usize,
+    /// the last day each player talked here - that player's same-day
+    /// repeat doesn't deepen the bond, but a different player's talk
+    /// on the same day still does
+    pub last_day_by: crate::engine::det::HashMap<Entity, u64>,
+}
 
 pub const TALK_INFLUENCE: f32 = 0.05;
 pub const TALK_RAPPORT_STEP: f32 = 0.15;
@@ -56,7 +65,7 @@ pub const TALK_MAINTENANCE: f32 = 0.1;
 /// relationship), so someone you've heard out is readier to join you at a
 /// house meeting; it tapers off as you get to know them, down to
 /// TALK_MAINTENANCE - a catch-up that keeps an old friendship from fading.
-pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResult {
+pub fn act_talk(world: &mut World, player: Entity, target: Entity, day: u64) -> ActionResult {
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     if world.get_component::<crate::game::villager::Dead>(target).is_some() {
         return ActionResult { success: false, influence_change: 0.0,
@@ -65,11 +74,18 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity) -> ActionResu
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });
-    let talks = world.get_component::<TalkCount>(target).map(|c| c.value).unwrap_or(0);
-    world.add_component(target, TalkCount { value: talks + 1 });
-    record_interaction(world, player, Interaction {
-        other: target, kind: InteractionKind::Conversation, intensity: (1.0 - rapport).max(TALK_MAINTENANCE),
-    });
+    let mut count = world.get_component::<TalkCount>(target).cloned().unwrap_or_default();
+    let last_day = count.last_day_by.get(&player).copied().unwrap_or(u64::MAX);
+    count.value += 1;
+    count.last_day_by.insert(player, day);
+    world.add_component(target, count);
+    // you can't talk the same ear off twice in a day: only that
+    // player's first real talk that day deepens the bond
+    if last_day != day {
+        record_interaction(world, player, Interaction {
+            other: target, kind: InteractionKind::Conversation, intensity: (1.0 - rapport).max(TALK_MAINTENANCE),
+        });
+    }
     if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
         p.influence += gained;
     }
@@ -236,7 +252,7 @@ mod tests {
     #[test]
     fn test_talk_spam_cannot_win() {
         let (mut w, p, _, vs) = setup();
-        for i in 0..500 { act_talk(&mut w, p, vs[i % 5]); }
+        for i in 0..500 { act_talk(&mut w, p, vs[i % 5], i as u64); }
         let infl = w.get_component::<PlayerCharacter>(p).unwrap().influence;
         assert!(infl < 1.5, "talking alone reached {}", infl);
     }
@@ -259,7 +275,7 @@ mod tests {
     fn test_full_campaign_reaches_lead() {
         let (mut w, p, o, vs) = setup();
         found(&mut w, o);
-        for i in 0..50 { act_talk(&mut w, p, vs[i % 5]); }
+        for i in 0..50 { act_talk(&mut w, p, vs[i % 5], i as u64); }
         for _ in 0..10 { act_invest(&mut w, p, 10.0); }
         for v in &vs { act_recruit(&mut w, p, o, *v); }
         assert!(w.get_component::<PlayerCharacter>(p).unwrap().influence > 2.0);
@@ -294,13 +310,13 @@ mod tests {
         let (mut w, p, _, vs) = setup();
         let trust = |w: &World| find_relationship(w, p, vs[0])
             .and_then(|r| w.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
-        act_talk(&mut w, p, vs[0]);
+        act_talk(&mut w, p, vs[0], 0);
         assert!((trust(&w) - 0.05).abs() < 1e-6);
-        for _ in 0..20 { act_talk(&mut w, p, vs[0]); }
+        for i in 0..20 { act_talk(&mut w, p, vs[0], i + 1); }
         let heard_out = trust(&w);
         // 0.05 x (1 + 0.85 + ... + 0.1), then 14 catch-ups at 0.1 each
         assert!((heard_out - 0.2625).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
-        act_talk(&mut w, p, vs[0]);
+        act_talk(&mut w, p, vs[0], 21);
         let topped = trust(&w) - heard_out;
         assert!((topped - 0.05 * TALK_MAINTENANCE).abs() < 1e-6, "once you know them, a talk only tops the relationship off, got +{}", topped);
     }
@@ -335,10 +351,10 @@ mod tests {
         found(&mut w, o);
         w.get_component_mut::<PlayerCharacter>(p).unwrap().influence = 10.0;
         // three talks aren't enough, however well known the player is
-        for _ in 0..3 { act_talk(&mut w, p, vs[0]); }
+        for i in 0..3 { act_talk(&mut w, p, vs[0], i); }
         let r = act_recruit(&mut w, p, o, vs[0]);
         assert!(!r.success && r.description == "They hardly know you", "{}", r.description);
-        act_talk(&mut w, p, vs[0]);
+        act_talk(&mut w, p, vs[0], 3);
         assert!(act_recruit(&mut w, p, o, vs[0]).success, "a fourth talk earns the ask");
     }
 }

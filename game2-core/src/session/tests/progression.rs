@@ -1,4 +1,5 @@
 use crate::session::*;
+use super::fixtures::plan_ready_meeting;
 
 fn influence(game: &Game) -> f32 {
     game.world.get_component::<PlayerCharacter>(game.player).unwrap().influence
@@ -26,9 +27,13 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
                 let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy;
             }
             // trust decays a little every day - a meeting a fortnight
-            // apart won't climb past it unless the talking keeps up
+            // apart won't climb past it unless the talking keeps up.
+            // Earning the meeting: their own house is the venue, and
+            // they've said they'll come.
             game.act(0);
-            game.act(3);
+            let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
+            plan_ready_meeting(&mut game, v, (vx, vy), &[v]);
+            game.call_meeting();
             finish_meeting(&mut game);
         }
         // he may have died mid-courtship - the years this takes carry

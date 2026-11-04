@@ -26,6 +26,16 @@ fn bond(game: &Game, seat: usize, v: game2_core::engine::ecs::Entity) -> f32 {
         .map(|r| r.strength).unwrap_or(0.0)
 }
 
+/// A roll for this driver's own decisions (the sim's own `Rng` isn't
+/// public outside the crate) - splitmix64 off whatever varies call to
+/// call, so the same ask doesn't always land or always fail.
+fn driver_roll(seed: u64) -> f32 {
+    let mut z = seed.wrapping_add(0x9E3779B97F4A7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+    ((z ^ (z >> 31)) % 1000) as f32 / 1000.0
+}
+
 /// A light organizing policy for the Wanderer seat: keep body and gold
 /// together via the idle driver, and spend the rest of the attention on
 /// the work the game is about - talk, recruit, the odd meeting.
@@ -36,7 +46,49 @@ fn act_ctx(game: &mut Game, seat: usize, act: game2_core::session::CtxAct) {
     }
 }
 
-fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
+/// A house meeting is earned, not summoned: it needs a lent venue and
+/// someone who's said they'll come. With two or more trusted villagers in
+/// reach, work toward that plan one ask a day - a venue first, then an
+/// attendee - and only call the meeting once it's actually ready. Returns
+/// whether it took an action (asked, or called the meeting). `last_ask_day`
+/// caps a failed ask to one try a day - drive_organizer runs several times
+/// a day, and propose() chills the bond on a no, so retrying the same
+/// rejected ask before the day turns over would just grind trust down for
+/// nothing.
+fn call_meeting_if_earned(game: &mut Game, seat: usize, ready: &[usize], last_ask_day: &mut u64) -> bool {
+    use game2_core::game::desires::Known;
+    use game2_core::game::organizing::{propose, MeetingPlan, PropKind};
+    let oe = game.seats[seat].org;
+    if game.world.get_component::<MeetingPlan>(oe).map(|p| p.ready()).unwrap_or(false) {
+        game.call_meeting_at(seat);
+        return true;
+    }
+    if *last_ask_day == game.tick { return false; }
+    // only someone you've heard something from will hear an ask, same
+    // as the Talk panel's own asks list (organizing::props_on_offer)
+    let heard = |g: &Game, v: game2_core::engine::ecs::Entity| g.world.get_component::<Known>(v)
+        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    let venue_set = game.world.get_component::<MeetingPlan>(oe).map(|p| p.venue.is_some()).unwrap_or(false);
+    let target = ready.iter().find(|&&i| {
+        let v = game.villagers[i];
+        if !heard(game, v) { return false; }
+        if !venue_set { return game2_core::game::household::home_of(&game.world, v).is_some(); }
+        !game.world.get_component::<MeetingPlan>(oe)
+            .map(|p| p.coming.contains(&v) || p.spreaders.contains(&v)).unwrap_or(false)
+    }).copied();
+    let Some(i) = target else { return false };
+    *last_ask_day = game.tick;
+    let v = game.villagers[i];
+    let p = if venue_set { PropKind::ComeAlong } else { PropKind::LendVenue };
+    let (pe, tick) = (game.seats[seat].player, game.tick);
+    let roll = driver_roll(tick.wrapping_mul(0x1000_0001) ^ v as u64);
+    let name = game2_core::session::vill_name(i);
+    let msg = propose(&mut game.world, pe, oe, v, p, name, roll, tick);
+    game.log.push(format!("t{}: {}", tick, msg));
+    true
+}
+
+fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, last_meeting_ask_day: &mut u64) {
     // eating comes first, same as any player: if the purse is thin put in
     // a day of work, and let the sim's own hunger logic do the walking
     let who = game.seats[seat].player;
@@ -115,10 +167,7 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
         return;
     }
     let ready: Vec<usize> = cands.iter().filter(|(_, s)| *s >= RECRUIT_MIN_TRUST).map(|(i, _)| *i).collect();
-    if ready.len() >= 2 && game.action_blocker_at(seat, 3).is_none() {
-        // a house meeting joins everyone who already trusts you - better
-        // value than recruiting them one by one
-        game.command_at(seat, Command::Act(3));
+    if ready.len() >= 2 && game.meeting.is_none() && call_meeting_if_earned(game, seat, &ready, last_meeting_ask_day) {
         return;
     }
     if let Some(&i) = ready.first() {
@@ -149,13 +198,14 @@ fn main() {
     let mut log_read = 0usize; // cursor over every line ever pushed: log_dropped + index into game.log - the trim can't strand it
     let mut last_tick = game.tick;
     let mut last_campaign_day = 0u64;
+    let mut last_meeting_ask_day = u64::MAX;
     // a generous frame budget: ~ticks_per_frame per day plus slack for the
     // day-boundary work the game does around each tick
     let budget = (days + 50) * game.ticks_per_frame() as u64 * 2;
     for _ in 0..budget {
         if game.tick >= days { break; }
         game.update();
-        if game.frame_n % driver::DRIVE_EVERY as u32 == 0 { drive_organizer(&mut game, 0, &mut last_campaign_day); }
+        if game.frame_n % driver::DRIVE_EVERY as u32 == 0 { drive_organizer(&mut game, 0, &mut last_campaign_day, &mut last_meeting_ask_day); }
         if game.tick != last_tick {
             last_tick = game.tick;
             // the log trims its front in blocks; the absolute cursor still

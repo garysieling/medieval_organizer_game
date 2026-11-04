@@ -38,7 +38,7 @@ fn main() {
         let target = villagers[turn % 4];
         let (action_desc, result) = match turn % 4 {
             0 => {
-                let r = act_talk(&mut world, player, target);
+                let r = act_talk(&mut world, player, target, 0);
                 ("Talk", r)
             }
             1 => {
@@ -50,7 +50,7 @@ fn main() {
                 ("Invest", r)
             }
             _ => {
-                let r = act_talk(&mut world, player, target);
+                let r = act_talk(&mut world, player, target, 0);
                 ("Talk", r)
             }
         };

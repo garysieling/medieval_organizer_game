@@ -2,6 +2,7 @@
 use crate::session::*;
 use crate::session::dialogue::*;
 use crate::engine::ecs::Entity;
+use super::fixtures::plan_ready_meeting;
 use crate::game::conversation::Relation;
 use crate::game::relationships::RelKind;
 use crate::game::traits::Personality;
@@ -144,7 +145,8 @@ fn test_a_house_meeting_is_kept_on_the_talk_panel() {
     for (i, v) in g.villagers.clone().into_iter().enumerate() {
         if i != 1 && i != 2 { *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
     }
-    g.act(3);
+    plan_ready_meeting(&mut g, eliza, (18.0, 16.0), &[bram]);
+    g.call_meeting();
     for _ in 0..crate::session::FPS * 60 { if g.meeting.is_none() { break; } g.update(); }
     assert!(g.meeting.is_none(), "the meeting ran its course");
     let r = g.talk_log.iter().rev().find(|r| r.kind == TalkKind::Meeting).expect("a meeting on the record");
@@ -162,7 +164,7 @@ fn test_each_seat_sees_its_own_lines_as_you_and_hosts_its_own_meeting() {
     let (p0, p1) = (g.seats[0].player, g.seats[s1].player);
     let v = g.villagers[adults(&g)[0]];
     // seat 1 hosts: the prompts are theirs, not seat 0's
-    let lines = g.meeting_lines(&[v], s1);
+    let lines = g.meeting_lines(&[v], s1, (false, false, false, false, false));
     assert!(lines.iter().any(|l| l.0 == p1) && !lines.iter().any(|l| l.0 == p0), "seat 1 asks the questions");
     let n1 = g.speaker_name(p1);
     g.record_meeting(vec![p1, p0, v], vec![(Some(p1), n1.clone(), "Thanks for coming.".into())]);
@@ -198,7 +200,7 @@ fn test_deciding_founds_the_campaign_on_the_picked_framing() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     g.decide_at(0, 1); // take it on, naming the foe
     let c = crate::game::campaign::campaign_of(&g.world, g.org).expect("the campaign founded");
     let cp = g.world.get_component::<crate::game::campaign::Campaign>(c).unwrap();

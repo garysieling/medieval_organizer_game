@@ -71,7 +71,7 @@ fn main() {
         if tick % 15 == 0 && tick > 0 {
             let target = villagers[(tick/15) as usize % 5];
             match tick % 45 {
-                0 => { act_talk(&mut world, player, target); }
+                0 => { act_talk(&mut world, player, target, tick); }
                 15 => { let _r = act_recruit(&mut world, player, org, target); }
                 30 => { act_invest(&mut world, player, 10.0); }
                 _ => {}

@@ -39,6 +39,10 @@ impl Game {
             .map(|o| o.members.len()).unwrap_or(0);
         let sanctioned = self.sanctioned.len();
         let tree_cover = sorted_sum(self.land.tree_cover.values().copied()) / self.land.tree_cover.len().max(1) as f32;
+        // the organizer's hidden craft: practiced at a 1-1, turning out a
+        // room, running a meeting - the player never sees these, tests do
+        let skills = self.seats.first().map(|s| s.player).unwrap_or(self.player);
+        let org = self.world.get_component::<crate::game::org_skills::Organizing>(skills);
         vec![
             ("villagers.alive", alive as f64),
             ("villagers.hungry", hungry as f64),
@@ -59,6 +63,11 @@ impl Game {
             ("price.wood", goods::worth_at(&self.world, "wood") as f64),
             ("price.fish", goods::worth_at(&self.world, "fish") as f64),
             ("winter.harsh", if self.harsh_winter { 1.0 } else { 0.0 }),
+            ("org.skill.one_on_one", org.map(|o| o.one_on_one as f64).unwrap_or(0.0)),
+            ("org.skill.house_meeting", org.map(|o| o.house_meeting as f64).unwrap_or(0.0)),
+            ("org.skill.turnout", org.map(|o| o.turnout as f64).unwrap_or(0.0)),
+            ("org.skill.agitation", org.map(|o| o.agitation as f64).unwrap_or(0.0)),
+            ("org.skill.training", org.map(|o| o.training as f64).unwrap_or(0.0)),
         ]
     }
 

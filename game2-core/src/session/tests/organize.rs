@@ -1,5 +1,6 @@
 use crate::session::*;
 use crate::game::relationships::RelKind;
+use super::fixtures::plan_ready_meeting;
 
 #[test]
 fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
@@ -16,12 +17,14 @@ fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
     for (i, v) in game.villagers.clone().into_iter().enumerate() {
         if i != 1 && i != 2 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32 * 0.5, y: 3.0 }; }
     }
-    // Eliza already trusts the player; Bram is a stranger
+    // Eliza already trusts the player; Bram is a stranger who's merely
+    // said he'll come - the meeting is earned: Eliza lends the house
     let rel = game.world.create_entity();
     game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    plan_ready_meeting(&mut game, eliza, (17.0, 16.0), &[bram]);
 
-    assert_eq!(game.disabled_reason(3), None, "a house meeting needs someone nearby, not the selected villager");
-    game.act(3);
+    assert!(game.meeting.is_none());
+    game.call_meeting();
     finish_meeting(&mut game);
 
     let members = game.world.get_component::<Organization>(game.org).unwrap().members.clone();
@@ -29,9 +32,8 @@ fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
     let last = game.log.last().unwrap();
     assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
     assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
-    // a distant villager doesn't attend - the members list above
-    // already says Eliza alone; Corvin's absence is no member and
-    // no meeting-bond either (long sim windows make incidental bonds)
+    // only the two on the plan attend - Corvin, with no promise and no
+    // place on the plan, was never invited either
     assert!(!members.contains(&corvin), "Corvin wasn't there");
 }
 
@@ -46,10 +48,11 @@ fn test_a_meeting_takes_time_people_gather_then_talk_then_it_ends() {
     }
     let rel = game.world.create_entity();
     game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
-    game.act(3);
-    assert!(game.log.last().unwrap().contains("You call a house meeting at"), "{}", game.log.last().unwrap());
+    plan_ready_meeting(&mut game, eliza, (18.0, 16.0), &[bram]);
+    game.call_meeting();
+    assert!(game.log.last().unwrap().contains("gather at"), "{}", game.log.last().unwrap());
     assert!(game.world.get_component::<Organization>(game.org).unwrap().members.is_empty(), "nothing's decided yet");
-    assert_eq!(game.disabled_reason(3).as_deref(), Some("a meeting is under way"));
+    assert_eq!(game.call_meeting(), "A meeting is already under way.");
     // they walk over...
     let spots = game.meeting.as_ref().unwrap().spots.clone();
     let far = |game: &Game| [eliza, bram].iter().zip(&spots).map(|(v, s)| {
@@ -92,7 +95,7 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     org_ready(&mut g);
     let came = g.villagers[..3].to_vec();
     let id = g.open_meeting_record(g.player, &came);
-    g.resolve_meeting(&came, 0, id);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     assert!(g.seats[0].pending_founding.is_some());
     // held open: the calendar runs at the house-meeting's half pace
     let base = if g.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
@@ -108,4 +111,116 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     assert!(g.seats[0].pending_founding.is_none());
     assert_eq!(g.ticks_per_frame(), base);
     assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
+}
+
+#[test]
+fn test_the_ladder_climbs_from_stranger_to_co_leader() {
+    use crate::game::organizing::{stage_of, RelStage};
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::Stranger);
+    // a word or two makes an acquaintance
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::Acquaintance);
+    // three pieces of their self-interest told, and they're known to you
+    use crate::game::desires::{Known, Problem, Reveal, Want};
+    g.world.add_component(v, Known { revealed: vec![
+        Reveal::Want(Want::GoodFood), Reveal::Problem(Problem::Taxed), Reveal::Want(Want::Love)] });
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::Known);
+    // a real bond makes a follower
+    crate::game::relationships::find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.6;
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::Follower);
+    // and a follower who's taken on the work co-leads
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(v);
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::CoLeader);
+}
+
+#[test]
+fn test_you_cant_put_a_claim_on_a_stranger() {
+    use crate::game::organizing::{props_on_offer, PropKind};
+    let mut g = Game::new();
+    let v = g.villagers[1];
+    // nothing heard from them: no asks on the table
+    assert!(props_on_offer(&g.world, g.org, v).is_empty());
+    // one piece heard: the asks open up - come along and the empty roles
+    use crate::game::desires::{Known, Problem, Reveal};
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    let asks = props_on_offer(&g.world, g.org, v);
+    assert!(asks.contains(&PropKind::ComeAlong) && asks.contains(&PropKind::Introduce), "{:?}", asks);
+}
+
+#[test]
+fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
+    use crate::game::organizing::{MeetingPlan, PropKind, propose};
+    let mut g = Game::new();
+    let (pe, host, guest) = (g.player, g.villagers[1], g.villagers[2]);
+    // the host lends their house, the guest says they'll come (roll 0 = yes)
+    let home = crate::game::household::home_of(&g.world, host);
+    let home = home.unwrap_or_else(|| { let e = g.world.create_entity(); g.world.add_component(e, Pos { x: 16.0, y: 16.0 }); e });
+    g.world.add_component(g.org, MeetingPlan { venue: Some((host, home)), ..Default::default() });
+    let (oe, tick) = (g.org, g.tick); propose(&mut g.world, pe, oe, guest, PropKind::ComeAlong, "Bram", 0.0, tick);
+    assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().ready());
+    g.update_ctx_actions();
+    assert!(g.seats[0].ctx_actions.contains(&crate::session::CtxAct::Gather));
+    // Gather calls it: the committed walk over
+    let msg = g.call_meeting();
+    assert!(g.meeting.is_some(), "{}", msg);
+}
+
+#[test]
+fn test_half_the_merely_invited_never_make_it() {
+    use crate::game::organizing::shows_up;
+    let g = Game::new();
+    let v = g.villagers[1];
+    // a promised guest with a bond almost always comes; a stranger who
+    // just got a flyer is a coin's toss - high rolls keep them home
+    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.99));
+    assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01));
+}
+
+#[test]
+fn test_a_meeting_with_a_cause_ends_in_next_steps() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    // found the cause first: the meeting's call is steps, not a vote
+    let (oe, tick) = (g.org, g.tick);
+    let c = crate::game::campaign::found_campaign(&mut g.world, oe,
+        &crate::game::campaign::IssueVote { winner: "the taxes".into(), ballots: vec![] },
+        crate::game::campaign::Framing::SharedGrievance, crate::game::campaign::DecisionRule::Majority, tick);
+    let _ = c;
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let call = g.convo_panel_at(0).expect("the call on the box");
+    assert!(call.options.iter().any(|o| o.contains("Meet again")), "{:?}", call.options);
+    assert!(call.options.iter().any(|o| o.contains("street")), "{:?}", call.options);
+    // meet again reseeds the plan: they'd come back
+    g.decide_at(0, 0);
+    let plan = g.world.get_component::<crate::game::organizing::MeetingPlan>(g.org).unwrap();
+    assert!(!plan.coming.is_empty(), "the willing are on the next plan");
+}
+
+#[test]
+fn test_a_follower_greets_you_differently() {
+    let mut g = Game::new();
+    let (pe, v) = (g.player, g.villagers[1]);
+    // a follower: a real bond already earned
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: v, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, pe, v)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    use crate::game::organizing::{stage_of, RelStage};
+    assert_eq!(stage_of(&g.world, pe, v), RelStage::Follower);
+    g.talk_to(1);
+    let r = g.talk_log.iter().rev().find(|r| r.kind == crate::session::dialogue::TalkKind::Talk).expect("the talk record");
+    let first = &r.lines[0].text;
+    let expected: Vec<String> = [
+        "{other}! Good day - I was hoping I'd see thee about.",
+        "There thou art, {other}. Word is thou'rt still talking to folk.",
+        "A fair morning to thee, {other} - and to the work we share.",
+        "I saved thee a thought or two since last we spoke, {other}."]
+        .iter().map(|s| s.replace("{other}", "wanderer")).collect();
+    assert!(expected.contains(first), "a follower greets the bond: {}", first);
 }

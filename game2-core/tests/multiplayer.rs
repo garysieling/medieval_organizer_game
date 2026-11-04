@@ -118,7 +118,18 @@ fn a_human_and_an_agent_play_one_world() {
     let mut agent = connect(server.addr);
     let (villager, _) = hello(&mut agent, None, ClientKind::Agent);
     assert_ne!(villager, me, "the agent drives its own character");
-    let obs_you = until("the agent's obs", &mut agent, 10, |m, _| match m { ServerMsg::Obs(o) => Some(o.you), _ => None });
+    // an agent reads Obs, not scenes: it's never sent the map
+    let mut agent_maps = 0;
+    let obs_you = until("the agent's obs", &mut agent, 10, |m, _| match m {
+        ServerMsg::Map(_) => { agent_maps += 1; None }
+        ServerMsg::Obs(o) => Some(o.you),
+        _ => None,
+    });
+    let end = Instant::now() + Duration::from_millis(300);
+    while Instant::now() < end {
+        if let Got::Msg(t) = read_text(&mut agent) { if t.starts_with("{\"Map\"") { agent_maps += 1; } }
+    }
+    assert_eq!(agent_maps, 0, "an agent was sent the map");
     assert_eq!(obs_you, villager, "the obs is about the agent's own villager");
     send(&mut agent, &ClientMsg::AgentCmd(AgentCmd::Idle));
     let ok = until("CmdDone", &mut agent, 10, |m, _| match m { ServerMsg::CmdDone { ok, .. } => Some(*ok), _ => None });

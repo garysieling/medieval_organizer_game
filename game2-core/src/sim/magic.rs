@@ -1,7 +1,7 @@
 //! Magic: "the world is written in an ancient language we don't know."
 //! Ingest text sources (books, sagas, gutenberg) -> discover magic -> behaviors/mechanics emerge.
 
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 
 /// A magical discovery from text
 #[derive(Debug, Clone)]

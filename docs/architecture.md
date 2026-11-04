@@ -56,7 +56,7 @@ Rules:
 
 | Area | Path | Notes |
 |------|------|-------|
-| Session state & frame loop | `session.rs` (shrinking) | `Game` struct, `update`, glue |
+| Session state & frame loop | `session.rs` (~1.4k lines) | `Game` struct and its types, `update`/`advance_frame` |
 | Tests | `session/tests/<subsystem>.rs` | one file per subsystem; `use crate::session::*;` |
 | Render (client) | `session/render/` | `View`, `Art`, `TileSet`, draw helpers, HUD, overlays |
 | Perf bench | `session/render/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
@@ -66,7 +66,7 @@ Rules:
 | Public views | `session/model.rs`, `session/net.rs` (types); `session/view_model.rs` (`ui_model_at`, `agent_obs`, log filters) | what a seat may know is decided in `view_model.rs` |
 | KPIs | `session/kpi/public.rs`, `session/kpi/secret.rs` | public: from a view only; secret: `Game::secret_kpis` |
 | Omniscient | `session/probe.rs` | `ProbeView` for tests and the probe socket |
-| Sim subsystems | `session/sim/<subsystem>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
+| Sim subsystems | `session/subsystems/<family>.rs` | the `*_tick` families: wildlife, wood, economy, society, visitors, travel |
 | Rare events | `session/events/` | split by category |
 | Pure rules | `game/`, `sim/` | ECS components & systems, no `Game` |
 
@@ -85,9 +85,9 @@ stats) are fine: name them in the PR.
    runners into `session/render/`.~~ `tests/layering.rs` fails if the render
    files mention `Game`/`World`.
 3. ~~Perf bench: `infra/perf.rs` sections across sim/ECS/render, p50/p95/max, `GAME2_BENCH_JSON`.~~
-3b. Determinism: with a fixed `--seed`, two runs of main diverge after
-   ~tick 300 (likely `HashMap` iteration order leaking into the sim).
-   Replays, multiplayer lockstep and golden-frame tests all need this fixed.
+3b. ~~Determinism: sim code uses `engine::det::{HashMap, HashSet}` (fixed-key SipHash), so a
+   seed replays exactly, across processes too. Guarded by `tests/determinism.rs` (two runs
+   compared each day; `GAME2_DET_TICKS=N` runs it longer) and `tests/layering.rs`.~~
 4. ~~World generation (`new`, `new_seeded`, `new_scenario`) into `setup.rs`.~~
 5. ~~Seats, commands, the agent API (`seat.rs`), the player's verbs (`verbs.rs`) and the
    public projections `ui_model_at` / `agent_obs` (`view_model.rs`).~~
@@ -95,7 +95,9 @@ stats) are fine: name them in the PR.
    `agent_kpis(&AgentObs)` can't see the sim by construction (layering test). `Game::secret_kpis`
    is the old `telemetry()`. This closed two leaks: `UiModel.debug_lines` carried the secret
    gauges to every client, and an agent's `Welcome` carried seat 0's frame.
-7. Sim tick families into `session/sim/`, a few per PR.
+7. ~~Sim tick families into `session/subsystems/`~~: visitors, animals, wood, people (#465); economy,
+   society, land, travel, meetings and the day (`livelihood_tick`). `session.rs` now holds the
+   `Game` struct, its types and the frame loop (`update`/`advance_frame`).
 8. `events.rs` split by category.
 
 ### Working alongside the split

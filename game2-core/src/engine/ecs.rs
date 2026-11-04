@@ -5,7 +5,7 @@
 //! logic. Kept intentionally small - this is a foundation to build on.
 
 use std::any::{Any, TypeId};
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 
 /// A unique entity identifier
 pub type Entity = u32;
@@ -31,9 +31,9 @@ impl World {
     pub fn new() -> Self {
         Self {
             next_entity: 0,
-            storages: HashMap::new(),
-            resources: HashMap::new(),
-            mutation_rev: HashMap::new(),
+            storages: HashMap::default(),
+            resources: HashMap::default(),
+            mutation_rev: HashMap::default(),
         }
     }
 

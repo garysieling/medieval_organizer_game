@@ -2981,7 +2981,7 @@ impl Game {
             EventId::StrayDog => {
                 // the loneliest heart takes him in - the dog decides;
                 // a heart behind bars is no heart to him
-                let mut bond_n: std::collections::HashMap<Entity, usize> = std::collections::HashMap::new();
+                let mut bond_n: crate::engine::det::HashMap<Entity, usize> = crate::engine::det::HashMap::default();
                 self.world.iter::<crate::game::relationships::Relationship>(|_, r| {
                     *bond_n.entry(r.from).or_default() += 1;
                     if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
@@ -3003,7 +3003,7 @@ impl Game {
             EventId::StrayCat => {
                 // the loneliest hearth takes her in - cats decide too;
                 // a hearth behind bars is no hearth to her
-                let mut bond_n: std::collections::HashMap<Entity, usize> = std::collections::HashMap::new();
+                let mut bond_n: crate::engine::det::HashMap<Entity, usize> = crate::engine::det::HashMap::default();
                 self.world.iter::<crate::game::relationships::Relationship>(|_, r| {
                     *bond_n.entry(r.from).or_default() += 1;
                     if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }

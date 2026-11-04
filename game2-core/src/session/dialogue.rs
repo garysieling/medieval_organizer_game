@@ -1065,16 +1065,16 @@ mod tests {
         g.resolve_meeting(&came, 0, id);
         assert!(g.seats[0].pending_founding.is_some());
         // held open: the calendar runs at the house-meeting's half pace
-        let base = if g.speed == 1 { 7 * super::FPS } else { 5 * super::FPS / 4 };
+        let base = if g.speed == 1 { 7 * crate::session::FPS } else { 5 * crate::session::FPS / 4 };
         assert_eq!(g.ticks_per_frame(), base * 2);
         // short of a week unanswered: still held open, still slow
-        g.livelihood_tick(g.tick + super::FOUNDING_OFFER_EXPIRY_DAYS - 1);
+        g.livelihood_tick(g.tick + crate::session::FOUNDING_OFFER_EXPIRY_DAYS - 1);
         assert!(g.seats[0].pending_founding.is_some());
         assert_eq!(g.ticks_per_frame(), base * 2);
         // a week unanswered (no client ever sent Command::Decide): the
         // call lapses on its own, same as letting it rest, and the
         // calendar returns to its ordinary pace
-        g.livelihood_tick(g.tick + super::FOUNDING_OFFER_EXPIRY_DAYS);
+        g.livelihood_tick(g.tick + crate::session::FOUNDING_OFFER_EXPIRY_DAYS);
         assert!(g.seats[0].pending_founding.is_none());
         assert_eq!(g.ticks_per_frame(), base);
         assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());

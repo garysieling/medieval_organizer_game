@@ -20,7 +20,8 @@
 //!   (`arc:allies`), consent banked at the last meeting (`arc:consent`),
 //!   and how many actions it has taken (`arc:first`/`arc:veteran`).
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::VecDeque;
+use crate::engine::det::HashSet;
 
 use crate::engine::ecs::{Entity, World};
 use crate::game::actions::{Demoralized, TargetResponse};
@@ -429,7 +430,7 @@ mod tests {
     }
 
     use crate::game::campaign_dialogue::{Beat, Next, EXCLUSIVE_FACTS, KNOWN_FACTS, MEETING_BEATS, MEETING_MAX_BEATS};
-    use std::collections::HashMap;
+    use crate::engine::det::HashMap;
 
     /// What a long run of one library looked like
     struct Balance {
@@ -449,8 +450,8 @@ mod tests {
     fn long_run(beats: &'static [Beat], pool: &[&'static str], start: &dyn Fn(&mut Rng) -> Phase,
                 max: usize, campaigns: u64, events: usize) -> Balance {
         let mut b = Balance { walks: 0, dead_ends: 0, beats_played: 0, repeats: 0,
-            reached: HashSet::new(), dominated: 0, judged: 0 };
-        let mut picks: HashMap<&'static str, HashMap<&'static str, usize>> = HashMap::new();
+            reached: HashSet::default(), dominated: 0, judged: 0 };
+        let mut picks: HashMap<&'static str, HashMap<&'static str, usize>> = HashMap::default();
         for seed in 0..campaigns {
             let mut rng = Rng::new(seed.wrapping_mul(7919) + 1);
             let mut held: Vec<&'static str> = vec![];

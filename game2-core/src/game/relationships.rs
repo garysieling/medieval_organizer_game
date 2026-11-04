@@ -2,7 +2,7 @@
 //! Emergent: bonds form from interactions, not assigned.
 
 use crate::engine::ecs::{Entity, World};
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 
 /// Pair index: unordered entity pair -> the earliest Relationship
 /// entity between them. find_relationship consults it only while the
@@ -25,7 +25,7 @@ fn pair_key(a: Entity, b: Entity) -> (Entity, Entity) {
 /// complete. Runs when a bare component change put bonds the index
 /// never saw into the world - rare outside hand-built test setups.
 fn rebuild_index(world: &mut World) {
-    let mut by_pair: HashMap<(Entity, Entity), Entity> = HashMap::new();
+    let mut by_pair: HashMap<(Entity, Entity), Entity> = HashMap::default();
     world.iter::<Relationship>(|e, r| {
         by_pair.entry(pair_key(r.from, r.other))
             .and_modify(|cur| { if e < *cur { *cur = e; } })
@@ -146,7 +146,7 @@ pub fn bonds_of(world: &World, v: Entity) -> Vec<Entity> {
 /// building this once beats a full scan per villager; strength and kind
 /// still come off the components.
 pub fn bond_map(world: &World) -> HashMap<Entity, Vec<Entity>> {
-    let mut m: HashMap<Entity, Vec<Entity>> = HashMap::new();
+    let mut m: HashMap<Entity, Vec<Entity>> = HashMap::default();
     for e in world.query::<Relationship>() {
         let Some(r) = world.get_component::<Relationship>(e) else { continue };
         m.entry(r.from).or_default().push(e);

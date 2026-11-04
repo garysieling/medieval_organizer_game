@@ -3,7 +3,7 @@
 //! and maybe an overseer. A workplace no one works stands derelict - a
 //! problem for everyone who walks by.
 
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 use crate::engine::ecs::{Entity, World};
 use crate::game::livelihood::{Purse, Satchel, OVERSEER_CUT};
 use crate::game::vocation::{self, Vocation};
@@ -115,7 +115,7 @@ pub fn spawn_building(world: &mut World, kind: BuildingKind, name: &str, x: f32,
     world.add_component(e, Building {
         kind, name: name.to_string(),
         occupants: vec![], worker: None, overseer: None,
-        stock: HashMap::new(), capacity,
+        stock: HashMap::default(), capacity,
     });
     e
 }

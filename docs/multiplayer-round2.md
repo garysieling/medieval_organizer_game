@@ -30,11 +30,17 @@ Still open:
   input gathering (`BuyFrom`/`Gather` when the bench needs stock), sell
   surplus, rest at own home, train juniors, occasional `TalkTo` for ties —
   keep the village-first bias, add probabilities not just priorities.
-- **Scene bandwidth** — every broadcast serializes the whole `UiModel`
-  (incl. `TileMap`). Fine at 1–5 players; if it matters, send the map once
-  per claim and diffs after.
-- **No scripted multiplayer regression** — add a test: server + 1 human +
-  1 bot, assert claims, commands land, scenes stream.
+- **Scene bandwidth** — every broadcast serializes the whole `UiModel`,
+  ~1 MB, 98% of it the `TileMap`: ~10 MB/s per human seat at 10 scenes/s.
+  Send the map once per claim and again only when it changes.
+- ~~**No scripted multiplayer regression**~~ — done: the server is a
+  library (`game2-core/src/server.rs`, `serve(ServerConfig)`), and
+  `game2-core/tests/multiplayer.rs` plays one over real sockets: a human and
+  an agent claim seats, scenes/obs stream, commands land, ping/pong, a
+  token reclaim resumes the character and retires the old socket, nothing
+  secret on the wire, the probe socket demands its token.
+- ~~**Unbounded outbox**~~ — done: scenes/obs/probe frames are snapshots,
+  so a connection keeps only the newest unsent one; replies queue in order.
 - **Remote `click_map`** rebuilds cam-dependent selection server-side;
   camera mismatch between seats could mis-select — acceptable now.
 

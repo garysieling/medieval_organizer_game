@@ -6,5 +6,6 @@ pub mod agents;
 pub mod game;
 pub mod infra;
 pub mod session;
+pub mod server;
 pub mod ui;
 pub mod sim;

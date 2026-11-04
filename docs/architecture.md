@@ -62,6 +62,7 @@ Rules:
 | Screen layout | `session/layout.rs` | window/tile sizes, camera maths, minimap box: shared by the client and click hit-testing |
 | Perf bench | `game2-client/src/bench.rs` | `GAME2_BENCH*`, section profiler, headless dumps |
 | World generation | `session/setup.rs` | `Game::new_seeded` |
+| Server (host) | `server.rs` | `serve(ServerConfig)`: WS seats, claims, the world loop, the probe socket; `game_server` is its CLI; tested in `tests/multiplayer.rs` |
 | Seats & commands | `session/seat.rs` | `Seat`, `Command`, `CtxAct`, `command_at`, agent API, solo wrappers |
 | Player verbs | `session/verbs.rs` | `act_at`, `ctx_act_at`, blockers, approach-then-act |
 | Public views | `session/model.rs`, `session/net.rs` (types); `session/view_model.rs` (`ui_model_at`, `agent_obs`, log filters) | what a seat may know is decided in `view_model.rs` |

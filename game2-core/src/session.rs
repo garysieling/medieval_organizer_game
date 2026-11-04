@@ -703,7 +703,7 @@ pub struct Game {
     pub villagers: Vec<Entity>,
     /// Each villager's last position, facing and whether they moved this
     /// frame (track_poses): the walk cycles read it
-    pub villager_poses: std::collections::HashMap<Entity, ((f32, f32), u8, bool)>,
+    pub villager_poses: crate::engine::det::HashMap<Entity, ((f32, f32), u8, bool)>,
     pub rivals: Vec<Entity>,
     pub rival_homes: Vec<(f32, f32)>, // where each rival lives, across the river
     /// One seat per claimed connection (seat 0 in solo play)
@@ -792,7 +792,7 @@ pub struct Game {
     /// Whatever's alight on the map, and the ground it scorched
     pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
-    pub derelict: std::collections::HashSet<usize>,
+    pub derelict: crate::engine::det::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
     /// parallel complaints make the next speaker likelier to share
     pub voiced: Vec<(Entity, desires::IssueTag)>,
@@ -811,7 +811,7 @@ pub struct Game {
     pub graze_at: (f32, f32),
     /// Each animal's own spot of grass and the frame it picks the next
     /// one: the flock grazes as individuals, not in lockstep
-    pub flock_wander: std::collections::HashMap<Entity, (f32, f32, u32)>,
+    pub flock_wander: crate::engine::det::HashMap<Entity, (f32, f32, u32)>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,
@@ -847,7 +847,7 @@ pub struct Game {
     /// The dead whose affairs are settled - succession runs once per soul
     pub succeeded: Vec<Entity>,
     /// Where feet have worn the ground: tile -> trail strength
-    pub trails: std::collections::HashMap<(i32, i32), Trail>,
+    pub trails: crate::engine::det::HashMap<(i32, i32), Trail>,
     /// The land's memory: canopy left, water in the pit, stink downstream
     pub land: crate::sim::environment::LandScore,
     /// The worked pit's tile, and the reach below town that takes the leavings
@@ -909,7 +909,7 @@ pub struct Game {
     pub martyr_grave: Option<(i32, i32)>,
     /// Path memo: (from,to) -> the walk, cleared each day - the map
     /// barely changes mid-day, and the BFS is the game's hot line
-    pub path_cache: std::collections::HashMap<((i32, i32), (i32, i32)), Option<Vec<(i32, i32)>>>,
+    pub path_cache: crate::engine::det::HashMap<((i32, i32), (i32, i32)), Option<Vec<(i32, i32)>>>,
     /// The tick the cache was born on - a day older and it's stale
     pub path_tick: u64,
     /// The audio cue queue: drained per frame into the UiModel
@@ -1449,7 +1449,7 @@ impl Game {
         };
         // a meeting also succeeds when it surfaces a pattern: three or more
         // voices with versions of the same trouble become an issue
-        let mut tags: std::collections::HashMap<desires::IssueTag, Vec<Entity>> = Default::default();
+        let mut tags: crate::engine::det::HashMap<desires::IssueTag, Vec<Entity>> = Default::default();
         for (who, tag) in &self.voiced { tags.entry(tag.clone()).or_default().push(*who); }
         let mut found = String::new();
         for (tag, voices) in &tags {
@@ -1467,7 +1467,7 @@ impl Game {
         // three voices of one trade converge; the same trouble said by
         // three trades splinters - a mason's grief isn't a baker's
         if found.is_empty() {
-            let mut bases: std::collections::HashMap<String, std::collections::HashSet<Entity>> = Default::default();
+            let mut bases: crate::engine::det::HashMap<String, crate::engine::det::HashSet<Entity>> = Default::default();
             for (tag, voices) in &tags {
                 let base = tag.split_once(" (").map(|(b, _)| b).unwrap_or(tag.as_str());
                 bases.entry(base.to_string()).or_default().extend(voices.iter().copied());
@@ -1666,11 +1666,11 @@ impl Game {
         // the meeting runs in rounds, not in run_meeting's order, so a
         // reply is only said once what it answers has been (statement 0 is
         // the host's question) - never an answer ahead of its question
-        let mut aired: std::collections::HashSet<usize> = [0].into_iter().collect();
+        let mut aired: crate::engine::det::HashSet<usize> = [0].into_iter().collect();
         for round in 0..2 {
             for (ci, &v) in came.iter().enumerate() {
                 let Some(i) = self.villagers.iter().position(|x| *x == v) else { continue };
-                let mine: std::collections::HashSet<desires::IssueTag> =
+                let mine: crate::engine::det::HashSet<desires::IssueTag> =
                     desires::unrevealed(&self.world, v, self.tick).iter()
                         .map(|r| desires::issue_tag(&self.world, v, r)).collect();
                 let parallel = self.voiced.iter().filter(|(_, t)| mine.contains(t)).count();
@@ -5286,7 +5286,7 @@ impl Game {
             }
         } else {
             // the tents fold - and the road takes the one it most tempted
-            let mut bond_n: std::collections::HashMap<Entity, usize> = std::collections::HashMap::new();
+            let mut bond_n: crate::engine::det::HashMap<Entity, usize> = crate::engine::det::HashMap::default();
             self.world.iter::<relationships::Relationship>(|_, r| {
                 *bond_n.entry(r.from).or_default() += 1;
                 if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
@@ -5526,7 +5526,7 @@ impl Game {
                 let (px, py) = (p.x, p.y);
                 let stall = self.world.create_entity();
                 self.world.add_component(stall, Pos { x: px, y: py });
-                let mut stock = std::collections::HashMap::new();
+                let mut stock = crate::engine::det::HashMap::default();
                 stock.insert("ribbon".to_string(), 4);
                 stock.insert("needle".to_string(), 6);
                 stock.insert("lute_string".to_string(), 2);

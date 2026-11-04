@@ -17,7 +17,7 @@ impl Game {
         // starving = the hard line: a real food crisis, not the bottom of a meal cycle
         let starving = self.villagers.iter().filter(|&&v|
             self.world.get_component::<Hunger>(v).map(|h| h.value <= 10.0).unwrap_or(false)).count();
-        let trail_heat: f32 = self.trails.values().map(|t| t.strength).sum();
+        let trail_heat: f32 = sorted_sum(self.trails.values().map(|t| t.strength));
         let trail_max = self.trails.values().map(|t| t.strength).fold(0.0f32, f32::max);
         let power = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
             .map(|p| p.capacity).unwrap_or(0.0);
@@ -38,7 +38,7 @@ impl Game {
         let org_members = self.world.get_component::<Organization>(self.org)
             .map(|o| o.members.len()).unwrap_or(0);
         let sanctioned = self.sanctioned.len();
-        let tree_cover = self.land.tree_cover.values().sum::<f32>() / self.land.tree_cover.len().max(1) as f32;
+        let tree_cover = sorted_sum(self.land.tree_cover.values().copied()) / self.land.tree_cover.len().max(1) as f32;
         vec![
             ("villagers.alive", alive as f64),
             ("villagers.hungry", hungry as f64),
@@ -66,4 +66,12 @@ impl Game {
     pub fn secret_kpi_lines(&self) -> Vec<String> {
         self.secret_kpis().iter().map(|(k, v)| format!("{} {:.2}", k, v)).collect()
     }
+}
+
+/// Sum floats in a fixed order. f32 addition isn't associative, so a sum
+/// over a map's values should never depend on how the map happens to be laid out
+fn sorted_sum(vals: impl Iterator<Item = f32>) -> f32 {
+    let mut v: Vec<f32> = vals.collect();
+    v.sort_by(|a, b| a.total_cmp(b));
+    v.into_iter().sum()
 }

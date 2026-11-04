@@ -332,7 +332,7 @@ impl Game {
             let lonely_known = self.world.get_component::<desires::Organizer>(pe)
                 .map(|o| o.heard.iter()
                     .filter(|(t, _, u)| *t == "loneliness" && *u > self.tick)
-                    .map(|(_, e, _)| *e).collect::<std::collections::HashSet<_>>().len())
+                    .map(|(_, e, _)| *e).collect::<crate::engine::det::HashSet<_>>().len())
                 .unwrap_or(0);
             if lonely_known >= 2 {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
@@ -589,7 +589,7 @@ impl Game {
                         // everyone who saw it and felt the cause wake in them
                         let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
                             .map(|cc| cc.issue.clone()).unwrap_or_default();
-                        let members: std::collections::HashSet<Entity> =
+                        let members: crate::engine::det::HashSet<Entity> =
                             self.world.get_component::<Organization>(self.seats[seat].org)
                                 .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
                         let mut woke = 0;

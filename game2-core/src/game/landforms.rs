@@ -305,7 +305,7 @@ mod tests {
     #[test]
     fn shaping_keeps_the_selected_profiles_usable() {
         let mut shaped_count = 0;
-        let mut profile_ids = std::collections::HashSet::new();
+        let mut profile_ids = crate::engine::det::HashSet::default();
         for seed in 0..24 {
             let mut terrain = Terrain::generate_country(49, 0.7, seed);
             if let Some(profile) = shape_terrain(&mut terrain, seed) {

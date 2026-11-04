@@ -9,7 +9,7 @@ use crate::session::*;
 pub struct BlockCache {
     zoom: f32,
     set: usize,
-    blocks: std::collections::HashMap<usize, (Sprite, Vec<(u16, u16, u16)>)>,
+    blocks: crate::engine::det::HashMap<usize, (Sprite, Vec<(u16, u16, u16)>)>,
 }
 
 pub struct GroundCache {
@@ -144,7 +144,7 @@ impl View {
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
 
         // a workplace nobody works stands dimmed - derelict
-        let tint_cache: std::collections::HashMap<usize, Option<Sprite>> = m.buildings.iter().enumerate()
+        let tint_cache: crate::engine::det::HashMap<usize, Option<Sprite>> = m.buildings.iter().enumerate()
             .filter(|(_, b)| b.derelict)
             .map(|(i, b)| (i, self.sprite_of(b.sprite).as_ref().map(|sp| tint(sp, (40, 40, 55), 0.6))))
             .collect();

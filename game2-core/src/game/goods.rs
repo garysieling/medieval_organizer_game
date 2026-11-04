@@ -184,7 +184,7 @@ pub fn worth(good: &str) -> f32 {
 #[derive(Debug, Default)]
 pub struct Worths {
     /// good -> multiplier on its registry worth (1.0 = ordinary day)
-    pub mult: std::collections::HashMap<String, f32>,
+    pub mult: crate::engine::det::HashMap<String, f32>,
 }
 
 /// How far either way the felt worth can lean - muted on purpose

@@ -627,7 +627,7 @@ mod tests {
     #[test]
     fn test_the_same_roof_doubles_the_dose() {
         use crate::game::household::{Building, BuildingKind};
-        use std::collections::HashMap;
+        use crate::engine::det::HashMap;
         let mut w = World::new();
         // two houses: the sick one shares hers, the neighbour's alone
         let sick_own = villager_at(&mut w, 0.0, 0.9);
@@ -636,11 +636,11 @@ mod tests {
         let h1 = w.create_entity();
         w.add_component(h1, Building { kind: BuildingKind::Home, name: "home".into(),
             occupants: vec![sick_own, family], worker: None, overseer: None,
-            stock: HashMap::new(), capacity: 0 });
+            stock: HashMap::default(), capacity: 0 });
         let h2 = w.create_entity();
         w.add_component(h2, Building { kind: BuildingKind::Home, name: "home".into(),
             occupants: vec![lodger], worker: None, overseer: None,
-            stock: HashMap::new(), capacity: 0 });
+            stock: HashMap::default(), capacity: 0 });
         // sanity: the fabricated home registers for both occupants
         assert_eq!(crate::game::household::home_of(&w, family), Some(h1));
         assert_eq!(crate::game::household::home_of(&w, sick_own), Some(h1));

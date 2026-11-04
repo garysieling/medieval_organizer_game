@@ -3,7 +3,7 @@
 //! children run. Movement and pathing live in the windowed game (it owns
 //! the map); this module holds the state and the rules.
 
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 use crate::engine::ecs::{Entity, World};
 use crate::game::desires::{self, Problem};
 use crate::game::household::{self, Building};

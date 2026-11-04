@@ -39,10 +39,18 @@ pub struct Rapport { pub value: f32 }
 /// How many times the player has talked with this villager - uncapped,
 /// unlike `Rapport` (which caps at 1.0 for influence/relationship purposes).
 /// talk_response uses this so the recurring hunger/sickness concern keeps
-/// coming up on schedule even once rapport itself has maxed out.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct TalkCount { pub value: usize, /// the last day a talk counted - same-day repeats don't deepen the bond
-    pub last_day: u64 }
+/// coming up on schedule even once rapport itself has maxed out. `value`
+/// is shared across every player so dialogue variety still advances
+/// regardless of who's talking; the same-day cooldown below is per
+/// player, since one seat's talk shouldn't block another's bond.
+#[derive(Debug, Clone, Default)]
+pub struct TalkCount {
+    pub value: usize,
+    /// the last day each player talked here - that player's same-day
+    /// repeat doesn't deepen the bond, but a different player's talk
+    /// on the same day still does
+    pub last_day_by: crate::engine::det::HashMap<Entity, u64>,
+}
 
 pub const TALK_INFLUENCE: f32 = 0.05;
 pub const TALK_RAPPORT_STEP: f32 = 0.15;
@@ -66,11 +74,13 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity, day: u64) -> 
     let rapport = world.get_component::<Rapport>(target).map(|r| r.value).unwrap_or(0.0);
     let gained = TALK_INFLUENCE * (1.0 - rapport);
     world.add_component(target, Rapport { value: (rapport + TALK_RAPPORT_STEP).min(1.0) });
-    let (talks, last_day) = world.get_component::<TalkCount>(target)
-        .map(|c| (c.value, c.last_day)).unwrap_or((0, u64::MAX));
-    world.add_component(target, TalkCount { value: talks + 1, last_day: day });
-    // you can't talk the same ear off twice in a day: only the first
-    // real talk deepens the bond
+    let mut count = world.get_component::<TalkCount>(target).cloned().unwrap_or_default();
+    let last_day = count.last_day_by.get(&player).copied().unwrap_or(u64::MAX);
+    count.value += 1;
+    count.last_day_by.insert(player, day);
+    world.add_component(target, count);
+    // you can't talk the same ear off twice in a day: only that
+    // player's first real talk that day deepens the bond
     if last_day != day {
         record_interaction(world, player, Interaction {
             other: target, kind: InteractionKind::Conversation, intensity: (1.0 - rapport).max(TALK_MAINTENANCE),

@@ -26,6 +26,16 @@ fn bond(game: &Game, seat: usize, v: game2_core::engine::ecs::Entity) -> f32 {
         .map(|r| r.strength).unwrap_or(0.0)
 }
 
+/// A roll for this driver's own decisions (the sim's own `Rng` isn't
+/// public outside the crate) - splitmix64 off whatever varies call to
+/// call, so the same ask doesn't always land or always fail.
+fn driver_roll(seed: u64) -> f32 {
+    let mut z = seed.wrapping_add(0x9E3779B97F4A7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
+    ((z ^ (z >> 31)) % 1000) as f32 / 1000.0
+}
+
 /// A light organizing policy for the Wanderer seat: keep body and gold
 /// together via the idle driver, and spend the rest of the attention on
 /// the work the game is about - talk, recruit, the odd meeting.
@@ -34,6 +44,42 @@ fn act_ctx(game: &mut Game, seat: usize, act: game2_core::session::CtxAct) {
     if let Some(i) = game.seats[seat].ctx_actions.iter().position(|a| *a == act) {
         game.ctx_act_at(seat, i);
     }
+}
+
+/// A house meeting is earned, not summoned: it needs a lent venue and
+/// someone who's said they'll come. With two or more trusted villagers in
+/// reach, work toward that plan one ask a day - a venue first, then an
+/// attendee - and only call the meeting once it's actually ready. Returns
+/// whether it took an action (asked, or called the meeting).
+fn call_meeting_if_earned(game: &mut Game, seat: usize, ready: &[usize]) -> bool {
+    use game2_core::game::desires::Known;
+    use game2_core::game::organizing::{propose, MeetingPlan, PropKind};
+    let oe = game.seats[seat].org;
+    if game.world.get_component::<MeetingPlan>(oe).map(|p| p.ready()).unwrap_or(false) {
+        game.call_meeting_at(seat);
+        return true;
+    }
+    // only someone you've heard something from will hear an ask, same
+    // as the Talk panel's own asks list (organizing::props_on_offer)
+    let heard = |g: &Game, v: game2_core::engine::ecs::Entity| g.world.get_component::<Known>(v)
+        .map(|k| !k.revealed.is_empty()).unwrap_or(false);
+    let venue_set = game.world.get_component::<MeetingPlan>(oe).map(|p| p.venue.is_some()).unwrap_or(false);
+    let target = ready.iter().find(|&&i| {
+        let v = game.villagers[i];
+        if !heard(game, v) { return false; }
+        if !venue_set { return game2_core::game::household::home_of(&game.world, v).is_some(); }
+        !game.world.get_component::<MeetingPlan>(oe)
+            .map(|p| p.coming.contains(&v) || p.spreaders.contains(&v)).unwrap_or(false)
+    }).copied();
+    let Some(i) = target else { return false };
+    let v = game.villagers[i];
+    let p = if venue_set { PropKind::ComeAlong } else { PropKind::LendVenue };
+    let (pe, tick) = (game.seats[seat].player, game.tick);
+    let roll = driver_roll(tick.wrapping_mul(0x1000_0001) ^ v as u64);
+    let name = game2_core::session::vill_name(i);
+    let msg = propose(&mut game.world, pe, oe, v, p, name, roll, tick);
+    game.log.push(format!("t{}: {}", tick, msg));
+    true
 }
 
 fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
@@ -115,10 +161,7 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64) {
         return;
     }
     let ready: Vec<usize> = cands.iter().filter(|(_, s)| *s >= RECRUIT_MIN_TRUST).map(|(i, _)| *i).collect();
-    if ready.len() >= 2 && game.meeting.is_none() {
-        // a house meeting joins everyone who already trusts you - better
-        // value than recruiting them one by one
-        game.call_meeting_at(seat);
+    if ready.len() >= 2 && game.meeting.is_none() && call_meeting_if_earned(game, seat, &ready) {
         return;
     }
     if let Some(&i) = ready.first() {

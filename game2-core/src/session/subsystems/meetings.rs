@@ -204,80 +204,51 @@ impl Game {
         true
     }
 
-    /// Organize: call a house meeting at the home nearest the player (or
-    /// where they stand, if no home is in reach) for every living villager
-    /// within reach. They walk over; see advance_meeting.
+    /// Organize: call a house meeting at the venue named on the org's
+    /// MeetingPlan, for everyone the plan's promises and spread brought
+    /// in. A meeting is earned, not summoned: without a ready plan (a
+    /// lent venue and someone willing to come) this refuses rather than
+    /// falling back to rounding up whoever's simply standing nearby -
+    /// that was the un-earned meeting this plan replaced. They walk
+    /// over; see advance_meeting.
     pub fn call_meeting_at(&mut self, seat: usize) -> String {
         if self.meeting.is_some() { return "A meeting is already under way.".into(); }
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         use crate::game::organizing::{self as org, MeetingPlan};
-        // an earned meeting: the plan's promises name the room
         let plan = self.world.get_component::<MeetingPlan>(oe);
-        if plan.map(|p| p.ready()).unwrap_or(false) {
-            let plan: MeetingPlan = std::mem::take(self.world.get_component_mut::<MeetingPlan>(oe).unwrap());
-            let venue = plan.venue.map(|(_, b)| self.world.get_component::<Pos>(b)
-                .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0)))
-                .unwrap_or((0, 0));
-            let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
-                .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the house".into());
-            // the invited: those who said they'd come, those who said
-            // they'd bring friends (and the friends they bring), and every
-            // promise-keeper - then the turnout roll, roughly a coin's
-            // toss for the merely invited
-            let mut pool: Vec<(Entity, bool)> = plan.holders().iter().map(|&h| (h, true)).collect();
-            for &s in &plan.spreaders {
-                for f in org::friends_of(&self.world, s, 2) { pool.push((f, false)); }
-            }
-            for &c in &plan.coming {
-                if !pool.iter().any(|(e, _)| *e == c) { pool.push((c, true)); }
-            }
-            pool.retain(|(e, _)| *e != pe && self.villagers.contains(e));
-            pool.dedup_by(|a, b| a.0 == b.0);
-            let mut invited: Vec<Entity> = pool.iter()
-                .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
-                    (self.rng.next() % 1000) as f32 / 1000.0))
-                .map(|&(e, _)| e).collect();
-            invited.truncate(10);
-            if invited.is_empty() {
-                return format!("Word goes out - and nobody comes to {}. You'll have to ask again.", label);
-            }
-            self.travels.retain(|t| !invited.contains(&t.who));
-            let mut ground: Vec<(i32, i32)> = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (venue.0 + dx, venue.1 + dy)))
-                .filter(|&at| at != venue && self.map.passable(at.0, at.1)).collect();
-            ground.sort_by_key(|&(x, y)| (x - venue.0).abs() + (y - venue.1).abs());
-            let spots: Vec<(i32, i32)> = (0..invited.len()).map(|i| *ground.get(i).unwrap_or(&venue)).collect();
-            let paths = invited.iter().zip(&spots).map(|(v, &spot)| {
-                let p = self.world.get_component::<Pos>(*v).copied()?;
-                let from = (p.x.round() as i32, p.y.round() as i32);
-                if from == spot { Some(vec![spot]) } else { self.map.walk_path(from, spot) }
-            }).collect();
-            let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
-                plan.song.is_some(), plan.closer.is_some());
-            let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
-            let msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
-            self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles });
-            return msg;
+        if !plan.map(|p| p.ready()).unwrap_or(false) {
+            let empty = MeetingPlan::default();
+            let missing = self.world.get_component::<MeetingPlan>(oe).unwrap_or(&empty).missing();
+            return format!("No meeting to call yet - {}.", missing);
         }
-        let mut invited = self.villagers_in_reach_at(seat);
-        if invited.is_empty() { return "No one is near enough to come to your house meeting.".into(); }
-        // a kitchen only holds so many: the eight nearest get the word
-        let (px, py) = self.player_pos_at(seat);
-        invited.sort_by_key(|&v| {
-            self.world.get_component::<Pos>(v)
-                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2) * 100.0) as i32).unwrap_or(i32::MAX)
-        });
-        invited.truncate(8);
-        // errands are dropped: folk coming to a meeting stop mid-way home
+        let plan: MeetingPlan = std::mem::take(self.world.get_component_mut::<MeetingPlan>(oe).unwrap());
+        let venue = plan.venue.map(|(_, b)| self.world.get_component::<Pos>(b)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0)))
+            .unwrap_or((0, 0));
+        let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
+            .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the house".into());
+        // the invited: those who said they'd come, those who said
+        // they'd bring friends (and the friends they bring), and every
+        // promise-keeper - then the turnout roll, roughly a coin's
+        // toss for the merely invited
+        let mut pool: Vec<(Entity, bool)> = plan.holders().iter().map(|&h| (h, true)).collect();
+        for &s in &plan.spreaders {
+            for f in org::friends_of(&self.world, s, 2) { pool.push((f, false)); }
+        }
+        for &c in &plan.coming {
+            if !pool.iter().any(|(e, _)| *e == c) { pool.push((c, true)); }
+        }
+        pool.retain(|(e, _)| *e != pe && self.villagers.contains(e));
+        pool.dedup_by(|a, b| a.0 == b.0);
+        let mut invited: Vec<Entity> = pool.iter()
+            .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
+                (self.rng.next() % 1000) as f32 / 1000.0))
+            .map(|&(e, _)| e).collect();
+        invited.truncate(10);
+        if invited.is_empty() {
+            return format!("Word goes out - and nobody comes to {}. You'll have to ask again.", label);
+        }
         self.travels.retain(|t| !invited.contains(&t.who));
-        let (px, py) = self.player_pos_at(seat);
-        let dist = |(x, y): (i32, i32)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt();
-        let home = self.buildings.iter().enumerate()
-            .filter(|(_, (_, _, s))| matches!(s, BSprite::House(_)))
-            .map(|(i, (x, y, _))| ((*x as i32, *y as i32), if i < 3 { format!("{}'s house", vill_name(i)) } else { "the new house".to_string() }))
-            .filter(|(at, _)| dist(*at) < MEETING_REACH)
-            .min_by(|a, b| dist(a.0).partial_cmp(&dist(b.0)).unwrap());
-        let (venue, label) = home.unwrap_or(((px.round() as i32, py.round() as i32), "your spot".to_string()));
-        // open ground round the venue, nearest first: one spot each
         let mut ground: Vec<(i32, i32)> = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (venue.0 + dx, venue.1 + dy)))
             .filter(|&at| at != venue && self.map.passable(at.0, at.1)).collect();
         ground.sort_by_key(|&(x, y)| (x - venue.0).abs() + (y - venue.1).abs());
@@ -287,9 +258,11 @@ impl Game {
             let from = (p.x.round() as i32, p.y.round() as i32);
             if from == spot { Some(vec![spot]) } else { self.map.walk_path(from, spot) }
         }).collect();
+        let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
+            plan.song.is_some(), plan.closer.is_some());
         let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
-        let msg = format!("You call a house meeting at {} - {} {} on the way.", label, names.join(", "), if names.len() == 1 { "is" } else { "are" });
-        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles: (false, false, false, false, false) });
+        let msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
+        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles });
         msg
     }
 
@@ -297,7 +270,7 @@ impl Game {
     /// what's on their mind - now and then a secret slips out, and every
     /// parallel complaint already voiced makes the next speaker likelier
     /// to share their own. Three voices in a family surface an issue.
-    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize) -> Vec<(Entity, String)> {
+    pub fn meeting_lines(&mut self, came: &[Entity], seat: usize, roles: (bool, bool, bool, bool, bool)) -> Vec<(Entity, String)> {
         // the seat that called it hosts: its player asks, and hears what comes out
         let host_e = self.seats[seat].player;
         if came.is_empty() { return vec![]; }
@@ -340,9 +313,8 @@ impl Game {
                 let mut chance = desires::REVEAL_BASE + desires::REVEAL_PARALLEL * parallel as f32;
                 // an opener or a song loosens tongues: each promised role
                 // that came off warms the room to share a little more
-                let m_roles = self.meeting.as_ref().map(|m| m.roles).unwrap_or_default();
-                if m_roles.2 { chance += 0.05; }
-                if m_roles.3 { chance += 0.05; }
+                if roles.2 { chance += 0.05; }
+                if roles.3 { chance += 0.05; }
                 // the fold's smell hangs on a shepherd: a touch slower to share
                 if desires::problems_of(&self.world, v, self.tick).contains(&desires::Problem::Smelly) { chance *= 0.9; }
                 let roll = (self.rng.next() % 1000) as f32 / 1000.0;
@@ -410,7 +382,7 @@ impl Game {
                     m.invited = came.iter().map(|&i| m.invited[i]).collect();
                     m.spots = came.iter().map(|&i| m.spots[i]).collect();
                     m.paths = came.iter().map(|&i| m.paths[i].clone()).collect();
-                    m.lines = self.meeting_lines(&m.invited, m.seat);
+                    m.lines = self.meeting_lines(&m.invited, m.seat, m.roles);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said
                     if !m.invited.is_empty() {

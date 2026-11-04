@@ -16,9 +16,11 @@ fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
     for (i, v) in game.villagers.clone().into_iter().enumerate() {
         if i != 1 && i != 2 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32 * 0.5, y: 3.0 }; }
     }
-    // Eliza already trusts the player; Bram is a stranger
+    // Eliza already trusts the player; Bram is a stranger who's merely
+    // said he'll come - the meeting is earned: Eliza lends the house
     let rel = game.world.create_entity();
     game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    plan_ready_meeting(&mut game, eliza, (17.0, 16.0), &[bram]);
 
     assert!(game.meeting.is_none());
     game.call_meeting();
@@ -29,9 +31,8 @@ fn test_organize_holds_a_house_meeting_with_nearby_villagers() {
     let last = game.log.last().unwrap();
     assert!(last.contains("House meeting - 2 came") && last.contains("Eliza joined"), "{}", last);
     assert!(relationships::find_relationship(&game.world, game.player, bram).is_some(), "Bram got to know the player");
-    // a distant villager doesn't attend - the members list above
-    // already says Eliza alone; Corvin's absence is no member and
-    // no meeting-bond either (long sim windows make incidental bonds)
+    // only the two on the plan attend - Corvin, with no promise and no
+    // place on the plan, was never invited either
     assert!(!members.contains(&corvin), "Corvin wasn't there");
 }
 
@@ -46,8 +47,9 @@ fn test_a_meeting_takes_time_people_gather_then_talk_then_it_ends() {
     }
     let rel = game.world.create_entity();
     game.world.add_component(rel, Relationship { from: game.player, other: eliza, kind: RelKind::Friend, strength: 0.7, interactions: 6 });
+    plan_ready_meeting(&mut game, eliza, (18.0, 16.0), &[bram]);
     game.call_meeting();
-    assert!(game.log.last().unwrap().contains("You call a house meeting at"), "{}", game.log.last().unwrap());
+    assert!(game.log.last().unwrap().contains("gather at"), "{}", game.log.last().unwrap());
     assert!(game.world.get_component::<Organization>(game.org).unwrap().members.is_empty(), "nothing's decided yet");
     assert_eq!(game.call_meeting(), "A meeting is already under way.");
     // they walk over...

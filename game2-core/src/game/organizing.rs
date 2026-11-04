@@ -737,7 +737,9 @@ pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKin
     let mut out = vec![PropKind::ComeAlong, PropKind::Introduce];
     let empty = MeetingPlan::default();
     let plan = world.get_component::<MeetingPlan>(org).unwrap_or(&empty);
-    let promised = plan.holders().contains(&person);
+    // each ask is gated on whether that specific role is already filled,
+    // not on whether this person holds some other promise - a committed
+    // attendee can still be the one who lends the venue or brings a song
     if plan.venue.is_none() && crate::game::household::home_of(world, person).is_some() { out.push(PropKind::LendVenue); }
     if plan.snacks.is_none() { out.push(PropKind::BringSnacks); }
     if plan.notes.is_none() { out.push(PropKind::TakeNotes); }
@@ -745,7 +747,6 @@ pub fn props_on_offer(world: &World, org: Entity, person: Entity) -> Vec<PropKin
     if plan.song.is_none() { out.push(PropKind::GiveSong); }
     if plan.closer.is_none() { out.push(PropKind::CloseOut); }
     if !plan.spreaders.contains(&person) { out.push(PropKind::InviteFriends); }
-    if promised { out.retain(|p| *p == PropKind::ComeAlong || *p == PropKind::Introduce); }
     out
 }
 

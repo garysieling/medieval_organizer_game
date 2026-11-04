@@ -171,6 +171,7 @@ fn test_a_house_meeting_is_kept_on_the_talk_panel() {
     for (i, v) in g.villagers.clone().into_iter().enumerate() {
         if i != 1 && i != 2 { *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32, y: 3.0 }; }
     }
+    plan_ready_meeting(&mut g, eliza, (18.0, 16.0), &[bram]);
     g.call_meeting();
     for _ in 0..crate::session::FPS * 60 { if g.meeting.is_none() { break; } g.update(); }
     assert!(g.meeting.is_none(), "the meeting ran its course");
@@ -189,7 +190,7 @@ fn test_each_seat_sees_its_own_lines_as_you_and_hosts_its_own_meeting() {
     let (p0, p1) = (g.seats[0].player, g.seats[s1].player);
     let v = g.villagers[adults(&g)[0]];
     // seat 1 hosts: the prompts are theirs, not seat 0's
-    let lines = g.meeting_lines(&[v], s1);
+    let lines = g.meeting_lines(&[v], s1, (false, false, false, false, false));
     assert!(lines.iter().any(|l| l.0 == p1) && !lines.iter().any(|l| l.0 == p0), "seat 1 asks the questions");
     let n1 = g.speaker_name(p1);
     g.record_meeting(vec![p1, p0, v], vec![(Some(p1), n1.clone(), "Thanks for coming.".into())]);

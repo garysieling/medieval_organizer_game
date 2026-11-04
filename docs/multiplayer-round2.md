@@ -55,8 +55,13 @@ Still open:
 - **Persistence** — the world dies with the process; `save_load` only has
   entity counts. Serialize `World`/components (serde-ify components) so a
   pod restart keeps the village.
-- **Auth** — claims are unguessable tokens but anyone can mint seats; a
-  shared secret or per-seat cap would harden it lightly.
+- ~~**Auth**~~ — done, lightly: `game_server --join-secret W` (or
+  `GAME2_JOIN_SECRET`) makes every Hello carry the word (`Hello.secret`;
+  `game_ui --connect` and `game_bots` read `GAME2_JOIN_SECRET`), and
+  `--max-seats N` (default 64) caps the characters a server hands out.
+  Reclaims with a token always work. Sockets have a 10s handshake/Hello
+  deadline and at most 256 are open at once. Not real accounts: anyone with
+  the word plays.
 - **Protocol docs** — `docs/protocol.md` with the JSON shapes + a sample
   agent session, for people writing bots.
 - **Obs polish** — agent obs could carry shop stock, wants, and craft

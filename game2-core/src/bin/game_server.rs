@@ -2,6 +2,7 @@
 //! character, ticks the world in real time, streams each seat its frame.
 //!
 //!   game_server [--port 8787] [--seed N] [--idle-secs 300] [--probe-port N]
+//!               [--probe-token W] [--join-secret W] [--max-seats 64]
 //!
 //! Clients are two kinds:
 //!   - Human: gets a wanderer seat and a UiModel every broadcast; sends
@@ -32,6 +33,8 @@ fn main() {
         tick_hz: 20,
         probe_port: arg("--probe-port").and_then(|v| v.parse().ok()),
         probe_token: arg("--probe-token").or_else(|| std::env::var("GAME2_PROBE_TOKEN").ok()),
+        join_secret: arg("--join-secret").or_else(|| std::env::var("GAME2_JOIN_SECRET").ok()).filter(|s| !s.is_empty()),
+        max_seats: arg("--max-seats").and_then(|v| v.parse().ok()).unwrap_or(64),
     };
     let (seed, tokened) = (cfg.seed, cfg.probe_token.is_some());
     let h = serve(cfg).expect("bind failed");

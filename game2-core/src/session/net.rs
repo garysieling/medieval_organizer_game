@@ -29,6 +29,10 @@ pub enum ClientMsg {
         kind: ClientKind,
         /// Display name for the roster
         name: Option<String>,
+        /// The server's join secret, when it runs with one (`game_server
+        /// --join-secret`); clients take it from GAME2_JOIN_SECRET
+        #[serde(default)]
+        secret: Option<String>,
     },
     /// One input toward the player's character
     Command(Command),

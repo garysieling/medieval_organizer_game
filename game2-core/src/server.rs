@@ -112,6 +112,9 @@ struct Conn {
     latest: Option<String>,
     /// Another connection reclaimed this seat: the read loop ends
     dead: bool,
+    /// The digest of the map this client was last sent (`TileMap::digest`):
+    /// the map goes out again only when the world's moves off it
+    map_sent: Option<u64>,
 }
 
 struct Server {
@@ -145,7 +148,7 @@ fn send_snapshot(c: &mut Conn, msg: &ServerMsg) {
 
 impl Conn {
     fn new(seat: usize, kind: ClientKind) -> Conn {
-        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, dead: false }
+        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, dead: false, map_sent: None }
     }
 
     /// What to write next: the queued replies, then the newest snapshot
@@ -299,11 +302,18 @@ fn world_loop(server: Arc<Mutex<Server>>, stop: Arc<AtomicBool>, frame_len: Dura
             for seat in idle_for { driver::drive_player(&mut s.game, seat); }
         }
         if s.frame % SCENE_EVERY == 0 {
+            // the map is 98% of a frame: scenes go without it, and a seat is
+            // sent the map only when it's new to them
+            let digest = s.game.map.digest();
             for conn in s.conns.iter() {
                 let mut c = conn.lock().unwrap();
                 match c.kind {
                     ClientKind::Human => {
-                        let model = s.game.ui_model_at(c.seat);
+                        if c.map_sent != Some(digest) {
+                            send_msg(&mut c, &ServerMsg::Map(Box::new(s.game.map.clone())));
+                            c.map_sent = Some(digest);
+                        }
+                        let model = s.game.ui_model_lean_at(c.seat);
                         send_snapshot(&mut c, &ServerMsg::Scene(Box::new(model)));
                     }
                     ClientKind::Agent => match s.game.agent_obs(c.seat) {
@@ -355,9 +365,15 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs
-                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_at(seat)) };
+                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)) };
                 let conn = Arc::new(Mutex::new(Conn::new(seat, kind)));
-                send_msg(&mut conn.lock().unwrap(), &first);
+                {
+                    // the Welcome, then the map its frame is drawn on
+                    let mut c = conn.lock().unwrap();
+                    send_msg(&mut c, &first);
+                    send_msg(&mut c, &ServerMsg::Map(Box::new(s.game.map.clone())));
+                    c.map_sent = Some(s.game.map.digest());
+                }
                 // a claim takes the seat back: any earlier connection
                 // steering it is stale, so one character has one driver
                 for c in s.conns.iter() {

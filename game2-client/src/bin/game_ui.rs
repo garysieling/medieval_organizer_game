@@ -8,7 +8,7 @@ use minifb::{Key, Window, WindowOptions, MouseMode};
 use game2_core::engine::render::Buffer;
 use game2_client::{self as client, Art, View};
 use game2_core::session::{
-    self, ClientKind, ClientMsg, Command, Game, ServerMsg, UiModel, MAP_TILES,
+    self, ClientKind, ClientMsg, Command, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
 };
 
 const W: usize = session::W;
@@ -55,15 +55,22 @@ fn connect_remote(url: &str) -> Arc<Remote> {
     });
     {
         let remote = remote.clone();
-        std::thread::spawn(move || loop {
-            let msg = remote.ws.lock().unwrap().read();
-            match msg {
-                Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
-                    Ok(ServerMsg::Scene(m)) => { *remote.latest.lock().unwrap() = Some(*m); }
-                    Ok(ServerMsg::Welcome { token, .. }) => { *remote.token_seen.lock().unwrap() = Some(token); }
-                    _ => {}
-                },
-                _ => break,
+        std::thread::spawn(move || {
+            // scenes arrive without the map (it's sent apart, when it
+            // changes): the cache puts the last one back in
+            let mut cache = SceneCache::new();
+            loop {
+                let msg = remote.ws.lock().unwrap().read();
+                match msg {
+                    Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
+                        Ok(msg) => {
+                            if let ServerMsg::Welcome { token, .. } = &msg { *remote.token_seen.lock().unwrap() = Some(token.clone()); }
+                            if let Some(scene) = cache.apply(msg) { *remote.latest.lock().unwrap() = Some(scene); }
+                        }
+                        Err(_) => {}
+                    },
+                    _ => break,
+                }
             }
         });
     }

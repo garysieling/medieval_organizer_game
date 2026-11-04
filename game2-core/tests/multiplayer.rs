@@ -6,7 +6,7 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use game2_core::server::{serve, ServerConfig, ServerHandle};
-use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, ServerMsg, MAP_SEED};
+use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, SceneCache, ServerMsg, MAP_SEED};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
@@ -74,12 +74,41 @@ fn a_human_and_an_agent_play_one_world() {
         ServerMsg::Scene(s) => s.people.iter().find(|p| p.e == me).map(|p| p.pos),
         _ => None,
     };
+    // the map comes apart from the scenes: once after the Welcome, and
+    // scenes carry an empty one - the map is 98% of a frame
+    let map = until("the map", &mut human, 10, |m, _| match m { ServerMsg::Map(m) => Some(m.clone()), _ => None });
+    assert!(map.width > 0 && map.height > 0, "a real map");
+    let (lean, json_len) = until("a scene", &mut human, 10, |m, t| match m {
+        ServerMsg::Scene(s) => Some((s.map.width, t.len())),
+        _ => None,
+    });
+    assert_eq!(lean, 0, "scenes don't carry the map");
+    assert!(json_len < 200_000, "a scene is {json_len} bytes - the map is riding along again?");
+    // and a client puts the two back together
+    let mut cache = SceneCache::new();
+    assert!(cache.apply(ServerMsg::Map(map.clone())).is_none());
+    let whole = until("a scene to rebuild", &mut human, 10, |m, _| match m {
+        ServerMsg::Scene(_) => cache.apply(m.clone()),
+        _ => None,
+    });
+    assert_eq!(whole.map.digest(), map.digest(), "the rebuilt scene has the map");
     let start_pos = until("my figure in a scene", &mut human, 10, |m, _| at(m));
 
     // commands land: a few steps east move the character east
     for _ in 0..20 { send(&mut human, &ClientMsg::Command(Command::Walk(1.0, 0.0))); }
     let moved = until("my figure to move", &mut human, 10, |m, _| at(m).filter(|p| (p.0 - start_pos.0).abs() + (p.1 - start_pos.1).abs() > 0.2));
     assert!(moved != start_pos);
+
+    // the map isn't sent again while it hasn't changed
+    let resent = {
+        let end = Instant::now() + Duration::from_millis(500);
+        let mut n = 0;
+        while Instant::now() < end {
+            if let Got::Msg(t) = read_text(&mut human) { if t.starts_with("{\"Map\"") { n += 1; } }
+        }
+        n
+    };
+    assert!(resent <= 1, "the unchanged map was sent {resent} times in half a second");
 
     // and the seat answers a ping
     send(&mut human, &ClientMsg::Ping(41));

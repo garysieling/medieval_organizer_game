@@ -105,7 +105,18 @@ impl Game {
     /// The frame a client draws: the authoritative sim's whole view of the
     /// world this seat should see. One per player seat per broadcast.
     pub fn ui_model_at(&self, seat: usize) -> UiModel {
-        let mut m = self.ui_model_parts_at(seat);
+        self.ui_model_with(seat, true)
+    }
+
+    /// The seat's frame without the tile map (an empty `TileMap` in its
+    /// place): what the server streams, since the map - 98% of a frame -
+    /// goes out separately, only when it changes (`ServerMsg::Map`)
+    pub fn ui_model_lean_at(&self, seat: usize) -> UiModel {
+        self.ui_model_with(seat, false)
+    }
+
+    fn ui_model_with(&self, seat: usize, with_map: bool) -> UiModel {
+        let mut m = self.ui_model_parts_at(seat, with_map);
         // the debug readout shows what this seat could know, never the
         // secret gauges: the model goes over the wire to remote clients
         m.debug_lines = kpi::kpi_lines(&kpi::public_kpis(&m));
@@ -113,7 +124,7 @@ impl Game {
     }
 
     /// The seat's frame, all but the lines derived from the frame itself
-    pub(in crate::session) fn ui_model_parts_at(&self, seat: usize) -> UiModel {
+    pub(in crate::session) fn ui_model_parts_at(&self, seat: usize, with_map: bool) -> UiModel {
         let world = &self.world;
         let season = world.get_component::<climate::Climate>(self.climate).unwrap().season;
         let in_reach = self.villagers_in_reach_at(seat);
@@ -323,7 +334,7 @@ impl Game {
                 .chain(self.traveller_pos().zip(self.traveller_pos_at(self.frame_n.wrapping_sub(1)))
                     .map(|(now, was)| (0, facing_on_screen(now.0 - was.0, now.1 - was.1), true))).collect(),
             tick: self.tick, frame: self.frame_n,
-            map: self.map.clone(), town_wall: self.town_wall,
+            map: if with_map { self.map.clone() } else { crate::game::tilemap::TileMap::default() }, town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
             paused: self.paused, speed: self.speed,
             stones: self.stones.clone(), buildings, people, bubbles,

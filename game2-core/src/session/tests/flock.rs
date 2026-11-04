@@ -76,10 +76,10 @@ fn test_the_flock_grazes_as_individuals_and_stays_off_the_walls() {
     for _ in 0..(4 * FPS) { g.update(); }
     // each wanders on its own clock - the old lockstep drift set them
     // all the same target at once
-    let dues: std::collections::HashSet<u32> = g.flock.iter()
+    let dues: crate::engine::det::HashSet<u32> = g.flock.iter()
         .filter_map(|a| g.flock_wander.get(a).map(|w| w.2)).collect();
     assert!(dues.len() > 1, "the animals wander on their own clocks");
-    let spots: std::collections::HashSet<(i32, i32)> = g.flock.iter()
+    let spots: crate::engine::det::HashSet<(i32, i32)> = g.flock.iter()
         .filter_map(|a| g.flock_wander.get(a).map(|w| (w.0 as i32, w.1 as i32))).collect();
     assert!(spots.len() > 1, "the animals head for their own spots");
     // and over a few seconds none of them ends up on a wall or in the water

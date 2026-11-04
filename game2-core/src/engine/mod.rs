@@ -2,3 +2,4 @@
 pub mod ecs;
 pub mod render;
 pub mod sprite;
+pub mod det;

@@ -22,7 +22,7 @@
 //! `converse` walks both sides; `converse_with` hands the player's turns
 //! to a chooser that sees two sampled options and may end it early.
 
-use std::collections::HashSet;
+use crate::engine::det::HashSet;
 
 use crate::game::traits::Trait;
 
@@ -370,7 +370,7 @@ pub fn converse_with(
         turns: vec![],
         ending: None,
     };
-    let mut used: HashSet<&'static str> = HashSet::new();
+    let mut used: HashSet<&'static str> = HashSet::default();
     let trees = cascade(library, &Facts::for_roles(a, b, rel));
     let mut trees = trees.iter().peekable();
     let mut node: Option<&Exchange> = trees.next().map(|t| {
@@ -549,7 +549,7 @@ pub fn run_meeting<'a>(
         concepts: prompt.concepts.to_vec(),
         replying_to: None,
     }];
-    let mut used: HashSet<&'static str> = HashSet::new();
+    let mut used: HashSet<&'static str> = HashSet::default();
     let mut answers = 0usize;
     let mut rounds = pools.len().max(4) * 2;
 
@@ -682,7 +682,7 @@ mod tests {
             let b = Speaker::new("Eliza");
             let tr = converse(&a, &b, Relation::Acquaintance, &library, &mut rng);
 
-            let mut seen = HashSet::new();
+            let mut seen = HashSet::default();
             for turn in &tr.turns {
                 assert!(seen.insert(turn.text.clone()), "Line was repeated: {:?}", turn.text);
             }
@@ -884,7 +884,7 @@ mod tests {
     fn test_dialogue_expansion_exceeds_1000_responses_and_is_clean() {
         let library = village_library();
         let mut total_responses = 0;
-        let mut visited_exchanges = HashSet::new();
+        let mut visited_exchanges = HashSet::default();
 
         fn walk_ex(ex: &Exchange, count: &mut usize, visited: &mut HashSet<*const Exchange>) {
             let ptr = ex as *const Exchange;

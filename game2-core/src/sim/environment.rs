@@ -11,7 +11,7 @@
 //!   then stops
 //! - the stinking reach: the town's leavings settle in downstream water
 
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 
 /// The land's memory: what the village has taken and dumped
 #[derive(Debug, Default)]

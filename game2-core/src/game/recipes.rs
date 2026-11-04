@@ -12,7 +12,7 @@ pub struct Recipe {
 
 impl Recipe {
     /// Can we make this with available stock?
-    pub fn can_make(&self, stock: &std::collections::HashMap<String, u32>) -> Option<usize> {
+    pub fn can_make(&self, stock: &crate::engine::det::HashMap<String, u32>) -> Option<usize> {
         for (i, inputs) in self.input_options.iter().enumerate() {
             if inputs.iter().all(|(g, q)| stock.get(g).copied().unwrap_or(0) >= *q) {
                 return Some(i);
@@ -24,7 +24,7 @@ impl Recipe {
     /// Make the output once: use the first input option the stock can
     /// cover, take those inputs out of it, and add the output. Returns
     /// which option was used, or None (stock untouched) if none fits.
-    pub fn craft(&self, stock: &mut std::collections::HashMap<String, u32>) -> Option<usize> {
+    pub fn craft(&self, stock: &mut crate::engine::det::HashMap<String, u32>) -> Option<usize> {
         let i = self.can_make(stock)?;
         for (g, q) in &self.input_options[i] {
             // can_make treats a missing good as 0, so a zero-quantity input may be absent
@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_alternative_inputs() {
         let r = &printmaking_recipes()[0];
-        let mut stock = std::collections::HashMap::new();
+        let mut stock = crate::engine::det::HashMap::default();
         stock.insert("quill".into(), 1);
         stock.insert("ink".into(), 1);
         stock.insert("vellum".into(), 1); // no papyrus, but vellum works
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn test_craft_consumes_inputs_and_adds_output() {
         let r = &printmaking_recipes()[1];
-        let mut stock = std::collections::HashMap::new();
+        let mut stock = crate::engine::det::HashMap::default();
         stock.insert("woodblock".into(), 1);
         stock.insert("ink".into(), 3);
         stock.insert("paper".into(), 7);
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn test_craft_falls_back_to_alternative_inputs() {
         let r = &printmaking_recipes()[0];
-        let mut stock: std::collections::HashMap<String, u32> =
+        let mut stock: crate::engine::det::HashMap<String, u32> =
             [("quill", 2), ("ink", 2), ("papyrus", 1), ("vellum", 1)]
                 .into_iter().map(|(g, q)| (g.to_string(), q)).collect();
         assert_eq!(r.craft(&mut stock), Some(0)); // papyrus first

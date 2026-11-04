@@ -23,6 +23,7 @@ mod continuation;
 mod dead_portrait;
 mod death;
 mod depth;
+mod determinism;
 mod disclosure;
 mod dog;
 mod dog_sprite;

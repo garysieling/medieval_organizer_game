@@ -6,7 +6,7 @@
 //! terrain: grass, crops and wooded hills burn, water and roads are
 //! firebreaks, and burnt ground takes a month to go green again.
 
-use std::collections::HashMap;
+use crate::engine::det::HashMap;
 use super::tilemap::{noise, Tile, TileMap, NEIGHBOURS};
 
 /// Ticks a tile burns before it's scorched

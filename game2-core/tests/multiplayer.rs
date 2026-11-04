@@ -162,6 +162,13 @@ fn a_stopped_server_lets_go_of_its_ports_even_with_a_silent_socket_open() {
     let t = Instant::now();
     server.stop();
     assert!(t.elapsed() < Duration::from_secs(5), "stop waited on a silent socket");
+    // and the silent socket itself is let go soon after, not at the hello deadline
+    let mut silent = _silent;
+    silent.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    let mut b = [0u8; 1];
+    let t = Instant::now();
+    let closed = matches!(std::io::Read::read(&mut silent, &mut b), Ok(0) | Err(_)) && t.elapsed() < Duration::from_secs(2);
+    assert!(closed, "a silent socket outlived the stop by {:?}", t.elapsed());
     // the ports are free the moment stop returns
     assert!(std::net::TcpListener::bind(addr).is_ok(), "the stopped server still holds {addr}");
     assert!(std::net::TcpListener::bind(probe).is_ok(), "the stopped server still holds the probe {probe}");
@@ -174,17 +181,10 @@ fn a_slow_handshake_still_gets_in() {
     use std::io::Write;
     let server = start(None);
     let mut tcp = TcpStream::connect(server.addr).unwrap();
-    let req = format!("GET / HTTP/1.1
-Host: {}
-Upgrade: websocket
-Connection: Upgrade
-", server.addr);
+    let req = format!("GET / HTTP/1.1\r\nHost: {}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n", server.addr);
     tcp.write_all(req.as_bytes()).unwrap();
     std::thread::sleep(Duration::from_millis(400)); // the pause
-    tcp.write_all(b"Sec-WebSocket-Version: 13
-Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
-
-").unwrap();
+    tcp.write_all(b"Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n").unwrap();
     tcp.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let mut buf = [0u8; 256];
     let n = std::io::Read::read(&mut tcp, &mut buf).unwrap_or(0);

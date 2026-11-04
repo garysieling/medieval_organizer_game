@@ -32,6 +32,9 @@ const MAX_CONNS: usize = 256;
 /// How long a new socket has to finish the WebSocket handshake and say
 /// Hello before it's dropped
 const HELLO_WITHIN: Duration = Duration::from_secs(10);
+/// How often a waiting connection looks up from its socket (for the
+/// deadline and a stop)
+const POLL: Duration = Duration::from_millis(100);
 
 /// How a server runs
 #[derive(Debug, Clone)]
@@ -178,11 +181,9 @@ fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
                     let slot = Slot(Arc::clone(&open));
                     stream.set_nonblocking(false).ok();
                     stream.set_nodelay(true).ok();
-                    // the handshake gets the whole hello deadline as its read
-                    // timeout (a short one reads as a failed handshake on
-                    // Windows, where a timed-out read is TimedOut, not
-                    // WouldBlock); accept_ws shortens it after
-                    stream.set_read_timeout(Some(HELLO_WITHIN)).ok();
+                    // reads poll, so a silent socket notices the hello
+                    // deadline and a stop (see accept_ws)
+                    stream.set_read_timeout(Some(POLL)).ok();
                     let handle = Arc::clone(&handle);
                     std::thread::spawn(move || { handle(stream); drop(slot); });
                 }
@@ -192,23 +193,32 @@ fn accept_loop(listener: TcpListener, stop: Arc<AtomicBool>, open: Open,
     })
 }
 
-/// The WebSocket handshake, within the hello deadline (the socket's read
-/// timeout). After it, reads poll on a short timeout, so the Hello wait and
-/// the command loop can check the deadline and `stop` between them.
+/// The WebSocket handshake, within the hello deadline and abandoned on a
+/// stop. The upgrade request is waited for with `peek` on the short poll
+/// timeout - reading nothing - until it's all there; only then does
+/// tungstenite read it, so a slow client is let in (a timed-out read mid-
+/// handshake would fail it: on Windows that's TimedOut, not WouldBlock) and
+/// a silent one is let go on a stop.
 fn accept_ws(stream: TcpStream, stop: &AtomicBool) -> Option<tungstenite::WebSocket<TcpStream>> {
     let until = Instant::now() + HELLO_WITHIN;
-    let mut hs = tungstenite::accept(stream);
-    let ws = loop {
-        match hs {
-            Ok(ws) => break ws,
-            Err(tungstenite::HandshakeError::Interrupted(mid)) => {
-                if stop.load(Ordering::Relaxed) || Instant::now() > until { return None; }
-                hs = mid.handshake();
-            }
-            Err(tungstenite::HandshakeError::Failure(_)) => return None,
+    let mut buf = [0u8; 8192];
+    loop {
+        if stop.load(Ordering::Relaxed) || Instant::now() > until { return None; }
+        match stream.peek(&mut buf) {
+            Ok(0) => return None, // closed
+            // the request ends at a blank line (CRLF, or the bare LF the
+            // HTTP parser also takes)
+            Ok(n) if buf[..n].windows(4).any(|w| w == b"\r\n\r\n") || buf[..n].windows(2).any(|w| w == b"\n\n") => break,
+            Ok(n) if n == buf.len() => return None, // no upgrade request is this long
+            Ok(_) => std::thread::sleep(Duration::from_millis(20)), // part of it: wait for the rest
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+            Err(_) => return None,
         }
-    };
-    ws.get_ref().set_read_timeout(Some(Duration::from_millis(100))).ok();
+    }
+    // the request's all buffered: tungstenite reads it in one go
+    stream.set_read_timeout(Some(until.saturating_duration_since(Instant::now()).max(POLL))).ok();
+    let ws = tungstenite::accept(stream).ok()?;
+    ws.get_ref().set_read_timeout(Some(POLL)).ok();
     Some(ws)
 }
 

@@ -176,7 +176,8 @@ jobs:
           PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: |
           flags=()
-          [ "$PRERELEASE" = true ] && flags+=(--prerelease)
+          # a manual run's checkbox, or a tag like v0.2.0-rc.1
+          if [ "$PRERELEASE" = true ] || [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             # a re-run: refresh the packages, keep the notes as edited
             gh release upload "$TAG" dist/* --clobber

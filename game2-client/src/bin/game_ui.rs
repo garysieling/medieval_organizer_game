@@ -248,6 +248,7 @@ fn main() {
         // its keys while it has them: Enter walks the camera to the next
         // who fits the query
         if view.search_focus {
+            let typed = view.search_q.clone();
             match read_search(&window, &mut view.search_q) {
                 SearchKey::Enter => {
                     if let Some(m) = &cur_model {
@@ -262,6 +263,8 @@ fn main() {
                 SearchKey::Escape => { view.search_focus = false; view.search_q.clear(); }
                 SearchKey::None => {}
             }
+            // a new query starts its matches over at the first
+            if view.search_q != typed { search_at = 0; }
         }
 
         let buf = match &cur_model {

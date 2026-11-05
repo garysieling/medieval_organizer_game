@@ -98,7 +98,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
         }
         if !done { cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 }); }
     }
-    const KEYS: [Key; 4] = [Key::T, Key::R, Key::I, Key::B];
+    const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
     for (i, k) in KEYS.iter().enumerate() {
         if window.is_key_pressed(*k, minifb::KeyRepeat::No) { cmds.push(Command::Act(i)); }
     }
@@ -149,6 +149,8 @@ fn main() {
     let remote = connect.map(|url| connect_remote(&url));
     let mut game = if remote.is_none() { Some(Game::new_seeded(seed)) } else { None };
     let mut view = View::new(art);
+    // the camera opens on the player, wherever this seed's village stands
+    let mut cam_centered = false;
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let frame_at = std::time::Instant::now();
@@ -183,6 +185,15 @@ fn main() {
             (None, Some(g)) => { g.update(); Some(g.ui_model()) }
             (None, None) => None,
         };
+
+        if !cam_centered {
+            if let Some(m) = &cur_model {
+                if let Some(p) = m.people.iter().find(|p| p.kind == session::PKind::Player) {
+                    (view.cam_x, view.cam_y) = session::camera_on(p.pos.0, p.pos.1);
+                    cam_centered = true;
+                }
+            }
+        }
 
         // minimap look is a local camera move in both modes
         let mut on_minimap = false;

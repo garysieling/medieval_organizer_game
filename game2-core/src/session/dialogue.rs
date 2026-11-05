@@ -100,6 +100,20 @@ pub struct PlayerTalk {
     pub asks: Vec<crate::game::organizing::PropKind>,
 }
 
+/// The most choices a Talk offers at once - the replies plus however
+/// many asks still fit. The list stops at three.
+pub const TALK_MAX_CHOICES: usize = 3;
+
+impl PlayerTalk {
+    /// How many asks fit beside the replies on offer now: the choice
+    /// list is the replies first, then asks, capped at TALK_MAX_CHOICES.
+    /// `asks` itself keeps the whole list - an ask that doesn't fit this
+    /// turn can still come up on a later one.
+    pub(crate) fn asks_shown(&self) -> usize {
+        TALK_MAX_CHOICES.saturating_sub(self.options.len()).min(self.asks.len())
+    }
+}
+
 /// The village dialogue library, built once
 fn library() -> &'static [DialogueTree] {
     static LIB: std::sync::OnceLock<Vec<DialogueTree>> = std::sync::OnceLock::new();
@@ -383,8 +397,8 @@ impl Game {
     /// their leave
     pub fn talk_pick_at(&mut self, seat: usize, pick: Option<usize>) {
         let Some(t) = self.seats[seat].talk.as_ref() else { return };
-        let (who, n) = (t.who, t.options.len());
-        let Some(i) = pick.filter(|&i| i < n + t.asks.len()) else {
+        let (who, n, asks) = (t.who, t.options.len(), t.asks_shown());
+        let Some(i) = pick.filter(|&i| i < n + asks) else {
             if pick.is_none() { self.close_player_talk(seat, Some("You take your leave.")); }
             return;
         };
@@ -461,7 +475,7 @@ impl Game {
         let in_talk = matches!(&s.talk, Some(t) if shown.contains(&t.id));
         let options = match &s.talk {
             Some(t) if in_talk => t.options.iter().map(|o| o.1.clone())
-                .chain(t.asks.iter().map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
+                .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
             _ => vec![],
         };
         let empty = if picked.is_some() { "Nothing heard from them yet." } else { "Talk to someone (T) and it shows here." };
@@ -530,7 +544,7 @@ impl Game {
                 title: format!("TALK - {}", t.villager.name.to_uppercase()),
                 rows: self.record_rows(seat, t.id),
                 options: t.options.iter().map(|o| o.1.clone())
-                    .chain(t.asks.iter().map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
+                    .chain(t.asks.iter().take(t.asks_shown()).map(|a| crate::game::organizing::prop_label(*a).to_string())).collect(),
                 decides: false, leave: true });
         }
         None

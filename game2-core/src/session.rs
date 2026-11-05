@@ -34,7 +34,7 @@ use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
-use crate::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
+use crate::game::player::{PlayerCharacter, act_talk, act_recruit, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
 use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
@@ -151,14 +151,8 @@ const MEETING_REACH: f32 = 8.0;
 /// How far (tiles) an idle villager strays from the village food store
 /// before heading back
 const VILLAGE_RADIUS: f32 = 7.0;
-/// Gold the Invest action spends
-const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
 const BUILD_COST: f32 = 30.0;
-/// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
-const MILL_TILE: (f32, f32) = (10.0, 9.0);
-/// The church: on the market square's north side, facing the cross
-const CHURCH_TILE: (i32, i32) = (16, 13);
 /// Every fourth row and column through the market is a street: blocks
 /// three plots deep, the houses fronting the street and a yard behind
 const STREET_EVERY: i32 = 4;
@@ -170,14 +164,13 @@ const TRADE_PLOTS: usize = 26;
 /// The town's streets inside the wall: a grid through the market cross,
 /// every fourth row and column - the church and the mill keep their own
 /// tiles (the square round the cross is left open green, see town_plots)
-fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
-    let (hx, hy) = (16, 16);
+fn town_streets(wall: (i32, i32, i32, i32), hub: (i32, i32), keep: [(i32, i32); 2]) -> Vec<(i32, i32)> {
+    let (hx, hy) = hub;
     let mut out = vec![];
     for y in wall.1 + 1..wall.3 {
         for x in wall.0 + 1..wall.2 {
             let on_grid = (x - hx).rem_euclid(STREET_EVERY) == 0 || (y - hy).rem_euclid(STREET_EVERY) == 0;
-            if on_grid && (x, y) != CHURCH_TILE
-                && (x, y) != (MILL_TILE.0 as i32, MILL_TILE.1 as i32) {
+            if on_grid && !keep.contains(&(x, y)) {
                 out.push((x, y));
             }
         }
@@ -187,8 +180,8 @@ fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
 
 /// The building plots inside the wall: open cells fronting a street (the
 /// block's inner cells stay yards), nearest the market square first
-fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
-    let (hx, hy) = (16, 16);
+fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32), hub: (i32, i32)) -> Vec<(i32, i32)> {
+    let (hx, hy) = hub;
     let mut plots: Vec<(i32, i32)> = (wall.1 + 1..wall.3).flat_map(|y| (wall.0 + 1..wall.2).map(move |x| (x, y)))
         .filter(|&(x, y)| map.buildable(x, y)
             // the market square stays open: the stalls and the crowd's
@@ -266,10 +259,10 @@ const BUILD_SEARCH: i32 = 8;
 const FLU_DAY: u64 = 120;
 
 /// Keyboard shortcut for each action button, in button order (Talk, Recruit,
-/// Invest, Build). The input loop and the buttons' key hints
+/// Build). The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [char; 4] = ['T', 'R', 'I', 'B'];
+const ACTION_KEYS: [char; 3] = ['T', 'R', 'B'];
 /// Whether action button `i` is shown at all: Recruit only appears once
 /// there's a campaign to recruit into (founded at a house meeting)
 pub fn action_shown(m: &UiModel, i: usize) -> bool {
@@ -277,14 +270,13 @@ pub fn action_shown(m: &UiModel, i: usize) -> bool {
 }
 
 /// The action panel's buttons, in ACTION_KEYS order
-pub const ACTION_LABELS: [&str; 4] = ["Talk", "Recruit", "Invest", "Build"];
+pub const ACTION_LABELS: [&str; 3] = ["Talk", "Recruit", "Build"];
 /// The action panel's buttons, laid out the same for every player
-pub fn action_buttons() -> [Button; 4] {
+pub fn action_buttons() -> [Button; 3] {
     [
         Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
         Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
-        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
-        Button { label: ACTION_LABELS[3].into(), key: ACTION_KEYS[3], x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (80,60,120) },
+        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (80,60,120) },
     ]
 }
 /// The button a contextual action draws with
@@ -709,6 +701,10 @@ pub struct Game {
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),
+    /// The market cross this seed's village grew round (tiles)
+    pub village: (i32, i32),
+    /// Where the windmill ended up (it's animated, so drawn apart from `buildings`)
+    pub mill: (f32, f32),
     /// The watch standing just inside each gate
     pub guards: Vec<(f32, f32)>,
     /// Knights posted to the streets after a crackdown, tagged with the
@@ -996,10 +992,10 @@ impl std::ops::DerefMut for Game {
 
 impl Game {
     pub fn ticks_per_frame(&self) -> u32 {
-        // frames per day: ~7s/day normal, ~1.2s turbo; a house meeting (or
+        // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
         // room's talk can be read as it's said
-        let base = if self.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+        let base = if self.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
         if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
     }
 

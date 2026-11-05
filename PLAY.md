@@ -17,10 +17,7 @@ cargo run --bin game           # text-mode version
 |  walking around, name labels     |          |
 |                                  | [Talk]   |
 |  YOU = white marker              | [Recruit]|
-|  click a villager to inspect     | [Invest] |
-|                                  | [Organize]|
-|                                  | [Build]  |
-|                                  | [Wait]   |
+|  click a villager to inspect     | [Build]  |
 |                                  |          |
 |                                  | Inspector|
 |                                  | (stats)  |
@@ -37,7 +34,7 @@ cargo run --bin game           # text-mode version
 | **Click villager** | Select/inspect them (class, vocation, skill, gold, home, shop, and any secrets they've let slip) |
 | **Click building** | Inspect it: purpose, who works or lives there, stock and what's for offer |
 | **1-5** | Select villager by number |
-| **T/R/I/O/B/W** | Keyboard: Talk/Recruit/Invest/Organize/Build/Wait |
+| **T/R/B** | Keyboard: Talk/Recruit/Build |
 | **Arrows** | Pan the camera around the map |
 | **Space** | Pause/unpause |
 | **0** | Toggle 4x speed |
@@ -61,8 +58,7 @@ You are **The Wanderer** - an outsider who arrives in a medieval village with no
 1. **Talk** to villagers (1-1 meetings) - learn their concerns, build relationships
 2. **Recruit** them to your organization (trust-gated)
 3. **Organize** house meetings, committees, actions
-4. **Invest** resources in your cause
-5. **Build** your influence into actual power
+4. **Build** houses and grow your influence into actual power
 
 ### The Town
 
@@ -230,7 +226,6 @@ Other villages/castles are AI-controlled with different ruler personalities:
 
 - **Talk** (`act_talk`) - build relationship, learn concerns
 - **Recruit** (`act_recruit`) - try to get them to join (needs trust>0.5)
-- **Invest** (`act_invest`) - spend gold for influence
 - **Organize** - house meetings, committees
 - **Contract** - formal agreements
 - **Build** - commission structures

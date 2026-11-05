@@ -6,7 +6,8 @@ fn influence(game: &Game) -> f32 {
 }
 
 /// Walk to each villager, hear them out, then win them over at house
-/// meetings instead of with Recruit; finally invest the gold.
+/// meetings instead of with Recruit; finally invest the gold the old way -
+/// the button's gone, but gold still buys standing where it's spent.
 #[test]
 fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
     let mut game = Game::new();
@@ -47,9 +48,9 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
                 vill_name(i), villager::is_dead(&game.world, v), rel, last);
         }
     }
-    while game.disabled_reason(2).is_none()
-        && game.world.get_component::<PlayerCharacter>(game.player).unwrap().resources >= 10.0 {
-        game.act(2);
+    let pe = game.player;
+    while game.world.get_component::<PlayerCharacter>(pe).unwrap().resources >= 10.0 {
+        crate::game::player::act_invest(&mut game.world, pe, 10.0);
     }
     assert!(influence(&game) > WIN_INFLUENCE,
         "everyone joined and all gold invested, yet influence is only {:.2} (win at {})", influence(&game), WIN_INFLUENCE);

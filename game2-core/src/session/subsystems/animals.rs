@@ -190,18 +190,18 @@ impl Game {
         // the ambient bed: rain when it falls, the smithy's rhythm on a
         // workday - quiet state cues the audio layer keeps under it all
         if self.precip.is_some() && tick % 20 == 0 {
-            self.emit_sfx("rain", 20.0, 15.0, 0.4);
+            self.emit_sfx("rain", self.village.0 as f32 + 4.0, self.village.1 as f32 - 1.0, 0.4);
         }
         if tick % 40 == 10 {
-            self.emit_sfx("anvil", 19.0, 19.0, 0.3); // the smithy's rhythm
+            self.emit_sfx("anvil", self.village.0 as f32 + 3.0, self.village.1 as f32 + 3.0, 0.3); // the smithy's rhythm
         }
         // the moments: a festival hums, a comet hushes, the hanging's
         // grim - the big things get a cue of their own where they happen
         if tick % 90 == 45 {
-            self.emit_sfx("festival", 16.0, 16.0, 0.9);
+            self.emit_sfx("festival", self.village.0 as f32, self.village.1 as f32, 0.9);
         }
         if let Some((_, until)) = self.sky {
-            if until == tick + 2 { self.emit_sfx("wonder", 20.0, 5.0, 0.7); }
+            if until == tick + 2 { self.emit_sfx("wonder", self.village.0 as f32 + 4.0, self.village.1 as f32 - 11.0, 0.7); }
         }
     }
 }

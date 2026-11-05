@@ -320,8 +320,7 @@ impl Game {
                 cadence_days: mtg.map(|m| m.cadence_days).unwrap_or(0),
             }
         });
-        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
-                       self.action_blocker_at(seat, 3)];
+        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector_at(seat)
         } else {
@@ -357,7 +356,7 @@ impl Game {
                 influence: my_influence, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
             },
-            mill: Some((MILL_TILE.0, MILL_TILE.1)),
+            mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
             mush: self.mush_patches.iter().filter(|p| self.tick >= p.next_ready)

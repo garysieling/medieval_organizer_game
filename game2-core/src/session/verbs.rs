@@ -6,7 +6,7 @@ impl Game {
     /// Why action button `i` can't be used right now, if it can't: Build's
     /// own rules (gold, a free site), otherwise disabled_reason
     pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
-        if i == 3 {
+        if i == 2 {
             let gold = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).map(|p| p.resources).unwrap_or(0.0);
             if gold < BUILD_COST { return Some(format!("need {:.0} gold", BUILD_COST)); }
             if self.build_site_at(seat).is_none() { return Some("no room nearby".into()); }
@@ -16,7 +16,7 @@ impl Game {
     }
 
     /// Why a ctx button can't answer right now, if it can't - shown greyed
-    /// with the reason beside it, like the five main buttons' `blocked`
+    /// with the reason beside it, like the main buttons' `blocked`
     pub fn ctx_blocker_at(&self, seat: usize, act: CtxAct) -> Option<String> {
         match act {
             CtxAct::Meet => {
@@ -58,15 +58,14 @@ impl Game {
     /// can't - the seat's own selection, reach, purse and org answer, not
     /// seat 0's
     pub fn disabled_reason_at(&self, seat: usize, i: usize) -> Option<String> {
-        // Recruit is pointless on a member and Invest on an empty purse: say
-        // so on the button, as Build does, rather than fail in the log
-        // Talk and Recruit need the selected villager alive (they walk over
-        // to them)
+        // Recruit is pointless on a member: say so on the button, as Build
+        // does, rather than fail in the log. Talk and Recruit need the
+        // selected villager alive (they walk over to them)
         let target = self.villagers[if (i == 0 || i == 1) && self.seats[seat].picked { self.seats[seat].selected_target } else { self.reach_target_at(seat) }];
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let p = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
-            .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
-        let recruit_infl_ok = can_recruit(p.0);
+        let influence = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
+            .map(|p| p.influence).unwrap_or(0.0);
+        let recruit_infl_ok = can_recruit(influence);
         let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
@@ -75,7 +74,6 @@ impl Game {
         else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
-        else if i == 2 && p.1 < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
         else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
             && crate::game::player::rapport(&self.world, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
@@ -93,7 +91,7 @@ impl Game {
             let on = |bx: f32, by: f32| bx.round() as i32 == x && by.round() as i32 == y;
             let beside = |bx: f32, by: f32| (bx.round() as i32 - x).abs() <= 1 && (by.round() as i32 - y).abs() <= 1;
             self.buildings.iter().any(|(bx, by, _)| beside(*bx, *by))
-                || beside(MILL_TILE.0, MILL_TILE.1)
+                || beside(self.mill.0, self.mill.1)
                 || self.world.query::<villager::FoodSource>().iter()
                     .filter_map(|f| self.world.get_component::<Pos>(*f))
                     .any(|p| on(p.x, p.y))
@@ -254,7 +252,7 @@ impl Game {
         self.seats[seat].approach = Some(a);
     }
 
-    /// Take action button `i` (Talk, Recruit, Invest, Build)
+    /// Take action button `i` (Talk, Recruit, Build)
     pub fn act_at(&mut self, seat: usize, i: usize) {
         let tick = self.tick;
         // Talk and Recruit go to whoever the player picked; otherwise to
@@ -277,8 +275,7 @@ impl Game {
                     if r.success { format!("{} joined!", vill_name(selected_target)) }
                     else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
                 }
-                2 => { let pe = self.seats[seat].player; let r = act_invest(&mut self.world, pe, INVEST_GOLD); r.description }
-                3 => {
+                2 => {
                     // action_blocker checked there's gold and a site
                     let (bx, by) = self.build_site_at(seat).unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }

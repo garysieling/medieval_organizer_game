@@ -98,7 +98,7 @@ fn to_river(p: (i32, i32), river: &[(i32, i32)], size: i32) -> f32 {
 
 /// Dry land joined to the village on foot (sea and lakes cut it; the
 /// river doesn't, it has a bridge), as the terrain stands before the map
-fn reachable_land(t: &Terrain, from: (i32, i32)) -> Vec<bool> {
+pub(super) fn reachable_land(t: &Terrain, from: (i32, i32)) -> Vec<bool> {
     let (w, h) = (t.width as i32, t.height as i32);
     let mut seen = vec![false; (w * h) as usize];
     let dry = |x: i32, y: i32| x >= 0 && y >= 0 && x < w && y < h && t.get(x as usize, y as usize) >= WATER_LEVEL + 0.02;
@@ -589,7 +589,7 @@ mod tests {
                 let sp = g.world.get_component::<Pos>(s.store).copied().unwrap();
                 let st = (sp.x.round() as i32, sp.y.round() as i32);
                 assert!(g.map.passable(st.0, st.1), "seed {} {}'s granary stands on open ground", seed, s.name);
-                assert!(g.map.walk_path((16, 17), st).is_some(), "seed {} {} walks to the village", seed, s.name);
+                assert!(g.map.walk_path((g.village.0, g.village.1 + 1), st).is_some(), "seed {} {} walks to the village", seed, s.name);
                 for t in &g.sites[i + 1..] {
                     let d = (((s.centre.0 - t.centre.0).pow(2) + (s.centre.1 - t.centre.1).pow(2)) as f32).sqrt();
                     assert!(d > 30.0, "seed {} {} and {} crowd each other", seed, s.name, t.name);

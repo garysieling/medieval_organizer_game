@@ -144,6 +144,21 @@ pub struct PanelV {
     pub campaign: Option<CampaignV>,
     /// The odd job the seat is running, in a line ("take the note to Willa")
     pub quest: Option<String>,
+    /// Who the seat has gotten to know, by how far each bond runs
+    #[serde(default)]
+    pub social: SocialV,
+}
+
+/// The seat's bond ledger: folk they've talked to, counted by the stage
+/// their relationship has reached - the reward for keeping company
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct SocialV {
+    /// Folk with any bond at all - someone the seat has spoken to
+    pub met: usize,
+    pub acquaintances: usize,
+    pub known: usize,
+    pub followers: usize,
+    pub coleaders: usize,
 }
 
 /// Which of the action buttons is blocked and why

@@ -100,6 +100,32 @@ pub(crate) fn members_line(names: &[&str]) -> String {
     format!("{} ..", line)
 }
 
+/// `n` things called `one`/`many`: "1 follower", "2 followers"
+fn counted(n: usize, one: &str, many: &str) -> String {
+    if n == 1 { format!("1 {}", one) } else { format!("{} {}", n, many) }
+}
+
+/// The BONDS block under the action buttons: who the seat has spoken
+/// to, then the count at each stage the bond has climbed. The first
+/// line is the headline; the breakdown only shows once there's anyone
+/// to break down
+pub(crate) fn bond_lines(s: &SocialV) -> Vec<String> {
+    let mut lines = vec![if s.met == 1 {
+        "1 person you've spoken to".to_string()
+    } else {
+        format!("{} folk you've spoken to", s.met)
+    }];
+    if s.met > 0 {
+        lines.push(format!("{} · {}",
+            counted(s.acquaintances, "acquaintance", "acquaintances"),
+            counted(s.known, "known", "known")));
+        lines.push(format!("{} · {}",
+            counted(s.followers, "follower", "followers"),
+            counted(s.coleaders, "co-leader", "co-leaders")));
+    }
+    lines
+}
+
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
 pub(crate) fn text_width(text: &str, scale: usize) -> i32 {

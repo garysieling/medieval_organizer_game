@@ -55,3 +55,25 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
         }
     }
 }
+
+/// The sidebar's bond ledger: folk the seat has spoken to, counted by
+/// the stage each relationship has reached
+#[test]
+fn test_the_panel_counts_the_bonds_the_seat_has_made() {
+    let mut game = Game::new();
+    while game.tick < 3 { game.update(); }
+    let n = game.villagers.len().min(4);
+    let (player, tick) = (game.player, game.tick);
+    for i in 0..n {
+        let v = game.villagers[i];
+        crate::game::player::act_talk(&mut game.world, player, v, tick);
+    }
+    let m = game.ui_model();
+    // folk the sim already introduced themselves to count too - the
+    // ledger is everyone the seat knows, not just who it sought out
+    assert!(m.panel.social.met >= n, "each talked-to villager counts");
+    let stages = m.panel.social.acquaintances + m.panel.social.known
+        + m.panel.social.followers + m.panel.social.coleaders;
+    assert_eq!(stages, m.panel.social.met, "met is the stages summed");
+    assert!(m.panel.social.acquaintances >= 1, "a first conversation reaches acquaintance");
+}

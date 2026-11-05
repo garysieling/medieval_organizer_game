@@ -20,3 +20,15 @@ fn test_hud_sits_on_a_dark_strip() {
     let i = ((GLYPH_H + 10) as usize * W + x as usize) * 4;
     assert_eq!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), (20, 20, 32), "no backing strip under the HUD");
 }
+
+#[test]
+fn test_bond_lines_headline_and_breakdown() {
+    let nobody = SocialV::default();
+    assert_eq!(bond_lines(&nobody), vec!["0 folk you've spoken to".to_string()]);
+    let s = SocialV { met: 12, acquaintances: 5, known: 4, followers: 2, coleaders: 1 };
+    let lines = bond_lines(&s);
+    assert_eq!(lines[0], "12 folk you've spoken to");
+    assert_eq!(lines[1], "5 acquaintances · 4 known");
+    assert_eq!(lines[2], "2 followers · 1 co-leader");
+    for l in &lines { assert!(l.len() <= 46, "the line must fit the panel: {l}"); }
+}

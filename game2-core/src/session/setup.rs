@@ -827,6 +827,8 @@ impl Game {
             log_dropped: 0,
             bubbles: vec![],
             meeting: None,
+            snowball_day: u64::MAX,
+            snowballs: vec![],
             near: vec![],
             last_chat: vec![],
             talk_log: vec![],

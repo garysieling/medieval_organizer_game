@@ -69,6 +69,8 @@ pub enum CtxAct {
     TakeJob,
     /// Stroke the stray cat who's keeping you company
     PetCat,
+    /// Call a snowball fight: everyone free comes out to play (winter)
+    Snowballs,
 }
 
 /// One player's hold on the game: which character they steer, what they've

@@ -107,7 +107,10 @@ rite at the stones or in the grove instead. And the year has its
 feast days: May Day, Midsummer, the Harvest Home, Yule -
 the village gathers at the market, the good stock comes out, the truth
 comes out in the toasts, and the tax collector is never invited but
-always shows. Some of the cottages keep a garden bed beside the door -
+always shows. And folk who've gotten to know you ask small jobs - a
+note carried to a neighbour, a parcel walked out to a far village, an
+egg or a stone fetched back - the picked villager's card offers to
+take it, and the panel keeps the job in sight till it's done. Some of the cottages keep a garden bed beside the door -
 the soil strip fills in over the weeks with marigold and feverfew, and
 when the herb-wife's own shelves run thin she tends the beds of folk
 who don't begrudge her. A weaver keeps the loom house now - the

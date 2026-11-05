@@ -131,6 +131,8 @@ pub struct PanelV {
     pub food: u32,
     /// The org's campaign, when it's founded one
     pub campaign: Option<CampaignV>,
+    /// The odd job the seat is running, in a line ("take the note to Willa")
+    pub quest: Option<String>,
 }
 
 /// Which of the action buttons is blocked and why

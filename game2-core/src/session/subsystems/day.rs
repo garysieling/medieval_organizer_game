@@ -219,6 +219,8 @@ impl Game {
         crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
+        // and folk who've gotten to know the Wanderer ask for small jobs
+        crate::timed!("sim.quests", self.quest_dawn(tick, &mut rng));
         let folk = crate::infra::perf::scope("sim.day.villagers");
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {

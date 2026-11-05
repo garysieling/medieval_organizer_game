@@ -240,7 +240,7 @@ pub struct UiModel {
     pub ctx_blocked: Vec<Option<String>>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
-    /// Mill stands at MILL_TILE when the art has a mill
+    /// Mill stands at the map's mill tile when the art has a mill
     pub mill: Option<(f32, f32)>,
     /// Wild herb tufts that are ready to pick
     pub herbs: Vec<(f32, f32)>,

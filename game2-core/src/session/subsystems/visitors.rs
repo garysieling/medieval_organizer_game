@@ -3,12 +3,21 @@
 use crate::session::*;
 
 impl Game {
+    /// The far end of the courier's road - the rivals' camp, or the
+    /// village itself if the road never laid
+    pub(in crate::session) fn road_far(&self) -> (i32, i32) {
+        self.traveller_path.last().copied().unwrap_or_else(|| {
+            self.rival_homes.first().map(|&(x, y)| (x.round() as i32, y.round() as i32))
+                .unwrap_or(self.village)
+        })
+    }
+
     /// The travelling minstrel rides in
     pub fn spawn_minstrel(&mut self) {
         let e = self.world.create_entity();
-        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        let path = self.map.walk_path(start, (16, 16)).unwrap_or_default();
+        let path = self.map.walk_path(start, self.village).unwrap_or_default();
         self.minstrel = Some(Minstrel { e, path, playing_until: None });
         self.log.push(format!("t{}: a travelling minstrel has come to town.", self.tick));
     }
@@ -52,7 +61,7 @@ impl Game {
         } else {
             // the road calls: ride off, and another comes by one day
             if let Some(p) = self.world.get_component_mut::<Pos>(m.e).copied() {
-                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                let back = self.road_far();
                 if m.path.is_empty() {
                     m.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
                 }
@@ -75,9 +84,9 @@ impl Game {
     /// The roving pedlar comes up the road
     pub fn spawn_pedlar(&mut self) {
         let e = self.world.create_entity();
-        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        let path = self.map.walk_path(start, (16, 16)).unwrap_or_default();
+        let path = self.map.walk_path(start, self.village).unwrap_or_default();
         self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None, rumor_sold: false });
         self.log.push(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick));
     }
@@ -152,7 +161,7 @@ impl Game {
         } else {
             // the road calls: pack up and walk off
             if let Some(p) = self.world.get_component_mut::<Pos>(m.e).copied() {
-                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                let back = self.road_far();
                 if m.path.is_empty() {
                     m.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
                 }
@@ -177,11 +186,11 @@ impl Game {
     /// The circus comes up the road and pitches on the meadow by the gate
     pub fn spawn_circus(&mut self) {
         let e = self.world.create_entity();
-        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
         // a meadow spot just outside the south wall
         let camp = self.map.nearest_buildable(self.town_wall.0 + 4, self.town_wall.3 + 3)
-            .unwrap_or((20, 30));
+            .unwrap_or((self.town_wall.0 + 12, self.town_wall.3 + 6));
         let path = self.map.walk_path(start, camp).unwrap_or_default();
         self.circus = Some(Circus { e, path, camped_until: None, camp });
         self.log.push(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick));
@@ -286,11 +295,11 @@ impl Game {
     /// meadow outside the gate - where the law wants a fire like his
     pub fn spawn_ink_boiler(&mut self) {
         let e = self.world.create_entity();
-        let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+        let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
         // a clear spot beyond the south wall, off the circus's patch
         let camp = self.map.nearest_buildable(self.town_wall.0 + 8, self.town_wall.3 + 4)
-            .unwrap_or((24, 30));
+            .unwrap_or((self.town_wall.0 + 16, self.town_wall.3 + 6));
         let path = self.map.walk_path(start, camp).unwrap_or_default();
         self.ink_boiler = Some(InkBoiler { e, path, working_until: None, camp });
         self.log.push(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick));
@@ -323,7 +332,7 @@ impl Game {
         } else {
             // the varnish's made: pack up and walk off
             if let Some(p) = self.world.get_component_mut::<Pos>(b.e).copied() {
-                let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+                let back = self.road_far();
                 if b.path.is_empty() {
                     b.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
                 }

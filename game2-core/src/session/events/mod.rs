@@ -333,7 +333,7 @@ impl Game {
         match s.kind {
             EventKind::Visitor => {
                 let e = self.world.create_entity();
-                let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+                let start = self.road_far();
                 self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
                 let at = self.event_pitch(id);
                 let path = self.map.walk_path(start, at).unwrap_or_default();
@@ -361,13 +361,13 @@ impl Game {
     fn event_pitch(&self, id: EventId) -> (i32, i32) {
         match id {
             EventId::CharcoalBurner | EventId::Deserter =>
-                self.map.nearest_buildable(self.town_wall.0 - 3, self.town_wall.1 - 3).unwrap_or((16, 16)),
+                self.map.nearest_buildable(self.town_wall.0 - 3, self.town_wall.1 - 3).unwrap_or(self.village),
             EventId::LeperBand | EventId::RefugeeFamily | EventId::Recruiter =>
-                self.map.nearest_buildable(self.town_wall.0 + 2, self.town_wall.3 + 2).unwrap_or((16, 16)),
+                self.map.nearest_buildable(self.town_wall.0 + 2, self.town_wall.3 + 2).unwrap_or(self.village),
             _ => {
                 let mp = self.world.get_component::<Pos>(self.market_food)
-                    .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((16, 16));
-                self.map.nearest_buildable(mp.0 + 2, mp.1 + 2).unwrap_or((16, 16))
+                    .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(self.village);
+                self.map.nearest_buildable(mp.0 + 2, mp.1 + 2).unwrap_or(self.village)
             }
         }
     }
@@ -430,7 +430,7 @@ impl Game {
     fn depart_event(&mut self, idx: usize) {
         if idx >= self.rare.len() { return; }
         let mut r = self.rare[idx].clone();
-        let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+        let back = self.road_far();
         r.path = self.world.get_component::<Pos>(r.e.unwrap_or(0))
             .and_then(|p| self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back))
             .unwrap_or_default();

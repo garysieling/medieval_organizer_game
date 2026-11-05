@@ -93,7 +93,7 @@ impl Game {
             let on = |bx: f32, by: f32| bx.round() as i32 == x && by.round() as i32 == y;
             let beside = |bx: f32, by: f32| (bx.round() as i32 - x).abs() <= 1 && (by.round() as i32 - y).abs() <= 1;
             self.buildings.iter().any(|(bx, by, _)| beside(*bx, *by))
-                || beside(MILL_TILE.0, MILL_TILE.1)
+                || beside(self.mill.0, self.mill.1)
                 || self.world.query::<villager::FoodSource>().iter()
                     .filter_map(|f| self.world.get_component::<Pos>(*f))
                     .any(|p| on(p.x, p.y))

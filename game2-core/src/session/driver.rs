@@ -1,7 +1,7 @@
 //! Heuristic drivers: simple goals for characters nobody's steering.
 //!
 //! `drive_player` runs a wanderer seat whose person went idle - keep them
-//! useful: eat, work, talk, invest. `drive_agent` is the same instinct for
+//! useful: eat, work, talk, build. `drive_agent` is the same instinct for
 //! a bot's villager. Both bias toward things that keep the village running.
 
 use super::{AgentCmd, AgentObs, Command, Game};
@@ -42,8 +42,9 @@ pub fn drive_player(game: &mut Game, seat: usize) {
         game.command_at(seat, Command::Act(0)); // Talk to the reach target
         return;
     }
-    if gold > 40.0 {
-        game.command_at(seat, Command::Act(2)); // Invest: gold into standing
+    // flush with gold: a house beside them is worth more than coin idle
+    if gold > 40.0 && game.action_blocker_at(seat, 2).is_none() {
+        game.command_at(seat, Command::Act(2)); // Build
         return;
     }
     // otherwise amble a little, so they don't stand stock still

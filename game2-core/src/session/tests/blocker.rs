@@ -1,17 +1,6 @@
 use crate::session::*;
 
 #[test]
-fn test_invest_is_greyed_out_with_no_gold() {
-    let mut game = Game::new();
-    game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 5.0;
-    assert_eq!(game.action_blocker(2).as_deref(), Some("need 10 gold"));
-    game.act(2);
-    assert!(game.log.last().unwrap().ends_with("Can't invest: need 10 gold."), "{}", game.log.last().unwrap());
-    game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 10.0;
-    assert_eq!(game.action_blocker(2), None);
-}
-
-#[test]
 fn test_work_names_what_is_missing_instead_of_nothing() {
     let mut g = Game::new();
     // a baker with neither wheat in hand nor a shop's stock to draw on

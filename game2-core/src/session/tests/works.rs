@@ -13,8 +13,8 @@ fn test_a_new_house_lays_its_road_a_tile_at_a_time_then_rises() {
     // the Wanderer's starting gold is rolled by class and can come up
     // short - this test is about the works, not the purse
     game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 100.0;
-    assert_eq!(game.action_blocker(4), None);
-    game.act(3);
+    assert_eq!(game.action_blocker(2), None);
+    game.act(2);
     let w = game.works.last().expect("building should start works");
     let road = w.road.clone();
     assert!(road.len() >= 1, "a house out here needs a road");

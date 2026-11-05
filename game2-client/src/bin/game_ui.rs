@@ -98,7 +98,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
         }
         if !done { cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 }); }
     }
-    const KEYS: [Key; 4] = [Key::T, Key::R, Key::I, Key::B];
+    const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
     for (i, k) in KEYS.iter().enumerate() {
         if window.is_key_pressed(*k, minifb::KeyRepeat::No) { cmds.push(Command::Act(i)); }
     }

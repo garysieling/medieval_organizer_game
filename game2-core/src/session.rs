@@ -34,7 +34,7 @@ use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
-use crate::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
+use crate::game::player::{PlayerCharacter, act_talk, act_recruit, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
 use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
@@ -151,8 +151,6 @@ const MEETING_REACH: f32 = 8.0;
 /// How far (tiles) an idle villager strays from the village food store
 /// before heading back
 const VILLAGE_RADIUS: f32 = 7.0;
-/// Gold the Invest action spends
-const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
 const BUILD_COST: f32 = 30.0;
 /// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
@@ -266,10 +264,10 @@ const BUILD_SEARCH: i32 = 8;
 const FLU_DAY: u64 = 120;
 
 /// Keyboard shortcut for each action button, in button order (Talk, Recruit,
-/// Invest, Build). The input loop and the buttons' key hints
+/// Build). The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [char; 4] = ['T', 'R', 'I', 'B'];
+const ACTION_KEYS: [char; 3] = ['T', 'R', 'B'];
 /// Whether action button `i` is shown at all: Recruit only appears once
 /// there's a campaign to recruit into (founded at a house meeting)
 pub fn action_shown(m: &UiModel, i: usize) -> bool {
@@ -277,14 +275,13 @@ pub fn action_shown(m: &UiModel, i: usize) -> bool {
 }
 
 /// The action panel's buttons, in ACTION_KEYS order
-pub const ACTION_LABELS: [&str; 4] = ["Talk", "Recruit", "Invest", "Build"];
+pub const ACTION_LABELS: [&str; 3] = ["Talk", "Recruit", "Build"];
 /// The action panel's buttons, laid out the same for every player
-pub fn action_buttons() -> [Button; 4] {
+pub fn action_buttons() -> [Button; 3] {
     [
         Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
         Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
-        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
-        Button { label: ACTION_LABELS[3].into(), key: ACTION_KEYS[3], x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (80,60,120) },
+        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (80,60,120) },
     ]
 }
 /// The button a contextual action draws with

@@ -74,8 +74,8 @@ The same inputs the window sends, one frame's worth each.
 {"Command":"CancelApproach"}
 ```
 
-`Act(i)` is one of the five action buttons (0 Talk, 1 Recruit, 2 Invest,
-3 Organize, 4 Build); `CtxAct(i)` the i-th context action the scene lists
+`Act(i)` is one of the three action buttons (0 Talk, 1 Recruit, 2 Build);
+`CtxAct(i)` the i-th context action the scene lists
 in `ctx`; `Select(i)` picks a villager; `TalkPick(n)` answers mid-Talk
 (`null` to take your leave); `Decide(i)` answers a founding call.
 `TogglePause`/`ToggleSpeed` are ignored: the shared world runs at one pace.

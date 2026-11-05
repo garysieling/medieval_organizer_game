@@ -320,8 +320,7 @@ impl Game {
                 cadence_days: mtg.map(|m| m.cadence_days).unwrap_or(0),
             }
         });
-        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
-                       self.action_blocker_at(seat, 3)];
+        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector_at(seat)
         } else {

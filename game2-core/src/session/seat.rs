@@ -65,6 +65,8 @@ pub enum CtxAct {
     /// Call the house meeting the organizer has earned - a venue promised
     /// and folk who've said they'll come
     Gather,
+    /// Take on the odd job the picked villager is asking for
+    TakeJob,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -94,6 +96,9 @@ pub struct Seat {
     /// conversation box, waiting on their pick (Command::Decide). Each
     /// organizer holds their own - another seat's meeting can't erase it
     pub pending_founding: Option<PendingFounding>,
+    /// The odd job this seat is running for a villager, if any
+    /// (session::quests)
+    pub quest: Option<quests::PlayerQuest>,
     /// Where the character stood last frame, which way they face (0 up,
     /// 1 right, 2 down, 3 left on screen) and whether they moved: drives
     /// the walk cycle
@@ -106,7 +111,7 @@ impl Default for Seat {
     fn default() -> Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
-               pending_founding: None, last_pos: None, facing: 2, walking: false }
+               pending_founding: None, quest: None, last_pos: None, facing: 2, walking: false }
     }
 }
 

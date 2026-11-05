@@ -919,6 +919,8 @@ impl Game {
             rare_fired: vec![],
             rare_seed: seed ^ 0xAA55_5EED,
             sites: vec![],
+            pending_quests: vec![],
+            quest_rest: Default::default(),
         };
         // and the country's folk, out in its towns and castles
         g.settle_country(&country_plan, seed);

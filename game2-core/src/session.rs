@@ -10,6 +10,7 @@ pub mod stage;
 pub mod dialogue;
 pub mod routine;
 pub mod country;
+pub mod quests;
 
 pub mod journal;
 pub mod kpi;
@@ -301,6 +302,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Petition => Button { label: "Petition".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (140, 80, 80) },
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
+        CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -949,6 +951,11 @@ pub struct Game {
     /// The safety note's told its piece: real cap traits in-world carry
     /// the disclaimer once, where folk will read it
     pub shroom_disclaimed: bool,
+    /// The odd jobs villagers have asked the Wanderer to run, waiting
+    /// for a taker (session::quests)
+    pub pending_quests: Vec<quests::PendingQuest>,
+    /// Giver -> the day they can ask again: a job settles a while
+    pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to
@@ -1371,6 +1378,9 @@ impl Game {
             crate::timed!("sim.advance_meeting", self.advance_meeting());
             crate::timed!("sim.advance_player_talks", self.advance_player_talks());
             crate::timed!("sim.advance_travels", self.advance_travels());
+            // and the jobs folk asked of the Wanderer: picked up where
+            // they lie, handed over where they're bound
+            self.quest_frame();
             // and those with nowhere to walk keep to the day's plan
             self.amble();
             crate::timed!("sim.advance_minstrel", self.advance_minstrel());

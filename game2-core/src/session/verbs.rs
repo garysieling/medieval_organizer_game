@@ -177,7 +177,14 @@ impl Game {
         // the conversation itself goes on the TALK panel, the replies yours to pick
         self.open_player_talk(seat, v, rel, &said);
         if !coached.is_empty() { self.narrate_talk(seat, coached.trim()); }
-        format!("{}: \"{}\"{}", did, said, coached)
+        // and if they were the one the job was for, it's handed over now
+        let quest_note = self.quest_talk_done(seat, v);
+        let mut line = format!("{}: \"{}\"{}", did, said, coached);
+        if let Some(q) = quest_note {
+            self.log.push(q);
+            line.push_str(" - and the job's done.");
+        }
+        line
     }
 
     /// Distance from the player to villager `who`, in tiles
@@ -336,6 +343,14 @@ impl Game {
                 .unwrap_or(0);
             if lonely_known >= 2 {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
+            }
+            // and while they're asking within earshot: the odd job
+            // they've got going begging, till the seat's hands are full
+            let in_earshot = self.world.get_component::<Pos>(v)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= TALK_DIST)
+                .unwrap_or(false);
+            if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
+                self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
             }
         }
         // a house meeting is earned: the button shows once a place and a
@@ -681,6 +696,7 @@ impl Game {
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
                 }
             }
+            CtxAct::TakeJob => self.accept_quest_at(seat),
         };
         self.log.push(format!("t{}: {}", tick, msg));
     }

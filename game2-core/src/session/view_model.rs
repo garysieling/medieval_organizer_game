@@ -356,6 +356,7 @@ impl Game {
                 name: my_name, standing: crate::game::player::standing(my_influence).to_string(),
                 influence: my_influence, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
+                quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
             },
             mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)

@@ -64,6 +64,7 @@ mod perf;
 mod perfume;
 mod power;
 mod progression;
+mod quests;
 mod reckoning;
 mod river;
 mod sanction;

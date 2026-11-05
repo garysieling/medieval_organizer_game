@@ -215,6 +215,13 @@ fn main() {
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap {
             if let Some(m) = &cur_model {
+                // a toast that happened somewhere: the click jumps there
+                if let Some(i) = client::toast_hit(&m.toasts, mx, my) {
+                    if let Some(at) = m.toasts[i].at {
+                        (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                        cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    }
+                }
                 let ctx_specs: Vec<session::Button> = m.ctx.iter().map(|a| session::ctx_button(*a)).collect();
                 for (i, b) in ctx_specs.iter().enumerate() {
                     if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h {

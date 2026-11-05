@@ -188,6 +188,14 @@ pub struct ConvoPanelV {
     pub leave: bool,
 }
 
+/// A big moment announced at the top of the map; `at` is where it
+/// happened, when it happened somewhere - a click jumps the camera there
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToastV {
+    pub text: String,
+    pub at: Option<(f32, f32)>,
+}
+
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
@@ -219,7 +227,7 @@ pub struct UiModel {
     pub settlement_houses: Vec<(f32, f32, BSprite)>,
     pub people: Vec<PersonV>,
     pub bubbles: Vec<BubbleV>,
-    pub toasts: Vec<String>,
+    pub toasts: Vec<ToastV>,
     pub log: Vec<String>,
     /// The TALK panel, apart from the log
     #[serde(default)]

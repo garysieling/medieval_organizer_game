@@ -312,7 +312,8 @@ impl Game {
             let _ = made;
             if let Some(level) = up {
                 let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
-                self.toasts.push((format!("{} is now a {}!", vill_name(i), vocation::level_name(level)), tick + 30));
+                self.toasts.push_at((format!("{} is now a {}!", vill_name(i), vocation::level_name(level)), tick + 30),
+                    toast_spot(&self.world, v));
                 self.log.push(format!("t{}: {} is now a {} {}.", tick, vill_name(i), vocation::level_name(level).to_lowercase(), voc));
             }
         }

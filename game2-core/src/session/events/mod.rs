@@ -29,7 +29,7 @@ use crate::game::villager::{self, Pos};
 use crate::game::household;
 use crate::sim::illness::Health;
 use crate::game::mycology::MushKind;
-use super::{Game, Goal, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
+use super::{Game, Goal, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS, toast_spot};
 
 /// Which of the hundred
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -464,7 +464,8 @@ impl Game {
                             && bb.occupants.iter().any(|o| self.villagers.contains(o)))
                         .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
-                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                let home = homes.get((roll as usize / 7) % homes.len().max(1)).copied();
+                if let Some(h) = home {
                     for &o in self.world.get_component::<household::Building>(h)
                         .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
                         if villager::is_dead(&self.world, o) { continue; }
@@ -472,7 +473,8 @@ impl Game {
                     }
                 }
                 self.log.push(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick));
-                self.toasts.push(("A prodigal returns".into(), self.tick + 40));
+                self.toasts.push_at(("A prodigal returns".into(), self.tick + 40),
+                    home.and_then(|h| toast_spot(&self.world, h)));
             }
             EventId::KnifeGrinder => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }

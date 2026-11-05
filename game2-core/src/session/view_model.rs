@@ -340,7 +340,8 @@ impl Game {
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
             settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
                 (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),
-            toasts: self.toasts.iter().filter(|(_, until)| self.tick < *until).map(|(m, _)| m.clone()).collect(),
+            toasts: self.toasts.iter().filter(|(_, until, _)| self.tick < *until)
+                .map(|(m, _, at)| ToastV { text: m.clone(), at: *at }).collect(),
             // only the lines the window would show - cloning the whole
             // history every frame was the model's biggest copy
             log: visible_log(&self.log).into_iter().cloned().collect(),

@@ -15,6 +15,19 @@ fn test_the_feast_gathers_the_village() {
     assert!(g.travels.iter().any(|t| t.who == c), "he always shows");
 }
 
+/// Each season's feast carries its own name - a summer one isn't
+/// called the harvest, a winter one isn't Candlemas
+#[test]
+fn test_each_season_names_its_feast() {
+    let mut g = Game::new();
+    for (tick, name) in [(45, "May Day"), (135, "Midsummer"), (225, "the Harvest Home"), (315, "Yule")] {
+        let n = g.log.len();
+        g.festival_tick(tick);
+        assert!(g.log[n..].iter().any(|l| l.contains(name)),
+            "t{} should name {}, log says {:?}", tick, name, &g.log[n..]);
+    }
+}
+
 #[test]
 fn test_the_feast_feeds_the_wants() {
     let mut g = Game::new();

@@ -104,7 +104,7 @@ soul in the stocks is a scandal, not a lesson. Every seventh day is the
 holy day: the bell rings over the square, no work is done, and the
 faithful gather at the church for prayers - though a few keep the old
 rite at the stones or in the grove instead. And the year has its
-feast days: St. Swithin's, the Harvest Home, Candlemas, St. Martin's -
+feast days: May Day, Midsummer, the Harvest Home, Yule -
 the village gathers at the market, the good stock comes out, the truth
 comes out in the toasts, and the tax collector is never invited but
 always shows. Some of the cottages keep a garden bed beside the door -

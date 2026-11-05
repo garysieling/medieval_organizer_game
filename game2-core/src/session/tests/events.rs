@@ -25,6 +25,16 @@ fn test_every_event_is_scheduled() {
     }
 }
 
+/// The road is busy from the start: every event's first date falls in
+/// the opening months, not a year or more out where nobody sees it
+#[test]
+fn test_the_first_events_come_early() {
+    let g = Game::new();
+    for (id, d) in &g.next_rare {
+        assert!(*d >= 10 && *d < 130, "{:?} first due t{}, past the opening", id, d);
+    }
+}
+
 /// The tinker walks in, stands his pitch, mends what needs mending,
 /// and moves on - state the backend and the frame both show
 #[test]

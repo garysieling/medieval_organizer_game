@@ -473,7 +473,8 @@ impl Game {
     /// the wants that never quite get fed are fed
     pub fn festival_tick(&mut self, tick: u64) {
         if tick % 90 != 45 { return; }
-        const FEASTS: [&str; 4] = ["St. Swithin's day", "the Harvest Home", "Candlemas", "St. Martin's day"];
+        // one feast mid-season, named for the season it's in
+        const FEASTS: [&str; 4] = ["May Day", "Midsummer", "the Harvest Home", "Yule"];
         let feast = FEASTS[(tick / 90 % 4) as usize];
         self.log.push(format!("t{}: {} - the village gathers at the market.", tick, feast));
         // the good stock comes out: bread, honey, whatever the stalls held

@@ -121,6 +121,30 @@ pub fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
     (-((tx - ty) * TILE_W as f32).round() as i32, (ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32).round() as i32)
 }
 
+/// How close to the map view's rim the mouse has to be before the camera
+/// starts to drift, in px
+pub const EDGE_MARGIN: i32 = 28;
+/// The fastest that drift, in screen px per frame at zoom 1 - about a
+/// slow walk across the view, quicker the deeper the mouse sits
+pub const EDGE_SPEED: f32 = 3.0;
+
+/// The camera drift a mouse near the map view's rim asks for, in screen
+/// px per frame (the caller divides by zoom for a steady on-screen pace).
+/// Positive pushes the way the arrow keys do: +x pans the view left,
+/// +y pans it up. Zero outside the map view - the side panel and find
+/// box are not its rim.
+pub fn edge_scroll(mx: i32, my: i32) -> (f32, f32) {
+    if mx < 0 || mx >= MAP_W as i32 || my < 0 || my >= H as i32 { return (0.0, 0.0); }
+    let push = |pos: i32, hi: i32| -> f32 {
+        if pos < EDGE_MARGIN {
+            EDGE_SPEED * (EDGE_MARGIN - pos) as f32 / EDGE_MARGIN as f32
+        } else if pos > hi - EDGE_MARGIN {
+            -EDGE_SPEED * (pos - (hi - EDGE_MARGIN)) as f32 / EDGE_MARGIN as f32
+        } else { 0.0 }
+    };
+    (push(mx, MAP_W as i32), push(my, H as i32))
+}
+
 /// Font glyph width and height (ui::font)
 pub const GLYPH_W: i32 = 6;
 

@@ -25,6 +25,7 @@ mod disclosure;
 mod dog_sprite;
 mod drink;
 mod dungeon;
+mod edge;
 mod edict;
 mod events;
 mod festival;

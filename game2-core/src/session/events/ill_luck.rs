@@ -46,8 +46,7 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)
                         && self.world.get_component::<crate::game::vocation::Kid>(v).is_some()).collect();
                 let roll = self.rare_roll(id);
-                let lost_at = kids.get((roll as usize / 5) % kids.len().max(1))
-                    .and_then(|&k| toast_spot(&self.world, k));
+                let lost_at;
                 if let Some(&k) = kids.get((roll as usize / 5) % kids.len().max(1)) {
                     // the kid herself rides in aux - a roster shift can't
                     // send the wrong one home
@@ -59,6 +58,9 @@ impl Game {
                         p.x = wood.0 as f32;
                         p.y = wood.1 as f32;
                     }
+                    // capture after the move - the toast should point at
+                    // the wood she's lost in, not where she was standing
+                    lost_at = toast_spot(&self.world, k);
                     let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
                         .unwrap_or(self.tick + 2 * 80);
                     if let Some(hh) = household::home_of(&self.world, k) {
@@ -71,6 +73,7 @@ impl Game {
                     }
                     self.log.push(format!("t{}: a lost child - she's not come in for supper, and the wood's dark already.", self.tick));
                 } else {
+                    lost_at = None;
                     self.log.push(format!("t{}: a child was late for supper - it gave the village a turn.", self.tick));
                 }
                 self.toasts.push_at(("A lost child".into(), self.tick + 40), lost_at);

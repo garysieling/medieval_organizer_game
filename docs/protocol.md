@@ -144,6 +144,16 @@ The figure whose `e` is your `you` is you. Only what the seat can see is
 here: no one's secret wants, no hidden sickness, no true strength of the
 org (see `docs/architecture.md`, public vs secret).
 
+`toasts` holds the banners announced at the top of the map, each a
+`{"text":"...","at":[x,y]|null}`: `at` is where it happened, for a click
+to jump the camera there, or `null` for a sky-wide omen with no spot to
+visit (hail, drought, aurora...).
+
+```
+{"text":"A chimney fire!","at":[12.0,9.0]}
+{"text":"A hailstorm batters the thatch","at":null}
+```
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

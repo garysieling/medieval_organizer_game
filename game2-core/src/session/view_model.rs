@@ -334,9 +334,12 @@ impl Game {
         });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];
         // the bond ledger: who the seat has spoken to, by how far each
-        // relationship has climbed - the same stages the inspector names
+        // relationship has climbed - the same stages the inspector names.
+        // rapport is talk-only, so a barter or a shared meal can't pad
+        // the "spoken to" headline the way any stage_of bond could
         let mut social = SocialV::default();
         for &v in &self.villagers {
+            if crate::game::player::rapport(world, self.seats[seat].player, v) <= 0.0 { continue; }
             use crate::game::organizing::RelStage;
             match crate::game::organizing::stage_of(world, self.seats[seat].player, v) {
                 RelStage::Stranger => {}

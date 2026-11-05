@@ -69,9 +69,9 @@ fn test_the_panel_counts_the_bonds_the_seat_has_made() {
         crate::game::player::act_talk(&mut game.world, player, v, tick);
     }
     let m = game.ui_model();
-    // folk the sim already introduced themselves to count too - the
-    // ledger is everyone the seat knows, not just who it sought out
-    assert!(m.panel.social.met >= n, "each talked-to villager counts");
+    // rapport is talk-only: the ledger counts exactly who this seat
+    // has conversed with, not bonds made some other way
+    assert_eq!(m.panel.social.met, n, "each talked-to villager counts");
     let stages = m.panel.social.acquaintances + m.panel.social.known
         + m.panel.social.followers + m.panel.social.coleaders;
     assert_eq!(stages, m.panel.social.met, "met is the stages summed");

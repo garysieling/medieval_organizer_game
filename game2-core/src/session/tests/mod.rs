@@ -56,6 +56,7 @@ mod market;
 mod member_line;
 mod minimap;
 mod organize;
+mod pacing;
 mod painter;
 mod panel;
 mod pedlar;

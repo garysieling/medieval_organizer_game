@@ -98,7 +98,7 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     assert!(g.seats[0].pending_founding.is_some());
     // held open: the calendar runs at the house-meeting's half pace
-    let base = if g.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+    let base = if g.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
     assert_eq!(g.ticks_per_frame(), base * 2);
     // short of a week unanswered: still held open, still slow
     g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS - 1);

@@ -996,10 +996,10 @@ impl std::ops::DerefMut for Game {
 
 impl Game {
     pub fn ticks_per_frame(&self) -> u32 {
-        // frames per day: ~7s/day normal, ~1.2s turbo; a house meeting (or
+        // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
         // room's talk can be read as it's said
-        let base = if self.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+        let base = if self.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
         if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
     }
 

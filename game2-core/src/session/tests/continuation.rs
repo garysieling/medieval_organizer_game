@@ -17,17 +17,16 @@ fn test_the_work_goes_on() {
 }
 
 #[test]
-fn test_the_standing_passes_half_on() {
+fn test_the_purse_passes_on() {
     let mut g = Game::new();
     let succ = g.villagers[5];
     g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(succ);
-    g.world.get_component_mut::<PlayerCharacter>(g.player).unwrap().influence = 1.6;
+    g.world.get_component_mut::<PlayerCharacter>(g.player).unwrap().resources = 42.0;
     g.world.add_component(g.player, villager::Dead);
     g.continuation_tick(1);
     assert_eq!(g.player, succ);
     let p = g.world.get_component::<PlayerCharacter>(succ).unwrap();
-    assert!((p.influence - 0.8).abs() < 1e-5,
-        "the standing passes half on - got {}", p.influence);
+    assert_eq!(p.resources, 42.0, "the purse passes to whoever takes up the work");
 }
 
 #[test]

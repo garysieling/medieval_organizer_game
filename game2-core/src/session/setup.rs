@@ -497,7 +497,7 @@ impl Game {
         }
 
         let player = world.create_entity();
-        world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 100.0 });
         world.add_component(player, Pos { x: (vx - 6) as f32, y: (vy - 6) as f32 }); // player has a position
         let org = world.create_entity();
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
@@ -814,7 +814,6 @@ impl Game {
             chicken_at: (gate_x as f32 + 0.4, farm_y as f32 + 0.3),
             rng,
             built_count: 0,
-            leader_named: false,
             works: vec![],
             rival_homes,
             toasts: Toasts::default(),

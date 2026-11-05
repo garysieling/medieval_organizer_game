@@ -287,9 +287,9 @@ impl Game {
         // a player seat drives a PlayerCharacter; an agent seat drives a plain
         // villager, whose panel is their own name and purse
         let me = self.seats[seat].player;
-        let (my_name, my_influence, my_gold) = match world.get_component::<PlayerCharacter>(me) {
-            Some(p) => (p.name.clone(), p.influence, p.resources),
-            None => (self.name_of(me), 0.0,
+        let (my_name, my_gold) = match world.get_component::<PlayerCharacter>(me) {
+            Some(p) => (p.name.clone(), p.resources),
+            None => (self.name_of(me),
                 world.get_component::<Purse>(me).map(|p| p.gold).unwrap_or(0.0)),
         };
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
@@ -353,8 +353,7 @@ impl Game {
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
             inspector,
             panel: PanelV {
-                name: my_name, standing: crate::game::player::standing(my_influence).to_string(),
-                influence: my_influence, gold: my_gold,
+                name: my_name, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
             },

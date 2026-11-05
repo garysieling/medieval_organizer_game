@@ -161,6 +161,17 @@ pub(crate) fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
     (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
 }
 
+/// The bobbing gold dart over the player's head - the one mark that says
+/// "this one is you" even when the crowd presses the name away. `top` is
+/// the y just above where the name label sits
+pub(crate) fn draw_player_marker(buf: &mut Buffer, cx: i32, top: i32, zoom: f32, frame: u32) {
+    let bob = ((frame as f32 * 0.12).sin() * 2.0 * zoom).round() as i32;
+    let cy = top - (9.0 * zoom).round() as i32 - bob;
+    let (hw, hh) = ((5.0 * zoom).round().max(2.0) as i32, (7.0 * zoom).round().max(3.0) as i32);
+    buf.diamond(cx, cy, hw + 1, hh + 1, 30, 22, 4);
+    buf.diamond(cx, cy, hw, hh, 255, 215, 0);
+}
+
 
 /// Base colour of a terrain tile by height - shared by the map and minimap
 /// so they agree on what is water, grass, fields, hills and peaks

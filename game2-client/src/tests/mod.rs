@@ -19,6 +19,7 @@ mod inspector;
 mod label;
 mod legend;
 mod log_day;
+mod marker;
 mod member_line;
 mod minimap;
 mod minimap_dead;

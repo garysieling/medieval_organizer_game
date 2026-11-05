@@ -527,6 +527,7 @@ impl View {
                     }
                     let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
+                    draw_player_marker(&mut buf, sx, ly - 2, zoom, m.frame);
                     labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
                 },
                 Who::P(_) => {},

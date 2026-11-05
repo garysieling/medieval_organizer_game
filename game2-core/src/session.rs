@@ -155,10 +155,6 @@ const VILLAGE_RADIUS: f32 = 7.0;
 const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
 const BUILD_COST: f32 = 30.0;
-/// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
-const MILL_TILE: (f32, f32) = (10.0, 9.0);
-/// The church: on the market square's north side, facing the cross
-const CHURCH_TILE: (i32, i32) = (16, 13);
 /// Every fourth row and column through the market is a street: blocks
 /// three plots deep, the houses fronting the street and a yard behind
 const STREET_EVERY: i32 = 4;
@@ -170,14 +166,13 @@ const TRADE_PLOTS: usize = 26;
 /// The town's streets inside the wall: a grid through the market cross,
 /// every fourth row and column - the church and the mill keep their own
 /// tiles (the square round the cross is left open green, see town_plots)
-fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
-    let (hx, hy) = (16, 16);
+fn town_streets(wall: (i32, i32, i32, i32), hub: (i32, i32), keep: [(i32, i32); 2]) -> Vec<(i32, i32)> {
+    let (hx, hy) = hub;
     let mut out = vec![];
     for y in wall.1 + 1..wall.3 {
         for x in wall.0 + 1..wall.2 {
             let on_grid = (x - hx).rem_euclid(STREET_EVERY) == 0 || (y - hy).rem_euclid(STREET_EVERY) == 0;
-            if on_grid && (x, y) != CHURCH_TILE
-                && (x, y) != (MILL_TILE.0 as i32, MILL_TILE.1 as i32) {
+            if on_grid && !keep.contains(&(x, y)) {
                 out.push((x, y));
             }
         }
@@ -187,8 +182,8 @@ fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
 
 /// The building plots inside the wall: open cells fronting a street (the
 /// block's inner cells stay yards), nearest the market square first
-fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
-    let (hx, hy) = (16, 16);
+fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32), hub: (i32, i32)) -> Vec<(i32, i32)> {
+    let (hx, hy) = hub;
     let mut plots: Vec<(i32, i32)> = (wall.1 + 1..wall.3).flat_map(|y| (wall.0 + 1..wall.2).map(move |x| (x, y)))
         .filter(|&(x, y)| map.buildable(x, y)
             // the market square stays open: the stalls and the crowd's
@@ -709,6 +704,10 @@ pub struct Game {
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),
+    /// The market cross this seed's village grew round (tiles)
+    pub village: (i32, i32),
+    /// Where the windmill ended up (it's animated, so drawn apart from `buildings`)
+    pub mill: (f32, f32),
     /// The watch standing just inside each gate
     pub guards: Vec<(f32, f32)>,
     /// Knights posted to the streets after a crackdown, tagged with the

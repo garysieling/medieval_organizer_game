@@ -80,6 +80,7 @@ mod telemetry;
 mod trade_issue;
 mod trail;
 mod vermin;
+mod village;
 mod walk;
 mod weaver;
 mod winter;

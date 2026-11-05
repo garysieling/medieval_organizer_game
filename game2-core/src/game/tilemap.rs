@@ -477,6 +477,18 @@ impl TileMap {
         })
     }
 
+    /// The walkable cell nearest (x, y), searching outward ring by ring:
+    /// for a site that need not be buildable (a cave mouth, a mushroom
+    /// patch), just clear ground the seed's terrain might not have drawn
+    /// right at the anchor
+    pub fn nearest_passable(&self, x: i32, y: i32) -> Option<(i32, i32)> {
+        (0..self.width.max(self.height) as i32).find_map(|r| {
+            let ring = (-r..=r).flat_map(move |dy| (-r..=r).map(move |dx| (dx, dy)))
+                .filter(move |(dx, dy)| dx.abs().max(dy.abs()) == r);
+            ring.map(|(dx, dy)| (x + dx, y + dy)).find(|&(cx, cy)| self.passable(cx, cy))
+        })
+    }
+
     /// Run the river through its waypoints, mostly straight with the odd
     /// jog, then on to the sea. It springs where the course first reaches
     /// land (a course may start out at sea) and ends at the next water.

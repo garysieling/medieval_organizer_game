@@ -357,7 +357,7 @@ impl Game {
                 influence: my_influence, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
             },
-            mill: Some((MILL_TILE.0, MILL_TILE.1)),
+            mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
             mush: self.mush_patches.iter().filter(|p| self.tick >= p.next_ready)

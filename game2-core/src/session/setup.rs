@@ -625,11 +625,14 @@ impl Game {
                 world.add_component(villagers[i], villager::Condition { kind });
             }
         }
-        // and the recluse keeps to the cave at the map's edge
+        // and the recluse keeps to the cave at the map's edge - the same
+        // offset from the village as the classic seed's corner, nudged
+        // onto passable ground if the seed's terrain doesn't have it there
+        let cave_pos = map.nearest_passable(vx + 20, vy + 17).unwrap_or((vx + 20, vy + 17));
         let hermit_e = villagers.get(22).copied();
         if let Some(h) = hermit_e {
             world.add_component(h, TownRole::Hermit);
-            world.add_component(h, Pos { x: 36.0, y: 33.0 });
+            world.add_component(h, Pos { x: cave_pos.0 as f32, y: cave_pos.1 as f32 });
         }
         // the heart-helper: one elder who keeps an eye on lonely hearts
         let matchmaker = villagers.get(27).copied();
@@ -718,7 +721,8 @@ impl Game {
         }
         // the cave's deep patch: the best mushrooms grow in the under -
         // pushed last so the wood's poisoned patches keep their numbers
-        mush_patches.push(MushPatch { tile: (35, 33), kind: MushKind::UnderCap, next_ready: 0 });
+        let undercap_tile = map.nearest_passable(cave_pos.0 - 1, cave_pos.1).unwrap_or((cave_pos.0 - 1, cave_pos.1));
+        mush_patches.push(MushPatch { tile: undercap_tile, kind: MushKind::UnderCap, next_ready: 0 });
         // hens scratch about a few of the cottages' yards
         let mut hens = vec![];
         let mut hen_houses: Vec<Entity> = vec![];
@@ -902,7 +906,7 @@ impl Game {
             painted: vec![],
             heirlooms: vec![],
             letters: vec![],
-            cave_pos: Some((36, 33)),
+            cave_pos: Some(cave_pos),
             player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),

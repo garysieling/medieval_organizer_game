@@ -620,7 +620,12 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     game.speed = opts.game_speed;
     let mut view = View::new(art);
     view.zoom = opts.zoom;
-    if let Some(cam) = opts.cam { (view.cam_x, view.cam_y) = cam; }
+    match opts.cam {
+        Some(cam) => (view.cam_x, view.cam_y) = cam,
+        // no explicit camera: start over this seed's village instead of
+        // View::new's fixed corner, in case it moved
+        None => if let Some((mx, my)) = game.ui_model().market { (view.cam_x, view.cam_y) = camera_on(mx, my); },
+    }
 
     let mut script: BTreeMap<u64, Vec<ScriptOp>> = BTreeMap::new();
     for (f, op) in std::mem::take(&mut opts.script) { script.entry(f).or_default().push(op); }

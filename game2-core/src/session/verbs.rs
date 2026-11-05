@@ -63,9 +63,6 @@ impl Game {
         // selected villager alive (they walk over to them)
         let target = self.villagers[if (i == 0 || i == 1) && self.seats[seat].picked { self.seats[seat].selected_target } else { self.reach_target_at(seat) }];
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let influence = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
-            .map(|p| p.influence).unwrap_or(0.0);
-        let recruit_infl_ok = can_recruit(influence);
         let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
@@ -74,9 +71,8 @@ impl Game {
         else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
-        else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
-            && crate::game::player::rapport(&self.world, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
+            && crate::game::player::rapport(&self.world, self.seats[seat].player, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
         else { None }
     }
 
@@ -298,8 +294,7 @@ impl Game {
             }
         };
         // every action line is dated like the rest of the log. It doesn't
-        // show the influence it earned: the log reads as what happened in
-        // the village, not a score sheet (the panel's bar shows standing)
+        // show a score: the log reads as what happened in the village
         if !talked { self.log.push(format!("t{}: {}", tick, msg)); }
         // gold spent here is the same purse the day's trading counts
         let pe = self.seats[seat].player; sync_purse(&mut self.world, pe, true);

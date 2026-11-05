@@ -72,7 +72,9 @@ impl Game {
             || self.world.get_component::<crate::session::country::Outlander>(v).is_some() {
             return false;
         }
-        crate::game::player::rapport(&self.world, v) >= OFFER_RAPPORT
+        // asked of "the Wanderer" broadly: it's enough that one of the
+        // connected players has gotten to know them, not every seat
+        self.seats.iter().any(|s| crate::game::player::rapport(&self.world, s.player, v) >= OFFER_RAPPORT)
     }
 
     /// The nearest passable tile to (x, y), spiralling out a few steps

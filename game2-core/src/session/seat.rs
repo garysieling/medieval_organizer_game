@@ -145,7 +145,7 @@ impl Game {
         let player = self.world.create_entity();
         let gold = livelihood::seed_gold(SocialClass::Working, false, self.rng.next() as f32 / u64::MAX as f32);
         self.world.add_component(player, PlayerCharacter {
-            name: "A Wanderer".into(), influence: 0.1, authority: 0.0, resources: gold, standing: 0.0 });
+            name: "A Wanderer".into(), resources: gold });
         let mp = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x + 2.0, p.y + 1.0)).unwrap_or((10.0, 10.0));
         self.world.add_component(player, Pos { x: mp.0, y: mp.1 });
         self.world.add_component(player, vocation::craft(roll_vocation(&mut self.rng), 0.2));
@@ -341,10 +341,17 @@ impl Game {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
                 let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
                 if mx < MAP_W as i32 && d < 24.0 {
-                    let p_inf = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).unwrap().influence;
-                    let (msg, tag) = if p_inf > 1.5 {
+                    // the rivals read the cause, not a score: leading an
+                    // org with members opens the door, a cause with anyone
+                    // in it gets a wary word, and otherwise you're a stranger
+                    let (is_leader, has_cause) = self.world
+                        .get_component::<Organization>(self.seats[seat].org)
+                        .map(|o| (o.leader == self.seats[seat].player,
+                            o.members.iter().any(|&m| !crate::game::villager::is_dead(&self.world, m))))
+                        .unwrap_or((false, false));
+                    let (msg, tag) = if is_leader {
                         (format!("{}: we've heard of you - the organizer.", RIVAL_NAMES[i]), "opened")
-                    } else if p_inf > 0.8 {
+                    } else if has_cause {
                         (format!("{}: word travels. state your business.", RIVAL_NAMES[i]), "wary")
                     } else {
                         (format!("{}: we don't know you, outsider.", RIVAL_NAMES[i]), "rebuffed")

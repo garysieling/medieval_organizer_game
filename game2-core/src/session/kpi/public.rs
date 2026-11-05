@@ -18,7 +18,6 @@ pub fn public_kpis(m: &UiModel) -> Vec<(&'static str, f64)> {
     vec![
         ("day", m.tick as f64),
         ("you.gold", m.panel.gold as f64),
-        ("you.influence", m.panel.influence as f64),
         ("org.members", m.panel.members.len() as f64),
         ("org.issues", m.panel.issues.len() as f64),
         ("org.campaign", if m.panel.campaign.is_some() { 1.0 } else { 0.0 }),

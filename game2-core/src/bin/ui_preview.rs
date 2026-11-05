@@ -81,7 +81,7 @@ fn main() {
         villagers.push(v);
     }
     let player = world.create_entity();
-    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 1.2, authority: 0.0, resources: 87.0, standing: 0.0 });
+    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 87.0 });
     let org = world.create_entity();
     world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![villagers[0], villagers[1]], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
 
@@ -132,9 +132,6 @@ fn main() {
     draw_text_scaled(&mut buf, UI_X + 10, 8, "THE WANDERER", 2, 255, 220, 130);
     let p = world.get_component::<PlayerCharacter>(player).unwrap();
     let members = world.get_component::<Organization>(org).unwrap().members.len();
-    draw_text(&mut buf, UI_X + 10, 30, "Influence", 200, 200, 200);
-    buf.rect(UI_X + 90, 30, 140, 10, 40, 40, 60);
-    buf.rect(UI_X + 90, 30, (p.influence * 50.0).min(140.0) as i32, 10, 255, 200, 80);
     draw_text(&mut buf, UI_X + 10, 44, &format!("Org: {} | Guilds: 1 | Gold: {:.0}", members, p.resources), 200, 200, 200);
 
     let buttons = vec![

@@ -17,12 +17,6 @@ impl Game {
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))
             .filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i)))
             .collect();
-        // a member won at a meeting counts toward leading the village just
-        // like one won with Recruit - otherwise every meeting recruit is
-        // influence the player can never get back (they can't be Recruited)
-        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) {
-            p.influence += RECRUIT_INFLUENCE * joined.len() as f32;
-        }
         let outcome = if joined.is_empty() {
             "No one joins yet, but they'll remember the conversation.".to_string()
         } else {
@@ -80,18 +74,6 @@ impl Game {
         } else { crate::sim::organized_power::ActionQuality::Overreach });
         let founded = self.meeting_call(seat, record, invited).map(|s| format!(" {}", s)).unwrap_or_default();
         format!("House meeting - {} came. {}{}{}", invited.len(), outcome, found, founded)
-    }
-
-    /// The day any seat's influence first passes WIN_INFLUENCE the village
-    /// names them its leader - a line in the log, and play goes on
-    pub(in crate::session) fn note_leader(&mut self) {
-        if self.leader_named { return; }
-        let led = self.seats.iter().any(|s| self.world.get_component::<PlayerCharacter>(s.player)
-            .map(|p| p.influence > WIN_INFLUENCE).unwrap_or(false));
-        if !led { return; }
-        self.leader_named = true;
-        self.toasts.push(("the village names you its leader".into(), self.tick + 60));
-        self.log.push(format!("t{}: the village names you its leader - there's still work to do.", self.tick));
     }
 
     /// The founding vote, when the org can take one: enough living

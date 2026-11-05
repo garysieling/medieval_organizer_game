@@ -58,7 +58,7 @@ fn main() {
             name: format!("M{}",i), wealth: 60.0, trade_routes: vec!["r".into()], vulnerable: i<2 });
     }
     let player = world.create_entity();
-    world.add_component(player, PlayerCharacter { name: "W".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+    world.add_component(player, PlayerCharacter { name: "W".into(), resources: 100.0 });
     world.add_component(player, Pos { x: 10.0, y: 10.0 });
     let org = world.create_entity();
     world.add_component(org, Organization { name: "Org".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Aid".into() });

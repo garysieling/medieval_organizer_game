@@ -1,5 +1,5 @@
 //! THE GAME: playable medieval village sim.
-//! You are The Wanderer - an outsider building influence through organizing.
+//! You are The Wanderer - an outsider earning trust through organizing.
 //! Actions each turn: talk, recruit, invest, organize, build, wait.
 
 use std::io::{self, Write};
@@ -20,8 +20,8 @@ use game2_core::sim::organized_power::{OrganizedPower, PowerAtrophySystem};
 
 fn main() {
     println!("=== THE WANDERER ===\n");
-    println!("You arrive in a village with nothing. Build influence,");
-    println!("organize the villagers, gain real power.\n");
+    println!("You arrive in a village with nothing. Earn trust,");
+    println!("organize the villagers, win them over.\n");
 
     let mut world = World::new();
     let mut sched = Scheduler::new();
@@ -53,7 +53,7 @@ fn main() {
 
     // Player + org
     let player = world.create_entity();
-    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 100.0 });
     let org = world.create_entity();
     world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
     world.add_component(org, OrganizedPower::new()); // grows with house meetings
@@ -130,7 +130,6 @@ fn main() {
         let result = match choice {
             't' => execute_choice(&mut world, player, org, MenuActionType::Talk, Some(target), tick),
             'r' => execute_choice(&mut world, player, org, MenuActionType::Recruit, Some(target), tick),
-            'i' => execute_choice(&mut world, player, org, MenuActionType::Invest, None, tick),
             'o' => execute_choice(&mut world, player, org, MenuActionType::Organize, Some(target), tick),
             'c' => execute_choice(&mut world, player, org, MenuActionType::Contract, Some(target), tick),
             'b' => execute_choice(&mut world, player, org, MenuActionType::Build, None, tick),
@@ -186,10 +185,10 @@ fn main() {
             }
         }
 
-        // Win/lose check
-        let p = world.get_component::<PlayerCharacter>(player).unwrap();
-        if p.influence > game2_core::game::player::LEAD_INFLUENCE {
-            println!("\n*** You are now the recognized leader of the village! ***");
+        // Win/lose check: the village follows when the cause holds most of it
+        let members = world.get_component::<Organization>(org).map(|o| o.members.len()).unwrap_or(0);
+        if members * 2 > villagers.len() {
+            println!("\n*** The village follows you - {} of {} are yours. ***", members, villagers.len());
             println!("The Wanderer became someone who matters.");
             break;
         }

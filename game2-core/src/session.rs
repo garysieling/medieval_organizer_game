@@ -35,7 +35,7 @@ use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
-use crate::game::player::{PlayerCharacter, act_talk, act_recruit, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
+use crate::game::player::{PlayerCharacter, act_talk, act_recruit, TalkCount};
 use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
@@ -61,10 +61,6 @@ use crate::sim::reputation_qsp::{ReputationState, RepAction, RepStage};
 use crate::sim::trails::{self, Trail, TrailParams};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
-
-/// Influence at which the village recognizes the player as its leader (the
-/// win) - the same goal as the text game
-pub const WIN_INFLUENCE: f32 = crate::game::player::LEAD_INFLUENCE;
 
 pub fn rgb(r: u8, g: u8, b: u8) -> u32 { ((r as u32) << 16) | ((g as u32) << 8) | b as u32 }
 
@@ -749,9 +745,6 @@ pub struct Game {
     /// sprites (e.g. which cottage each new build gets)
     pub rng: Rng,
     pub built_count: usize,
-    /// The village has named the player its leader (crossing WIN_INFLUENCE).
-    /// It's a milestone, not the end: the game carries on
-    pub leader_named: bool,
     pub works: Vec<Works>, // houses still being built
     pub toasts: Toasts,  // (msg, shown until tick, where it happened)
     pub last_guild_count: usize,
@@ -1118,7 +1111,6 @@ impl Game {
         }
         // the town's business each day: work, errands, taxes
         if ticked { crate::timed!("total.day", self.livelihood_tick(self.tick)); }
-        if ticked { self.note_leader(); }
         // where everyone stood, so no one ends the frame inside a wall or a house
         let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
         let stood: Vec<Option<Pos>> = people.iter().map(|e| self.world.get_component::<Pos>(*e).copied()).collect();

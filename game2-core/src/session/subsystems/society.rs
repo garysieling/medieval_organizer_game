@@ -395,12 +395,12 @@ impl Game {
             self.log.push(format!("t{}: the work dies with them - no hands left to take it up.", tick));
             return;
         };
-        // the purse and the standing pass; the influence is theirs to make
-        let (res, standing) = self.world.get_component::<PlayerCharacter>(self.player)
-            .map(|p| (p.resources, p.influence)).unwrap_or((0.0, 0.0));
+        // the purse passes; the name and the work are theirs to make
+        let res = self.world.get_component::<PlayerCharacter>(self.player)
+            .map(|p| p.resources).unwrap_or(0.0);
         self.world.add_component(succ, PlayerCharacter {
-            name: self.name_of(succ), influence: standing * 0.5,
-            authority: 0.0, resources: res, standing,
+            name: self.name_of(succ),
+            resources: res,
         });
         let name = self.name_of(succ);
         self.player = succ;

@@ -120,8 +120,6 @@ pub struct CampaignV {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelV {
     pub name: String,
-    pub standing: String,
-    pub influence: f32,
     pub gold: f32,
     pub org: String,
     pub members: Vec<String>,

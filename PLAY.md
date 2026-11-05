@@ -47,18 +47,18 @@ cargo run --bin game           # text-mode version
 
 ## The Game
 
-You are **The Wanderer** - an outsider who arrives with nothing. You can't command anyone. Build influence by talking, organizing, recruiting.
+You are **The Wanderer** - an outsider who arrives with nothing. You can't command anyone. Earn trust by talking, organizing, recruiting.
 
 ## The Game
 
-You are **The Wanderer** - an outsider who arrives in a medieval village with nothing but the clothes on your back. You can't command anyone. You build influence by talking to people, organizing them, and earning trust.
+You are **The Wanderer** - an outsider who arrives in a medieval village with nothing but the clothes on your back. You can't command anyone. You earn trust by talking to people, organizing them, and proving yourself.
 
 ### The Core Loop
 
 1. **Talk** to villagers (1-1 meetings) - learn their concerns, build relationships
 2. **Recruit** them to your organization (trust-gated)
 3. **Organize** house meetings, committees, actions
-4. **Build** houses and grow your influence into actual power
+4. **Build** houses and grow your standing in the village
 
 ### The Town
 

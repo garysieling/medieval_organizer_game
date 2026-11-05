@@ -125,7 +125,7 @@ impl Game {
                 let dead_end = match q.target {
                     QuestTarget::Villager(v) => crate::game::villager::is_dead(&self.world, v),
                     QuestTarget::Site(i) => i >= self.sites.len(),
-                } || q.pickup.map(|(x, y)| !self.map.passable(x.round() as i32, y.round() as i32)).unwrap_or(false);
+                } || q.pickup.map(|(x, y)| !self.map.passable(x.floor() as i32, y.floor() as i32)).unwrap_or(false);
                 if dead_end {
                     let who = self.name_of(q.giver);
                     self.seats[seat].quest = None;
@@ -166,6 +166,12 @@ impl Game {
     /// to run
     pub fn accept_quest_at(&mut self, seat: usize) -> String {
         let v = self.villagers[self.seats[seat].selected_target];
+        // they're still asking, but only within earshot - walk over first
+        let (px, py) = self.player_pos_at(seat);
+        let near = self.world.get_component::<Pos>(v)
+            .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= TALK_DIST)
+            .unwrap_or(false);
+        if !near { return "They're too far off to hear you - walk over first.".into(); }
         let Some(i) = self.pending_quests.iter().position(|q| q.giver == v) else {
             return "They haven't got anything to ask you.".into();
         };
@@ -264,6 +270,9 @@ impl Game {
         // a little gold for the leg-work, more for the long walk out
         let pay = match q.target { QuestTarget::Site(_) => 5.0, _ => 3.0 };
         let pe = self.seats[seat].player;
+        // both purses: the panel reads resources, trades move the Purse,
+        // and act_at's sync would wash out a payment in only one of them
+        if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { p.resources += pay; }
         if let Some(p) = self.world.get_component_mut::<livelihood::Purse>(pe) { p.gold += pay; }
         let thanks = match q.kind {
             QuestKind::Note => format!("The note reached {} - and {} remembers it.", self.name_of(v), giver),
@@ -279,6 +288,7 @@ impl Game {
         let name = self.sites.get(site).map(|s| s.name).unwrap_or("the village");
         let giver = self.name_of(q.giver);
         let pe = self.seats[seat].player;
+        if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { p.resources += 5.0; }
         if let Some(p) = self.world.get_component_mut::<livelihood::Purse>(pe) { p.gold += 5.0; }
         self.log.push(format!("t{}: the parcel reaches {} - word gets back to {}. (5g)", self.tick, name, giver));
         self.toasts.push((format!("The parcel reached {}", name), self.tick + 60));

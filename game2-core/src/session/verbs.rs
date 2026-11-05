@@ -344,9 +344,12 @@ impl Game {
             if lonely_known >= 2 {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
             }
-            // and while they're asking: the odd job they've got going
-            // begging, till the seat's hands are full with one
-            if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() {
+            // and while they're asking within earshot: the odd job
+            // they've got going begging, till the seat's hands are full
+            let in_earshot = self.world.get_component::<Pos>(v)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= TALK_DIST)
+                .unwrap_or(false);
+            if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
                 self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
             }
         }

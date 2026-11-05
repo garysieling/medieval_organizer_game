@@ -109,6 +109,7 @@ pub struct InspectorV {
     pub fig: Option<usize>,
     /// The figure is a child: the portrait wears a young look, not the
     /// grown-up one the bare index would cycle to
+    #[serde(default)]
     pub kid: bool,
     /// Draw a grave portrait (died on `died_day`)
     pub dead: bool,

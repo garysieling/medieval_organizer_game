@@ -145,6 +145,13 @@ The figure whose `e` is your `you` is you. Only what the seat can see is
 here: no one's secret wants, no hidden sickness, no true strength of the
 org (see `docs/architecture.md`, public vs secret).
 
+`inspector` is the card for the current selection: `fig` (the portrait's
+villager index, or `null` for a building or a grave), `kid` (draw the
+portrait with a child's look, not the grown-up one `fig`'s bare index
+would otherwise cycle to), `dead` and `died_day` (a grave portrait), and
+`lines` (pre-formatted inspector text). Old servers never sent `kid`; it
+defaults to `false` when absent.
+
 `toasts` holds the banners announced at the top of the map, each a
 `{"text":"...","at":[x,y]|null}`: `at` is where it happened, for a click
 to jump the camera there, or `null` for a sky-wide omen with no spot to

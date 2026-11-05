@@ -32,3 +32,19 @@ fn test_bond_lines_headline_and_breakdown() {
     assert_eq!(lines[2], "2 followers · 1 co-leader");
     for l in &lines { assert!(l.len() <= 46, "the line must fit the panel: {l}"); }
 }
+
+#[test]
+fn test_meeting_lines_name_the_yeses() {
+    let mp = MeetingPlanV {
+        coming: vec!["Willa".into(), "Bram".into()],
+        spreaders: vec!["Corvin".into()],
+        roles: vec!["house: Aldric".into(), "notes: Nell".into()],
+    };
+    assert_eq!(meeting_lines(&mp), vec![
+        "coming: Willa, Bram".to_string(),
+        "bringing friends: Corvin".to_string(),
+        "house: Aldric · notes: Nell".to_string(),
+    ]);
+    // an empty plan says nothing
+    assert!(meeting_lines(&MeetingPlanV::default()).is_empty());
+}

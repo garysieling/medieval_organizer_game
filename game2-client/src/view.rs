@@ -595,7 +595,17 @@ impl View {
             }
         }
 
-        // inspector: a villager's card, or a building's when one's clicked
+        // the house-meeting plan filling in: who's said yes, by name -
+        // sits under the Gather button's slot, above the inspector card
+        if let Some(mp) = &m.panel.meeting {
+            draw_text(&mut buf, UI_X as i32 + 18, 272, "MEETING", 255, 215, 0);
+            let lines: Vec<String> = meeting_lines(mp).iter()
+                .flat_map(|l| wrap_text(l, 42)).collect();
+            for (n, line) in lines.iter().take(3).enumerate() {
+                draw_text(&mut buf, UI_X as i32 + 18, 284 + n as i32 * 11, line, 220, 220, 180);
+            }
+        }
+
         // inspector: a villager's card, or a building's when one's clicked
         if self.inspector_open {
             draw_rect(&mut buf, UI_X as i32 + 10, 316, 270, 140, 45, 45, 65);

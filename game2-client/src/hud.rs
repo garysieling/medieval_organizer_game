@@ -126,6 +126,16 @@ pub(crate) fn bond_lines(s: &SocialV) -> Vec<String> {
     lines
 }
 
+/// The house-meeting plan's yeses as sidebar lines: who's said they'd
+/// come, who'll bring friends, and the promises already filled
+pub(crate) fn meeting_lines(m: &MeetingPlanV) -> Vec<String> {
+    let mut out = vec![];
+    if !m.coming.is_empty() { out.push(format!("coming: {}", m.coming.join(", "))); }
+    if !m.spreaders.is_empty() { out.push(format!("bringing friends: {}", m.spreaders.join(", "))); }
+    if !m.roles.is_empty() { out.push(m.roles.join(" · ")); }
+    out
+}
+
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
 pub(crate) fn text_width(text: &str, scale: usize) -> i32 {

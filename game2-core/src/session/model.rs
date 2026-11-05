@@ -151,6 +151,9 @@ pub struct PanelV {
     /// Who the seat has gotten to know, by how far each bond runs
     #[serde(default)]
     pub social: SocialV,
+    /// The house meeting being planned: who said yes to what, so the
+    /// seat can see the plan fill before it calls the meeting
+    pub meeting: Option<MeetingPlanV>,
 }
 
 /// The seat's bond ledger: folk they've talked to, counted by the stage
@@ -163,6 +166,16 @@ pub struct SocialV {
     pub known: usize,
     pub followers: usize,
     pub coleaders: usize,
+}
+
+/// The meeting plan's yeses, by name - who's said they'd come, who'll
+/// bring friends, and the promises already filled ("house: Willa")
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MeetingPlanV {
+    pub coming: Vec<String>,
+    pub spreaders: Vec<String>,
+    /// Role promises as "role: name" lines (house, snacks, notes...)
+    pub roles: Vec<String>,
 }
 
 /// Which of the action buttons is blocked and why

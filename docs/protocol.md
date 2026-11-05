@@ -172,6 +172,11 @@ count toward `met` - a barter or a shared meal alone doesn't.
 
 Scenes from an older server may omit `social`; read it as all zeroes.
 
+`panel.meeting` is the house-meeting plan being gathered, or absent:
+`{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",
+"notes: Corvin"]}` - the folk who've said yes, by name, so the seat can
+watch the plan fill before it calls the meeting.
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

@@ -506,7 +506,9 @@ impl Game {
         self.gather_feast(tick, &gathered);
         // and somebody says so out loud for whoever's within earshot
         let voice = self.tavern.and_then(|t| self.world.get_component::<Building>(t))
-            .and_then(|b| b.worker).or_else(|| gathered.first().copied());
+            .and_then(|b| b.worker)
+            .filter(|w| gathered.contains(w))
+            .or_else(|| gathered.first().copied());
         if let Some(v) = voice {
             self.say(v, &format!("{} - the good stock's out!", feast), TALK_BUBBLE_SECS * 2);
         }

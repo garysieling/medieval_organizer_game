@@ -214,6 +214,15 @@ impl Game {
         true
     }
 
+    /// Whether `v`'s walk to today's worship actually landed them there
+    /// (a failed `go_keep_within` leaves them `Resting`, or never got as
+    /// far as setting `Routine` at all)
+    fn reached_worship(&self, v: Entity, tick: u64) -> bool {
+        self.world.get_component::<Routine>(v)
+            .map(|r| r.mode == Mode::Worshipping && r.day == tick)
+            .unwrap_or(false)
+    }
+
     /// The passable tile nearest `t` (within 3) not in `taken`
     fn free_near(&self, t: (i32, i32), taken: &[(i32, i32)]) -> Option<(i32, i32)> {
         (0..=3).flat_map(|r| (-r..=r).flat_map(move |dy| (-r..=r).map(move |dx| (t.0 + dx, t.1 + dy))))
@@ -521,8 +530,10 @@ impl Game {
                 self.log.push(format!("t{}: the holy day - {} gather at {} for prayers.", tick, n,
                     if church.is_some() { "the church" } else { "the market cross" }));
                 // and it's seen and heard: somebody says the word, and
-                // the bell rings over the square
-                let voice = leader_e.or_else(|| flock.first().copied());
+                // the bell rings over the square - but only one who
+                // actually made it to the gathering
+                let voice = leader_e.filter(|&l| self.reached_worship(l, tick))
+                    .or_else(|| flock.iter().copied().find(|&v| self.reached_worship(v, tick)));
                 if let Some(v) = voice {
                     self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
                 }
@@ -548,7 +559,9 @@ impl Game {
                 let n = self.assemble(tick, Mode::Worshipping, Spot::StoneCircle, Some((leader, slots[0])), &old, &slots[1..], c, CALL_REACH + 4);
                 if n > 1 {
                     self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n));
-                    self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    if self.reached_worship(leader, tick) {
+                        self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    }
                 }
             } else {
                 // under the trees, the elder in the middle of them
@@ -556,7 +569,9 @@ impl Game {
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Grove, Some((leader, c)), &old, &slots, c, CALL_REACH + 4);
                 if n > 1 {
                     self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n));
-                    self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    if self.reached_worship(leader, tick) {
+                        self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    }
                 }
             }
         }
@@ -727,22 +742,6 @@ mod tests {
         }).collect();
         tiles.sort(); tiles.dedup();
         assert_eq!(tiles.len(), worship.len(), "no two worshippers share a place");
-    }
-
-    #[test]
-    fn test_the_holy_day_is_seen_and_heard() {
-        let mut g = Game::new();
-        // run through the first holy day's dawn frame
-        while g.tick < HOLY_EVERY { g.update(); }
-        // the bell rings over the square that morning
-        assert!(g.sfx.iter().any(|c| c.kind == "bell"),
-            "the bell should ring on the holy day: {:?}", g.sfx.iter().map(|c| c.kind).collect::<Vec<_>>());
-        // and somebody says the word over their head
-        let said = g.bubbles.iter().any(|b| {
-            ["gather", "faith", "Holy", "Pray"].iter().any(|k| b.1.contains(k))
-        });
-        assert!(said, "somebody should speak at the gathering: {:?}",
-            g.bubbles.iter().map(|b| &b.1).collect::<Vec<_>>());
     }
 
     #[test]

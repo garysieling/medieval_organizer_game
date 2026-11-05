@@ -250,10 +250,12 @@ pub struct RareEvent {
     pub aux: u64,
 }
 
-/// When each event first becomes due: its gap window from the start, jittered
+/// When each event first becomes due: the opening months are full of
+/// strangers and wonders - every id gets a first date inside the first
+/// season, jittered - then the road settles to each spec's own gap
 pub fn initial_due(seed: u64) -> Vec<(EventId, u64)> {
     let mut rng = Rng(seed ^ 0x5EED5EED);
-    EVENTS.iter().map(|s| (s.id, s.gap + rng.next() % s.span)).collect()
+    EVENTS.iter().map(|s| (s.id, 10 + rng.next() % 120)).collect()
 }
 
 /// The events that tell on themselves: what the village notices a few

@@ -22,6 +22,19 @@ const LOST_FROM_ANCHOR: f32 = 2.5;
 /// How far the holy day's call carries: about a day's walk (a day is ~12
 /// tiles at errand pace), so the congregation is in before it's over
 const CALL_REACH: i32 = 14;
+/// What somebody says as the faithful gather on the holy day
+const PRAY_LINES: [&str; 4] = [
+    "The bell calls - we gather.",
+    "Holy days are kept.",
+    "Pray for the village.",
+    "The faith holds.",
+];
+/// And as the old faith keeps its rite at the stones or in the grove
+const RITE_LINES: [&str; 3] = [
+    "We keep the old ways.",
+    "The stones remember.",
+    "The old faith endures.",
+];
 /// Ambling pace, tiles a second (errands walk at MEETING_WALK, 2.5)
 const AMBLE_SPEED: f32 = 0.7;
 
@@ -502,10 +515,18 @@ impl Game {
             };
             let slots = self.rows_from(front, back, flock.len());
             let spot = if church.is_some() { Spot::Church } else { Spot::Green };
-            let n = self.assemble(tick, Mode::Worshipping, spot, lead_v.map(|l| (l, front)), &flock, &slots, front, CALL_REACH);
+            let leader_e = lead_v;
+            let n = self.assemble(tick, Mode::Worshipping, spot, leader_e.map(|l| (l, front)), &flock, &slots, front, CALL_REACH);
             if n > 0 {
                 self.log.push(format!("t{}: the holy day - {} gather at {} for prayers.", tick, n,
                     if church.is_some() { "the church" } else { "the market cross" }));
+                // and it's seen and heard: somebody says the word, and
+                // the bell rings over the square
+                let voice = leader_e.or_else(|| flock.first().copied());
+                if let Some(v) = voice {
+                    self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                }
+                if church.is_some() { self.emit_sfx("bell", front.0, front.1, 0.8); }
             }
         }
         // the old ways: a ring at the standing stones one holy day, round
@@ -525,12 +546,18 @@ impl Game {
                 let slots = self.ring_round(c, old.len() + 1, 1.6);
                 if slots.len() < 2 { return; }
                 let n = self.assemble(tick, Mode::Worshipping, Spot::StoneCircle, Some((leader, slots[0])), &old, &slots[1..], c, CALL_REACH + 4);
-                if n > 1 { self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n)); }
+                if n > 1 {
+                    self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n));
+                    self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                }
             } else {
                 // under the trees, the elder in the middle of them
                 let slots = self.ring_round(c, old.len(), 1.6);
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Grove, Some((leader, c)), &old, &slots, c, CALL_REACH + 4);
-                if n > 1 { self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n)); }
+                if n > 1 {
+                    self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n));
+                    self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                }
             }
         }
     }
@@ -700,6 +727,22 @@ mod tests {
         }).collect();
         tiles.sort(); tiles.dedup();
         assert_eq!(tiles.len(), worship.len(), "no two worshippers share a place");
+    }
+
+    #[test]
+    fn test_the_holy_day_is_seen_and_heard() {
+        let mut g = Game::new();
+        // run through the first holy day's dawn frame
+        while g.tick < HOLY_EVERY { g.update(); }
+        // the bell rings over the square that morning
+        assert!(g.sfx.iter().any(|c| c.kind == "bell"),
+            "the bell should ring on the holy day: {:?}", g.sfx.iter().map(|c| c.kind).collect::<Vec<_>>());
+        // and somebody says the word over their head
+        let said = g.bubbles.iter().any(|b| {
+            ["gather", "faith", "Holy", "Pray"].iter().any(|k| b.1.contains(k))
+        });
+        assert!(said, "somebody should speak at the gathering: {:?}",
+            g.bubbles.iter().map(|b| &b.1).collect::<Vec<_>>());
     }
 
     #[test]

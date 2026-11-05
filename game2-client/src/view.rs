@@ -360,6 +360,9 @@ impl View {
         // name labels are drawn after every sprite (so no sprite covers one)
         // and de-overlapped: (text, x, y, colour, hungry, selected)
         let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
+        // the player's dart waits for the label pass: a displaced name
+        // mustn't paint over the one mark that says "this one is you"
+        let mut player_marker: Option<(i32, i32, f32, u32)> = None;
         let mut standing = standing.iter().peekable();
         for &(px, py, who) in &people {
             while let Some(st) = standing.next_if(|st| st.0 + st.1 <= px + py) { draw_piece(&mut buf, st); }
@@ -527,6 +530,7 @@ impl View {
                     }
                     let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
+                    player_marker = Some((sx, ly - 2, zoom, m.frame));
                     labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
                 },
                 Who::P(_) => {},
@@ -558,6 +562,9 @@ impl View {
             if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, m, r, g, b); }
             // selection: underline the selected villager's name
             if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
+        }
+        if let Some((cx, top, z, f)) = player_marker {
+            draw_player_marker(&mut buf, cx, top, z, f);
         }
 
         prof.mark("render.gulls+labels");

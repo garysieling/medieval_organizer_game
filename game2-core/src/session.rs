@@ -675,6 +675,30 @@ impl WorkLook {
 }
 
 
+/// Big moments announced at the top of the map: (text, shown until
+/// tick, where it happened). `push` is the plain banner; `push_at` says
+/// where it happened, so the client can jump the camera there on a click
+#[derive(Debug, Default)]
+pub struct Toasts(pub Vec<(String, u64, Option<(f32, f32)>)>);
+
+impl Toasts {
+    pub fn push(&mut self, t: (String, u64)) { self.0.push((t.0, t.1, None)); }
+    pub fn push_at(&mut self, t: (String, u64), at: Option<(f32, f32)>) { self.0.push((t.0, t.1, at)); }
+    pub fn retain(&mut self, f: impl FnMut(&(String, u64, Option<(f32, f32)>)) -> bool) { self.0.retain(f) }
+}
+impl std::ops::Deref for Toasts {
+    type Target = [(String, u64, Option<(f32, f32)>)];
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl std::ops::DerefMut for Toasts {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+
+/// Where `e` stands this frame, for a toast the player can click to visit
+fn toast_spot(world: &World, e: Entity) -> Option<(f32, f32)> {
+    world.get_component::<Pos>(e).map(|p| (p.x, p.y))
+}
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see. This is the authoritative simulation: it owns
@@ -727,7 +751,7 @@ pub struct Game {
     /// It's a milestone, not the end: the game carries on
     pub leader_named: bool,
     pub works: Vec<Works>, // houses still being built
-    pub toasts: Vec<(String, u64)>,  // (msg, shown until tick)
+    pub toasts: Toasts,  // (msg, shown until tick, where it happened)
     pub last_guild_count: usize,
     pub tick: u64,
     pub paused: bool,
@@ -1273,7 +1297,7 @@ impl Game {
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
-                    toasts.push((format!("{} has died.", vill_name(i)), tick + 60));
+                    toasts.push_at((format!("{} has died.", vill_name(i)), tick + 60), toast_spot(world, *v));
                     log.push(format!("t{}: {} died.", tick, vill_name(i)));
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
@@ -1302,7 +1326,8 @@ impl Game {
         if ticked && tick == FLU_DAY {
             let d = world.create_entity();
             world.add_component(d, Disease::new(DiseaseKind::Influenza, villagers[2], 0.45));
-            toasts.push((format!("A traveller brings la grippe - {} falls ill", vill_name(2)), tick + 40));
+            toasts.push_at((format!("A traveller brings la grippe - {} falls ill", vill_name(2)), tick + 40),
+                toast_spot(world, villagers[2]));
         }
         // log who falls ill and who recovers
         let sick_now: Vec<Option<String>> = villagers.iter().map(|v| sickness_name(world, *v)).collect();
@@ -1324,7 +1349,7 @@ impl Game {
         self.last_guild_count = gc;
 
         // expire speech bubbles and toasts
-        toasts.retain(|(_, until)| tick < *until);
+        toasts.retain(|(_, until, _)| tick < *until);
         for (e, before) in people.iter().zip(stood) {
             let (Some(before), Some(now)) = (before, self.world.get_component::<Pos>(*e).copied()) else { continue };
             let blocked = |p: &Pos| self.map.is_occupied(p.x.round() as i32, p.y.round() as i32);

@@ -817,7 +817,7 @@ impl Game {
             leader_named: false,
             works: vec![],
             rival_homes,
-            toasts: vec![],
+            toasts: Toasts::default(),
             last_guild_count: 0,
             tick: 0,
             paused: false,

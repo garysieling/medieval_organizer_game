@@ -784,16 +784,15 @@ impl View {
             }
         }
 
-        // toasts (big moments)
-        let mut ty = 40;
-        for msg in m.toasts.iter() {
-            {
-                let tw = msg.len() as i32 * 6 + 16;
-                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 20, 20, 20, 35);
-                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 1, 255, 215, 0);
-                draw_text(&mut buf, MAP_W as i32 / 2 - tw / 2 + 8, ty + 6, msg, 255, 220, 130);
-                ty += 26;
-            }
+        // toasts (big moments); one that happened somewhere is a button -
+        // a click jumps the camera there (toast_hit knows the same boxes)
+        for (t, (bx, by, bw)) in m.toasts.iter().zip(toast_boxes(&m.toasts)) {
+            let hovered = t.at.is_some() && mx >= bx && mx < bx + bw && my >= by && my < by + 20;
+            buf.rect(bx, by, bw, 20, 20, 20, 35);
+            buf.rect(bx, by, bw, 1, 255, 215, 0);
+            let (r, g, b) = if t.at.is_some() { (255, 232, 160) } else { (255, 220, 130) };
+            draw_text(&mut buf, bx + 8, by + 6, &t.text, r, g, b);
+            if hovered { buf.rect(bx, by + 19, bw, 1, 255, 240, 170); }
         }
 
         // season banner
@@ -895,4 +894,23 @@ impl View {
         GroundCache { buf, camera, zoom, season: m.season, rev: m.map.rev() }
     }
 
+}
+
+/// The banner box each toast draws as: (x, y, w), top-center of the map
+pub(crate) fn toast_boxes(toasts: &[ToastV]) -> Vec<(i32, i32, i32)> {
+    let mut out = Vec::with_capacity(toasts.len());
+    let mut ty = 40;
+    for t in toasts {
+        let tw = t.text.len() as i32 * 6 + 16;
+        out.push((MAP_W as i32 / 2 - tw / 2, ty, tw));
+        ty += 26;
+    }
+    out
+}
+
+/// Which toast the mouse is over - render draws the same boxes, so a
+/// click on a banner that has `at` can jump the camera there
+pub fn toast_hit(toasts: &[ToastV], mx: i32, my: i32) -> Option<usize> {
+    toast_boxes(toasts).iter().position(|&(x, y, w)|
+        mx >= x && mx < x + w && my >= y && my < y + 20)
 }

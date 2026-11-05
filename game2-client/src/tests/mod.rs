@@ -32,4 +32,5 @@ mod rival;
 mod season;
 mod status_line;
 mod title;
+mod toast;
 mod zoom;

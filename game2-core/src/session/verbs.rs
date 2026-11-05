@@ -673,7 +673,7 @@ impl Game {
                 // the hold: what the state spends to keep them inside
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = vill_name(self.seats[seat].selected_target);
-                    self.toasts.push((format!("{} walks free", name), tick + 40));
+                    self.toasts.push_at((format!("{} walks free", name), tick + 40), toast_spot(&self.world, v));
                     format!("The letters don't stop - and the cell opens. {} walks free.", name)
                 } else {
                     let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(v)
@@ -771,7 +771,7 @@ impl Game {
                             }
                         }
                         if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
-                        self.toasts.push((format!("{} is taken", tn), tick + 40));
+                        self.toasts.push_at((format!("{} is taken", tn), tick + 40), toast_spot(&self.world, taken));
                     }
                 }
                 // the campaign talks over what the street brought

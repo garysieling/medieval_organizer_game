@@ -368,7 +368,8 @@ impl Game {
             let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("a youngster");
             let trade = vocation::vocation_name(voc).to_lowercase();
             self.log.push(format!("t{}: {} takes up the {}.", tick, name, trade));
-            self.toasts.push((format!("{} comes of age - a {}!", name, trade), tick + 30));
+            self.toasts.push_at((format!("{} comes of age - a {}!", name, trade), tick + 30),
+                toast_spot(&self.world, v));
         }
     }
 

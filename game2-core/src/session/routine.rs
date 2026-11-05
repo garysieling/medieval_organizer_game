@@ -559,8 +559,11 @@ impl Game {
                 let n = self.assemble(tick, Mode::Worshipping, Spot::StoneCircle, Some((leader, slots[0])), &old, &slots[1..], c, CALL_REACH + 4);
                 if n > 1 {
                     self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n));
-                    if self.reached_worship(leader, tick) {
-                        self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    // the elder speaks if they made it; else whoever did
+                    let speaker = [leader].into_iter().chain(old.iter().copied())
+                        .find(|&v| self.reached_worship(v, tick));
+                    if let Some(v) = speaker {
+                        self.say(v, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
                     }
                 }
             } else {
@@ -569,8 +572,10 @@ impl Game {
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Grove, Some((leader, c)), &old, &slots, c, CALL_REACH + 4);
                 if n > 1 {
                     self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n));
-                    if self.reached_worship(leader, tick) {
-                        self.say(leader, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    let speaker = [leader].into_iter().chain(old.iter().copied())
+                        .find(|&v| self.reached_worship(v, tick));
+                    if let Some(v) = speaker {
+                        self.say(v, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
                     }
                 }
             }

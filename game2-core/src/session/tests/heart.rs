@@ -53,3 +53,16 @@ fn test_kin_are_not_paired() {
     for t in (0..40).step_by(31) { g.match_attempt(a, t, g.matchmaker, "the heart-helper"); }
     assert_eq!(g.rel_kind(a, b), Some(relationships::RelKind::Family), "kin stay kin");
 }
+
+#[test]
+fn test_the_find_box_knows_her_by_her_posting() {
+    let g = Game::new();
+    let mm = g.matchmaker.expect("a heart-helper watches the square");
+    let m = g.ui_model();
+    let pv = m.people.iter().find(|p| p.e == mm).expect("she's on the map");
+    // "heart helper" finds her: the posting folds into the find text
+    // alongside her name and trade
+    assert!(pv.find.contains("heart helper"), "find text: {}", pv.find);
+    assert!(pv.find.contains(&find_key(&vill_name(g.villagers.iter().position(|&v| v == mm).unwrap()))),
+        "her name's in there too: {}", pv.find);
+}

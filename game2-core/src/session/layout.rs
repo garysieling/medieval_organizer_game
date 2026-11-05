@@ -85,6 +85,18 @@ pub fn tile_to_minimap(tx: f32, ty: f32, k: f32) -> (f32, f32) {
     (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * k, MM_TOP as f32 + 2.0 + (tx + ty) * k / 2.0)
 }
 
+/// The find box under the minimap: type a name or a posting ("heart
+/// helper") and Enter walks the camera to who fits
+pub const SRCH_X: i32 = MM_LEFT;
+pub const SRCH_Y: i32 = MM_TOP + MM_H + 4;
+pub const SRCH_W: i32 = MM_W;
+pub const SRCH_H: i32 = 20;
+
+/// Is the point on the find box?
+pub fn search_box_at(mx: i32, my: i32) -> bool {
+    mx >= SRCH_X && mx < SRCH_X + SRCH_W && my >= SRCH_Y && my < SRCH_Y + SRCH_H
+}
+
 /// The tile under minimap pixel (mx, my), if it's on the minimap's tiles
 /// (inverse of tile_to_minimap)
 /// Where a minimap click centres the camera, for any map (sim's or a model's)

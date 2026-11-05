@@ -35,6 +35,19 @@ pub struct PersonV {
     pub act_mark: u8,
     /// A pet bonded strongly to its owner (the <3 label)
     pub bond: bool,
+    /// What the find box matches against, already folded by [`find_key`]:
+    /// their name and posting ("eliza journeyman baker"), empty for
+    /// creatures and fixtures nobody would look for
+    #[serde(default)]
+    pub find: String,
+}
+
+/// Fold a name or epithet to what the find box compares: lowercase words,
+/// anything that isn't a letter or digit becomes a space
+pub fn find_key(s: &str) -> String {
+    s.chars().flat_map(|c| c.to_lowercase())
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

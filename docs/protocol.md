@@ -137,7 +137,8 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 
 ```
 {"e":57,"kind":{"Villager":8},"pos":[11.4,6.9],"label":"Wystan","dead":false,"kid":false,
- "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false}
+ "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false,
+ "find":"wystan heart helper"}
 ```
 
 The figure whose `e` is your `you` is you. Only what the seat can see is

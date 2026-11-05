@@ -521,6 +521,18 @@ pub fn is_kid(world: &World, e: Entity) -> bool {
     world.get_component::<Kid>(e).is_some()
 }
 
+/// What the posting is called over the village's tongue
+pub fn town_role_name(role: TownRole) -> &'static str {
+    match role {
+        TownRole::Overseer => "Overseer",
+        TownRole::TaxCollector => "Tax Collector",
+        TownRole::Trader => "Trader",
+        TownRole::Herbologist => "Herb-wife",
+        TownRole::Matchmaker => "Heart-helper",
+        TownRole::Hermit => "Hermit",
+    }
+}
+
 /// Their posting, for the inspector: the trade or PMC role they hold
 pub fn occupation_of(world: &World, e: Entity) -> Option<String> {
     if let Some(c) = world.get_component::<Craft>(e) {
@@ -528,18 +540,7 @@ pub fn occupation_of(world: &World, e: Entity) -> Option<String> {
         return Some(format!("{} {}", lvl, vocation::vocation_name(c.vocation)));
     }
     if world.get_component::<Kid>(e).is_some() { return Some("Child".into()); }
-    if world.get_component::<TownRole>(e).is_some() {
-        let role = match world.get_component::<TownRole>(e).unwrap() {
-            TownRole::Overseer => "Overseer",
-            TownRole::TaxCollector => "Tax Collector",
-            TownRole::Trader => "Trader",
-            TownRole::Herbologist => "Herb-wife",
-            TownRole::Matchmaker => "Heart-helper",
-            TownRole::Hermit => "Hermit",
-        };
-        return Some(role.into());
-    }
-    None
+    world.get_component::<TownRole>(e).map(|r| town_role_name(*r).to_string())
 }
 
 /// The class a character reads as: PMC roles and PMC vocations read PMC;

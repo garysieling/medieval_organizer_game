@@ -504,6 +504,14 @@ impl Game {
         let store = self.market_food;
         for &v in &gathered { self.travels.retain(|t| t.who != v); }
         self.gather_feast(tick, &gathered);
+        // and somebody says so out loud for whoever's within earshot
+        let voice = self.tavern.and_then(|t| self.world.get_component::<Building>(t))
+            .and_then(|b| b.worker)
+            .filter(|w| gathered.contains(w))
+            .or_else(|| gathered.first().copied());
+        if let Some(v) = voice {
+            self.say(v, &format!("{} - the good stock's out!", feast), TALK_BUBBLE_SECS * 2);
+        }
         for &v in &gathered {
             // the day feeds the wants that never quite get fed
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 90);

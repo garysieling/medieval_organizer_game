@@ -100,7 +100,10 @@ town carries the stink of everything dumped in it - and all three become
 troubles the whole village can agree on. And when blame piles up the
 village climbs the ladder of shame: a bad word, the cold shoulder, a
 boycott, a crowd at the door, the stocks - or the road out. A respected
-soul in the stocks is a scandal, not a lesson. And the year has its
+soul in the stocks is a scandal, not a lesson. Every seventh day is the
+holy day: the bell rings over the square, no work is done, and the
+faithful gather at the church for prayers - though a few keep the old
+rite at the stones or in the grove instead. And the year has its
 feast days: St. Swithin's, the Harvest Home, Candlemas, St. Martin's -
 the village gathers at the market, the good stock comes out, the truth
 comes out in the toasts, and the tax collector is never invited but

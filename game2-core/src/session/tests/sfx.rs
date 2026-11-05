@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::session::routine::HOLY_EVERY;
 
 #[test]
 fn test_the_soundscape_raises_its_cues() {
@@ -10,6 +11,22 @@ fn test_the_soundscape_raises_its_cues() {
     g.sfx.clear();
     g.sfx_tick(20);
     assert!(g.sfx.iter().any(|c| c.kind == "rain"), "the bed keeps the weather");
+}
+
+#[test]
+fn test_the_holy_day_is_seen_and_heard() {
+    let mut g = Game::new();
+    // run through the first holy day's dawn frame
+    while g.tick < HOLY_EVERY { g.update(); }
+    // the bell rings over the square that morning
+    assert!(g.sfx.iter().any(|c| c.kind == "bell"),
+        "the bell should ring on the holy day: {:?}", g.sfx.iter().map(|c| c.kind).collect::<Vec<_>>());
+    // and somebody says the word over their head
+    let said = g.bubbles.iter().any(|b| {
+        ["gather", "faith", "Holy", "Pray"].iter().any(|k| b.1.contains(k))
+    });
+    assert!(said, "somebody should speak at the gathering: {:?}",
+        g.bubbles.iter().map(|b| &b.1).collect::<Vec<_>>());
 }
 
 #[test]

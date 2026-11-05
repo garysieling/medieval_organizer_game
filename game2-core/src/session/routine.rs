@@ -22,6 +22,19 @@ const LOST_FROM_ANCHOR: f32 = 2.5;
 /// How far the holy day's call carries: about a day's walk (a day is ~12
 /// tiles at errand pace), so the congregation is in before it's over
 const CALL_REACH: i32 = 14;
+/// What somebody says as the faithful gather on the holy day
+const PRAY_LINES: [&str; 4] = [
+    "The bell calls - we gather.",
+    "Holy days are kept.",
+    "Pray for the village.",
+    "The faith holds.",
+];
+/// And as the old faith keeps its rite at the stones or in the grove
+const RITE_LINES: [&str; 3] = [
+    "We keep the old ways.",
+    "The stones remember.",
+    "The old faith endures.",
+];
 /// Ambling pace, tiles a second (errands walk at MEETING_WALK, 2.5)
 const AMBLE_SPEED: f32 = 0.7;
 
@@ -199,6 +212,15 @@ impl Game {
             return false;
         }
         true
+    }
+
+    /// Whether `v`'s walk to today's worship actually landed them there
+    /// (a failed `go_keep_within` leaves them `Resting`, or never got as
+    /// far as setting `Routine` at all)
+    fn reached_worship(&self, v: Entity, tick: u64) -> bool {
+        self.world.get_component::<Routine>(v)
+            .map(|r| r.mode == Mode::Worshipping && r.day == tick)
+            .unwrap_or(false)
     }
 
     /// The passable tile nearest `t` (within 3) not in `taken`
@@ -502,10 +524,20 @@ impl Game {
             };
             let slots = self.rows_from(front, back, flock.len());
             let spot = if church.is_some() { Spot::Church } else { Spot::Green };
-            let n = self.assemble(tick, Mode::Worshipping, spot, lead_v.map(|l| (l, front)), &flock, &slots, front, CALL_REACH);
+            let leader_e = lead_v;
+            let n = self.assemble(tick, Mode::Worshipping, spot, leader_e.map(|l| (l, front)), &flock, &slots, front, CALL_REACH);
             if n > 0 {
                 self.log.push(format!("t{}: the holy day - {} gather at {} for prayers.", tick, n,
                     if church.is_some() { "the church" } else { "the market cross" }));
+                // and it's seen and heard: somebody says the word, and
+                // the bell rings over the square - but only one who
+                // actually made it to the gathering
+                let voice = leader_e.filter(|&l| self.reached_worship(l, tick))
+                    .or_else(|| flock.iter().copied().find(|&v| self.reached_worship(v, tick)));
+                if let Some(v) = voice {
+                    self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                }
+                if church.is_some() { self.emit_sfx("bell", front.0, front.1, 0.8); }
             }
         }
         // the old ways: a ring at the standing stones one holy day, round
@@ -525,12 +557,27 @@ impl Game {
                 let slots = self.ring_round(c, old.len() + 1, 1.6);
                 if slots.len() < 2 { return; }
                 let n = self.assemble(tick, Mode::Worshipping, Spot::StoneCircle, Some((leader, slots[0])), &old, &slots[1..], c, CALL_REACH + 4);
-                if n > 1 { self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n)); }
+                if n > 1 {
+                    self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n));
+                    // the elder speaks if they made it; else whoever did
+                    let speaker = [leader].into_iter().chain(old.iter().copied())
+                        .find(|&v| self.reached_worship(v, tick));
+                    if let Some(v) = speaker {
+                        self.say(v, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    }
+                }
             } else {
                 // under the trees, the elder in the middle of them
                 let slots = self.ring_round(c, old.len(), 1.6);
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Grove, Some((leader, c)), &old, &slots, c, CALL_REACH + 4);
-                if n > 1 { self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n)); }
+                if n > 1 {
+                    self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n));
+                    let speaker = [leader].into_iter().chain(old.iter().copied())
+                        .find(|&v| self.reached_worship(v, tick));
+                    if let Some(v) = speaker {
+                        self.say(v, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    }
+                }
             }
         }
     }

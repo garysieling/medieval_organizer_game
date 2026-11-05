@@ -28,7 +28,7 @@ const LEVY_EVERY: u64 = 20;
 /// The most a steward brings back in one trip
 const LEVY_TAKE: u32 = 12;
 /// A town's granary tops out here; each working townsman adds a serving a day
-const TOWN_STORE_CAP: u32 = 220;
+const TOWN_STORE_CAP: u32 = 320;
 /// Strays farther than this from their own town walk home
 const STRAY_FROM_SITE: f32 = 12.0;
 
@@ -192,19 +192,42 @@ pub fn plan_country(t: &Terrain, river: &[(i32, i32)], village: (i32, i32), rng:
     CountryPlan { towns, castles, town_names, castle_names, houses }
 }
 
-/// Who lives out in the country, site by site: the town's farmers (the
-/// first of them drives the cart); the castle's lord and, at the first
-/// castle, its chaplain - a second knight at the others
-fn folk_for(kind: SiteKind, nth: usize) -> [Vocation; 2] {
+/// Who lives out in the country, site by site. A market town is a
+/// household trade: farmers work the fields, the rest keep the fold,
+/// loom, river, bakehouse and tavern, and children play underfoot
+/// (`None` is a child, not a trade). A castle is a garrison: the lord's
+/// blade first, the provisions-rider second (that's the carrier slot),
+/// then knights and - at the first castle only - its chaplain
+fn site_folk(kind: SiteKind, nth: usize) -> Vec<Option<Vocation>> {
+    const TOWN: [Option<Vocation>; 13] = [
+        Some(Vocation::Farmer), Some(Vocation::Farmer), Some(Vocation::Farmer),
+        Some(Vocation::Farmer), Some(Vocation::Shepherd), Some(Vocation::Weaver),
+        Some(Vocation::Fisher), Some(Vocation::Taverner), Some(Vocation::Baker),
+        Some(Vocation::Beekeeper), Some(Vocation::Farmer), None, None,
+    ];
+    const CASTLE_GENTRY: [Option<Vocation>; 7] = [
+        Some(Vocation::Knight), Some(Vocation::Knight), Some(Vocation::Priest),
+        Some(Vocation::Knight), Some(Vocation::Knight), Some(Vocation::Priest),
+        Some(Vocation::Knight),
+    ];
+    const CASTLE_BLADES: [Option<Vocation>; 7] = [
+        Some(Vocation::Knight), Some(Vocation::Knight), Some(Vocation::Knight),
+        Some(Vocation::Knight), Some(Vocation::Knight), Some(Vocation::Knight),
+        Some(Vocation::Knight),
+    ];
     match kind {
-        SiteKind::Town => [Vocation::Farmer, Vocation::Farmer],
-        SiteKind::Castle if nth == 0 => [Vocation::Knight, Vocation::Priest],
-        SiteKind::Castle => [Vocation::Knight, Vocation::Knight],
+        SiteKind::Town => TOWN.to_vec(),
+        SiteKind::Castle if nth == 0 => CASTLE_GENTRY.to_vec(),
+        SiteKind::Castle => CASTLE_BLADES.to_vec(),
     }
 }
 
 /// How many villagers the country holds (for the roster's other lists)
-pub fn country_folk(plan: &CountryPlan) -> usize { 2 * (plan.towns.len() + plan.castles.len()) }
+pub fn country_folk(plan: &CountryPlan) -> usize {
+    plan.towns.len() * site_folk(SiteKind::Town, 0).len()
+        + plan.castles.iter().enumerate()
+            .map(|(i, _)| site_folk(SiteKind::Castle, i).len()).sum::<usize>()
+}
 
 impl Game {
     /// Settle the country the plan drew: a granary and homes at each
@@ -224,7 +247,7 @@ impl Game {
                 .filter(|&(x, y)| self.map.passable(x, y))
                 .min_by_key(|&(x, y)| (x - green.0).abs() + (y - green.1).abs())
                 .unwrap_or(green);
-            let servings = if kind == SiteKind::Town { 160 } else { 60 };
+            let servings = if kind == SiteKind::Town { 200 } else { 140 };
             let store = villager::spawn_food_source(&mut self.world, store_at.0 as f32, store_at.1 as f32, servings);
             let mut homes = vec![];
             match kind {
@@ -241,19 +264,37 @@ impl Game {
                 SiteKind::Castle => {
                     let keep = self.country_building(BuildingKind::Home, format!("the keep at {}", name), cx, cy);
                     homes.push(keep);
+                    // and the hall beside it: a garrison of seven under
+                    // one roof never fills a cradle
+                    let hall_c = (cx + 2, cy);
+                    let hall_at = (-2..=2).flat_map(|dy| (-2..=2).map(move |dx| (hall_c.0 + dx, hall_c.1 + dy)))
+                        .filter(|&(x, y)| self.map.passable(x, y))
+                        .min_by_key(|&(x, y)| (x - hall_c.0).abs() + (y - hall_c.1).abs())
+                        .unwrap_or(hall_c);
+                    let hall = self.country_building(BuildingKind::Home, format!("the hall at {}", name), hall_at.0, hall_at.1);
+                    homes.push(hall);
+                    // and it must be seen: a hall nobody can see is no hall
+                    self.buildings.push((hall_at.0 as f32, hall_at.1 as f32,
+                        BSprite::House((noise(hall_at.0, hall_at.1, 41) * 97.0) as usize)));
                 }
             }
             sites.push(Site { name, kind, centre: (cx, cy), radius: r, store, homes, carrier: None, away_until: None });
         }
-        // the folk, two to a site, under one roof
+        // the folk, a household to a site under their own roofs; the
+        // roster puts children last so the carrier slots - the first
+        // farmer, the second knight - always land on grown folk
         let mut castles_seen = 0;
+        let mut towns_seen = 0;
         for si in 0..sites.len() {
             let kind = sites[si].kind;
-            let vocs = folk_for(kind, if kind == SiteKind::Castle { castles_seen } else { 0 });
-            if kind == SiteKind::Castle { castles_seen += 1; }
-            let Some(&home) = sites[si].homes.first() else { continue };
-            for (k, voc) in vocs.into_iter().enumerate() {
-                let v = self.spawn_outlander(si, voc, home, k, &mut rng);
+            let nth = if kind == SiteKind::Castle { castles_seen } else { towns_seen };
+            if kind == SiteKind::Castle { castles_seen += 1; } else { towns_seen += 1; }
+            let folk = site_folk(kind, nth);
+            let homes = sites[si].homes.clone();
+            if homes.is_empty() { continue; }
+            for (k, spec) in folk.into_iter().enumerate() {
+                let home = homes[k % homes.len()];
+                let v = self.spawn_outlander(si, spec, home, k, &mut rng);
                 if k == if kind == SiteKind::Town { 0 } else { 1 } { sites[si].carrier = Some(v); }
             }
         }
@@ -261,8 +302,10 @@ impl Game {
     }
 
     /// A Building entity out in the country (its sprite is the map's
-    /// settlement scenery, or the keep - not the village's building list)
+    /// settlement scenery, or the keep - not the village's building list).
+    /// The tile is marked built-on so folk walk round it, not through
     fn country_building(&mut self, kind: BuildingKind, name: String, x: i32, y: i32) -> Entity {
+        self.map.occupy(x, y);
         let b = household::spawn_building(&mut self.world, kind, "a house", x as f32, y as f32, 20);
         if let Some(bb) = self.world.get_component_mut::<Building>(b) { bb.name = name; }
         self.building_entities.push(b);
@@ -270,8 +313,9 @@ impl Game {
     }
 
     /// One of the country's folk: everything a villager carries, homed
-    /// at `home` out at site `si`
-    fn spawn_outlander(&mut self, si: usize, voc: Vocation, home: Entity, k: usize, rng: &mut Rng) -> Entity {
+    /// at `home` out at site `si`. `None` is a child - no trade until
+    /// they come of age, like the village's own young
+    fn spawn_outlander(&mut self, si: usize, voc: Option<Vocation>, home: Entity, k: usize, rng: &mut Rng) -> Entity {
         let hp = self.world.get_component::<Pos>(home).map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0));
         let door = self.at_the_door(hp.0, hp.1).unwrap_or(hp);
         let v = villager::spawn_villager(&mut self.world, door.0 as f32 + k as f32 * 0.4, door.1 as f32 + 0.3);
@@ -282,15 +326,26 @@ impl Game {
         self.world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
         self.world.add_component(v, Satchel::default());
         self.world.add_component(v, Known::default());
-        // the lord of a castle is a master of arms; the rest are rolled
-        let skill = if voc == Vocation::Knight && k == 0 { 0.85 } else { 0.3 + rng.below(40) as f32 / 100.0 };
-        self.world.add_component(v, vocation::craft(voc, skill));
+        match voc {
+            // the lord of a castle is a master of arms; the rest are rolled
+            Some(voc) => {
+                let skill = if voc == Vocation::Knight && k == 0 { 0.85 } else { 0.3 + rng.below(40) as f32 / 100.0 };
+                self.world.add_component(v, vocation::craft(voc, skill));
+            }
+            None => {
+                self.world.add_component(v, Kid);
+                // staggered ages, like the village's - they come of age one by one
+                self.world.add_component(v, KidGrowth { age_days: (k as u64 * 211) % 700, errands: vec![] });
+            }
+        }
         self.world.add_component(v, Outlander { site: si });
         if let Some(b) = self.world.get_component_mut::<Building>(home) { b.occupants.push(v); }
         let class = desires::class_of(&self.world, v);
-        let gold = livelihood::seed_gold(class, false, (rng.next() % 1000) as f32 / 1000.0);
+        let gold = if voc.is_none() { 0.0 } else { livelihood::seed_gold(class, false, (rng.next() % 1000) as f32 / 1000.0) };
         self.world.add_component(v, Purse { gold });
-        let wants = desires::sample_wants(class, Some(voc), false, &mut || rng.next());
+        let wants = if voc.is_some() {
+            desires::sample_wants(class, voc, false, &mut || rng.next())
+        } else { vec![] };
         self.world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
         self.villagers.push(v);
         self.was_sick.push(None);
@@ -599,14 +654,21 @@ mod tests {
     }
 
     #[test]
-    fn test_castles_hold_the_gentry_and_towns_the_farmers() {
+    fn test_castles_hold_the_gentry_and_towns_the_folk() {
         let g = Game::new_seeded(5);
         for v in g.villagers.iter().copied() {
             let Some(si) = g.site_of(v) else { continue };
             let class = desires::class_of(&g.world, v);
             match g.sites[si].kind {
                 SiteKind::Castle => assert_eq!(class, SocialClass::ProfessionalMiddle, "castle folk are gentry"),
-                SiteKind::Town => assert_eq!(g.world.get_component::<Craft>(v).unwrap().vocation, Vocation::Farmer),
+                // town trades and children are all working folk - never
+                // the gentry's trades
+                SiteKind::Town => {
+                    assert_eq!(class, SocialClass::Working, "town folk work for a living");
+                    if let Some(c) = g.world.get_component::<Craft>(v) {
+                        assert!(!vocation::is_pmc(c.vocation), "no knights or priests in the town roster");
+                    }
+                }
             }
             let home = household::home_of(&g.world, v).expect("country folk have a roof");
             let hp = g.world.get_component::<Pos>(home).unwrap();
@@ -614,7 +676,9 @@ mod tests {
             assert!((hp.x - cx as f32).abs() <= 12.0 && (hp.y - cy as f32).abs() <= 12.0, "homed at their own site");
         }
         let out = g.villagers.iter().filter(|&&v| g.site_of(v).is_some()).count();
-        assert_eq!(out, 8, "a fifth more folk, out in the country");
+        let want: usize = g.sites.iter().map(|s| site_folk(s.kind, 0).len()).sum();
+        assert_eq!(out, want, "every site settled its household");
+        assert!(out > 8, "the country is peopled, not a pair to a site");
     }
 
     #[test]
@@ -670,6 +734,29 @@ mod tests {
             if rode && now > before { return; }
         }
         panic!("the castle's stores never filled (rode out: {})", rode);
+    }
+
+    #[test]
+    fn test_the_country_is_peopled_like_villages() {
+        let g = Game::new_seeded(5);
+        for (si, s) in g.sites.iter().enumerate() {
+            let folk: Vec<Entity> = g.villagers.iter().copied()
+                .filter(|&v| g.site_of(v) == Some(si)).collect();
+            assert!(folk.len() >= 6, "{} holds only {} folk", s.name, folk.len());
+            match s.kind {
+                SiteKind::Town => assert!(folk.iter().any(|&v|
+                    g.world.get_component::<Kid>(v).is_some()), "{} has children", s.name),
+                SiteKind::Castle => {
+                    assert!(s.homes.len() >= 2, "{} has a hall beside the keep", s.name);
+                    assert!(folk.iter().all(|&v| g.world.get_component::<Kid>(v).is_none()),
+                        "{} is a garrison, not a nursery", s.name);
+                }
+            }
+            for &v in &folk {
+                let i = g.villagers.iter().position(|x| *x == v).unwrap();
+                assert_ne!(vill_name(i), "a newcomer", "{}'s folk all have names", s.name);
+            }
+        }
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use game2_core::session::{edge_scroll, EDGE_MARGIN, EDGE_SPEED, MAP_W, H, UI_X};
+use crate::session::*;
 
 #[test]
 fn test_the_map_view_edges_drift_and_the_middle_still_does() {

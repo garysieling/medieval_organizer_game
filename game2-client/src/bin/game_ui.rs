@@ -272,8 +272,18 @@ fn main() {
         // a mouse hovering at the map view's rim drifts the camera that
         // way - gently at first, quicker the deeper it sits. The drift
         // is screen px, so it slows relative to the world as you zoom
-        // in; fractions collect in edge_cam until they make a whole px
-        if !view.search_focus {
+        // in; fractions collect in edge_cam until they make a whole px.
+        // Clamp pins a pointer that left the window to the rim, where it
+        // would scroll forever, so the drift asks Discard where the
+        // pointer honestly is; and a conversation box over the rim is
+        // UI, not map, so it doesn't scroll either
+        let pointer_in = window.get_mouse_pos(MouseMode::Discard).is_some();
+        let convo_cover = cur_model.as_ref().and_then(|m| m.convo.as_ref()).map(|p| {
+            let (_, h) = client::talk::convo_layout(p);
+            mx >= client::talk::CONVO_X && mx < client::talk::CONVO_X + client::talk::CONVO_W
+                && my >= client::talk::CONVO_Y && my < client::talk::CONVO_Y + h
+        }).unwrap_or(false);
+        if !view.search_focus && pointer_in && !convo_cover {
             let (ex, ey) = session::edge_scroll(mx, my);
             if ex != 0.0 || ey != 0.0 {
                 edge_cam.0 += ex / view.zoom;

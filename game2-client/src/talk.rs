@@ -7,11 +7,11 @@ use super::*;
 
 // ---------- the TALK panel ----------
 
-/// The TALK box: under the minimap, the side panel's foot
+/// The TALK box: under the find box, the side panel's foot
 pub const TALK_X: i32 = UI_X as i32 + 10;
-pub const TALK_Y: i32 = 826;
+pub const TALK_Y: i32 = 848;
 pub const TALK_W: i32 = 320;
-pub const TALK_H: i32 = 130;
+pub const TALK_H: i32 = 108;
 pub(crate) const ROW_H: i32 = 10;
 /// Characters to a row: the box less its padding
 pub const TALK_CHARS: usize = ((TALK_W - 12) / GLYPH_W) as usize;
@@ -71,6 +71,9 @@ pub fn talk_layout(p: &TalkPanelV) -> (Vec<TalkRow>, Vec<OptionRect>) {
     }
     let mut skip = lines.len().saturating_sub(room);
     while skip < lines.len() && !starts[skip] { skip += 1; }
+    // no speaker's start fits the room left: show the tail anyway rather
+    // than a box of replies with nothing said
+    if skip == lines.len() && room > 0 { skip = lines.len() - room.min(lines.len()); }
     let top = TALK_Y + 16;
     let mut out: Vec<TalkRow> = vec![];
     for (k, (text, rgb, name)) in lines.into_iter().skip(skip).enumerate() {

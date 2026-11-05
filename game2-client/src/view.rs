@@ -30,6 +30,10 @@ pub struct View {
     pub zoom: f32,
     pub inspector_open: bool,
     pub help_open: bool,
+    /// The find box under the minimap: what was typed and whether it has
+    /// the keys - widget state like the toggles above
+    pub search_q: String,
+    pub search_focus: bool,
     /// The ground layer repainted only when stale
     pub(crate) ground: std::cell::RefCell<Option<GroundCache>>,
     /// Ground blocks at the current zoom, as opaque runs (draw_ground):
@@ -54,6 +58,8 @@ impl View {
             zoom: 1.0,
             inspector_open: true,
             help_open: false,
+            search_q: String::new(),
+            search_focus: false,
             ground: std::cell::RefCell::new(None),
             blocks: std::cell::RefCell::new(BlockCache::default()),
             spare: std::cell::RefCell::new(None),
@@ -677,8 +683,12 @@ impl View {
             }
         }
 
-        // the TALK panel under the minimap: conversations, apart from the log
+        // the TALK panel under the find box: conversations, apart from the log
         talk::draw_talk_panel(&mut buf, &m.talk, (mx, my));
+
+        // the find box under the minimap
+        draw_search_box(&mut buf, &self.search_q,
+            search_people(&m.people, &self.search_q).len(), self.search_focus);
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
@@ -917,4 +927,38 @@ pub(crate) fn toast_boxes(toasts: &[ToastV]) -> Vec<(i32, i32, i32)> {
 pub fn toast_hit(toasts: &[ToastV], mx: i32, my: i32) -> Option<usize> {
     toast_boxes(toasts).iter().position(|&(x, y, w)|
         mx >= x && mx < x + w && my >= y && my < y + 20)
+}
+
+/// Who the find box's query fits, as indexes into `people`: a folded
+/// substring match on each person's `find` text (name and posting)
+pub fn search_people(people: &[PersonV], query: &str) -> Vec<usize> {
+    let q = find_key(query);
+    if q.is_empty() { return vec![]; }
+    people.iter().enumerate()
+        .filter(|(_, p)| !p.find.is_empty() && p.find.contains(&q))
+        .map(|(i, _)| i).collect()
+}
+
+/// The find box under the minimap: "find:" and what was typed, with the
+/// match count (or the notice that no one fits) at the right
+pub fn draw_search_box(buf: &mut Buffer, query: &str, hits: usize, focused: bool) {
+    buf.rect(SRCH_X, SRCH_Y, SRCH_W, SRCH_H, 30, 30, 48);
+    buf.rect(SRCH_X, SRCH_Y, SRCH_W, 1, 60, 60, 80);
+    buf.rect(SRCH_X, SRCH_Y + SRCH_H - 1, SRCH_W, 1, 60, 60, 80);
+    buf.rect(SRCH_X, SRCH_Y, 1, SRCH_H, 60, 60, 80);
+    buf.rect(SRCH_X + SRCH_W - 1, SRCH_Y, 1, SRCH_H, 60, 60, 80);
+    draw_text(buf, SRCH_X + 6, SRCH_Y + 8, "find:", 140, 140, 160);
+    let q = if focused && query.is_empty() { "type a name".to_string() } else { query.to_string() };
+    let (qr, qg, qb) = if query.is_empty() { (110, 110, 130) } else { (235, 235, 245) };
+    draw_text(buf, SRCH_X + 40, SRCH_Y + 8, &q, qr, qg, qb);
+    let status = if query.is_empty() { String::new() }
+        else if hits == 0 { "no one by that name".into() }
+        else { format!("{} found", hits) };
+    let sw = status.len() as i32 * GLYPH_W;
+    draw_text(buf, SRCH_X + SRCH_W - sw - 6, SRCH_Y + 8, &status, 150, 150, 170);
+    if focused {
+        // a caret after the typed text so it's plain the box has the keys
+        let cx = SRCH_X + 40 + query.len() as i32 * GLYPH_W + 1;
+        buf.rect(cx, SRCH_Y + 6, 1, 10, 220, 220, 235);
+    }
 }

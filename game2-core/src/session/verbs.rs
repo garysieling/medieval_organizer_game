@@ -72,7 +72,7 @@ impl Game {
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
         else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
-            && crate::game::player::rapport(&self.world, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
+            && crate::game::player::rapport(&self.world, self.seats[seat].player, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
         else { None }
     }
 

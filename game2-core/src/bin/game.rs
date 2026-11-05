@@ -187,7 +187,7 @@ fn main() {
 
         // Win/lose check: the village follows when the cause holds most of it
         let members = world.get_component::<Organization>(org).map(|o| o.members.len()).unwrap_or(0);
-        if members * 2 >= villagers.len() {
+        if members * 2 > villagers.len() {
             println!("\n*** The village follows you - {} of {} are yours. ***", members, villagers.len());
             println!("The Wanderer became someone who matters.");
             break;

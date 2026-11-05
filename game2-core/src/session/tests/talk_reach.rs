@@ -65,7 +65,7 @@ fn test_recruit_on_a_picked_villager_walks_over_then_recruits() {
     game.picked = true;
     let org = game.org;
     crate::game::campaign::found_for_test(&mut game.world, org);
-    game.world.add_component(game.villagers[who], crate::game::player::Rapport { value: 1.0 });
+    game.world.add_component(game.villagers[who], crate::game::player::Rapport::for_player(game.player, 1.0));
     // and a bond deep enough to say yes to
     let rel = game.world.create_entity();
     game.world.add_component(rel, crate::game::relationships::Relationship {
@@ -101,7 +101,7 @@ fn test_recruit_is_hidden_until_a_campaign_exists() {
     assert!(action_shown(&game.ui_model(), 1), "Recruit appears once there's a campaign");
     // and even then it takes a few real conversations with them
     assert_eq!(game.disabled_reason(1).as_deref(), Some("talk with them more"));
-    game.world.add_component(game.villagers[who], crate::game::player::Rapport { value: 1.0 });
+    game.world.add_component(game.villagers[who], crate::game::player::Rapport::for_player(game.player, 1.0));
     assert_eq!(game.disabled_reason(1), None);
 }
 

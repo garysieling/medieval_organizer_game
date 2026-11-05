@@ -331,7 +331,7 @@ mod tests {
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         crate::game::campaign::found_for_test(&mut w, org);
         let v = w.create_entity();
-        w.add_component(v, crate::game::player::Rapport { value: 1.0 });
+        w.add_component(v, crate::game::player::Rapport::for_player(player, 1.0));
         let msg = execute_choice(&mut w, player, org, MenuActionType::Recruit, Some(v), 5);
         assert_eq!(msg, "They declined.", "{}", msg);
     }

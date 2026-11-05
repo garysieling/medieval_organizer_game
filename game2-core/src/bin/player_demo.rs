@@ -3,7 +3,7 @@
 
 use game2_core::engine::ecs::World;
 use game2_core::game::villager::{self};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, rapport};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, rapport, RECRUIT_RAPPORT_NEEDED};
 use game2_core::sim::community::{Citizen, Organization};
 
 fn main() {
@@ -39,19 +39,29 @@ fn main() {
         game2_core::game::campaign::DecisionRule::Majority, 1);
 
     println!("Turn | Action | Result | Rapport | Guild\n");
-    for turn in 0..12 {
-        let target = villagers[turn % 4];
-        let (action_desc, result) = match turn % 3 {
-            0 => ("Talk", act_talk(&mut world, player, target, turn as u64)),
-            1 => ("Talk", act_talk(&mut world, player, target, turn as u64)),
-            _ => ("Recruit", act_recruit(&mut world, player, org, target)),
-        };
-        let members = world.get_component::<Organization>(org).unwrap().members.len();
-        println!("{} | {} | {} | rapport={:.2} | {} members", turn, action_desc,
-            if result.success { "OK" } else { "FAIL" }, rapport(&world, target), members);
+    // Work through one villager at a time: keep talking (each a distinct
+    // day, so every one deepens the bond) until rapport clears the
+    // recruiting gate, then try the ask - repeating the ask as talks
+    // keep building trust, until they join or we give up on them.
+    let mut turn = 0u64;
+    for &target in &villagers {
+        loop {
+            let (action_desc, result) = if rapport(&world, player, target) >= RECRUIT_RAPPORT_NEEDED {
+                ("Recruit", act_recruit(&mut world, player, org, target))
+            } else {
+                ("Talk", act_talk(&mut world, player, target, turn))
+            };
+            let members = world.get_component::<Organization>(org).unwrap().members.len();
+            println!("{} | {} | {} | rapport={:.2} | {} members", turn, action_desc,
+                if result.success { "OK" } else { "FAIL" }, rapport(&world, player, target), members);
+            let recruited = action_desc == "Recruit" && result.success;
+            turn += 1;
+            if recruited || turn > 40 { break; }
+        }
     }
 
     let members = world.get_component::<Organization>(org).unwrap().members.len();
     println!("\nHarvesters Guild: {} members", members);
+    assert!(members > 0, "kept company should have won over at least one villager");
     println!("=== PLAYER LAYER COMPLETE ===");
 }

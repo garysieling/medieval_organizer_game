@@ -30,6 +30,7 @@ mod reach_name;
 mod real_frame;
 mod rival;
 mod season;
+mod edge;
 mod search;
 mod status_line;
 mod title;

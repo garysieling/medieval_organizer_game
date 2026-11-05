@@ -184,6 +184,8 @@ fn main() {
     let mut cam_centered = false;
     // which match Enter visits next in the find box
     let mut search_at = 0usize;
+    // leftover edge-scroll drift too small for the whole-px camera
+    let mut edge_cam = (0.0f32, 0.0f32);
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
@@ -265,6 +267,23 @@ fn main() {
             }
             // a new query starts its matches over at the first
             if view.search_q != typed { search_at = 0; }
+        }
+
+        // a mouse hovering at the map view's rim drifts the camera that
+        // way - gently at first, quicker the deeper it sits. The drift
+        // is screen px, so it slows relative to the world as you zoom
+        // in; fractions collect in edge_cam until they make a whole px
+        if !view.search_focus {
+            let (ex, ey) = session::edge_scroll(mx, my);
+            if ex != 0.0 || ey != 0.0 {
+                edge_cam.0 += ex / view.zoom;
+                edge_cam.1 += ey / view.zoom;
+                let (dx, dy) = (edge_cam.0.trunc() as i32, edge_cam.1.trunc() as i32);
+                edge_cam.0 -= dx as f32;
+                edge_cam.1 -= dy as f32;
+                view.cam_x += dx;
+                view.cam_y += dy;
+            }
         }
 
         let buf = match &cur_model {

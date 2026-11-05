@@ -559,20 +559,10 @@ impl View {
         draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
         draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
 
-        // status: influence bar, members, season, tick
+        // status: members, season, tick
         let p = &m.panel;
         let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        // influence bar runs to the win: reach WIN_INFLUENCE and the village
-        // follows you; the tick marks where recruiting starts to work
-        const BAR_W: i32 = 120;
-        draw_text(&mut buf, UI_X as i32 + 10, 30, "Influence", 200, 200, 200);
-        draw_rect(&mut buf, UI_X as i32 + 70, 30, BAR_W, 10, 40, 40, 60);
-        let infl_w = ((p.influence / WIN_INFLUENCE).clamp(0.0, 1.0) * BAR_W as f32) as i32;
-        draw_rect(&mut buf, UI_X as i32 + 70, 30, infl_w, 10, 255, 200, 80);
-        let recruit_x = UI_X as i32 + 70 + ((recruit_influence_needed() / WIN_INFLUENCE) * BAR_W as f32) as i32;
-        draw_rect(&mut buf, recruit_x, 28, 1, 14, 120, 255, 120);
-        draw_text(&mut buf, UI_X as i32 + 70 + BAR_W + 6, 31, &format!("{:.2}/{:.1} lead", p.influence, WIN_INFLUENCE), 255, 220, 130);
-        draw_text(&mut buf, UI_X as i32 + 10, 44, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {

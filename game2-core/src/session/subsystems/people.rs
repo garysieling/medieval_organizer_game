@@ -72,7 +72,8 @@ impl Game {
             self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < 4
                     && bb.name != "the herb hut" && bb.name != "a foreign house"
-                    && !bb.name.starts_with("a cottage in ") && !bb.name.starts_with("the keep at "))
+                    && !bb.name.starts_with("a cottage in ") && !bb.name.starts_with("the keep at ")
+                    && !bb.name.starts_with("the hall at "))
                 .unwrap_or(false));
         match room {
             Some(h) => self.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(v),

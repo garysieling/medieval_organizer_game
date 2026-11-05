@@ -414,7 +414,7 @@ impl View {
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {
-                        let look = i % art.villager_sprites.len().max(1);
+                        let look = figure_look(pv.kid, i, art.villager_sprites.len());
                         let fig = &art.villager_sprites[look];
                         let anchor = if let Some(Some(ws)) = art.villager_walks.get(look) {
                             // a generated walk cycle: facing and striding as they move
@@ -596,7 +596,8 @@ impl View {
                 if insp.dead {
                     draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);
                 } else if let Some(fig_i) = insp.fig {
-                    let fig = &art.villager_sprites[fig_i % art.villager_sprites.len().max(1)];
+                    let look = figure_look(insp.kid, fig_i, art.villager_sprites.len());
+                    let fig = &art.villager_sprites[look];
                     fig.blit_scaled(&mut buf, UI_X as i32 + 6, 322, 2);
                 }
                 for line in &insp.lines {

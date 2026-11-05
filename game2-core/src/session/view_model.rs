@@ -453,7 +453,7 @@ impl Game {
         if let Some((g, q, pr)) = offers.first() {
             lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g", q, g, pr), rgb: (150, 210, 150) });
         }
-        Some(InspectorV { fig: None, dead: false, died_day: None, lines })
+        Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 
     /// The inspector card for the selected villager
@@ -466,7 +466,7 @@ impl Game {
         if let Some(day) = self.died_on[i] {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
-            return InspectorV { fig: None, dead: true, died_day: Some(day), lines };
+            return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), lines };
         }
         let org_members = world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.clone()).unwrap_or_default();
@@ -548,7 +548,7 @@ impl Game {
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
             lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
         }
-        InspectorV { fig: Some(i), dead: false, died_day: None, lines }
+        InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }
 
     /// What an agent sees: itself, its purse, its belly, who's near and

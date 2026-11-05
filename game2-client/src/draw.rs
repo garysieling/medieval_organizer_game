@@ -409,6 +409,14 @@ pub(crate) fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f3
     draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
 }
 
+/// Which villager figure a person wears: grown folk cycle the whole
+/// pack; children take only its two youngest - a peasant lad or lass -
+/// so no elder's beard or noble's poise lands on a kid
+pub(crate) fn figure_look(kid: bool, i: usize, n: usize) -> usize {
+    let n = n.max(1);
+    if kid { i % n.min(2) } else { i % n }
+}
+
 /// Draw a child's figure - the pack has none, so they're a scaled-down
 /// villager flagged "(child)" on the label
 pub(crate) fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {

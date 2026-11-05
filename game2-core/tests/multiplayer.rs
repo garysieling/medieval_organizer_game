@@ -12,6 +12,9 @@ use tungstenite::{Message, WebSocket};
 
 type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
 
+/// One of the 31 fixed villagers `session.rs`'s `KID_IDXS` marks as a child
+const A_KID: usize = 26;
+
 /// A fast server: 200 frames a second, so a scene comes every 10ms
 fn start(probe_token: Option<&str>) -> ServerHandle {
     start_with(ServerConfig { probe_token: probe_token.map(String::from), ..fast() })
@@ -401,5 +404,20 @@ fn a_flooding_client_is_told_to_slow_down_and_others_play_on() {
     hello(&mut other, None, ClientKind::Human);
     send(&mut other, &ClientMsg::Ping(9));
     until("a pong for the other client", &mut other, 10, |m, _| matches!(m, ServerMsg::Pong(9)).then_some(()));
+    server.stop();
+}
+
+#[test]
+fn a_selected_child_inspects_as_a_kid_over_the_wire() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    hello(&mut human, None, ClientKind::Human);
+    send(&mut human, &ClientMsg::Command(Command::Select(A_KID)));
+    let insp = until("the kid's inspector", &mut human, 10, |m, _| match m {
+        ServerMsg::Scene(s) => s.inspector.clone(),
+        _ => None,
+    });
+    assert_eq!(insp.fig, Some(A_KID), "the inspector picked up the selection");
+    assert!(insp.kid, "a known child's inspector should say kid:true");
     server.stop();
 }

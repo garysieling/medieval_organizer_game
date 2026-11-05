@@ -333,6 +333,22 @@ impl Game {
             }
         });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];
+        // the bond ledger: who the seat has spoken to, by how far each
+        // relationship has climbed - the same stages the inspector names.
+        // rapport is talk-only, so a barter or a shared meal can't pad
+        // the "spoken to" headline the way any stage_of bond could
+        let mut social = SocialV::default();
+        for &v in &self.villagers {
+            if crate::game::player::rapport(world, self.seats[seat].player, v) <= 0.0 { continue; }
+            use crate::game::organizing::RelStage;
+            match crate::game::organizing::stage_of(world, self.seats[seat].player, v) {
+                RelStage::Stranger => {}
+                RelStage::Acquaintance => { social.met += 1; social.acquaintances += 1; }
+                RelStage::Known => { social.met += 1; social.known += 1; }
+                RelStage::Follower => { social.met += 1; social.followers += 1; }
+                RelStage::CoLeader => { social.met += 1; social.coleaders += 1; }
+            }
+        }
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector_at(seat)
         } else {
@@ -368,6 +384,7 @@ impl Game {
                 name: my_name, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
+                social,
             },
             mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)

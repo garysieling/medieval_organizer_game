@@ -97,6 +97,17 @@ pub fn rapport(world: &World, player: Entity, target: Entity) -> f32 {
     world.get_component::<Rapport>(target).and_then(|r| r.by_player.get(&player).copied()).unwrap_or(0.0)
 }
 
+/// A real conversation happened between `speaker` and `target`, outside
+/// act_talk's reach - a house meeting, a 1-1. The talkee's warmth for the
+/// speaker grows a talk's step, so the seat's bond ledger counts everyone
+/// who actually spoke with them, not only who they sought out one by one
+pub fn note_conversation(world: &mut World, speaker: Entity, target: Entity) {
+    let mut rap = world.get_component::<Rapport>(target).cloned().unwrap_or_default();
+    let cur = rap.by_player.get(&speaker).copied().unwrap_or(0.0);
+    rap.by_player.insert(speaker, (cur + TALK_RAPPORT_STEP).min(1.0));
+    world.add_component(target, rap);
+}
+
 /// Whether `target` has been woken to `campaign`'s issue already
 pub fn sympathizes(world: &World, campaign: Entity, target: Entity) -> bool {
     world.get_component::<crate::game::campaign::Campaign>(campaign)

@@ -113,6 +113,19 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
 }
 
+/// A house meeting is a real conversation: everyone who spoke counts in
+/// the sidebar's bond ledger even if the host never used Talk on them
+#[test]
+fn test_a_house_meeting_counts_toward_the_bond_ledger() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let m = g.ui_model();
+    assert_eq!(m.panel.social.met, 3, "everyone who spoke at the meeting counts");
+}
+
 #[test]
 fn test_the_ladder_climbs_from_stranger_to_co_leader() {
     use crate::game::organizing::{stage_of, RelStage};

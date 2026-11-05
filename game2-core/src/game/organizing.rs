@@ -27,6 +27,8 @@ pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneO
     let rel = record_interaction(world, organizer, Interaction {
         other: citizen, kind: InteractionKind::Conversation, intensity: 1.0,
     });
+    // a real conversation, like a Talk: the organizer's bond counts it
+    crate::game::player::note_conversation(world, organizer, citizen);
     let after = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(before);
     // running a real 1-1 is practice at the craft
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, crate::game::org_skills::ONE_ON_ONE_PRACTICE);
@@ -143,6 +145,9 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         let rel = record_interaction(world, leader, Interaction {
             other: a, kind: kind(), intensity: 1.0,
         });
+        // they spoke at the meeting: the leader's bond with them grows a
+        // talk's step, so a seat that hosted counts them as spoken to
+        crate::game::player::note_conversation(world, leader, a);
         let trust = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(0.0);
         if crate::sim::community::recruit(world, org, a, trust) {
             recruited += 1;

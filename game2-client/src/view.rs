@@ -641,6 +641,16 @@ impl View {
             }
         }
 
+        // the bond ledger: the reward for keeping company - who the
+        // seat has spoken to and how far each bond has climbed. It sits
+        // between the Build button (ends 184) and the Gather ctx button
+        // (starts 236), so the block can't outgrow three lines
+        let s = &m.panel.social;
+        draw_text(&mut buf, UI_X as i32 + 18, 190, "BONDS", 255, 215, 0);
+        for (n, line) in bond_lines(s).iter().enumerate() {
+            draw_text(&mut buf, UI_X as i32 + 18, 202 + n as i32 * 12, line, 215, 215, 195);
+        }
+
         // organization: who has joined, by name
         let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
         draw_text(&mut buf, UI_X as i32 + 18, 464, MEMBERS_LABEL, 255, 215, 0);

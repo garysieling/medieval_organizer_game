@@ -162,6 +162,16 @@ visit (hail, drought, aurora...).
 {"text":"A hailstorm batters the thatch","at":null}
 ```
 
+`panel.social` is the seat's bond ledger: folk it has actually talked
+with (`met`), split by how far each bond has climbed. Only conversations
+count toward `met` - a barter or a shared meal alone doesn't.
+
+```json
+{"met":12,"acquaintances":5,"known":4,"followers":2,"coleaders":1}
+```
+
+Scenes from an older server may omit `social`; read it as all zeroes.
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

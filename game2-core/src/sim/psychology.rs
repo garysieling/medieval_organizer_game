@@ -106,9 +106,19 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
             let cur = b.target;
             let _ = b;
             let score = |t: Entity| -> f32 {
-                let weight = |k: &EpisodeKind| match k {
-                    EpisodeKind::Warmth => 0.15, EpisodeKind::Anxiety => -0.1,
-                    EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3 };
+                // the heart's style weighs each beat as it did when the
+                // bond was growing, or a switched bond lands wrong
+                let weight = |k: &EpisodeKind| {
+                    let w = match k {
+                        EpisodeKind::Warmth => 0.15, EpisodeKind::Anxiety => -0.1,
+                        EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3 };
+                    match style {
+                        Some(AttachmentStyle::Secure) if w > 0.0 => w * 1.3,
+                        Some(AttachmentStyle::Anxious) if w < 0.0 => w * 1.4,
+                        Some(AttachmentStyle::Avoidant) if w > 0.0 => w * 0.6,
+                        _ => w,
+                    }
+                };
                 world.get_component::<AttachmentHistory>(agent).map(|h| h.episodes.iter()
                     .filter(|e| e.with == t).map(|e| weight(&e.kind)).sum()).unwrap_or(0.0)
             };

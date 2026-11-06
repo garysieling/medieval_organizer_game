@@ -76,6 +76,8 @@ pub struct TalkRecord {
     pub lines: Vec<TalkLine>,
     /// The warmth beat was counted - a record only warms once
     pub warmed: bool,
+    /// A kind answer landed - a Talk warms on those, not push-backs
+    pub positive: bool,
 }
 
 /// A Talk the player is in the middle of: replayed from its seed and the
@@ -211,7 +213,7 @@ impl Game {
     pub(in crate::session) fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
         self.talk_next_id += 1;
         let id = self.talk_next_id;
-        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false });
+        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false, positive: false });
         if self.talk_log.len() > TALK_LOG_MAX {
             let extra = self.talk_log.len() - TALK_LOG_MAX;
             self.talk_log.drain(..extra);
@@ -230,6 +232,8 @@ impl Game {
         let Some(r) = self.talk_log.iter().find(|r| r.id == id) else { return };
         if r.warmed || r.with.len() != 2
             || matches!(r.kind, TalkKind::Meeting) { return }
+        // a Talk warms on a kind answer, not a push-back
+        if matches!(r.kind, TalkKind::Talk) && !r.positive { return }
         let (a, b) = (r.with[0], r.with[1]);
         if !(r.lines.iter().any(|l| l.who == Some(a))
             && r.lines.iter().any(|l| l.who == Some(b))) { return }
@@ -443,8 +447,11 @@ impl Game {
         match act {
             Act::PushBack => { relationships::record_interaction(&mut self.world, pe,
                 Interaction { other: who, kind: InteractionKind::Conflict, intensity: PUSHBACK_CHILL }); }
-            Act::Agree | Act::Answer => { relationships::record_interaction(&mut self.world, pe,
-                Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH }); }
+            Act::Agree | Act::Answer => {
+                relationships::record_interaction(&mut self.world, pe,
+                    Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH });
+                if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
+            }
             _ => {}
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }

@@ -2093,15 +2093,17 @@ fn stand_by_cat(g: &mut Game) {
 }
 
 /// Stroke the cat through the real button path, waiting out her cooldown
-fn pet_her(g: &mut Game, times: u32) {
-    g.update_ctx_actions();
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PetCat)
+fn pet_her_at(g: &mut Game, seat: usize, times: u32) {
+    g.update_ctx_actions_at(seat);
+    let i = g.seats[seat].ctx_actions.iter().position(|&a| a == CtxAct::PetCat)
         .expect("Pet her shows beside the cat");
     for _ in 0..times {
-        g.ctx_act_at(0, i);
+        g.ctx_act_at(seat, i);
         g.frame_n += STRAY_CAT_PET_COOLDOWN as u32 + 1;
     }
 }
+
+fn pet_her(g: &mut Game, times: u32) { pet_her_at(g, 0, times) }
 
 /// A kind hand keeps her: enough strokes and the cat comes home with the
 /// player, not with the loneliest hearth
@@ -2151,6 +2153,34 @@ fn test_the_stray_cat_needs_a_moment_between_strokes() {
     g.ctx_act_at(0, i);
     assert!((g.world.get_component::<Pet>(cat).unwrap().bond_strength - 0.2).abs() < 0.01,
         "once she's had her moment she takes another stroke");
+}
+
+/// When two hands have stroked her, the kindest keeps her - not whoever
+/// happened to pet last
+#[test]
+fn test_the_kindest_hand_keeps_the_cat() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    g.force_event(EventId::StrayCat);
+    for _ in 0..2000 {
+        if stray_cat_at_pitch(&g).is_some() { break; }
+        g.advance_rare();
+    }
+    stand_by_cat(&mut g);
+    // a second player stands beside her too
+    let who = g.world.create_entity();
+    let (cx, cy) = { let e = stray_cat_at_pitch(&g).unwrap();
+        let p = g.world.get_component::<Pos>(e).unwrap(); (p.x, p.y) };
+    g.world.add_component(who, Pos { x: cx, y: cy - 1.0 });
+    g.seats.push(Seat { player: who, ..Seat::default() });
+    let cat = stray_cat_at_pitch(&g).unwrap();
+    // the first seat strokes her three times, the second five - the
+    // shared warmth is past the tame line either way
+    pet_her_at(&mut g, 0, 3);
+    pet_her_at(&mut g, 1, 5);
+    stage::run_days(&mut g, 8);
+    assert!(g.pets.iter().any(|&(e, sp, _)| e == cat && sp == Species::Cat), "she stayed");
+    assert_eq!(g.world.get_component::<Pet>(cat).unwrap().owner, Some(who),
+        "the hand that stroked most keeps her");
 }
 
 /// A few strokes aren't enough: under the tame line the hearths still choose

@@ -299,11 +299,18 @@ impl Game {
                 // warmth decides before the hearths do; a hearth behind
                 // bars is no hearth to her either way
                 let cat = self.rare.iter().find(|r| r.id == EventId::StrayCat && !r.leaving)
-                    .and_then(|r| r.e.map(|e| (e, r.tamer)));
-                let tamed = cat.and_then(|(e, t)| {
-                    let bond = self.world.get_component::<Pet>(e)?.bond_strength;
-                    let owner = t.filter(|&t| self.seats.iter().any(|s| s.player == t))?;
-                    (bond >= STRAY_CAT_TAME_BOND).then_some((e, owner))
+                    .and_then(|r| r.e.map(|e| (e, r.petters.clone())));
+                let tamed = cat.and_then(|(e, petters)| {
+                    if self.world.get_component::<Pet>(e)?.bond_strength < STRAY_CAT_TAME_BOND { return None; }
+                    // the kindest hand keeps her: most strokes wins, and
+                    // seats break a tie in their own order
+                    let mut best: Option<(Entity, u32)> = None;
+                    for s in &self.seats {
+                        if let Some(&n) = petters.get(&s.player) {
+                            if best.map(|(_, bn)| n > bn).unwrap_or(true) { best = Some((s.player, n)); }
+                        }
+                    }
+                    best.map(|(owner, _)| (e, owner))
                 });
                 if let Some((e, owner)) = tamed {
                     pets::adopt(&mut self.world, e, owner);

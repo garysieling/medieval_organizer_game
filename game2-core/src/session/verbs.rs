@@ -737,7 +737,7 @@ impl Game {
         if let Some(p) = self.world.get_component_mut::<Pet>(e) { p.bond_strength = now; }
         if let Some(r) = self.rare.iter_mut().find(|r| r.id == events::EventId::StrayCat) {
             r.aux = self.frame_n as u64 + events::STRAY_CAT_PET_COOLDOWN;
-            r.tamer = Some(self.seats[seat].player);
+            *r.petters.entry(self.seats[seat].player).or_default() += 1;
         }
         self.say(e, "*purrr*", 2);
         if was <= 0.0 {

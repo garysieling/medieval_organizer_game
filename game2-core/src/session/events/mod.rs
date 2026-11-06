@@ -246,11 +246,12 @@ pub struct RareEvent {
     pub at: Option<(i32, i32)>,
     /// Heading home already
     pub leaving: bool,
-    /// Per-event scratch: a counter, a picked target, a flag
+    /// Per-event scratch: a counter, a picked target, a flag. For the
+    /// stray cat it's the petting cooldown - the frame_n deadline
     pub aux: u64,
-    /// The stray cat's petting cooldown (frame_n deadline) rides in `aux`;
-    /// this is the seat's player who's been stroking her
-    pub tamer: Option<Entity>,
+    /// The stray cat's strokes, per player: when she chooses, the kindest
+    /// hand keeps her
+    pub petters: crate::engine::det::HashMap<Entity, u32>,
 }
 
 /// When each event first becomes due: the opening months are full of
@@ -353,12 +354,12 @@ impl Game {
                 self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
                 let at = self.event_pitch(id);
                 let path = self.map.walk_path(start, at).unwrap_or_default();
-                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, tamer: None });
+                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });
                 self.log.push(format!("t{}: {} has come to town.", self.tick, s.name));
             }
             EventKind::Spell => {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
-                    at: None, leaving: false, aux: 0, tamer: None });
+                    at: None, leaving: false, aux: 0, petters: Default::default() });
                 self.event_began(id);
                 // its first day is this one - the daily tick for tomorrow
                 // hasn't come yet, and a one-day spell sees no other
@@ -470,12 +471,15 @@ impl Game {
             EventId::StrayCat => {
                 self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
                 // she's a pet to begin with - ownerless and bondless, but
-                // pettable: a player who's kind to her keeps her
+                // pettable: a player who's kind to her keeps her. Hunting
+                // like any village cat: vermin watch and a warm lap once
+                // she's bond enough to give it
                 if let Some(e) = e {
                     self.world.add_component(e, Pet {
                         name: "a stray".into(), species: Species::Cat, owner: None,
-                        bond_strength: 0.0, mood_effect: 0.0,
+                        bond_strength: 0.0, mood_effect: 0.15,
                     });
+                    self.world.add_component(e, PetRole::Hunting);
                 }
             }
             EventId::ProdigalSon => {

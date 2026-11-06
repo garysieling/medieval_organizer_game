@@ -109,6 +109,7 @@ mod telemetry;
 mod trade_issue;
 mod trail;
 mod vermin;
+mod visitors;
 mod village;
 mod walk;
 mod weather;

@@ -45,6 +45,19 @@ impl Game {
                 self.derelict.insert(i);
             }
         }
+        // word rides a few days ahead of whoever's on the road
+        if tick + 3 == self.next_minstrel {
+            self.log.push(format!("t{}: word is a minstrel's on the road.", tick));
+        }
+        if tick + 3 == self.next_pedlar {
+            self.log.push(format!("t{}: word is the pedlar's due with the gossip.", tick));
+        }
+        if tick + 3 == self.next_circus {
+            self.log.push(format!("t{}: word is a circus camps outside the walls come the week's end.", tick));
+        }
+        if tick + 3 == self.next_ink_boiler {
+            self.log.push(format!("t{}: word is the ink-maker's coming to boil his oil.", tick));
+        }
         // a minstrel rides in every so often
         if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
         // and the pedlar comes by every few weeks - the game's newspaper

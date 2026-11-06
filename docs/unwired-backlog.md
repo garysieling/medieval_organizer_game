@@ -62,7 +62,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 36 | Letters on the road | `Game::letters` | done #564 |
 | 37 | Heirlooms and who holds them | `Game::heirlooms` | done #565 |
 | 38 | Cheese wheels aging in the cellar, and its character | `Game::cheeses`, `cellar_trait` | done #566 |
-| 39 | Mushroom lore: who's learned which patch kills | `Game::shroom_lore` | todo |
+| 39 | Mushroom lore: who's learned which patch kills | `Game::shroom_lore` | done #567 |
 | 40 | Ailments on their own calendar (amatoxin phases, St Anthony's brothers) | `Game::ailments` | todo |
 | 41 | The shame ladder: who's on which rung | `Game::sanctioned` | todo |
 | 42 | The matchmaker's tried pairings | `Game::matchmaker`, `match_tried` | todo |

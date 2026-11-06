@@ -336,6 +336,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // called its button's gone and she's pettable again
         CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
         CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
+        CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
     }
 }
 #[cfg(test)] // only the tests check against it

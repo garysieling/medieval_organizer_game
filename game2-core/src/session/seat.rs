@@ -77,6 +77,9 @@ pub enum CtxAct {
     Snowballs,
     /// Win the picked villager to the cause - it takes real trust first
     Recruit,
+    /// Pick a cap off the patch you're standing by - the wood feeds,
+    /// and teaches its lessons the hard way
+    PickCaps,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -318,11 +321,13 @@ impl Game {
         let at = (px.round() as i32, py.round() as i32);
         // a well-worn path is quicker underfoot, whoever's feet wear it
         let worn = self.trails.get(&at).map(|t| t.strength).unwrap_or(0.0);
+        let ailing = self.world.get_component::<villager::Condition>(self.seats[seat].player)
+            .map(|c| self.tick < c.until).unwrap_or(false);
         let spd = WALK_SPEED * self.walk_pace() / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
             _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
             _ => 1.0,
-        };
+        } * if ailing { 0.7 } else { 1.0 };
         // the same pace whichever way they go, diagonals included
         let len = (dx * dx + dy * dy).sqrt();
         // a still stick or noise on the wire: no step, and never a NaN position

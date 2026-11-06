@@ -694,7 +694,7 @@ impl Game {
         // for them, and theirs check on them
         for (i, kind) in [(7usize, "a lame leg"), (11, "failing sight"), (15, "a mind that needs quiet")] {
             if i < villagers.len() {
-                world.add_component(villagers[i], villager::Condition { kind });
+                world.add_component(villagers[i], villager::Condition { kind, until: u64::MAX });
             }
         }
         // and the recluse keeps to the cave at the map's edge - the same

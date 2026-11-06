@@ -145,6 +145,13 @@ impl Game {
         // a scan per afflicted villager multiplied by every bond in the
         // village, which grew without bound over a long game
         let bonds = relationships::bond_map(&self.world);
+        // a turned belly lifts with its day - the chronic ones never do.
+        // swept by the component, not the roster: the player isn't on it
+        let lifted: Vec<Entity> = self.world.query::<villager::Condition>().iter()
+            .filter(|&&e| self.world.get_component::<villager::Condition>(e)
+                .map(|c| tick >= c.until).unwrap_or(false))
+            .copied().collect();
+        for e in lifted { self.world.remove_component::<villager::Condition>(e); }
         for &v in &self.villagers.clone() {
             let Some(cond) = self.world.get_component::<villager::Condition>(v)
                 .map(|c| c.kind) else { continue };

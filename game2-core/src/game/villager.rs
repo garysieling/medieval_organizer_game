@@ -69,6 +69,8 @@ pub struct Smell {
 #[derive(Debug, Clone, Copy)]
 pub struct Condition {
     pub kind: &'static str,
+    /// The day it lifts - u64::MAX for the ones old age doesn't give back
+    pub until: u64,
 }
 
 /// Last night's cup still has them: they sleep it off instead of

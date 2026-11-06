@@ -65,6 +65,25 @@ fn picking_a_card_rewrites_the_player() {
     assert!(!g.pick_character_at(99, 0));
 }
 
+/// Keeping the wanderer settles the choice too: a later pick can't swap
+/// a character who's since earned a purse of their own
+#[test]
+fn a_declined_pick_settles_the_seat() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    assert!(g.decline_pick_at(0));
+    assert!(g.decline_pick_at(0), "declining twice is fine");
+    assert!(!g.pick_character_at(0, 0), "a settled seat doesn't pick");
+    // and the other way round: a pick settles it against a decline too
+    let mut g2 = Game::new_seeded(MAP_SEED);
+    assert!(g2.pick_character_at(0, 0));
+    let e2 = g2.seats[0].player;
+    assert!(g2.decline_pick_at(0), "declining after a pick is a no-op");
+    assert!(g2.world.get_component::<crate::game::player::Avatar>(e2).is_some(),
+        "the picked figure stands");
+    // a seat that isn't there can't decline
+    assert!(!g.decline_pick_at(99));
+}
+
 /// A picked childhood isn't forever: the seat's kid comes of age on the
 /// same day the village's do, takes a trade, and grows up in the figure
 /// too

@@ -236,6 +236,13 @@ fn main() {
                 started = true;
             }
             if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) {
+                // keeping the wanderer is a decision too: tell the server,
+                // or a reclaim would offer the picker over a purse earned
+                // since
+                if let Some(r) = &remote {
+                    let msg = serde_json::to_string(&ClientMsg::DeclinePick).unwrap();
+                    let _ = r.ws.lock().unwrap().send(tungstenite::Message::Text(msg.into()));
+                }
                 picker = None;
                 started = true;
             }

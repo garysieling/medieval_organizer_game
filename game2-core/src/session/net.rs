@@ -40,6 +40,8 @@ pub enum ClientMsg {
     AgentCmd(AgentCmd),
     /// Take a card off the roster the Welcome dealt: becomes your character
     Pick(usize),
+    /// Keep the default wanderer instead of picking
+    DeclinePick,
     /// Keepalive / latency probe
     Ping(u64),
 }

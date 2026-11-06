@@ -13,6 +13,12 @@ use super::{roll_vocation, Game, Rng, NEW_NAMES};
 /// How many wanderers a seed deals
 const ROSTER_SIZE: usize = 7;
 
+/// The seat's character choice is made - a card was picked, or the
+/// default wanderer was kept. Without it a reclaim would offer the
+/// picker again over a character who's since earned a purse of their own
+#[derive(Debug, Clone, Copy)]
+pub struct Settled;
+
 /// One premade character, ready to become a seat's player
 #[derive(Debug, Clone)]
 pub struct CharacterSheet {
@@ -161,8 +167,10 @@ impl Game {
         if seat_ref.agent { return false; }
         let player = seat_ref.player;
         // one pick per seat: a second would mint a fresh purse out of
-        // thin air, gold spent or no
-        if self.world.get_component::<crate::game::player::Avatar>(player).is_some() { return false; }
+        // thin air, gold spent or no - and a seat that already decided
+        // (picked, or kept the wanderer) doesn't pick again either
+        if self.world.get_component::<crate::game::player::Avatar>(player).is_some()
+            || self.world.get_component::<Settled>(player).is_some() { return false; }
         if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(player) {
             p.name = sheet.name.clone();
         }
@@ -184,6 +192,20 @@ impl Game {
             wants: sheet.wants.clone(), grievances: vec![], satisfied: vec![] });
         self.world.add_component(player, crate::game::player::Avatar {
             look: sheet.look, kid: sheet.kid });
+        self.world.add_component(player, Settled);
+        true
+    }
+
+    /// The seat's player keeps the default wanderer: still a decision,
+    /// so a reclaim doesn't deal the picker over a character who's
+    /// since gotten above themselves. Idempotent; agents have no say
+    pub fn decline_pick_at(&mut self, seat: usize) -> bool {
+        let Some(seat_ref) = self.seats.get(seat) else { return false };
+        if seat_ref.agent { return false; }
+        let player = seat_ref.player;
+        if self.world.get_component::<Settled>(player).is_none() {
+            self.world.add_component(player, Settled);
+        }
         true
     }
 }

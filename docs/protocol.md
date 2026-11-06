@@ -119,6 +119,13 @@ stands if you never do.
 {"Pick":3}
 ```
 
+Or keep the default wanderer - still a decision, so a reclaim doesn't
+offer the cards again:
+
+```json client
+"DeclinePick"
+```
+
 ### Ping
 
 ```json client

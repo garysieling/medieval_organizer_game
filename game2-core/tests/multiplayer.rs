@@ -474,3 +474,26 @@ fn a_reclaim_before_the_pick_still_gets_the_roster() {
     assert_eq!(again.len(), first.len(), "an unchosen seat picks off the same cards");
     server.stop();
 }
+
+#[test]
+fn a_declined_pick_stays_declined_on_reclaim() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    send(&mut human, &ClientMsg::Hello { token: None, kind: ClientKind::Human, name: None, secret: None });
+    let (_, roster, token) = until("a welcome with a roster", &mut human, 10, |m, _| match m {
+        ServerMsg::Welcome { you, roster, token, .. } => Some((*you, roster.clone(), token.clone())),
+        _ => None,
+    });
+    assert!(!roster.is_empty());
+    // Escape: keep the wanderer - a decision the seat remembers
+    send(&mut human, &ClientMsg::DeclinePick);
+    drop(human);
+    let mut back = connect(server.addr);
+    send(&mut back, &ClientMsg::Hello { token: Some(token), kind: ClientKind::Human, name: None, secret: None });
+    let again = until("the reclaim's welcome", &mut back, 10, |m, _| match m {
+        ServerMsg::Welcome { roster, .. } => Some(roster.clone()),
+        _ => None,
+    });
+    assert!(again.is_empty(), "a declined seat isn't offered the picker again");
+    server.stop();
+}

@@ -31,6 +31,8 @@ pub enum Input {
     DriveIdle { seat: usize },
     /// A seat's player takes the `idx`-th card of the seed's roster
     PickCharacter { seat: usize, idx: usize },
+    /// A seat's player keeps the default wanderer instead of picking
+    DeclinePick { seat: usize },
 }
 
 /// What an input gave back: the seat it made, or an agent command's answer
@@ -54,6 +56,7 @@ impl Game {
             Input::PickCharacter { seat, idx } => {
                 self.pick_character_at(*seat, *idx); Applied::Done
             }
+            Input::DeclinePick { seat } => { self.decline_pick_at(*seat); Applied::Done }
         }
     }
 

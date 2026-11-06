@@ -62,3 +62,19 @@ fn test_the_worst_walk_out() {
     g.arrive(v, Goal::Exile);
     assert!(villager::is_dead(&g.world, v), "gone is gone");
 }
+
+#[test]
+fn test_the_card_names_the_rung() {
+    let mut g = Game::new();
+    let i = g.villagers.iter().position(|&v|
+        g.world.get_component::<TownRole>(v).is_none()).unwrap();
+    let v = g.villagers[i];
+    g.sanctioned.push((v, Sanction::Shun, 10));
+    g.tick = 5;
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    let ins = g.ui_model_at(0).inspector.expect("no card");
+    assert!(ins.lines.iter().any(|l| l.text.contains("the cold shoulder")),
+        "the card doesn't say where they stand: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

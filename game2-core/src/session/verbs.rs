@@ -32,6 +32,13 @@ impl Game {
                         .map(|p| if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
                 }
             }
+            CtxAct::Snowballs => {
+                if self.snowball_day == self.tick { Some("everyone's already played today".into()) }
+                else if self.world.get_component::<crate::sim::climate::Climate>(self.climate)
+                    .map(|c| c.season != crate::sim::climate::Season::Winter).unwrap_or(true) {
+                    Some("snowballs are a winter game".into())
+                } else { None }
+            }
             CtxAct::Townhall => {
                 // the Reeve won't hear the same demands while he's honouring
                 // a full grant for them; a part-grant or a hollowed one can
@@ -361,6 +368,13 @@ impl Game {
         if self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
             .map(|p| p.ready()).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::Gather);
+        }
+        // winter's own button: once a day, everyone free can be called out
+        // to a snowball fight - it shares Gather's row on the panel
+        if self.world.get_component::<crate::sim::climate::Climate>(self.climate)
+            .map(|c| c.season == crate::sim::climate::Season::Winter).unwrap_or(false)
+            && self.snowball_day != self.tick {
+            self.seats[seat].ctx_actions.push(CtxAct::Snowballs);
         }
         // the cause meets on its cadence and marches on the streets: the
         // buttons show once a campaign exists; seats go to the picked member
@@ -701,6 +715,7 @@ impl Game {
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
+            CtxAct::Snowballs => self.snowball_fight_at(seat),
         };
         if !msg.is_empty() {
             self.log.push(format!("t{}: {}", tick, msg));

@@ -438,6 +438,7 @@ impl Game {
             convo: self.convo_panel_at(seat),
             debug_lines: vec![],
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
+            snowballs: self.snowballs.iter().map(|s| s.pos_at(self.frame_n)).collect(),
         }
     }
 
@@ -584,7 +585,45 @@ impl Game {
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
             lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
         }
+        // the biography the seat knows: years and build are public, but
+        // temperament and kin take a bond close enough to have been told
+        if let Some(bio) = self.bio_line_at(seat, v) {
+            lines.push(Line { x: 18, y: 454, text: bio, rgb: (160, 180, 200) });
+        }
         InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
+    }
+
+    /// The biography the seat knows of `v`: what they are and what they
+    /// carry are plain to see; temperament, kin and origin take a bond
+    /// known closely enough to have been told
+    fn bio_line_at(&self, seat: usize, v: Entity) -> Option<String> {
+        let world = &self.world;
+        let mut parts: Vec<String> = vec![];
+        if world.get_component::<Kid>(v).is_some() {
+            parts.push("a child".into());
+        } else if let Some(a) = world.get_component::<crate::game::lifecycle::Age>(v) {
+            parts.push(format!("{:.0} winters", a.years));
+        }
+        if let Some(c) = world.get_component::<villager::Condition>(v) {
+            parts.push(c.kind.to_string());
+        }
+        if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
+            >= crate::game::organizing::RelStage::Known {
+            if let Some(p) = world.get_component::<crate::game::traits::Personality>(v) {
+                let ts: Vec<&str> = p.traits.iter().map(|&t| trait_word(t)).collect();
+                if !ts.is_empty() { parts.push(ts.join(", ")); }
+            }
+            let kin: Vec<String> = self.villagers.iter().copied()
+                .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
+                .take(3)
+                .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|i| vill_name(i).to_string()))
+                .collect();
+            if !kin.is_empty() { parts.push(format!("kin: {}", kin.join(", "))); }
+            if world.get_component::<country::Outlander>(v).is_some() {
+                parts.push("of the country".into());
+            }
+        }
+        (!parts.is_empty()).then(|| parts.join(" \u{00b7} "))
     }
 
     /// What an agent sees: itself, its purse, its belly, who's near and
@@ -677,5 +716,14 @@ impl Game {
             walking: self.travels.iter().any(|t| t.who == who),
             held, orgs, campaigns, burning, me,
         })
+    }
+}
+
+/// A trait in plain words, for the biography line
+fn trait_word(t: crate::game::traits::Trait) -> &'static str {
+    use crate::game::traits::Trait::*;
+    match t {
+        Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",
+        Pious => "pious", Hotheaded => "hot-headed", Gregarious => "gregarious", Proud => "proud",
     }
 }

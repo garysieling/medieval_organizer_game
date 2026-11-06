@@ -300,6 +300,10 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
         CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
+        // shares the row's right half with Pet her - pushed last, it
+        // draws over her in the rare winter visit, and once the fight's
+        // called its button's gone and she's pettable again
+        CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -768,6 +772,14 @@ pub struct Game {
 
     pub bubbles: Vec<(Entity, String, u32, bool, bool)>, // speech bubbles: (speaker, text, until frame, a thought?, ambient passing remark?)
     pub meeting: Option<Meeting>,
+    /// The day a snowball fight was called (u64::MAX = never)
+    pub snowball_day: u64,
+    /// Whether today's fight has raised its hubbub yet
+    pub snowball_cued: bool,
+    /// Where today's fight is being made, for the sound's pan
+    pub snowball_at: (f32, f32),
+    /// Snowballs in the air this frame
+    pub snowballs: Vec<routine::Snowball>,
     /// Pairs of people standing near each other, and the day each pair last chatted
     pub near: Vec<(Entity, Entity)>,
     pub last_chat: Vec<((Entity, Entity), u64)>,
@@ -1379,6 +1391,7 @@ impl Game {
             crate::timed!("sim.advance_meeting", self.advance_meeting());
             crate::timed!("sim.advance_player_talks", self.advance_player_talks());
             crate::timed!("sim.advance_travels", self.advance_travels());
+            crate::timed!("sim.snowball_frame", self.snowball_frame());
             // and the jobs folk asked of the Wanderer: picked up where
             // they lie, handed over where they're bound
             self.quest_frame();

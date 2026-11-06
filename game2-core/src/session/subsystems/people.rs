@@ -470,6 +470,13 @@ impl Game {
         }
     }
 
+    /// Ties drift a little toward neutral each day - bad blood settles,
+    /// warmth cools, and a label the tie outgrew comes off
+    pub fn rel_tick(&mut self) {
+        use crate::engine::ecs::System;
+        crate::game::relationships::RelationshipSystem.run(&mut self.world);
+    }
+
     /// The newly dead are mourned: a bond to them, or a tie worth
     /// grieving, takes a Loss to the mourner's attachment history - and
     /// the grief the village already knows how to carry

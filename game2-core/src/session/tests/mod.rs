@@ -82,6 +82,7 @@ mod quests;
 mod story;
 mod tech;
 mod reckoning;
+mod rels;
 mod rep;
 mod river;
 mod roster;

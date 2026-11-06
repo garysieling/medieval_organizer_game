@@ -220,6 +220,9 @@ impl Game {
         // the country's carts and stewards, and its granaries
         crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
+        // the weather resolves before anyone lifts a tool: a rolled event
+        // weighs on the day's harvest and health alike
+        crate::timed!("sim.weather", self.weather_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
         // the office gathers whoever's keeping the holy day - church
         // rows or the stones, priest or no priest
@@ -335,6 +338,8 @@ impl Game {
             use crate::engine::ecs::System;
             crate::sim::religion::DevotionSystem.run(&mut self.world);
         });
+        // and the weather rolls through: an event thins the fields and
+        // chills or scorches the bones while it lasts
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
@@ -436,6 +441,61 @@ impl Game {
             let (cx, cy) = self.world.get_component::<Pos>(self.seats[0].player)
                 .map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
             self.sfx.push(crate::session::SfxCue { kind: "mood", x: cx, y: cy, intensity: 0.7 });
+        }
+    }
+
+    /// The weather rolls through: when the sky clears the day rolls the
+    /// next event - season-weighted, most days fair - and while an event
+    /// lasts its heat or cold wears on the village's health
+    pub(crate) fn weather_tick(&mut self, tick: u64) {
+        use crate::sim::weather::*;
+        use crate::engine::ecs::System;
+        WeatherSystem.run(&mut self.world);
+        let (kind, duration) = self.world.get_component::<CurrentWeather>(self.weather)
+            .map(|w| (w.kind, w.duration)).unwrap_or((Weather::Clear, 0));
+        if kind == Weather::Clear || duration == 0 {
+            let season = self.world.get_component::<climate::Climate>(self.climate)
+                .map(|c| c.season).unwrap_or(climate::Season::Summer);
+            let roll = self.rng.next() % 100;
+            let next = match (season, roll) {
+                (climate::Season::Winter, 0..=7) => Weather::Frost,
+                (climate::Season::Winter, 8..=11) => Weather::Storm,
+                (climate::Season::Summer, 0..=7) => Weather::HeatWave,
+                (climate::Season::Summer, 8..=11) => Weather::Drought,
+                (_, 0..=5) => Weather::Storm,
+                (_, 6..=9) => Weather::Drought,
+                _ => Weather::Clear,
+            };
+            let intensity = 0.4 + (self.rng.next() % 60) as f32 / 100.0;
+            let days = 2 + (self.rng.next() % 2) as u32;
+            if let Some(w) = self.world.get_component_mut::<CurrentWeather>(self.weather) {
+                w.kind = next;
+                w.intensity = if next == Weather::Clear { 0.0 } else { intensity };
+                w.duration = if next == Weather::Clear { 1 } else { days };
+            }
+            let word = match next {
+                Weather::Storm => Some("a storm rolls in - the fields will feel it"),
+                Weather::Drought => Some("the ground dries and cracks - a lean spell"),
+                Weather::HeatWave => Some("a heat wave settles over the village"),
+                Weather::Frost => Some("a hard frost grips the fields"),
+                Weather::Clear => None,
+            };
+            if let Some(w) = word { self.log.push(format!("t{}: {}.", tick, w)); }
+        }
+        // while an extreme holds, the village's health wears a little
+        if let Some(w) = self.world.get_component::<CurrentWeather>(self.weather) {
+            let drain = health_effect(w);
+            if drain < 0.0 {
+                for &v in self.villagers.iter().filter(|&&v|
+                    !villager::is_dead(&self.world, v) && self.site_of(v).is_none())
+                    .collect::<Vec<_>>() {
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        // exposure wears a body down; it doesn't kill
+                        // outright, and it doesn't mend a failing one
+                        h.condition = (h.condition + drain).max(0.2).min(h.condition);
+                    }
+                }
+            }
         }
     }
 

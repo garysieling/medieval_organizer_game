@@ -26,7 +26,7 @@ fn test_a_building_stands_with_its_base_on_its_tile() {
         .filter(|&(x, y)| buf.pixels[(y * W + x) * 4] == 255).collect();
     let (x0, x1) = (lit.iter().map(|p| p.0).min().unwrap(), lit.iter().map(|p| p.0).max().unwrap());
     let bottom = lit.iter().map(|p| p.1).max().unwrap();
-    assert_eq!(x1 - x0 + 1, 2 * TILE_W as usize, "a building's base is one tile wide");
+    assert_eq!(x1 - x0 + 1, (2.0 * TILE_W as f32 * BUILDING_SCALE) as usize, "a building's base is BUILDING_SCALE tiles wide");
     assert_eq!(bottom as i32 + 1, 200 + TILE_H, "it stands on the tile's front corner");
 }
 

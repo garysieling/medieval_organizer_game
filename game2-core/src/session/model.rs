@@ -157,6 +157,10 @@ pub struct PanelV {
     /// Who heads it - the org's leader, by name; None before one's named
     #[serde(default)]
     pub leader: Option<String>,
+    /// The powers' standing words on it: a lord's grant, knights in
+    /// the streets, an assembly ban - empty when the state ignores it
+    #[serde(default)]
+    pub org_status: Vec<String>,
     pub members: Vec<String>,
     pub issues: Vec<String>,
     pub guilds: usize,

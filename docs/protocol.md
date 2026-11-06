@@ -240,6 +240,11 @@ the seat leads its own, a villager's name when the bond's passed to
 another. Older servers omit it or send null; a client should draw no
 "led by" then.
 
+`panel.org_status` carries the powers' standing words on the org, as
+plain lines - "the lord's grant of the taxes", "a partial grant of
+the taxes", "N knights in the streets", "assembly banned over N".
+Older servers send nothing; treat an absent field as an empty list.
+
 `log_dropped` counts how many log lines have rolled out the top - the
 log's a rolling window. Zero or an absent field means the top's the
 beginning; the client's last log row marks the count when it isn't.

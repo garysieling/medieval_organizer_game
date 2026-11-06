@@ -662,6 +662,10 @@ impl View {
         if let Some(q) = &m.panel.quest {
             draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
         }
+        // the powers' standing words on the org, one to a line
+        for (n, st) in m.panel.org_status.iter().enumerate() {
+            draw_text(&mut buf, UI_X as i32 + 10, 54 + n as i32 * 12, st, 200, 150, 150);
+        }
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {

@@ -44,3 +44,16 @@ fn test_the_panel_names_the_org_s_head() {
     assert_eq!(m.panel.leader.as_deref(), Some("you"),
         "the org's head isn't named on the panel");
 }
+
+#[test]
+fn test_the_panel_carries_the_powers_words() {
+    let mut g = Game::new();
+    // knights posted after a crackdown, and a ban on the crowd
+    g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 10 });
+    g.world.add_component(g.org, crate::game::reactions::AssemblyBan { cap: 3 });
+    let m = g.ui_model_at(0);
+    assert!(m.panel.org_status.iter().any(|s| s.contains("knights in the streets")),
+        "the posted knights never surfaced: {:?}", m.panel.org_status);
+    assert!(m.panel.org_status.iter().any(|s| s.contains("assembly banned")),
+        "the ban never surfaced: {:?}", m.panel.org_status);
+}

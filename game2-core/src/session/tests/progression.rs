@@ -6,6 +6,7 @@ use super::fixtures::plan_ready_meeting;
 #[test]
 fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
     let mut game = Game::new();
+    game.speed = 4; // meetings and trust are daily; turbo keeps them honest
     // who was here when we started: visitors wander in over the years this
     // takes, and the village's win is over its own folk, not passing trade
     let folk = game.villagers.clone();
@@ -110,4 +111,39 @@ fn test_the_print_shop_researches_the_village() {
     let m = game.ui_model();
     let seen: f32 = m.tech.iter().map(|t| t.progress).sum();
     assert!(seen > 0.0 || m.tech.iter().any(|t| t.discovered));
+}
+
+/// A print shop whose printer kept the bench shows its cutaway: the open
+/// shop's index rides the game into the model for the client to draw
+#[test]
+fn test_an_open_print_shop_shows_its_cutaway() {
+    let mut game = Game::new();
+    // a print shop on the street, its printer at the bench
+    let shop = household::spawn_building(&mut game.world,
+        household::BuildingKind::Shop(Vocation::Printmaker), "The Penny Press", 20.0, 20.0, 4);
+    game.building_entities.push(shop);
+    let v = game.villagers.iter().copied()
+        .find(|&v| game.world.get_component::<Kid>(v).is_none()
+            && !villager::is_dead(&game.world, v)).unwrap();
+    if let Some(c) = game.world.get_component_mut::<Craft>(v) {
+        c.vocation = Vocation::Printmaker;
+    }
+    if let Some(b) = game.world.get_component_mut::<household::Building>(shop) {
+        b.worker = Some(v);
+    }
+    let idx = game.building_entities.iter().position(|&e| e == shop).unwrap();
+    // at the bench the shop stands open; resting, it shuts
+    game.plan_bench(v, game.tick);
+    game.cutaways_tick(game.tick);
+    assert!(game.cutaways.contains(&idx), "a working printer's shop shows its cutaway");
+    game.plan_rest(v, game.tick);
+    game.cutaways_tick(game.tick);
+    assert!(!game.cutaways.contains(&idx), "a resting printer's shop shuts");
+    // an empty shop never opens, however the day turns
+    if let Some(b) = game.world.get_component_mut::<household::Building>(shop) {
+        b.worker = None;
+    }
+    game.plan_bench(v, game.tick);
+    game.cutaways_tick(game.tick);
+    assert!(!game.cutaways.contains(&idx), "a shop with no printer stays shut");
 }

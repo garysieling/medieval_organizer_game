@@ -29,6 +29,7 @@ fn test_weather_changes_do_not_push_events_out_of_the_log() {
 #[test]
 fn test_flu_from_a_real_game_stays_in_the_log_by_day_600() {
     let mut game = Game::new();
+    game.speed = 8;
     while game.tick < 600 { game.update(); }
     // however busy the village's been, the last sickness still pins above
     // everyday chatter - newer happenings (a birth, an exile) may outrank
@@ -55,4 +56,14 @@ fn test_the_log_is_bounded_over_a_long_game() {
         "and what it keeps is the newest end");
     assert_eq!(game.log_dropped + game.log.len(), LOG_MAX + 5000 + 2,
         "dropped + kept accounts for every line written");
+}
+
+#[test]
+fn test_the_view_marks_what_rolled_off_the_log() {
+    let mut game = Game::new();
+    for t in 1..=(LOG_MAX + 500) { game.log.push(format!("t{}: a line", t)); }
+    game.update();
+    let m = game.ui_model_at(0);
+    assert!(m.log_dropped > 0, "the view doesn't hear the drop");
+    assert_eq!(m.log_dropped, game.log_dropped, "the count's wrong");
 }

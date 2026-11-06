@@ -11,6 +11,7 @@ pub mod dialogue;
 pub mod routine;
 pub mod country;
 pub mod quests;
+pub mod roster;
 
 pub mod journal;
 pub mod kpi;
@@ -36,7 +37,7 @@ use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
 use crate::game::player::{PlayerCharacter, act_talk, act_recruit, TalkCount};
-use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
+use crate::game::guilds::{GuildFormationSystem, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
 use crate::sim::illness::{self, Health, Disease, DiseaseKind, Stage, IllnessSystem};
@@ -127,6 +128,34 @@ fn sickness_name(world: &World, who: Entity) -> Option<String> {
 }
 
 /// Is `who` ill right now - showing symptoms?
+/// Write a beat into a villager's tale; when the tale first reads as a
+/// story - a theme takes shape - the log names it once
+fn note_story(
+    tales: &mut crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
+    told: &mut crate::engine::det::HashSet<usize>,
+    log: &mut Vec<String>,
+    i: usize, tick: u64, kind: crate::sim::story::EventKind, desc: String,
+) {
+    let ev = crate::sim::story::StoryEvent { tick, kind, description: desc };
+    let tale = tales.entry(i).or_default();
+    tale.push(ev);
+    if tale.len() > 12 { tale.remove(0); }
+    if told.contains(&i) { return; }
+    if let Some(st) = crate::sim::story::detect_story(tale) {
+        told.insert(i);
+        let word = match st.theme {
+            crate::sim::story::StoryTheme::Survival => "a tale of survival",
+            crate::sim::story::StoryTheme::Rise => "a tale of rising",
+            crate::sim::story::StoryTheme::Fall => "a tale of falling",
+            crate::sim::story::StoryTheme::Romance => "a tale of the heart",
+            crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
+            crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
+            crate::sim::story::StoryTheme::Community => "a tale of the commons",
+        };
+        log.push(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word));
+    }
+}
+
 fn is_sick(world: &World, who: Entity) -> bool {
     sickness_name(world, who).is_some()
 }
@@ -288,6 +317,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 60, h: 16, color: (140, 80, 80) },
         CtxAct::Cadence => Button { label: "Cadence".into(), key: ' ', x: UI_X as i32 + 150, y: 470, w: 60, h: 16, color: (100, 100, 130) },
         CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
+        CtxAct::MendHall => Button { label: "Mend hall".into(), key: ' ', x: UI_X as i32 + 150, y: 454, w: 60, h: 16, color: (100, 80, 120) },
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
@@ -299,6 +329,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
+        CtxAct::Pact => Button { label: "Swear aid".into(), key: ' ', x: UI_X as i32 + 10, y: 470, w: 130, h: 16, color: (80, 120, 90) },
         CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         // shares the row's right half with Pet her - pushed last, it
         // draws over her in the rare winter visit, and once the fight's
@@ -306,6 +337,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
         // shares the card's bottom-left corner with Seat/Strike on the right
         CtxAct::Flyers => Button { label: "Flyers".into(), key: ' ', x: UI_X as i32 + 10, y: 438, w: 130, h: 16, color: (120, 100, 40) },
+        CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
+        CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -323,7 +356,7 @@ pub const NAMES: [&str; 31] = [
 /// The second roll, for the born and the come-lately: the village and
 /// the country grow past the first thirty-one, and they shouldn't all
 /// answer to "a newcomer"
-const NEW_NAMES: [&str; 54] = [
+const NEW_NAMES: [&str; 78] = [
     "Sible","Dunn","Hamelin","Avice","Colle","Merrick",
     "Sabyn","Tybalt","Imma","Peryn","Lettice","Hobkin",
     "Wymond","Tansy","Godelieve","Oswin","Milo","Sabine",
@@ -333,6 +366,10 @@ const NEW_NAMES: [&str; 54] = [
     "Garard","Denise","Thurstan","Rohese","Engelard","Conan",
     "Basilia","Warin","Melisende","Jocosa","Aldwin","Ermentrude",
     "Goscelin","Mahelt","Pernel","Simone","Adeline","Bartram",
+    "Serle","Hawise","Jankin","Mabyn","Osbert","Peronell",
+    "Quintin","Rohaise","Tibbets","Urian","Wymark","Erk",
+    "Juliana","Miles","Nicolas","Orm","Petronel","Roget",
+    "Sanchia","Terrice","Vincent","Wymund","Aveline","Bricot",
 ];
 /// A villager's name by index - past the named roll, the second roll
 /// keeps them distinct; past that, a newcomer stands in
@@ -500,6 +537,8 @@ pub enum Goal {
     Levy(usize, usize),
     /// The steward back up to the castle with the provisions
     Deliver(usize),
+    /// The collector riding the takings out to the castle (site index)
+    Remit(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -640,6 +679,15 @@ fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) ->
 pub enum BSprite {
     /// Index into the cottage set (wraps round)
     House(usize),
+    /// A company town's manager's row: the grand look (the hall's art
+    /// stands in until the manor set lands)
+    Mansion,
+    /// A terraced street: the index picks the one cottage the whole row
+    /// shares, so the street reads as a single build
+    Rowhouse(usize),
+    /// The workers' quarters by the gate: the index picks the barracks
+    /// variant (the watch-house set stands in)
+    Barracks(usize),
     Blacksmith,
     Church,
     Guildhall,
@@ -653,12 +701,13 @@ pub enum BSprite {
 
 /// The workplaces that wear their own look instead of a cottage's
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop }
+pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop, Factory }
 
 impl WorkLook {
-    pub const N: usize = 8;
+    pub const N: usize = 9;
     pub const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
-        WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop];
+        WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop,
+        WorkLook::Factory];
 
     /// Its sprites' name under assets/rd/buildings (name1.png, name2.png)
     pub fn file(self) -> &'static str {
@@ -666,6 +715,7 @@ impl WorkLook {
             WorkLook::Tavern => "tavern", WorkLook::Bakery => "bakery", WorkLook::Granary => "granary",
             WorkLook::WatchHouse => "watch-house", WorkLook::Fold => "fold", WorkLook::Apiary => "apiary",
             WorkLook::Cellar => "cheese-cellar", WorkLook::Workshop => "workshop",
+            WorkLook::Factory => "factory",
         }
     }
 
@@ -759,6 +809,9 @@ pub struct Game {
     /// The map's own generator: settled at new_seeded, then handing out
     /// sprites (e.g. which cottage each new build gets)
     pub rng: Rng,
+    /// The seed this world was dealt: the character roster derives from
+    /// it, so a server and its clients deal the same hand
+    pub seed: u64,
     pub built_count: usize,
     pub works: Vec<Works>, // houses still being built
     pub toasts: Toasts,  // (msg, shown until tick, where it happened)
@@ -794,6 +847,12 @@ pub struct Game {
     pub precip: Option<PrecipKind>, // what is falling today
     pub rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     pub was_sick: Vec<Option<String>>, // per villager, the disease they're showing - to log when someone falls ill or recovers
+    /// The village's tune: the evolving-music state the day's world
+    /// metrics steer
+    pub music: Entity,
+    /// The weather event rolling through: storm, dry spell, heat or
+    /// hard frost - fields and bones feel it while it lasts
+    pub weather: Entity,
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,
@@ -824,6 +883,12 @@ pub struct Game {
     pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: crate::engine::det::HashSet<usize>,
+    /// Which buildings the disasters finished - indices into
+    /// `building_entities`, like `derelict`; the view dims them too
+    pub ruined: crate::engine::det::HashSet<usize>,
+    /// Which workplaces show their cutaway today: a print shop whose
+    /// printer kept the bench (indices into building_entities)
+    pub cutaways: crate::engine::det::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
     /// parallel complaints make the next speaker likelier to share
     pub voiced: Vec<(Entity, desires::IssueTag)>,
@@ -886,6 +951,16 @@ pub struct Game {
     pub reach: Vec<(i32, i32)>,
     /// (who, the rung they're on, the day it ends) - the ladder of shame
     pub sanctioned: Vec<(Entity, Sanction, u64)>,
+    /// The worst state each feud was announced at, so the log tells its
+    /// turns once each
+    pub feud_told: crate::engine::det::HashMap<Entity, crate::game::feuds::FeudStatus>,
+    /// (villager -> (day, units)) - what each one made at the bench today,
+    /// so the card can say the day's work plainly
+    pub produced: crate::engine::det::HashMap<Entity, (u64, f32)>,
+    /// (workshop -> (day, good -> net units)) - what flowed through a
+    /// shop today: inputs out of stock, outputs in, so the shop's card
+    /// can show the chain it worked
+    pub shop_flow: crate::engine::det::HashMap<Entity, (u64, Vec<(String, i32)>)>,
     /// The pack's been seen: a wolf night is coming once the roll lands
     pub wolf_coming: bool,
     /// The hens are restless: a fox night is coming once the roll lands
@@ -908,6 +983,9 @@ pub struct Game {
     pub numeracy: Numeracy,
     /// The clerk who keeps the tallies straight, when one's emerged
     pub translator: Option<Entity>,
+    /// Days of his books actually kept - a season of them and the
+    /// village takes the count up itself; the held teach no days
+    pub translator_days: u32,
     /// Reckonings that didn't add up - enough and a clerk steps up
     pub reckonings: u32,
     /// A sky event rides over the walls: ("comet"/"eclipse", the day it goes)
@@ -932,6 +1010,7 @@ pub struct Game {
     pub letters: Vec<(Entity, Entity, u64)>,
     /// The cave mouth at the map's edge - the monochrome under
     pub cave_pos: Option<(i32, i32)>,
+    /// The martyr's plot, when the gibbet made one
     /// The hermit who keeps to it
     pub hermit: Option<Entity>,
     /// Whether the player's first body's gone - the work goes on
@@ -974,6 +1053,36 @@ pub struct Game {
     pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
     /// The village's research: the printmaking track the print shop's
     /// work feeds (game::tech_tree)
+    /// When each dead villager fell - the day their home's still theirs
+    /// for the heirs before the bed goes free
+    pub dead_since: crate::engine::det::HashMap<Entity, u64>,
+    /// The first harvest got its line in the log
+    pub crop_noted: bool,
+    /// The village's crop fields - stocked sources like the granary,
+    /// standing at the edge where the ground allowed them
+    pub crop_fields: Vec<Entity>,
+    /// The last sim-year the orgs took the harvest in together
+    pub harvest_year: u64,
+    /// Each villager's tale as the days write it - the story events the
+    /// chronicle reads for themes
+    pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
+    /// Villager indexes whose formed tale was already named in the log
+    pub tales_told: crate::engine::det::HashSet<usize>,
+    /// The village's wood: a living stand that grows, spreads, burns
+    /// and regrows - the fuel commons its coverage leans on
+    pub forest: crate::sim::emergence::Automata,
+    /// The ground the village stands on: the landform's name, when one
+    /// shaped the heightfield
+    pub landform: Option<String>,
+    /// The wood's own chance-stream: a lightning roll mustn't shift the
+    /// village's other draws
+    pub forest_rng: Rng,
+    /// The parish congregation: every villager a member, the priest its
+    /// leader - holy-day services feed devotion, bonds and the poor box
+    pub congregation: Entity,
+    /// What the priest's old books have taught: the parish's reading,
+    /// collected
+    pub grimoire: crate::sim::magic::Grimoire,
     pub tech: Vec<crate::game::tech_tree::Tech>,
     /// Where the cause's flyers are posted: (x, y) tile centres
     pub flyers: Vec<(f32, f32)>,
@@ -1046,9 +1155,20 @@ impl Game {
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
-        // room's talk can be read as it's said
-        let base = if self.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
+        // room's talk can be read as it's said. Speeds past turbo (tests
+        // fast-forwarding weeks at a time) thin the frames further: the
+        // per-frame strides scale by ticks_per_frame, so a day still
+        // covers the same ground, just sampled less often
+        let base = if self.speed == 1 { 21 * FPS } else { (15 * FPS / self.speed.max(4)).max(1) };
         if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
+    }
+
+    /// A frame's share of a day's walking, whatever the watch speed. The
+    /// stroll constants are per-frame at walking pace (a day is 21s of
+    /// frames then); scaling by it keeps a day's stride the same at turbo
+    /// and beyond, the way the pull-home steps already do
+    pub fn walk_pace(&self) -> f32 {
+        21.0 * FPS as f32 / self.ticks_per_frame() as f32
     }
 
     /// Whether the player can stand at (x, y): not in the water or the
@@ -1120,6 +1240,7 @@ impl Game {
         self.advance_frame();
         // after every move this frame (the player's command, the sim, the
         // strolling), so the model's poses match its positions
+        let _poses = crate::infra::perf::scope("total.poses");
         self.track_poses();
         // and those standing for something turn to face it
         self.face_routines();
@@ -1127,6 +1248,7 @@ impl Game {
 
     fn advance_frame(&mut self) {
         let ticks_per_frame = self.ticks_per_frame();
+        let walk_pace = 21.0 * FPS as f32 / ticks_per_frame as f32;
         // the soundscape resets each frame: cues live exactly one read
         self.sfx.clear();
         // sim advance: one tick = one day, throttled by frame count
@@ -1169,6 +1291,7 @@ impl Game {
         // quadratically over a long game. Pushes write back into the
         // snapshot too, so later pairs read exactly what the old per-pair
         // lookups would have - the pass is faster, not different.
+        let _sep = crate::infra::perf::scope("sim.separate");
         let mut pos_now: Vec<Option<Pos>> = villagers.iter().map(|v| world.get_component::<Pos>(*v).copied()).collect();
         let yields: Vec<bool> = villagers.iter().map(|v| makes_room(world, *v)).collect();
         for i in 0..villagers.len() {
@@ -1180,7 +1303,7 @@ impl Game {
                 let d2 = dx*dx + dy*dy;
                 if d2 < 9.0 && d2 > 0.001 {
                     let d = d2.sqrt();
-                    let push = (3.0 - d) * 0.4 / FPS as f32; // eased apart over a few frames
+                    let push = (3.0 - d) * 0.4 / FPS as f32 * walk_pace; // eased apart over a few frames
                     let nx = dx / d * push; let ny = dy / d * push;
                     // a grave stays put; the living step around it. Nor is
                     // anyone shoved who's going for food: the push reaches 3
@@ -1200,6 +1323,7 @@ impl Game {
 
         // idle villagers keep to the day's plan (session::routine::amble,
         // after the errands walk) - no more drifting a step each way and back
+        drop(_sep);
 
         // rivals keep to their own village: idle drift is a random walk, so
         // without a pull home they'd wander across the river into ours
@@ -1220,6 +1344,7 @@ impl Game {
         // and so do ours: left to the random walk, a villager drifted east
         // until the rivals' food store was nearer than ours, then ate there
         // and lived in their village, off the edge of the view
+        let _pull = crate::infra::perf::scope("sim.pull_home");
         if !self.paused {
             let village_home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
             // our own store keeps them home: while it still serves, no one
@@ -1229,10 +1354,27 @@ impl Game {
                 if crate::game::dungeon::unavailable(world, *v) { continue; }
                 let (store, village_home) = country_homes.get(vi).copied().flatten()
                     .unwrap_or((self.market_food, village_home));
-                let market_has = world.get_component::<villager::FoodSource>(store)
-                    .map(|f| f.servings > 0).unwrap_or(false);
+                // the village table is the granary AND the fields: a village
+                // villager's store is whichever stocked one stands closest,
+                // while a countryman's is still his own settlement's granary
+                let vpos = world.get_component::<Pos>(*v).map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+                let (store, market_has) = if store == self.market_food {
+                    let stocked = |f: Entity| world.get_component::<villager::FoodSource>(f)
+                        .map(|fs| fs.servings > 0).unwrap_or(false);
+                    let nearest = std::iter::once(self.market_food).chain(self.crop_fields.iter().copied())
+                        .filter(|&f| stocked(f))
+                        .min_by_key(|&f| world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x - vpos.0).abs() + (fp.y - vpos.1).abs()) as i32).unwrap_or(i32::MAX));
+                    (nearest.unwrap_or(store), nearest.is_some())
+                } else {
+                    (store, world.get_component::<villager::FoodSource>(store)
+                        .map(|f| f.servings > 0).unwrap_or(false))
+                };
                 let vdata = world.get_component::<Villager>(*v);
-                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
+                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false)
+                    // the remit rider's belly waits for the keep's table -
+                    // the pull doesn't fight his road for the granary
+                    && !self.travels.iter().any(|t| t.who == *v && matches!(t.goal, Goal::Remit(_)));
                 let target_food = vdata.and_then(|x| x.target_food);
                 if seeking && market_has && target_food != Some(store) {
                     if let Some(vill) = world.get_component_mut::<Villager>(*v) {
@@ -1276,6 +1418,23 @@ impl Game {
                 let heading_home = seeking && dx.abs() + dy.abs() > 0.5
                     || !seeking && !planned && d > VILLAGE_RADIUS;
                 if heading_home {
+                    // past every errand's reach the nudge below would walk
+                    // them home a tile a day for months: once a day, put a
+                    // stray this far out on the road itself - the same
+                    // walk_path the errands take, just longer. Not one
+                    // already walking: a second path would drag them back
+                    // toward its stale waypoints every frame
+                    if dx.abs() + dy.abs() > 30.0 && self.frame_n % ticks_per_frame == 0
+                        && !self.travels.iter().any(|t| t.who == *v) {
+                        if let Some(t) = food_tile {
+                            let from = (p.x.round() as i32, p.y.round() as i32);
+                            if let Some(mut path) = self.map.walk_path(from, t) {
+                                path.push(t);
+                                self.travels.push(Travel { who: *v, path, goal: Goal::Wander });
+                                continue;
+                            }
+                        }
+                    }
                     let step = 1.0 / ticks_per_frame as f32;
                     let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
                     if self.map.passable(nx.round() as i32, ny.round() as i32) {
@@ -1319,7 +1478,10 @@ impl Game {
             }
         }
 
+        drop(_pull);
+
         // death check: health <= 0 -> grave + log
+        let _checks = crate::infra::perf::scope("sim.frame_checks");
         let died_on = &mut self.died_on;
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
@@ -1329,6 +1491,8 @@ impl Game {
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
+                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                        crate::sim::story::EventKind::Death, format!("{} died.", vill_name(i)));
                 }
             }
         }
@@ -1360,8 +1524,19 @@ impl Game {
         let sick_now: Vec<Option<String>> = villagers.iter().map(|v| sickness_name(world, *v)).collect();
         for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
             match (now, was.as_ref()) {
-                (Some(name), None) => log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name)),
-                (None, Some(old)) => log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old)),
+                (Some(name), None) => {
+                    log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name));
+                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                        crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
+                }
+                (None, Some(old)) => {
+                    // a disease gone because it took them isn't a recovery
+                    if self.died_on.get(i).and_then(|d| *d).is_none() {
+                        log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
+                        note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                            crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
+                    }
+                }
                 _ => {}
             }
             *was = now.clone();
@@ -1388,7 +1563,10 @@ impl Game {
                 .into_iter().find(|p| !blocked(p));
             *self.world.get_component_mut::<Pos>(*e).unwrap() = slide.unwrap_or(before);
         }
+        drop(_checks);
+
         if !self.paused {
+            let _tail = crate::infra::perf::scope("sim.frame_tail");
             for w in self.works.iter_mut() {
                 let laid = w.road_laid();
                 w.frames += 1;
@@ -1456,6 +1634,7 @@ impl Game {
                     if let Some(pp) = self.world.get_component_mut::<Pos>(a) { pp.x = nx; pp.y = ny; }
                 }
             }
+            drop(_tail);
         }
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
@@ -1471,7 +1650,7 @@ impl Game {
         }
         // movement is still processed while paused, but relationships and
         // last_chat shouldn't change while the day isn't advancing
-        if !self.paused { self.chat_in_passing(); }
+        if !self.paused { crate::timed!("sim.chat_in_passing", self.chat_in_passing()); }
     }
 
 

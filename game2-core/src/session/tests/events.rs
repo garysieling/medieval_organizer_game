@@ -2773,3 +2773,61 @@ fn test_the_stray_dog_picks_a_heart() {
     assert!(g.log.iter().any(|l| l.contains("has a dog now") || l.contains("drifts on")),
         "the log tells how it ended");
 }
+
+/// Lightning's other work: now and then the bolt sets the dry grass
+/// alight - a real fire, not just a scare
+#[test]
+fn test_lightning_can_set_the_grass_alight() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    let mut lit = false;
+    // each strike re-rolls off the tick - a few bolts and one catches
+    for _ in 0..30 {
+        g.tick += 1;
+        g.force_event(EventId::LightningStrike);
+        if g.fire.active() { lit = true; break; }
+    }
+    assert!(lit, "a lightning strike set the grass alight");
+    assert!(g.log.iter().any(|l| l.contains("sets the grass alight")),
+        "the fire was told on");
+}
+
+/// A house the fire finishes is a ruin: roof, hearth and trade gone,
+/// and whoever lived or worked there is out on the street
+#[test]
+fn test_the_fire_takes_a_house() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    let home = g.building_entities.iter().copied().find(|&be| {
+        g.world.get_component::<household::Building>(be)
+            .map(|b| b.kind == household::BuildingKind::Home && !b.occupants.is_empty()).unwrap_or(false)
+    }).expect("a housed home");
+    let (hx, hy) = g.world.get_component::<Pos>(home)
+        .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap();
+    assert!(g.fire.ignite(&g.map, hx, hy), "the home's tile can catch");
+    stage::run_days(&mut g, 10);
+    assert!(g.ruined.iter().any(|&i| g.building_entities[i] == home),
+        "the fire finished the house");
+    let b = g.world.get_component::<household::Building>(home).unwrap();
+    assert!(b.occupants.is_empty(), "somebody moved back into the ruin: {:?}", b.occupants);
+    assert!(b.stock.is_empty(), "the ruin restocked: {:?}", b.stock);
+}
+
+/// The flood takes what stands lowest: riverside buildings come down
+/// over its run - but never the village's own store
+#[test]
+fn test_the_flood_takes_the_riverside() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    // stand a shop where the high water can reach it
+    let shop = g.building_entities.iter().copied().find(|&be| {
+        g.world.get_component::<household::Building>(be)
+            .map(|b| matches!(b.kind, household::BuildingKind::Shop(_))).unwrap_or(false)
+    }).expect("a shop");
+    let (rx, ry) = *g.reach.first().expect("the reach runs");
+    if let Some(p) = g.world.get_component_mut::<Pos>(shop) {
+        *p = Pos { x: rx as f32 + 0.5, y: ry as f32 + 0.5 };
+    }
+    g.force_event(EventId::Flood);
+    stage::run_days(&mut g, 6);
+    assert!(!g.ruined.is_empty(), "the flood took something riverside");
+    assert!(!g.ruined.iter().any(|&i| g.building_entities[i] == g.market_food),
+        "the village store stands");
+}

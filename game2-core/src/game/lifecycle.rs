@@ -108,7 +108,7 @@ impl crate::engine::ecs::System for AgingSystem {
 }
 
 /// Life stage of a living person of the given age
-fn stage_for(years: f32) -> LifeStage {
+pub fn stage_for(years: f32) -> LifeStage {
     match years {
         y if y < 1.0 => LifeStage::Infant,
         y if y < 13.0 => LifeStage::Child,

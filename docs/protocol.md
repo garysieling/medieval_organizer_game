@@ -108,6 +108,28 @@ Also: `"Idle"`, `"WorkDay"`, `"JoinOrg"`, `{"TalkTo":{"e":51}}`,
 `{"Gather":{"good":"wood","x":40,"y":12}}`, `{"Press":{"prisoner":61}}`.
 Entities (`e`, `seller`, `shop`...) are the numbers `Obs` reports.
 
+### Pick (humans)
+
+Take a card off the roster the `Welcome` dealt: it rewrites your
+character - name, trade or childhood, purse, wants, and the figure you
+draw as. Send it once, after the Welcome; the seat's default wanderer
+stands if you never do.
+
+```json client
+{"Pick":3}
+```
+
+Or keep the default wanderer - still a decision, so a reclaim doesn't
+offer the cards again:
+
+```json client
+"DeclinePick"
+```
+
+Both answer a `CmdDone` (`{"ok":true,"note":"a card picked"}` or
+`"the wanderer kept"`) - a client that wants its choice safely in
+before it leaves (a fast Escape-then-reconnect) waits for it.
+
 ### Ping
 
 ```json client
@@ -118,9 +140,12 @@ Entities (`e`, `seller`, `shop`...) are the numbers `Obs` reports.
 
 ### Welcome
 
-`{"Welcome":{"you":87,"token":"9f3a1c...","model":{...}}}`: `you` is your
-character's entity, `token` your claim (keep it), and `model` a first frame
-(as in `Scene`, with no map).
+`{"Welcome":{"you":87,"token":"9f3a1c...","model":{...},"roster":[...]}}`:
+`you` is your character's entity, `token` your claim (keep it), `model` a
+first frame (as in `Scene`, with no map), and `roster` the seed's premade
+wanderers - `[{"name":"Sabyn","backstory":"...","work":"baker","kid":false,"look":3}, ...]` -
+for a fresh seat's character picker. Older servers omit it; read it as
+empty (no picker).
 
 ### Map (humans)
 
@@ -138,7 +163,7 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 ```
 {"e":57,"kind":{"Villager":8},"pos":[11.4,6.9],"label":"Wystan","dead":false,"kid":false,
  "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false,
- "find":"wystan heart helper"}
+ "find":"wystan heart helper","look":0}
 ```
 
 The figure whose `e` is your `you` is you. Only what the seat can see is
@@ -162,6 +187,44 @@ visit (hail, drought, aurora...).
 {"text":"A hailstorm batters the thatch","at":null}
 ```
 
+`buildings` lists the village's built structures this frame, each a
+`BldgV` - `{"x":12.0,"y":9.0,"sprite":...,"risen":1.0,"derelict":false,
+"smoke":true}`: `risen` runs 0..1 while a building goes up, and `smoke`
+marks chimney smoke on the cottages nearest the market. `sprite` picks
+the look the client should draw:
+
+```
+"Church"                  - a single fixed look (a unit variant)
+{"House":3}               - index 3 into the cottage set (wraps round)
+{"Rowhouse":2}            - a terraced street sharing the one cottage
+{"Barracks":1}            - a company town's workers' quarters
+"Mansion"                 - a company town's manager's row
+{"Work":["Bakery",0]}     - a workplace's own look, plus its variant
+```
+
+The unit-look sprites are `Mansion`, `Blacksmith`, `Church`,
+`Guildhall`, `RivalHouse`, `RivalWoodhouse` and `CastleKeep`; the
+indexed ones are `House`, `Rowhouse` and `Barracks`. `Work`'s looks are
+`Tavern`, `Bakery`, `Granary`, `WatchHouse`, `Fold`, `Apiary`, `Cellar`,
+`Workshop` and `Factory` - the sim names a look and the client's art
+pack resolves it to pixels, standing a cottage in where a look has no
+art yet. Older servers never send the company-town sprites (`Mansion`,
+`Rowhouse`, `Barracks`, `Factory`); a client that doesn't know a sprite
+should draw a cottage and move on.
+
+`castle_keeps` (`[x,y]` list) and `settlement_houses` (`[x,y,sprite]`
+list, the same sprite shapes) carry remote scenery - towns and castles
+out in the country that a seat can't select.
+
+`sites` carries the same country's names for the minimap: `x`, `y`,
+`name`, `kind` (`Town`, `Castle`, `Farm` or `Monastery`), and `keeper`
+- the keep's first bed's name, or null when the bed stands empty.
+Older servers omit it; a client should treat a missing `sites` as empty.
+
+```json
+{"x":44.0,"y":18.0,"name":"Oakhall","kind":"Castle","keeper":"Sir Brandr"}
+```
+
 `panel.social` is the seat's bond ledger: folk it has actually talked
 with (`met`), split by how far each bond has climbed. Only conversations
 count toward `met` - a barter or a shared meal alone doesn't.
@@ -171,6 +234,26 @@ count toward `met` - a barter or a shared meal alone doesn't.
 ```
 
 Scenes from an older server may omit `social`; read it as all zeroes.
+
+`panel.leader` names the org's head for the status line - `"you"` when
+the seat leads its own, a villager's name when the bond's passed to
+another. Older servers omit it or send null; a client should draw no
+"led by" then.
+
+`panel.org_status` carries the powers' standing words on the org, as
+plain short lines - "grant: the taxes", "part grant: the taxes",
+"N knights", "ban >N". Older servers send nothing; treat an absent
+field as an empty list.
+
+`log_dropped` counts how many log lines have rolled out the top - the
+log's a rolling window. Zero or an absent field means the top's the
+beginning; the client's last log row marks the count when it isn't.
+
+`food_yield` carries the season's weight on the fields - the climate's
+food multiplier (about 1.1 spring to 0.7 winter, before rain and the
+year's drift). Zero from an older server means no read; a client
+should draw no lean-word then. `harsh_winter` is the every-other-winter
+flag: while it runs the snow keeps falling and the store thins.
 
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",

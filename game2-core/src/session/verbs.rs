@@ -32,6 +32,11 @@ impl Game {
                         .map(|p| if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
                 }
             }
+            CtxAct::PickCaps => {
+                self.shroom_patch_at(seat).and_then(|pi|
+                    self.lore_of(self.seats[seat].player).contains(&pi)
+                        .then(|| "those caps are death - you know it".to_string()))
+            }
             CtxAct::Snowballs => {
                 if self.snowball_day == self.tick { Some("everyone's already played today".into()) }
                 else if self.world.get_component::<crate::sim::climate::Climate>(self.climate)
@@ -312,7 +317,7 @@ impl Game {
                     let road = self.map.plan_road((bx as i32, by as i32));
                     self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
                     self.built_count += 1;
-                    format!("Work starts on a new house beside you - {:.0} gold", BUILD_COST)
+                    format!("Work starts on a new house beside you - {:.0} gold (the village's {}th roof)", BUILD_COST, self.built_count)
                 }
                 _ => unreachable!("no action button {}", i),
             }
@@ -371,11 +376,27 @@ impl Game {
             if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
                 self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
             }
+            // a picked neighbour with no pact yet can be sworn to, wax
+            // and ten gold willing
+            let pe = self.seats[seat].player;
+            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+            if self.seats[seat].picked && !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && gold >= crate::game::contracts::PACT_AID
+                && !crate::game::contracts::has_pact(&self.world, pe, v) {
+                self.seats[seat].ctx_actions.push(CtxAct::Pact);
+            }
         }
         // a stray cat keeping you company can be stroked - "Pet her"
         // shows while she's in reach, whatever else is going on
         if self.stray_cat_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::PetCat);
+        }
+        // caps in the shade: standing by a flushed patch offers the
+        // picking - and what the belly's learned shows up in why it won't
+        if self.shroom_patch_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::PickCaps);
         }
         // a house meeting is earned: the button shows once a place and a
         // promise are on the plan
@@ -399,6 +420,10 @@ impl Game {
             self.seats[seat].ctx_actions.push(CtxAct::March);
             self.seats[seat].ctx_actions.push(CtxAct::Flyers);
         }
+        // a storm-hit hall stands roofless till the treasury mends it
+        if self.world.get_component::<crate::game::organizing::HallDamaged>(self.seats[seat].org).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::MendHall);
+        }
         if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
             let v = self.villagers[self.seats[seat].selected_target];
             if !crate::game::villager::is_dead(&self.world, v) {
@@ -406,19 +431,30 @@ impl Game {
                     // someone's inside: the way out is pressure - the
                     // letters go on whether the cause still marches or not
                     self.seats[seat].ctx_actions.push(CtxAct::Petition);
-                } else if !crate::game::dungeon::unavailable(&self.world, v) && cause {
+                } else if !crate::game::dungeon::unavailable(&self.world, v) {
                     let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                         .map(|o| o.members.contains(&v)).unwrap_or(false);
-                    if is_member {
-                        self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                    // a trusted ear can be won to the cause: it takes a tie
+                    // of its own, not just the cause existing
+                    let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
+                        .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                        .map(|r| r.strength).unwrap_or(0.0);
+                    if !is_member && trust >= crate::sim::community::RECRUIT_MIN_TRUST
+                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none() {
+                        self.seats[seat].ctx_actions.push(CtxAct::Recruit);
                     }
-                    if self.world.get_component::<Craft>(v).is_some() {
-                        self.seats[seat].ctx_actions.push(CtxAct::Strike);
-                    }
-                    if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
-                        .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
-                        .map(|c| c.target == Some(v)).unwrap_or_else(|| Some(v) == self.collector) {
-                        self.seats[seat].ctx_actions.push(CtxAct::Townhall);
+                    if cause {
+                        if is_member {
+                            self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                        }
+                        if self.world.get_component::<Craft>(v).is_some() {
+                            self.seats[seat].ctx_actions.push(CtxAct::Strike);
+                        }
+                        if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
+                            .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                            .map(|c| c.target == Some(v)).unwrap_or_else(|| Some(v) == self.collector) {
+                            self.seats[seat].ctx_actions.push(CtxAct::Townhall);
+                        }
                     }
                 }
             }
@@ -442,17 +478,26 @@ impl Game {
                 // short and how to come by it, not just "nothing yet"
                 let missing: Vec<&'static str> = voc.map(|v| vocation::inputs(v).iter().copied()
                     .filter(|g| {
-                        let held = self.world.get_component::<Satchel>(pe)
-                            .map(|s| s.goods.get(*g).copied().unwrap_or(0)).unwrap_or(0);
-                        let stocked = workplace
-                            .and_then(|b| self.world.get_component::<Building>(b))
-                            .map(|b| b.stock.get(*g).copied().unwrap_or(0)).unwrap_or(0);
-                        held + stocked < 1
+                        // a slot's only missing when nothing that fills
+                        // it is to hand - the named good or its fellows
+                        std::iter::once(*g).chain(crate::game::recipes::fillers(g).iter().copied())
+                            .all(|c| {
+                                let held = self.world.get_component::<Satchel>(pe)
+                                    .map(|s| s.goods.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                                let stocked = workplace
+                                    .and_then(|b| self.world.get_component::<Building>(b))
+                                    .map(|b| b.stock.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                                held + stocked < 1
+                            })
                     }).collect()).unwrap_or_default();
                 if !missing.is_empty() {
-                    let how: Vec<String> = missing.iter().map(|g|
-                        if vocation::gatherable(g) { format!("{} - gather some", g) }
-                        else { format!("{} - buy some", g) }).collect();
+                    let how: Vec<String> = missing.iter().map(|g| {
+                        let opts: Vec<&'static str> = std::iter::once(*g)
+                            .chain(crate::game::recipes::fillers(g).iter().copied()).collect();
+                        let what = opts.join(" or ");
+                        if opts.iter().any(|o| vocation::gatherable(o)) { format!("{} - gather some", what) }
+                        else { format!("{} - buy some", what) }
+                    }).collect();
                     format!("You can't work: no {} to hand.", how.join(", "))
                 } else {
                     let what = voc.and_then(vocation::output).unwrap_or("goods");
@@ -473,7 +518,7 @@ impl Game {
                         .and_then(|b| self.world.get_component::<Building>(b))
                         .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
                     let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-                    let (made, up) = livelihood::work_day(&mut self.world, pe, tick);
+                    let (made, up) = self.bench_work(pe, tick);
                     match up {
                         Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
                         None if made > 0.0 => {
@@ -653,8 +698,14 @@ impl Game {
                         let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
                             .find(|&r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
                         match open {
-                            Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) =>
-                                format!("You name {} the campaign's {}.", name, role_name(r)),
+                            Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) => {
+                                // naming a seat teaches its craft: a mentor
+                                // who's built it hands the trade down
+                                crate::game::org_skills::teach(&mut self.world,
+                                    Some(c), self.seats[seat].player, v,
+                                    crate::game::org_skills::role_skill(r), tick);
+                                format!("You name {} the campaign's {}.", name, role_name(r))
+                            }
                             Some(_) => format!("{} can't hold a seat - they have to be a living member.", name),
                             None => "Every seat is spoken for - someone would have to step down.".into(),
                         }
@@ -670,6 +721,9 @@ impl Game {
                 };
                 match crate::game::actions::strike_vote(&mut self.world, c, voc, tick) {
                     Some(out) => {
+                        crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                            crate::game::org_skills::OrgSkill::Turnout,
+                            crate::game::org_skills::SEAT_PRACTICE);
                         let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
                         if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
                             self.record_campaign_talk(vec![self.seats[seat].player, v], &d);
@@ -687,7 +741,10 @@ impl Game {
                     .map(|cc| cc.target).unwrap_or(None).or(self.collector) else { return };
                 use crate::game::actions::{townhall, TargetResponse};
                 match townhall(&mut self.world, c, target, tick) {
-                    Some(out) => { let msg = match out.response {
+                    Some(out) => { crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                            crate::game::org_skills::OrgSkill::Agitation,
+                            crate::game::org_skills::SEAT_PRACTICE);
+                        let msg = match out.response {
                         TargetResponse::Carries => {
                             self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
                             // the carried demand lands as a grant: the load
@@ -745,9 +802,31 @@ impl Game {
                 }
             }
             CtxAct::Gather => self.call_meeting_at(seat),
+            CtxAct::MendHall => {
+                let oe = self.seats[seat].org;
+                let purse = self.world.get_component::<Organization>(oe)
+                    .map(|o| o.resources).unwrap_or(0.0);
+                if purse < crate::game::organizing::HALL_REPAIR_COST {
+                    let oname = self.world.get_component::<Organization>(oe)
+                        .map(|o| o.name.clone()).unwrap_or_default();
+                    format!("{} can't make the carpenter's bill - {} gold in the chest.", oname, purse as i32)
+                } else {
+                    self.world.get_component_mut::<Organization>(oe).unwrap().resources
+                        -= crate::game::organizing::HALL_REPAIR_COST;
+                    self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
+                    "The carpenters patch the roof - the hall's fit to meet in again.".into()
+                }
+            }
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];
-                crate::game::dungeon::press(&mut self.world, v, 0.3);
+                // the cause's muscle signs the letters too - every member's
+                // name on the vigil carries more than a stranger's plea
+                let sway = crate::sim::community::exert_influence(&mut self.world,
+                    self.seats[seat].org, "the release");
+                crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                    crate::game::org_skills::OrgSkill::Agitation,
+                    crate::game::org_skills::SEAT_PRACTICE);
+                crate::game::dungeon::press(&mut self.world, v, 0.3 + sway * 0.15);
                 // the hold: what the state spends to keep them inside
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = vill_name(self.seats[seat].selected_target);
@@ -757,6 +836,53 @@ impl Game {
                     let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(v)
                         .map(|r| r.pressure).unwrap_or(0.0);
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
+                }
+            }
+            CtxAct::Recruit => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                let oe = self.seats[seat].org;
+                let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
+                    .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                    .map(|r| r.strength).unwrap_or(0.0);
+                if crate::sim::community::recruit(&mut self.world, oe, v, trust) {
+                    crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                        crate::game::org_skills::OrgSkill::Training,
+                        crate::game::org_skills::SEAT_PRACTICE);
+                    format!("{} hears you out - and signs on with your cause.", self.name_of(v))
+                } else {
+                    format!("{} won't be won over - the trust isn't there yet.", self.name_of(v))
+                }
+            }
+            CtxAct::PickCaps => {
+                match self.shroom_patch_at(seat) {
+                    Some(pi) => {
+                        let kind = self.mush_patches[pi].kind;
+                        if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = self.tick + 60; }
+                        let pe = self.seats[seat].player;
+                        self.shroom_take(pe, pi, kind, self.tick);
+                        String::new()
+                    }
+                    None => String::new(),
+                }
+            }
+            CtxAct::Pact => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                let pe = self.seats[seat].player;
+                let mut gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+                match crate::game::contracts::seal_aid_pact(&mut self.world, pe, v, &mut gold) {
+                    Some(_) => {
+                        // both purses: trades move the Purse, the panel
+                        // reads resources - a build only syncs one way
+                        if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold = gold; }
+                        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
+                        let n = self.name_of(v);
+                        self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
+                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log,
+                            self.seats[seat].selected_target, tick,
+                            crate::sim::story::EventKind::Alliance, "sworn to aid the Wanderer".into());
+                        format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
+                    }
+                    None => "There's no sealing it - too poor, or sworn already.".into(),
                 }
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),
@@ -781,6 +907,19 @@ impl Game {
         let (px, py) = self.player_pos_at(seat);
         (((cp.x - px).powi(2) + (cp.y - py).powi(2)).sqrt() <= events::STRAY_CAT_PET_DIST)
             .then_some(e)
+    }
+
+    /// The nearest flushed patch within a gatherer's reach of the seat's
+    /// player - the Pick caps button lives and dies by this
+    fn shroom_patch_at(&self, seat: usize) -> Option<usize> {
+        let (px, py) = self.player_pos_at(seat);
+        self.mush_patches.iter().enumerate()
+            .filter(|(_, p)| self.tick >= p.next_ready)
+            .map(|(i, p)| { let dx = p.tile.0 as f32 - px; let dy = p.tile.1 as f32 - py;
+                (i, dx * dx + dy * dy) })
+            .filter(|(_, d2)| *d2 <= 36.0)
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
     }
 
     /// Stroke the stray cat: a little warmth each time, then she needs a

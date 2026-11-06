@@ -127,6 +127,11 @@ impl Game {
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
                     if !pays { continue; }
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    // a penny a page - and it lands in the scribe's purse,
+                    // the fee that keeps him on the road
+                    if let Some(se) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.e) {
+                        if let Some(sp) = self.world.get_component_mut::<Purse>(se) { sp.gold += 1.0; }
+                    }
                     self.letters.push((v, to, tick + 30));
                     wrote += 1;
                 }
@@ -1369,7 +1374,7 @@ impl Game {
                     let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
                     // a home with a spare bed takes them, if there is one
                     let home = self.world.query::<household::Building>().iter().copied()
-                        .find(|&b| self.world.get_component::<household::Building>(b)
+                        .find(|&b| !self.building_ruined(b) && self.world.get_component::<household::Building>(b)
                             .map(|bb| bb.kind == household::BuildingKind::Home && bb.occupants.len() < 4)
                             .unwrap_or(false));
                     for _ in 0..2 {

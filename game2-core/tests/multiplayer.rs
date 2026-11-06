@@ -414,10 +414,91 @@ fn a_selected_child_inspects_as_a_kid_over_the_wire() {
     hello(&mut human, None, ClientKind::Human);
     send(&mut human, &ClientMsg::Command(Command::Select(A_KID)));
     let insp = until("the kid's inspector", &mut human, 10, |m, _| match m {
-        ServerMsg::Scene(s) => s.inspector.clone(),
+        ServerMsg::Scene(s) => s.inspector.clone().filter(|i| i.fig == Some(A_KID)),
         _ => None,
     });
     assert_eq!(insp.fig, Some(A_KID), "the inspector picked up the selection");
     assert!(insp.kid, "a known child's inspector should say kid:true");
+    server.stop();
+}
+
+#[test]
+fn a_fresh_seat_picks_its_character_off_the_roster() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    send(&mut human, &ClientMsg::Hello { token: None, kind: ClientKind::Human, name: None, secret: None });
+    let (me, roster, token) = until("a welcome with a roster", &mut human, 10, |m, _| match m {
+        ServerMsg::Welcome { you, roster, token, .. } => Some((*you, roster.clone(), token.clone())),
+        _ => None,
+    });
+    assert!(roster.len() >= 2, "the Welcome deals the picker its cards");
+    let pick = 1.min(roster.len() - 1);
+    send(&mut human, &ClientMsg::Pick(pick));
+    // the scenes that follow show the picked name folded into the player's find
+    let want = roster[pick].name.to_lowercase();
+    until("the picked name in the scenes", &mut human, 10, |m, _| match m {
+        ServerMsg::Scene(s) => s.people.iter().find(|p| p.e == me)
+            .filter(|p| p.find.contains(&want)).map(|_| ()),
+        _ => None,
+    });
+    // a reclaim after the pick deals no new cards - the character is settled
+    let mut back = connect(server.addr);
+    send(&mut back, &ClientMsg::Hello { token: Some(token), kind: ClientKind::Human, name: None, secret: None });
+    let again = until("the reclaim's welcome", &mut back, 10, |m, _| match m {
+        ServerMsg::Welcome { roster, .. } => Some(roster.clone()),
+        _ => None,
+    });
+    assert!(again.is_empty(), "a picked seat isn't dealt the picker again");
+    server.stop();
+}
+
+#[test]
+fn a_reclaim_before_the_pick_still_gets_the_roster() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    send(&mut human, &ClientMsg::Hello { token: None, kind: ClientKind::Human, name: None, secret: None });
+    let (_, first, token) = until("a welcome with a roster", &mut human, 10, |m, _| match m {
+        ServerMsg::Welcome { you, roster, token, .. } => Some((*you, roster.clone(), token.clone())),
+        _ => None,
+    });
+    assert!(!first.is_empty());
+    drop(human);
+    // back with the claim before ever picking: the seat is still a
+    // wanderer, so the cards come round again
+    let mut back = connect(server.addr);
+    send(&mut back, &ClientMsg::Hello { token: Some(token), kind: ClientKind::Human, name: None, secret: None });
+    let again = until("the reclaim's roster", &mut back, 10, |m, _| match m {
+        ServerMsg::Welcome { roster, .. } => Some(roster.clone()),
+        _ => None,
+    });
+    assert_eq!(again.len(), first.len(), "an unchosen seat picks off the same cards");
+    server.stop();
+}
+
+#[test]
+fn a_declined_pick_stays_declined_on_reclaim() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    send(&mut human, &ClientMsg::Hello { token: None, kind: ClientKind::Human, name: None, secret: None });
+    let (_, roster, token) = until("a welcome with a roster", &mut human, 10, |m, _| match m {
+        ServerMsg::Welcome { you, roster, token, .. } => Some((*you, roster.clone(), token.clone())),
+        _ => None,
+    });
+    assert!(!roster.is_empty());
+    // Escape: keep the wanderer - a decision the seat remembers once
+    // it's acked; dropping sooner could lose it on the wire
+    send(&mut human, &ClientMsg::DeclinePick);
+    until("the decline's ack", &mut human, 10, |m, _| match m {
+        ServerMsg::CmdDone { ok, .. } => Some(*ok),
+        _ => None,
+    });
+    drop(human);
+    let mut back = connect(server.addr);
+    send(&mut back, &ClientMsg::Hello { token: Some(token), kind: ClientKind::Human, name: None, secret: None });
+    let again = until("the reclaim's welcome", &mut back, 10, |m, _| match m {
+        ServerMsg::Welcome { roster, .. } => Some(roster.clone()),
+        _ => None,
+    });
+    assert!(again.is_empty(), "a declined seat isn't offered the picker again");
     server.stop();
 }

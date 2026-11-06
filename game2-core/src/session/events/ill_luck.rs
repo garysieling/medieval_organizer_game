@@ -212,15 +212,17 @@ impl Game {
                 // a babe in a basket on the step: a rolled home takes
                 // her in, and whose she is is the street's new talk
                 // a real village roof with a bed to spare: a foreign
-                // house or a hut with no room can't take her
-                let homes: Vec<Entity> = self.building_entities.iter().copied().filter(|&be|
-                    self.world.get_component::<household::Building>(be)
+                // house or a hut with no room can't take her - and
+                // neither can what's burned or drowned
+                let homes: Vec<Entity> = self.building_entities.iter().enumerate()
+                    .filter(|(i, &be)| !self.ruined.contains(i)
+                        && self.world.get_component::<household::Building>(be)
                         .map(|bb| bb.kind == household::BuildingKind::Home
                             && bb.occupants.len() < 4
                             && bb.occupants.iter().any(|&o| self.villagers.contains(&o)
                                 && !villager::is_dead(&self.world, o)
                                 && !crate::game::dungeon::unavailable(&self.world, o)))
-                        .unwrap_or(false)).collect();
+                        .unwrap_or(false)).map(|(_, &be)| be).collect();
                 let roll = self.rare_roll(id);
                 let baby_at = homes.get((roll as usize / 7) % homes.len().max(1))
                     .and_then(|&h| toast_spot(&self.world, h));

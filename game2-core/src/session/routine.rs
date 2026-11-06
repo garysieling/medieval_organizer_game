@@ -64,6 +64,8 @@ pub enum Spot {
     /// Gone to see whoever's come to the village: the friar, the pardoner
     Visitor,
     Home,
+    /// The recluse's dark: the cave at the map's edge keeps them
+    Cave,
     /// Wherever they happen to be (no plan reached them today)
     Here,
     /// Children's games about the green
@@ -154,6 +156,7 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
         (_, Spot::Visitor) => "gone to see the visitor".into(),
         (Mode::Playing, _) => "in the snowball fight".into(),
         (_, Spot::Play) => "playing".into(),
+        (Mode::Resting, Spot::Cave) => "keeping to the cave".into(),
         (Mode::Resting, _) => "resting at home".into(),
         (Mode::Worshipping, Spot::Church) => if lead { "leading prayers".into() } else { "at prayer in church".into() },
         (Mode::Worshipping, Spot::StoneCircle) => if lead { "leading the old rite".into() } else { "at the stone circle".into() },
@@ -263,8 +266,20 @@ impl Game {
 
     /// The day's free choice for an adult the day loop reached: work,
     /// a stall on market day, a stroll somewhere, or a day at home
+    /// The recluse's day: the dark keeps them, and the cave's their
+    /// one anchor - no square, no work, no holy call
+    pub(super) fn plan_cave(&mut self, v: Entity, tick: u64) {
+        let Some(cave) = self.cave_pos else { return self.plan_here(v, tick, Mode::Resting) };
+        desires::lift_grievance(&mut self.world, v, desires::Problem::TheDark);
+        let r = Routine { mode: Mode::Resting, spot: Spot::Cave, anchor: (cave.0 as f32, cave.1 as f32 + 0.4),
+            face: None, drift: 0.4, leads: false, day: tick, reached: false };
+        if !self.go_keep(v, r, 40) { self.plan_here(v, tick, Mode::Resting); }
+    }
+
     pub(super) fn plan_day(&mut self, v: Entity, tick: u64, rng: &mut Rng) -> DayPlan {
         use crate::game::traits::Trait;
+        // the hermit wants no part of the village's day - the cave's theirs
+        if Some(v) == self.hermit { self.plan_cave(v, tick); return DayPlan::Free; }
         let holy = is_holy(tick);
         let trade = self.world.get_component::<Craft>(v)
             .map(|c| vocation::output(c.vocation).is_some()).unwrap_or(false);
@@ -524,6 +539,19 @@ impl Game {
             if !pious && rng.below(100) >= 70 { continue; }
             if keeps_old_ways(&self.world, v) { old.push(v); } else { flock.push(v); }
         }
+        // a monastery's brothers keep the day at their own abbey - the
+        // village church's call can't carry out to them in the country
+        let mut abbeys: Vec<(usize, Vec<Entity>)> = vec![];
+        flock.retain(|&v| match self.site_of(v)
+            .filter(|&si| self.sites[si].kind == country::SiteKind::Monastery) {
+            Some(si) => {
+                if let Some((_, g)) = abbeys.iter_mut().find(|(s, _)| *s == si) { g.push(v); }
+                else { abbeys.push((si, vec![v])); }
+                false
+            }
+            None => true,
+        });
+        for (si, brothers) in abbeys { self.abbey_rites(tick, rng, si, brothers); }
         // the church: rows before the door, the priest at its head facing them
         if !flock.is_empty() {
             let priest_v = flock.iter().copied().position(|v| self.world.get_component::<Craft>(v)
@@ -600,6 +628,33 @@ impl Game {
                     }
                 }
             }
+        }
+    }
+
+    /// The brothers keep the holy day at their own abbey's door: one of
+    /// their priests leads, the rest stand in rows before it - the same
+    /// office as the village's, only theirs
+    fn abbey_rites(&mut self, tick: u64, rng: &mut Rng, si: usize, mut brothers: Vec<Entity>) {
+        let Some(&abbey) = self.sites[si].homes.first() else { return };
+        let Some(ap) = self.world.get_component::<Pos>(abbey).copied() else { return };
+        let door = self.door_of(abbey).unwrap_or((ap.x.round() as i32, ap.y.round() as i32 + 1));
+        let lead = brothers.iter().position(|&v| self.world.get_component::<Craft>(v)
+            .map(|c| c.vocation == Vocation::Priest).unwrap_or(false))
+            .map(|i| brothers.remove(i));
+        let front = (door.0 as f32, door.1 as f32);
+        let back = ((door.0 - ap.x.round() as i32).signum(), (door.1 - ap.y.round() as i32).signum());
+        let back = if back == (0, 0) { (0, 1) } else { back };
+        let slots = self.rows_from(front, back, brothers.len());
+        let n = self.assemble(tick, Mode::Worshipping, Spot::Church, lead.map(|l| (l, front)),
+            &brothers, &slots, front, CALL_REACH);
+        if n > 0 {
+            self.log.push(format!("t{}: the holy day - {} keep the office at {}.", tick, n, self.sites[si].name));
+            let voice = lead.filter(|&l| self.reached_worship(l, tick))
+                .or_else(|| brothers.iter().copied().find(|&v| self.reached_worship(v, tick)));
+            if let Some(v) = voice {
+                self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+            }
+            self.emit_sfx("bell", front.0, front.1, 0.8);
         }
     }
 
@@ -737,7 +792,7 @@ impl Game {
     /// stand on, and a path back if they've been carried off
     pub(super) fn amble(&mut self) {
         let t = self.frame_n as f32 / FPS as f32;
-        let step = AMBLE_SPEED / FPS as f32;
+        let step = AMBLE_SPEED / FPS as f32 * self.walk_pace();
         let mut lost: Vec<(Entity, (i32, i32))> = vec![];
         for i in 0..self.villagers.len() {
             let v = self.villagers[i];

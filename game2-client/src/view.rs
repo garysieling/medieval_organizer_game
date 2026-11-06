@@ -103,6 +103,16 @@ impl View {
         match b {
             BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
             BSprite::House(i) => self.art.house(i),
+            BSprite::Rowhouse(i) if self.winter.get() => self.art.house_winter(i),
+            BSprite::Rowhouse(i) => self.art.house(i),
+            BSprite::Mansion if self.winter.get() && self.art.trades_winter[1].is_some() =>
+                &self.art.trades_winter[1],
+            BSprite::Mansion => &self.art.guildhall_s,
+            BSprite::Barracks(i) => {
+                let set = if self.winter.get() { &self.art.works_winter[WorkLook::WatchHouse as usize] }
+                    else { &self.art.works[WorkLook::WatchHouse as usize] };
+                if set.is_empty() { self.sprite_of(BSprite::House(i)) } else { &set[i % set.len()] }
+            }
             BSprite::Blacksmith | BSprite::Guildhall | BSprite::RivalHouse | BSprite::RivalWoodhouse
                 if self.winter.get() && self.art.trades_winter[trade_index(b)].is_some() =>
                 &self.art.trades_winter[trade_index(b)],
@@ -172,6 +182,7 @@ impl View {
         #[derive(Clone, Copy)]
         enum Piece<'a> {
             Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
+            Cutaway(Option<&'a Sprite>, f32),  // a shop shown open: the building, then its front's inside
             Prop(Option<&'a Sprite>, f32),     // a tree or boulder in the middle of its tile, and its zoom-1 scale
             Castle(Option<&'a Sprite>, f32),   // a town-wall block: wall, gatehouse or tower; the f32 stretches it taller (the castles' grand dress)
             Herb,                              // a wild herb tuft, flat on the meadow
@@ -192,7 +203,7 @@ impl View {
         for (i, b) in m.buildings.iter().enumerate() {
             let s = self.sprite_of(b.sprite);
             let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) } else { s.as_ref() };
-            standing.push((b.x, b.y, Piece::Building(sprite, b.risen)));
+            standing.push((b.x, b.y, if b.cutaway { Piece::Cutaway(sprite, b.risen) } else { Piece::Building(sprite, b.risen) }));
         }
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
@@ -277,6 +288,14 @@ impl View {
             buf.rect(sx - k(4.0), sy - k(4.0), k(8.0), k(5.0), 8, 8, 10);
             buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
         }
+        // the martyr's plot: a grey cairn where they hanged him
+        if let Some((gx, gy)) = m.grave {
+            let (sx, sy) = iso_to_screen_cam(gx, gy, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(5.0), sy - k(4.0), k(10.0), k(4.0), 70, 70, 75);
+            buf.rect(sx - k(3.0), sy - k(7.0), k(6.0), k(4.0), 96, 96, 102);
+            buf.rect(sx - k(1.0), sy - k(9.0), k(2.0), k(4.0), 130, 130, 135);
+        }
         // the painted halls: a bright trim above the door
         for &(tx, ty) in &m.painted {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
@@ -345,6 +364,8 @@ impl View {
         // trees and rocks are in the list)
         standing.retain(|&(x, y, _)| { let (sx, sy) = iso_to_screen_cam(x, y, cam_x, cam_y, zoom); !off_view(sx, sy, zoom) });
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
+        // the press inside an open shop wears the era the research reached
+        let press_era = game2_core::game::tech_tree::press_era(&m.tech);
         let draw_piece = |buf: &mut Buffer, &(bx, by, piece): &(f32, f32, Piece)| {
             let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
             // the whole map's trees, rocks and walls are in this list: skip
@@ -363,9 +384,11 @@ impl View {
                     } else if art.castle_rd { draw_standing_h(buf, s, sx, sy, zoom, hk); }
                     else { draw_castle_h(buf, s, sx, sy, zoom, hk); }
                 },
-                Piece::Building(sprite, up) => if let Some(s) = sprite {
-                    if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
-                    else if up > 0.0 {
+                Piece::Building(sprite, up) | Piece::Cutaway(sprite, up) => if let Some(s) = sprite {
+                    if up >= 1.0 {
+                        if matches!(piece, Piece::Cutaway(_, _)) { draw_cutaway(buf, s, sx, sy, zoom, press_era); }
+                        else { draw_on_tile(buf, s, sx, sy, zoom); }
+                    } else if up > 0.0 {
                         // going up: the bottom of the house, from the ground up
                         let rows = ((s.height as f32 * up).round() as usize).max(1);
                         draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);
@@ -556,20 +579,35 @@ impl View {
                 Who::P(pv) if let PKind::Player = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                     let (facing, walking) = m.player_pose;
+                    // the picked look: a villager figure, small for a
+                    // childhood pick - the dedicated player sprite only
+                    // when the pack has no figures at all
+                    let look = figure_look(pv.kid, pv.look as usize, art.villager_sprites.len());
+                    let vws = art.villager_walks.get(look).and_then(|o| o.as_ref());
+                    let vfig = art.villager_sprites.get(look);
+                    let scale = if pv.kid { 0.6 * zoom } else { zoom };
                     let mut anchor = None;
-                    if let Some(ws) = &art.player_walk {
-                        // gold ring under player, then the 1x frame on its feet
-                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                    // the gold ring marks you whatever you wear
+                    buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                    if let Some(ws) = vws {
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                        let head = ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom);
-                        anchor = Some(head - SPRITE_HEAD);
+                        anchor = Some(ws.draw(&mut buf, facing, walking,
+                            self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD);
+                    } else if let Some(fig) = vfig {
+                        if pv.kid { draw_kid(&mut buf, fig, sx, sy, zoom); }
+                        else { draw_character(&mut buf, fig, sx, sy, zoom); }
+                        anchor = Some(sprite_label_anchor(fig, sy, zoom));
+                    } else if let Some(ws) = &art.player_walk {
+                        let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
+                        anchor = Some(ws.draw(&mut buf, facing, walking,
+                            self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom) - SPRITE_HEAD);
                     } else if let Some(ps) = &art.player_s {
                         draw_character(&mut buf, ps, sx, sy, zoom);
-                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                        anchor = Some(sprite_label_anchor(ps, sy, zoom));
                     } else {
                         draw_rect(&mut buf, sx - 4, sy - 8, 8, 8, 255, 255, 255);
                     }
-                    let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
+                    let anchor = anchor.unwrap_or_else(|| label_anchor(sy, zoom));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
                     player_marker = Some((sx, ly - 2, zoom, m.frame));
                     labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
@@ -634,10 +672,15 @@ impl View {
         // status: members, season, tick
         let p = &m.panel;
         let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.leader.as_deref(), p.members.len(), p.gold, guild), 200, 200, 200);
         // the odd job under way, if the Wanderer's carrying one
         if let Some(q) = &m.panel.quest {
             draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
+        }
+        // the powers' standing words on the org - one line, so a
+        // stack of them can't run under the buttons
+        if !m.panel.org_status.is_empty() {
+            draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
         }
 
         // buttons
@@ -750,6 +793,8 @@ impl View {
         // newest first, word-wrapped to the box instead of cut off mid-word
         const LOG_CHARS: usize = 52;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 8;
+        // the last row marks what rolled off the top, when it did
+        let log_rows = if m.log_dropped > 0 { LOG_ROWS - 1 } else { LOG_ROWS };
         let mut row = 0;
         'log: for entry in &m.log {
             let (r, g, b) = log_colour(entry);
@@ -757,7 +802,7 @@ impl View {
             let (day, msg) = log_parts(entry);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
             for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
-                if row == LOG_ROWS { break 'log; }
+                if row == log_rows { break 'log; }
                 let y = 530 + row as i32 * 12;
                 match &day {
                     Some(d) if n == 0 && line.starts_with(d.as_str()) => {
@@ -768,6 +813,11 @@ impl View {
                 }
                 row += 1;
             }
+        }
+        // the reserved row holds the count of what's already gone
+        if m.log_dropped > 0 {
+            draw_text(&mut buf, UI_X as i32 + 14, 530 + row as i32 * 12,
+                &format!("· · · {} earlier lines", m.log_dropped), 100, 100, 125);
         }
 
         // the TALK panel under the find box: conversations, apart from the log
@@ -826,6 +876,23 @@ impl View {
             let (x, y) = tile_to_minimap(tx, ty, k);
             buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
         };
+        // the country's sites: a dot in the kind's colour, the name
+        // under it - the keeper's, if the keep's bed holds one
+        for sv in &m.sites {
+            let (x, y) = tile_to_minimap(sv.x, sv.y, k);
+            let (r, g, b) = match sv.kind {
+                country::SiteKind::Castle => (200, 170, 90),
+                country::SiteKind::Town => (170, 120, 70),
+                country::SiteKind::Farm => (110, 160, 80),
+                country::SiteKind::Monastery => (220, 220, 210),
+            };
+            buf.rect(x as i32 - 2, y as i32 - 2, 4, 4, r, g, b);
+            let label = match &sv.keeper {
+                Some(k) => format!("{} ({})", sv.name, k),
+                None => sv.name.clone(),
+            };
+            draw_text(&mut buf, x as i32 + 4, y as i32 - 3, &label, r, g, b);
+        }
         // graves go down last: a crowd at the graveside mustn't hide one
         let (living, graves): (Vec<&PersonV>, Vec<&PersonV>) = m.people.iter()
             .partition(|pv| !(matches!(pv.kind, PKind::Villager(_)) && pv.dead));
@@ -897,7 +964,7 @@ impl View {
         }
 
         // season banner
-        let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.speed);
+        let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.speed, m.food_yield, m.harsh_winter);
         // on a dark strip so it reads over any terrain the camera shows
         buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
         draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
@@ -1048,4 +1115,62 @@ pub fn draw_search_box(buf: &mut Buffer, query: &str, hits: usize, focused: bool
         let cx = SRCH_X + 40 + query.len() as i32 * GLYPH_W + 1;
         buf.rect(cx, SRCH_Y + 6, 1, 10, 220, 220, 235);
     }
+}
+
+/// The character picker: the seed's roster as cards - a figure, a name,
+/// who they are - two to a row, the selection marked. Up/down (or W/S)
+/// chooses, Enter takes them, Escape keeps the default wanderer.
+pub fn render_picker(art: &Art, cards: &[roster::RosterCard], sel: usize) -> Buffer {
+    let mut buf = Buffer::new(W, H);
+    buf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+    draw_centered(&mut buf, 70, "THE WANDERER", 4, (255, 220, 130));
+    draw_centered(&mut buf, 140, "choose who you are", 2, (200, 200, 200));
+    let cols = 2usize;
+    let per_col = (cards.len() + cols - 1) / cols;
+    let (cw, ch) = (580i32, 118i32);
+    let (x0, y0) = (130i32, 180i32);
+    for (i, c) in cards.iter().enumerate() {
+        let (cx, cy) = (x0 + (i / per_col) as i32 * cw, y0 + (i % per_col) as i32 * ch);
+        let on = i == sel;
+        // card plate
+        let (pr, pg, pb): (u8, u8, u8) = if on { (44, 44, 66) } else { (30, 30, 46) };
+        buf.rect(cx, cy, cw - 20, ch - 10, pr, pg, pb);
+        if on {
+            buf.rect(cx, cy, cw - 20, 1, 255, 220, 130);
+            buf.rect(cx, cy + ch - 11, cw - 20, 1, 255, 220, 130);
+            buf.rect(cx, cy, 1, ch - 10, 255, 220, 130);
+            buf.rect(cx + cw - 21, cy, 1, ch - 10, 255, 220, 130);
+        }
+        // the figure: the pack's look, small for a child
+        if !art.villager_sprites.is_empty() {
+            let look = figure_look(c.kid, c.look, art.villager_sprites.len());
+            let s = &art.villager_sprites[look];
+            let scale = if c.kid { 1.1 } else { 1.5 };
+            let fw = (s.width as f32 * scale) as i32;
+            let fh = (s.height as f32 * scale) as i32;
+            draw_zoomed(&mut buf, s, cx + 24 - fw / 2, cy + 60 - fh, scale);
+        }
+        let tx = cx + 96;
+        let (nr, ng, nb): (u8, u8, u8) = if on { (255, 220, 130) } else { (225, 225, 235) };
+        draw_text_scaled(&mut buf, tx, cy + 12, &c.name, 2, nr, ng, nb);
+        draw_text(&mut buf, tx, cy + 38, &c.work, 140, 140, 160);
+        // the backstory wraps to the card's width
+        let mut line = String::new();
+        let mut ly = cy + 60;
+        for word in c.backstory.split(' ') {
+            if line.len() + word.len() + 1 > 62 {
+                draw_text(&mut buf, tx, ly, &line, 190, 190, 205);
+                ly += 14;
+                line.clear();
+                if ly > cy + ch - 22 { break; }
+            }
+            if !line.is_empty() { line.push(' '); }
+            line.push_str(word);
+        }
+        if ly <= cy + ch - 22 { draw_text(&mut buf, tx, ly, &line, 190, 190, 205); }
+        if on { draw_text(&mut buf, cx + 8, cy + 8, ">", 255, 220, 130); }
+    }
+    draw_centered(&mut buf, y0 + ((cards.len() + 1) / 2) as i32 * ch + 30,
+        "up/down choose    ENTER take them    ESC keep the wanderer", 1, (150, 150, 170));
+    buf
 }

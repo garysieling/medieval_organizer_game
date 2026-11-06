@@ -39,11 +39,30 @@ impl Game {
             if let Some(s) = self.trader_stall { livelihood::restock_trader(&mut self.world, s, tick); }
         }
         // workplaces nobody works stand dimmed - the derelicts of the street
+        let was_derelict = self.derelict.clone();
         self.derelict.clear();
         for (i, e) in self.building_entities.iter().enumerate() {
             if self.world.get_component::<Building>(*e).map(household::derelict).unwrap_or(false) {
                 self.derelict.insert(i);
+                if !was_derelict.contains(&i) {
+                    let name = self.world.get_component::<Building>(*e)
+                        .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
+                    self.log.push(format!("t{}: {} stands derelict - nobody works it.", tick, name));
+                }
             }
+        }
+        // word rides a few days ahead of whoever's on the road
+        if tick + 3 == self.next_minstrel {
+            self.log.push(format!("t{}: word is a minstrel's on the road.", tick));
+        }
+        if tick + 3 == self.next_pedlar {
+            self.log.push(format!("t{}: word is the pedlar's due with the gossip.", tick));
+        }
+        if tick + 3 == self.next_circus {
+            self.log.push(format!("t{}: word is a circus camps outside the walls come the week's end.", tick));
+        }
+        if tick + 3 == self.next_ink_boiler {
+            self.log.push(format!("t{}: word is the ink-maker's coming to boil his oil.", tick));
         }
         // a minstrel rides in every so often
         if self.minstrel.is_none() && tick >= self.next_minstrel { self.spawn_minstrel(); }
@@ -72,6 +91,20 @@ impl Game {
                 if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold -= remit.min(p.gold); }
                 self.takings = 0.0;
                 self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
+                // and he rides it there himself: the road to the nearest
+                // keep, a meal at its store, and the long way home
+                let cp = self.world.get_component::<Pos>(c).map(|p| (p.x, p.y));
+                if let Some((si, _)) = self.sites.iter().enumerate()
+                    .filter(|(_, s)| matches!(s.kind, country::SiteKind::Castle))
+                    .min_by_key(|(_, s)| cp.map(|(x, y)|
+                        ((s.centre.0 as f32 - x).powi(2) + (s.centre.1 as f32 - y).powi(2)) as i64)
+                        .unwrap_or(0)) {
+                    let door = self.sites[si].homes.first()
+                        .and_then(|&k| self.world.get_component::<Pos>(k).copied())
+                        .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
+                        .unwrap_or(self.sites[si].centre);
+                    let _ = self.send_far(c, door, Goal::Remit(si));
+                }
             }
         }
         drop(prelude);
@@ -97,6 +130,8 @@ impl Game {
         crate::timed!("sim.land", self.land_tick(tick));
         // the ladder of shame climbs one rung at a time
         crate::timed!("sim.sanction", self.sanction_tick(tick));
+        // and the blood feuds simmer or settle under it
+        crate::timed!("sim.feuds", self.feud_tick(tick));
         // and the year has its feast days
         crate::timed!("sim.festival", self.festival_tick(tick));
         let hearths = crate::infra::perf::scope("sim.day.hearths");
@@ -218,7 +253,33 @@ impl Game {
         // the country's carts and stewards, and its granaries
         crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
+        // the weather resolves before anyone lifts a tool: a rolled event
+        // weighs on the day's harvest and health alike
+        crate::timed!("sim.weather", self.weather_tick(tick));
+        // the priest reads the old books; what they teach helps the sick
+        crate::timed!("sim.magic", self.magic_tick(tick));
+        // new traders carry the Merchant the guild's compact wants
+        crate::timed!("sim.guild", self.guild_tick(tick));
+        // the newly dead are mourned by those who held them close
+        crate::timed!("sim.grief", self.grief_tick(tick));
+        // ties cool a little each day: bad blood settles, warmth cools
+        crate::timed!("sim.rels", self.rel_tick());
+        // the rolls are updated: the dead leave them, the sway re-pools,
+        // and a sit-down held yesterday deepens into a real tie
+        crate::timed!("sim.influence", self.influence_tick(tick));
+        // the fields ripen at the season's pace; the first ears coming
+        // in are worth saying aloud once
+        crate::timed!("sim.crops", self.crop_tick(tick));
+        // starving hurts, eating well mends - the unsick only
+        crate::timed!("sim.nourish", self.nourish_tick());
+        // the year's turn: the org takes the harvest in together
+        crate::timed!("sim.harvest", self.harvest_tick(tick));
+        // the wood grows, spreads, burns and regrows - the fuel commons
+        crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
+        // the office gathers whoever's keeping the holy day - church
+        // rows or the stones, priest or no priest
+        crate::timed!("sim.faith", self.service_tick(tick));
         // and folk who've gotten to know the Wanderer ask for small jobs
         crate::timed!("sim.quests", self.quest_dawn(tick, &mut rng));
         let folk = crate::infra::perf::scope("sim.day.villagers");
@@ -232,10 +293,12 @@ impl Game {
             // exile's road, which no belly's free to abandon
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
             if hungry {
-                self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::Exile));
-                // an exile walks on, belly and all - the road's the
-                // only errand his sentence leaves him
-                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile)) {
+                // an exile walks on, belly and all - and the man riding
+                // the lord's gold doesn't set it down for lunch; the
+                // keep's table feeds him when he gets there
+                self.travels.retain(|t| t.who != v
+                    || matches!(t.goal, Goal::Exile | Goal::Remit(_)));
+                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile | Goal::Remit(_))) {
                     let at_store = self.world.get_component::<Pos>(self.store_of(v))
                         .zip(self.world.get_component::<Pos>(v))
                         .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
@@ -266,6 +329,9 @@ impl Game {
                 if self.world.get_component::<OddJob>(v).is_none() { self.plan_play(v, tick, &mut rng); }
                 continue;
             }
+            // the recluse answers to the dark, not the village's day -
+            // the cave plan runs before the role's skip can take him
+            if Some(v) == self.hermit { self.plan_cave(v, tick); continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
             // a seat's own villager answers only its commands - never a
             // routine walk sent behind its back
@@ -310,7 +376,7 @@ impl Game {
             }
             // a day at the craft, at the bench
             self.plan_bench(v, tick);
-            let (made, up) = livelihood::work_day(&mut self.world, v, tick);
+            let (made, up) = self.bench_work(v, tick);
             let _ = made;
             if let Some(level) = up {
                 let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
@@ -323,6 +389,16 @@ impl Game {
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
         crate::timed!("sim.tech", self.tech_tick(tick));
+        crate::timed!("sim.cutaways", self.cutaways_tick(tick));
+        // and the village's tune follows the day the village had
+        crate::timed!("sim.music", self.music_tick(tick));
+        // faith unkept fades a little each day
+        crate::timed!("sim.devotion", {
+            use crate::engine::ecs::System;
+            crate::sim::religion::DevotionSystem.run(&mut self.world);
+        });
+        // and the weather rolls through: an event thins the fields and
+        // chills or scorches the bones while it lasts
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
@@ -370,7 +446,269 @@ impl Game {
         }).count() as f32;
         if hands <= 0.0 { return; }
         if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {
-            let _ = crate::game::tech_tree::research(&mut self.tech, &next, hands);
+            if crate::game::tech_tree::research(&mut self.tech, &next, hands) {
+                // a discovery: the bench worked it out - the village hears
+                self.log.push(format!("t{}: the print shop works out {}!", tick, next));
+            }
         }
+    }
+
+    /// Which workplaces show their cutaway today: a print shop whose
+    /// printer kept the bench (the same Working-routine read as research)
+    pub(crate) fn cutaways_tick(&mut self, tick: u64) {
+        self.cutaways.clear();
+        for (i, &e) in self.building_entities.iter().enumerate() {
+            let Some(b) = self.world.get_component::<Building>(e) else { continue };
+            if !matches!(b.kind, household::BuildingKind::Shop(Vocation::Printmaker))
+                || household::derelict(b) { continue; }
+            let Some(w) = b.worker else { continue };
+            if self.world.get_component::<routine::Routine>(w)
+                .map(|r| r.day == tick && r.mode == routine::Mode::Working)
+                .unwrap_or(false) {
+                self.cutaways.insert(i);
+            }
+        }
+    }
+
+    /// The village's tune, steered by the day the village had: burning
+    /// feuds and fresh graves weigh on it, full purses and new learning
+    /// lift it. When a new mood holds long enough to commit, the change
+    /// is worth a line in the log
+    pub(crate) fn music_tick(&mut self, tick: u64) {
+        use crate::game::music;
+        // the village's mood is the village's own: outlanders' purses,
+        // children and graves don't lean it
+        let live: Vec<(usize, Entity)> = self.villagers.iter().copied().enumerate()
+            .filter(|(_, v)| !villager::is_dead(&self.world, *v) && self.site_of(*v).is_none()).collect();
+        let n = live.len().max(1) as f32;
+        let burning = self.world.query::<crate::game::feuds::Feud>().iter()
+            .filter(|&&e| self.world.get_component::<crate::game::feuds::Feud>(e)
+                .map(|f| f.status == crate::game::feuds::FeudStatus::Burning
+                    && self.site_of(f.offender).is_none() && self.site_of(f.aggrieved).is_none())
+                .unwrap_or(false))
+            .count() as f32;
+        let graves = self.villagers.iter().copied().enumerate()
+            .filter(|(i, v)| self.died_on.get(*i).and_then(|d| d.map(|x| tick - x < 30))
+                .unwrap_or(false) && self.site_of(*v).is_none()).count() as f32;
+        let kids = live.iter().filter(|(_, v)| self.world.get_component::<Kid>(*v).is_some())
+            .count() as f32;
+        let purse = live.iter().filter_map(|(_, v)| self.world.get_component::<Purse>(*v)
+            .map(|p| p.gold)).sum::<f32>() / n;
+        let learned = self.tech.iter().filter(|t| t.discovered).count() as f32
+            / self.tech.len().max(1) as f32;
+        let m = music::WorldMetrics {
+            growth: (kids / n * 4.0).min(1.0),
+            conflict: (burning / 2.0).min(1.0),
+            loss: (graves / n * 8.0).min(1.0),
+            discovery: learned,
+            prosperity: (purse / 50.0).min(1.0),
+        };
+        let before = self.world.get_component::<music::MusicState>(self.music)
+            .map(|s| s.mood);
+        if let Some(st) = self.world.get_component_mut::<music::MusicState>(self.music) {
+            music::evolve(st, &m);
+        }
+        let after = self.world.get_component::<music::MusicState>(self.music)
+            .map(|s| s.mood);
+        if before != after {
+            self.log.push(format!("t{}: the village's tune turns - {} now.",
+                tick, music::recommend_mood(after.unwrap_or(music::Mood::Calm))));
+            // the drop lands on the wire: the sound layer hears the turn
+            let (cx, cy) = self.world.get_component::<Pos>(self.seats[0].player)
+                .map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+            self.sfx.push(crate::session::SfxCue { kind: "mood", x: cx, y: cy, intensity: 0.7 });
+        }
+    }
+
+    /// The weather rolls through: when the sky clears the day rolls the
+    /// next event - season-weighted, most days fair - and while an event
+    /// lasts its heat or cold wears on the village's health
+    pub(crate) fn weather_tick(&mut self, tick: u64) {
+        use crate::sim::weather::*;
+        use crate::engine::ecs::System;
+        WeatherSystem.run(&mut self.world);
+        let (kind, duration) = self.world.get_component::<CurrentWeather>(self.weather)
+            .map(|w| (w.kind, w.duration)).unwrap_or((Weather::Clear, 0));
+        if kind == Weather::Clear || duration == 0 {
+            let season = self.world.get_component::<climate::Climate>(self.climate)
+                .map(|c| c.season).unwrap_or(climate::Season::Summer);
+            let roll = self.rng.next() % 100;
+            let next = match (season, roll) {
+                (climate::Season::Winter, 0..=7) => Weather::Frost,
+                (climate::Season::Winter, 8..=11) => Weather::Storm,
+                (climate::Season::Summer, 0..=7) => Weather::HeatWave,
+                (climate::Season::Summer, 8..=11) => Weather::Drought,
+                (_, 0..=5) => Weather::Storm,
+                (_, 6..=9) => Weather::Drought,
+                _ => Weather::Clear,
+            };
+            let intensity = 0.4 + (self.rng.next() % 60) as f32 / 100.0;
+            let days = 2 + (self.rng.next() % 2) as u32;
+            if let Some(w) = self.world.get_component_mut::<CurrentWeather>(self.weather) {
+                w.kind = next;
+                w.intensity = if next == Weather::Clear { 0.0 } else { intensity };
+                w.duration = if next == Weather::Clear { 1 } else { days };
+            }
+            let word = match next {
+                Weather::Storm => Some("a storm rolls in - the fields will feel it"),
+                Weather::Drought => Some("the ground dries and cracks - a lean spell"),
+                Weather::HeatWave => Some("a heat wave settles over the village"),
+                Weather::Frost => Some("a hard frost grips the fields"),
+                Weather::Clear => None,
+            };
+            if let Some(w) = word { self.log.push(format!("t{}: {}.", tick, w)); }
+            // a storm takes a standing hall with it
+            if next == Weather::Storm {
+                for seat in 0..self.seats.len() {
+                    let oe = self.seats[seat].org;
+                    if crate::game::organizing::storm_strikes_hall(&mut self.world, oe) {
+                        let oname = self.world.get_component::<Organization>(oe)
+                            .map(|o| o.name.clone()).unwrap_or_default();
+                        self.log.push(format!("t{}: the storm takes {}'s roof - the hall's unfit to meet in.", tick, oname));
+                    }
+                }
+            }
+        }
+        // while an extreme holds, the village's health wears a little
+        if let Some(w) = self.world.get_component::<CurrentWeather>(self.weather) {
+            let drain = health_effect(w);
+            if drain < 0.0 {
+                for &v in self.villagers.iter().filter(|&&v|
+                    !villager::is_dead(&self.world, v) && self.site_of(v).is_none())
+                    .collect::<Vec<_>>() {
+                    if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                        // exposure wears a body down; it doesn't kill
+                        // outright, and it doesn't mend a failing one
+                        h.condition = (h.condition + drain).max(0.2).min(h.condition);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The priest's reading: some days an old text yields a practice the
+    /// parish can use; each page of the healing arts sees the sick mend
+    /// a little faster
+    pub(crate) fn magic_tick(&mut self, tick: u64) {
+        use crate::sim::magic;
+        // a reading day comes for the priest about twice a month
+        let priest = self.villagers.iter().copied().find(|&v|
+            !crate::game::dungeon::unavailable(&self.world, v) && self.site_of(v).is_none()
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Priest).unwrap_or(false));
+        let sources = magic::ancient_sources();
+        // the old library is finite - when every text's been read the
+        // shelf holds no more discoveries
+        let unread = self.grimoire.discoveries.len() < sources.len();
+        if priest.is_some() && unread && self.rng.next() % 15 == 0 {
+            let (src, domain, strength) = sources[self.grimoire.discoveries.len()];
+            let d = magic::ingest_text(&mut self.grimoire, src, domain, strength);
+            let use_ = magic::magic_effects(domain).first().copied().unwrap_or("useful lore");
+            self.log.push(format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
+                tick, d.name, use_));
+        }
+        // the parish physick: each healing practice the books taught
+        // sees the sick mend a little faster
+        let healing = self.grimoire.domains_known.get("Healing").copied().unwrap_or(0) as f32;
+        if healing > 0.0 {
+            for v in self.villagers.iter().copied().filter(|&v|
+                !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
+                    && is_sick(&self.world, v)).collect::<Vec<_>>() {
+                if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                    h.condition = (h.condition + 0.004 * healing).min(1.0);
+                }
+            }
+        }
+    }
+
+    /// The wood's day: a stand that grows, spreads, burns and regrows.
+    /// Its coverage is the fuel commons - a thin wood makes faggots dear,
+    /// a thick one keeps them cheap; and a fire's worth a line when it
+    /// catches and when it burns out
+    pub(crate) fn forest_tick(&mut self, tick: u64) {
+        use crate::sim::emergence::Cell;
+        let mut was_burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
+        // lightning doesn't come to the wood often - a dry day's chance
+        let cur = self.world.get_component::<crate::sim::weather::CurrentWeather>(self.weather)
+            .map(|w| (w.kind, w.intensity)).unwrap_or((crate::sim::weather::Weather::Clear, 0.0));
+        let spark = cur.0 == crate::sim::weather::Weather::Drought
+            && cur.1 > 0.7 && self.forest_rng.below(20) == 0;
+        let mut ignited = false;
+        if spark {
+            if let Some((x, y)) = self.forest.cells.iter().enumerate()
+                .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (x, y, c)))
+                .find(|(_, _, c)| **c == Cell::Tree).map(|(x, y, _)| (x, y)) {
+                self.forest.cells[y][x] = Cell::Burning;
+                ignited = true;
+                self.log.push(format!("t{}: fire breaks out in the wood!", tick));
+            }
+        }
+        self.forest.step();
+        let burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
+        // a struck tree that had no neighbours catches and dies in the
+        // same step - the end log still owes it a line
+        was_burning |= ignited;
+        if was_burning && !burning {
+            self.log.push(format!("t{}: the wood fire's out - bare for a while.", tick));
+        }
+        // the fuel price leans on the real wood's canopy - the mapped
+        // stand the gatherers actually thin, not the automaton's grid
+        let covers: Vec<f32> = self.land.tree_cover.values().copied().collect();
+        if !covers.is_empty() {
+            let cover = covers.iter().sum::<f32>() / covers.len() as f32;
+            let nudge = if cover < 0.3 { 0.004 } else if cover > 0.6 { -0.004 } else { 0.0 };
+            if nudge != 0.0 {
+                crate::game::goods::nudge(&mut self.world, "faggots", nudge);
+            }
+        }
+    }
+
+    /// A bench day, wherever it's driven from - the day's loop, an agent
+    /// seat, or the player's own hands: the units are remembered so the
+    /// card can say what they made
+    pub(in crate::session) fn bench_work(&mut self, v: Entity, tick: u64) -> (f32, Option<vocation::Level>) {
+        // watch the shelves a bench day can touch: the worker's own shop,
+        // and the senior's when a tasked hand sends part of the units
+        // that way - then the ledger writes what actually moved
+        let mut shops: Vec<Entity> = vec![];
+        if let Some(c) = self.world.get_component::<Craft>(v) {
+            if let Some(b) = c.workplace { shops.push(b); }
+            if let Some(b) = c.tasked_by
+                .and_then(|s| self.world.get_component::<Craft>(s)).and_then(|sc| sc.workplace) {
+                if !shops.contains(&b) { shops.push(b); }
+            }
+        }
+        let _ledger = crate::infra::perf::scope("sim.bench_ledger");
+        let before: Vec<_> = shops.iter()
+            .filter_map(|&b| self.world.get_component::<Building>(b).map(|bb| (b, bb.stock.clone())))
+            .collect();
+        let (made, up) = livelihood::work_day(&mut self.world, v, tick);
+        if made > 0.0 {
+            let e = self.produced.entry(v).or_insert((tick, 0.0));
+            if e.0 != tick { *e = (tick, 0.0); }
+            e.1 += made;
+        }
+        for (b, stock0) in before {
+            let Some(after) = self.world.get_component::<Building>(b).map(|bb| bb.stock.clone()) else { continue };
+            let mut delta: Vec<(String, i32)> = vec![];
+            for (g, &n1) in after.iter() {
+                let d = n1 as i32 - stock0.get(g).copied().unwrap_or(0) as i32;
+                if d != 0 { delta.push((g.clone(), d)); }
+            }
+            for (g, &n0) in stock0.iter() {
+                if !after.contains_key(g) { delta.push((g.clone(), -(n0 as i32))); }
+            }
+            if delta.is_empty() { continue; }
+            let e = self.shop_flow.entry(b).or_insert((tick, vec![]));
+            if e.0 != tick { *e = (tick, vec![]); }
+            for (g, n) in delta {
+                match e.1.iter_mut().find(|(f, _)| *f == g) {
+                    Some((_, m)) => *m += n,
+                    None => e.1.push((g, n)),
+                }
+            }
+        }
+        drop(_ledger);
+        (made, up)
     }
 }

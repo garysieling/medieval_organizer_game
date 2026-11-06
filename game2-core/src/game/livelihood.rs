@@ -78,9 +78,12 @@ pub fn needs_input(world: &World, e: Entity) -> Option<&'static str> {
     let satchel = world.get_component::<Satchel>(e);
     let shop = c.workplace.and_then(|b| world.get_component::<Building>(b));
     vocation::inputs(c.vocation).iter().copied().find(|&g| {
-        let in_bag = satchel.map(|s| s.goods.get(g).copied().unwrap_or(0)).unwrap_or(0);
-        let in_shop = shop.map(|b| b.stock.get(g).copied().unwrap_or(0)).unwrap_or(0);
-        in_bag + in_shop < 1
+        // the slot's short only when nothing that fills it is to hand
+        std::iter::once(g).chain(crate::game::recipes::fillers(g).iter().copied()).all(|cand| {
+            let in_bag = satchel.map(|s| s.goods.get(cand).copied().unwrap_or(0)).unwrap_or(0);
+            let in_shop = shop.map(|b| b.stock.get(cand).copied().unwrap_or(0)).unwrap_or(0);
+            in_bag + in_shop < 1
+        })
     })
 }
 
@@ -100,25 +103,53 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
         (c.vocation, c.master.is_some(), tools, c.workplace, c.tasked_by, boost)
     };
     let Some(good) = vocation::output(vocation_) else { return (0.0, None) };
-    // inputs: only work if the day's raw goods are in hand
+    // inputs: only work if the day's raw goods are in hand - a slot
+    // fills from whatever's stocked, the named good or its fellows.
+    // Pick each slot's source before any of it is spent: a missing
+    // second slot mustn't eat the first's goods for nothing
+    let mut picks: Vec<(&'static str, bool)> = vec![]; // (good, satchel-held?)
     for &input in vocation::inputs(vocation_) {
-        let have = world.get_component::<Satchel>(e)
-            .map(|s| s.goods.get(input).copied().unwrap_or(0)).unwrap_or(0);
-        if have >= 1 {
-            let s = world.get_component_mut::<Satchel>(e).unwrap();
-            *s.goods.get_mut(input).unwrap() -= 1;
-            continue;
+        let mut pick = None;
+        for cand in std::iter::once(input).chain(crate::game::recipes::fillers(input).iter().copied()) {
+            let held = world.get_component::<Satchel>(e)
+                .map(|s| s.goods.get(cand).copied().unwrap_or(0)).unwrap_or(0);
+            if held >= 1 { pick = Some((cand, true)); break; }
+            let stocked = workplace
+                .and_then(|b| world.get_component::<Building>(b))
+                .map(|b| b.stock.get(cand).copied().unwrap_or(0)).unwrap_or(0);
+            if stocked >= 1 { pick = Some((cand, false)); break; }
         }
-        let taken = workplace
-            .and_then(|b| world.get_component_mut::<Building>(b))
-            .map(|b| household::take_stock(b, input, 1)).unwrap_or(0);
-        if taken < 1 { return (0.0, None) } // can't work a day without it
+        let Some(p) = pick else { return (0.0, None) }; // can't work a day without it
+        picks.push(p);
+    }
+    for (g, in_bag) in picks {
+        if in_bag {
+            let s = world.get_component_mut::<Satchel>(e).unwrap();
+            *s.goods.get_mut(g).unwrap() -= 1;
+        } else if let Some(b) = workplace.and_then(|w| world.get_component_mut::<Building>(w)) {
+            household::take_stock(b, g, 1);
+        }
     }
     // the day's rate: workshop or not, overseer boost, tools. Fractions
     // carry over in `pending` - half a rate means a unit every other day
     let mut rate = if workplace.is_some() { 1.0 } else { NO_SHOP_RATE };
     if overseer_boost { rate *= OVERSEER_BOOST; }
     if has_tools { rate *= TOOL_BOOST; }
+    // the season and the sky both tell on what comes out of the ground
+    // and the net: a lean winter, a dry spell, a storm rolling through.
+    // The baker's oven takes its wheat as it finds it, rain or shine
+    if vocation::inputs(vocation_).is_empty()
+        && crate::game::goods::spec(good)
+        .map(|s| s.tags.contains(&crate::game::goods::Tag::StapleFood)).unwrap_or(false) {
+        if let Some(c) = world.query::<crate::sim::climate::Climate>().first().copied()
+            .and_then(|e| world.get_component::<crate::sim::climate::Climate>(e)) {
+            rate *= crate::sim::climate::climate_multiplier(c, "food");
+        }
+        if let Some(w) = world.query::<crate::sim::weather::CurrentWeather>().first().copied()
+            .and_then(|e| world.get_component::<crate::sim::weather::CurrentWeather>(e)) {
+            rate *= crate::sim::weather::food_effect(w);
+        }
+    }
     let units = {
         let c = world.get_component_mut::<Craft>(e).unwrap();
         c.pending += rate;

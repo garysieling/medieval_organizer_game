@@ -328,7 +328,9 @@ impl TileMap {
         Some(self.tiles[y as usize * self.width + x as usize])
     }
 
-    fn set(&mut self, x: i32, y: i32, t: Tile) {
+    /// Change a tile's kind (fields, crops): bumps `rev` so a cached
+    /// ground redraws. Out-of-map writes are ignored, like `get`'s `None`.
+    pub(crate) fn set(&mut self, x: i32, y: i32, t: Tile) {
         if self.get(x, y).is_some() {
             self.tiles[y as usize * self.width + x as usize] = t;
             self.rev += 1;

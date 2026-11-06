@@ -5,6 +5,7 @@ fn test_villagers_stay_in_their_own_village() {
     // on main, Aldric was at x 27.5 by day 1050 - the rivals' village -
     // and stayed there, eating from their store
     let mut game = Game::new();
+    game.speed = 16; // 1500 days of frames is the suite's long pole
     let home = *game.world.get_component::<Pos>(game.market_food).unwrap();
     // where each villager actually lives - an outskirts cottage is
     // legitimately far from the store, that's not straying
@@ -79,4 +80,21 @@ fn test_villagers_stay_in_their_own_village() {
     // excursion that comes home (on main, Aldric stayed for good)
     assert!(worst <= 30, "{} stayed {} days away at {:?} (route home: {:?}) - neighbours {:?}",
         vill_name(who_was_it), worst, st, route, around);
+}
+
+#[test]
+fn test_the_rivals_have_homes_across_the_river() {
+    let g = Game::new();
+    assert_eq!(g.rivals.len(), g.rival_homes.len());
+    for (&r, &(hx, hy)) in g.rivals.iter().zip(&g.rival_homes) {
+        let home = household::home_of(&g.world, r)
+            .expect("a rival with no home - the pull-point isn't a house");
+        let p = g.world.get_component::<Pos>(home).unwrap();
+        // their own house, the one they drift back to - not one of ours
+        assert!((p.x - hx).abs() + (p.y - hy).abs() < 10.0,
+            "{}'s home is at ({:.0},{:.0}), not near their pull-point ({:.0},{:.0})",
+            g.name_of(r), p.x, p.y, hx, hy);
+        // and it's across the river, not in our village
+        assert!(p.x > g.village.0 as f32, "a rival kept one of ours");
+    }
 }

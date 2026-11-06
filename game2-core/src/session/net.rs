@@ -38,6 +38,10 @@ pub enum ClientMsg {
     Command(Command),
     /// Agent steering: what the bot wants its villager to do next
     AgentCmd(AgentCmd),
+    /// Take a card off the roster the Welcome dealt: becomes your character
+    Pick(usize),
+    /// Keep the default wanderer instead of picking
+    DeclinePick,
     /// Keepalive / latency probe
     Ping(u64),
 }
@@ -53,6 +57,10 @@ pub enum ServerMsg {
         token: String,
         /// Your seat's first render model
         model: Box<UiModel>,
+        /// The seed's premade roster, for the picker a fresh seat sees.
+        /// Older servers omit it - read it as empty (no picker).
+        #[serde(default)]
+        roster: Vec<crate::session::roster::RosterCard>,
     },
     /// A frame for your seat (sent at the broadcast cadence). Its `map` is
     /// empty: the map comes as `Map` (see `SceneCache`)

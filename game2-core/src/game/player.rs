@@ -10,6 +10,14 @@ pub struct PlayerCharacter {
     pub resources: f32,   // gold/materials
 }
 
+/// Which figure the player wears: a look into the villager pack (the
+/// same indices `figure_look` resolves), small if they took a childhood
+#[derive(Debug, Clone, Copy)]
+pub struct Avatar {
+    pub look: usize,
+    pub kid: bool,
+}
+
 /// Result of a player action
 #[derive(Debug)]
 pub struct ActionResult {

@@ -23,9 +23,14 @@ impl Game {
         sched.add_system(SeasonSystem);
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
+        sched.add_system(crate::game::feuds::FeudSystem); // bad blood worsens till it's talked down
+        sched.add_system(crate::game::contracts::ContractSystem); // kept terms build a name for keeping them
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
-        let _ = crate::game::landforms::shape_terrain(&mut terrain, seed);
+        // the ground's own shape: a named landform picked by seed shapes
+        // the heightfield - keep its name for the telling
+        let landform = crate::game::landforms::shape_terrain(&mut terrain, seed)
+            .map(|p| p.display_name.clone());
         // where this seed's village stands: dry country the whole cluster
         // fits inside, on land the country plan can walk back to
         let (vx, vy) = village_origin(&terrain, seed);
@@ -33,10 +38,15 @@ impl Game {
         // the felt-worth ledger rides beside the climate - what the
         // shelves show leans what a swap is worth, quietly
         goods::spawn_worths(&mut world);
+        let music = crate::game::music::spawn_music(&mut world);
+        let weather = crate::sim::weather::spawn_weather(&mut world,
+            crate::sim::weather::Weather::Clear, 0.0, 0);
         // tell the sim where the tile edge is, or its fixed bound pinches
         // anyone homed past the old 33-tile map
         world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
         let market_food = villager::spawn_food_source(&mut world, vx as f32, vy as f32, 500);
+        // the fields go in with the country - the map's made by then,
+        // and a spot on water or a roof would feed no one
 
         // the river winds south between the towns to the sea; each waypoint
         // on its course drifts a tile or two, so it meanders differently
@@ -147,13 +157,40 @@ impl Game {
         outer.sort_by_key(|&(x, y)| (y, x));
         let stride = (outer.len() as f32 / n_homes.max(1) as f32).max(1.0);
         let picks: Vec<(i32, i32)> = (0..n_homes).filter_map(|k| outer.get((k as f32 * stride) as usize).copied()).collect();
-        let mut outer = picks.into_iter();
+        // a company town zones its homes by where they stand: the
+        // manager's row by the square, twins west, rowhouses east, the
+        // barracks at the south gate. The buildings and beds land the
+        // same either way - only the looks (and the river works below)
+        // differ; the other seeds keep the loose scatter. Its own rng
+        // stream, so the village's rolls land as they always have.
+        let mut town_rng = Rng(seed ^ 0xC0FFEE);
+        let company = town_rng.below(100) < 40;
+        let mid_x = (wall.0 + wall.2) / 2;
+        let mut twin: Option<usize> = None;
+        // the manager's row is one street of grand houses, not the whole
+        // quarter: the first few picks by the square wear it, the rest
+        // fall through to the twins and the terraces
+        let mut mansions = 0;
+        let looks: Vec<BSprite> = picks.iter().map(|&(x, y)| {
+            let d_sq = (x - vx).abs().max((y - vy).abs());
+            let d_gate = (x - gate_x).abs().max((y - wall.3).abs());
+            if d_gate <= 5 { BSprite::Barracks(((x + y) as usize) % 2) }
+            else if d_sq <= 6 && mansions < 4 { mansions += 1; BSprite::Mansion }
+            else if x < mid_x {
+                if let Some(i) = twin.take() { BSprite::House(i) }
+                else { let i = town_rng.below(9) as usize; twin = Some(i); BSprite::House(i) }
+            } else { BSprite::Rowhouse(((y * 37 + 11).rem_euclid(9)) as usize) }
+        }).collect();
+        let mut homes = picks.into_iter().zip(looks);
         for _ in 0..n_homes {
             let _ = (rng.around(1), rng.around(1));
-            let Some((bx, by)) = outer.by_ref().find(|&(x, y)| map.buildable(x, y)) else { break };
+            let Some(((bx, by), look)) = homes.by_ref().find(|&((x, y), _)| map.buildable(x, y)) else { break };
             map.build_at(bx, by);
             map.connect((bx, by));
-            buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
+            // the cottage roll is spent either way, so a company town's
+            // folk land the same as a loose one's on the same seed
+            let cottage = rng.below(97) as usize;
+            buildings.push((bx as f32, by as f32, if company { look } else { BSprite::House(cottage) }));
         }
         for &(x, y) in &[(wall.0 - 3, wall.3 + 3), (wall.2 + 4, wall.3 + 2), (wall.0 - 5, (wall.1 + wall.3) / 2)] {
             if let Some((bx, by)) = map.nearest_buildable(x, y) {
@@ -264,6 +301,10 @@ impl Game {
         // the smithy, church and guildhall already stand: shop for the
         // toolmaker, the priest's church, and the trader's stall
         for (x, y) in [(19, 19), (14, 9)] { let _ = (x, y); }
+        // the company town's works stands on the riverbank east of the
+        // wall: the weaver's bench moves out there to the fulling mill
+        let factory_site = if company { shore_site(&map, (wall.2, (wall.1 + wall.3) / 2)) } else { None };
+        let mut factory_built = false;
         for kind in shop_kinds.iter().copied() {
             // near the market for shops; farms by the south fields; the
             // fish-smoke house goes down to the water's edge
@@ -271,9 +312,14 @@ impl Game {
                 else if kind == BuildingKind::Shop(Vocation::Fisher) { (vx + 19, vy + 2) }
                 else { (vx + rng.around(4), vy - 1 + rng.around(4)) };
             let in_town = !matches!(kind, BuildingKind::Shop(Vocation::Farmer | Vocation::Fisher));
+            // the works takes the riverbank when it's got one
+            let site = if company && kind == BuildingKind::Shop(Vocation::Weaver) {
+                factory_site.filter(|&(x, y)| map.buildable(x, y))
+            } else { None };
             // a workshop takes the free plot nearest the square
-            let plot = if in_town { plots.iter().copied().find(|&(x, y)| map.buildable(x, y)) } else { None };
-            let Some((bx, by)) = plot.or_else(|| map.nearest_buildable(cx, cy)) else { continue };
+            let plot = if in_town && site.is_none() { plots.iter().copied().find(|&(x, y)| map.buildable(x, y)) } else { None };
+            let Some((bx, by)) = site.or(plot).or_else(|| map.nearest_buildable(cx, cy)) else { continue };
+            factory_built |= site.is_some();
             map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
@@ -354,6 +400,21 @@ impl Game {
         for (i, &e) in building_entities.iter().enumerate() {
             let Some(look) = world.get_component::<Building>(e).and_then(|b| WorkLook::of(b.kind)) else { continue };
             if let BSprite::House(h) = buildings[i].2 { buildings[i].2 = BSprite::Work(look, h); }
+        }
+        // the company town's river works: the weaver's bench moved out to
+        // the bank - it answers to the factory's name and wears its look
+        if factory_built {
+            if let Some(i) = building_entities.iter().position(|&e| {
+                world.get_component::<Building>(e)
+                    .map(|b| b.kind == BuildingKind::Shop(Vocation::Weaver)).unwrap_or(false)
+            }) {
+                if let Some(b) = world.get_component_mut::<Building>(building_entities[i]) {
+                    b.name = "the factory".into();
+                }
+                if let BSprite::Work(_, h) = buildings[i].2 {
+                    buildings[i].2 = BSprite::Work(WorkLook::Factory, h);
+                }
+            }
         }
         // the trader's stall is the guildhall slot (index 5), stocked with imports
         let trader_stall = building_entities[5];
@@ -476,13 +537,22 @@ impl Game {
                     known_herbs: herbology::medicinal_herbs().iter().map(|(n, _, _)| n.to_string()).collect(),
                     remedies: vec![], skill: 0.55 });
             }
+            // a soul to tend: some come devout, some half-hearted
+            world.add_component(v, crate::sim::religion::Faith {
+                religion: "the parish".into(), devotion: 0.35 + (villagers.len() % 6) as f32 * 0.09,
+                traditions: vec![] });
             villagers.push(v);
         }
-        for i in 0..3 {
-            let m = world.create_entity();
-            world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
-        }
-
+        // the parish holds them all; the priest keeps the office
+        let congregation = {
+            let c = world.create_entity();
+            world.add_component(c, crate::sim::religion::Congregation {
+                name: "the village parish".into(), members: villagers.clone(),
+                leader: villagers.iter().copied().find(|&v| world.get_component::<Craft>(v)
+                    .map(|cr| cr.vocation == Vocation::Priest).unwrap_or(false)),
+                orthodoxy: 0.6, services: vec![] });
+            c
+        };
         // rival village: foreign settlement across the river, with its own
         // granary so its people eat at home instead of crossing to our market
         villager::spawn_food_source(&mut world, (vx + 14) as f32, (vy - 3) as f32, 500);
@@ -495,9 +565,26 @@ impl Game {
             rivals.push(r);
             rival_homes.push(home);
         }
+        // and the foreign houses are theirs: each rival keeps the nearest
+        // one across the river, so "home" is a place, not a pull-point
+        for (&r, &(hx, hy)) in rivals.iter().zip(&rival_homes) {
+            let nearest = building_entities.iter()
+                .filter(|&&e| world.get_component::<Building>(e)
+                    .map(|b| b.kind == BuildingKind::Home).unwrap_or(false))
+                .min_by(|&&a, &&b| {
+                    let da = world.get_component::<Pos>(a).map(|p| (p.x - hx).abs() + (p.y - hy).abs()).unwrap_or(99.0);
+                    let db = world.get_component::<Pos>(b).map(|p| (p.x - hx).abs() + (p.y - hy).abs()).unwrap_or(99.0);
+                    da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                }).copied();
+            if let Some(b) = nearest {
+                world.get_component_mut::<Building>(b).unwrap().occupants.push(r);
+            }
+        }
 
         let player = world.create_entity();
         world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 100.0 });
+        world.add_component(player, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         world.add_component(player, Pos { x: (vx - 6) as f32, y: (vy - 6) as f32 }); // player has a position
         let org = world.create_entity();
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
@@ -622,7 +709,7 @@ impl Game {
         // for them, and theirs check on them
         for (i, kind) in [(7usize, "a lame leg"), (11, "failing sight"), (15, "a mind that needs quiet")] {
             if i < villagers.len() {
-                world.add_component(villagers[i], villager::Condition { kind });
+                world.add_component(villagers[i], villager::Condition { kind, until: u64::MAX });
             }
         }
         // and the recluse keeps to the cave at the map's edge - the same
@@ -769,9 +856,26 @@ impl Game {
             let is_kid = KID_IDXS.contains(&i);
             let gold = livelihood::seed_gold(class, is_kid, (g.next() % 1000) as f32 / 1000.0);
             world.add_component(v, Purse { gold });
+            // the years they're carrying - a kid's grow from the days
+            // already on their growth-clock - and the span they're given
+            let years = if is_kid {
+                world.get_component::<KidGrowth>(v).map(|kg| kg.age_days as f32 / 52.0).unwrap_or(5.0)
+            } else { 19.0 + (g.next() % 42) as f32 };
+            world.add_component(v, crate::game::lifecycle::Age {
+                years, stage: crate::game::lifecycle::stage_for(years) });
+            world.add_component(v, crate::game::lifecycle::Vitality {
+                health: 1.0, max_age: 58.0 + (g.next() % 35) as f32, cause_of_death: None });
             let voc = world.get_component::<Craft>(v).map(|c| c.vocation);
             let wants = desires::sample_wants(class, voc, is_kid, &mut || g.next());
             world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
+        }
+        // the traders the guild forms of: the trade-vocation folk and
+        // the stall's trader - purses seeded now, their stake the purse
+        // plus the stock and tools the writs can strip
+        for (i, &v) in villagers.iter().enumerate() {
+            if subsystems::society::is_trader(&world, v) {
+                subsystems::society::tag_trader(&mut world, v, vill_name(i));
+            }
         }
         // the keeper opens with a float. His trade is the only one in the
         // village that buys before it sells, so a journeyman's purse
@@ -801,7 +905,7 @@ impl Game {
         }
 
         let mut g = Game {
-            world, sched, map, climate, villagers, rivals,
+            world, sched, map, climate, music, weather, congregation, villagers, rivals,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             village: (vx, vy),
@@ -813,6 +917,7 @@ impl Game {
             gulls,
             chicken_at: (gate_x as f32 + 0.4, farm_y as f32 + 0.3),
             rng,
+            seed,
             built_count: 0,
             works: vec![],
             tech: crate::game::tech_tree::extended_printmaking_tree(),
@@ -823,9 +928,15 @@ impl Game {
             tick: 0,
             paused: false,
             speed: 1,
-            log: vec!["Welcome to the village.".into(),
-                format!("The village keeps {} - and the tavern on the green, where it all gets drunk.",
-                    vocation::trade_name(drink_voc))],
+            log: {
+                let mut l = vec!["Welcome to the village.".into(),
+                    format!("The village keeps {} - and the tavern on the green, where it all gets drunk.",
+                        vocation::trade_name(drink_voc))];
+                if let Some(n) = &landform {
+                    l.push(format!("The village makes its home in {}.", n));
+                }
+                l
+            },
             log_dropped: 0,
             bubbles: vec![],
             meeting: None,
@@ -856,6 +967,8 @@ impl Game {
             next_ink_boiler: 400 + seed % 200,
             fire: Fire::new(),
             derelict: Default::default(),
+            ruined: Default::default(),
+            cutaways: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
             herb_hut,
@@ -876,6 +989,7 @@ impl Game {
             shroom_lore: vec![],
             ailments: vec![],
             shroom_rng: Rng(seed ^ 0xCA45),
+            forest_rng: Rng(seed ^ 0xF12E),
             shroom_disclaimed: false,
             tavern,
             tavern_table: vec![],
@@ -890,6 +1004,23 @@ impl Game {
             pit,
             reach,
             sanctioned: vec![],
+            feud_told: Default::default(),
+            produced: Default::default(),
+            tales: Default::default(),
+            forest: {
+                let mut f = crate::sim::emergence::Automata::new(24, 24);
+                f.seed();
+                f
+            },
+            grimoire: crate::sim::magic::Grimoire { discoveries: vec![],
+                domains_known: Default::default(), total_power: 0.0 },
+            tales_told: Default::default(),
+            dead_since: Default::default(),
+            crop_noted: false,
+            crop_fields: vec![],
+            harvest_year: u64::MAX,
+            landform,
+            shop_flow: Default::default(),
             wolf_coming: false,
             takings: 0.0,
             fox_coming: false,
@@ -900,6 +1031,7 @@ impl Game {
             lord_esteem: 0.0,
             numeracy: if seed % 10 < 6 { Numeracy::Tally } else { Numeracy::RomanBoard },
             translator: None,
+            translator_days: 0,
             hermit: hermit_e,
             reckonings: 0,
             sky: None,

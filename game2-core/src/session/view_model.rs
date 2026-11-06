@@ -5,6 +5,10 @@ use crate::session::*;
 /// Gossip lines shown in the log at once; older gossip is hidden so it
 /// can't push real events (illness, joins, deaths, guilds) out of view
 pub(in crate::session) const LOG_GOSSIP_SHOWN: usize = 2;
+/// The newest few headlines pin to the log's top: enough that a quiet
+/// death outranks a busy skep-day, not so many that yesterday's news
+/// buries today's warning
+pub(in crate::session) const LOG_PINNED_SHOWN: usize = 4;
 
 /// Is this log entry idle gossip ("X tells Y - ...")?
 pub fn is_gossip(entry: &str) -> bool { entry.contains(" tells ") }
@@ -64,10 +68,16 @@ pub(in crate::session) fn visible_log(log: &[String]) -> Vec<&String> {
         if is_town_note(e) { town += 1; return town <= LOG_TOWN_SHOWN; }
         true
     }).collect();
-    // stable partition: important entries first (already newest-first),
-    // then the rest - a quiet death still outranks a busy skep-day
+    // stable partition: the newest few important entries pin to the top,
+    // then the rest - a quiet death still outranks a busy skep-day, but a
+    // wall of old headlines can't bury today's warning
+    let mut imp_rank = 0usize;
     let (important, rest): (Vec<_>, Vec<_>) = filtered.into_iter()
-        .partition(|e| is_important(e));
+        .partition(|e| {
+            if !is_important(e) { return false; }
+            imp_rank += 1;
+            imp_rank <= LOG_PINNED_SHOWN
+        });
     important.into_iter().chain(rest).collect()
 }
 
@@ -175,7 +185,7 @@ impl Game {
                 sick: is_sick(world, *v),
                 act_mark: match world.get_component::<Villager>(*v).map(|v| v.activity) {
                     Some(Activity::SeekingFood) => 1, Some(Activity::Idle) | None => 0, _ => 2 },
-                bond: false,
+                bond: false, look: 0,
             });
         }
         for (i, v) in self.rivals.iter().enumerate() {
@@ -183,47 +193,50 @@ impl Game {
                 people.push(PersonV { e: *v, kind: PKind::Rival(i), pos: (p.x, p.y),
                     label: Some(RIVAL_NAMES[i].to_string()), find: find_key(RIVAL_NAMES[i]),
                     dead: false, kid: false,
-                    selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         let (px, py) = self.player_pos_at(seat);
+        let avatar = world.get_component::<crate::game::player::Avatar>(self.seats[seat].player);
         people.push(PersonV { e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
             label: None, find: world.get_component::<PlayerCharacter>(self.seats[seat].player)
                 .map(|p| find_key(&p.name)).unwrap_or_default(),
-            dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            dead: false, kid: avatar.map(|a| a.kid).unwrap_or(false),
+            selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false,
+            look: avatar.map(|a| a.look as u8).unwrap_or(0) });
         for (i, (x, y)) in self.guards.iter().copied()
             .chain(self.posted.iter().map(|p| (p.1, p.2))).enumerate() {
             people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
         people.push(PersonV { e: 0, kind: PKind::Priest, pos: self.priest,
-            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         if let Some((tx, ty)) = self.traveller_pos() {
             people.push(PersonV { e: 0, kind: PKind::Traveller, pos: (tx, ty),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
         if let Some(m) = &self.minstrel {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
         if let Some(m) = &self.pedlar {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
         if let Some(c) = &self.circus {
             if let Some(p) = world.get_component::<Pos>(c.e) {
                 people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: Some("the circus".into()), find: find_key("the circus"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    label: Some("the circus".into()), find: find_key("the circus"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         if let Some(b) = &self.ink_boiler {
             if let Some(p) = world.get_component::<Pos>(b.e) {
                 people.push(PersonV { e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: Some("the ink-boiler".into()), find: find_key("the ink-boiler"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    label: Some("the ink-boiler".into()), find: find_key("the ink-boiler"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         // the rare events' figures: wandering trades drawn as travellers,
@@ -239,23 +252,23 @@ impl Game {
             people.push(PersonV { e, kind, pos: (p.x, p.y),
                 label: Some(spec.name.into()), find: find_key(spec.name), dead: false, kid: false, selected: false,
                 in_reach: false, hungry: false, sick: false, act_mark: 0,
-                bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false) });
+                bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false), look: 0 });
         }
         for &(x, y) in &self.gulls {
             people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
         let hen_t = (self.frame_n / 12) as f32;
         people.push(PersonV { e: 0, kind: PKind::Chicken,
             pos: (self.chicken_at.0 + hen_t.cos() * 0.5, self.chicken_at.1 + (hen_t * 1.7).sin() * 0.4),
-            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         for (pet_e, species, (ox, oy)) in &self.pets {
             if let Some(pet) = world.get_component::<Pet>(*pet_e) {
                 if let Some(p) = world.get_component::<Pos>(pet.owner.unwrap_or(self.villagers[0])) {
                     people.push(PersonV { e: *pet_e, kind: PKind::Pet(*species),
                         pos: (p.x + ox, p.y + oy), label: None, dead: false, kid: false,
                         selected: false, in_reach: false, hungry: false, sick: false,
-                        act_mark: 0, bond: pet.bond_strength > 0.5, find: String::new() });
+                        act_mark: 0, bond: pet.bond_strength > 0.5, look: 0, find: String::new() });
                 }
             }
         }
@@ -263,14 +276,14 @@ impl Game {
             if let (Some(l), Some(p)) = (world.get_component::<Livestock>(a), world.get_component::<Pos>(a)) {
                 people.push(PersonV { e: a, kind: if l.kind == LivestockKind::Sheep { PKind::Sheep } else { PKind::Goat },
                     pos: (p.x, p.y), label: None, dead: false, kid: false, selected: false,
-                    in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                    in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
         for &a in &self.hens {
             if let Some(p) = world.get_component::<Pos>(a) {
                 people.push(PersonV { e: a, kind: PKind::Chicken, pos: (p.x, p.y), label: None,
                     dead: false, kid: false, selected: false, in_reach: false,
-                    hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
+                    hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
         people.sort_by(|a, b| (a.pos.0 + a.pos.1).partial_cmp(&(b.pos.0 + b.pos.1)).unwrap());
@@ -278,7 +291,8 @@ impl Game {
         let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
         let buildings: Vec<BldgV> = self.buildings.iter().enumerate()
             .map(|(i, (x, y, s))| BldgV { x: *x, y: *y, sprite: *s, risen: risen(i),
-                derelict: self.derelict.contains(&i), smoke: i < 3 })
+                derelict: self.derelict.contains(&i) || self.ruined.contains(&i),
+                cutaway: self.cutaways.contains(&i), smoke: i < 3 })
             .collect();
         let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {
             // the dead don't talk - a bubble over a grave is ghost chatter
@@ -373,6 +387,25 @@ impl Game {
         } else {
             Some(self.villager_inspector_at(seat))
         };
+        // the powers' standing words on the org - short enough that
+        // all three still fit the one line the panel gives them
+        let org_status = {
+            let mut v = vec![];
+            if let Some(gr) = world.get_component::<crate::game::reactions::LordGrant>(self.seats[seat].org) {
+                if self.tick <= gr.until {
+                    let word = if gr.hollow { "hollow grant" }
+                        else if gr.partial { "part grant" } else { "lord's grant" };
+                    v.push(format!("{}: {}", word, gr.issue));
+                }
+            }
+            if let Some(g) = world.get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org) {
+                v.push(format!("{} knights posted", g.knights));
+            }
+            if let Some(b) = world.get_component::<crate::game::reactions::AssemblyBan>(self.seats[seat].org) {
+                v.push(format!("assembly ban >{}", b.cap));
+            }
+            v
+        };
         UiModel {
             player_pose: (self.seats[seat].facing, self.seats[seat].walking),
             // the courier (entity 0 in people) faces the way it rides
@@ -382,6 +415,9 @@ impl Game {
             tick: self.tick, frame: self.frame_n,
             map: if with_map { self.map.clone() } else { crate::game::tilemap::TileMap::default() }, town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
+            food_yield: world.get_component::<climate::Climate>(self.climate)
+                .map(|c| climate::climate_multiplier(c, "food")).unwrap_or(1.0),
+            harsh_winter: self.harsh_winter,
             paused: self.paused, speed: self.speed,
             stones: self.stones.clone(), buildings, people, bubbles,
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
@@ -392,6 +428,7 @@ impl Game {
             // only the lines the window would show - cloning the whole
             // history every frame was the model's biggest copy
             log: visible_log(&self.log).into_iter().cloned().collect(),
+            log_dropped: self.log_dropped,
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),
@@ -401,7 +438,9 @@ impl Game {
             inspector,
             panel: PanelV {
                 name: my_name, gold: my_gold,
-                org: org.name.clone(), members, issues, guilds, food, campaign,
+                org: org.name.clone(), leader: Some(name_of(org.leader)),
+                org_status,
+                members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
                 social, meeting,
             },
@@ -434,6 +473,18 @@ impl Game {
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
+            grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
+            sites: self.sites.iter().map(|s| {
+                // the keeper: who holds the keep's first bed, when the
+                // site has one - the castle's lord, a town's first house
+                let keeper = s.homes.first()
+                    .and_then(|&h| world.get_component::<Building>(h))
+                    .and_then(|b| b.occupants.first().copied())
+                    .and_then(|o| self.villagers.iter().position(|v| *v == o))
+                    .map(|i| vill_name(i).to_string());
+                SiteV { x: s.centre.0 as f32, y: s.centre.1 as f32,
+                    name: s.name.to_string(), kind: s.kind.clone(), keeper }
+            }).collect(),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
             debug_lines: vec![],
@@ -477,7 +528,8 @@ impl Game {
         }
         if b.kind == BuildingKind::Home {
             let names: Vec<&str> = b.occupants.iter()
-                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i)))
+                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i))
+                    .or_else(|| self.rivals.iter().position(|r| *r == *o).map(|i| RIVAL_NAMES[i])))
                 .collect();
             lines.push(Line { x: 18, y: 368,
                 text: format!("lives here: {}", if names.is_empty() { "no one".into() } else { names.join(", ") }),
@@ -490,9 +542,105 @@ impl Game {
             text: if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
             rgb: (180, 190, 210) });
         if let Some((g, q, pr)) = offers.first() {
-            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g", q, g, pr), rgb: (150, 210, 150) });
+            // the street reads a price against the ordinary: scarce
+            // shelves ask dear, a glut sells cheap
+            let base = goods::worth(g);
+            let lean = if *pr > base * 1.1 { " \u{00b7} dear" }
+                else if *pr < base * 0.9 { " \u{00b7} cheap" } else { "" };
+            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g{}", q, g, pr, lean), rgb: (150, 210, 150) });
+        }
+        // the chain the shop worked today: what went in and what came out
+        if let Some((_, flow)) = self.shop_flow.get(&be).filter(|(d, _)| *d == self.tick) {
+            let txt = flow.iter().map(|(g, n)| format!("{}{} {}", if *n < 0 { "" } else { "+" }, n, g))
+                .collect::<Vec<_>>().join("  ");
+            if !txt.is_empty() {
+                lines.push(Line { x: 18, y: 418, text: format!("today: {}", txt), rgb: (200, 190, 160) });
+            }
+        }
+        // the printer's bench is the village's research desk: what it's
+        // puzzling out now, and how far along
+        if matches!(b.kind, BuildingKind::Shop(Vocation::Printmaker)) {
+            if let Some(t) = self.tech.iter()
+                .filter(|t| !t.discovered && crate::game::tech_tree::can_research(&self.tech, &t.name))
+                .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap()) {
+                lines.push(Line { x: 18, y: 432,
+                    text: format!("learning: {} ({:.0}/{:.0})", t.name, t.progress, t.cost),
+                    rgb: (170, 190, 230) });
+            }
+        }
+        // the cellar's character and the rack: how many wheels down,
+        // and the oldest one's age - the number the monger pays for
+        if b.kind == BuildingKind::Cellar {
+            let n = self.cheeses.len();
+            let oldest = self.cheeses.first().map(|t| self.tick - t).unwrap_or(0);
+            lines.push(Line { x: 18, y: 432,
+                text: if n == 0 { format!("{} - empty", self.cellar_trait) }
+                    else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
+                rgb: (230, 200, 140) });
+        }
+        // a home that keeps hens says so - the roost's count with it
+        if self.hen_houses.contains(&be) {
+            let n = livestock::flock(&world, be).len();
+            lines.push(Line { x: 18, y: 432,
+                text: if n == 0 { "roost empty".into() } else { format!("keeps hens - {} on the roost", n) },
+                rgb: (220, 180, 120) });
+        }
+        // the tavern's register: who kept the table's company these
+        // last nights - the keeper's till knows the thirsty by name
+        if Some(be) == self.tavern {
+            // latest nights first, a patron only once
+            let mut seen = crate::engine::det::HashSet::default();
+            let drank: Vec<String> = self.tavern_table.iter().rev()
+                .filter(|(_, d)| self.tick.saturating_sub(*d) < 30)
+                .filter(|(w, _)| seen.insert(*w))
+                .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
+                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
+                .collect();
+            // the card's a fixed width: the last two nights' company,
+            // then a count
+            let company = match drank.len() {
+                0 => String::new(),
+                1..=2 => format!(" - {}", drank.join(", ")),
+                n => format!(" - {}, +{}", drank[..2].join(", "), n - 2),
+            };
+            lines.push(Line { x: 18, y: 432,
+                text: format!("the table's company{}", company),
+                rgb: (220, 180, 140) });
+        }
+        // the herb-wife's tally, and who's called at her hut lately
+        if Some(be) == self.herb_hut {
+            let callers: Vec<String> = self.remedy_visits.iter()
+                .filter(|(_, d)| self.tick - d <= 15)
+                .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
+                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
+                .collect();
+            // the card's a fixed width: the first two callers, then a count
+            let late = match callers.len() {
+                0 => String::new(),
+                1..=2 => format!(" - lately: {}", callers.join(", ")),
+                n => format!(" - lately: {}, +{}", callers[..2].join(", "), n - 2),
+            };
+            lines.push(Line { x: 18, y: 432,
+                text: format!("her tally: {} cures{}", self.cured, late),
+                rgb: (190, 210, 150) });
         }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
+    }
+
+    /// Every live feud `v` is party to, burning ones first: who it's
+    /// with and whether it burns
+    fn feuds_of(&self, v: Entity) -> Vec<(Entity, bool)> {
+        let mut out: Vec<(Entity, bool)> = self.world.query::<crate::game::feuds::Feud>().into_iter()
+            .filter_map(|e| {
+                let f = self.world.get_component::<crate::game::feuds::Feud>(e)?;
+                if f.status == crate::game::feuds::FeudStatus::Resolved { return None; }
+                let hot = f.status == crate::game::feuds::FeudStatus::Burning;
+                if f.offender == v { Some((f.aggrieved, hot)) }
+                else if f.aggrieved == v { Some((f.offender, hot)) }
+                else { None }
+            }).collect();
+        out.sort_by_key(|(_, hot)| !hot);
+        out
     }
 
     /// The inspector card for the selected villager
@@ -518,8 +666,14 @@ impl Game {
                 text: format!("knows the cures \u{00b7} {} remedies", n), rgb: (150, 210, 150) });
         }
         if let Some(c) = world.get_component::<Craft>(v) {
+            // the day's work on the same line: what the bench made today
+            let made = self.produced.get(&v).filter(|(d, _)| *d == self.tick)
+                .map(|(_, m)| *m).unwrap_or(0.0);
+            let made_txt = if made > 0.0 {
+                format!(" \u{00b7} made {:.0} {}", made, vocation::output(c.vocation).unwrap_or("goods"))
+            } else { String::new() };
             lines.push(Line { x: 60, y: 354,
-                text: format!("\u{1}Craft\u{2}{}{:.0}%", c.skill, c.skill * 100.0), rgb: (0, 0, 0) });
+                text: format!("\u{1}Craft\u{2}{}{:.0}%{}", c.skill, c.skill * 100.0, made_txt), rgb: (0, 0, 0) });
         }
         if let Some(p) = world.get_component::<Purse>(v) {
             lines.push(Line { x: 60, y: 366, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });
@@ -543,21 +697,57 @@ impl Game {
             (None, Some(s)) => format!("no home \u{00b7} {}", s),
             (None, None) => "no home".into(),
         };
-        lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
-        // how well the organizer knows them: the stage word beside the
-        // secrets they've told
+        let faith = world.get_component::<crate::sim::religion::Faith>(v)
+            .map(|f| if f.devotion > 0.6 { " \u{00b7} devout" }
+                else if f.devotion < 0.25 { " \u{00b7} lapsed" } else { "" }).unwrap_or("");
+        // the guild's badge: a trader in the mutual-protection compact
+        let guilded = world.query::<crate::game::guilds::Guild>().first().copied()
+            .and_then(|g| world.get_component::<crate::game::guilds::Guild>(g))
+            .map(|g| g.members.contains(&v)).unwrap_or(false);
+        let badge = if guilded { " \u{00b7} of the guild" } else { "" };
+        // the village's word on them: a name in good standing or in ill
+        // repute - the stage they've earned, not the bond they hold
+        let standing = world.get_component::<crate::sim::reputation_qsp::ReputationState>(v)
+            .map(|r| match r.stage {
+                crate::sim::reputation_qsp::RepStage::Esteemed => " \u{00b7} esteemed",
+                crate::sim::reputation_qsp::RepStage::Trusted => " \u{00b7} well thought of",
+                crate::sim::reputation_qsp::RepStage::Disgraced => " \u{00b7} ill-spoken of",
+                _ => "" }).unwrap_or("");
+        lines.push(Line { x: 18, y: 404, text: format!("{}{}{}{}", roost, faith, standing, badge), rgb: (190, 190, 210) });
+        // how well the organizer knows them: the stage word sits beside
+        // the name, clear of the two rows the card keeps for feuds and
+        // secrets
         let stage = crate::game::organizing::stage_of(world, self.seats[seat].player, v);
         if stage > crate::game::organizing::RelStage::Stranger {
-            lines.push(Line { x: 60, y: 428,
+            lines.push(Line { x: 150, y: 330,
                 text: crate::game::organizing::stage_label(stage).to_string(), rgb: (170, 200, 160) });
         }
+        // the card's two reserved rows say what the village knows of
+        // them: bad blood first - it burns brightest in the talk - then
+        // whatever secrets they've told fill the room that's left
+        let feuds = self.feuds_of(v);
+        let mut band = 0i32;
+        for (other, burning) in feuds.iter().take(2) {
+            let more = if band == 1 && feuds.len() > 2 { format!(" +{}", feuds.len() - 2) } else { String::new() };
+            lines.push(Line { x: 18, y: 416 + band * 11,
+                text: format!("feuds with {}{}{}", self.name_of(*other), more,
+                    if *burning { " - it burns" } else { "" }),
+                rgb: (230, 140, 110) });
+            band += 1;
+        }
+        // a sworn hand shows in the same band - the pact's no secret
+        if band < 2 && crate::game::contracts::pact_live(world, self.seats[seat].player, v) {
+            lines.push(Line { x: 18, y: 416 + band * 11, text: "sworn to you".into(), rgb: (150, 210, 150) });
+            band += 1;
+        }
         if let Some(k) = world.get_component::<Known>(v) {
-            for (n, r) in k.revealed.iter().take(2).enumerate() {
+            for r in k.revealed.iter().take((2 - band).max(0) as usize) {
                 let text = match r {
                     desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
                     desires::Reveal::Problem(p) => desires::problem_label(p),
                 };
-                lines.push(Line { x: 18, y: 416 + n as i32 * 11, text, rgb: (210, 170, 140) });
+                lines.push(Line { x: 18, y: 416 + band * 11, text, rgb: (210, 170, 140) });
+                band += 1;
             }
         }
         if let Some(vil) = world.get_component::<Villager>(v) {
@@ -585,12 +775,41 @@ impl Game {
             let doing = (vil.activity == Activity::Idle)
                 .then(|| routine::routine_text(world, v, bench.as_deref())).flatten()
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
-            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
+            // a thing made to outlast, in their hands - one name and a
+            // count, and it leads the line: the card's tail can clip
+            // under a long day's routine, the holding can't
+            let known = crate::game::organizing::stage_of(world, self.seats[seat].player, v)
+                >= crate::game::organizing::RelStage::Known;
+            let held: Vec<&str> = if known { self.heirlooms.iter()
+                .filter_map(|&i| world.get_component::<villager::Heirloom>(i))
+                .filter(|h| h.owner == v).map(|h| h.name).collect() } else { vec![] };
+            let keepsake = match held.as_slice() {
+                [] => String::new(),
+                [one] => format!("holds {} \u{00b7} ", one),
+                [first, rest @ ..] => format!("holds {} +{} \u{00b7} ", first, rest.len()),
+            };
+            lines.push(Line { x: 18, y: 440, text: format!("{}{} \u{00b7} {}{}", keepsake, nature, doing, cause), rgb: (200, 160, 160) });
         }
         // the biography the seat knows: years and build are public, but
         // temperament and kin take a bond close enough to have been told
+        // the tale the days are writing: once a theme takes shape the
+        // card says what kind of story it is - the biography carries it
+        // when one's known, or it stands alone for a stranger
+        let tale = self.tales.get(&i).and_then(|t| crate::sim::story::detect_story(t))
+            .map(|s| match s.theme {
+                crate::sim::story::StoryTheme::Survival => "a tale of survival",
+                crate::sim::story::StoryTheme::Rise => "a tale of rising",
+                crate::sim::story::StoryTheme::Fall => "a tale of falling",
+                crate::sim::story::StoryTheme::Romance => "a tale of the heart",
+                crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
+                crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
+                crate::sim::story::StoryTheme::Community => "a tale of the commons",
+            });
         if let Some(bio) = self.bio_line_at(seat, v) {
-            lines.push(Line { x: 18, y: 454, text: bio, rgb: (160, 180, 200) });
+            let suffix = tale.map(|t| format!(" - {}", t)).unwrap_or_default();
+            lines.push(Line { x: 18, y: 454, text: format!("{}{}", bio, suffix), rgb: (160, 180, 200) });
+        } else if let Some(t) = tale {
+            lines.push(Line { x: 18, y: 454, text: t.to_string(), rgb: (160, 180, 200) });
         }
         InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }
@@ -607,7 +826,13 @@ impl Game {
             parts.push(format!("{:.0} winters", a.years));
         }
         if let Some(c) = world.get_component::<villager::Condition>(v) {
-            parts.push(c.kind.to_string());
+            if self.tick < c.until { parts.push(c.kind.to_string()); }
+        }
+        // the village's answer, public as the stocks: the rung they're on
+        if let Some(s) = self.sanctioned.iter()
+            .filter(|(e, _, u)| *e == v && self.tick < *u)
+            .map(|(_, s, _)| *s).max() {
+            parts.push(crate::game::sanctions::label(s).into());
         }
         if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
             >= crate::game::organizing::RelStage::Known {

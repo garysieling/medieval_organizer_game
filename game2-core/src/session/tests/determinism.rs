@@ -13,7 +13,11 @@ fn state_of(g: &Game) -> String {
 
 /// First tick at which two runs of `seed` disagree, and the first differing line
 fn first_divergence(seed: u64, ticks: u64) -> Option<(u64, String, String)> {
+    // turbo+: the check is once a day either way, and 150 days of frames
+    // is the suite's slowest test by far at walking pace
     let (mut a, mut b) = (Game::new_seeded(seed), Game::new_seeded(seed));
+    a.speed = 16;
+    b.speed = 16;
     while a.tick < ticks {
         let day = a.tick;
         a.update();

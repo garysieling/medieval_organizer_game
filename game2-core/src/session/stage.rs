@@ -113,8 +113,12 @@ pub fn stage(g: &mut Game, s: Stage) {
 }
 
 /// Run the sim `days` days forward, full frames - the same code path a
-/// player sits through, not a shortcut
+/// player sits through, not a shortcut. Days cost real frames, so the
+/// calendar runs at turbo (or faster, if the caller already asked): the
+/// per-frame strides scale with ticks_per_frame and a day still covers
+/// the same ground, just sampled less often
 pub fn run_days(g: &mut Game, days: u64) {
+    if g.speed < 4 { g.speed = 4; }
     let target = g.tick + days;
     // a day is ticks_per_frame frames; the guard catches a stalled sim
     let guard = days.saturating_mul(g.ticks_per_frame() as u64).saturating_mul(2) + 60;

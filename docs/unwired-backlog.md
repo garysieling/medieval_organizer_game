@@ -63,7 +63,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 37 | Heirlooms and who holds them | `Game::heirlooms` | done #565 |
 | 38 | Cheese wheels aging in the cellar, and its character | `Game::cheeses`, `cellar_trait` | done #566 |
 | 39 | Mushroom lore: who's learned which patch kills | `Game::shroom_lore` | done #567 |
-| 40 | Ailments on their own calendar (amatoxin phases, St Anthony's brothers) | `Game::ailments` | todo |
+| 40 | Ailments on their own calendar (amatoxin phases, St Anthony's brothers) | `Game::ailments` | done #568 (already wired: `ailment_tick` chains the phases, `ergot` queues AntonineCare) |
 | 41 | The shame ladder: who's on which rung | `Game::sanctioned` | todo |
 | 42 | The matchmaker's tried pairings | `Game::matchmaker`, `match_tried` | todo |
 | 43 | The herb-wife's tally of cures, and who's called at the hut | `Game::cured`, `remedy_visits` | todo |

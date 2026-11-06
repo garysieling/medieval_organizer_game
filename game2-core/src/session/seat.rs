@@ -75,6 +75,9 @@ pub enum CtxAct {
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)
     Snowballs,
+    /// Pass the hat, buy pamphlets off the print shop and post them
+    /// around the streets for the cause
+    Flyers,
     /// Win the picked villager to the cause - it takes real trust first
     Recruit,
     /// Pick a cap off the patch you're standing by - the wood feeds,

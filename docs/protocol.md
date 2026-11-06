@@ -269,6 +269,10 @@ read it as empty.
 worked out and how far the next art has come. Older servers omit it;
 read it as empty.
 
+`flyers` lists where the cause's flyers are posted, each `[x,y]` a tile
+centre - empty until the org has passed the hat and bought some.
+Older servers omit it; read it as empty.
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

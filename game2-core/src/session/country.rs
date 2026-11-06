@@ -414,6 +414,15 @@ impl Game {
             }
         }
         self.world.add_component(v, Outlander { site: si });
+        // the years they carry: a kid's grow from their growth-clock's
+        // days, an adult's rolled - the country ages like the village
+        let years = self.world.get_component::<KidGrowth>(v)
+            .map(|kg| kg.age_days as f32 / 52.0)
+            .unwrap_or(19.0 + (rng.next() % 42) as f32);
+        self.world.add_component(v, crate::game::lifecycle::Age {
+            years, stage: crate::game::lifecycle::stage_for(years) });
+        self.world.add_component(v, crate::game::lifecycle::Vitality {
+            health: 1.0, max_age: 58.0 + (rng.next() % 35) as f32, cause_of_death: None });
         if let Some(b) = self.world.get_component_mut::<Building>(home) { b.occupants.push(v); }
         let class = desires::class_of(&self.world, v);
         let gold = if voc.is_none() { 0.0 } else { livelihood::seed_gold(class, false, (rng.next() % 1000) as f32 / 1000.0) };

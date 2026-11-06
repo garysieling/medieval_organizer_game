@@ -25,6 +25,9 @@ impl Game {
         self.world.add_component(v, Known::default());
         self.world.add_component(v, Kid);
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
+        self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant });
+        self.world.add_component(v, crate::game::lifecycle::Vitality {
+            health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, Purse { gold: 0.0 });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
@@ -77,6 +80,11 @@ impl Game {
         self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
+        let years = 19.0 + (self.rng.next() % 42) as f32;
+        self.world.add_component(v, crate::game::lifecycle::Age {
+            years, stage: crate::game::lifecycle::stage_for(years) });
+        self.world.add_component(v, crate::game::lifecycle::Vitality {
+            health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         // a newcomer joins the parish
         self.join_parish(v);
@@ -404,6 +412,57 @@ impl Game {
             self.toasts.push_at((format!("{} comes of age - a {}!", name, trade), tick + 30),
                 toast_spot(&self.world, v));
             self.celebrate_person(tick, v, &format!("{} comes of age", name));
+        }
+        // and the years keep count: a day of the village is about a week
+        // of life (a youngster's 730 days is their fourteenth year);
+        // when the years outrun the span they were given, the village
+        // buries them
+        for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(a) = self.world.get_component_mut::<crate::game::lifecycle::Age>(v) else { continue };
+            a.years += 1.0 / 52.0;
+            a.stage = crate::game::lifecycle::stage_for(a.years);
+            let years = a.years;
+            let span = self.world.get_component::<crate::game::lifecycle::Vitality>(v)
+                .map(|x| x.max_age).unwrap_or(f32::MAX);
+            if years >= span {
+                if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                    h.condition = 0.0;
+                } else {
+                    self.world.add_component(v, villager::Dead);
+                }
+                if let Some(vx) = self.world.get_component_mut::<crate::game::lifecycle::Vitality>(v) {
+                    vx.cause_of_death.get_or_insert_with(|| "old age".into());
+                }
+                self.log.push(format!("t{}: {} dies at {} winters, of old age.", tick,
+                    vill_name(i), years.round() as u32));
+            }
+        }
+        // the dead give up their beds - but not before the heirs have
+        // read the house: a day's grace from the day they fell, then
+        // the bed goes free
+        let dead: Vec<(usize, Entity)> = self.villagers.iter().enumerate()
+            .filter(|&(_, &v)| villager::is_dead(&self.world, v))
+            .map(|(i, &v)| (i, v)).collect();
+        for &(i, d) in &dead {
+            // the true death day, when the roster knows it - an event
+            // late in the day shouldn't hold the bed an extra day
+            match self.died_on.get(i).and_then(|x| *x) {
+                Some(d0) => { self.dead_since.insert(d, d0); }
+                None => { self.dead_since.entry(d).or_insert(tick); }
+            }
+        }
+        let evict: Vec<Entity> = dead.iter().map(|(_, d)| *d)
+            .filter(|d| self.dead_since.get(d).copied().unwrap_or(tick) < tick).collect();
+        self.dead_since.retain(|d, _| dead.iter().any(|(_, e)| e == d));
+        if !evict.is_empty() {
+            for b in self.world.query::<household::Building>() {
+                if let Some(bd) = self.world.get_component_mut::<household::Building>(b) {
+                    if bd.occupants.iter().any(|o| evict.contains(o)) {
+                        bd.occupants.retain(|o| !evict.contains(o));
+                    }
+                }
+            }
         }
     }
 

@@ -837,6 +837,15 @@ impl Game {
             let is_kid = KID_IDXS.contains(&i);
             let gold = livelihood::seed_gold(class, is_kid, (g.next() % 1000) as f32 / 1000.0);
             world.add_component(v, Purse { gold });
+            // the years they're carrying - a kid's grow from the days
+            // already on their growth-clock - and the span they're given
+            let years = if is_kid {
+                world.get_component::<KidGrowth>(v).map(|kg| kg.age_days as f32 / 52.0).unwrap_or(5.0)
+            } else { 19.0 + (g.next() % 42) as f32 };
+            world.add_component(v, crate::game::lifecycle::Age {
+                years, stage: crate::game::lifecycle::stage_for(years) });
+            world.add_component(v, crate::game::lifecycle::Vitality {
+                health: 1.0, max_age: 58.0 + (g.next() % 35) as f32, cause_of_death: None });
             let voc = world.get_component::<Craft>(v).map(|c| c.vocation);
             let wants = desires::sample_wants(class, voc, is_kid, &mut || g.next());
             world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
@@ -984,6 +993,7 @@ impl Game {
             grimoire: crate::sim::magic::Grimoire { discoveries: vec![],
                 domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),
+            dead_since: Default::default(),
             landform,
             shop_flow: Default::default(),
             wolf_coming: false,

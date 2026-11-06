@@ -240,6 +240,10 @@ the seat leads its own, a villager's name when the bond's passed to
 another. Older servers omit it or send null; a client should draw no
 "led by" then.
 
+`log_dropped` counts how many log lines have rolled out the top - the
+log's a rolling window. Zero or an absent field means the top's the
+beginning; the client's last log row marks the count when it isn't.
+
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",
 "notes: Corvin"]}` - the folk who've said yes, by name, so the seat can

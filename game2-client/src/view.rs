@@ -794,6 +794,11 @@ impl View {
                 row += 1;
             }
         }
+        // the reserved row holds the count of what's already gone
+        if m.log_dropped > 0 {
+            draw_text(&mut buf, UI_X as i32 + 14, 530 + row as i32 * 12,
+                &format!("· · · {} earlier lines", m.log_dropped), 100, 100, 125);
+        }
 
         // the TALK panel under the find box: conversations, apart from the log
         talk::draw_talk_panel(&mut buf, &m.talk, (mx, my));

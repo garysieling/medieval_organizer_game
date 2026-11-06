@@ -534,6 +534,8 @@ pub enum Goal {
     Levy(usize, usize),
     /// The steward back up to the castle with the provisions
     Deliver(usize),
+    /// The collector riding the takings out to the castle (site index)
+    Remit(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -1354,7 +1356,10 @@ impl Game {
                         .map(|f| f.servings > 0).unwrap_or(false))
                 };
                 let vdata = world.get_component::<Villager>(*v);
-                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
+                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false)
+                    // the remit rider's belly waits for the keep's table -
+                    // the pull doesn't fight his road for the granary
+                    && !self.travels.iter().any(|t| t.who == *v && matches!(t.goal, Goal::Remit(_)));
                 let target_food = vdata.and_then(|x| x.target_food);
                 if seeking && market_has && target_food != Some(store) {
                     if let Some(vill) = world.get_component_mut::<Villager>(*v) {

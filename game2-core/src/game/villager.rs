@@ -45,6 +45,10 @@ pub struct Villager {
 /// nothing of walls and houses, and hopped folk into them)
 pub struct Steered;
 
+/// Out on a protected long ride (the collector's remit): food-seeking and
+/// the homeward pull leave him to it - the road's his errand now
+pub struct OnTheRoad;
+
 /// Marks an entity as permanently dead. The windowed game removes `Health`
 /// on death (for its grave/alive checks) rather than leaving it at 0, so
 /// this marker is the durable record `is_dead` can still see afterward.
@@ -138,7 +142,8 @@ impl System for SeekFoodSystem {
         for v in villagers {
             // the held can't seek: they take what the jailer gives
             if is_dead(world, v)
-                || world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() { continue; }
+                || world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some()
+                || world.get_component::<OnTheRoad>(v).is_some() { continue; }
             let hunger = match world.get_component::<Hunger>(v) {
                 Some(h) => h.value,
                 None => continue,

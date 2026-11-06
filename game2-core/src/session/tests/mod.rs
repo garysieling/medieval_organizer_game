@@ -101,6 +101,7 @@ mod sky;
 mod smell;
 mod stay_home;
 mod succession;
+mod takings;
 mod talk_reach;
 mod tavern;
 mod telemetry;

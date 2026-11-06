@@ -499,6 +499,9 @@ impl Game {
                 path.push(to);
                 self.travels.retain(|t| t.who != who);
                 self.travels.push(Travel { who, path, goal });
+                if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(_))) {
+                    self.world.add_component(who, villager::OnTheRoad);
+                }
                 true
             }
             None => false,
@@ -713,6 +716,27 @@ impl Game {
             if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) { f.servings += n; }
         }
         if let Some(s) = self.sites.get_mut(castle) { s.away_until = None; }
+    }
+
+    /// The collector at the keep with the lord's cut: a meal from its
+    /// store like the steward's, then the long road home
+    pub(super) fn arrive_remit(&mut self, who: Entity, castle: usize) {
+        if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
+            if let Some(store) = self.sites.get(castle).map(|s| s.store) {
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {
+                    if f.servings > 0 {
+                        f.servings -= 1;
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                    }
+                }
+            }
+        }
+        let home = household::home_of(&self.world, who);
+        let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+        if let (Some(h), Some(d)) = (home, door) {
+            self.send_far(who, d, Goal::HeadHome(h));
+        }
     }
 }
 

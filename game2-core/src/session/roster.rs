@@ -126,6 +126,10 @@ pub fn roster(seed: u64) -> Vec<CharacterSheet> {
             let voc = if class == SocialClass::ProfessionalMiddle && !vocation::is_pmc(voc) {
                 if rng.below(2) == 0 { Vocation::Knight } else { Vocation::Priest }
             } else { voc };
+            // a knight or a priest is professional-middle whatever the purse
+            // draw said - gold and wants must read the class `class_of` will
+            // report off the finished trade
+            let class = if vocation::is_pmc(voc) { SocialClass::ProfessionalMiddle } else { class };
             let skill = 0.1 + rng.below(20) as f32 / 100.0;
             let trade = vocation::vocation_name(voc).to_lowercase();
             let backstory = format!("{} {}", ORIGINS[rng.below(ORIGINS.len() as i32) as usize].replace("{trade}", &trade),

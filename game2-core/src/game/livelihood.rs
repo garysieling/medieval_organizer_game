@@ -136,8 +136,11 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
     if overseer_boost { rate *= OVERSEER_BOOST; }
     if has_tools { rate *= TOOL_BOOST; }
     // foul weather thins a food harvest: a storm flattens the field, a
-    // dry spell stints it, a hard frost kills it outright
-    if crate::game::goods::spec(good)
+    // dry spell stints it, a hard frost kills it outright. It hits what
+    // comes out of the ground and the net - the baker's oven takes its
+    // wheat as it finds it, rain or shine
+    if vocation::inputs(vocation_).is_empty()
+        && crate::game::goods::spec(good)
         .map(|s| s.tags.contains(&crate::game::goods::Tag::StapleFood)).unwrap_or(false) {
         if let Some(w) = world.query::<crate::sim::weather::CurrentWeather>().first().copied()
             .and_then(|e| world.get_component::<crate::sim::weather::CurrentWeather>(e)) {

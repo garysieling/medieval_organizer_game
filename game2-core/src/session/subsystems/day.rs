@@ -220,6 +220,9 @@ impl Game {
         // the country's carts and stewards, and its granaries
         crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
+        // the weather resolves before anyone lifts a tool: a rolled event
+        // weighs on the day's harvest and health alike
+        crate::timed!("sim.weather", self.weather_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
         // the office gathers whoever's keeping the holy day - church
         // rows or the stones, priest or no priest
@@ -337,7 +340,6 @@ impl Game {
         });
         // and the weather rolls through: an event thins the fields and
         // chills or scorches the bones while it lasts
-        crate::timed!("sim.weather", self.weather_tick(tick));
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
@@ -488,7 +490,8 @@ impl Game {
                     !villager::is_dead(&self.world, v) && self.site_of(v).is_none())
                     .collect::<Vec<_>>() {
                     if let Some(h) = self.world.get_component_mut::<Health>(v) {
-                        h.condition = (h.condition + drain).max(0.0);
+                        // exposure wears a body down; it doesn't kill outright
+                        h.condition = (h.condition + drain).max(0.2);
                     }
                 }
             }

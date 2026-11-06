@@ -92,6 +92,10 @@ impl Game {
         self.leader_named = true;
         self.toasts.push(("the village names you its leader".into(), self.tick + 60));
         self.log.push(format!("t{}: the village names you its leader - there's still work to do.", self.tick));
+        // and the village celebrates its new leader in the street
+        if let Some(mp) = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y)) {
+            self.local_celebration(self.tick, mp, None, "the village names a leader");
+        }
     }
 
     /// The founding vote, when the org can take one: enough living

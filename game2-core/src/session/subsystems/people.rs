@@ -27,6 +27,10 @@ impl Game {
         self.was_sick.push(None);
         self.died_on.push(None);
         self.log.push(format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
+        // and the neighbours mark it: a small celebration at the house
+        if let Some(p) = self.world.get_component::<Pos>(home) {
+            self.local_celebration(tick, (p.x, p.y), None, "a new child");
+        }
     }
 
     /// A full house gets a child every so often - two grown folk under
@@ -369,6 +373,7 @@ impl Game {
             let trade = vocation::vocation_name(voc).to_lowercase();
             self.log.push(format!("t{}: {} takes up the {}.", tick, name, trade));
             self.toasts.push((format!("{} comes of age - a {}!", name, trade), tick + 30));
+            self.celebrate_person(tick, v, &format!("{} comes of age", name));
         }
     }
 

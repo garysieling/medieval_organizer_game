@@ -552,6 +552,46 @@ impl Game {
         self.assemble(tick, Mode::Feasting, Spot::Green, None, &folk, &slots, mp, 30);
     }
 
+    /// A small celebration in one spot - a coming of age, a birth, a win:
+    /// the neighbours gather in a close ring for the day, not the whole
+    /// village at market. `at` is where it happens, `leader` who it honours
+    /// (they stand at the centre if they can come)
+    pub(super) fn local_celebration(&mut self, tick: u64, at: (f32, f32), leader: Option<Entity>, why: &str) {
+        let folk: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| Some(v) != leader
+                && self.site_of(v).is_none()
+                && self.free_to_gather(v)
+                && self.world.get_component::<Pos>(v).map(|p|
+                    (p.x - at.0).abs() + (p.y - at.1).abs() <= 8.0).unwrap_or(false))
+            .collect();
+        let slots = self.ring_round(at, folk.len(), 1.2);
+        let going = self.assemble(tick, Mode::Feasting, Spot::Home,
+            leader.map(|l| (l, at)), &folk, &slots, at, 15);
+        if going == 0 { return; }
+        self.log.push(format!("t{}: a small celebration - {}.", tick, why));
+        for v in leader.into_iter().chain(folk.iter().copied()) {
+            desires::satisfy(&mut self.world, v, Want::Joy, tick + 30);
+            desires::satisfy(&mut self.world, v, Want::Music, tick + 30);
+        }
+        // the neighbours grow a little closer over the day
+        for (i, &v) in folk.iter().enumerate() {
+            for &o in folk.iter().skip(i + 1).take(2) {
+                relationships::record_interaction(&mut self.world, v, relationships::Interaction {
+                    other: o, kind: relationships::InteractionKind::Conversation, intensity: 1.0 });
+            }
+        }
+    }
+
+    /// Neighbours gather at `v`'s door for the day
+    pub(super) fn celebrate_person(&mut self, tick: u64, v: Entity, why: &str) {
+        let at = household::home_of(&self.world, v)
+            .and_then(|h| self.door_of(h))
+            .map(|(x, y)| (x as f32, y as f32))
+            .or_else(|| self.world.get_component::<Pos>(v).map(|p| (p.x, p.y)));
+        let Some(at) = at else { return };
+        self.local_celebration(tick, at, Some(v), why);
+    }
+
     /// Between ticks: everyone with a plan and no walk under way keeps to
     /// it - a slow amble round the anchor, never onto a tile they can't
     /// stand on, and a path back if they've been carried off

@@ -41,3 +41,44 @@ fn test_an_org_worth_the_name_pulls_together() {
     assert!(!desires::problems_of(&g.world, herb, 1150).contains(&desires::Problem::Blamed),
         "belonging is the counterweight");
 }
+
+#[test]
+fn test_a_snowball_fight_calls_the_village_out() {
+    let mut g = Game::new();
+    // winter's button shows, once a day
+    g.world.get_component_mut::<crate::sim::climate::Climate>(g.climate).unwrap().season = crate::sim::climate::Season::Winter;
+    g.update_ctx_actions();
+    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Snowballs), "the winter button shows");
+    let i = g.seats[0].ctx_actions.iter().position(|a| *a == CtxAct::Snowballs).unwrap();
+    g.ctx_act_at(0, i);
+    assert_eq!(g.snowball_day, g.tick);
+    assert!(g.log.iter().any(|l| l.contains("Snowball fight")), "{:?}", g.log.last());
+    let playing = g.villagers.iter().filter(|&&v| g.world.get_component::<routine::Routine>(v)
+        .map(|r| r.mode == routine::Mode::Playing && r.day == g.tick).unwrap_or(false)).count();
+    assert!(playing > 10, "{} folk came out to play", playing);
+    // and the snowballs start flying
+    let mut saw = false;
+    for _ in 0..200 { g.update(); saw |= !g.snowballs.is_empty(); }
+    assert!(saw, "snowballs in the air");
+    // once a day: the button's gone till tomorrow
+    g.update_ctx_actions();
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Snowballs), "not twice in one day");
+    // and the hubbub reaches the frame, not the void between clicks
+    g.snowball_cued = false;
+    g.update();
+    let cue = g.sfx.iter().find(|c| c.kind == "snowballs").expect("the fight is heard");
+    // and it pans from where the fight is, not from the village
+    let pp = g.world.get_component::<Pos>(g.player).unwrap();
+    assert!((cue.x - pp.x).abs() < 0.01 && (cue.y - pp.y).abs() < 0.01,
+        "the sound stands where the fighters are");
+}
+
+#[test]
+fn test_a_snowball_fight_too_far_out_finds_no_ears() {
+    let mut g = Game::new();
+    // the Wanderer's well outside town: no villager's path is in reach
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x += 60.0; }
+    let msg = g.snowball_fight_at(0);
+    assert!(msg.contains("doesn't carry"), "{}", msg);
+    assert_ne!(g.snowball_day, g.tick, "the day's call isn't spent on nobody");
+}

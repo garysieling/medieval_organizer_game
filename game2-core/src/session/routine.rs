@@ -42,7 +42,7 @@ pub fn is_holy(tick: u64) -> bool { tick > 0 && tick % HOLY_EVERY == 0 }
 pub fn is_market_day(tick: u64) -> bool { tick % 30 == MARKET_DAY }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mode { Working, Selling, Wandering, Resting, Worshipping, Feasting }
+pub enum Mode { Working, Selling, Wandering, Resting, Worshipping, Feasting, Playing }
 
 /// Where the mode puts them
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,6 +93,26 @@ pub struct Routine {
     pub reached: bool,
 }
 
+/// A snowball in the air: from hand to mark, `t0`/`dur` in frames
+#[derive(Clone, Copy)]
+pub struct Snowball {
+    pub from: (f32, f32),
+    pub to: (f32, f32),
+    pub t0: u32,
+    pub dur: u32,
+}
+
+impl Snowball {
+    fn alive(&self, frame: u32) -> bool { frame < self.t0 + self.dur }
+    /// Where it is this frame: a straight line with a little arc
+    pub fn pos_at(&self, frame: u32) -> (f32, f32) {
+        let t = ((frame.saturating_sub(self.t0)) as f32 / self.dur.max(1) as f32).min(1.0);
+        let arc = (std::f32::consts::PI * t).sin() * 0.6;
+        (self.from.0 + (self.to.0 - self.from.0) * t,
+         self.from.1 + (self.to.1 - self.from.1) * t - arc)
+    }
+}
+
 /// What the day loop should do with this villager after planning
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DayPlan { Work, Sell, Free }
@@ -132,6 +152,7 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
         (_, Spot::Stones) => "out by the stones".into(),
         (_, Spot::Tavern) => "at the tavern".into(),
         (_, Spot::Visitor) => "gone to see the visitor".into(),
+        (Mode::Playing, _) => "in the snowball fight".into(),
         (_, Spot::Play) => "playing".into(),
         (Mode::Resting, _) => "resting at home".into(),
         (Mode::Worshipping, Spot::Church) => if lead { "leading prayers".into() } else { "at prayer in church".into() },
@@ -597,6 +618,78 @@ impl Game {
         let folk: Vec<Entity> = folk.iter().copied().filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)).collect();
         let slots = self.ring_round(mp, folk.len(), 2.5);
         self.assemble(tick, Mode::Feasting, Spot::Green, None, &folk, &slots, mp, 30);
+    }
+
+    /// A snowball fight: everyone free pours out to the Wanderer and the
+    /// rest of the day is spent playing - routines like a feast day's,
+    /// so the fight runs till tomorrow's plans
+    pub fn snowball_fight_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let pe = self.seats[seat].player;
+        let Some(pc) = self.world.get_component::<Pos>(pe).copied() else { return "You're not on the map.".into() };
+        let centre = (pc.x, pc.y);
+        let folk: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| v != pe && self.site_of(v).is_none() && self.free_to_gather(v))
+            .collect();
+        if folk.is_empty() { return "Nobody's free to play - try again later.".into() }
+        let slots = self.ring_round(centre, folk.len(), 2.5);
+        let n = self.assemble(tick, Mode::Playing, Spot::Play, None, &folk, &slots, centre, 30);
+        // nobody could hear the call (the Wanderer's too far out): the
+        // day's call isn't spent on a fight that isn't happening
+        if n == 0 { return "Your voice doesn't carry - nobody hears the call.".into() }
+        // and they don't stand about like congregation: they mill about
+        // the fight, drifting a pace or two from their slot
+        for v in self.villagers.clone() {
+            if let Some(r) = self.world.get_component_mut::<Routine>(v) {
+                if r.mode == Mode::Playing && r.day == tick { r.drift = 2.0; }
+            }
+        }
+        self.snowball_day = tick;
+        self.snowball_cued = false;
+        self.snowball_at = centre;
+        // and somebody actually there hollers it
+        let speaker = self.villagers.iter().copied().find(|&v| self.world.get_component::<Routine>(v)
+            .map(|r| r.mode == Mode::Playing && r.day == tick).unwrap_or(false));
+        if let Some(v) = speaker { self.say(v, "Snowballs!", TALK_BUBBLE_SECS * 2); }
+        format!("Snowball fight! {} folk pour out to play.", n)
+    }
+
+    /// Each frame of a snowball fight: the fighters let fly, on their own
+    /// staggered beats - a snowball from the nearest pair of hands, now
+    /// and then at the Wanderer
+    pub(super) fn snowball_frame(&mut self) {
+        self.snowballs.retain(|s| s.alive(self.frame_n));
+        // nothing flies unless today's the fight's day
+        if self.snowball_day != self.tick { return; }
+        // the fight's hubbub, raised inside the frame so the cue survives
+        // to the scene (a cue raised by the click itself dies in the clear)
+        if !self.snowball_cued {
+            self.emit_sfx("snowballs", self.snowball_at.0, self.snowball_at.1, 0.8);
+            self.snowball_cued = true;
+        }
+        let fighters: Vec<(Entity, (f32, f32))> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter(|&v| self.world.get_component::<Routine>(v)
+                .map(|r| r.mode == Mode::Playing && r.day == self.tick).unwrap_or(false))
+            .filter_map(|v| self.world.get_component::<Pos>(v).map(|p| (v, (p.x, p.y)))).collect();
+        if fighters.is_empty() { return; }
+        let mut targets: Vec<(f32, f32)> = fighters.iter().map(|&(_, p)| p).collect();
+        targets.extend(self.seats.iter()
+            .filter_map(|s| self.world.get_component::<Pos>(s.player).map(|p| (p.x, p.y))));
+        for &(v, (x, y)) in &fighters {
+            // each fighter's own beat: about one throw every 50 frames
+            if (self.frame_n.wrapping_add(mix(v, 31) as u32)) % 50 != 0 { continue; }
+            let Some((tx, ty)) = targets.iter()
+                .map(|&t| ((t.0 - x).powi(2) + (t.1 - y).powi(2), t))
+                .filter(|&(d2, _)| d2 > 0.25 && d2 < 64.0)
+                .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(_, t)| t) else { continue };
+            let dist = ((tx - x).powi(2) + (ty - y).powi(2)).sqrt();
+            self.snowballs.push(Snowball {
+                from: (x, y - 0.4), to: (tx, ty - 0.4),
+                t0: self.frame_n, dur: (10.0 + dist * 1.5) as u32,
+            });
+        }
     }
 
     /// Between ticks: everyone with a plan and no walk under way keeps to

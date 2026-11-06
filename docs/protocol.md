@@ -177,6 +177,10 @@ Scenes from an older server may omit `social`; read it as all zeroes.
 "notes: Corvin"]}` - the folk who've said yes, by name, so the seat can
 watch the plan fill before it calls the meeting.
 
+`snowballs` lists the snowballs in the air this frame, each `[x,y]` where
+it has got to - empty outside a snowball fight. Older servers omit it;
+read it as empty.
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

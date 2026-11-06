@@ -334,4 +334,7 @@ pub struct UiModel {
     pub debug_lines: Vec<String>,
     /// The audio cues this frame raised, for the sound layer
     pub sfx: Vec<String>,
+    /// Snowballs in the air this frame, where each has got to (x, y)
+    #[serde(default)]
+    pub snowballs: Vec<(f32, f32)>,
 }

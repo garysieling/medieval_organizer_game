@@ -291,7 +291,8 @@ impl Game {
         let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
         let buildings: Vec<BldgV> = self.buildings.iter().enumerate()
             .map(|(i, (x, y, s))| BldgV { x: *x, y: *y, sprite: *s, risen: risen(i),
-                derelict: self.derelict.contains(&i), cutaway: self.cutaways.contains(&i), smoke: i < 3 })
+                derelict: self.derelict.contains(&i) || self.ruined.contains(&i),
+                cutaway: self.cutaways.contains(&i), smoke: i < 3 })
             .collect();
         let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {
             // the dead don't talk - a bubble over a grave is ghost chatter

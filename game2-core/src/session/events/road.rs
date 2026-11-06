@@ -1374,7 +1374,7 @@ impl Game {
                     let (x, y) = ((self.town_wall.0 + self.town_wall.2) as f32 / 2.0, self.town_wall.3 as f32 + 2.0);
                     // a home with a spare bed takes them, if there is one
                     let home = self.world.query::<household::Building>().iter().copied()
-                        .find(|&b| self.world.get_component::<household::Building>(b)
+                        .find(|&b| !self.building_ruined(b) && self.world.get_component::<household::Building>(b)
                             .map(|bb| bb.kind == household::BuildingKind::Home && bb.occupants.len() < 4)
                             .unwrap_or(false));
                     for _ in 0..2 {

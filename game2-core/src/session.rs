@@ -881,6 +881,9 @@ pub struct Game {
     pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: crate::engine::det::HashSet<usize>,
+    /// Which buildings the disasters finished - indices into
+    /// `building_entities`, like `derelict`; the view dims them too
+    pub ruined: crate::engine::det::HashSet<usize>,
     /// Which workplaces show their cutaway today: a print shop whose
     /// printer kept the bench (indices into building_entities)
     pub cutaways: crate::engine::det::HashSet<usize>,

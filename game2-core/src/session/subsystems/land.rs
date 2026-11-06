@@ -161,6 +161,45 @@ impl Game {
         }
     }
 
+    /// Whether the disasters finished this building - nobody moves back in
+    pub fn building_ruined(&self, e: Entity) -> bool {
+        self.building_entities.iter().position(|&b| b == e)
+            .map(|i| self.ruined.contains(&i)).unwrap_or(false)
+    }
+
+    /// A disaster finishes a building: its stock, hearth and trade are
+    /// gone, whoever worked or lived there is out on the street, and the
+    /// view dims what's left. `how` says what took it ("burned to
+    /// shells", "under the flood")
+    pub(in crate::session) fn ruin_building(&mut self, e: Entity, how: &str) {
+        // the village's own store is the one roof the street can't lose -
+        // it can burn and be robbed of its stock, but it stands
+        if e == self.market_food { return; }
+        let Some(i) = self.building_entities.iter().position(|&b| b == e) else { return };
+        if self.ruined.contains(&i) { return; }
+        self.ruined.insert(i);
+        let (name, at) = {
+            let b = self.world.get_component_mut::<Building>(e);
+            let name = b.as_ref().map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
+            if let Some(b) = b {
+                b.stock.clear();
+                b.occupants.clear();
+                b.worker = None;
+                b.overseer = None;
+            }
+            (name, self.world.get_component::<Pos>(e).map(|p| (p.x, p.y)))
+        };
+        // whoever walked to work there is between jobs now - the hiring
+        // round finds them again with no shop to name
+        for &v in self.villagers.clone().iter() {
+            if let Some(c) = self.world.get_component_mut::<Craft>(v) {
+                if c.workplace == Some(e) { c.workplace = None; }
+            }
+        }
+        self.log.push(format!("t{}: the {} is {} - the street will miss it.", self.tick, name, how));
+        self.toasts.push_at((format!("The {} is {}!", name, how), self.tick + 40), at);
+    }
+
     /// Whatever's alight on the map runs its course: spreading a tile a
     /// day, burning out to scorched ground, and gutting what it reaches
     pub(in crate::session) fn fire_tick(&mut self, tick: u64) {
@@ -181,6 +220,13 @@ impl Game {
         // and the canopy score forgets the trees the fire took
         for &t in &out {
             if let Some(c) = self.land.tree_cover.get_mut(&t) { *c = 0.0; }
+            // a house the fire finishes is a ruin, not a shelter
+            if let Some(&be) = self.building_entities.iter().find(|&&be| {
+                self.world.get_component::<Pos>(be)
+                    .map(|p| p.x.round() as i32 == t.0 && p.y.round() as i32 == t.1).unwrap_or(false)
+            }) {
+                self.ruin_building(be, "gone, burned to shells");
+            }
         }
         // folk beside the flames run for home - errands and all
         if self.fire.active() {
@@ -204,6 +250,21 @@ impl Game {
                         // the errand's off: the homeward way's the one that stays
                         self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::HeadHome(_)));
                     }
+                }
+            }
+            // and whoever's still in it when it closes takes the hurt -
+            // the fire outruns the slowest feet
+            let caught: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
+                !villager::is_dead(&self.world, v)
+                    && self.world.get_component::<Pos>(v)
+                        .map(|p| self.fire.burning.keys().any(|&(bx, by)| {
+                            (p.x.round() as i32 - bx).abs() + (p.y.round() as i32 - by).abs() <= 1
+                        }))
+                        .unwrap_or(false)
+            }).collect();
+            for v in caught {
+                if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                    h.condition = (h.condition - 0.2).max(0.0);
                 }
             }
         }

@@ -49,6 +49,22 @@ impl Game {
                 // and the beds drink deep of the high water
                 self.land.pit_water = (self.land.pit_water + 0.2).min(1.0);
                 for g in self.gardens.iter_mut() { g.2 += 0.02; }
+                // and the high water takes what stands lowest: a
+                // riverside building a day, at most three in the flood
+                let done = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0);
+                if done < 3 {
+                    let cands: Vec<Entity> = self.building_entities.iter().enumerate()
+                        .filter(|(i, be)| !self.ruined.contains(i) && **be != self.market_food)
+                        .filter(|(_, be)| self.world.get_component::<Pos>(**be).map(|p| {
+                            let (x, y) = (p.x.round() as i32, p.y.round() as i32);
+                            self.reach.iter().any(|&(rx, ry)| (x - rx).abs().max((y - ry).abs()) <= 3)
+                        }).unwrap_or(false))
+                        .map(|(_, be)| *be).collect();
+                    if let Some(&be) = cands.get(((self.rare_roll(id) / 11) as usize) % cands.len().max(1)) {
+                        self.ruin_building(be, "gone under the flood");
+                        if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux += 1; }
+                    }
+                }
             }
             EventId::IndianSummer => {
                 // five warm days out of season: the beds get one more
@@ -213,6 +229,9 @@ impl Game {
                     self.log.push(format!("t{}: lightning strikes the common - white fire in the grass.", self.tick));
                 }
                 self.toasts.push(("Lightning!".into(), self.tick + 40));
+                // and now and then the bolt itself is the spark: a knot
+                // of dry grass catches and the fire has leave to run
+                if self.rare_roll(id) % 5 < 2 { self.strike_fire(id); }
             }
             EventId::LateFrost => {
                 // a killing frost out of season: the gardens are nipped
@@ -259,6 +278,34 @@ impl Game {
                 self.toasts.push(("A mirage".into(), self.tick + 40));
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+        }
+    }
+
+    /// The bolt's other work: a knot of flammable ground by the market
+    /// catches together, so the fire has leave to run - the same rules
+    /// a chimney fire answers to
+    fn strike_fire(&mut self, id: EventId) {
+        let roll = self.rare_roll(id);
+        let (mx, my) = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(self.village);
+        // flammable ground within a short walk of the market, gathered
+        // in scan order so the pick stays deterministic
+        let mut cells: Vec<(i32, i32)> = vec![];
+        for y in (my - 10)..=(my + 10) {
+            for x in (mx - 10)..=(mx + 10) {
+                if (x - mx).abs() + (y - my).abs() > 10 { continue; }
+                if self.fire.burning.contains_key(&(x, y)) || self.fire.scorched.contains_key(&(x, y)) { continue; }
+                if crate::game::fire::Fire::flammable(&self.map, x, y) { cells.push((x, y)); }
+            }
+        }
+        let Some(&c) = cells.get(((roll / 5) as usize) % cells.len().max(1)) else { return };
+        let mut lit = 0;
+        for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] {
+            if self.fire.ignite(&self.map, c.0 + dx, c.1 + dy) { lit += 1; }
+        }
+        if lit > 0 {
+            self.log.push(format!("t{}: the bolt sets the grass alight - white fire in the dry grass.", self.tick));
+            self.toasts.push_at(("Fire!".into(), self.tick + 40), Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)));
         }
     }
 }

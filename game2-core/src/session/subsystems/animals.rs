@@ -6,8 +6,10 @@ impl Game {
     /// The fold's day: the grazing point drifts, shearing comes round
     /// each season, and now and then a wolf comes in the night
     pub fn livestock_tick(&mut self, tick: u64) {
-        // hens lay in their yards; a hungry one at home takes an egg
+        // hens lay in their yards; a hungry one at home takes an egg -
+        // a yard the fire or the flood took lays nothing
         for &h in &self.hen_houses.clone() {
+            if self.building_ruined(h) { continue; }
             let (eggs, occupants) = self.world.get_component::<Building>(h)
                 .map(|b| (b.stock.get("eggs").copied().unwrap_or(0), b.occupants.clone()))
                 .unwrap_or((0, vec![]));
@@ -31,6 +33,8 @@ impl Game {
         }
         if tick % 90 == 75 && self.fox_coming { self.fox_coming = false; self.fox_night(tick); }
         let Some(fold) = self.fold else { return };
+        // a fold the disasters finished keeps no flock and drops nothing
+        if self.building_ruined(fold) { return; }
         // the byre gives back what the flock drops: a week of leavings,
         // dried, burns as good as a faggot when the wood runs thin
         if tick % 7 == 1 {
@@ -131,6 +135,8 @@ impl Game {
     /// church, and now and then a swarm takes a liking to someone
     pub fn apiary_tick(&mut self, tick: u64) {
         let Some(ay) = self.apiary else { return };
+        // a burned or drowned yard yields no honey
+        if self.building_ruined(ay) { return; }
         // the yield, in season: honey for the table, wax for the seals
         if tick % 90 == 50 {
             let n = apiary::hives_of(&self.world, ay).len() as u32;

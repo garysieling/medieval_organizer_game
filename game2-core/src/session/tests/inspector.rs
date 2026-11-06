@@ -101,3 +101,19 @@ fn test_a_child_s_card_names_their_leaning() {
     let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
     assert!(bio.contains("runs for the toolmaker"), "the leaning never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_who_they_lost() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    let gone = g.villagers[9];
+    // dead and grieved for
+    g.world.add_component(gone, villager::Dead);
+    g.world.get_component_mut::<AttachmentHistory>(v).unwrap()
+        .episodes.push(crate::sim::psychology::Episode {
+            with: gone, kind: crate::sim::psychology::EpisodeKind::Loss });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("grieves for"), "the loss never showed: {}", bio);
+}

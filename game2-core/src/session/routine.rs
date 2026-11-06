@@ -268,7 +268,7 @@ impl Game {
     /// a stall on market day, a stroll somewhere, or a day at home
     /// The recluse's day: the dark keeps them, and the cave's their
     /// one anchor - no square, no work, no holy call
-    fn plan_cave(&mut self, v: Entity, tick: u64) {
+    pub(super) fn plan_cave(&mut self, v: Entity, tick: u64) {
         let Some(cave) = self.cave_pos else { return self.plan_here(v, tick, Mode::Resting) };
         desires::lift_grievance(&mut self.world, v, desires::Problem::TheDark);
         let r = Routine { mode: Mode::Resting, spot: Spot::Cave, anchor: (cave.0 as f32, cave.1 as f32 + 0.4),

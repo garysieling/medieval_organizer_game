@@ -310,6 +310,9 @@ impl Game {
                 if self.world.get_component::<OddJob>(v).is_none() { self.plan_play(v, tick, &mut rng); }
                 continue;
             }
+            // the recluse answers to the dark, not the village's day -
+            // the cave plan runs before the role's skip can take him
+            if Some(v) == self.hermit { self.plan_cave(v, tick); continue; }
             if self.world.get_component::<TownRole>(v).is_some() { continue; }
             // a seat's own villager answers only its commands - never a
             // routine walk sent behind its back

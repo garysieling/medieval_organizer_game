@@ -6,11 +6,17 @@
 # notes: the merged PRs since the previous tag (GitHub's generated notes) and
 # the commits. The same notes ship inside every package as RELEASE-NOTES.md;
 # the release page adds a table of the downloads above them.
+#
+# It also runs weekly on its own: if main has commits since the newest v* tag,
+# it releases them as the next minor version (v0.3.0 after v0.2.x; v0.1.0
+# when there's no tag yet). A week with no new commits makes no release.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  schedule:
+    - cron: "0 14 * * 1"   # Mondays, 14:00 UTC
   workflow_dispatch:
     inputs:
       tag:
@@ -29,7 +35,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # The tag asked for by a push or a manual run; a scheduled run has none and
+  # picks the next version itself. Every job reads the result as $TAG.
+  REQUESTED_TAG: ${{ github.event_name == 'schedule' && '' || github.event.inputs.tag || github.ref_name }}
   CARGO_TERM_COLOR: always
   # The crate denies warnings to keep dev builds clean; a lint added by a newer
   # stable toolchain shouldn't be able to block a release.
@@ -42,11 +50,45 @@ jobs:
     name: Resolve the release commit
     runs-on: ubuntu-latest
     outputs:
+      tag: ${{ steps.tag.outputs.tag }}
       sha: ${{ steps.resolve.outputs.sha }}
+      skip: ${{ steps.tag.outputs.skip }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0   # need every tag to look $TAG up by name
+
+      - name: Pick the tag
+        id: tag
+        run: |
+          tag="$REQUESTED_TAG"; skip=false
+          if [ -z "$tag" ]; then
+            # The weekly run: nothing to do if main hasn't moved since the
+            # newest release tag of any kind.
+            last=$(git tag --list 'v*' --sort=-v:refname --merged HEAD | head -n1 || true)
+            if [ -n "$last" ] && [ "$(git rev-list --count "$last..HEAD")" = 0 ]; then
+              echo "No commits since $last - no release this week."
+              skip=true
+            fi
+            # The next minor after the newest plain vX.Y.Z (pre-releases
+            # and other names don't count toward the number).
+            stable=$(git tag --list 'v*' --sort=-v:refname --merged HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+            if [ -z "$stable" ]; then
+              tag=v0.1.0
+            else
+              IFS=. read -r major minor _ <<< "${stable#v}"
+              tag="v$major.$((minor + 1)).0"
+            fi
+            # Never land on a tag that's already taken (a hand-made one).
+            while git rev-parse -q --verify "refs/tags/$tag" > /dev/null; do
+              IFS=. read -r major minor _ <<< "${tag#v}"
+              tag="v$major.$((minor + 1)).0"
+            done
+          fi
+          echo "Release tag: $tag (skip=$skip)"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
 
       - name: Resolve the commit this release builds and ships from
         id: resolve
@@ -60,6 +102,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Write the release notes
+        if: steps.tag.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ steps.resolve.outputs.sha }}
@@ -94,6 +137,7 @@ jobs:
           cat changes.md
 
       - uses: actions/upload-artifact@v5
+        if: steps.tag.outputs.skip != 'true'
         with:
           name: release-notes
           path: changes.md
@@ -102,6 +146,9 @@ jobs:
   build:
     name: Build ${{ matrix.name }}
     needs: resolve
+    if: needs.resolve.outputs.skip != 'true'
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -207,7 +254,10 @@ jobs:
   release:
     name: Publish release
     needs: [resolve, build]
+    if: needs.resolve.outputs.skip != 'true'
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
         with:

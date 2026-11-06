@@ -30,6 +30,7 @@ mod drink;
 mod dungeon;
 mod edge;
 mod edict;
+mod emergence;
 mod events;
 mod faith;
 mod festival;

@@ -225,6 +225,8 @@ impl Game {
         crate::timed!("sim.weather", self.weather_tick(tick));
         // the priest reads the old books; what they teach helps the sick
         crate::timed!("sim.magic", self.magic_tick(tick));
+        // the wood grows, spreads, burns and regrows - the fuel commons
+        crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
         // the office gathers whoever's keeping the holy day - church
         // rows or the stones, priest or no priest
@@ -533,6 +535,42 @@ impl Game {
                     h.condition = (h.condition + 0.004 * healing).min(1.0);
                 }
             }
+        }
+    }
+
+    /// The wood's day: a stand that grows, spreads, burns and regrows.
+    /// Its coverage is the fuel commons - a thin wood makes faggots dear,
+    /// a thick one keeps them cheap; and a fire's worth a line when it
+    /// catches and when it burns out
+    pub(crate) fn forest_tick(&mut self, tick: u64) {
+        use crate::sim::emergence::Cell;
+        let was_burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
+        // lightning doesn't come to the wood often - a dry day's chance
+        let cur = self.world.get_component::<crate::sim::weather::CurrentWeather>(self.weather)
+            .map(|w| (w.kind, w.intensity)).unwrap_or((crate::sim::weather::Weather::Clear, 0.0));
+        let spark = cur.0 == crate::sim::weather::Weather::Drought
+            && cur.1 > 0.7 && self.rng.next() % 20 == 0;
+        if spark {
+            if let Some((x, y)) = self.forest.cells.iter().enumerate()
+                .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (x, y, c)))
+                .find(|(_, _, c)| **c == Cell::Tree).map(|(x, y, _)| (x, y)) {
+                self.forest.cells[y][x] = Cell::Burning;
+                self.log.push(format!("t{}: fire breaks out in the wood!", tick));
+            }
+        }
+        self.forest.step();
+        let burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
+        if was_burning && !burning {
+            self.log.push(format!("t{}: the wood fire's out - bare for a while.", tick));
+        }
+        // the stand's coverage leans the fuel price: a thin wood asks
+        // dear for a faggot, a thick one sells cheap
+        let trees = self.forest.cells.iter().flatten().filter(|c| **c == Cell::Tree).count() as f32;
+        let cover = trees / (self.forest.width * self.forest.height) as f32;
+        // cover under ~4% is thin, over ~8% is thick - lean gently
+        let nudge = if cover < 0.04 { 0.004 } else if cover > 0.08 { -0.004 } else { 0.0 };
+        if nudge != 0.0 {
+            crate::game::goods::nudge(&mut self.world, "faggots", nudge);
         }
     }
 

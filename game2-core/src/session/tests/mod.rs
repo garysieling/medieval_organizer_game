@@ -30,6 +30,7 @@ mod dungeon;
 mod edge;
 mod edict;
 mod events;
+mod faith;
 mod festival;
 mod feuds;
 mod fisher;

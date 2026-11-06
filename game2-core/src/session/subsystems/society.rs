@@ -87,6 +87,25 @@ impl Game {
         }
     }
 
+    /// The holy-day office, run once the day's plans are laid: everyone
+    /// keeping Worshipping today - church rows or the old rite, priest
+    /// or no priest - gathers a little devotion and a bond, and the
+    //  parish's poor box feeds the hungriest of the flock
+    pub(in crate::session) fn service_tick(&mut self, tick: u64) {
+        if !routine::is_holy(tick) { return; }
+        let attendees: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
+                && self.world.get_component::<routine::Routine>(v)
+                    .map(|r| r.mode == routine::Mode::Worshipping && r.day == tick)
+                    .unwrap_or(false)).collect();
+        if attendees.len() >= 2 {
+            crate::sim::religion::perform_service(&mut self.world, self.congregation,
+                crate::sim::religion::Service {
+                    name: "the holy-day office".into(), frequency: "weekly".into(),
+                    participants: attendees, cohesion_boost: 0.25, charity_output: 0.2 });
+        }
+    }
+
     /// A rung lands: what the village does to its own
     pub(in crate::session) fn apply_sanction(&mut self, v: Entity, s: Sanction, tick: u64) {
         let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone");

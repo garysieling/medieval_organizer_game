@@ -591,7 +591,10 @@ impl Game {
             (None, Some(s)) => format!("no home \u{00b7} {}", s),
             (None, None) => "no home".into(),
         };
-        lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
+        let faith = world.get_component::<crate::sim::religion::Faith>(v)
+            .map(|f| if f.devotion > 0.6 { " \u{00b7} devout" }
+                else if f.devotion < 0.25 { " \u{00b7} lapsed" } else { "" }).unwrap_or("");
+        lines.push(Line { x: 18, y: 404, text: format!("{}{}", roost, faith), rgb: (190, 190, 210) });
         // how well the organizer knows them: the stage word sits beside
         // the name, clear of the two rows the card keeps for feuds and
         // secrets

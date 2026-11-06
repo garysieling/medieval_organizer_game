@@ -3,6 +3,16 @@
 use crate::session::*;
 
 impl Game {
+    /// Take a villager into the parish: a Faith of their own, and a name
+    /// on the congregation's roll
+    pub(in crate::session) fn join_parish(&mut self, v: Entity) {
+        self.world.add_component(v, crate::sim::religion::Faith {
+            religion: "the parish".into(), devotion: 0.4, traditions: vec![] });
+        if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+            c.members.push(v);
+        }
+    }
+
     /// A child born to a full house: a Kid like the ones the village
     /// started with, bedded where they were born
     pub(in crate::session) fn spawn_kid(&mut self, home: Entity, tick: u64) {
@@ -22,6 +32,8 @@ impl Game {
         if let Some(si) = self.sites.iter().position(|s| s.homes.contains(&home)) {
             self.world.add_component(v, country::Outlander { site: si });
         }
+        // a village child is born into the parish
+        if self.site_of(v).is_none() { self.join_parish(v); }
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
@@ -64,6 +76,8 @@ impl Game {
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        // a newcomer joins the parish
+        self.join_parish(v);
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);

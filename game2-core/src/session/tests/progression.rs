@@ -95,7 +95,14 @@ fn test_the_print_shop_researches_the_village() {
     if let Some(c) = game.world.get_component_mut::<Craft>(v) {
         c.vocation = Vocation::Printmaker;
     }
-    for _ in 0..40 { game.tech_tick(); }
+    // a day off the bench is a day off the research too
+    game.plan_rest(v, game.tick);
+    game.tech_tick(game.tick);
+    assert!(game.tech.iter().all(|t| t.progress == 0.0 && !t.discovered),
+        "a resting printmaker researches nothing");
+    // at the bench the days add up
+    game.plan_bench(v, game.tick);
+    for _ in 0..40 { game.tech_tick(game.tick); }
     let invested: f32 = game.tech.iter().map(|t| t.progress).sum();
     assert!(invested > 0.0 || game.tech.iter().any(|t| t.discovered),
         "the print shop's work researches the track");

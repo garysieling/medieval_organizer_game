@@ -214,8 +214,6 @@ impl Game {
         crate::timed!("sim.guards", self.guards_tick(tick));
         // and the marks a cause leaves fade on their own clock
         crate::timed!("sim.marks", self.marks_tick(tick));
-        // and the print shop's work is the village's research
-        crate::timed!("sim.tech", self.tech_tick());
         let mut rng = Rng(self.rng.next());
         // the country's carts and stewards, and its granaries
         crate::timed!("sim.country", self.country_tick(tick));
@@ -322,6 +320,9 @@ impl Game {
             }
         }
         drop(folk);
+        // the print shop's work is the village's research: only the
+        // printmakers who actually kept the bench today count
+        crate::timed!("sim.tech", self.tech_tick(tick));
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
@@ -352,15 +353,20 @@ impl Game {
         }
     }
 
-    /// The print shop's work is the village's research: each day a
-    /// printmaker keeps the bench, a point goes into the next art the
-    /// track offers (game::tech_tree)
-    pub(crate) fn tech_tick(&mut self) {
+    /// The print shop's work is the village's research: each printmaker
+    /// who kept the bench today - fetching its supplies counts, a day
+    /// off, a rite or a shopping trip doesn't - puts a point into the
+    /// next art the track offers (game::tech_tree)
+    pub(crate) fn tech_tick(&mut self, tick: u64) {
         let hands = self.villagers.iter().filter(|&&v| {
             !villager::is_dead(&self.world, v)
                 && self.world.get_component::<Kid>(v).is_none()
                 && self.world.get_component::<Craft>(v)
                     .map(|c| c.vocation == Vocation::Printmaker).unwrap_or(false)
+                && self.world.get_component::<routine::Routine>(v)
+                    .map(|r| r.day == tick && r.mode == routine::Mode::Working
+                        && !matches!(r.spot, routine::Spot::Errand(_)))
+                    .unwrap_or(false)
         }).count() as f32;
         if hands <= 0.0 { return; }
         if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {

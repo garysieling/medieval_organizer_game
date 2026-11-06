@@ -56,7 +56,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 |---|------|-------|--------|
 | 31 | What the lord thinks the org's strength is (show as his mood / rumours, not the number) | `Game::lord_esteem` | done #559 |
 | 32 | The castle's grudge: the next writ lands double | `Game::repression_debt` | done #560 |
-| 33 | A harsh winter coming / under way | `Game::harsh_winter` | todo |
+| 33 | A harsh winter coming / under way | `Game::harsh_winter` | done #561 |
 | 34 | The collector's takings riding out to the lord | `Game::takings` | todo |
 | 35 | Numerals and reckonings, and the clerk who emerges | `Game::numeracy`, `reckonings`, `translator` | todo |
 | 36 | Letters on the road | `Game::letters` | todo |

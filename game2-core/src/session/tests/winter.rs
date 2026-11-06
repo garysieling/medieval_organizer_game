@@ -82,3 +82,16 @@ fn test_a_snowball_fight_too_far_out_finds_no_ears() {
     assert!(msg.contains("doesn't carry"), "{}", msg);
     assert_ne!(g.snowball_day, g.tick, "the day's call isn't spent on nobody");
 }
+
+#[test]
+fn test_the_lean_months_get_their_warning() {
+    let mut g = Game::new();
+    // the word comes before the winter: ten days out, the wise say so
+    g.winter_tick(390);
+    assert!(g.log.iter().any(|l| l.contains("winter'll run long")),
+        "no forewarning: {:?}", g.log.last());
+    assert!(!g.harsh_winter, "the winter's early");
+    g.winter_tick(400);
+    assert!(g.harsh_winter, "the winter never set in");
+    assert!(g.log.iter().any(|l| l.contains("sets in hard")), "the onset went unsaid");
+}

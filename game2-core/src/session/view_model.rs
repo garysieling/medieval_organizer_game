@@ -556,7 +556,7 @@ impl Game {
         if self.hen_houses.contains(&be) {
             let n = livestock::flock(&world, be).len();
             lines.push(Line { x: 18, y: 432,
-                text: format!("keeps hens - {} on the roost", n),
+                text: if n == 0 { "roost empty".into() } else { format!("keeps hens - {} on the roost", n) },
                 rgb: (220, 180, 120) });
         }
         // the tavern's register: who kept the table's company these

@@ -71,6 +71,7 @@ mod minimap;
 mod music;
 mod nourish;
 mod organize;
+mod orgskills;
 mod pacing;
 mod painter;
 mod panel;

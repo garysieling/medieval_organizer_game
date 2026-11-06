@@ -12,6 +12,17 @@ impl Game {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
         let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
+        // and everyone who came learned a little of the craft: the room
+        // is where organizing skills get built - the seated ones most
+        if let Some(c) = crate::game::campaign::campaign_of(&self.world, oe) {
+            crate::game::org_skills::learn_from_meeting(&mut self.world, c, invited);
+        } else {
+            for &a in invited {
+                crate::game::org_skills::practice(&mut self.world, a,
+                    crate::game::org_skills::OrgSkill::HouseMeeting,
+                    crate::game::org_skills::MEETING_PRACTICE);
+            }
+        }
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))

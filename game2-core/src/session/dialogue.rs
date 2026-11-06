@@ -260,6 +260,10 @@ impl Game {
                         kind: crate::game::relationships::InteractionKind::Conversation, intensity: d });
             }
             self.world.add_component(a, crate::sim::community::OneOnOne { with: b, depth: 0.7 });
+            // and the one doing the talking learns the craft of it
+            crate::game::org_skills::practice(&mut self.world, a,
+                crate::game::org_skills::OrgSkill::OneOnOne,
+                crate::game::org_skills::MEETING_PRACTICE);
         }
     }
 

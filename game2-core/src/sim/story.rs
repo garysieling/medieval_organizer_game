@@ -54,7 +54,13 @@ pub fn detect_story(events: &[StoryEvent]) -> Option<Story> {
     let kinds: Vec<EventKind> = events.iter().map(|e| e.kind).collect();
     let theme = if kinds.contains(&EventKind::Illness) && kinds.contains(&EventKind::Recovery) {
         StoryTheme::Survival
-    } else if kinds.contains(&EventKind::Conflict) && kinds.contains(&EventKind::Recovery) {
+    } else if {
+        let last_fight = kinds.iter().rposition(|k| *k == EventKind::Conflict);
+        let last_peace = kinds.iter().rposition(|k| *k == EventKind::Recovery);
+        // redemption needs the peace to come after the fighting -
+        // a feud reignited since is still a tale of bad blood
+        matches!((last_fight, last_peace), (Some(c), Some(r)) if r > c)
+    } {
         StoryTheme::Redemption
     } else if kinds.iter().filter(|k| **k == EventKind::Conflict).count() >= 2 {
         StoryTheme::Conflict

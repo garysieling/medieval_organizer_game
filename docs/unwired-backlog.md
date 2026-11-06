@@ -27,7 +27,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 6 | Recipes: several paths to the same good | `game/recipes.rs` (`can_make`, `printmaking_recipes`) | done #534 |
 | 7 | Printmaking tech tree (feathers -> lithography) | `game/tech_tree.rs` (`research`, `next_researchable`) | done #535 |
 | 8 | Music layers that evolve with the village's mood | `game/music.rs` (`infer_mood`, `evolve`, `describe`) | done #536 |
-| 9 | Faith, congregations and services | `sim/religion.rs` (`Faith`, `perform_service`, `DevotionSystem`, `GatherSystem`) | todo |
+| 9 | Faith, congregations and services | `sim/religion.rs` (`Faith`, `perform_service`, `DevotionSystem`, `GatherSystem`) | done #537 |
 | 10 | Weather events: storms, droughts, heat waves | `sim/weather.rs` (`WeatherSystem`, `food_effect`, `health_effect`) | todo |
 | 11 | Climate effects on crops and health | `sim/climate.rs` (`rain_effect`, `climate_multiplier`) | todo |
 | 12 | Story detection: name the stories the sim tells (a chronicle) | `sim/story.rs` (`detect_story`, `surface_story`) | todo |

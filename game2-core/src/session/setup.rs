@@ -837,9 +837,11 @@ impl Game {
             let is_kid = KID_IDXS.contains(&i);
             let gold = livelihood::seed_gold(class, is_kid, (g.next() % 1000) as f32 / 1000.0);
             world.add_component(v, Purse { gold });
-            // the years they're carrying and the span they're given
-            let years = if is_kid { 3.0 + (g.next() % 10) as f32 }
-                else { 19.0 + (g.next() % 42) as f32 };
+            // the years they're carrying - a kid's grow from the days
+            // already on their growth-clock - and the span they're given
+            let years = if is_kid {
+                world.get_component::<KidGrowth>(v).map(|kg| kg.age_days as f32 / 52.0).unwrap_or(5.0)
+            } else { 19.0 + (g.next() % 42) as f32 };
             world.add_component(v, crate::game::lifecycle::Age {
                 years, stage: crate::game::lifecycle::stage_for(years) });
             world.add_component(v, crate::game::lifecycle::Vitality {

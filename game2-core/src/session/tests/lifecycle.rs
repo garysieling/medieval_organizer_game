@@ -46,7 +46,7 @@ fn test_the_years_count_and_the_old_die_of_old_age() {
     // a year of days ages them a year
     g.lifecycle_tick(1);
     let y1 = g.world.get_component::<crate::game::lifecycle::Age>(v).unwrap().years;
-    assert!((y1 - y0) - 1.0 / 365.0 < 0.001, "a day counted {} years", y1 - y0);
+    assert!((y1 - y0) - 1.0 / 52.0 < 0.001, "a day counted {} years", y1 - y0);
     // and one past their span goes to old age
     let e = g.villagers[1];
     g.world.get_component_mut::<crate::game::lifecycle::Age>(e).unwrap().years = 91.0;

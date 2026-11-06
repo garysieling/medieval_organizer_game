@@ -413,13 +413,14 @@ impl Game {
                 toast_spot(&self.world, v));
             self.celebrate_person(tick, v, &format!("{} comes of age", name));
         }
-        // and the years keep count: a day is a day of life; when the
-        // years outrun the span they were given, the village buries
-        // them
+        // and the years keep count: a day of the village is about a week
+        // of life (a youngster's 730 days is their fourteenth year);
+        // when the years outrun the span they were given, the village
+        // buries them
         for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
             if villager::is_dead(&self.world, v) { continue; }
             let Some(a) = self.world.get_component_mut::<crate::game::lifecycle::Age>(v) else { continue };
-            a.years += 1.0 / 365.0;
+            a.years += 1.0 / 52.0;
             a.stage = crate::game::lifecycle::stage_for(a.years);
             let years = a.years;
             let span = self.world.get_component::<crate::game::lifecycle::Vitality>(v)
@@ -435,6 +436,19 @@ impl Game {
                 }
                 self.log.push(format!("t{}: {} dies at {} winters, of old age.", tick,
                     vill_name(i), years.round() as u32));
+            }
+        }
+        // the dead give up their beds - a house of corpses still counts
+        // as full to births and newcomers without this sweep
+        let dead: crate::engine::det::HashSet<Entity> = self.villagers.iter().copied()
+            .filter(|&v| villager::is_dead(&self.world, v)).collect();
+        if !dead.is_empty() {
+            for b in self.world.query::<household::Building>() {
+                if let Some(bd) = self.world.get_component_mut::<household::Building>(b) {
+                    if bd.occupants.iter().any(|o| dead.contains(o)) {
+                        bd.occupants.retain(|o| !dead.contains(o));
+                    }
+                }
             }
         }
     }

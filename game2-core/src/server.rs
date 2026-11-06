@@ -165,6 +165,12 @@ struct Conn {
     latest_map: Option<String>,
     /// Another connection reclaimed this seat: the read loop ends
     dead: bool,
+    /// A reclaim is taking the seat: the read loop drains whatever the
+    /// wire still holds of this driver's last words, then ends
+    superseded: bool,
+    /// The drain is done (or the conn is gone): the reclaim may safely
+    /// read the seat's state for its roster decision
+    drained: bool,
     /// The digest of the map this client was last sent (`TileMap::digest`):
     /// the map goes out again only when the world's moves off it
     map_sent: Option<u64>,
@@ -266,7 +272,8 @@ fn send_snapshot(c: &mut Conn, msg: &ServerMsg) {
 
 impl Conn {
     fn new(seat: usize, kind: ClientKind) -> Conn {
-        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, latest_map: None, dead: false, map_sent: None }
+        Conn { seat, kind, last_active: Instant::now(), outbox: vec![], latest: None, latest_map: None,
+            dead: false, superseded: false, drained: false, map_sent: None }
     }
 
     /// What to write next: the queued replies, then the newest snapshot
@@ -556,6 +563,23 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                     _ => token(),
                 };
                 s.claims.insert(tok.clone(), seat);
+                // a reclaimed seat's old driver can still have its last
+                // words in flight - an Escape or a pick the wire brought
+                // but the world hasn't applied. Give that conn a moment
+                // to say them before the seat's decided-ness is read here
+                let stale: Vec<Arc<Mutex<Conn>>> = s.conns.iter()
+                    .filter(|c| { let c = c.lock().unwrap(); c.seat == seat && !c.drained })
+                    .cloned().collect();
+                if !stale.is_empty() {
+                    for c in &stale { c.lock().unwrap().superseded = true; }
+                    drop(s);
+                    let till = Instant::now() + Duration::from_millis(300);
+                    while stale.iter().any(|c| !c.lock().unwrap().drained) && Instant::now() < till {
+                        std::thread::sleep(Duration::from_millis(2));
+                    }
+                    s = server.lock().unwrap();
+                    if stop.load(Ordering::SeqCst) { return; }
+                }
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs
                 // the roster goes to a human seat that hasn't decided yet -
@@ -600,6 +624,11 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
     let (mut window, mut used, mut warned) = (Instant::now(), 0u32, false);
     loop {
         if conn.lock().unwrap().dead || stop.load(Ordering::SeqCst) { break; }
+        if { let c = conn.lock().unwrap(); c.superseded && !c.drained } {
+            drain_last_words(&mut ws, &conn, &server, &stop);
+            conn.lock().unwrap().drained = true;
+            break;
+        }
         let out = conn.lock().unwrap().take_out();
         let mut alive = true;
         for s_out in out {
@@ -643,10 +672,15 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                         send_msg(&mut conn.lock().unwrap(), &ServerMsg::CmdDone { ok: note == "ok", note });
                     }
                     ClientMsg::Pick(idx) => {
-                        s.apply(Input::PickCharacter { seat, idx });
+                        // acked so a client can know its choice landed
+                        // before it leaves: the seat's decided-ness is
+                        // what a later reclaim's roster is read against
+                        let ok = matches!(s.apply(Input::PickCharacter { seat, idx }), Applied::Chose(true));
+                        send_msg(&mut conn.lock().unwrap(), &ServerMsg::CmdDone { ok, note: "a card picked".into() });
                     }
                     ClientMsg::DeclinePick => {
-                        s.apply(Input::DeclinePick { seat });
+                        let ok = matches!(s.apply(Input::DeclinePick { seat }), Applied::Chose(true));
+                        send_msg(&mut conn.lock().unwrap(), &ServerMsg::CmdDone { ok, note: "the wanderer kept".into() });
                     }
                     ClientMsg::Ping(n) => { send_msg(&mut conn.lock().unwrap(), &ServerMsg::Pong(n)); }
                     ClientMsg::Hello { .. } => {}
@@ -658,11 +692,46 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
             Err(_) => break,
         }
     }
+    // whatever way the loop ended, this conn has nothing more to say: a
+    // reclaim waiting on its drain can go on
+    conn.lock().unwrap().drained = true;
     // dropped: the seat keeps its character; claims still map it for reclaim
     let _ = ws.close(None);
     let _ = ws.flush();
     let mut s = server.lock().unwrap();
     s.conns.retain(|c| !Arc::ptr_eq(c, &conn));
+}
+
+/// A superseded conn's last read: whatever reached the wire before the
+/// reclaim still deserves to land. Only the seat's choice counts now -
+/// the rest of a dead driver's steering doesn't. Bounded so a flooding
+/// socket can't stall the reclaim that waits on `drained`
+fn drain_last_words(ws: &mut tungstenite::WebSocket<TcpStream>, conn: &Arc<Mutex<Conn>>,
+    server: &Arc<Mutex<Server>>, stop: &Arc<AtomicBool>) {
+    ws.get_ref().set_read_timeout(Some(Duration::from_millis(10))).ok();
+    let seat = conn.lock().unwrap().seat;
+    let till = Instant::now() + Duration::from_millis(150);
+    loop {
+        if Instant::now() > till { break; }
+        match ws.read() {
+            Ok(tungstenite::Message::Text(t)) => {
+                let Ok(cm) = serde_json::from_str::<ClientMsg>(&t) else { continue };
+                let input = match cm {
+                    ClientMsg::Pick(idx) => Some(Input::PickCharacter { seat, idx }),
+                    ClientMsg::DeclinePick => Some(Input::DeclinePick { seat }),
+                    _ => None,
+                };
+                if let Some(input) = input {
+                    let mut s = server.lock().unwrap();
+                    if stop.load(Ordering::SeqCst) { break; }
+                    s.apply(input);
+                }
+            }
+            Ok(_) => {}
+            Err(e) if idle_read(&e) => break,
+            Err(_) => break,
+        }
+    }
 }
 
 /// A probe connection: the test API. It accepts the websocket handshake,

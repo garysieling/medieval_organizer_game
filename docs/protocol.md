@@ -126,6 +126,10 @@ offer the cards again:
 "DeclinePick"
 ```
 
+Both answer a `CmdDone` (`{"ok":true,"note":"a card picked"}` or
+`"the wanderer kept"`) - a client that wants its choice safely in
+before it leaves (a fast Escape-then-reconnect) waits for it.
+
 ### Ping
 
 ```json client

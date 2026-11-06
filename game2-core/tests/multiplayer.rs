@@ -414,7 +414,7 @@ fn a_selected_child_inspects_as_a_kid_over_the_wire() {
     hello(&mut human, None, ClientKind::Human);
     send(&mut human, &ClientMsg::Command(Command::Select(A_KID)));
     let insp = until("the kid's inspector", &mut human, 10, |m, _| match m {
-        ServerMsg::Scene(s) => s.inspector.clone(),
+        ServerMsg::Scene(s) => s.inspector.clone().filter(|i| i.fig == Some(A_KID)),
         _ => None,
     });
     assert_eq!(insp.fig, Some(A_KID), "the inspector picked up the selection");
@@ -485,8 +485,13 @@ fn a_declined_pick_stays_declined_on_reclaim() {
         _ => None,
     });
     assert!(!roster.is_empty());
-    // Escape: keep the wanderer - a decision the seat remembers
+    // Escape: keep the wanderer - a decision the seat remembers once
+    // it's acked; dropping sooner could lose it on the wire
     send(&mut human, &ClientMsg::DeclinePick);
+    until("the decline's ack", &mut human, 10, |m, _| match m {
+        ServerMsg::CmdDone { ok, .. } => Some(*ok),
+        _ => None,
+    });
     drop(human);
     let mut back = connect(server.addr);
     send(&mut back, &ClientMsg::Hello { token: Some(token), kind: ClientKind::Human, name: None, secret: None });

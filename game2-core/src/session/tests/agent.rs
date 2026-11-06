@@ -197,3 +197,67 @@ fn an_agent_fetches_what_its_bench_is_short_of() {
     let seat = g.add_agent_seat(full);
     assert_eq!(g.agent_command(seat, AgentCmd::FetchInput), Err("the bench wants for nothing".into()));
 }
+
+/// The player's Errand button: with nothing the player needs, a picked
+/// child can run paper and ink in for the print shop - the printer hires,
+/// pays and is delivered to, not the player
+#[test]
+fn test_a_kid_can_run_an_errand_for_the_print_shop() {
+    let mut g = Game::new();
+    // the player needs nothing himself, so the errand looks to the shop
+    if let Some(c) = g.world.get_component_mut::<Craft>(g.seats[0].player) {
+        c.vocation = Vocation::Taverner;
+    }
+    // a printmaker with bare shelves: no paper or ink on hand or stocked
+    let pi = g.villagers.iter().position(|&v| {
+        g.world.get_component::<Kid>(v).is_none() && !villager::is_dead(&g.world, v)
+    }).unwrap();
+    let printer = g.villagers[pi];
+    let shop = g.world.get_component::<Craft>(printer).and_then(|c| c.workplace);
+    if let Some(c) = g.world.get_component_mut::<Craft>(printer) {
+        c.vocation = Vocation::Printmaker;
+    }
+    if let Some(b) = shop {
+        if let Some(bb) = g.world.get_component_mut::<Building>(b) {
+            bb.stock.remove("paper"); bb.stock.remove("ink");
+        }
+    }
+    if let Some(s) = g.world.get_component_mut::<Satchel>(printer) {
+        s.goods.remove("paper"); s.goods.remove("ink");
+    }
+    assert_eq!(livelihood::needs_input(&g.world, printer), Some("paper"),
+        "the printer is short of paper first");
+    // somebody's satchel holds paper to fetch
+    let seller = g.villagers.iter().copied().find(|&v| {
+        v != printer && g.world.get_component::<Satchel>(v).is_some()
+            && !villager::is_dead(&g.world, v)
+    }).unwrap();
+    g.world.get_component_mut::<Satchel>(seller).unwrap().goods.insert("paper".into(), 3);
+    // the kid is picked and sent
+    let ki = g.villagers.iter().position(|&v| g.world.get_component::<Kid>(v).is_some()).unwrap();
+    let kid = g.villagers[ki];
+    g.seats[0].selected_target = ki;
+    g.seats[0].ctx_actions = vec![CtxAct::Errand];
+    g.ctx_act_at(0, 0);
+    let job = g.world.get_component::<OddJob>(kid).expect("the errand is under way");
+    assert_eq!((job.hirer, job.good.as_str(), job.to), (printer, "paper", printer),
+        "the printer hires and is delivered to, not the player");
+    // leg one: at the source the paper's loaded
+    *g.world.get_component_mut::<Pos>(kid).unwrap() = *g.world.get_component::<Pos>(seller).unwrap();
+    g.arrive(kid, Goal::RunOddJob);
+    assert!(g.world.get_component::<OddJob>(kid).unwrap().loaded, "the paper's in the satchel");
+    // leg two: at the printer it's delivered and paid for
+    *g.world.get_component_mut::<Pos>(kid).unwrap() = *g.world.get_component::<Pos>(printer).unwrap();
+    g.travels.retain(|t| t.who != kid);
+    let pay = g.world.get_component::<OddJob>(kid).unwrap().pay;
+    let printer_gold = g.world.get_component::<Purse>(printer).map(|p| p.gold).unwrap_or(0.0);
+    let kid_gold = g.world.get_component::<Purse>(kid).map(|p| p.gold).unwrap_or(0.0);
+    g.arrive(kid, Goal::RunOddJob);
+    assert!(g.world.get_component::<OddJob>(kid).is_none(), "the errand ends");
+    assert_eq!(g.world.get_component::<Satchel>(printer).unwrap().goods.get("paper").copied().unwrap_or(0), 2,
+        "the printer's satchel gets the paper");
+    assert!((printer_gold - g.world.get_component::<Purse>(printer).unwrap().gold - pay.min(printer_gold)).abs() < 0.01,
+        "the printer's purse pays");
+    assert!((g.world.get_component::<Purse>(kid).unwrap().gold - kid_gold - pay).abs() < 0.01,
+        "the kid earns the pay");
+}

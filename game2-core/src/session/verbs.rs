@@ -520,22 +520,43 @@ impl Game {
             }
             CtxAct::Errand => {
                 let k = self.villagers[self.seats[seat].selected_target];
-                let need = livelihood::needs_input(&self.world, self.seats[seat].player);
-                let pos = *self.world.get_component::<Pos>(self.seats[seat].player).unwrap();
-                let job = need.and_then(|g| livelihood::seller_for(&self.world, g, pos)
-                    .filter(|&s| !self.boycotted(s))
-                    .map(|from| (g, from)));
+                let player = self.seats[seat].player;
+                // the player's own needs first; with none going spare,
+                // the print shop's - a kid can run paper and ink in for
+                // the printer, paid from the printer's own purse
+                let printer = self.villagers.iter().copied()
+                    .filter(|&p| p != k && !villager::is_dead(&self.world, p)
+                        && self.world.get_component::<Kid>(p).is_none()
+                        && self.world.get_component::<Craft>(p)
+                            .map(|c| c.vocation == Vocation::Printmaker).unwrap_or(false))
+                    .find_map(|p| livelihood::needs_input(&self.world, p).map(|g| (p, g)));
+                let fetch = |hirer: Entity, g: &'static str| {
+                    let pos = *self.world.get_component::<Pos>(hirer)?;
+                    livelihood::seller_for(&self.world, g, pos)
+                        .filter(|&s| !self.boycotted(s))
+                        .map(|from| (hirer, g, from))
+                };
+                let job = livelihood::needs_input(&self.world, player)
+                    .and_then(|g| fetch(player, g))
+                    .or_else(|| printer.and_then(|(hirer, g)| fetch(hirer, g)));
                 match job {
-                    Some((g, from)) => {
+                    Some((hirer, g, from)) => {
                         self.world.add_component(k, OddJob {
-                            hirer: self.seats[seat].player, good: g.to_string(), qty: 2, from, to: self.seats[seat].player,
+                            hirer, good: g.to_string(), qty: 2, from, to: hirer,
                             pay: 3.0, loaded: false });
                         // a fresh errand supersedes the day's walk
                         self.travels.retain(|t| t.who != k);
                         self.send(k, Goal::RunOddJob);
-                        format!("You send {} to fetch {}.", vill_name(self.seats[seat].selected_target), g)
+                        if hirer == player {
+                            format!("You send {} to fetch {}.", vill_name(self.seats[seat].selected_target), g)
+                        } else {
+                            let pname = self.villagers.iter().position(|&p| p == hirer)
+                                .map(vill_name).unwrap_or("the printer");
+                            format!("You send {} to fetch {} for {}.",
+                                vill_name(self.seats[seat].selected_target), g, pname)
+                        }
                     }
-                    None => "Nothing you need fetched right now.".into(),
+                    None => "Nothing needs fetching right now.".into(),
                 }
             }
             CtxAct::Meet => {

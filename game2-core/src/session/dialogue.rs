@@ -452,8 +452,9 @@ impl Game {
                     Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH });
                 if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
             }
-            // a kind word back or a friendly leave-taking is warmth too
-            Act::Greet | Act::Farewell => {
+            // a kind word back or a friendly leave-taking is warmth too -
+            // but a rival's greeting and farewells aren't kind ones
+            Act::Greet | Act::Farewell if t.rel != Relation::Rival => {
                 if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
             }
             _ => {}

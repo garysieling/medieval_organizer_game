@@ -88,7 +88,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 62 | Seasons' effects on work and food (HUD) | `sim/climate.rs` `ClimateEffect` | done #590 |
 | 63 | The org's real power vs its parameters (public part: turnout, discipline) | `sim/organized_power.rs` | done #591 |
 | 64 | Daily rare-event roll: what's in the air (omens) | `Game::rare_fired`, `next_rare` | done #592 |
-| 65 | Trader's stall stock | `Game::trader_stall` | todo |
+| 65 | Trader's stall stock | `Game::trader_stall` | done #593 |
 
 ## C. Villager inner life the inspector doesn't show
 

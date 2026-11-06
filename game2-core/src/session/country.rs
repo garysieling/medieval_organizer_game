@@ -42,7 +42,7 @@ const FARM_NAMES: [&str; 6] = ["Ashford", "Hartley", "Thornby",
     "Greenshaw", "Longacre", "Fordley"];
 const HOLY_NAMES: [&str; 4] = ["Greyfriars", "Frosterley", "Ingleby", "Halewick"];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SiteKind { Town, Castle, Farm, Monastery }
 
 /// A settlement out in the country, and who keeps it

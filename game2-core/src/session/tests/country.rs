@@ -79,3 +79,17 @@ fn test_the_brothers_keep_the_office_at_their_abbey() {
             "the office gathers at the abbey, not off at ({:.1},{:.1})", ax, ay);
     }
 }
+
+#[test]
+fn test_the_sites_reach_the_minimap() {
+    let g = Game::new();
+    let m = g.ui_model_at(0);
+    assert!(!m.sites.is_empty(), "no sites on the minimap");
+    // every site names itself
+    assert!(m.sites.iter().all(|s| !s.name.is_empty()), "an unnamed site");
+    // and a castle's keep names its lord
+    let castle = m.sites.iter().find(|s| matches!(s.kind, country::SiteKind::Castle));
+    if let Some(c) = castle {
+        assert!(c.keeper.is_some(), "a keep with no keeper's name");
+    }
+}

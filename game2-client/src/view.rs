@@ -849,6 +849,23 @@ impl View {
             let (x, y) = tile_to_minimap(tx, ty, k);
             buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
         };
+        // the country's sites: a dot in the kind's colour, the name
+        // under it - the keeper's, if the keep's bed holds one
+        for sv in &m.sites {
+            let (x, y) = tile_to_minimap(sv.x, sv.y, k);
+            let (r, g, b) = match sv.kind {
+                country::SiteKind::Castle => (200, 170, 90),
+                country::SiteKind::Town => (170, 120, 70),
+                country::SiteKind::Farm => (110, 160, 80),
+                country::SiteKind::Monastery => (220, 220, 210),
+            };
+            buf.rect(x as i32 - 2, y as i32 - 2, 4, 4, r, g, b);
+            let label = match &sv.keeper {
+                Some(k) => format!("{} ({})", sv.name, k),
+                None => sv.name.clone(),
+            };
+            draw_text(&mut buf, x as i32 + 4, y as i32 - 3, &label, r, g, b);
+        }
         // graves go down last: a crowd at the graveside mustn't hide one
         let (living, graves): (Vec<&PersonV>, Vec<&PersonV>) = m.people.iter()
             .partition(|pv| !(matches!(pv.kind, PKind::Villager(_)) && pv.dead));

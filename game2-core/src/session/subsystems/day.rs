@@ -227,6 +227,8 @@ impl Game {
         crate::timed!("sim.magic", self.magic_tick(tick));
         // new traders carry the Merchant the guild's compact wants
         crate::timed!("sim.guild", self.guild_tick(tick));
+        // the newly dead are mourned by those who held them close
+        crate::timed!("sim.grief", self.grief_tick(tick));
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));

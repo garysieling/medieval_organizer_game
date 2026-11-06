@@ -558,10 +558,13 @@ impl Game {
         // a season of the clerk's books and the count is everyone's:
         // the village keeps it the positional way for good, clerk or no
         if let Some(c) = self.translator {
-            if self.numeracy != Numeracy::Positional
-                && self.translator_since != u64::MAX
-                && tick.saturating_sub(self.translator_since) >= 90
+            // the books count the days he's free to keep them: the held
+            // teach nothing till they're out and back at the tallies
+            if !crate::game::dungeon::unavailable(&self.world, c)
                 && !crate::game::villager::is_dead(&self.world, c) {
+                self.translator_days += 7;
+            }
+            if self.numeracy != Numeracy::Positional && self.translator_days >= 90 {
                 self.numeracy = Numeracy::Positional;
                 self.log.push(format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
             }

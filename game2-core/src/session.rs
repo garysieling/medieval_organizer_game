@@ -974,9 +974,9 @@ pub struct Game {
     pub numeracy: Numeracy,
     /// The clerk who keeps the tallies straight, when one's emerged
     pub translator: Option<Entity>,
-    /// The day the clerk stepped up - a season of his books and the
-    /// village takes the count up itself
-    pub translator_since: u64,
+    /// Days of his books actually kept - a season of them and the
+    /// village takes the count up itself; the held teach no days
+    pub translator_days: u32,
     /// Reckonings that didn't add up - enough and a clerk steps up
     pub reckonings: u32,
     /// A sky event rides over the walls: ("comet"/"eclipse", the day it goes)

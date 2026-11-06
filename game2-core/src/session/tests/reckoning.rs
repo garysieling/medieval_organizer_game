@@ -40,23 +40,27 @@ fn test_a_season_of_his_books_and_the_village_counts_his_way() {
     let mut g = Game::new();
     let c = g.villagers[3];
     g.translator = Some(c);
-    g.translator_since = 10;
-    // before the season's out the count's still his
-    g.power_tick(94);
+    // before the season's out the count's still his (12 free weeks = 84d)
+    for t in (3..=80).step_by(7) { g.power_tick(t); }
     assert_eq!(g.numeracy, Numeracy::Tally, "the way spread too soon");
     // a season on, the village keeps the books the clerk's way
-    g.power_tick(101);
+    g.power_tick(87);
     assert_eq!(g.numeracy, Numeracy::Positional, "the clerk's way never took");
     assert!(g.log.iter().any(|l| l.contains("the clerk's way")), "the turn went unsaid");
 }
 
 #[test]
-fn test_a_dead_clerk_teaches_nothing() {
+fn test_a_dead_or_held_clerk_teaches_nothing() {
     let mut g = Game::new();
     let c = g.villagers[3];
     g.translator = Some(c);
-    g.translator_since = 3;
     g.world.add_component(c, crate::game::villager::Dead);
-    g.power_tick(101);
-    assert_eq!(g.numeracy, Numeracy::Tally, "the dead teach nothing");
+    g.power_tick(3);
+    assert_eq!(g.translator_days, 0, "the dead teach nothing");
+    let mut g2 = Game::new();
+    let c2 = g2.villagers[3];
+    g2.translator = Some(c2);
+    g2.world.add_component(c2, crate::game::dungeon::Imprisoned { since: 0, charge: "the count".into() });
+    g2.power_tick(3);
+    assert_eq!(g2.translator_days, 0, "the held teach nothing");
 }

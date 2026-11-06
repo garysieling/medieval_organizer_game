@@ -687,10 +687,11 @@ impl Game {
             let made_txt = if made > 0.0 {
                 format!(" \u{00b7} made {:.0} {}", made, vocation::output(c.vocation).unwrap_or("goods"))
             } else { String::new() };
-            // their rung, not just the number: journeyman to master
+            // their rung first - it can't ride off the note's edge
+            // behind a busy day's make
             let level = vocation::level_of(c.skill);
             lines.push(Line { x: 60, y: 354,
-                text: format!("\u{1}Craft\u{2}{}{:.0}%{} \u{b7} {:?}", c.skill, c.skill * 100.0, made_txt, level), rgb: (0, 0, 0) });
+                text: format!("\u{1}Craft\u{2}{}{:.0}% \u{b7} {:?}{}", c.skill, c.skill * 100.0, level, made_txt), rgb: (0, 0, 0) });
         }
         if let Some(p) = world.get_component::<Purse>(v) {
             lines.push(Line { x: 60, y: 366, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });

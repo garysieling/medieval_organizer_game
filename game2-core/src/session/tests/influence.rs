@@ -51,3 +51,17 @@ fn test_a_muscle_unused_goes_soft() {
     let p2 = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(oe).unwrap();
     assert!(p2.capacity >= 0.3, "a used muscle still lost it: {}", p2.capacity);
 }
+
+#[test]
+fn test_the_panel_reads_the_muscle() {
+    let mut g = Game::new();
+    // a used muscle and a turnout craft to name
+    if let Some(p) = g.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(g.org) {
+        p.capacity = 0.4;
+        p.idle_ticks = 0;
+    }
+    let m = g.ui_model_at(0);
+    let pw = m.panel.power.as_deref().unwrap_or("");
+    assert!(pw.contains("muscle 0.4") && pw.contains("turnout") && pw.contains("fresh"),
+        "the muscle's read is wrong: {:?}", pw);
+}

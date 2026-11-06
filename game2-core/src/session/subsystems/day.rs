@@ -387,18 +387,22 @@ impl Game {
     /// is worth a line in the log
     pub(crate) fn music_tick(&mut self, tick: u64) {
         use crate::game::music;
-        let live: Vec<Entity> = self.villagers.iter().copied()
-            .filter(|&v| !villager::is_dead(&self.world, v)).collect();
+        // the village's mood is the village's own: outlanders' purses,
+        // children and graves don't lean it
+        let live: Vec<(usize, Entity)> = self.villagers.iter().copied().enumerate()
+            .filter(|(_, v)| !villager::is_dead(&self.world, *v) && self.site_of(*v).is_none()).collect();
         let n = live.len().max(1) as f32;
         let burning = self.world.query::<crate::game::feuds::Feud>().iter()
             .filter(|&&e| self.world.get_component::<crate::game::feuds::Feud>(e)
-                .map(|f| f.status == crate::game::feuds::FeudStatus::Burning).unwrap_or(false))
+                .map(|f| f.status == crate::game::feuds::FeudStatus::Burning
+                    && self.site_of(f.offender).is_none() && self.site_of(f.aggrieved).is_none())
+                .unwrap_or(false))
             .count() as f32;
-        let graves = self.died_on.iter().filter(|d| d.map(|x| tick - x < 30).unwrap_or(false))
+        let graves = live.iter().filter(|(i, _)| self.died_on.get(*i)
+            .and_then(|d| d.map(|x| tick - x < 30)).unwrap_or(false)).count() as f32;
+        let kids = live.iter().filter(|(_, v)| self.world.get_component::<Kid>(*v).is_some())
             .count() as f32;
-        let kids = live.iter().filter(|&&v| self.world.get_component::<Kid>(v).is_some())
-            .count() as f32;
-        let purse = live.iter().filter_map(|&v| self.world.get_component::<Purse>(v)
+        let purse = live.iter().filter_map(|(_, v)| self.world.get_component::<Purse>(*v)
             .map(|p| p.gold)).sum::<f32>() / n;
         let learned = self.tech.iter().filter(|t| t.discovered).count() as f32
             / self.tech.len().max(1) as f32;
@@ -419,6 +423,10 @@ impl Game {
         if before != after {
             self.log.push(format!("t{}: the village's tune turns - {} now.",
                 tick, music::recommend_mood(after.unwrap_or(music::Mood::Calm))));
+            // the drop lands on the wire: the sound layer hears the turn
+            let (cx, cy) = self.world.get_component::<Pos>(self.seats[0].player)
+                .map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+            self.sfx.push(crate::session::SfxCue { kind: "mood", x: cx, y: cy, intensity: 0.7 });
         }
     }
 

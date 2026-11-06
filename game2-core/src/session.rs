@@ -327,7 +327,7 @@ const NEW_NAMES: [&str; 78] = [
     "Garard","Denise","Thurstan","Rohese","Engelard","Conan",
     "Basilia","Warin","Melisende","Jocosa","Aldwin","Ermentrude",
     "Goscelin","Mahelt","Pernel","Simone","Adeline","Bartram",
-    "Serle","Hawise","Jankin","Matilda","Osbert","Peronell",
+    "Serle","Hawise","Jankin","Mabyn","Osbert","Peronell",
     "Quintin","Rohaise","Tibbets","Urian","Wymark","Erk",
     "Juliana","Miles","Nicolas","Orm","Petronel","Roget",
     "Sanchia","Terrice","Vincent","Wymund","Aveline","Bricot",

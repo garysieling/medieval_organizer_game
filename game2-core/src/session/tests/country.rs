@@ -1,6 +1,9 @@
 use crate::session::*;
 use crate::session::country::SiteKind;
+use crate::session::routine::{Mode, Routine};
 use crate::game::vocation::Kid;
+use crate::game::villager::Pos;
+use crate::game::tilemap::Tile;
 
 #[test]
 fn test_the_country_is_peopled_like_villages() {
@@ -22,5 +25,57 @@ fn test_the_country_is_peopled_like_villages() {
             let i = g.villagers.iter().position(|x| *x == v).unwrap();
             assert_ne!(vill_name(i), "a newcomer", "{}'s folk all have names", s.name);
         }
+    }
+}
+
+#[test]
+fn test_the_far_farms_and_the_abbey_keep_their_own() {
+    for seed in [0u64, 1, 2, 3, 7, 42, 99] {
+        let g = Game::new_seeded(seed);
+        for (si, s) in g.sites.iter().enumerate() {
+            if !matches!(s.kind, SiteKind::Farm | SiteKind::Monastery) { continue }
+            let folk = g.villagers.iter().filter(|&&v| g.site_of(v) == Some(si)).count();
+            assert!(folk >= 2, "seed {} {:?} has folk", seed, s.kind);
+            assert!(!s.homes.is_empty(), "seed {} {:?} has a roof", seed, s.kind);
+        }
+    }
+    // the abbey draws as a church among the buildings, not a cottage
+    let g = Game::new_seeded(1);
+    let abbey = g.sites.iter().find(|s| s.kind == SiteKind::Monastery).unwrap();
+    let p = g.world.get_component::<Pos>(abbey.homes[0]).unwrap();
+    let (bx, by) = (p.x, p.y);
+    assert!(g.buildings.iter().any(|&(x, y, s)|
+        (x - bx).abs() < 0.5 && (y - by).abs() < 0.5 && s == BSprite::Church),
+        "the abbey wears a church");
+    // and a farm's strips are sown
+    let farm = g.sites.iter().find(|s| s.kind == SiteKind::Farm).unwrap();
+    let (cx, cy) = farm.centre;
+    let sown = (cy + 2..=cy + 5).flat_map(|y| (cx - 4..=cx + 4).map(move |x| (x, y)))
+        .filter(|&(x, y)| matches!(g.map.get(x, y), Some(Tile::Wheat) | Some(Tile::Corn))).count();
+    assert!(sown >= 10, "the farm's fields are sown: {} tiles", sown);
+}
+
+#[test]
+fn test_the_brothers_keep_the_office_at_their_abbey() {
+    let mut g = Game::new_seeded(1);
+    let Some(si) = g.sites.iter().position(|s| s.kind == SiteKind::Monastery) else { return };
+    let brothers: Vec<Entity> = g.villagers.iter().copied()
+        .filter(|&v| g.site_of(v) == Some(si)).collect();
+    assert!(brothers.len() >= 2, "the abbey has brothers");
+    let abbey = *g.world.get_component::<Pos>(g.sites[si].homes[0]).unwrap();
+    // run through the first holy day and give them the day to gather
+    while g.tick < 7 { g.update(); }
+    let n = g.ticks_per_frame() - 2;
+    for _ in 0..n { g.update(); }
+    let kept = brothers.iter().filter(|&&v| g.world.get_component::<Routine>(v)
+        .map(|r| r.mode == Mode::Worshipping && r.day == 7 && r.reached)
+        .unwrap_or(false)).count();
+    assert!(kept >= 2, "the brothers reached their own abbey's office: {}", kept);
+    // and the office is at the abbey's door, not the village church's
+    let anchor = brothers.iter().filter_map(|&v| g.world.get_component::<Routine>(v)
+        .filter(|r| r.mode == Mode::Worshipping && r.day == 7).map(|r| r.anchor)).next();
+    if let Some((ax, ay)) = anchor {
+        assert!((ax - abbey.x).abs() + (ay - abbey.y).abs() < 6.0,
+            "the office gathers at the abbey, not off at ({:.1},{:.1})", ax, ay);
     }
 }

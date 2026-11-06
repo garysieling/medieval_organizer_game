@@ -503,6 +503,19 @@ impl Game {
             if !pious && rng.below(100) >= 70 { continue; }
             if keeps_old_ways(&self.world, v) { old.push(v); } else { flock.push(v); }
         }
+        // a monastery's brothers keep the day at their own abbey - the
+        // village church's call can't carry out to them in the country
+        let mut abbeys: Vec<(usize, Vec<Entity>)> = vec![];
+        flock.retain(|&v| match self.site_of(v)
+            .filter(|&si| self.sites[si].kind == country::SiteKind::Monastery) {
+            Some(si) => {
+                if let Some((_, g)) = abbeys.iter_mut().find(|(s, _)| *s == si) { g.push(v); }
+                else { abbeys.push((si, vec![v])); }
+                false
+            }
+            None => true,
+        });
+        for (si, brothers) in abbeys { self.abbey_rites(tick, rng, si, brothers); }
         // the church: rows before the door, the priest at its head facing them
         if !flock.is_empty() {
             let priest_v = flock.iter().copied().position(|v| self.world.get_component::<Craft>(v)
@@ -579,6 +592,33 @@ impl Game {
                     }
                 }
             }
+        }
+    }
+
+    /// The brothers keep the holy day at their own abbey's door: one of
+    /// their priests leads, the rest stand in rows before it - the same
+    /// office as the village's, only theirs
+    fn abbey_rites(&mut self, tick: u64, rng: &mut Rng, si: usize, mut brothers: Vec<Entity>) {
+        let Some(&abbey) = self.sites[si].homes.first() else { return };
+        let Some(ap) = self.world.get_component::<Pos>(abbey).copied() else { return };
+        let door = self.door_of(abbey).unwrap_or((ap.x.round() as i32, ap.y.round() as i32 + 1));
+        let lead = brothers.iter().position(|&v| self.world.get_component::<Craft>(v)
+            .map(|c| c.vocation == Vocation::Priest).unwrap_or(false))
+            .map(|i| brothers.remove(i));
+        let front = (door.0 as f32, door.1 as f32);
+        let back = ((door.0 - ap.x.round() as i32).signum(), (door.1 - ap.y.round() as i32).signum());
+        let back = if back == (0, 0) { (0, 1) } else { back };
+        let slots = self.rows_from(front, back, brothers.len());
+        let n = self.assemble(tick, Mode::Worshipping, Spot::Church, lead.map(|l| (l, front)),
+            &brothers, &slots, front, CALL_REACH);
+        if n > 0 {
+            self.log.push(format!("t{}: the holy day - {} keep the office at {}.", tick, n, self.sites[si].name));
+            let voice = lead.filter(|&l| self.reached_worship(l, tick))
+                .or_else(|| brothers.iter().copied().find(|&v| self.reached_worship(v, tick)));
+            if let Some(v) = voice {
+                self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+            }
+            self.emit_sfx("bell", front.0, front.1, 0.8);
         }
     }
 

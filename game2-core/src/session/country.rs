@@ -722,33 +722,6 @@ mod tests {
     }
 
     #[test]
-    fn test_the_far_farms_and_the_abbey_keep_their_own() {
-        for seed in [0u64, 1, 2, 3, 7, 42, 99] {
-            let g = Game::new_seeded(seed);
-            for (si, s) in g.sites.iter().enumerate() {
-                if !matches!(s.kind, SiteKind::Farm | SiteKind::Monastery) { continue }
-                let folk = g.villagers.iter().filter(|&&v| g.site_of(v) == Some(si)).count();
-                assert!(folk >= 2, "seed {} {:?} has folk", seed, s.kind);
-                assert!(!s.homes.is_empty(), "seed {} {:?} has a roof", seed, s.kind);
-            }
-        }
-        // the abbey draws as a church among the buildings, not a cottage
-        let g = Game::new_seeded(1);
-        let abbey = g.sites.iter().find(|s| s.kind == SiteKind::Monastery).unwrap();
-        let p = g.world.get_component::<Pos>(abbey.homes[0]).unwrap();
-        let (bx, by) = (p.x, p.y);
-        assert!(g.buildings.iter().any(|&(x, y, s)|
-            (x - bx).abs() < 0.5 && (y - by).abs() < 0.5 && s == BSprite::Church),
-            "the abbey wears a church");
-        // and a farm's strips are sown
-        let farm = g.sites.iter().find(|s| s.kind == SiteKind::Farm).unwrap();
-        let (cx, cy) = farm.centre;
-        let sown = (cy + 2..=cy + 5).flat_map(|y| (cx - 4..=cx + 4).map(move |x| (x, y)))
-            .filter(|&(x, y)| matches!(g.map.get(x, y), Some(Tile::Wheat) | Some(Tile::Corn))).count();
-        assert!(sown >= 10, "the farm's fields are sown: {} tiles", sown);
-    }
-
-    #[test]
     fn test_country_sites_are_dry_apart_and_reachable() {
         for seed in [0u64, 1, 2, 3, 7, 42, 99, 231, 777, 9999] {
             let g = Game::new_seeded(seed);

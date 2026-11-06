@@ -96,7 +96,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 |---|------|-------|--------|
 | 66 | Traits (lazy, pious, gregarious...) | `game/traits.rs` | done #594 |
 | 67 | How traits change what they do (tooltip) | `traits::modifies` | done #595 |
-| 68 | Craft level and progress | `game/vocation.rs` (`Level`, `skill_gain`, `train_day`) | todo |
+| 68 | Craft level and progress | `game/vocation.rs` (`Level`, `skill_gain`, `train_day`) | done #596 |
 | 69 | Social class | `vocation::SocialClass` | todo |
 | 70 | A child's growth toward a trade | `vocation::KidGrowth` | todo |
 | 71 | Faith and its strength | `religion::Faith` | todo |

@@ -275,18 +275,36 @@ impl System for NourishmentSystem {
             .filter_map(|w| world.get_component::<CurrentWeather>(*w))
             .map(health_effect)
             .sum();
-        for e in world.query::<Hunger>() {
-            let hunger = world.get_component::<Hunger>(e).unwrap().value;
-            let Some(h) = world.get_component_mut::<Health>(e) else { continue };
-            if h.condition <= 0.0 { continue; }
-            if weather != 0.0 {
+        if weather != 0.0 {
+            for e in world.query::<Hunger>() {
+                let Some(h) = world.get_component_mut::<Health>(e) else { continue };
+                if h.condition <= 0.0 { continue; }
                 h.condition = (h.condition + weather).clamp(0.0, 1.0);
             }
-            if hunger <= 0.0 {
-                h.condition = (h.condition - STARVATION_DAMAGE).max(0.0);
-            } else if hunger >= WELL_FED && !sick.contains(&e) && h.condition < NOURISHED_HEALTH {
-                h.condition = (h.condition + NOURISHED_HEALING).min(NOURISHED_HEALTH);
-            }
+        }
+        nourishment_step(world, &sick);
+    }
+}
+
+/// The nourishment beat itself: starving hurts, eating well mends the
+/// unsick. Split out so a session that already drains health by its own
+/// weather can take just this part (its own weather tick floors the
+/// drain; this block would hit the sick twice otherwise)
+pub fn nourishment_step(world: &mut World, sick: &[Entity]) {
+    use crate::sim::illness::Health;
+    for e in world.query::<Hunger>() {
+        // the dead are past eating
+        if is_dead(world, e) { continue; }
+        let hunger = world.get_component::<Hunger>(e).unwrap().value;
+        // the jail feeds its prisoners though their hunger stays put
+        let held = world.get_component::<crate::game::dungeon::Imprisoned>(e).is_some();
+        let Some(h) = world.get_component_mut::<Health>(e) else { continue };
+        if h.condition <= 0.0 { continue; }
+        if hunger <= 0.0 {
+            if held { continue; }
+            h.condition = (h.condition - STARVATION_DAMAGE).max(0.0);
+        } else if hunger >= WELL_FED && !sick.contains(&e) && h.condition < NOURISHED_HEALTH {
+            h.condition = (h.condition + NOURISHED_HEALING).min(NOURISHED_HEALTH);
         }
     }
 }

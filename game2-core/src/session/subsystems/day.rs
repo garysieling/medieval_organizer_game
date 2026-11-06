@@ -237,6 +237,8 @@ impl Game {
         // the fields ripen at the season's pace; the first ears coming
         // in are worth saying aloud once
         crate::timed!("sim.crops", self.crop_tick(tick));
+        // starving hurts, eating well mends - the unsick only
+        crate::timed!("sim.nourish", self.nourish_tick());
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));

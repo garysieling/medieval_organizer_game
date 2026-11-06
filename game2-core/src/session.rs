@@ -815,6 +815,9 @@ pub struct Game {
     /// The village's tune: the evolving-music state the day's world
     /// metrics steer
     pub music: Entity,
+    /// The weather event rolling through: storm, dry spell, heat or
+    /// hard frost - fields and bones feel it while it lasts
+    pub weather: Entity,
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,

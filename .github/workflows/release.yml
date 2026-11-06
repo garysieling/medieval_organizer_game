@@ -309,11 +309,11 @@ jobs:
             # a re-run: refresh the packages, keep the notes as edited
             gh release upload "$TAG" dist/* --clobber
           else
-            # notes.md already holds GitHub's generated (merged-PR) notes
+            # notes.md already holds GitHub's generated (merged-PR) notes,
+            # so --generate-notes here would duplicate that section.
             gh release create "$TAG" dist/* \
               --title "game2 $TAG" \
               --notes-file notes.md \
-              --generate-notes \
               --target "$HEAD_SHA" \
               "${flags[@]}"
           fi

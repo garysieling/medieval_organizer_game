@@ -80,7 +80,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 54 | Named leader milestone | `Game::leader_named` | done #582 |
 | 55 | Buildings raised, buildings gone derelict | `Game::built_count`, `derelict` | done #583 |
 | 56 | Complaints voiced at the meeting under way | `Game::voiced` | done #584 (already wired: voiced warms the room, three of a tag found the issue) |
-| 57 | The flock's grazing ground | `Game::graze_at`, `flock_wander` | todo |
+| 57 | The flock's grazing ground | `Game::graze_at`, `flock_wander` | done #585 (already wired: the ground drifts every few days, the flock wanders it on their own clocks) |
 | 58 | Which homes keep hens | `Game::hen_houses` | todo |
 | 59 | The log silently dropping lines | `Game::log_dropped` | todo |
 | 60 | The player's first body passing, the work going on | `Game::player_passed` | todo |

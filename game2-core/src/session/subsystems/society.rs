@@ -555,6 +555,20 @@ impl Game {
         if tick % 7 != 3 { return; }
         let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
             .map(|p| p.capacity).unwrap_or(0.0);
+        // a season of the clerk's books and the count is everyone's:
+        // the village keeps it the positional way for good, clerk or no
+        if let Some(c) = self.translator {
+            // the books count the days he's free to keep them: the held
+            // teach nothing till they're out and back at the tallies
+            if !crate::game::dungeon::unavailable(&self.world, c)
+                && !crate::game::villager::is_dead(&self.world, c) {
+                self.translator_days += 7;
+            }
+            if self.numeracy != Numeracy::Positional && self.translator_days >= 90 {
+                self.numeracy = Numeracy::Positional;
+                self.log.push(format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
+            }
+        }
         // the lord's estimate creeps toward what's shown - perceived, not raw
         let was = self.lord_esteem;
         self.lord_esteem += (capacity - self.lord_esteem) * 0.08;

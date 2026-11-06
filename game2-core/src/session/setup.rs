@@ -1013,6 +1013,7 @@ impl Game {
             lord_esteem: 0.0,
             numeracy: if seed % 10 < 6 { Numeracy::Tally } else { Numeracy::RomanBoard },
             translator: None,
+            translator_days: 0,
             hermit: hermit_e,
             reckonings: 0,
             sky: None,

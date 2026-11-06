@@ -58,7 +58,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 32 | The castle's grudge: the next writ lands double | `Game::repression_debt` | done #560 |
 | 33 | A harsh winter coming / under way | `Game::harsh_winter` | done #561 |
 | 34 | The collector's takings riding out to the lord | `Game::takings` | done #562 |
-| 35 | Numerals and reckonings, and the clerk who emerges | `Game::numeracy`, `reckonings`, `translator` | todo |
+| 35 | Numerals and reckonings, and the clerk who emerges | `Game::numeracy`, `reckonings`, `translator` | done #563 |
 | 36 | Letters on the road | `Game::letters` | todo |
 | 37 | Heirlooms and who holds them | `Game::heirlooms` | todo |
 | 38 | Cheese wheels aging in the cellar, and its character | `Game::cheeses`, `cellar_trait` | todo |

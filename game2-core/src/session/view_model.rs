@@ -405,6 +405,7 @@ impl Game {
             // only the lines the window would show - cloning the whole
             // history every frame was the model's biggest copy
             log: visible_log(&self.log).into_iter().cloned().collect(),
+            log_dropped: self.log_dropped,
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),

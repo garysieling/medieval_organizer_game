@@ -292,6 +292,10 @@ pub struct UiModel {
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<ToastV>,
     pub log: Vec<String>,
+    /// How many log lines have already rolled out the top - the log's a
+    /// rolling window; the view marks the drop with a count
+    #[serde(default)]
+    pub log_dropped: usize,
     /// The TALK panel, apart from the log
     #[serde(default)]
     pub talk: TalkPanelV,

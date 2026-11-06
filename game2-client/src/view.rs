@@ -753,8 +753,9 @@ impl View {
         }
 
         // the org's own muscle - a word for its strength, the seat's
-        // call, and whether it's been used
-        if let Some(pw) = &m.panel.power {
+        // call, and whether it's been used; the row's the inspector
+        // card's when one's open, so it only shows on the clear panel
+        if let (Some(pw), None) = (&m.panel.power, &m.inspector) {
             draw_text(&mut buf, UI_X as i32 + 18, 452, pw, 170, 200, 170);
         }
 

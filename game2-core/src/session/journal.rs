@@ -65,6 +65,7 @@ impl Game {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         (self.tick, self.frame_n, self.seats.len()).hash(&mut h);
         serde_json::to_string(&self.probe()).unwrap_or_default().hash(&mut h);
+        serde_json::to_string(&self.tech).unwrap_or_default().hash(&mut h);
         (pos, kpis, &self.log).hash(&mut h);
         h.finish()
     }

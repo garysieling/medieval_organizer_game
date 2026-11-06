@@ -970,6 +970,9 @@ pub struct Game {
     pub pending_quests: Vec<quests::PendingQuest>,
     /// Giver -> the day they can ask again: a job settles a while
     pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
+    /// The village's research: the printmaking track the print shop's
+    /// work feeds (game::tech_tree)
+    pub tech: Vec<crate::game::tech_tree::Tech>,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to

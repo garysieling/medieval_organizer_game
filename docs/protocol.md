@@ -181,6 +181,11 @@ watch the plan fill before it calls the meeting.
 it has got to - empty outside a snowball fight. Older servers omit it;
 read it as empty.
 
+`tech` is the village's research tree: each entry `{"name","era",
+"prereqs","cost","unlocks","discovered","progress"}` - what's been
+worked out and how far the next art has come. Older servers omit it;
+read it as empty.
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

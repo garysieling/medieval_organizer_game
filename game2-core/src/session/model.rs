@@ -337,4 +337,7 @@ pub struct UiModel {
     /// Snowballs in the air this frame, where each has got to (x, y)
     #[serde(default)]
     pub snowballs: Vec<(f32, f32)>,
+    /// The village's research tree: what's discovered, what's invested
+    #[serde(default)]
+    pub tech: Vec<crate::game::tech_tree::Tech>,
 }

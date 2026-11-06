@@ -320,6 +320,9 @@ impl Game {
             }
         }
         drop(folk);
+        // the print shop's work is the village's research: only the
+        // printmakers who actually kept the bench today count
+        crate::timed!("sim.tech", self.tech_tick(tick));
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
@@ -347,6 +350,27 @@ impl Game {
         // agent seats have no PlayerCharacter and sync_purse no-ops on them
         for s in 0..self.seats.len() {
             let pe = self.seats[s].player; sync_purse(&mut self.world, pe, false);
+        }
+    }
+
+    /// The print shop's work is the village's research: each printmaker
+    /// who kept the bench today - fetching its supplies counts, a day
+    /// off, a rite or a shopping trip doesn't - puts a point into the
+    /// next art the track offers (game::tech_tree)
+    pub(crate) fn tech_tick(&mut self, tick: u64) {
+        let hands = self.villagers.iter().filter(|&&v| {
+            !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Printmaker).unwrap_or(false)
+                && self.world.get_component::<routine::Routine>(v)
+                    .map(|r| r.day == tick && r.mode == routine::Mode::Working
+                        && !matches!(r.spot, routine::Spot::Errand(_)))
+                    .unwrap_or(false)
+        }).count() as f32;
+        if hands <= 0.0 { return; }
+        if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {
+            let _ = crate::game::tech_tree::research(&mut self.tech, &next, hands);
         }
     }
 }

@@ -77,3 +77,37 @@ fn test_the_panel_counts_the_bonds_the_seat_has_made() {
     assert_eq!(stages, m.panel.social.met, "met is the stages summed");
     assert!(m.panel.social.acquaintances >= 1, "a first conversation reaches acquaintance");
 }
+
+/// The print shop's work is the village's research: the tree rides the
+/// game, the model carries it to the client, and a printmaker's days
+/// feed the next art on the track
+#[test]
+fn test_the_print_shop_researches_the_village() {
+    let mut game = Game::new();
+    assert!(!game.tech.is_empty(), "the village keeps a research tree");
+    assert!(game.tech.iter().all(|t| !t.discovered), "nothing's discovered on day one");
+    // the model carries the tree for the client
+    assert_eq!(game.ui_model().tech.len(), game.tech.len());
+    // put a printmaker on the bench and let the days turn
+    let v = game.villagers.iter().copied()
+        .find(|&v| game.world.get_component::<Kid>(v).is_none()
+            && !villager::is_dead(&game.world, v)).unwrap();
+    if let Some(c) = game.world.get_component_mut::<Craft>(v) {
+        c.vocation = Vocation::Printmaker;
+    }
+    // a day off the bench is a day off the research too
+    game.plan_rest(v, game.tick);
+    game.tech_tick(game.tick);
+    assert!(game.tech.iter().all(|t| t.progress == 0.0 && !t.discovered),
+        "a resting printmaker researches nothing");
+    // at the bench the days add up
+    game.plan_bench(v, game.tick);
+    for _ in 0..40 { game.tech_tick(game.tick); }
+    let invested: f32 = game.tech.iter().map(|t| t.progress).sum();
+    assert!(invested > 0.0 || game.tech.iter().any(|t| t.discovered),
+        "the print shop's work researches the track");
+    // and the model sees the investment
+    let m = game.ui_model();
+    let seen: f32 = m.tech.iter().map(|t| t.progress).sum();
+    assert!(seen > 0.0 || m.tech.iter().any(|t| t.discovered));
+}

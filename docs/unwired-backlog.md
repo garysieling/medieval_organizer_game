@@ -60,7 +60,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 34 | The collector's takings riding out to the lord | `Game::takings` | done #562 |
 | 35 | Numerals and reckonings, and the clerk who emerges | `Game::numeracy`, `reckonings`, `translator` | done #563 |
 | 36 | Letters on the road | `Game::letters` | done #564 |
-| 37 | Heirlooms and who holds them | `Game::heirlooms` | todo |
+| 37 | Heirlooms and who holds them | `Game::heirlooms` | done #565 |
 | 38 | Cheese wheels aging in the cellar, and its character | `Game::cheeses`, `cellar_trait` | todo |
 | 39 | Mushroom lore: who's learned which patch kills | `Game::shroom_lore` | todo |
 | 40 | Ailments on their own calendar (amatoxin phases, St Anthony's brothers) | `Game::ailments` | todo |

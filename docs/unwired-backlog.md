@@ -69,7 +69,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 43 | The herb-wife's tally of cures, and who's called at the hut | `Game::cured`, `remedy_visits` | done #571 |
 | 44 | Signs before a wolf / fox night | `Game::wolf_coming`, `fox_coming` | done #572 (already wired: hens/tracks log a few days out, the flags gate the nights) |
 | 45 | An unspoken discovery waiting to be disclosed | `Game::pending_discovery` | done #573 (already wired: ripens a fortnight then whispers out; org standing decides the answer) |
-| 46 | The hermit at the cave | `Game::hermit` | todo |
+| 46 | The hermit at the cave | `Game::hermit` | done #574 |
 | 47 | The martyr's grave | `Game::martyr_grave` | todo |
 | 48 | The rivals' homes across the river | `Game::rival_homes` | todo |
 | 49 | Towns and castles: names, keepers, on the minimap | `Game::sites` | todo |

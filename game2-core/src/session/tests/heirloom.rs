@@ -51,17 +51,21 @@ fn test_who_holds_it_shows_on_the_card() {
         revealed: vec![crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke),
                        crate::game::desires::Reveal::Want(Want::Joy),
                        crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke)] });
-    // and the lute in his hands
-    let item = g.world.create_entity();
-    g.world.add_component(item, villager::Heirloom {
-        maker: v, owner: v, name: "a lute", born_tick: 10,
-        stories: vec!["played at the Harvest Home".into()] });
-    g.heirlooms.push(item);
+    // and two heirlooms in his hands - both of them named
+    for name in ["a lute", "a fine toolset"] {
+        let item = g.world.create_entity();
+        g.world.add_component(item, villager::Heirloom {
+            maker: v, owner: v, name, born_tick: 10,
+            stories: vec!["played at the Harvest Home".into()] });
+        g.heirlooms.push(item);
+    }
     g.seats[0].selected_target = i;
     g.seats[0].picked = true;
     let m = g.ui_model_at(0);
     let ins = m.inspector.expect("no card for him");
-    assert!(ins.lines.iter().any(|l| l.text.contains("holds a lute")),
-        "the card doesn't say what he holds: {:?}",
-        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    for name in ["a lute", "a fine toolset"] {
+        assert!(ins.lines.iter().any(|l| l.text == format!("holds {}", name)),
+            "the card doesn't say he holds {}: {:?}", name,
+            ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+    }
 }

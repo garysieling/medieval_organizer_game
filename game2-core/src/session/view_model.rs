@@ -702,6 +702,20 @@ impl Game {
         } else if let Some(t) = tale {
             lines.push(Line { x: 18, y: 454, text: t.to_string(), rgb: (160, 180, 200) });
         }
+        // things made to outlast: every heirloom in their hands gets its
+        // own bounded row - the unwrapped bio above would carry them off
+        // the card's edge
+        if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
+            >= crate::game::organizing::RelStage::Known {
+            let held: Vec<String> = self.heirlooms.iter()
+                .filter_map(|&i| world.get_component::<villager::Heirloom>(i))
+                .filter(|h| h.owner == v)
+                .map(|h| h.name.to_string()).collect();
+            for (n, name) in held.iter().enumerate() {
+                lines.push(Line { x: 18, y: 468 + n as i32 * 11,
+                    text: format!("holds {}", name), rgb: (210, 190, 130) });
+            }
+        }
         InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }
 
@@ -733,16 +747,6 @@ impl Game {
             if !kin.is_empty() { parts.push(format!("kin: {}", kin.join(", "))); }
             if world.get_component::<country::Outlander>(v).is_some() {
                 parts.push("of the country".into());
-            }
-            // a thing made to outlast: the heirloom in their hands,
-            // and the last thing it lived through
-            if let Some(h) = self.heirlooms.iter().find_map(|&i|
-                world.get_component::<villager::Heirloom>(i)
-                    .filter(|h| h.owner == v)) {
-                parts.push(match h.stories.last() {
-                    Some(s) => format!("holds {} - {}", h.name, s),
-                    None => format!("holds {}", h.name),
-                });
             }
         }
         (!parts.is_empty()).then(|| parts.join(" \u{00b7} "))

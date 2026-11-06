@@ -842,8 +842,8 @@ impl Game {
         // the stall's trader - purses seeded now, their stake the purse
         // plus the stock and tools the writs can strip
         for (i, &v) in villagers.iter().enumerate() {
-            if is_trader(&world, v) {
-                tag_trader(&mut world, v, vill_name(i));
+            if subsystems::society::is_trader(&world, v) {
+                subsystems::society::tag_trader(&mut world, v, vill_name(i));
             }
         }
         // the keeper opens with a float. His trade is the only one in the

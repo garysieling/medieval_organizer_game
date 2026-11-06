@@ -9,7 +9,7 @@ mod economy;
 mod land;
 mod meetings;
 mod people;
-mod society;
+pub(in crate::session) mod society;
 mod travel;
 mod visitors;
 mod wood;

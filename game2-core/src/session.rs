@@ -128,29 +128,6 @@ fn sickness_name(world: &World, who: Entity) -> Option<String> {
 }
 
 /// Is `who` ill right now - showing symptoms?
-/// Is this villager a trader the guild's compact wants? The
-/// trade-vocation folk and the stall's trader count; raw producers and
-/// officials don't
-pub(in crate::session) fn is_trader(world: &World, v: Entity) -> bool {
-    world.get_component::<TownRole>(v)
-        .map(|r| matches!(r, TownRole::Trader))
-        .unwrap_or(false)
-        || world.get_component::<Craft>(v)
-            .map(|c| !matches!(c.vocation,
-                Vocation::Priest | Vocation::Knight | Vocation::Farmer
-                | Vocation::Shepherd | Vocation::Fisher))
-            .unwrap_or(false)
-}
-
-/// Give a trader the Merchant the guild formation reads: their name,
-/// their purse plus the stock and tools the writs can strip, their
-/// stake marked exposed to the bailiff
-pub(in crate::session) fn tag_trader(world: &mut World, v: Entity, name: &str) {
-    let wealth = world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) + 60.0;
-    world.add_component(v, crate::game::guilds::Merchant { name: name.into(),
-        wealth, trade_routes: vec!["the market".into()], vulnerable: true });
-}
-
 /// Write a beat into a villager's tale; when the tale first reads as a
 /// story - a theme takes shape - the log names it once
 fn note_story(

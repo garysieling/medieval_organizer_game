@@ -655,3 +655,27 @@ impl Game {
         }
     }
 }
+
+/// Is this villager a trader the guild's compact wants? The
+    /// trade-vocation folk and the stall's trader count; raw producers,
+    /// officials and the country folk don't - the guild's the village's
+    pub(in crate::session) fn is_trader(world: &World, v: Entity) -> bool {
+        if world.get_component::<crate::session::country::Outlander>(v).is_some() { return false; }
+        world.get_component::<TownRole>(v)
+            .map(|r| matches!(r, TownRole::Trader))
+            .unwrap_or(false)
+            || world.get_component::<Craft>(v)
+                .map(|c| !matches!(c.vocation,
+                    Vocation::Priest | Vocation::Knight | Vocation::Farmer
+                    | Vocation::Shepherd | Vocation::Fisher))
+                .unwrap_or(false)
+    }
+
+    /// Give a trader the Merchant the guild formation reads: their name,
+    /// their purse plus the stock and tools the writs can strip, their
+    /// stake marked exposed to the bailiff
+    pub(in crate::session) fn tag_trader(world: &mut World, v: Entity, name: &str) {
+        let wealth = world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) + 60.0;
+        world.add_component(v, crate::game::guilds::Merchant { name: name.into(),
+            wealth, trade_routes: vec!["the market".into()], vulnerable: true });
+    }

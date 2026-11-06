@@ -251,6 +251,14 @@ impl Game {
         // a Talk sat down to is a real 1-1 - it deepens into a tie beyond
         // the warmth of the moment
         if is_talk {
+            // a second sit-down before the rolls run: the first's depth
+            // still lands before this one takes the slot
+            if let Some(m) = self.world.get_component::<crate::sim::community::OneOnOne>(a) {
+                let (w, d) = (m.with, m.depth);
+                crate::game::relationships::record_interaction(&mut self.world, a,
+                    crate::game::relationships::Interaction { other: w,
+                        kind: crate::game::relationships::InteractionKind::Conversation, intensity: d });
+            }
             self.world.add_component(a, crate::sim::community::OneOnOne { with: b, depth: 0.7 });
         }
     }

@@ -554,8 +554,11 @@ impl Game {
         // the tavern's register: who kept the table's company these
         // last nights - the keeper's till knows the thirsty by name
         if Some(be) == self.tavern {
-            let drank: Vec<String> = self.tavern_table.iter()
+            // latest nights first, a patron only once
+            let mut seen = crate::engine::det::HashSet::default();
+            let drank: Vec<String> = self.tavern_table.iter().rev()
                 .filter(|(_, d)| self.tick.saturating_sub(*d) < 30)
+                .filter(|(w, _)| seen.insert(*w))
                 .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
                 .collect();

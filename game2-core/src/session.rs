@@ -1044,6 +1044,9 @@ pub struct Game {
     /// The village's wood: a living stand that grows, spreads, burns
     /// and regrows - the fuel commons its coverage leans on
     pub forest: crate::sim::emergence::Automata,
+    /// The ground the village stands on: the landform's name, when one
+    /// shaped the heightfield
+    pub landform: Option<String>,
     /// The wood's own chance-stream: a lightning roll mustn't shift the
     /// village's other draws
     pub forest_rng: Rng,

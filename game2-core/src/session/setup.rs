@@ -27,7 +27,10 @@ impl Game {
         sched.add_system(crate::game::contracts::ContractSystem); // kept terms build a name for keeping them
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
-        let _ = crate::game::landforms::shape_terrain(&mut terrain, seed);
+        // the ground's own shape: a named landform picked by seed shapes
+        // the heightfield - keep its name for the telling
+        let landform = crate::game::landforms::shape_terrain(&mut terrain, seed)
+            .map(|p| p.display_name.clone());
         // where this seed's village stands: dry country the whole cluster
         // fits inside, on land the country plan can walk back to
         let (vx, vy) = village_origin(&terrain, seed);
@@ -896,9 +899,15 @@ impl Game {
             tick: 0,
             paused: false,
             speed: 1,
-            log: vec!["Welcome to the village.".into(),
-                format!("The village keeps {} - and the tavern on the green, where it all gets drunk.",
-                    vocation::trade_name(drink_voc))],
+            log: {
+                let mut l = vec!["Welcome to the village.".into(),
+                    format!("The village keeps {} - and the tavern on the green, where it all gets drunk.",
+                        vocation::trade_name(drink_voc))];
+                if let Some(n) = &landform {
+                    l.push(format!("The village makes its home in {}.", n));
+                }
+                l
+            },
             log_dropped: 0,
             bubbles: vec![],
             meeting: None,
@@ -975,6 +984,7 @@ impl Game {
             grimoire: crate::sim::magic::Grimoire { discoveries: vec![],
                 domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),
+            landform,
             shop_flow: Default::default(),
             wolf_coming: false,
             takings: 0.0,

@@ -144,3 +144,16 @@ fn test_a_thin_wood_troubles_the_toolmaker() {
             "the shrinking wood lands on the wood trade");
     }
 }
+
+#[test]
+fn test_the_village_names_the_ground_it_stands_on() {
+    let g = Game::new();
+    if let Some(n) = &g.landform {
+        assert!(!n.is_empty());
+        assert!(g.log.iter().any(|l| l.contains(n) && l.contains("makes its home")),
+            "the ground's name went untold: {:?} / {}", n, g.log.last().unwrap());
+    }
+    // the shape is the seed's: same seed, same ground
+    let g2 = Game::new();
+    assert_eq!(g.landform, g2.landform);
+}

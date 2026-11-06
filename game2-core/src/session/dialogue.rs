@@ -206,9 +206,17 @@ fn replay(t: &PlayerTalk) -> (Vec<(usize, String)>, Option<Vec<(Act, String)>>, 
 }
 
 impl Game {
-    fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
+    pub(in crate::session) fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
         self.talk_next_id += 1;
         let id = self.talk_next_id;
+        // a talk that went through is a warmth beat between the two
+        if !lines.is_empty() && with.len() == 2 {
+            for &m in &with {
+                crate::sim::psychology::record_episode(&mut self.world, m,
+                    crate::sim::psychology::Episode { with: with[if m == with[0] { 1 } else { 0 }],
+                        kind: crate::sim::psychology::EpisodeKind::Warmth });
+            }
+        }
         self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines });
         if self.talk_log.len() > TALK_LOG_MAX {
             let extra = self.talk_log.len() - TALK_LOG_MAX;

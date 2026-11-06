@@ -75,6 +75,15 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         EpisodeKind::Rejection => -0.2,
         EpisodeKind::Loss => -0.3,
     };
+    // the style they've grown reads each beat: a secure heart warms easy,
+    // an anxious one takes every blow harder, an avoidant one warms slow
+    let style = world.get_component::<AttachmentHistory>(agent).map(|h| infer_style(h));
+    let bond_update = match style {
+        Some(AttachmentStyle::Secure) if bond_update > 0.0 => bond_update * 1.3,
+        Some(AttachmentStyle::Anxious) if bond_update < 0.0 => bond_update * 1.4,
+        Some(AttachmentStyle::Avoidant) if bond_update > 0.0 => bond_update * 0.6,
+        _ => bond_update,
+    };
     let target = episode.with;
     let is_loss = matches!(episode.kind, EpisodeKind::Loss);
     if let Some(hist) = world.get_component_mut::<AttachmentHistory>(agent) {

@@ -538,6 +538,19 @@ impl Game {
                     else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
                 rgb: (230, 200, 140) });
         }
+        // the herb-wife's tally, and who's called at her hut lately
+        if Some(be) == self.herb_hut {
+            let callers: Vec<String> = self.remedy_visits.iter()
+                .filter(|(_, d)| self.tick - d <= 15)
+                .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
+                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
+                .collect();
+            lines.push(Line { x: 18, y: 432,
+                text: format!("her tally: {} cures{}", self.cured,
+                    if callers.is_empty() { String::new() }
+                    else { format!(" - lately: {}", callers.join(", ")) }),
+                rgb: (190, 210, 150) });
+        }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 

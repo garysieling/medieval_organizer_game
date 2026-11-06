@@ -683,6 +683,7 @@ impl View {
             draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
         }
 
+
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {
             if !action_shown(m, i) { continue; }
@@ -761,6 +762,13 @@ impl View {
         draw_text(&mut buf, UI_X as i32 + 18, 190, "BONDS", 255, 215, 0);
         for (n, line) in bond_lines(s).iter().enumerate() {
             draw_text(&mut buf, UI_X as i32 + 18, 202 + n as i32 * 12, line, 215, 215, 195);
+        }
+
+        // the org's own muscle - a word for its strength, the seat's
+        // call, and whether it's been used; the row's the inspector
+        // card's when one's open, so it only shows on the clear panel
+        if let (Some(pw), None) = (&m.panel.power, &m.inspector) {
+            draw_text(&mut buf, UI_X as i32 + 18, 452, pw, 170, 200, 170);
         }
 
         // organization: who has joined, by name

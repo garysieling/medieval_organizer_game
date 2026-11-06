@@ -406,6 +406,21 @@ impl Game {
             }
             v
         };
+        // the org's real power vs the seat's craft: the muscle's
+        // capacity, the turnout skill, and whether it's gone soft
+        // a word, not the gauge: the muscle's strength and the seat's
+        // craft in public terms - the exact numbers stay the probe's
+        let power = world.get_component::<crate::sim::organized_power::OrganizedPower>(self.seats[seat].org).map(|p| {
+            let turnout = world.get_component::<crate::game::org_skills::Organizing>(me)
+                .map(|o| o.turnout).unwrap_or(0.0);
+            let muscle = if p.capacity >= 0.3 { "a muscle to count on" }
+                else if p.capacity > 0.0 { "a thin muscle" } else { "no muscle left" };
+            let craft = if turnout >= 0.5 { "a practiced call" }
+                else if turnout > 0.0 { "a rough call" } else { "no call to bring them" };
+            let temper = if p.idle_ticks == 0 { "fresh" }
+                else if p.idle_ticks < 7 { "settled" } else { "going soft" };
+            format!("{} \u{b7} {} \u{b7} {}", muscle, craft, temper)
+        });
         UiModel {
             player_pose: (self.seats[seat].facing, self.seats[seat].walking),
             // the courier (entity 0 in people) faces the way it rides
@@ -439,7 +454,7 @@ impl Game {
             panel: PanelV {
                 name: my_name, gold: my_gold,
                 org: org.name.clone(), leader: Some(name_of(org.leader)),
-                org_status,
+                org_status, power,
                 members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
                 social, meeting,

@@ -164,6 +164,10 @@ pub struct PanelV {
     /// the streets, an assembly ban - empty when the state ignores it
     #[serde(default)]
     pub org_status: Vec<String>,
+    /// The org's own muscle: capacity, the seat's turnout craft, and
+    /// whether it's been used lately - None on an older wire
+    #[serde(default)]
+    pub power: Option<String>,
     pub members: Vec<String>,
     pub issues: Vec<String>,
     pub guilds: usize,

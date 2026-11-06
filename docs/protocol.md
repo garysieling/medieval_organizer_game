@@ -245,6 +245,11 @@ plain short lines - "grant: the taxes", "part grant: the taxes",
 "N knights", "ban >N". Older servers send nothing; treat an absent
 field as an empty list.
 
+`panel.power` names the org's own muscle in one line - "muscle N.N ·
+turnout N.N · fresh|settled|going soft": its organized-power capacity,
+the seat's turnout craft, and whether it's been used. Older servers
+send nothing; treat an absent field as no read.
+
 `log_dropped` counts how many log lines have rolled out the top - the
 log's a rolling window. Zero or an absent field means the top's the
 beginning; the client's last log row marks the count when it isn't.

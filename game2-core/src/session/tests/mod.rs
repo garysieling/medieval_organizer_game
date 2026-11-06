@@ -69,6 +69,7 @@ mod market;
 mod member_line;
 mod minimap;
 mod music;
+mod nourish;
 mod organize;
 mod pacing;
 mod painter;

@@ -72,7 +72,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 46 | The hermit at the cave | `Game::hermit` | done #574 |
 | 47 | The martyr's grave | `Game::martyr_grave` | done #575 |
 | 48 | The rivals' homes across the river | `Game::rival_homes` | done #576 |
-| 49 | Towns and castles: names, keepers, on the minimap | `Game::sites` | todo |
+| 49 | Towns and castles: names, keepers, on the minimap | `Game::sites` | done #577 |
 | 50 | Word that a minstrel / pedlar / circus / ink-maker is due | `Game::next_*` | todo |
 | 51 | Who drank at the tavern table | `Game::tavern_table` | todo |
 | 52 | The swarm that took a liking to someone | `Game::swarm` | todo |

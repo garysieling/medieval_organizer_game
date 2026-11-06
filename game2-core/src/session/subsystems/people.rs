@@ -61,8 +61,12 @@ impl Game {
                     // beds cap at four like the first settling - the
                     // building's capacity is its stock limit, not beds
                     && bb.occupants.len() < 4
+                    // a crib needs village parents - the rivals' houses
+                    // across the river breed no village children
                     && bb.occupants.iter().filter(|&&o|
-                        self.world.get_component::<Kid>(o).is_none()
+                        (self.villagers.contains(&o)
+                        || self.seats.iter().any(|s| s.player == o))
+                        && self.world.get_component::<Kid>(o).is_none()
                         && !crate::game::dungeon::unavailable(&self.world, o)).count() >= 2)
                 .unwrap_or(false);
             if full && self.rng.next() % 3 == 0 { self.spawn_kid(b, tick); return; }

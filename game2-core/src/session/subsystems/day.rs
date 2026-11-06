@@ -214,6 +214,8 @@ impl Game {
         crate::timed!("sim.guards", self.guards_tick(tick));
         // and the marks a cause leaves fade on their own clock
         crate::timed!("sim.marks", self.marks_tick(tick));
+        // and the print shop's work is the village's research
+        crate::timed!("sim.tech", self.tech_tick());
         let mut rng = Rng(self.rng.next());
         // the country's carts and stewards, and its granaries
         crate::timed!("sim.country", self.country_tick(tick));
@@ -347,6 +349,22 @@ impl Game {
         // agent seats have no PlayerCharacter and sync_purse no-ops on them
         for s in 0..self.seats.len() {
             let pe = self.seats[s].player; sync_purse(&mut self.world, pe, false);
+        }
+    }
+
+    /// The print shop's work is the village's research: each day a
+    /// printmaker keeps the bench, a point goes into the next art the
+    /// track offers (game::tech_tree)
+    pub(crate) fn tech_tick(&mut self) {
+        let hands = self.villagers.iter().filter(|&&v| {
+            !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Printmaker).unwrap_or(false)
+        }).count() as f32;
+        if hands <= 0.0 { return; }
+        if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {
+            let _ = crate::game::tech_tree::research(&mut self.tech, &next, hands);
         }
     }
 }

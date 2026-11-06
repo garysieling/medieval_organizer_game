@@ -2,7 +2,7 @@
 //! Printmaking track is detailed per Gary's interest: feathers->lithography.
 
 /// A technology node
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Tech {
     pub name: String,
     pub era: String,

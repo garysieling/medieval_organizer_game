@@ -439,6 +439,7 @@ impl Game {
             debug_lines: vec![],
             sfx: self.sfx.iter().map(|c| c.kind.to_string()).collect(),
             snowballs: self.snowballs.iter().map(|s| s.pos_at(self.frame_n)).collect(),
+            tech: self.tech.clone(),
         }
     }
 

@@ -944,6 +944,7 @@ impl Game {
             reach,
             sanctioned: vec![],
             feud_told: Default::default(),
+            produced: Default::default(),
             wolf_coming: false,
             takings: 0.0,
             fox_coming: false,

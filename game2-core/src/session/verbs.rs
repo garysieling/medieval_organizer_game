@@ -469,7 +469,7 @@ impl Game {
                         .and_then(|b| self.world.get_component::<Building>(b))
                         .map(|b| b.stock.get(what).copied().unwrap_or(0)).unwrap_or(0);
                     let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-                    let (made, up) = livelihood::work_day(&mut self.world, pe, tick);
+                    let (made, up) = self.bench_work(pe, tick);
                     match up {
                         Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
                         None if made > 0.0 => {

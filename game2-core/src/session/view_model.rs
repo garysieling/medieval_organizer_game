@@ -536,8 +536,14 @@ impl Game {
                 text: format!("knows the cures \u{00b7} {} remedies", n), rgb: (150, 210, 150) });
         }
         if let Some(c) = world.get_component::<Craft>(v) {
+            // the day's work on the same line: what the bench made today
+            let made = self.produced.get(&v).filter(|(d, _)| *d == self.tick)
+                .map(|(_, m)| *m).unwrap_or(0.0);
+            let made_txt = if made > 0.0 {
+                format!(" \u{00b7} made {:.0} {}", made, vocation::output(c.vocation).unwrap_or("goods"))
+            } else { String::new() };
             lines.push(Line { x: 60, y: 354,
-                text: format!("\u{1}Craft\u{2}{}{:.0}%", c.skill, c.skill * 100.0), rgb: (0, 0, 0) });
+                text: format!("\u{1}Craft\u{2}{}{:.0}%{}", c.skill, c.skill * 100.0, made_txt), rgb: (0, 0, 0) });
         }
         if let Some(p) = world.get_component::<Purse>(v) {
             lines.push(Line { x: 60, y: 366, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });

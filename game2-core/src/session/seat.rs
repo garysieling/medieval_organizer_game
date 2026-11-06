@@ -257,7 +257,7 @@ impl Game {
                 if self.errand_for_input(who, input, i) { Ok(()) } else { Err(format!("no {} to be had", input)) }
             }
             AgentCmd::WorkDay => {
-                let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
+                let (made, up) = self.bench_work(who, self.tick);
                 if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }
             }
             AgentCmd::Eat => {

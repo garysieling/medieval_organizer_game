@@ -312,7 +312,7 @@ impl Game {
             }
             // a day at the craft, at the bench
             self.plan_bench(v, tick);
-            let (made, up) = livelihood::work_day(&mut self.world, v, tick);
+            let (made, up) = self.bench_work(v, tick);
             let _ = made;
             if let Some(level) = up {
                 let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
@@ -374,5 +374,18 @@ impl Game {
         if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {
             let _ = crate::game::tech_tree::research(&mut self.tech, &next, hands);
         }
+    }
+
+    /// A bench day, wherever it's driven from - the day's loop, an agent
+    /// seat, or the player's own hands: the units are remembered so the
+    /// card can say what they made
+    pub(in crate::session) fn bench_work(&mut self, v: Entity, tick: u64) -> (f32, Option<vocation::Level>) {
+        let (made, up) = livelihood::work_day(&mut self.world, v, tick);
+        if made > 0.0 {
+            let e = self.produced.entry(v).or_insert((tick, 0.0));
+            if e.0 != tick { *e = (tick, 0.0); }
+            e.1 += made;
+        }
+        (made, up)
     }
 }

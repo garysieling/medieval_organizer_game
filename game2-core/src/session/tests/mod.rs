@@ -67,6 +67,7 @@ mod pedlar;
 mod perf;
 mod perfume;
 mod power;
+mod production;
 mod progression;
 mod quests;
 mod reckoning;

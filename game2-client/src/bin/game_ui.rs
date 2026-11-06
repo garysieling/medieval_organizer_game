@@ -88,8 +88,39 @@ fn connect_remote(url: &str) -> Arc<Remote> {
     remote
 }
 
+/// What the find box's keys did this frame
+enum SearchKey { None, Enter, Escape }
+
+/// The letters the find box types, folded to lowercase on the way in
+const KEY_CHARS: [(Key, char); 26] = [
+    (Key::A, 'a'), (Key::B, 'b'), (Key::C, 'c'), (Key::D, 'd'), (Key::E, 'e'),
+    (Key::F, 'f'), (Key::G, 'g'), (Key::H, 'h'), (Key::I, 'i'), (Key::J, 'j'),
+    (Key::K, 'k'), (Key::L, 'l'), (Key::M, 'm'), (Key::N, 'n'), (Key::O, 'o'),
+    (Key::P, 'p'), (Key::Q, 'q'), (Key::R, 'r'), (Key::S, 's'), (Key::T, 't'),
+    (Key::U, 'u'), (Key::V, 'v'), (Key::W, 'w'), (Key::X, 'x'), (Key::Y, 'y'),
+    (Key::Z, 'z'),
+];
+
+/// The find box's keys while it has focus: letters and space type,
+/// Backspace rubs out, Enter jumps the camera, Escape lets go
+fn read_search(window: &Window, q: &mut String) -> SearchKey {
+    if window.is_key_pressed(Key::Backspace, minifb::KeyRepeat::Yes) { q.pop(); }
+    if window.is_key_pressed(Key::Space, minifb::KeyRepeat::Yes) { q.push(' '); }
+    let shift = window.is_key_down(Key::LeftShift) || window.is_key_down(Key::RightShift);
+    for (k, c) in KEY_CHARS {
+        if window.is_key_pressed(k, minifb::KeyRepeat::Yes) {
+            q.push(if shift { c.to_ascii_uppercase() } else { c });
+        }
+    }
+    if window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) { return SearchKey::Enter; }
+    if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) { return SearchKey::Escape; }
+    SearchKey::None
+}
+
 /// Map this frame's window input to Commands (shared by local and remote play)
-fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool) -> Vec<Command> {
+fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool) -> Vec<Command> {
+    // the find box has the keys: no game input gets through while it types
+    if typing { return vec![]; }
     let mut cmds: Vec<Command> = vec![];
     if clicked && !minimap_hit {
         let mut done = false;
@@ -98,7 +129,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
         }
         if !done { cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 }); }
     }
-    const KEYS: [Key; 4] = [Key::T, Key::R, Key::I, Key::B];
+    const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
     for (i, k) in KEYS.iter().enumerate() {
         if window.is_key_pressed(*k, minifb::KeyRepeat::No) { cmds.push(Command::Act(i)); }
     }
@@ -149,8 +180,16 @@ fn main() {
     let remote = connect.map(|url| connect_remote(&url));
     let mut game = if remote.is_none() { Some(Game::new_seeded(seed)) } else { None };
     let mut view = View::new(art);
+    // the camera opens on the player, wherever this seed's village stands
+    let mut cam_centered = false;
+    // which match Enter visits next in the find box
+    let mut search_at = 0usize;
+    // leftover edge-scroll drift too small for the whole-px camera
+    let mut edge_cam = (0.0f32, 0.0f32);
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
+    // Escape is a tap, not a hold: while the find box has the keys its
+    // Escape lets go of them instead of quitting
+    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus) {
         let frame_at = std::time::Instant::now();
         // a refusal (a wrong join secret, a full village) ends the session
         // with the server's reason, not a silent title card
@@ -184,11 +223,76 @@ fn main() {
             (None, None) => None,
         };
 
+        if !cam_centered {
+            if let Some(m) = &cur_model {
+                if let Some(p) = m.people.iter().find(|p| p.kind == session::PKind::Player) {
+                    (view.cam_x, view.cam_y) = session::camera_on(p.pos.0, p.pos.1);
+                    cam_centered = true;
+                }
+            }
+        }
+
         // minimap look is a local camera move in both modes
         let mut on_minimap = false;
         if mouse_down {
             if let Some(m) = &cur_model {
                 if let Some((cx, cy)) = session::minimap_look_map(&m.map, mx, my) { (view.cam_x, view.cam_y) = (cx, cy); on_minimap = true; }
+            }
+        }
+
+        // the find box: clicking it takes the keys, clicking away lets go -
+        // and that click picks no one
+        let mut swallow_click = false;
+        if clicked {
+            if session::search_box_at(mx, my) { view.search_focus = true; swallow_click = true; }
+            else if view.search_focus { view.search_focus = false; swallow_click = true; }
+        }
+        // its keys while it has them: Enter walks the camera to the next
+        // who fits the query
+        if view.search_focus {
+            let typed = view.search_q.clone();
+            match read_search(&window, &mut view.search_q) {
+                SearchKey::Enter => {
+                    if let Some(m) = &cur_model {
+                        let hits = client::search_people(&m.people, &view.search_q);
+                        if !hits.is_empty() {
+                            let p = &m.people[hits[search_at % hits.len()]];
+                            search_at += 1;
+                            (view.cam_x, view.cam_y) = session::camera_on(p.pos.0, p.pos.1);
+                        }
+                    }
+                }
+                SearchKey::Escape => { view.search_focus = false; view.search_q.clear(); }
+                SearchKey::None => {}
+            }
+            // a new query starts its matches over at the first
+            if view.search_q != typed { search_at = 0; }
+        }
+
+        // a mouse hovering at the map view's rim drifts the camera that
+        // way - gently at first, quicker the deeper it sits. The drift
+        // is screen px, so it slows relative to the world as you zoom
+        // in; fractions collect in edge_cam until they make a whole px.
+        // Clamp pins a pointer that left the window to the rim, where it
+        // would scroll forever, so the drift asks Discard where the
+        // pointer honestly is; and a conversation box over the rim is
+        // UI, not map, so it doesn't scroll either
+        let pointer_in = window.get_mouse_pos(MouseMode::Discard).is_some();
+        let convo_cover = cur_model.as_ref().and_then(|m| m.convo.as_ref()).map(|p| {
+            let (_, h) = client::talk::convo_layout(p);
+            mx >= client::talk::CONVO_X && mx < client::talk::CONVO_X + client::talk::CONVO_W
+                && my >= client::talk::CONVO_Y && my < client::talk::CONVO_Y + h
+        }).unwrap_or(false);
+        if !view.search_focus && pointer_in && !convo_cover {
+            let (ex, ey) = session::edge_scroll(mx, my);
+            if ex != 0.0 || ey != 0.0 {
+                edge_cam.0 += ex / view.zoom;
+                edge_cam.1 += ey / view.zoom;
+                let (dx, dy) = (edge_cam.0.trunc() as i32, edge_cam.1.trunc() as i32);
+                edge_cam.0 -= dx as f32;
+                edge_cam.1 -= dy as f32;
+                view.cam_x += dx;
+                view.cam_y += dy;
             }
         }
 
@@ -199,11 +303,18 @@ fn main() {
         present(&mut window, &buf);
 
         // input -> commands -> local game or the wire
-        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap);
+        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus);
         // a hidden button (Recruit, before there's a campaign) can't be pressed
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
-        if clicked && !on_minimap {
+        if clicked && !on_minimap && !swallow_click {
             if let Some(m) = &cur_model {
+                // a toast that happened somewhere: the click jumps there
+                if let Some(i) = client::toast_hit(&m.toasts, mx, my) {
+                    if let Some(at) = m.toasts[i].at {
+                        (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                        cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    }
+                }
                 let ctx_specs: Vec<session::Button> = m.ctx.iter().map(|a| session::ctx_button(*a)).collect();
                 for (i, b) in ctx_specs.iter().enumerate() {
                     if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h {
@@ -243,11 +354,11 @@ fn main() {
         // pause and speed are solo-only: the shared world runs at one pace
         if remote.is_none() {
             if let Some(g) = &mut game {
-                if window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { g.paused = !g.paused; }
-                if SPEED && window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { g.speed = if g.speed == 1 { 4 } else { 1 }; }
+                if !view.search_focus && window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { g.paused = !g.paused; }
+                if SPEED && !view.search_focus && window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { g.speed = if g.speed == 1 { 4 } else { 1 }; }
             }
         }
-        if window.is_key_pressed(Key::H, minifb::KeyRepeat::No) { view.help_open = !view.help_open; }
+        if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }
         if let Some((_, scroll_y)) = window.get_scroll_wheel() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.
@@ -255,10 +366,12 @@ fn main() {
         }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { view.zoom = (view.zoom + 0.006).min(MAX_ZOOM); }
         if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { view.zoom = (view.zoom - 0.006).max(MIN_ZOOM); }
-        if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)  { view.cam_x += 2; }
-        if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No) { view.cam_x -= 2; }
-        if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)    { view.cam_y += 2; }
-        if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)  { view.cam_y -= 2; }
+        if !view.search_focus {
+            if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)  { view.cam_x += 2; }
+            if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No) { view.cam_x -= 2; }
+            if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)    { view.cam_y += 2; }
+            if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)  { view.cam_y -= 2; }
+        }
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", cur_model.as_ref().map(|m| m.frame).unwrap_or(0))).ok(); }
         // the frame's done with: the next render draws into it

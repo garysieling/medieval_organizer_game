@@ -184,6 +184,9 @@ fn voice(kind: &str, t: f32, x: f32) -> f32 {
         // a fair day: a major triad, a long ring
         "festival" => ((2.0 * PI * 392.0 * t).sin() + (2.0 * PI * 494.0 * t).sin()
             + (2.0 * PI * 587.0 * t).sin()) / 3.0 * (-3.0 * t).exp() * 0.7,
+        // the church bell: low inharmonic partials, a long ring
+        "bell" => ((2.0 * PI * 220.0 * t).sin() + 0.6 * (2.0 * PI * 523.0 * t).sin()
+            + 0.4 * (2.0 * PI * 891.0 * t).sin()) * (-2.5 * t).exp() * 0.7,
         // a comet or a blessing: a high tone that swells then fades
         "wonder" => (2.0 * PI * 1175.0 * t).sin()
             * (1.0 - (-4.0 * t).exp()) * (-3.0 * t).exp() * 0.6,
@@ -194,7 +197,7 @@ fn voice(kind: &str, t: f32, x: f32) -> f32 {
 
 /// How long each cue's voice rings for, in seconds
 fn voice_len(kind: &str) -> f32 {
-    match kind { "rain" => 0.8, "anvil" => 0.4, "festival" => 1.4, "wonder" => 1.5, _ => 0.25 }
+    match kind { "rain" => 0.8, "anvil" => 0.4, "festival" => 1.4, "wonder" => 1.5, "bell" => 2.0, _ => 0.25 }
 }
 
 /// Render captured cues into 16-bit stereo PCM on the WATCH timeline:
@@ -620,7 +623,12 @@ pub fn run_recording(art: Art, mut opts: RecordOpts, seed: u64) -> std::io::Resu
     game.speed = opts.game_speed;
     let mut view = View::new(art);
     view.zoom = opts.zoom;
-    if let Some(cam) = opts.cam { (view.cam_x, view.cam_y) = cam; }
+    match opts.cam {
+        Some(cam) => (view.cam_x, view.cam_y) = cam,
+        // no explicit camera: start over this seed's village instead of
+        // View::new's fixed corner, in case it moved
+        None => if let Some((mx, my)) = game.ui_model().market { (view.cam_x, view.cam_y) = camera_on(mx, my); },
+    }
 
     let mut script: BTreeMap<u64, Vec<ScriptOp>> = BTreeMap::new();
     for (f, op) in std::mem::take(&mut opts.script) { script.entry(f).or_default().push(op); }

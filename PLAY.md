@@ -17,10 +17,7 @@ cargo run --bin game           # text-mode version
 |  walking around, name labels     |          |
 |                                  | [Talk]   |
 |  YOU = white marker              | [Recruit]|
-|  click a villager to inspect     | [Invest] |
-|                                  | [Organize]|
-|                                  | [Build]  |
-|                                  | [Wait]   |
+|  click a villager to inspect     | [Build]  |
 |                                  |          |
 |                                  | Inspector|
 |                                  | (stats)  |
@@ -37,7 +34,7 @@ cargo run --bin game           # text-mode version
 | **Click villager** | Select/inspect them (class, vocation, skill, gold, home, shop, and any secrets they've let slip) |
 | **Click building** | Inspect it: purpose, who works or lives there, stock and what's for offer |
 | **1-5** | Select villager by number |
-| **T/R/I/O/B/W** | Keyboard: Talk/Recruit/Invest/Organize/Build/Wait |
+| **T/R/B** | Keyboard: Talk/Recruit/Build |
 | **Arrows** | Pan the camera around the map |
 | **Space** | Pause/unpause |
 | **0** | Toggle 4x speed |
@@ -50,19 +47,18 @@ cargo run --bin game           # text-mode version
 
 ## The Game
 
-You are **The Wanderer** - an outsider who arrives with nothing. You can't command anyone. Build influence by talking, organizing, recruiting.
+You are **The Wanderer** - an outsider who arrives with nothing. You can't command anyone. Earn trust by talking, organizing, recruiting.
 
 ## The Game
 
-You are **The Wanderer** - an outsider who arrives in a medieval village with nothing but the clothes on your back. You can't command anyone. You build influence by talking to people, organizing them, and earning trust.
+You are **The Wanderer** - an outsider who arrives in a medieval village with nothing but the clothes on your back. You can't command anyone. You earn trust by talking to people, organizing them, and proving yourself.
 
 ### The Core Loop
 
 1. **Talk** to villagers (1-1 meetings) - learn their concerns, build relationships
 2. **Recruit** them to your organization (trust-gated)
 3. **Organize** house meetings, committees, actions
-4. **Invest** resources in your cause
-5. **Build** your influence into actual power
+4. **Build** houses and grow your standing in the village
 
 ### The Town
 
@@ -104,11 +100,17 @@ town carries the stink of everything dumped in it - and all three become
 troubles the whole village can agree on. And when blame piles up the
 village climbs the ladder of shame: a bad word, the cold shoulder, a
 boycott, a crowd at the door, the stocks - or the road out. A respected
-soul in the stocks is a scandal, not a lesson. And the year has its
-feast days: St. Swithin's, the Harvest Home, Candlemas, St. Martin's -
+soul in the stocks is a scandal, not a lesson. Every seventh day is the
+holy day: the bell rings over the square, no work is done, and the
+faithful gather at the church for prayers - though a few keep the old
+rite at the stones or in the grove instead. And the year has its
+feast days: May Day, Midsummer, the Harvest Home, Yule -
 the village gathers at the market, the good stock comes out, the truth
 comes out in the toasts, and the tax collector is never invited but
-always shows. Some of the cottages keep a garden bed beside the door -
+always shows. And folk who've gotten to know you ask small jobs - a
+note carried to a neighbour, a parcel walked out to a far village, an
+egg or a stone fetched back - the picked villager's card offers to
+take it, and the panel keeps the job in sight till it's done. Some of the cottages keep a garden bed beside the door -
 the soil strip fills in over the weeks with marigold and feverfew, and
 when the herb-wife's own shelves run thin she tends the beds of folk
 who don't begrudge her. A weaver keeps the loom house now - the
@@ -227,7 +229,6 @@ Other villages/castles are AI-controlled with different ruler personalities:
 
 - **Talk** (`act_talk`) - build relationship, learn concerns
 - **Recruit** (`act_recruit`) - try to get them to join (needs trust>0.5)
-- **Invest** (`act_invest`) - spend gold for influence
 - **Organize** - house meetings, committees
 - **Contract** - formal agreements
 - **Build** - commission structures

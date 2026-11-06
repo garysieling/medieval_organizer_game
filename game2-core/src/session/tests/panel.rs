@@ -13,3 +13,23 @@ fn test_wrap_text_splits_overlong_words() {
     assert_eq!(wrap_text("abcdefghij", 4), vec!["abcd", "efgh", "ij"]);
     assert!(wrap_text("", 10).is_empty());
 }
+
+#[test]
+fn test_the_panel_shows_the_meeting_plans_yeses() {
+    use crate::game::organizing::MeetingPlan;
+    let mut g = Game::new();
+    // no plan yet: no section
+    assert!(g.ui_model().panel.meeting.is_none());
+    let (host, coming, spreader) = (g.villagers[1], g.villagers[2], g.villagers[3]);
+    let home = crate::game::household::home_of(&g.world, host)
+        .unwrap_or_else(|| { let e = g.world.create_entity(); g.world.add_component(e, Pos { x: 16.0, y: 16.0 }); e });
+    g.world.add_component(g.org, MeetingPlan {
+        venue: Some((host, home)), coming: vec![coming], spreaders: vec![spreader],
+        snacks: Some(host), ..Default::default()
+    });
+    let mp = g.ui_model().panel.meeting.expect("the plan's yeses");
+    assert_eq!(mp.coming, vec![vill_name(2)]);
+    assert_eq!(mp.spreaders, vec![vill_name(3)]);
+    assert!(mp.roles.iter().any(|r| r.contains("house:")), "{:?}", mp.roles);
+    assert!(mp.roles.iter().any(|r| r == &format!("snacks: {}", vill_name(1))), "{:?}", mp.roles);
+}

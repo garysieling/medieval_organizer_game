@@ -1,8 +1,8 @@
 //! Action menu: text-based player interface.
-//! Player chooses actions each turn: talk, recruit, invest, organize, contract, build.
+//! Player chooses actions each turn: talk, recruit, organize, contract, build.
 
 use crate::engine::ecs::{Entity, World};
-use super::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
+use super::player::{PlayerCharacter, act_talk, act_recruit};
 
 /// Available player actions for the menu
 #[derive(Debug)]
@@ -17,7 +17,6 @@ pub struct MenuAction {
 pub enum MenuActionType {
     Talk,
     Recruit,
-    Invest,
     Organize,
     Contract,
     Build,
@@ -31,14 +30,11 @@ pub enum MenuActionType {
 /// Display the action menu for a turn
 pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> String {
     let mut s = format!("\n=== Turn {} ===\n", turn);
-    s += &format!("You: {} | influence: {:.2} / {:.1} to lead | standing: {} | gold: {:.0}\n",
-        player.name, player.influence, super::player::LEAD_INFLUENCE,
-        super::player::standing(player.influence), player.resources);
+    s += &format!("You: {} | gold: {:.0}\n", player.name, player.resources);
     s += &format!("Organization: {} members\n\n", org_members);
     s += "Actions:\n";
     s += "  [t] Talk to someone (1-1, learn concerns)\n";
     s += "  [r] Recruit to your cause (needs trust)\n";
-    s += "  [i] Invest resources (gold -> influence)\n";
     s += "  [o] Organize a meeting (gather people)\n";
     s += "  [c] Seal a mutual-aid pact (10 gold of aid; builds their trust)\n";
     s += "  [b] Build a meeting hall (40 gold; meetings become shared meals)\n";
@@ -54,9 +50,8 @@ pub fn show_menu(player: &PlayerCharacter, org_members: usize, turn: u32) -> Str
 
 /// How the game went, shown however it ends (won, quit, or out of turns)
 pub fn end_summary(player: &PlayerCharacter, members: usize, villagers: usize, turns: u64) -> String {
-    format!("\nAfter {} turns: influence {:.2} / {:.1} ({}), {} of {} villagers with the Harvesters, {:.0} gold left.",
-        turns, player.influence, super::player::LEAD_INFLUENCE, super::player::standing(player.influence),
-        members, villagers, player.resources)
+    format!("\nAfter {} turns: {} of {} villagers with the Harvesters, {:.0} gold left.",
+        turns, members, villagers, player.resources)
 }
 
 /// Parse a typed command like "t" or "r3" into (action key, target index).
@@ -91,19 +86,8 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
         MenuActionType::Recruit => {
             if let Some(t) = target {
                 let r = act_recruit(world, player, org, t);
-                let infl = world.get_component::<PlayerCharacter>(player).map(|p| p.influence).unwrap_or(0.0);
-                if r.success { "They joined!".into() }
-                else if r.description == "They declined" && !super::player::can_recruit(infl) {
-                    // Say what's missing, as game_ui's disabled button does
-                    format!("They declined - they don't trust you enough yet (you need influence {:.2}, you have {:.2}; or win them over by talking with them and at meetings).",
-                        super::player::recruit_influence_needed(), infl)
-                }
-                else { format!("{}.", r.description) }
+                if r.success { "They joined!".into() } else { format!("{}.", r.description) }
             } else { "No one to recruit.".into() }
-        }
-        MenuActionType::Invest => {
-            let r = act_invest(world, player, 10.0);
-            format!("{}", r.description)
         }
         MenuActionType::Organize => {
             // Every villager is invited; those who already trust you join
@@ -113,12 +97,6 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 .map(|o| o.members.clone()).unwrap_or_default();
             let outsiders = invited.iter().filter(|v| !members.contains(v)).count();
             let r = super::organizing::house_meeting(world, org, &invited);
-            // Each member won at a meeting counts toward leading the village
-            // just like one won with Recruit (as in game_ui, #74) - otherwise
-            // organizing the whole village could never win the game
-            if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
-                p.influence += super::player::RECRUIT_INFLUENCE * r.attendees_recruited as f32;
-            }
             let joined = match r.attendees_recruited {
                 0 if outsiders == 0 => "Everyone here is already with you; the meeting strengthens your ties.".to_string(),
                 0 => "No one joins yet, but they'll remember the conversation.".to_string(),
@@ -136,11 +114,8 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             if seal_aid_pact(world, player, t, &mut gold).is_none() {
                 return format!("A pact means giving {:.0} gold of aid; you have {:.0}.", PACT_AID, gold);
             }
-            // Aid to a villager is an investment in the village, like the hall:
-            // it earns the influence the same gold would have through Invest
             if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
                 p.resources = gold;
-                p.influence += PACT_AID * super::player::INVEST_INFLUENCE_PER_GOLD;
             }
             format!("You seal a mutual-aid pact and give {:.0} gold of help. They won't forget it.", PACT_AID)
         }
@@ -157,7 +132,6 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                 }
                 if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
                     p.resources -= HALL_REPAIR_COST;
-                    p.influence += HALL_REPAIR_COST * super::player::INVEST_INFLUENCE_PER_GOLD;
                 }
                 world.remove_component::<HallDamaged>(org);
                 return format!("You repair the meeting hall ({:.0} gold). Meetings there share a meal again.", HALL_REPAIR_COST);
@@ -166,12 +140,8 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             if gold < HALL_COST {
                 return format!("A meeting hall costs {:.0} gold; you have {:.0}.", HALL_COST, gold);
             }
-            // The hall is an investment in the village: it earns the influence
-            // the same gold would have through Invest, so building it never
-            // puts the win (which needs every coin's worth) out of reach
             if let Some(p) = world.get_component_mut::<PlayerCharacter>(player) {
                 p.resources -= HALL_COST;
-                p.influence += HALL_COST * super::player::INVEST_INFLUENCE_PER_GOLD;
             }
             world.add_component(org, MeetingHall);
             format!("You build a meeting hall ({:.0} gold). From now on your house meetings share a meal.", HALL_COST)
@@ -339,7 +309,7 @@ mod tests {
         use crate::sim::community::{Citizen, Organization};
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let v = w.create_entity();
@@ -352,18 +322,18 @@ mod tests {
     }
 
     #[test]
-    fn test_declined_recruit_says_what_is_missing() {
+    fn test_a_declined_recruit_says_so() {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         crate::game::campaign::found_for_test(&mut w, org);
         let v = w.create_entity();
-        w.add_component(v, crate::game::player::Rapport { value: 1.0 });
+        w.add_component(v, crate::game::player::Rapport::for_player(player, 1.0));
         let msg = execute_choice(&mut w, player, org, MenuActionType::Recruit, Some(v), 5);
-        assert!(msg.contains("need influence 0.40") && msg.contains("you have 0.10"), "{}", msg);
+        assert_eq!(msg, "They declined.", "{}", msg);
     }
 
     #[test]
@@ -409,7 +379,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
@@ -418,10 +388,8 @@ mod tests {
             for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5); }
         }
         for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5); }
-        assert_eq!(w.get_component::<Organization>(org).unwrap().members.len(), 5);
-        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None, 5); }
-        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
-        assert!(infl > 2.0, "organized the whole village and invested everything, yet influence is {:.2} (win at 2.0)", infl);
+        assert_eq!(w.get_component::<Organization>(org).unwrap().members.len(), 5,
+            "the whole village joins the cause");
     }
 
     #[test]
@@ -429,7 +397,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
@@ -439,9 +407,8 @@ mod tests {
             for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5); }
         }
         for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5); }
-        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None, 5); }
-        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
-        assert!(infl > 2.0, "built the hall, organized everyone and invested the rest, yet influence is {:.2} (win at 2.0)", infl);
+        assert_eq!(w.get_component::<Organization>(org).unwrap().members.len(), 5,
+            "the hall doesn't keep the village from joining");
     }
 
     #[test]
@@ -449,7 +416,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
@@ -460,20 +427,17 @@ mod tests {
             for _ in 0..8 { execute_choice(&mut w, player, org, MenuActionType::Talk, Some(v), 5); }
         }
         for _ in 0..20 { execute_choice(&mut w, player, org, MenuActionType::Organize, None, 5); }
-        for _ in 0..10 { execute_choice(&mut w, player, org, MenuActionType::Invest, None, 5); }
-        let infl = w.get_component::<PlayerCharacter>(player).unwrap().influence;
-        assert!(infl > 2.0, "spent gold on the hall and pacts, yet influence is {:.2} (win at 2.0)", infl);
+        assert_eq!(w.get_component::<Organization>(org).unwrap().members.len(), 5,
+            "gold spent on the hall and pacts doesn't keep them from joining");
     }
 
     #[test]
-    fn test_menu_shows_the_goal_and_a_standing_that_matches_the_rules() {
-        let p = |influence: f32| PlayerCharacter { name: "P".into(), influence, authority: 0.0, resources: 100.0, standing: 0.0 };
-        assert!(show_menu(&p(0.1), 0, 1).contains("influence: 0.10 / 2.0 to lead | standing: Outsider"));
-        // Trusted exactly when recruiting starts to work
-        let needed = crate::game::player::recruit_influence_needed();
-        assert!(show_menu(&p(needed + 1e-3), 0, 1).contains("standing: Trusted"));
-        assert!(show_menu(&p(needed - 0.01), 0, 1).contains("standing: Outsider"));
-        assert!(show_menu(&p(1.2), 0, 1).contains("standing: Respected"));
+    fn test_the_menu_shows_name_gold_and_the_cause() {
+        let p = PlayerCharacter { name: "P".into(), resources: 100.0 };
+        let s = show_menu(&p, 3, 1);
+        assert!(s.contains("You: P | gold: 100"), "{}", s);
+        assert!(s.contains("Organization: 3 members"), "{}", s);
+        assert!(!s.contains("influence"), "the score is gone: {}", s);
     }
 
     #[test]
@@ -482,7 +446,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
@@ -500,7 +464,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 30.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 30.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None, 5).contains("costs 40 gold; you have 30"));
@@ -513,7 +477,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         let v = w.create_entity();
@@ -531,7 +495,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.1, authority: 0.0, resources: 50.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 50.0 });
         let org = w.create_entity();
         w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
         w.add_component(org, MeetingHall);
@@ -545,9 +509,9 @@ mod tests {
 
     #[test]
     fn test_end_summary_reports_how_it_went() {
-        let p = PlayerCharacter { name: "P".into(), influence: 1.25, authority: 0.0, resources: 35.0, standing: 0.0 };
+        let p = PlayerCharacter { name: "P".into(), resources: 35.0 };
         let s = end_summary(&p, 4, 6, 501);
-        assert!(s.contains("After 501 turns: influence 1.25 / 2.0 (Respected), 4 of 6 villagers with the Harvesters, 35 gold left."), "{}", s);
+        assert!(s.contains("After 501 turns: 4 of 6 villagers with the Harvesters, 35 gold left."), "{}", s);
     }
 
     #[test]
@@ -556,7 +520,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.5, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         w.add_component(player, Organizer { issues: vec!["the taxes".into()], heard: vec![] });
         let org = w.create_entity();
         let members: Vec<Entity> = (0..4).map(|_| {
@@ -584,7 +548,7 @@ mod tests {
         use crate::sim::community::Organization;
         let mut w = World::new();
         let player = w.create_entity();
-        w.add_component(player, PlayerCharacter { name: "P".into(), influence: 0.5, authority: 0.0, resources: 100.0, standing: 0.0 });
+        w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         w.add_component(player, Organizer { issues: vec!["the taxes".into()], heard: vec![] });
         let org = w.create_entity();
         let members: Vec<Entity> = (0..4).map(|_| {

@@ -20,3 +20,43 @@ fn test_hud_sits_on_a_dark_strip() {
     let i = ((GLYPH_H + 10) as usize * W + x as usize) * 4;
     assert_eq!((buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]), (20, 20, 32), "no backing strip under the HUD");
 }
+
+#[test]
+fn test_bond_lines_headline_and_breakdown() {
+    let nobody = SocialV::default();
+    assert_eq!(bond_lines(&nobody), vec!["0 folk you've spoken to".to_string()]);
+    let s = SocialV { met: 12, acquaintances: 5, known: 4, followers: 2, coleaders: 1 };
+    let lines = bond_lines(&s);
+    assert_eq!(lines[0], "12 folk you've spoken to");
+    assert_eq!(lines[1], "5 acquaintances · 4 known");
+    assert_eq!(lines[2], "2 followers · 1 co-leader");
+    for l in &lines { assert!(l.len() <= 46, "the line must fit the panel: {l}"); }
+}
+
+#[test]
+fn test_meeting_lines_name_the_yeses() {
+    let mp = MeetingPlanV {
+        coming: vec!["Willa".into(), "Bram".into()],
+        spreaders: vec!["Corvin".into()],
+        roles: vec!["house: Aldric".into(), "notes: Nell".into()],
+    };
+    assert_eq!(meeting_lines(&mp), vec![
+        "coming: Willa, Bram".to_string(),
+        "bringing friends: Corvin".to_string(),
+        "house: Aldric · notes: Nell".to_string(),
+    ]);
+    // an empty plan says nothing
+    assert!(meeting_lines(&MeetingPlanV::default()).is_empty());
+    // a crowd can't push the roles off: each category holds one row,
+    // the overflow counted
+    let crowd = MeetingPlanV {
+        coming: vec!["Willa".into(), "Bram".into(), "Corvin".into(), "Nell".into(), "Aldric".into(), "Dagny".into()],
+        spreaders: vec!["Eliza".into()],
+        roles: vec!["house: Hob".into()],
+    };
+    let lines = meeting_lines(&crowd);
+    assert_eq!(lines.len(), 3, "one row per category: {:?}", lines);
+    assert!(lines[0].contains("+"), "the overflow is counted: {}", lines[0]);
+    assert_eq!(lines[2], "house: Hob");
+    for l in &lines { assert!(l.len() <= 40, "one row: {}", l); }
+}

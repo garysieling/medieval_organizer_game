@@ -74,8 +74,8 @@ The same inputs the window sends, one frame's worth each.
 {"Command":"CancelApproach"}
 ```
 
-`Act(i)` is one of the five action buttons (0 Talk, 1 Recruit, 2 Invest,
-3 Organize, 4 Build); `CtxAct(i)` the i-th context action the scene lists
+`Act(i)` is one of the three action buttons (0 Talk, 1 Recruit, 2 Build);
+`CtxAct(i)` the i-th context action the scene lists
 in `ctx`; `Select(i)` picks a villager; `TalkPick(n)` answers mid-Talk
 (`null` to take your leave); `Decide(i)` answers a founding call.
 `TogglePause`/`ToggleSpeed` are ignored: the shared world runs at one pace.
@@ -137,12 +137,45 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 
 ```
 {"e":57,"kind":{"Villager":8},"pos":[11.4,6.9],"label":"Wystan","dead":false,"kid":false,
- "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false}
+ "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false,
+ "find":"wystan heart helper"}
 ```
 
 The figure whose `e` is your `you` is you. Only what the seat can see is
 here: no one's secret wants, no hidden sickness, no true strength of the
 org (see `docs/architecture.md`, public vs secret).
+
+`inspector` is the card for the current selection: `fig` (the portrait's
+villager index, or `null` for a building or a grave), `kid` (draw the
+portrait with a child's look, not the grown-up one `fig`'s bare index
+would otherwise cycle to), `dead` and `died_day` (a grave portrait), and
+`lines` (pre-formatted inspector text). Old servers never sent `kid`; it
+defaults to `false` when absent.
+
+`toasts` holds the banners announced at the top of the map, each a
+`{"text":"...","at":[x,y]|null}`: `at` is where it happened, for a click
+to jump the camera there, or `null` for a sky-wide omen with no spot to
+visit (hail, drought, aurora...).
+
+```
+{"text":"A chimney fire!","at":[12.0,9.0]}
+{"text":"A hailstorm batters the thatch","at":null}
+```
+
+`panel.social` is the seat's bond ledger: folk it has actually talked
+with (`met`), split by how far each bond has climbed. Only conversations
+count toward `met` - a barter or a shared meal alone doesn't.
+
+```json
+{"met":12,"acquaintances":5,"known":4,"followers":2,"coleaders":1}
+```
+
+Scenes from an older server may omit `social`; read it as all zeroes.
+
+`panel.meeting` is the house-meeting plan being gathered, or absent:
+`{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",
+"notes: Corvin"]}` - the folk who've said yes, by name, so the seat can
+watch the plan fill before it calls the meeting.
 
 ### Obs (agents)
 

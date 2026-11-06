@@ -155,9 +155,18 @@ impl Game {
             // drops the (child), and whoever holds the herb hut is the herb-wife
             let role = if Some(*v) == self.herbologist { " (herb-wife)" }
                 else if kid { " (child)" } else { "" };
+            // the find box knows them by name and posting both: "heart
+            // helper" finds the matchmaker even where her trade reads first
+            let mut find = format!("{} {}",
+                vill_name(i), crate::game::desires::occupation_of(world, *v).unwrap_or_default());
+            if let Some(r) = world.get_component::<vocation::TownRole>(*v) {
+                find.push(' ');
+                find.push_str(crate::game::desires::town_role_name(*r));
+            }
             people.push(PersonV {
                 e: *v, kind: PKind::Villager(i), pos: (p.x, p.y),
                 label: Some(format!("{}{}{}", vill_name(i), role, cause_mark)),
+                find: find_key(&find),
                 dead: villager::is_dead(world, *v),
                 kid,
                 selected: self.seats[seat].selected_target == i && self.seats[seat].picked,
@@ -172,46 +181,49 @@ impl Game {
         for (i, v) in self.rivals.iter().enumerate() {
             if let Some(p) = world.get_component::<Pos>(*v) {
                 people.push(PersonV { e: *v, kind: PKind::Rival(i), pos: (p.x, p.y),
-                    label: Some(RIVAL_NAMES[i].to_string()), dead: false, kid: false,
+                    label: Some(RIVAL_NAMES[i].to_string()), find: find_key(RIVAL_NAMES[i]),
+                    dead: false, kid: false,
                     selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
         let (px, py) = self.player_pos_at(seat);
         people.push(PersonV { e: self.seats[seat].player, kind: PKind::Player, pos: (px, py),
-            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            label: None, find: world.get_component::<PlayerCharacter>(self.seats[seat].player)
+                .map(|p| find_key(&p.name)).unwrap_or_default(),
+            dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
         for (i, (x, y)) in self.guards.iter().copied()
             .chain(self.posted.iter().map(|p| (p.1, p.2))).enumerate() {
             people.push(PersonV { e: 0, kind: PKind::Guard(i), pos: (x, y),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
         }
         people.push(PersonV { e: 0, kind: PKind::Priest, pos: self.priest,
-            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
         if let Some((tx, ty)) = self.traveller_pos() {
             people.push(PersonV { e: 0, kind: PKind::Traveller, pos: (tx, ty),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
         }
         if let Some(m) = &self.minstrel {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
             }
         }
         if let Some(m) = &self.pedlar {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
             }
         }
         if let Some(c) = &self.circus {
             if let Some(p) = world.get_component::<Pos>(c.e) {
                 people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: Some("the circus".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    label: Some("the circus".into()), find: find_key("the circus"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
         if let Some(b) = &self.ink_boiler {
             if let Some(p) = world.get_component::<Pos>(b.e) {
                 people.push(PersonV { e: b.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: Some("the ink-boiler".into()), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    label: Some("the ink-boiler".into()), find: find_key("the ink-boiler"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
             }
         }
         // the rare events' figures: wandering trades drawn as travellers,
@@ -225,24 +237,25 @@ impl Game {
                 events::Fig::Pet(s) => PKind::Pet(s),
             };
             people.push(PersonV { e, kind, pos: (p.x, p.y),
-                label: Some(spec.name.into()), dead: false, kid: false, selected: false,
-                in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                label: Some(spec.name.into()), find: find_key(spec.name), dead: false, kid: false, selected: false,
+                in_reach: false, hungry: false, sick: false, act_mark: 0,
+                bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false) });
         }
         for &(x, y) in &self.gulls {
             people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),
-                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
         }
         let hen_t = (self.frame_n / 12) as f32;
         people.push(PersonV { e: 0, kind: PKind::Chicken,
             pos: (self.chicken_at.0 + hen_t.cos() * 0.5, self.chicken_at.1 + (hen_t * 1.7).sin() * 0.4),
-            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+            label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
         for (pet_e, species, (ox, oy)) in &self.pets {
             if let Some(pet) = world.get_component::<Pet>(*pet_e) {
                 if let Some(p) = world.get_component::<Pos>(pet.owner.unwrap_or(self.villagers[0])) {
                     people.push(PersonV { e: *pet_e, kind: PKind::Pet(*species),
                         pos: (p.x + ox, p.y + oy), label: None, dead: false, kid: false,
                         selected: false, in_reach: false, hungry: false, sick: false,
-                        act_mark: 0, bond: pet.bond_strength > 0.5 });
+                        act_mark: 0, bond: pet.bond_strength > 0.5, find: String::new() });
                 }
             }
         }
@@ -250,14 +263,14 @@ impl Game {
             if let (Some(l), Some(p)) = (world.get_component::<Livestock>(a), world.get_component::<Pos>(a)) {
                 people.push(PersonV { e: a, kind: if l.kind == LivestockKind::Sheep { PKind::Sheep } else { PKind::Goat },
                     pos: (p.x, p.y), label: None, dead: false, kid: false, selected: false,
-                    in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                    in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
             }
         }
         for &a in &self.hens {
             if let Some(p) = world.get_component::<Pos>(a) {
                 people.push(PersonV { e: a, kind: PKind::Chicken, pos: (p.x, p.y), label: None,
                     dead: false, kid: false, selected: false, in_reach: false,
-                    hungry: false, sick: false, act_mark: 0, bond: false });
+                    hungry: false, sick: false, act_mark: 0, bond: false, find: String::new() });
             }
         }
         people.sort_by(|a, b| (a.pos.0 + a.pos.1).partial_cmp(&(b.pos.0 + b.pos.1)).unwrap());
@@ -287,9 +300,9 @@ impl Game {
         // a player seat drives a PlayerCharacter; an agent seat drives a plain
         // villager, whose panel is their own name and purse
         let me = self.seats[seat].player;
-        let (my_name, my_influence, my_gold) = match world.get_component::<PlayerCharacter>(me) {
-            Some(p) => (p.name.clone(), p.influence, p.resources),
-            None => (self.name_of(me), 0.0,
+        let (my_name, my_gold) = match world.get_component::<PlayerCharacter>(me) {
+            Some(p) => (p.name.clone(), p.resources),
+            None => (self.name_of(me),
                 world.get_component::<Purse>(me).map(|p| p.gold).unwrap_or(0.0)),
         };
         let food = world.get_component::<villager::FoodSource>(self.market_food).map(|f| f.servings).unwrap_or(0);
@@ -320,8 +333,41 @@ impl Game {
                 cadence_days: mtg.map(|m| m.cadence_days).unwrap_or(0),
             }
         });
-        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2),
-                       self.action_blocker_at(seat, 3)];
+        let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];
+        // the bond ledger: who the seat has spoken to, by how far each
+        // relationship has climbed - the same stages the inspector names.
+        // rapport is talk-only, so a barter or a shared meal can't pad
+        // the "spoken to" headline the way any stage_of bond could
+        let mut social = SocialV::default();
+        for &v in &self.villagers {
+            if crate::game::player::rapport(world, self.seats[seat].player, v) <= 0.0 { continue; }
+            use crate::game::organizing::RelStage;
+            match crate::game::organizing::stage_of(world, self.seats[seat].player, v) {
+                RelStage::Stranger => {}
+                RelStage::Acquaintance => { social.met += 1; social.acquaintances += 1; }
+                RelStage::Known => { social.met += 1; social.known += 1; }
+                RelStage::Follower => { social.met += 1; social.followers += 1; }
+                RelStage::CoLeader => { social.met += 1; social.coleaders += 1; }
+            }
+        }
+        // the meeting plan's yeses, by name - who's said they'd come and
+        // what promises are filled, so planning shows its progress
+        let meeting = self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
+            .filter(|p| !p.holders().is_empty())
+            .map(|p| {
+                let who = |e: Entity| name_of(e);
+                let mut roles: Vec<String> = vec![];
+                if let Some((host, _)) = p.venue { roles.push(format!("house: {}", who(host))); }
+                for (slot, label) in [(p.snacks, "snacks"), (p.notes, "notes"), (p.opener, "opener"),
+                    (p.song, "song"), (p.closer, "closer")] {
+                    if let Some(e) = slot { roles.push(format!("{}: {}", label, who(e))); }
+                }
+                MeetingPlanV {
+                    coming: p.coming.iter().map(|&e| who(e)).collect(),
+                    spreaders: p.spreaders.iter().map(|&e| who(e)).collect(),
+                    roles,
+                }
+            });
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector_at(seat)
         } else {
@@ -341,7 +387,8 @@ impl Game {
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
             settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
                 (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),
-            toasts: self.toasts.iter().filter(|(_, until)| self.tick < *until).map(|(m, _)| m.clone()).collect(),
+            toasts: self.toasts.iter().filter(|(_, until, _)| self.tick < *until)
+                .map(|(m, _, at)| ToastV { text: m.clone(), at: *at }).collect(),
             // only the lines the window would show - cloning the whole
             // history every frame was the model's biggest copy
             log: visible_log(&self.log).into_iter().cloned().collect(),
@@ -353,11 +400,12 @@ impl Game {
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
             inspector,
             panel: PanelV {
-                name: my_name, standing: crate::game::player::standing(my_influence).to_string(),
-                influence: my_influence, gold: my_gold,
+                name: my_name, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
+                quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
+                social, meeting,
             },
-            mill: Some((MILL_TILE.0, MILL_TILE.1)),
+            mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
             mush: self.mush_patches.iter().filter(|p| self.tick >= p.next_ready)
@@ -441,7 +489,7 @@ impl Game {
         if let Some((g, q, pr)) = offers.first() {
             lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g", q, g, pr), rgb: (150, 210, 150) });
         }
-        Some(InspectorV { fig: None, dead: false, died_day: None, lines })
+        Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 
     /// The inspector card for the selected villager
@@ -454,7 +502,7 @@ impl Game {
         if let Some(day) = self.died_on[i] {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
-            return InspectorV { fig: None, dead: true, died_day: Some(day), lines };
+            return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), lines };
         }
         let org_members = world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.clone()).unwrap_or_default();
@@ -536,7 +584,7 @@ impl Game {
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
             lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
         }
-        InspectorV { fig: Some(i), dead: false, died_day: None, lines }
+        InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }
 
     /// What an agent sees: itself, its purse, its belly, who's near and

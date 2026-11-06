@@ -10,6 +10,7 @@ pub mod stage;
 pub mod dialogue;
 pub mod routine;
 pub mod country;
+pub mod quests;
 
 pub mod journal;
 pub mod kpi;
@@ -34,7 +35,7 @@ use crate::game::terrain::Terrain;
 use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
-use crate::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest, can_recruit, TalkCount, recruit_influence_needed, RECRUIT_INFLUENCE};
+use crate::game::player::{PlayerCharacter, act_talk, act_recruit, TalkCount};
 use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
@@ -60,10 +61,6 @@ use crate::sim::reputation_qsp::{ReputationState, RepAction, RepStage};
 use crate::sim::trails::{self, Trail, TrailParams};
 #[cfg(test)]
 use crate::game::relationships::Relationship;
-
-/// Influence at which the village recognizes the player as its leader (the
-/// win) - the same goal as the text game
-pub const WIN_INFLUENCE: f32 = crate::game::player::LEAD_INFLUENCE;
 
 pub fn rgb(r: u8, g: u8, b: u8) -> u32 { ((r as u32) << 16) | ((g as u32) << 8) | b as u32 }
 
@@ -151,14 +148,8 @@ const MEETING_REACH: f32 = 8.0;
 /// How far (tiles) an idle villager strays from the village food store
 /// before heading back
 const VILLAGE_RADIUS: f32 = 7.0;
-/// Gold the Invest action spends
-const INVEST_GOLD: f32 = 10.0;
 /// Gold a new house costs
 const BUILD_COST: f32 = 30.0;
-/// Tile the windmill stands on (it's animated, so drawn apart from `buildings`)
-const MILL_TILE: (f32, f32) = (10.0, 9.0);
-/// The church: on the market square's north side, facing the cross
-const CHURCH_TILE: (i32, i32) = (16, 13);
 /// Every fourth row and column through the market is a street: blocks
 /// three plots deep, the houses fronting the street and a yard behind
 const STREET_EVERY: i32 = 4;
@@ -170,14 +161,13 @@ const TRADE_PLOTS: usize = 26;
 /// The town's streets inside the wall: a grid through the market cross,
 /// every fourth row and column - the church and the mill keep their own
 /// tiles (the square round the cross is left open green, see town_plots)
-fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
-    let (hx, hy) = (16, 16);
+fn town_streets(wall: (i32, i32, i32, i32), hub: (i32, i32), keep: [(i32, i32); 2]) -> Vec<(i32, i32)> {
+    let (hx, hy) = hub;
     let mut out = vec![];
     for y in wall.1 + 1..wall.3 {
         for x in wall.0 + 1..wall.2 {
             let on_grid = (x - hx).rem_euclid(STREET_EVERY) == 0 || (y - hy).rem_euclid(STREET_EVERY) == 0;
-            if on_grid && (x, y) != CHURCH_TILE
-                && (x, y) != (MILL_TILE.0 as i32, MILL_TILE.1 as i32) {
+            if on_grid && !keep.contains(&(x, y)) {
                 out.push((x, y));
             }
         }
@@ -187,8 +177,8 @@ fn town_streets(wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
 
 /// The building plots inside the wall: open cells fronting a street (the
 /// block's inner cells stay yards), nearest the market square first
-fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32)) -> Vec<(i32, i32)> {
-    let (hx, hy) = (16, 16);
+fn town_plots(map: &TileMap, wall: (i32, i32, i32, i32), hub: (i32, i32)) -> Vec<(i32, i32)> {
+    let (hx, hy) = hub;
     let mut plots: Vec<(i32, i32)> = (wall.1 + 1..wall.3).flat_map(|y| (wall.0 + 1..wall.2).map(move |x| (x, y)))
         .filter(|&(x, y)| map.buildable(x, y)
             // the market square stays open: the stalls and the crowd's
@@ -266,10 +256,10 @@ const BUILD_SEARCH: i32 = 8;
 const FLU_DAY: u64 = 120;
 
 /// Keyboard shortcut for each action button, in button order (Talk, Recruit,
-/// Invest, Build). The input loop and the buttons' key hints
+/// Build). The input loop and the buttons' key hints
 /// both come from here so they can't disagree. W/A/S/D move the player, so
 /// no action may use them.
-const ACTION_KEYS: [char; 4] = ['T', 'R', 'I', 'B'];
+const ACTION_KEYS: [char; 3] = ['T', 'R', 'B'];
 /// Whether action button `i` is shown at all: Recruit only appears once
 /// there's a campaign to recruit into (founded at a house meeting)
 pub fn action_shown(m: &UiModel, i: usize) -> bool {
@@ -277,14 +267,13 @@ pub fn action_shown(m: &UiModel, i: usize) -> bool {
 }
 
 /// The action panel's buttons, in ACTION_KEYS order
-pub const ACTION_LABELS: [&str; 4] = ["Talk", "Recruit", "Invest", "Build"];
+pub const ACTION_LABELS: [&str; 3] = ["Talk", "Recruit", "Build"];
 /// The action panel's buttons, laid out the same for every player
-pub fn action_buttons() -> [Button; 4] {
+pub fn action_buttons() -> [Button; 3] {
     [
         Button { label: ACTION_LABELS[0].into(), key: ACTION_KEYS[0], x: UI_X as i32 + 10, y: 60,  w: 130, h: 36, color: (60,60,120) },
         Button { label: ACTION_LABELS[1].into(), key: ACTION_KEYS[1], x: UI_X as i32 + 10, y: 104, w: 130, h: 36, color: (60,120,60) },
-        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (120,60,60) },
-        Button { label: ACTION_LABELS[3].into(), key: ACTION_KEYS[3], x: UI_X as i32 + 10, y: 192, w: 130, h: 36, color: (80,60,120) },
+        Button { label: ACTION_LABELS[2].into(), key: ACTION_KEYS[2], x: UI_X as i32 + 10, y: 148, w: 130, h: 36, color: (80,60,120) },
     ]
 }
 /// The button a contextual action draws with
@@ -309,6 +298,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Petition => Button { label: "Petition".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (140, 80, 80) },
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
+        CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
+        CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -323,11 +314,19 @@ pub const NAMES: [&str; 31] = [
     "Godric","Matilda","Leofric","Edith","Anselm","Bertha","Roderick","Winifred",
     "Osmund","Greta","Pip","Nell","Tom","Reeve","Willa",
 ];
-/// The second roll, for the born and the come-lately: the village grows
-/// past the first thirty-one, and they shouldn't all answer to "a newcomer"
-const NEW_NAMES: [&str; 12] = [
+/// The second roll, for the born and the come-lately: the village and
+/// the country grow past the first thirty-one, and they shouldn't all
+/// answer to "a newcomer"
+const NEW_NAMES: [&str; 54] = [
     "Sible","Dunn","Hamelin","Avice","Colle","Merrick",
     "Sabyn","Tybalt","Imma","Peryn","Lettice","Hobkin",
+    "Wymond","Tansy","Godelieve","Oswin","Milo","Sabine",
+    "Eglantine","Ralf","Isolde","Baldwin","Clarice","Drogo",
+    "Emeline","Fulke","Petronilla","Jocelin","Wymar","Beatrice",
+    "Hugh","Agnes","Lucan","Philippa","Sturmy","Ysolde",
+    "Garard","Denise","Thurstan","Rohese","Engelard","Conan",
+    "Basilia","Warin","Melisende","Jocosa","Aldwin","Ermentrude",
+    "Goscelin","Mahelt","Pernel","Simone","Adeline","Bartram",
 ];
 /// A villager's name by index - past the named roll, the second roll
 /// keeps them distinct; past that, a newcomer stands in
@@ -683,6 +682,30 @@ impl WorkLook {
 }
 
 
+/// Big moments announced at the top of the map: (text, shown until
+/// tick, where it happened). `push` is the plain banner; `push_at` says
+/// where it happened, so the client can jump the camera there on a click
+#[derive(Debug, Default)]
+pub struct Toasts(pub Vec<(String, u64, Option<(f32, f32)>)>);
+
+impl Toasts {
+    pub fn push(&mut self, t: (String, u64)) { self.0.push((t.0, t.1, None)); }
+    pub fn push_at(&mut self, t: (String, u64), at: Option<(f32, f32)>) { self.0.push((t.0, t.1, at)); }
+    pub fn retain(&mut self, f: impl FnMut(&(String, u64, Option<(f32, f32)>)) -> bool) { self.0.retain(f) }
+}
+impl std::ops::Deref for Toasts {
+    type Target = [(String, u64, Option<(f32, f32)>)];
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl std::ops::DerefMut for Toasts {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+}
+
+/// Where `e` stands this frame, for a toast the player can click to visit
+fn toast_spot(world: &World, e: Entity) -> Option<(f32, f32)> {
+    world.get_component::<Pos>(e).map(|p| (p.x, p.y))
+}
+
 /// The whole game state. The windowed game and `--dump-frame` both drive
 /// it through the same update() and render(), so a headless frame is the
 /// frame a player would see. This is the authoritative simulation: it owns
@@ -709,6 +732,10 @@ pub struct Game {
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),
+    /// The market cross this seed's village grew round (tiles)
+    pub village: (i32, i32),
+    /// Where the windmill ended up (it's animated, so drawn apart from `buildings`)
+    pub mill: (f32, f32),
     /// The watch standing just inside each gate
     pub guards: Vec<(f32, f32)>,
     /// Knights posted to the streets after a crackdown, tagged with the
@@ -727,11 +754,8 @@ pub struct Game {
     /// sprites (e.g. which cottage each new build gets)
     pub rng: Rng,
     pub built_count: usize,
-    /// The village has named the player its leader (crossing WIN_INFLUENCE).
-    /// It's a milestone, not the end: the game carries on
-    pub leader_named: bool,
     pub works: Vec<Works>, // houses still being built
-    pub toasts: Vec<(String, u64)>,  // (msg, shown until tick)
+    pub toasts: Toasts,  // (msg, shown until tick, where it happened)
     pub last_guild_count: usize,
     pub tick: u64,
     pub paused: bool,
@@ -929,6 +953,11 @@ pub struct Game {
     /// The safety note's told its piece: real cap traits in-world carry
     /// the disclaimer once, where folk will read it
     pub shroom_disclaimed: bool,
+    /// The odd jobs villagers have asked the Wanderer to run, waiting
+    /// for a taker (session::quests)
+    pub pending_quests: Vec<quests::PendingQuest>,
+    /// Giver -> the day they can ask again: a job settles a while
+    pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to
@@ -996,10 +1025,10 @@ impl std::ops::DerefMut for Game {
 
 impl Game {
     pub fn ticks_per_frame(&self) -> u32 {
-        // frames per day: ~7s/day normal, ~1.2s turbo; a house meeting (or
+        // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
         // room's talk can be read as it's said
-        let base = if self.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+        let base = if self.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
         if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
     }
 
@@ -1091,7 +1120,6 @@ impl Game {
         }
         // the town's business each day: work, errands, taxes
         if ticked { crate::timed!("total.day", self.livelihood_tick(self.tick)); }
-        if ticked { self.note_leader(); }
         // where everyone stood, so no one ends the frame inside a wall or a house
         let people: Vec<Entity> = self.villagers.iter().chain(&self.rivals).copied().collect();
         let stood: Vec<Option<Pos>> = people.iter().map(|e| self.world.get_component::<Pos>(*e).copied()).collect();
@@ -1277,7 +1305,7 @@ impl Game {
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
-                    toasts.push((format!("{} has died.", vill_name(i)), tick + 60));
+                    toasts.push_at((format!("{} has died.", vill_name(i)), tick + 60), toast_spot(world, *v));
                     log.push(format!("t{}: {} died.", tick, vill_name(i)));
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
@@ -1306,7 +1334,8 @@ impl Game {
         if ticked && tick == FLU_DAY {
             let d = world.create_entity();
             world.add_component(d, Disease::new(DiseaseKind::Influenza, villagers[2], 0.45));
-            toasts.push((format!("A traveller brings la grippe - {} falls ill", vill_name(2)), tick + 40));
+            toasts.push_at((format!("A traveller brings la grippe - {} falls ill", vill_name(2)), tick + 40),
+                toast_spot(world, villagers[2]));
         }
         // log who falls ill and who recovers
         let sick_now: Vec<Option<String>> = villagers.iter().map(|v| sickness_name(world, *v)).collect();
@@ -1328,7 +1357,7 @@ impl Game {
         self.last_guild_count = gc;
 
         // expire speech bubbles and toasts
-        toasts.retain(|(_, until)| tick < *until);
+        toasts.retain(|(_, until, _)| tick < *until);
         for (e, before) in people.iter().zip(stood) {
             let (Some(before), Some(now)) = (before, self.world.get_component::<Pos>(*e).copied()) else { continue };
             let blocked = |p: &Pos| self.map.is_occupied(p.x.round() as i32, p.y.round() as i32);
@@ -1350,6 +1379,9 @@ impl Game {
             crate::timed!("sim.advance_meeting", self.advance_meeting());
             crate::timed!("sim.advance_player_talks", self.advance_player_talks());
             crate::timed!("sim.advance_travels", self.advance_travels());
+            // and the jobs folk asked of the Wanderer: picked up where
+            // they lie, handed over where they're bound
+            self.quest_frame();
             // and those with nowhere to walk keep to the day's plan
             self.amble();
             crate::timed!("sim.advance_minstrel", self.advance_minstrel());

@@ -5,7 +5,7 @@ use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::terrain::Terrain;
 use game2_core::game::villager::{self, Hunger};
 use game2_core::game::pets::{self, Species, PetRole, Pet};
-use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, act_invest};
+use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit};
 use game2_core::game::guilds::{GuildFormationSystem, Merchant, Guild};
 use game2_core::game::tech_tree::{extended_printmaking_tree, research};
 use game2_core::game::lifecycle::{Age, Vitality, LifeStage};
@@ -50,7 +50,7 @@ fn main() {
 
     // Player
     let player = world.create_entity();
-    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), influence: 0.1, authority: 0.0, resources: 150.0, standing: 0.0 });
+    world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 150.0 });
     let org = world.create_entity();
     world.add_component(org, Organization { name: "Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
 
@@ -63,7 +63,7 @@ fn main() {
     pets::adopt(&mut world, dog, villagers[0]);
 
     let mut techs = extended_printmaking_tree();
-    println!("tick,season,hunger,org_members,guilds,dog_bond,player_infl,techs\n");
+    println!("tick,season,hunger,org_members,guilds,dog_bond,techs\n");
     for tick in 0..400 {
         sched.tick(&mut world);
 
@@ -73,7 +73,6 @@ fn main() {
             match tick % 45 {
                 0 => { act_talk(&mut world, player, target, tick); }
                 15 => { let _r = act_recruit(&mut world, player, org, target); }
-                30 => { act_invest(&mut world, player, 10.0); }
                 _ => {}
             }
         }
@@ -91,17 +90,15 @@ fn main() {
             let members = world.get_component::<Organization>(org).unwrap().members.len();
             let guilds = world.query::<Guild>().len();
             let bond = world.get_component::<Pet>(dog).map(|p| p.bond_strength).unwrap_or(0.0);
-            let infl = world.get_component::<PlayerCharacter>(player).unwrap().influence;
             let techs_done = techs.iter().filter(|t| t.discovered).count();
             let cl = world.get_component::<climate::Climate>(climate).unwrap();
-            println!("{},{:?},{:.1},{},{},{:.2},{:.2},{}", tick, cl.season, hunger, members, guilds, bond, infl, techs_done);
+            println!("{},{:?},{:.1},{},{},{:.2},{}", tick, cl.season, hunger, members, guilds, bond, techs_done);
         }
     }
 
     println!("\n=== Summary ===");
     println!("org: {} members", world.get_component::<Organization>(org).unwrap().members.len());
     println!("guilds: {}", world.query::<Guild>().len());
-    println!("player influence: {:.2}", world.get_component::<PlayerCharacter>(player).unwrap().influence);
     println!("techs: {}", techs.iter().filter(|t| t.discovered).count());
     println!("=== GRAND SHOWCASE COMPLETE ===");
 }

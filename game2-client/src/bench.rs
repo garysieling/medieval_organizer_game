@@ -107,7 +107,12 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     let mut game = Game::new_seeded(seed);
     let mut view = View::new(art);
     view.zoom = zoom;
-    if let Some(cam) = cam { (view.cam_x, view.cam_y) = cam; }
+    match cam {
+        Some(cam) => (view.cam_x, view.cam_y) = cam,
+        // no explicit camera and (below) no focus: start over this seed's
+        // village instead of View::new's fixed corner, in case it moved
+        None => if let Some((mx, my)) = game.ui_model().market { (view.cam_x, view.cam_y) = cam_centred_on(mx, my); },
+    }
     while game.tick < target_tick { game.update(); }
     // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
     // folk where the day's plan took them (stalls up, a congregation seated)

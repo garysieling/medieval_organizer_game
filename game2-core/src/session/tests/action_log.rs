@@ -16,13 +16,8 @@ fn test_action_lines_are_dated_and_say_who_not_the_score() {
     let talk = game.talk_log.last().unwrap();
     assert!(talk.tick == 3 && talk.lines.iter().any(|l| l.gist && l.name == "Eliza"), "{:?}", talk.lines);
 
-    game.act(1); // not enough influence yet
+    game.act(1); // they barely know you yet
     let recruit = game.log.last().unwrap().clone();
     assert!(recruit.starts_with("t3: Can't recruit") && !recruit.contains("influence)"), "{}", recruit);
-
-    game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 20.0;
-    game.act(2);
-    let invest = game.log.last().unwrap().clone();
-    assert!(invest.starts_with("t3: Invested 10 gold") && !invest.contains("influence"), "{}", invest);
 
 }

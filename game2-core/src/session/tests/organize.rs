@@ -98,7 +98,7 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
     assert!(g.seats[0].pending_founding.is_some());
     // held open: the calendar runs at the house-meeting's half pace
-    let base = if g.speed == 1 { 7 * FPS } else { 5 * FPS / 4 };
+    let base = if g.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
     assert_eq!(g.ticks_per_frame(), base * 2);
     // short of a week unanswered: still held open, still slow
     g.livelihood_tick(g.tick + FOUNDING_OFFER_EXPIRY_DAYS - 1);
@@ -111,6 +111,19 @@ fn test_an_unanswered_founding_call_lapses_instead_of_halving_pace_forever() {
     assert!(g.seats[0].pending_founding.is_none());
     assert_eq!(g.ticks_per_frame(), base);
     assert!(crate::game::campaign::campaign_of(&g.world, g.org).is_none());
+}
+
+/// A house meeting is a real conversation: everyone who spoke counts in
+/// the sidebar's bond ledger even if the host never used Talk on them
+#[test]
+fn test_a_house_meeting_counts_toward_the_bond_ledger() {
+    let mut g = Game::new();
+    org_ready(&mut g);
+    let came = g.villagers[..3].to_vec();
+    let id = g.open_meeting_record(g.player, &came);
+    g.resolve_meeting(&came, 0, id, (false, false, false, false, false));
+    let m = g.ui_model();
+    assert_eq!(m.panel.social.met, 3, "everyone who spoke at the meeting counts");
 }
 
 #[test]

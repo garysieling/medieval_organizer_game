@@ -377,7 +377,7 @@ fn generated_country_has_repeatable_connected_satellite_sites() {
     }
     for &(x, y) in &game.map.castle_approaches {
         assert_eq!(game.map.get(x, y), Some(Tile::Road), "castle courtyard has a road approach");
-        assert!(game.map.walk_path((16, 16), (x, y)).is_some(), "castle is walk-connected to the village");
+        assert!(game.map.walk_path(game.village, (x, y)).is_some(), "castle is walk-connected to the village");
     }
     for (&keep, &approach) in game.map.castle_keeps.iter().zip(&game.map.castle_approaches) {
         assert!(game.map.walk_path(approach, keep).is_none(), "the keep blocks its own tile");
@@ -397,7 +397,7 @@ fn generated_country_has_repeatable_connected_satellite_sites() {
         }
         for &(x, y) in &sample.map.castle_approaches {
             assert_eq!(sample.map.get(x, y), Some(Tile::Road), "seed {} castle approach", seed);
-            assert!(sample.map.walk_path((16, 16), (x, y)).is_some(), "seed {} castle route", seed);
+            assert!(sample.map.walk_path(sample.village, (x, y)).is_some(), "seed {} castle route", seed);
         }
         for &(x, y) in &sample.map.settlement_houses {
             assert!(NEIGHBOURS.iter().any(|&(dx, dy)| sample.map.get(x + dx, y + dy) == Some(Tile::Road)),

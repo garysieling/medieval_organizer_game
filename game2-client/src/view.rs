@@ -182,6 +182,7 @@ impl View {
         #[derive(Clone, Copy)]
         enum Piece<'a> {
             Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
+            Cutaway(Option<&'a Sprite>, f32),  // a shop shown open: the building, then its front's inside
             Prop(Option<&'a Sprite>, f32),     // a tree or boulder in the middle of its tile, and its zoom-1 scale
             Castle(Option<&'a Sprite>, f32),   // a town-wall block: wall, gatehouse or tower; the f32 stretches it taller (the castles' grand dress)
             Herb,                              // a wild herb tuft, flat on the meadow
@@ -202,7 +203,7 @@ impl View {
         for (i, b) in m.buildings.iter().enumerate() {
             let s = self.sprite_of(b.sprite);
             let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) } else { s.as_ref() };
-            standing.push((b.x, b.y, Piece::Building(sprite, b.risen)));
+            standing.push((b.x, b.y, if b.cutaway { Piece::Cutaway(sprite, b.risen) } else { Piece::Building(sprite, b.risen) }));
         }
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
@@ -381,9 +382,11 @@ impl View {
                     } else if art.castle_rd { draw_standing_h(buf, s, sx, sy, zoom, hk); }
                     else { draw_castle_h(buf, s, sx, sy, zoom, hk); }
                 },
-                Piece::Building(sprite, up) => if let Some(s) = sprite {
-                    if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }
-                    else if up > 0.0 {
+                Piece::Building(sprite, up) | Piece::Cutaway(sprite, up) => if let Some(s) = sprite {
+                    if up >= 1.0 {
+                        if matches!(piece, Piece::Cutaway(_, _)) { draw_cutaway(buf, s, sx, sy, zoom); }
+                        else { draw_on_tile(buf, s, sx, sy, zoom); }
+                    } else if up > 0.0 {
                         // going up: the bottom of the house, from the ground up
                         let rows = ((s.height as f32 * up).round() as usize).max(1);
                         draw_on_tile(buf, &s.crop(0, s.height - rows, s.width, rows), sx, sy, zoom);

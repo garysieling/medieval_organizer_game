@@ -966,6 +966,7 @@ impl Game {
             next_ink_boiler: 400 + seed % 200,
             fire: Fire::new(),
             derelict: Default::default(),
+            cutaways: Default::default(),
             voiced: vec![],
             herbologist: Some(herbologist),
             herb_hut,

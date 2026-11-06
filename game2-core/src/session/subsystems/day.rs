@@ -389,6 +389,7 @@ impl Game {
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
         crate::timed!("sim.tech", self.tech_tick(tick));
+        crate::timed!("sim.cutaways", self.cutaways_tick(tick));
         // and the village's tune follows the day the village had
         crate::timed!("sim.music", self.music_tick(tick));
         // faith unkept fades a little each day
@@ -448,6 +449,23 @@ impl Game {
             if crate::game::tech_tree::research(&mut self.tech, &next, hands) {
                 // a discovery: the bench worked it out - the village hears
                 self.log.push(format!("t{}: the print shop works out {}!", tick, next));
+            }
+        }
+    }
+
+    /// Which workplaces show their cutaway today: a print shop whose
+    /// printer kept the bench (the same Working-routine read as research)
+    pub(crate) fn cutaways_tick(&mut self, tick: u64) {
+        self.cutaways.clear();
+        for (i, &e) in self.building_entities.iter().enumerate() {
+            let Some(b) = self.world.get_component::<Building>(e) else { continue };
+            if !matches!(b.kind, household::BuildingKind::Shop(Vocation::Printmaker))
+                || household::derelict(b) { continue; }
+            let Some(w) = b.worker else { continue };
+            if self.world.get_component::<routine::Routine>(w)
+                .map(|r| r.day == tick && r.mode == routine::Mode::Working)
+                .unwrap_or(false) {
+                self.cutaways.insert(i);
             }
         }
     }

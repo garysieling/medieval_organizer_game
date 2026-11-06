@@ -858,6 +858,17 @@ impl Game {
         if let Some(c) = world.get_component::<villager::Condition>(v) {
             if self.tick < c.until { parts.push(c.kind.to_string()); }
         }
+        // a loss they've carried: the episode names who, grief's
+        // plain to see whether or not the bond's known
+        if let Some(gone) = world.get_component::<AttachmentHistory>(v)
+            .and_then(|h| h.episodes.iter()
+                .find(|e| matches!(e.kind, crate::sim::psychology::EpisodeKind::Loss)
+                    && villager::is_dead(world, e.with))
+                .map(|e| e.with)) {
+            let name = self.villagers.iter().position(|&x| x == gone)
+                .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into());
+            parts.push(format!("grieves for {}", name));
+        }
         // the village's answer, public as the stocks: the rung they're on
         if let Some(s) = self.sanctioned.iter()
             .filter(|(e, _, u)| *e == v && self.tick < *u)

@@ -470,6 +470,25 @@ impl Game {
         }
     }
 
+    /// The fields ripen a little each day at the season's pace, and the
+    /// first ears coming in are worth saying aloud once
+    pub fn crop_tick(&mut self, tick: u64) {
+        use crate::engine::ecs::System;
+        use crate::game::villager::{Crop, FoodSource};
+        crate::game::villager::CropGrowthSystem.run(&mut self.world);
+        if self.crop_noted { return; }
+        let grown: u32 = self.world.query::<Crop>().iter()
+            .filter_map(|&e| self.world.get_component::<Crop>(e))
+            .map(|c| c.grown).sum();
+        if grown > 0 {
+            self.crop_noted = true;
+            let stored: u32 = self.world.query::<FoodSource>().iter()
+                .filter_map(|&e| self.world.get_component::<FoodSource>(e))
+                .map(|f| f.servings).sum();
+            self.log.push(format!("t{}: the first ears come in - {} servings stand in store.", tick, stored));
+        }
+    }
+
     /// The rolls get updated daily: the dead leave them, each org's sway
     /// re-pools from its living members, a sit-down held yesterday
     /// deepens into a real tie, and a muscle unused goes soft

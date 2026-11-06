@@ -1040,6 +1040,8 @@ pub struct Game {
     /// When each dead villager fell - the day their home's still theirs
     /// for the heirs before the bed goes free
     pub dead_since: crate::engine::det::HashMap<Entity, u64>,
+    /// The first harvest got its line in the log
+    pub crop_noted: bool,
     /// Each villager's tale as the days write it - the story events the
     /// chronicle reads for themes
     pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,

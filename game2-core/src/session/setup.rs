@@ -45,6 +45,13 @@ impl Game {
         // anyone homed past the old 33-tile map
         world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
         let market_food = villager::spawn_food_source(&mut world, vx as f32, vy as f32, 500);
+        // the fields stand at the village edge: they ripen through the
+        // season at the climate's pace and feed whoever's closest
+        for (fx, fy) in [(vx - 15, vy + 11), (vx + 16, vy - 10), (vx + 6, vy + 17)] {
+            let f = villager::spawn_crop_field(&mut world, fx as f32, fy as f32, 60, 0.5);
+            // the year starts thin in the fields - the ripening shows
+            if let Some(fs) = world.get_component_mut::<villager::FoodSource>(f) { fs.servings = 15; }
+        }
 
         // the river winds south between the towns to the sea; each waypoint
         // on its course drifts a tile or two, so it meanders differently
@@ -996,6 +1003,7 @@ impl Game {
                 domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),
             dead_since: Default::default(),
+            crop_noted: false,
             landform,
             shop_flow: Default::default(),
             wolf_coming: false,

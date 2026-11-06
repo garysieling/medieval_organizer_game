@@ -234,6 +234,9 @@ impl Game {
         // the rolls are updated: the dead leave them, the sway re-pools,
         // and a sit-down held yesterday deepens into a real tie
         crate::timed!("sim.influence", self.influence_tick(tick));
+        // the fields ripen at the season's pace; the first ears coming
+        // in are worth saying aloud once
+        crate::timed!("sim.crops", self.crop_tick(tick));
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));

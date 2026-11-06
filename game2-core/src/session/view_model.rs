@@ -679,7 +679,20 @@ impl Game {
             let doing = (vil.activity == Activity::Idle)
                 .then(|| routine::routine_text(world, v, bench.as_deref())).flatten()
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
-            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
+            // a thing made to outlast, in their hands - one name and a
+            // count, and it leads the line: the card's tail can clip
+            // under a long day's routine, the holding can't
+            let known = crate::game::organizing::stage_of(world, self.seats[seat].player, v)
+                >= crate::game::organizing::RelStage::Known;
+            let held: Vec<&str> = if known { self.heirlooms.iter()
+                .filter_map(|&i| world.get_component::<villager::Heirloom>(i))
+                .filter(|h| h.owner == v).map(|h| h.name).collect() } else { vec![] };
+            let keepsake = match held.as_slice() {
+                [] => String::new(),
+                [one] => format!("holds {} \u{00b7} ", one),
+                [first, rest @ ..] => format!("holds {} +{} \u{00b7} ", first, rest.len()),
+            };
+            lines.push(Line { x: 18, y: 440, text: format!("{}{} \u{00b7} {}{}", keepsake, nature, doing, cause), rgb: (200, 160, 160) });
         }
         // the biography the seat knows: years and build are public, but
         // temperament and kin take a bond close enough to have been told

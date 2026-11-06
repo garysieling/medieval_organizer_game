@@ -439,13 +439,22 @@ impl Game {
             }
         }
         // the dead give up their beds - but not before the heirs have
-        // read the house: a day's grace, then the bed goes free
-        let dead: Vec<Entity> = self.villagers.iter().copied()
-            .filter(|&v| villager::is_dead(&self.world, v)).collect();
-        for &d in &dead { self.dead_since.entry(d).or_insert(tick); }
-        let evict: Vec<Entity> = dead.iter().copied()
+        // read the house: a day's grace from the day they fell, then
+        // the bed goes free
+        let dead: Vec<(usize, Entity)> = self.villagers.iter().enumerate()
+            .filter(|&(_, &v)| villager::is_dead(&self.world, v))
+            .map(|(i, &v)| (i, v)).collect();
+        for &(i, d) in &dead {
+            // the true death day, when the roster knows it - an event
+            // late in the day shouldn't hold the bed an extra day
+            match self.died_on.get(i).and_then(|x| *x) {
+                Some(d0) => { self.dead_since.insert(d, d0); }
+                None => { self.dead_since.entry(d).or_insert(tick); }
+            }
+        }
+        let evict: Vec<Entity> = dead.iter().map(|(_, d)| *d)
             .filter(|d| self.dead_since.get(d).copied().unwrap_or(tick) < tick).collect();
-        self.dead_since.retain(|d, _| dead.contains(d));
+        self.dead_since.retain(|d, _| dead.iter().any(|(_, e)| e == d));
         if !evict.is_empty() {
             for b in self.world.query::<household::Building>() {
                 if let Some(bd) = self.world.get_component_mut::<household::Building>(b) {

@@ -429,11 +429,7 @@ impl Game {
                 }
             } else {
                 let Some(p) = self.world.get_component_mut::<Pos>(e) else { continue };
-                let (nx, ny) = (r.path[0].0 as f32, r.path[0].1 as f32);
-                let (dx, dy) = (nx - p.x, ny - p.y);
-                let d = (dx * dx + dy * dy).sqrt();
-                if d <= tr_spd { p.x = nx; p.y = ny; r.path.remove(0); }
-                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
+                Self::follow_path(p, &mut r.path, tr_spd);
             }
             self.rare[idx] = r;
         }

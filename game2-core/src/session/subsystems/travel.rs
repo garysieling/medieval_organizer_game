@@ -144,6 +144,21 @@ impl Game {
         }
     }
 
+    /// Step `p` along `path` for up to `budget` tiles: every waypoint the
+    /// budget reaches is landed on (not leapt over, however fast the
+    /// clock), the rest goes toward the next. True when the path ran out.
+    pub(in crate::session) fn follow_path(p: &mut Pos, path: &mut Vec<(i32, i32)>, mut budget: f32) -> bool {
+        while let Some(&(wx, wy)) = path.first() {
+            if budget <= 0.0 { return false; }
+            let (nx, ny) = (wx as f32, wy as f32);
+            let (dx, dy) = (nx - p.x, ny - p.y);
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= budget { p.x = nx; p.y = ny; path.remove(0); budget -= d; }
+            else { p.x += dx / d * budget; p.y += dy / d * budget; return false; }
+        }
+        true
+    }
+
     /// One frame of every walk under way: step along the path, and do the
     /// errand when it runs out
     pub fn advance_travels(&mut self) {
@@ -164,28 +179,36 @@ impl Game {
             let ride = if riders.contains(&t.who) { country::RIDE_PACE } else { 1.0 };
             let stride = MEETING_WALK * pace / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
-            let ot = (p.x.round() as i32, p.y.round() as i32);
-            let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);
-            let (dx, dy) = (nx - p.x, ny - p.y);
-            let d = (dx * dx + dy * dy).sqrt();
-            let (stepx, stepy) = if d <= stride { (nx, ny) } else { (p.x + dx / d * stride, p.y + dy / d * stride) };
-            // never step somewhere they can't stand: a wall in the way
-            // aborts the errand rather than leaving them walking into it
-            // (and starving on the spot) forever - an exile aborting at
-            // the rocks still takes the road, else he stands banished
-            // and breathing at the border until hunger does it
-            if !self.map.passable(stepx.round() as i32, stepy.round() as i32) {
-                if matches!(t.goal, Goal::Exile) { arrived.push((t.who, t.goal.clone())); }
-                t.path.clear(); continue;
+            // spend the frame's stride on every waypoint it reaches: a fast
+            // clock still walks the tiles between, it doesn't leap them
+            let mut budget = stride;
+            loop {
+                let Some(&(wx, wy)) = t.path.first() else { arrived.push((t.who, t.goal.clone())); break };
+                let (nx, ny) = (wx as f32, wy as f32);
+                let (dx, dy) = (nx - p.x, ny - p.y);
+                let d = (dx * dx + dy * dy).sqrt();
+                let (stepx, stepy, landed) = if d <= budget { (nx, ny, true) }
+                    else { (p.x + dx / d * budget, p.y + dy / d * budget, false) };
+                // never step somewhere they can't stand: a wall in the way
+                // aborts the errand rather than leaving them walking into it
+                // (and starving on the spot) forever - an exile aborting at
+                // the rocks still takes the road, else he stands banished
+                // and breathing at the border until hunger does it
+                if !self.map.passable(stepx.round() as i32, stepy.round() as i32) {
+                    if matches!(t.goal, Goal::Exile) { arrived.push((t.who, t.goal.clone())); }
+                    t.path.clear(); break;
+                }
+                let ot = (p.x.round() as i32, p.y.round() as i32);
+                p.x = stepx; p.y = stepy;
+                let nt = (p.x.round() as i32, p.y.round() as i32);
+                if nt != ot {
+                    let tr = self.trails.entry(nt).or_insert(Trail::wild());
+                    trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
+                }
+                if !landed { break; }
+                t.path.remove(0);
+                budget -= d;
             }
-            p.x = stepx; p.y = stepy;
-            let nt = (p.x.round() as i32, p.y.round() as i32);
-            if nt != ot {
-                let tr = self.trails.entry(nt).or_insert(Trail::wild());
-                trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
-            }
-            if d <= stride { t.path.remove(0); }
-            if t.path.is_empty() { arrived.push((t.who, t.goal.clone())); }
         }
         self.travels.retain(|t| !t.path.is_empty());
         for (who, goal) in arrived { self.arrive(who, goal); }

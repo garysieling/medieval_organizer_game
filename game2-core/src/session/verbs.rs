@@ -523,13 +523,23 @@ impl Game {
                 let player = self.seats[seat].player;
                 // the player's own needs first; with none going spare,
                 // the print shop's - a kid can run paper and ink in for
-                // the printer, paid from the printer's own purse
+                // the printer, paid from the printer's own purse. A
+                // printer already hiring for the same good, or locked
+                // up, can't take another job
                 let printer = self.villagers.iter().copied()
                     .filter(|&p| p != k && !villager::is_dead(&self.world, p)
+                        && !crate::game::dungeon::unavailable(&self.world, p)
                         && self.world.get_component::<Kid>(p).is_none()
                         && self.world.get_component::<Craft>(p)
                             .map(|c| c.vocation == Vocation::Printmaker).unwrap_or(false))
-                    .find_map(|p| livelihood::needs_input(&self.world, p).map(|g| (p, g)));
+                    .find_map(|p| {
+                        let g = livelihood::needs_input(&self.world, p)?;
+                        let hired = self.villagers.iter().any(|&e| {
+                            e != p && self.world.get_component::<OddJob>(e)
+                                .map(|j| j.hirer == p && j.good == g).unwrap_or(false)
+                        });
+                        (!hired).then_some((p, g))
+                    });
                 let fetch = |hirer: Entity, g: &'static str| {
                     let pos = *self.world.get_component::<Pos>(hirer)?;
                     livelihood::seller_for(&self.world, g, pos)

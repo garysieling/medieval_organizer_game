@@ -249,6 +249,12 @@ field as an empty list.
 log's a rolling window. Zero or an absent field means the top's the
 beginning; the client's last log row marks the count when it isn't.
 
+`food_yield` carries the season's weight on the fields - the climate's
+food multiplier (about 1.1 spring to 0.7 winter, before rain and the
+year's drift). Zero from an older server means no read; a client
+should draw no lean-word then. `harsh_winter` is the every-other-winter
+flag: while it runs the snow keeps falling and the store thins.
+
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",
 "notes: Corvin"]}` - the folk who've said yes, by name, so the seat can

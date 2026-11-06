@@ -346,9 +346,12 @@ pub(crate) fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom:
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }
 
-/// A shop shown open: the building, then its front's inside - the room,
-/// the type case and the press (stand-ins until real cutaway art lands)
-pub(crate) fn draw_cutaway(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
+/// A shop shown open: the building, then its front's inside. The press
+/// wears the era the village's research has reached - the hand bench,
+/// Gutenberg's screw press, Senefelder's litho stone, the iron machines
+/// (game2_core::game::tech_tree::press_era on the tree in the model)
+pub(crate) fn draw_cutaway(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32,
+    era: game2_core::game::tech_tree::PressEra) {
     draw_on_tile(buf, s, sx, sy, zoom);
     let w = (2.0 * TILE_W as f32 * zoom * BUILDING_SCALE).round() as i32;
     let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as i32;
@@ -356,19 +359,49 @@ pub(crate) fn draw_cutaway(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom:
     let (x0, y0) = (sx - w / 3, bottom - h * 3 / 5);
     let (rw, rh) = (2 * w / 3, h * 3 / 5 - h / 12);
     buf.rect(x0, y0, rw, rh, 36, 29, 22);                        // the room behind the front
-    // the type case: a dark tray of sorted type
-    buf.rect(x0 + rw / 12, y0 + rh / 8, rw / 4, rh / 5, 54, 44, 34);
-    for (i, c) in [(172, 62, 54), (60, 98, 170), (78, 150, 84)].iter().enumerate() {
-        buf.rect(x0 + rw / 9 + i as i32 * rw / 7, y0 + rh / 6,
-            2.max(rw / 24), 2.max(rh / 50), c.0, c.1, c.2);
+    use game2_core::game::tech_tree::PressEra::*;
+    match era {
+        Hand => {
+            // the hand worker's bench: an ink slab, the brayer, the sheet
+            buf.rect(x0 + rw / 8, y0 + rh / 3, rw / 3, rh / 8, 30, 26, 22);
+            buf.rect(x0 + rw / 8 + rw / 24, y0 + rh / 3 - rh / 16, rw / 8, rh / 16, 96, 70, 44);
+            buf.rect(x0 + rw * 5 / 8, y0 + rh / 4, rw / 4, rh / 10, 232, 226, 204);
+        }
+        Screw => {
+            // the type case: a dark tray of sorted type
+            buf.rect(x0 + rw / 12, y0 + rh / 8, rw / 4, rh / 5, 54, 44, 34);
+            for (i, c) in [(172, 62, 54), (60, 98, 170), (78, 150, 84)].iter().enumerate() {
+                buf.rect(x0 + rw / 9 + i as i32 * rw / 7, y0 + rh / 6,
+                    2.max(rw / 24), 2.max(rh / 50), c.0, c.1, c.2);
+            }
+            // the press: two posts, a crossbar, the bed and its platen
+            let (px, py, pw, ph) = (x0 + rw * 2 / 5, y0 + rh / 10, rw / 4, rh / 2);
+            buf.rect(px, py, rw / 16, ph, 98, 72, 46);
+            buf.rect(px + pw, py, rw / 16, ph, 98, 72, 46);
+            buf.rect(px - rw / 32, py, pw + rw / 8, rh / 14, 110, 84, 56);
+            buf.rect(px - rw / 24, py + ph, pw + rw / 12, rh / 16, 70, 64, 66);
+            buf.rect(px + rw / 32, py + ph - rh / 5, rw / 8, rh / 18, 52, 50, 56);
+        }
+        Litho => {
+            // the litho stone: a flat slab with the drawing, the scraper, a water pot
+            buf.rect(x0 + rw / 6, y0 + rh / 4, rw / 2, rh / 6, 168, 164, 156);
+            buf.rect(x0 + rw / 6 + rw / 8, y0 + rh / 4 + rh / 24, rw / 3, rh / 24, 120, 116, 110);
+            buf.rect(x0 + rw * 5 / 6 - rw / 10, y0 + rh / 3, rw / 10, rh / 8, 60, 90, 140);
+            buf.rect(x0 + rw * 3 / 4, y0 + rh / 8, rw / 5, rh / 14, 96, 70, 44);
+        }
+        Machine => {
+            // the iron press: a dark frame, the flywheel, the bed
+            buf.rect(x0 + rw / 8, y0 + rh / 5, rw / 10, rh / 2, 52, 56, 66);
+            buf.rect(x0 + rw * 5 / 6 - rw / 10, y0 + rh / 5, rw / 10, rh / 2, 52, 56, 66);
+            buf.rect(x0 + rw / 8, y0 + rh / 5, rw * 3 / 4, rh / 12, 66, 70, 82);
+            let fs = rh / 3;
+            let (fx, fy) = (x0 + rw / 3, y0 + rh / 3);
+            buf.rect(fx, fy, fs, fs, 40, 44, 54);
+            buf.rect(fx + fs / 4, fy + fs / 4, fs / 2, fs / 2, 96, 100, 112);
+            buf.rect(fx + fs / 3, fy + fs / 3, fs / 3, fs / 3, 40, 44, 54);
+            buf.rect(x0 + rw / 6, y0 + rh * 3 / 4, rw * 2 / 3, rh / 12, 80, 76, 70);
+        }
     }
-    // the press: two posts, a crossbar, the bed and its platen
-    let (px, py, pw, ph) = (x0 + rw * 2 / 5, y0 + rh / 10, rw / 4, rh / 2);
-    buf.rect(px, py, rw / 16, ph, 98, 72, 46);
-    buf.rect(px + pw, py, rw / 16, ph, 98, 72, 46);
-    buf.rect(px - rw / 32, py, pw + rw / 8, rh / 14, 110, 84, 56);
-    buf.rect(px - rw / 24, py + ph, pw + rw / 12, rh / 16, 70, 64, 66);
-    buf.rect(px + rw / 32, py + ph - rh / 5, rw / 8, rh / 18, 52, 50, 56);
     // a pile of fresh sheets
     buf.rect(x0 + rw * 5 / 6, y0 + rh / 5, rw / 6, rh / 10, 232, 226, 204);
     buf.rect(x0 + rw * 5 / 6 + rw / 40, y0 + rh / 5 - rh / 30, rw / 8, rh / 12, 240, 234, 214);

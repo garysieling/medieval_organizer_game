@@ -13,6 +13,21 @@ pub struct Tech {
     pub progress: f32,             // research points invested so far
 }
 
+/// Which press design the village's research has reached: the hand
+/// worker's bench, Gutenberg's screw press, Senefelder's litho stone,
+/// then the iron machine presses (the chronology in
+/// wiki/literature-reviews/printing-press-history.md)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PressEra { Hand, Screw, Litho, Machine }
+
+pub fn press_era(tree: &[Tech]) -> PressEra {
+    let has = |n: &str| tree.iter().any(|t| t.name == n && t.discovered);
+    if has("Machine Press") { PressEra::Machine }
+    else if has("Lithography") { PressEra::Litho }
+    else if has("Printing Press") { PressEra::Screw }
+    else { PressEra::Hand }
+}
+
 /// Printmaking tech tree (feathers->lithography, no further)
 pub fn printmaking_tree() -> Vec<Tech> {
     vec![
@@ -102,6 +117,22 @@ mod tests {
         // Re-researching a discovered tech doesn't report a new discovery
         assert!(!research(&mut tree, "Papyrus", 20.0));
     }
+
+    #[test]
+    fn test_press_era_follows_the_research() {
+        let mut tree = extended_printmaking_tree();
+        assert_eq!(press_era(&tree), PressEra::Hand, "no press yet: the hand worker's bench");
+        for t in tree.iter_mut() { if t.name == "Printing Press" { t.discovered = true; } }
+        assert_eq!(press_era(&tree), PressEra::Screw, "Gutenberg's wooden screw press");
+        for t in tree.iter_mut() {
+            if t.name == "Lithography" || t.name == "Chemistry" { t.discovered = true; }
+        }
+        assert_eq!(press_era(&tree), PressEra::Litho, "Senefelder's stone");
+        // the machine presses can come up alongside lithography, not after
+        assert!(can_research(&tree, "Machine Press"), "machine press wants press + chemistry");
+        for t in tree.iter_mut() { if t.name == "Machine Press" { t.discovered = true; } }
+        assert_eq!(press_era(&tree), PressEra::Machine, "the iron presses");
+    }
 }
 
 /// Extended printmaking tree based on APHA history.
@@ -124,6 +155,7 @@ pub fn extended_printmaking_tree() -> Vec<Tech> {
         Tech { name: "Printing Press".into(), era: "renaissance".into(), prereqs: vec!["Type Foundry".into()], cost: 60.0, unlocks: vec!["mass_books".into()], discovered: false, progress: 0.0 },
         Tech { name: "Chemistry".into(), era: "modern".into(), prereqs: vec!["Engraving".into()], cost: 50.0, unlocks: vec!["lithography".into()], discovered: false, progress: 0.0 },
         Tech { name: "Lithography".into(), era: "modern".into(), prereqs: vec!["Chemistry".into()], cost: 70.0, unlocks: vec!["mass_images".into()], discovered: false, progress: 0.0 },
+        Tech { name: "Machine Press".into(), era: "industrial".into(), prereqs: vec!["Printing Press".into(), "Chemistry".into()], cost: 90.0, unlocks: vec!["machine_printing".into()], discovered: false, progress: 0.0 },
         Tech { name: "Playing Cards".into(), era: "medieval".into(), prereqs: vec!["Woodcut Prints".into()], cost: 15.0, unlocks: vec!["mass_market".into()], discovered: false, progress: 0.0 },
         Tech { name: "Devotional Images".into(), era: "medieval".into(), prereqs: vec!["Woodcut Prints".into()], cost: 15.0, unlocks: vec!["mass_market".into()], discovered: false, progress: 0.0 },
         Tech { name: "Printed Books".into(), era: "renaissance".into(), prereqs: vec!["Printing Press".into()], cost: 40.0, unlocks: vec!["knowledge_spread".into()], discovered: false, progress: 0.0 },

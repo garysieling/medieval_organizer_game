@@ -356,6 +356,8 @@ impl View {
         // trees and rocks are in the list)
         standing.retain(|&(x, y, _)| { let (sx, sy) = iso_to_screen_cam(x, y, cam_x, cam_y, zoom); !off_view(sx, sy, zoom) });
         standing.sort_by(|a, b| (a.0 + a.1).partial_cmp(&(b.0 + b.1)).unwrap());
+        // the press inside an open shop wears the era the research reached
+        let press_era = game2_core::game::tech_tree::press_era(&m.tech);
         let draw_piece = |buf: &mut Buffer, &(bx, by, piece): &(f32, f32, Piece)| {
             let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
             // the whole map's trees, rocks and walls are in this list: skip
@@ -376,7 +378,7 @@ impl View {
                 },
                 Piece::Building(sprite, up) | Piece::Cutaway(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 {
-                        if matches!(piece, Piece::Cutaway(_, _)) { draw_cutaway(buf, s, sx, sy, zoom); }
+                        if matches!(piece, Piece::Cutaway(_, _)) { draw_cutaway(buf, s, sx, sy, zoom, press_era); }
                         else { draw_on_tile(buf, s, sx, sy, zoom); }
                     } else if up > 0.0 {
                         // going up: the bottom of the house, from the ground up

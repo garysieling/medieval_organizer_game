@@ -544,12 +544,12 @@ impl Game {
     /// catches and when it burns out
     pub(crate) fn forest_tick(&mut self, tick: u64) {
         use crate::sim::emergence::Cell;
-        let was_burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
+        let mut was_burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
         // lightning doesn't come to the wood often - a dry day's chance
         let cur = self.world.get_component::<crate::sim::weather::CurrentWeather>(self.weather)
             .map(|w| (w.kind, w.intensity)).unwrap_or((crate::sim::weather::Weather::Clear, 0.0));
         let spark = cur.0 == crate::sim::weather::Weather::Drought
-            && cur.1 > 0.7 && self.rng.next() % 20 == 0;
+            && cur.1 > 0.7 && self.forest_rng.below(20) == 0;
         if spark {
             if let Some((x, y)) = self.forest.cells.iter().enumerate()
                 .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (x, y, c)))
@@ -560,17 +560,21 @@ impl Game {
         }
         self.forest.step();
         let burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
+        // a struck tree that had no neighbours catches and dies in the
+        // same step - the end log still owes it a line
+        was_burning |= spark;
         if was_burning && !burning {
             self.log.push(format!("t{}: the wood fire's out - bare for a while.", tick));
         }
-        // the stand's coverage leans the fuel price: a thin wood asks
-        // dear for a faggot, a thick one sells cheap
-        let trees = self.forest.cells.iter().flatten().filter(|c| **c == Cell::Tree).count() as f32;
-        let cover = trees / (self.forest.width * self.forest.height) as f32;
-        // cover under ~4% is thin, over ~8% is thick - lean gently
-        let nudge = if cover < 0.04 { 0.004 } else if cover > 0.08 { -0.004 } else { 0.0 };
-        if nudge != 0.0 {
-            crate::game::goods::nudge(&mut self.world, "faggots", nudge);
+        // the fuel price leans on the real wood's canopy - the mapped
+        // stand the gatherers actually thin, not the automaton's grid
+        let covers: Vec<f32> = self.land.tree_cover.values().copied().collect();
+        if !covers.is_empty() {
+            let cover = covers.iter().sum::<f32>() / covers.len() as f32;
+            let nudge = if cover < 0.3 { 0.004 } else if cover > 0.6 { -0.004 } else { 0.0 };
+            if nudge != 0.0 {
+                crate::game::goods::nudge(&mut self.world, "faggots", nudge);
+            }
         }
     }
 

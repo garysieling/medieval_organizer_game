@@ -447,6 +447,7 @@ impl Game {
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
+            grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
             debug_lines: vec![],

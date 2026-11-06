@@ -1002,6 +1002,7 @@ pub struct Game {
     pub letters: Vec<(Entity, Entity, u64)>,
     /// The cave mouth at the map's edge - the monochrome under
     pub cave_pos: Option<(i32, i32)>,
+    /// The martyr's plot, when the gibbet made one
     /// The hermit who keeps to it
     pub hermit: Option<Entity>,
     /// Whether the player's first body's gone - the work goes on

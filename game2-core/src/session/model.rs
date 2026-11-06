@@ -333,6 +333,8 @@ pub struct UiModel {
     pub painted: Vec<(f32, f32)>,
     /// The cave mouth at the map's edge
     pub cave: Option<(f32, f32)>,
+    /// The martyr's plot, when the gibbet made one
+    pub grave: Option<(f32, f32)>,
     /// The seat's public KPIs as lines, for a debug overlay. Never the
     /// secret gauges (`Game::secret_kpis`): this goes over the wire
     pub debug_lines: Vec<String>,

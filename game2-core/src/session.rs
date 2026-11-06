@@ -1472,9 +1472,12 @@ impl Game {
                         crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
                 }
                 (None, Some(old)) => {
-                    log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
-                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
-                        crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
+                    // a disease gone because it took them isn't a recovery
+                    if self.died_on.get(i).and_then(|d| *d).is_none() {
+                        log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
+                        note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                            crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
+                    }
                 }
                 _ => {}
             }

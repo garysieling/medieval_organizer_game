@@ -54,12 +54,16 @@ pub fn detect_story(events: &[StoryEvent]) -> Option<Story> {
     let kinds: Vec<EventKind> = events.iter().map(|e| e.kind).collect();
     let theme = if kinds.contains(&EventKind::Illness) && kinds.contains(&EventKind::Recovery) {
         StoryTheme::Survival
+    } else if kinds.iter().filter(|k| **k == EventKind::Conflict).count() >= 2 {
+        StoryTheme::Conflict
+    } else if kinds.contains(&EventKind::Conflict) && kinds.contains(&EventKind::Recovery) {
+        StoryTheme::Redemption
+    } else if kinds.contains(&EventKind::Death) || kinds.contains(&EventKind::Betrayal) {
+        StoryTheme::Fall
     } else if kinds.contains(&EventKind::Recruitment) && kinds.contains(&EventKind::Achievement) {
         StoryTheme::Rise
     } else if kinds.contains(&EventKind::Bonding) {
         StoryTheme::Romance
-    } else if kinds.contains(&EventKind::Betrayal) {
-        StoryTheme::Fall
     } else {
         StoryTheme::Community
     };

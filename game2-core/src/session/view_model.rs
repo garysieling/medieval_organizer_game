@@ -660,20 +660,24 @@ impl Game {
         }
         // the biography the seat knows: years and build are public, but
         // temperament and kin take a bond close enough to have been told
+        // the tale the days are writing: once a theme takes shape the
+        // card says what kind of story it is - the biography carries it
+        // when one's known, or it stands alone for a stranger
+        let tale = self.tales.get(&i).and_then(|t| crate::sim::story::detect_story(t))
+            .map(|s| match s.theme {
+                crate::sim::story::StoryTheme::Survival => "a tale of survival",
+                crate::sim::story::StoryTheme::Rise => "a tale of rising",
+                crate::sim::story::StoryTheme::Fall => "a tale of falling",
+                crate::sim::story::StoryTheme::Romance => "a tale of the heart",
+                crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
+                crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
+                crate::sim::story::StoryTheme::Community => "a tale of the commons",
+            });
         if let Some(bio) = self.bio_line_at(seat, v) {
-            // the tale the days are writing: once a theme takes shape
-            // the card says what kind of story it is
-            let tale = self.tales.get(&i).and_then(|t| crate::sim::story::detect_story(t))
-                .map(|s| match s.theme {
-                    crate::sim::story::StoryTheme::Survival => " - a tale of survival",
-                    crate::sim::story::StoryTheme::Rise => " - a tale of rising",
-                    crate::sim::story::StoryTheme::Fall => " - a tale of falling",
-                    crate::sim::story::StoryTheme::Romance => " - a tale of the heart",
-                    crate::sim::story::StoryTheme::Redemption => " - a tale of redemption",
-                    crate::sim::story::StoryTheme::Conflict => " - a tale of bad blood",
-                    crate::sim::story::StoryTheme::Community => " - a tale of the commons",
-                }).unwrap_or("");
-            lines.push(Line { x: 18, y: 454, text: format!("{}{}", bio, tale), rgb: (160, 180, 200) });
+            let suffix = tale.map(|t| format!(" - {}", t)).unwrap_or_default();
+            lines.push(Line { x: 18, y: 454, text: format!("{}{}", bio, suffix), rgb: (160, 180, 200) });
+        } else if let Some(t) = tale {
+            lines.push(Line { x: 18, y: 454, text: t.to_string(), rgb: (160, 180, 200) });
         }
         InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }

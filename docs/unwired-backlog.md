@@ -85,7 +85,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 59 | The log silently dropping lines | `Game::log_dropped` | done #587 |
 | 60 | The player's first body passing, the work going on | `Game::player_passed` | done #588 (already wired: `continuation_tick` passes the purse and work to the closest member or kin) |
 | 61 | Castle grants, guards posted, assembly bans as standing status | `game/reactions.rs` (`LordGrant`, `GuardsPosted`, `AssemblyBan`) | done #589 |
-| 62 | Seasons' effects on work and food (HUD) | `sim/climate.rs` `ClimateEffect` | todo |
+| 62 | Seasons' effects on work and food (HUD) | `sim/climate.rs` `ClimateEffect` | done #590 |
 | 63 | The org's real power vs its parameters (public part: turnout, discipline) | `sim/organized_power.rs` | todo |
 | 64 | Daily rare-event roll: what's in the air (omens) | `Game::rare_fired`, `next_rare` | todo |
 | 65 | Trader's stall stock | `Game::trader_stall` | todo |

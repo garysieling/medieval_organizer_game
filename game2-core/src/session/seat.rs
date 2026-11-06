@@ -67,6 +67,8 @@ pub enum CtxAct {
     Gather,
     /// Take on the odd job the picked villager is asking for
     TakeJob,
+    /// Press wax with the picked villager: ten gold of aid, sworn
+    Pact,
     /// Stroke the stray cat who's keeping you company
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)

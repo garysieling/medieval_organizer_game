@@ -583,6 +583,11 @@ impl Game {
                 rgb: (230, 140, 110) });
             band += 1;
         }
+        // a sworn hand shows in the same band - the pact's no secret
+        if band < 2 && crate::game::contracts::has_pact(world, self.seats[seat].player, v) {
+            lines.push(Line { x: 18, y: 416 + band * 11, text: "sworn to you".into(), rgb: (150, 210, 150) });
+            band += 1;
+        }
         if let Some(k) = world.get_component::<Known>(v) {
             for r in k.revealed.iter().take((2 - band).max(0) as usize) {
                 let text = match r {

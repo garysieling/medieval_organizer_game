@@ -91,6 +91,24 @@ pub fn breach(world: &mut World, contract: Entity) {
     }
 }
 
+/// The wax cracks: a live pact between `breacher` and `other` is torn
+/// up, and the breacher's name takes the cost of breaking it. Returns
+/// whether a pact stood to break.
+pub fn break_pact(world: &mut World, breacher: Entity, other: Entity) -> bool {
+    let pact = world.query::<Contract>().into_iter().find(|&c|
+        world.get_component::<Contract>(c)
+            .map(|ct| matches!(ct.status, ContractStatus::Active | ContractStatus::Fulfilled)
+                && ct.parties.contains(&breacher) && ct.parties.contains(&other))
+            .unwrap_or(false));
+    let Some(c) = pact else { return false; };
+    if let Some(ct) = world.get_component_mut::<Contract>(c) { ct.status = ContractStatus::Breached; }
+    if let Some(r) = world.get_component_mut::<Reputation>(breacher) {
+        r.contracts_breached += 1;
+        r.trust_score = (r.trust_score - 0.2).max(0.0);
+    }
+    true
+}
+
 /// Gold the player gives when sealing a mutual-aid pact
 pub const PACT_AID: f32 = 10.0;
 
@@ -119,6 +137,13 @@ pub fn seal_aid_pact(world: &mut World, giver: Entity, receiver: Entity, gold: &
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     if giver == receiver || *gold < PACT_AID || has_pact(world, giver, receiver) { return None; }
     *gold -= PACT_AID;
+    // a name to keep or break: both parties carry contract history
+    for p in [giver, receiver] {
+        if world.get_component::<Reputation>(p).is_none() {
+            world.add_component(p, Reputation {
+                entity: p, trust_score: 0.5, contracts_honored: 0, contracts_breached: 0 });
+        }
+    }
     record_interaction(world, giver, Interaction { other: receiver, kind: InteractionKind::Aid, intensity: 1.0 });
     let c = world.create_entity();
     world.add_component(c, Contract {

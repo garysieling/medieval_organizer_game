@@ -18,6 +18,7 @@ mod chat;
 mod cheese;
 mod circus;
 mod continuation;
+mod contracts;
 mod country;
 mod determinism;
 mod dialogue;

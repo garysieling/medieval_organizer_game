@@ -205,3 +205,32 @@ fn test_the_fire_blames_the_bread() {
             "a hospice bed for the burned");
     }
 }
+
+#[test]
+fn test_the_player_picks_a_cap() {
+    let mut g = Game::new();
+    let pi = kind_patch(&g, MushKind::Chanterelle);
+    let t = g.mush_patches[pi].tile;
+    let pe = g.seats[0].player;
+    if let Some(p) = g.world.get_component_mut::<Pos>(pe) { p.x = t.0 as f32; p.y = t.1 as f32; }
+    g.update_ctx_actions_at(0);
+    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PickCaps).expect("no pick-caps button");
+    g.ctx_act_at(0, i);
+    assert!(g.mush_patches[pi].next_ready > g.tick, "the patch was never picked");
+}
+
+#[test]
+fn test_the_player_knows_a_killer_when_he_sees_one() {
+    let mut g = Game::new();
+    let pi = deadly_patch(&g);
+    g.mush_patches[pi].next_ready = 0;
+    let pe = g.seats[0].player;
+    g.learn_shroom(pe, pi);
+    let t = g.mush_patches[pi].tile;
+    if let Some(p) = g.world.get_component_mut::<Pos>(pe) { p.x = t.0 as f32; p.y = t.1 as f32; }
+    g.update_ctx_actions_at(0);
+    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PickCaps).expect("no pick-caps button");
+    g.ctx_act_at(0, i);
+    assert!(g.log.iter().any(|l| l.contains("death - you know it")), "the lore didn't speak");
+    assert_eq!(g.mush_patches[pi].next_ready, 0, "he picked a killer");
+}

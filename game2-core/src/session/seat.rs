@@ -77,6 +77,9 @@ pub enum CtxAct {
     Snowballs,
     /// Win the picked villager to the cause - it takes real trust first
     Recruit,
+    /// Pick a cap off the patch you're standing by - the wood feeds,
+    /// and teaches its lessons the hard way
+    PickCaps,
 }
 
 /// One player's hold on the game: which character they steer, what they've

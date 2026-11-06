@@ -32,6 +32,11 @@ impl Game {
                         .map(|p| if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
                 }
             }
+            CtxAct::PickCaps => {
+                self.shroom_patch_at(seat).and_then(|pi|
+                    self.lore_of(self.seats[seat].player).contains(&pi)
+                        .then(|| "those caps are death - you know it".to_string()))
+            }
             CtxAct::Snowballs => {
                 if self.snowball_day == self.tick { Some("everyone's already played today".into()) }
                 else if self.world.get_component::<crate::sim::climate::Climate>(self.climate)
@@ -373,6 +378,11 @@ impl Game {
         // shows while she's in reach, whatever else is going on
         if self.stray_cat_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::PetCat);
+        }
+        // caps in the shade: standing by a flushed patch offers the
+        // picking - and what the belly's learned shows up in why it won't
+        if self.shroom_patch_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::PickCaps);
         }
         // a house meeting is earned: the button shows once a place and a
         // promise are on the plan
@@ -828,6 +838,18 @@ impl Game {
                     format!("{} won't be won over - the trust isn't there yet.", self.name_of(v))
                 }
             }
+            CtxAct::PickCaps => {
+                match self.shroom_patch_at(seat) {
+                    Some(pi) => {
+                        let kind = self.mush_patches[pi].kind;
+                        if let Some(p) = self.mush_patches.get_mut(pi) { p.next_ready = self.tick + 60; }
+                        let pe = self.seats[seat].player;
+                        self.shroom_take(pe, pi, kind, self.tick);
+                        String::new()
+                    }
+                    None => String::new(),
+                }
+            }
             CtxAct::Pact => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 let pe = self.seats[seat].player;
@@ -869,6 +891,19 @@ impl Game {
         let (px, py) = self.player_pos_at(seat);
         (((cp.x - px).powi(2) + (cp.y - py).powi(2)).sqrt() <= events::STRAY_CAT_PET_DIST)
             .then_some(e)
+    }
+
+    /// The nearest flushed patch within a gatherer's reach of the seat's
+    /// player - the Pick caps button lives and dies by this
+    fn shroom_patch_at(&self, seat: usize) -> Option<usize> {
+        let (px, py) = self.player_pos_at(seat);
+        self.mush_patches.iter().enumerate()
+            .filter(|(_, p)| self.tick >= p.next_ready)
+            .map(|(i, p)| { let dx = p.tile.0 as f32 - px; let dy = p.tile.1 as f32 - py;
+                (i, dx * dx + dy * dy) })
+            .filter(|(_, d2)| *d2 <= 36.0)
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
     }
 
     /// Stroke the stray cat: a little warmth each time, then she needs a

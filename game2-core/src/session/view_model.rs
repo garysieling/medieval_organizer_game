@@ -386,6 +386,25 @@ impl Game {
         } else {
             Some(self.villager_inspector_at(seat))
         };
+        // the powers' standing words on the org - short enough that
+        // all three still fit the one line the panel gives them
+        let org_status = {
+            let mut v = vec![];
+            if let Some(gr) = world.get_component::<crate::game::reactions::LordGrant>(self.seats[seat].org) {
+                if self.tick <= gr.until {
+                    let word = if gr.hollow { "hollow grant" }
+                        else if gr.partial { "part grant" } else { "lord's grant" };
+                    v.push(format!("{}: {}", word, gr.issue));
+                }
+            }
+            if let Some(g) = world.get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org) {
+                v.push(format!("{} knights posted", g.knights));
+            }
+            if let Some(b) = world.get_component::<crate::game::reactions::AssemblyBan>(self.seats[seat].org) {
+                v.push(format!("assembly ban >{}", b.cap));
+            }
+            v
+        };
         UiModel {
             player_pose: (self.seats[seat].facing, self.seats[seat].walking),
             // the courier (entity 0 in people) faces the way it rides
@@ -416,6 +435,7 @@ impl Game {
             panel: PanelV {
                 name: my_name, gold: my_gold,
                 org: org.name.clone(), leader: Some(name_of(org.leader)),
+                org_status,
                 members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
                 social, meeting,

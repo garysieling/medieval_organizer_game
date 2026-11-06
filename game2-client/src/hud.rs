@@ -90,6 +90,12 @@ pub(crate) fn status_line(org: &str, leader: Option<&str>, members: usize, gold:
     format!("{}{}{}", lead, head, tail)
 }
 
+/// The powers' standing words on the org, joined to the one line the
+/// panel gives them (same ~55-glyph budget as the status line)
+pub(crate) fn org_status_line(words: &[String]) -> String {
+    words.join(" \u{b7} ")
+}
+
 /// Label for who's in your organization, on the villager card ("Org:" never
 /// said which, and the status line calls it the Harvesters)
 pub(crate) const MEMBERS_LABEL: &str = "Joined";

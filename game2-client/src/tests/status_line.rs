@@ -16,3 +16,17 @@ fn test_status_line_names_things_and_fits() {
     assert!(UI_X as i32 + 10 + text_width(&widest, 1) <= W as i32 - 6, "{} runs off the panel", widest);
     assert!(UI_X as i32 + 70 + 120 + 6 + text_width("1.99/2.0 lead", 1) <= W as i32 - 4);
 }
+
+#[test]
+fn test_the_powers_words_fit_the_sidebar() {
+    // all three powers at once - the heaviest the line ever carries
+    let words = vec![
+        "grant: the taxes".to_string(),
+        "2 knights".to_string(),
+        "ban >2".to_string(),
+    ];
+    let line = org_status_line(&words);
+    assert!(line.len() <= 55, "the powers' words outrun the sidebar: {:?}", line);
+    assert!(line.contains("grant") && line.contains("knights") && line.contains("ban"),
+        "a power went missing: {:?}", line);
+}

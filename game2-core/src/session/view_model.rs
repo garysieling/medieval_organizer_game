@@ -5,6 +5,10 @@ use crate::session::*;
 /// Gossip lines shown in the log at once; older gossip is hidden so it
 /// can't push real events (illness, joins, deaths, guilds) out of view
 pub(in crate::session) const LOG_GOSSIP_SHOWN: usize = 2;
+/// The newest few headlines pin to the log's top: enough that a quiet
+/// death outranks a busy skep-day, not so many that yesterday's news
+/// buries today's warning
+pub(in crate::session) const LOG_PINNED_SHOWN: usize = 4;
 
 /// Is this log entry idle gossip ("X tells Y - ...")?
 pub fn is_gossip(entry: &str) -> bool { entry.contains(" tells ") }
@@ -64,10 +68,16 @@ pub(in crate::session) fn visible_log(log: &[String]) -> Vec<&String> {
         if is_town_note(e) { town += 1; return town <= LOG_TOWN_SHOWN; }
         true
     }).collect();
-    // stable partition: important entries first (already newest-first),
-    // then the rest - a quiet death still outranks a busy skep-day
+    // stable partition: the newest few important entries pin to the top,
+    // then the rest - a quiet death still outranks a busy skep-day, but a
+    // wall of old headlines can't bury today's warning
+    let mut imp_rank = 0usize;
     let (important, rest): (Vec<_>, Vec<_>) = filtered.into_iter()
-        .partition(|e| is_important(e));
+        .partition(|e| {
+            if !is_important(e) { return false; }
+            imp_rank += 1;
+            imp_rank <= LOG_PINNED_SHOWN
+        });
     important.into_iter().chain(rest).collect()
 }
 

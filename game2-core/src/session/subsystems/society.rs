@@ -561,13 +561,16 @@ impl Game {
         let tier = |e: f32| if e >= 0.7 { 3 } else if e >= 0.5 { 2 } else if e >= 0.3 { 1 } else { 0 };
         if tier(self.lord_esteem) != tier(was) {
             let up = self.lord_esteem > was;
+            // it's the Harvesters' name on his lips, whichever seat reads it
+            let oname = self.world.get_component::<Organization>(self.org)
+                .map(|o| o.name.clone()).unwrap_or_else(|| "the cause".into());
             let word = match (tier(self.lord_esteem), up) {
-                (3, true) => "word comes down - the lord frets over your cause",
-                (2, true) => "word comes down - the lord keeps an ear on it now",
-                (1, true) => "word comes down - the castle's heard the name",
-                (2, false) => "word comes down - the castle's worry eases a step",
-                (1, false) => "word comes down - the name slips their minds",
-                _ => "word comes down - the castle's forgot you ever met",
+                (3, true) => format!("word comes down - the lord frets over {}", oname),
+                (2, true) => format!("word comes down - the lord keeps an ear on {} now", oname),
+                (1, true) => format!("word comes down - the castle's heard the name {}", oname),
+                (2, false) => format!("word comes down - the castle's worry about {} eases a step", oname),
+                (1, false) => format!("word comes down - {} slips their minds", oname),
+                _ => format!("word comes down - the castle's forgot {} ever met", oname),
             };
             self.log.push(format!("t{}: {}.", tick, word));
         }

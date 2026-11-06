@@ -507,6 +507,17 @@ impl Game {
                 lines.push(Line { x: 18, y: 418, text: format!("today: {}", txt), rgb: (200, 190, 160) });
             }
         }
+        // the printer's bench is the village's research desk: what it's
+        // puzzling out now, and how far along
+        if matches!(b.kind, BuildingKind::Shop(Vocation::Printmaker)) {
+            if let Some(t) = self.tech.iter()
+                .filter(|t| !t.discovered && crate::game::tech_tree::can_research(&self.tech, &t.name))
+                .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap()) {
+                lines.push(Line { x: 18, y: 432,
+                    text: format!("learning: {} ({:.0}/{:.0})", t.name, t.progress, t.cost),
+                    rgb: (170, 190, 230) });
+            }
+        }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 

@@ -372,7 +372,10 @@ impl Game {
         }).count() as f32;
         if hands <= 0.0 { return; }
         if let Some(next) = crate::game::tech_tree::next_researchable(&self.tech).map(str::to_string) {
-            let _ = crate::game::tech_tree::research(&mut self.tech, &next, hands);
+            if crate::game::tech_tree::research(&mut self.tech, &next, hands) {
+                // a discovery: the bench worked it out - the village hears
+                self.log.push(format!("t{}: the print shop works out {}!", tick, next));
+            }
         }
     }
 

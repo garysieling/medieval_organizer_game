@@ -100,9 +100,10 @@ pub fn roster(seed: u64) -> Vec<CharacterSheet> {
     for i in 0..ROSTER_SIZE {
         let ni = rng.below(names.len() as i32) as usize;
         let name = names.swap_remove(ni).to_string();
-        // children turn up on about a third of the cards; the last card
-        // is always a child so the roster always offers one
-        let kid = i == ROSTER_SIZE - 1 || rng.below(10) < 3;
+        // children turn up on about a third of the cards; the first card
+        // is always a grown-up and the last always a child, so the roster
+        // always offers both
+        let kid = i == ROSTER_SIZE - 1 || (i != 0 && rng.below(10) < 3);
         if kid {
             let backstory = format!("{} {}", CHILDHOODS[rng.below(CHILDHOODS.len() as i32) as usize],
                 QUIRKS[rng.below(QUIRKS.len() as i32) as usize]);
@@ -118,11 +119,14 @@ pub fn roster(seed: u64) -> Vec<CharacterSheet> {
             });
         } else {
             let voc = roll_vocation(&mut rng);
-            let class = match rng.below(10) { 0..=6 => SocialClass::Working, 7..=8 => SocialClass::PetitBourgeois, _ => SocialClass::ProfessionalMiddle };
+            // a wanderer can't own a workshop, so petit bourgeois is a
+            // class the road never deals - `class_of` would read them
+            // Working anyway; masters are for those who keep the bench
+            let class = match rng.below(10) { 0..=8 => SocialClass::Working, _ => SocialClass::ProfessionalMiddle };
             let voc = if class == SocialClass::ProfessionalMiddle && !vocation::is_pmc(voc) {
                 if rng.below(2) == 0 { Vocation::Knight } else { Vocation::Priest }
             } else { voc };
-            let skill = if class == SocialClass::PetitBourgeois { 0.8 } else { 0.1 + rng.below(20) as f32 / 100.0 };
+            let skill = 0.1 + rng.below(20) as f32 / 100.0;
             let trade = vocation::vocation_name(voc).to_lowercase();
             let backstory = format!("{} {}", ORIGINS[rng.below(ORIGINS.len() as i32) as usize].replace("{trade}", &trade),
                 QUIRKS[rng.below(QUIRKS.len() as i32) as usize]);
@@ -152,6 +156,9 @@ impl Game {
         let Some(seat_ref) = self.seats.get(seat) else { return false };
         if seat_ref.agent { return false; }
         let player = seat_ref.player;
+        // one pick per seat: a second would mint a fresh purse out of
+        // thin air, gold spent or no
+        if self.world.get_component::<crate::game::player::Avatar>(player).is_some() { return false; }
         if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(player) {
             p.name = sheet.name.clone();
         }

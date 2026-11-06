@@ -558,10 +558,12 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs
-                // the roster goes out with the Welcome: a fresh seat picks
-                // its character off it, a returning claim already has one
-                let roster: Vec<roster::RosterCard> =
-                    roster::roster(s.game.seed).iter().map(roster::RosterCard::from).collect();
+                // the roster goes out only to a seat this connection minted -
+                // a reclaimed claim already has its character, and an older
+                // client just ignores the field
+                let roster: Vec<roster::RosterCard> = if claimed.is_none() && kind == ClientKind::Human {
+                    roster::roster(s.game.seed).iter().map(roster::RosterCard::from).collect()
+                } else { vec![] };
                 let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)), roster };
                 let conn = Arc::new(Mutex::new(Conn::new(seat, kind)));
                 {

@@ -186,9 +186,10 @@ fn main() {
     // remote mode: the server owns the world; this window sends Commands and
     // renders the Scenes it gets back. Same View, same render path.
     let remote = connect.map(|url| connect_remote(&url));
-    // a fresh remote seat picks once the Welcome's roster lands; a
-    // returning claim already has its character
-    let mut want_remote_pick = remote.is_some() && claim_token().is_none();
+    // a fresh remote seat picks once the Welcome's roster lands; the
+    // server only deals one to a seat it minted, so an empty roster
+    // means a returning claim (or an older server) - no picker
+    let mut want_remote_pick = remote.is_some();
     let mut game = if remote.is_none() { Some(Game::new_seeded(seed)) } else { None };
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
@@ -244,12 +245,15 @@ fn main() {
         // after the title's Enter, whenever that arrives
         if started && want_remote_pick {
             if let Some(r) = &remote {
-                // an older server deals no roster: no picker, the
-                // default wanderer stands
-                if let Some(cards) = r.roster.lock().unwrap().clone().filter(|c| !c.is_empty()) {
-                    picker = Some((cards, 0));
-                    want_remote_pick = false;
-                    continue;
+                match r.roster.lock().unwrap().clone() {
+                    Some(cards) if !cards.is_empty() => {
+                        picker = Some((cards, 0));
+                        want_remote_pick = false;
+                        continue;
+                    }
+                    // the Welcome came and dealt no cards: play on
+                    Some(_) => want_remote_pick = false,
+                    None => {}
                 }
             } else { want_remote_pick = false; }
         }

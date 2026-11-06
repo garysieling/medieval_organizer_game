@@ -2,6 +2,7 @@
 //! and picking one rewrites the seat's player to the card.
 use crate::session::*;
 use crate::session::journal::{replay, Input, Journal};
+use crate::session::stage;
 
 #[test]
 fn a_seed_deals_the_same_roster_anywhere() {
@@ -48,15 +49,39 @@ fn picking_a_card_rewrites_the_player() {
     assert_eq!(g.world.get_component::<PlayerCharacter>(e).unwrap().name, cards[kid_idx].name);
     assert!(g.world.get_component::<crate::game::player::Avatar>(e).unwrap().kid);
     assert_eq!(g.world.get_component::<Purse>(e).unwrap().gold.to_bits(), cards[kid_idx].gold.to_bits());
-    // and back again as a grown-up's trade
-    assert!(g.pick_character_at(seat, adult_idx));
-    assert!(g.world.get_component::<vocation::Kid>(e).is_none());
-    assert!(g.world.get_component::<vocation::KidGrowth>(e).is_none());
-    assert!(g.world.get_component::<vocation::Craft>(e).is_some());
-    assert!(!g.world.get_component::<crate::game::player::Avatar>(e).unwrap().kid);
+    // a second pick is refused - one character per seat, or the purse
+    // would mint itself gold
+    assert!(!g.pick_character_at(seat, adult_idx));
+    // an adult card on a fresh seat wears a trade, no childhood
+    let mut g2 = Game::new_seeded(MAP_SEED);
+    assert!(g2.pick_character_at(0, adult_idx));
+    let e2 = g2.seats[0].player;
+    assert!(g2.world.get_component::<vocation::Kid>(e2).is_none());
+    assert!(g2.world.get_component::<vocation::KidGrowth>(e2).is_none());
+    assert!(g2.world.get_component::<vocation::Craft>(e2).is_some());
+    assert!(!g2.world.get_component::<crate::game::player::Avatar>(e2).unwrap().kid);
     // off the roster or off the seats: refused
     assert!(!g.pick_character_at(seat, 99));
     assert!(!g.pick_character_at(99, 0));
+}
+
+/// A picked childhood isn't forever: the seat's kid comes of age on the
+/// same day the village's do, takes a trade, and grows up in the figure
+/// too
+#[test]
+fn a_picked_child_comes_of_age() {
+    let mut g = Game::new_seeded(MAP_SEED);
+    let kid_idx = roster::roster(g.seed).iter().position(|s| s.kid).unwrap();
+    assert!(g.pick_character_at(0, kid_idx));
+    let e = g.seats[0].player;
+    // nearly grown: the next day's lifecycle is the day
+    g.world.get_component_mut::<vocation::KidGrowth>(e).unwrap().age_days = vocation::COMING_OF_AGE - 1;
+    stage::run_days(&mut g, 2);
+    assert!(g.world.get_component::<vocation::Kid>(e).is_none(), "the kid grew up");
+    assert!(g.world.get_component::<vocation::KidGrowth>(e).is_none());
+    assert!(g.world.get_component::<vocation::Craft>(e).is_some(), "a trade was taken up");
+    assert!(!g.world.get_component::<crate::game::player::Avatar>(e).unwrap().kid,
+        "and the figure is a grown one");
 }
 
 #[test]

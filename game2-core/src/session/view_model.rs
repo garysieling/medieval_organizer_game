@@ -734,6 +734,16 @@ impl Game {
             if world.get_component::<country::Outlander>(v).is_some() {
                 parts.push("of the country".into());
             }
+            // a thing made to outlast: the heirloom in their hands,
+            // and the last thing it lived through
+            if let Some(h) = self.heirlooms.iter().find_map(|&i|
+                world.get_component::<villager::Heirloom>(i)
+                    .filter(|h| h.owner == v)) {
+                parts.push(match h.stories.last() {
+                    Some(s) => format!("holds {} - {}", h.name, s),
+                    None => format!("holds {}", h.name),
+                });
+            }
         }
         (!parts.is_empty()).then(|| parts.join(" \u{00b7} "))
     }

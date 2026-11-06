@@ -36,3 +36,32 @@ fn test_the_dead_pass_their_things_on() {
     assert_eq!(h.owner, kin, "a bequest picks kin");
     assert!(!h.stories.is_empty(), "it gathers the story of the passing");
 }
+
+#[test]
+fn test_who_holds_it_shows_on_the_card() {
+    let mut g = Game::new();
+    let i = 2;
+    let v = g.villagers[i];
+    let player = g.seats[0].player;
+    // known to the player: a tie, and three pieces revealed
+    crate::game::relationships::record_interaction(&mut g.world, player,
+        crate::game::relationships::Interaction { other: v,
+            kind: crate::game::relationships::InteractionKind::Conversation, intensity: 1.0 });
+    g.world.add_component(v, crate::game::desires::Known {
+        revealed: vec![crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke),
+                       crate::game::desires::Reveal::Want(Want::Joy),
+                       crate::game::desires::Reveal::Problem(crate::game::desires::Problem::Broke)] });
+    // and the lute in his hands
+    let item = g.world.create_entity();
+    g.world.add_component(item, villager::Heirloom {
+        maker: v, owner: v, name: "a lute", born_tick: 10,
+        stories: vec!["played at the Harvest Home".into()] });
+    g.heirlooms.push(item);
+    g.seats[0].selected_target = i;
+    g.seats[0].picked = true;
+    let m = g.ui_model_at(0);
+    let ins = m.inspector.expect("no card for him");
+    assert!(ins.lines.iter().any(|l| l.text.contains("holds a lute")),
+        "the card doesn't say what he holds: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

@@ -65,7 +65,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 39 | Mushroom lore: who's learned which patch kills | `Game::shroom_lore` | done #567 |
 | 40 | Ailments on their own calendar (amatoxin phases, St Anthony's brothers) | `Game::ailments` | done #568 (already wired: `ailment_tick` chains the phases, `ergot` queues AntonineCare) |
 | 41 | The shame ladder: who's on which rung | `Game::sanctioned` | done #569 |
-| 42 | The matchmaker's tried pairings | `Game::matchmaker`, `match_tried` | todo |
+| 42 | The matchmaker's tried pairings | `Game::matchmaker`, `match_tried` | done #570 (already wired: TalkTo arrival runs `match_attempt`, `match_tried` gates retries) |
 | 43 | The herb-wife's tally of cures, and who's called at the hut | `Game::cured`, `remedy_visits` | todo |
 | 44 | Signs before a wolf / fox night | `Game::wolf_coming`, `fox_coming` | todo |
 | 45 | An unspoken discovery waiting to be disclosed | `Game::pending_discovery` | todo |

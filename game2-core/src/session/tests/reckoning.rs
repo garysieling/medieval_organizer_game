@@ -34,3 +34,29 @@ fn test_a_clerk_steps_up_for_the_tallies() {
     assert!(gold >= before - vocation::price("cloth") - 0.01,
         "he keeps the tallies straight");
 }
+
+#[test]
+fn test_a_season_of_his_books_and_the_village_counts_his_way() {
+    let mut g = Game::new();
+    let c = g.villagers[3];
+    g.translator = Some(c);
+    g.translator_since = 10;
+    // before the season's out the count's still his
+    g.power_tick(94);
+    assert_eq!(g.numeracy, Numeracy::Tally, "the way spread too soon");
+    // a season on, the village keeps the books the clerk's way
+    g.power_tick(101);
+    assert_eq!(g.numeracy, Numeracy::Positional, "the clerk's way never took");
+    assert!(g.log.iter().any(|l| l.contains("the clerk's way")), "the turn went unsaid");
+}
+
+#[test]
+fn test_a_dead_clerk_teaches_nothing() {
+    let mut g = Game::new();
+    let c = g.villagers[3];
+    g.translator = Some(c);
+    g.translator_since = 3;
+    g.world.add_component(c, crate::game::villager::Dead);
+    g.power_tick(101);
+    assert_eq!(g.numeracy, Numeracy::Tally, "the dead teach nothing");
+}

@@ -299,6 +299,7 @@ impl Game {
                             && !crate::game::dungeon::unavailable(&self.world, v));
                         if let Some(c) = clerk {
                             self.translator = Some(c);
+                            self.translator_since = tick;
                             let name = self.name_of(c);
                             self.log.push(format!("t{}: {} keeps the tallies straight now - no more foreign reckonings.", tick, name));
                         }

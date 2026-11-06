@@ -11,6 +11,17 @@ use crate::sim::climate::Season;
 use crate::sim::precipitation::PrecipKind;
 use super::{BSprite, CtxAct};
 
+/// A country settlement on the minimap: where it stands, its name,
+/// and who keeps it - the keep's first bed for a castle
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SiteV {
+    pub x: f32,
+    pub y: f32,
+    pub name: String,
+    pub kind: crate::session::country::SiteKind,
+    pub keeper: Option<String>,
+}
+
 /// A villager, rival, pet or other figure standing on the map
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersonV {
@@ -335,6 +346,9 @@ pub struct UiModel {
     pub cave: Option<(f32, f32)>,
     /// The martyr's plot, when the gibbet made one
     pub grave: Option<(f32, f32)>,
+    /// The country's sites: name and kind for the minimap, the keeper
+    /// when the keep's first bed holds one
+    pub sites: Vec<SiteV>,
     /// The seat's public KPIs as lines, for a debug overlay. Never the
     /// secret gauges (`Game::secret_kpis`): this goes over the wire
     pub debug_lines: Vec<String>,

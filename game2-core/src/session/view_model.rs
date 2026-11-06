@@ -448,6 +448,17 @@ impl Game {
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
+            sites: self.sites.iter().map(|s| {
+                // the keeper: who holds the keep's first bed, when the
+                // site has one - the castle's lord, a town's first house
+                let keeper = s.homes.first()
+                    .and_then(|&h| world.get_component::<Building>(h))
+                    .and_then(|b| b.occupants.first().copied())
+                    .and_then(|o| self.villagers.iter().position(|v| *v == o))
+                    .map(|i| vill_name(i).to_string());
+                SiteV { x: s.centre.0 as f32, y: s.centre.1 as f32,
+                    name: s.name.to_string(), kind: s.kind.clone(), keeper }
+            }).collect(),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
             debug_lines: vec![],

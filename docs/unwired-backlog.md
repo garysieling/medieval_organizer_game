@@ -32,7 +32,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 11 | Climate effects on crops and health | `sim/climate.rs` (`rain_effect`, `climate_multiplier`) | done #539 |
 | 12 | Story detection: name the stories the sim tells (a chronicle) | `sim/story.rs` (`detect_story`, `surface_story`) | done #540 |
 | 13 | Magic read out of old texts | `sim/magic.rs` (`ingest_text`, `magic_effects`) | done #541 |
-| 14 | Grass and forest spread (cellular automaton) | `sim/emergence.rs` | todo |
+| 14 | Grass and forest spread (cellular automaton) | `sim/emergence.rs` | done #542 |
 | 15 | Reputation stages: unknown -> known -> trusted -> esteemed / disgraced | `sim/reputation_qsp.rs` (`spawn_reputation`) | todo |
 | 16 | Contract verb from the old text action menu | `game/action_menu.rs` | todo |
 | 17 | Guilds forming and policing their trade | `game/guilds.rs` (`guild_should_form`, `form_guild`, `enforce_security`) | todo |

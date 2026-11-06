@@ -391,6 +391,7 @@ impl Game {
                 if !shops.contains(&b) { shops.push(b); }
             }
         }
+        let _ledger = crate::infra::perf::scope("sim.bench_ledger");
         let before: Vec<_> = shops.iter()
             .filter_map(|&b| self.world.get_component::<Building>(b).map(|bb| (b, bb.stock.clone())))
             .collect();
@@ -420,6 +421,7 @@ impl Game {
                 }
             }
         }
+        drop(_ledger);
         (made, up)
     }
 }

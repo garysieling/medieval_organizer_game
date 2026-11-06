@@ -552,6 +552,13 @@ impl Game {
                     else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
                 rgb: (230, 200, 140) });
         }
+        // a home that keeps hens says so - the roost's count with it
+        if self.hen_houses.contains(&be) {
+            let n = livestock::flock(&world, be).len();
+            lines.push(Line { x: 18, y: 432,
+                text: format!("keeps hens - {} on the roost", n),
+                rgb: (220, 180, 120) });
+        }
         // the tavern's register: who kept the table's company these
         // last nights - the keeper's till knows the thirsty by name
         if Some(be) == self.tavern {

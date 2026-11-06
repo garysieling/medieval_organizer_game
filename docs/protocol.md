@@ -216,6 +216,15 @@ should draw a cottage and move on.
 list, the same sprite shapes) carry remote scenery - towns and castles
 out in the country that a seat can't select.
 
+`sites` carries the same country's names for the minimap: `x`, `y`,
+`name`, `kind` (`Town`, `Castle`, `Farm` or `Monastery`), and `keeper`
+- the keep's first bed's name, or null when the bed stands empty.
+Older servers omit it; a client should treat a missing `sites` as empty.
+
+```json
+{"x":44.0,"y":18.0,"name":"Oakhall","kind":"Castle","keeper":"Sir Brandr"}
+```
+
 `panel.social` is the seat's bond ledger: folk it has actually talked
 with (`met`), split by how far each bond has climbed. Only conversations
 count toward `met` - a barter or a shared meal alone doesn't.

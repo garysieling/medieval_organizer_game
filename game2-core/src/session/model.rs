@@ -348,6 +348,7 @@ pub struct UiModel {
     pub grave: Option<(f32, f32)>,
     /// The country's sites: name and kind for the minimap, the keeper
     /// when the keep's first bed holds one
+    #[serde(default)]
     pub sites: Vec<SiteV>,
     /// The seat's public KPIs as lines, for a debug overlay. Never the
     /// secret gauges (`Game::secret_kpis`): this goes over the wire

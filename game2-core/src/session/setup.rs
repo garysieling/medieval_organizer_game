@@ -565,6 +565,21 @@ impl Game {
             rivals.push(r);
             rival_homes.push(home);
         }
+        // and the foreign houses are theirs: each rival keeps the nearest
+        // one across the river, so "home" is a place, not a pull-point
+        for (&r, &(hx, hy)) in rivals.iter().zip(&rival_homes) {
+            let nearest = building_entities.iter()
+                .filter(|&&e| world.get_component::<Building>(e)
+                    .map(|b| b.kind == BuildingKind::Home).unwrap_or(false))
+                .min_by(|&&a, &&b| {
+                    let da = world.get_component::<Pos>(a).map(|p| (p.x - hx).abs() + (p.y - hy).abs()).unwrap_or(99.0);
+                    let db = world.get_component::<Pos>(b).map(|p| (p.x - hx).abs() + (p.y - hy).abs()).unwrap_or(99.0);
+                    da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+                }).copied();
+            if let Some(b) = nearest {
+                world.get_component_mut::<Building>(b).unwrap().occupants.push(r);
+            }
+        }
 
         let player = world.create_entity();
         world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 100.0 });

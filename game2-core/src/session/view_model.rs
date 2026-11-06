@@ -852,7 +852,8 @@ impl Game {
         if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
             >= crate::game::organizing::RelStage::Known {
             if let Some(p) = world.get_component::<crate::game::traits::Personality>(v) {
-                let ts: Vec<&str> = p.traits.iter().map(|&t| trait_word(t)).collect();
+                let ts: Vec<String> = p.traits.iter().map(|&t|
+                    format!("{} - {}", trait_word(t), trait_hint(t))).collect();
                 if !ts.is_empty() { parts.push(ts.join(", ")); }
             }
             let kin: Vec<String> = self.villagers.iter().copied()
@@ -967,5 +968,17 @@ fn trait_word(t: crate::game::traits::Trait) -> &'static str {
     match t {
         Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",
         Pious => "pious", Hotheaded => "hot-headed", Gregarious => "gregarious", Proud => "proud",
+    }
+}
+
+/// What a trait does to their day, for the tooltip - the sim's real
+/// pull, not a description: lazy rests, ambitious works, and so on
+fn trait_hint(t: crate::game::traits::Trait) -> &'static str {
+    use crate::game::traits::Trait::*;
+    match t {
+        Lazy => "rests more", Ambitious => "works harder",
+        Kind => "a warm word", Stingy => "tight-fisted",
+        Pious => "keeps the faith", Hotheaded => "quick to anger",
+        Gregarious => "strolls the village", Proud => "a proud bearing",
     }
 }

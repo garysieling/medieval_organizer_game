@@ -334,10 +334,14 @@ pub(crate) fn block_rect(block: &Sprite, sx: i32, sy: i32, zoom: f32) -> (usize,
 /// The scale the pack's props (trees, rocks) draw at on zoom 1: its block scale
 pub(crate) const PACK_PROP_K: f32 = 2.0 * TILE_W as f32 / BLOCK_FACE.0;
 
+/// How far past one tile a building's base reaches: at a single tile wide
+/// the cottages read smaller than the folk walking in front of them
+pub(crate) const BUILDING_SCALE: f32 = 2.0;
+
 /// Draw a building standing on the tile centred on (sx, sy): scaled so its
-/// base spans exactly one tile, its front corner on the tile's front corner
+/// base spans BUILDING_SCALE tiles, its front corner on the tile's front corner
 pub(crate) fn draw_on_tile(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32) {
-    let w = (2.0 * TILE_W as f32 * zoom).round() as usize;
+    let w = (2.0 * TILE_W as f32 * zoom * BUILDING_SCALE).round() as usize;
     let h = (s.height as f32 * w as f32 / s.width as f32).round().max(1.0) as usize;
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }

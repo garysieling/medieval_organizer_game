@@ -866,7 +866,9 @@ impl Game {
                     && villager::is_dead(world, e.with))
                 .map(|e| e.with)) {
             let name = self.villagers.iter().position(|&x| x == gone)
-                .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into());
+                .map(|i| vill_name(i).to_string())
+                .or_else(|| world.get_component::<PlayerCharacter>(gone).map(|p| p.name.clone()))
+                .unwrap_or_else(|| "someone".into());
             parts.push(format!("grieves for {}", name));
         }
         // the village's answer, public as the stocks: the rung they're on

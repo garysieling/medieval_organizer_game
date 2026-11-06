@@ -452,6 +452,10 @@ impl Game {
                     Interaction { other: who, kind: InteractionKind::Conversation, intensity: AGREE_WARMTH });
                 if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
             }
+            // a kind word back or a friendly leave-taking is warmth too
+            Act::Greet | Act::Farewell => {
+                if let Some(r) = self.talk_record_mut(t.id) { r.positive = true; }
+            }
             _ => {}
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }

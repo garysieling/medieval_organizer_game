@@ -45,6 +45,8 @@ impl Game {
         // anyone homed past the old 33-tile map
         world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
         let market_food = villager::spawn_food_source(&mut world, vx as f32, vy as f32, 500);
+        // the fields go in with the country - the map's made by then,
+        // and a spot on water or a roof would feed no one
 
         // the river winds south between the towns to the sea; each waypoint
         // on its course drifts a tile or two, so it meanders differently
@@ -996,6 +998,8 @@ impl Game {
                 domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),
             dead_since: Default::default(),
+            crop_noted: false,
+            crop_fields: vec![],
             landform,
             shop_flow: Default::default(),
             wolf_coming: false,

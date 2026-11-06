@@ -1040,6 +1040,11 @@ pub struct Game {
     /// When each dead villager fell - the day their home's still theirs
     /// for the heirs before the bed goes free
     pub dead_since: crate::engine::det::HashMap<Entity, u64>,
+    /// The first harvest got its line in the log
+    pub crop_noted: bool,
+    /// The village's crop fields - stocked sources like the granary,
+    /// standing at the edge where the ground allowed them
+    pub crop_fields: Vec<Entity>,
     /// Each villager's tale as the days write it - the story events the
     /// chronicle reads for themes
     pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
@@ -1329,8 +1334,22 @@ impl Game {
                 if crate::game::dungeon::unavailable(world, *v) { continue; }
                 let (store, village_home) = country_homes.get(vi).copied().flatten()
                     .unwrap_or((self.market_food, village_home));
-                let market_has = world.get_component::<villager::FoodSource>(store)
-                    .map(|f| f.servings > 0).unwrap_or(false);
+                // the village table is the granary AND the fields: a village
+                // villager's store is whichever stocked one stands closest,
+                // while a countryman's is still his own settlement's granary
+                let vpos = world.get_component::<Pos>(*v).map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+                let (store, market_has) = if store == self.market_food {
+                    let stocked = |f: Entity| world.get_component::<villager::FoodSource>(f)
+                        .map(|fs| fs.servings > 0).unwrap_or(false);
+                    let nearest = std::iter::once(self.market_food).chain(self.crop_fields.iter().copied())
+                        .filter(|&f| stocked(f))
+                        .min_by_key(|&f| world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x - vpos.0).abs() + (fp.y - vpos.1).abs()) as i32).unwrap_or(i32::MAX));
+                    (nearest.unwrap_or(store), nearest.is_some())
+                } else {
+                    (store, world.get_component::<villager::FoodSource>(store)
+                        .map(|f| f.servings > 0).unwrap_or(false))
+                };
                 let vdata = world.get_component::<Villager>(*v);
                 let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
                 let target_food = vdata.and_then(|x| x.target_food);

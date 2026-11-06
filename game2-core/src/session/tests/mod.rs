@@ -22,6 +22,7 @@ mod climate;
 mod continuation;
 mod contracts;
 mod country;
+mod crops;
 mod determinism;
 mod dialogue;
 mod driver;

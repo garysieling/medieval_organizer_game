@@ -374,6 +374,27 @@ impl Game {
             }
         }
         self.sites = sites;
+        // the village's fields stand at its edge: the map's made now, so
+        // each goes on open ground - a spot on water or a roof would feed
+        // no one
+        let (vx, vy) = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0));
+        for (fx, fy) in [(vx - 15, vy + 11), (vx + 16, vy - 10), (vx + 6, vy + 17)] {
+            let mut spot = None;
+            'probe: for r in 0..5 {
+                for (dx, dy) in [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r), (r, r), (-r, -r), (r, -r), (-r, r)] {
+                    if self.walkable((fx + dx) as f32, (fy + dy) as f32) {
+                        spot = Some((fx + dx, fy + dy));
+                        break 'probe;
+                    }
+                }
+            }
+            let Some((fx, fy)) = spot else { continue };
+            let f = villager::spawn_crop_field(&mut self.world, fx as f32, fy as f32, 60, 0.5);
+            // the year starts thin in the fields - the ripening shows
+            if let Some(fs) = self.world.get_component_mut::<villager::FoodSource>(f) { fs.servings = 15; }
+            self.crop_fields.push(f);
+        }
     }
 
     /// A Building entity out in the country (its sprite is the map's

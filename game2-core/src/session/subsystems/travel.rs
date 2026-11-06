@@ -36,13 +36,19 @@ impl Game {
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Eat => {
                 // the village table while it's laid: folk eat at their
-                // own market, and only a bare shelf sends them hunting
-                // for the next source
+                // own market - or the field that stands closer to them -
+                // and only a bare shelf sends them hunting for the next
                 let own = self.store_of(who);
-                let market_laid = self.world.get_component::<villager::FoodSource>(own)
-                    .map(|f| f.servings > 0).unwrap_or(false);
-                if market_laid {
-                    self.world.get_component::<Pos>(own)
+                let stocked = |f: Entity| self.world.get_component::<villager::FoodSource>(f)
+                    .map(|fs| fs.servings > 0).unwrap_or(false);
+                let nearest_village_source = || std::iter::once(own)
+                    .chain(if own == self.market_food { self.crop_fields.iter().copied().collect() }
+                        else { vec![] })
+                    .filter(|&f| stocked(f))
+                    .min_by_key(|&f| self.world.get_component::<Pos>(f)
+                        .map(|fp| ((fp.x - from.x).abs() + (fp.y - from.y).abs()) as i32).unwrap_or(i32::MAX));
+                if let Some(f) = nearest_village_source() {
+                    self.world.get_component::<Pos>(f)
                         .map(|p| (p.x.round() as i32, p.y.round() as i32))
                 } else {
                     self.world.query::<villager::FoodSource>().iter().copied()

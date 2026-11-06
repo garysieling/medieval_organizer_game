@@ -43,7 +43,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 22 | Relationship drift from interactions | `game/relationships.rs` (`RelationshipSystem`, `infer_kind`) | done #550 |
 | 23 | Influence and one-on-ones as a running system | `sim/community.rs` (`InfluenceSystem`, `OneOnOneSystem`, `exert_influence`) | done #551 |
 | 24 | Organized power wasting away when unused | `sim/organized_power.rs` (`PowerAtrophySystem`) | done #552 |
-| 25 | Crop fields growing through the season | `game/villager.rs` (`CropGrowthSystem`, `spawn_crop_field`, `servings_left`) | todo |
+| 25 | Crop fields growing through the season | `game/villager.rs` (`CropGrowthSystem`, `spawn_crop_field`, `servings_left`) | done #553 |
 | 26 | Stall system | `game/villager.rs` (`StallSystem`, `spawn_stall`) | todo |
 | 27 | Nourishment | `NourishmentSystem` | todo |
 | 28 | Organizing skills learned by doing and taught | `game/org_skills.rs` (`practice`, `teach`, `learn_from_meeting`) | todo |

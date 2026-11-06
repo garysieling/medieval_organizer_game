@@ -470,6 +470,15 @@ impl Game {
         }
     }
 
+    /// The rolls get updated daily: the dead leave them, each org's sway
+    /// re-pools from its living members, and a sit-down held yesterday
+    /// deepens into a real tie
+    pub fn influence_tick(&mut self) {
+        use crate::engine::ecs::System;
+        crate::sim::community::InfluenceSystem.run(&mut self.world);
+        crate::sim::community::OneOnOneSystem.run(&mut self.world);
+    }
+
     /// Ties drift a little toward neutral each day - bad blood settles,
     /// warmth cools, and a label the tie outgrew comes off
     pub fn rel_tick(&mut self) {

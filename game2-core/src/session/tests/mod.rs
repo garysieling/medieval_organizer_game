@@ -52,6 +52,7 @@ mod heirloom;
 mod hen;
 mod herb;
 mod illness;
+mod influence;
 mod ink_boiler;
 mod inspector;
 mod journal;

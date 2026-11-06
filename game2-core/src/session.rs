@@ -334,6 +334,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // draws over her in the rare winter visit, and once the fight's
         // called its button's gone and she's pettable again
         CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
+        CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
     }
 }
 #[cfg(test)] // only the tests check against it

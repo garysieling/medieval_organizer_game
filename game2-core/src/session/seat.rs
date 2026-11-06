@@ -60,6 +60,8 @@ pub enum CtxAct {
     Townhall,
     /// Keep pressing for the prisoner's release
     Petition,
+    /// Mend the meeting hall a storm took - the org's treasury pays
+    MendHall,
     /// Set how often the cause meets: the organizer's recommendation
     Cadence,
     /// Call the house meeting the organizer has earned - a venue promised

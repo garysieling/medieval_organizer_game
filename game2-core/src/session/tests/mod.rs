@@ -49,6 +49,7 @@ mod grief;
 mod growth;
 mod guilds;
 mod heart;
+mod harvest;
 mod heirloom;
 mod hen;
 mod herb;

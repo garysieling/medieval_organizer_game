@@ -239,6 +239,8 @@ impl Game {
         crate::timed!("sim.crops", self.crop_tick(tick));
         // starving hurts, eating well mends - the unsick only
         crate::timed!("sim.nourish", self.nourish_tick());
+        // the year's turn: the org takes the harvest in together
+        crate::timed!("sim.harvest", self.harvest_tick(tick));
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
@@ -499,6 +501,17 @@ impl Game {
                 Weather::Clear => None,
             };
             if let Some(w) = word { self.log.push(format!("t{}: {}.", tick, w)); }
+            // a storm takes a standing hall with it
+            if next == Weather::Storm {
+                for seat in 0..self.seats.len() {
+                    let oe = self.seats[seat].org;
+                    if crate::game::organizing::storm_strikes_hall(&mut self.world, oe) {
+                        let oname = self.world.get_component::<Organization>(oe)
+                            .map(|o| o.name.clone()).unwrap_or_default();
+                        self.log.push(format!("t{}: the storm takes {}'s roof - the hall's unfit to meet in.", tick, oname));
+                    }
+                }
+            }
         }
         // while an extreme holds, the village's health wears a little
         if let Some(w) = self.world.get_component::<CurrentWeather>(self.weather) {

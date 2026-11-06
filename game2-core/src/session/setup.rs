@@ -1000,6 +1000,7 @@ impl Game {
             dead_since: Default::default(),
             crop_noted: false,
             crop_fields: vec![],
+            harvest_year: u64::MAX,
             landform,
             shop_flow: Default::default(),
             wolf_coming: false,

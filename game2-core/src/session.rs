@@ -317,6 +317,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 60, h: 16, color: (140, 80, 80) },
         CtxAct::Cadence => Button { label: "Cadence".into(), key: ' ', x: UI_X as i32 + 150, y: 470, w: 60, h: 16, color: (100, 100, 130) },
         CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
+        CtxAct::MendHall => Button { label: "Mend hall".into(), key: ' ', x: UI_X as i32 + 150, y: 454, w: 60, h: 16, color: (100, 80, 120) },
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
@@ -1045,6 +1046,8 @@ pub struct Game {
     /// The village's crop fields - stocked sources like the granary,
     /// standing at the edge where the ground allowed them
     pub crop_fields: Vec<Entity>,
+    /// The last sim-year the orgs took the harvest in together
+    pub harvest_year: u64,
     /// Each villager's tale as the days write it - the story events the
     /// chronicle reads for themes
     pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,

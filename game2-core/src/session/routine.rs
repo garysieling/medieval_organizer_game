@@ -64,6 +64,8 @@ pub enum Spot {
     /// Gone to see whoever's come to the village: the friar, the pardoner
     Visitor,
     Home,
+    /// The recluse's dark: the cave at the map's edge keeps them
+    Cave,
     /// Wherever they happen to be (no plan reached them today)
     Here,
     /// Children's games about the green
@@ -154,6 +156,7 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
         (_, Spot::Visitor) => "gone to see the visitor".into(),
         (Mode::Playing, _) => "in the snowball fight".into(),
         (_, Spot::Play) => "playing".into(),
+        (Mode::Resting, Spot::Cave) => "keeping to the cave".into(),
         (Mode::Resting, _) => "resting at home".into(),
         (Mode::Worshipping, Spot::Church) => if lead { "leading prayers".into() } else { "at prayer in church".into() },
         (Mode::Worshipping, Spot::StoneCircle) => if lead { "leading the old rite".into() } else { "at the stone circle".into() },
@@ -263,8 +266,20 @@ impl Game {
 
     /// The day's free choice for an adult the day loop reached: work,
     /// a stall on market day, a stroll somewhere, or a day at home
+    /// The recluse's day: the dark keeps them, and the cave's their
+    /// one anchor - no square, no work, no holy call
+    fn plan_cave(&mut self, v: Entity, tick: u64) {
+        let Some(cave) = self.cave_pos else { return self.plan_here(v, tick, Mode::Resting) };
+        desires::lift_grievance(&mut self.world, v, desires::Problem::TheDark);
+        let r = Routine { mode: Mode::Resting, spot: Spot::Cave, anchor: (cave.0 as f32, cave.1 as f32 + 0.4),
+            face: None, drift: 0.4, leads: false, day: tick, reached: false };
+        if !self.go_keep(v, r, 40) { self.plan_here(v, tick, Mode::Resting); }
+    }
+
     pub(super) fn plan_day(&mut self, v: Entity, tick: u64, rng: &mut Rng) -> DayPlan {
         use crate::game::traits::Trait;
+        // the hermit wants no part of the village's day - the cave's theirs
+        if Some(v) == self.hermit { self.plan_cave(v, tick); return DayPlan::Free; }
         let holy = is_holy(tick);
         let trade = self.world.get_component::<Craft>(v)
             .map(|c| vocation::output(c.vocation).is_some()).unwrap_or(false);

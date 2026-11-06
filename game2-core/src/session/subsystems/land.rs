@@ -320,6 +320,11 @@ impl Game {
     pub fn winter_tick(&mut self, tick: u64) {
         let was = self.harsh_winter;
         self.harsh_winter = tick % 730 >= 400 && tick % 730 <= 545;
+        // and the word of it comes first: ten days out, the wise say
+        // winter'll run long - the village hears the lean months coming
+        if tick % 730 == 390 {
+            self.log.push(format!("t{}: the wise say winter'll run long this year - best lay by.", tick));
+        }
         if self.harsh_winter && !was {
             self.log.push(format!("t{}: the winter sets in hard - and looks to stay.", tick));
         }

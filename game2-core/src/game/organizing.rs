@@ -328,7 +328,8 @@ pub fn talk_response(world: &World, person: Entity, name: &str, talks_before: us
 pub fn harvest_together(world: &mut World, org: Entity) -> usize {
     let workers: Vec<Entity> = world.get_component::<Organization>(org)
         .map(|o| o.members.clone()).unwrap_or_default()
-        .into_iter().filter(|&m| !is_dead(world, m)).collect();
+        .into_iter().filter(|&m| !is_dead(world, m)
+            && !crate::game::dungeon::unavailable(world, m)).collect();
     for (i, &a) in workers.iter().enumerate() {
         for &b in &workers[i + 1..] {
             record_interaction(world, a, Interaction { other: b, kind: InteractionKind::Aid, intensity: 0.5 });

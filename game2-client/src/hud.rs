@@ -3,9 +3,17 @@
 use super::*;
 
 /// The top-left status line: season, day, the village food store, weather, speed
-pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32) -> String {
-    format!("{:?} | day {} | food store {}{}{}", season, day, food,
+pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32,
+    food_yield: f32, harsh_winter: bool) -> String {
+    // two independent reads: what the climate does to the fields, and
+    // whether a harsh winter's also running - one can hide neither
+    let yield_word = format!("{}{}",
+        if food_yield > 0.0 && food_yield < 0.95 { " | lean fields" }
+        else if food_yield > 1.05 { " | rich fields" } else { "" },
+        if harsh_winter { " | the store thins" } else { "" });
+    format!("{:?} | day {} | food store {}{}{}{}", season, day, food,
         weather.map(|w| format!(" | {}", w)).unwrap_or_default(),
+        yield_word,
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
 }
 
@@ -74,9 +82,26 @@ pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8
 /// The panel's status line: your organization by name, your gold, and the
 /// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
 /// 2.0" - a count of guild objects, and the goal the bar already shows)
-pub(crate) fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> String {
+pub(crate) fn status_line(org: &str, leader: Option<&str>, members: usize, gold: f32, guild: Option<usize>) -> String {
     let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
-    format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
+    // the line fits ~55 glyphs before the screen edge: the count and the
+    // guild must always survive, so the name takes what's left - a short
+    // one in full, a long one clipped, none when the room's truly out
+    let tail = format!(" | Gold {:.0} | {}", gold, rival);
+    let lead = format!("{} {}", org.trim_start_matches("The "), members);
+    let room = 55i32 - (lead.len() + tail.len()) as i32;
+    let head = leader.map(|l| {
+        if l.len() + 8 <= room as usize { format!(" led by {}", l) }
+        else if room >= 11 { format!(" led by {}", &l[..room as usize - 8]) }
+        else { String::new() }
+    }).unwrap_or_default();
+    format!("{}{}{}", lead, head, tail)
+}
+
+/// The powers' standing words on the org, joined to the one line the
+/// panel gives them (same ~55-glyph budget as the status line)
+pub(crate) fn org_status_line(words: &[String]) -> String {
+    words.join(" \u{b7} ")
 }
 
 /// Label for who's in your organization, on the villager card ("Org:" never

@@ -216,6 +216,15 @@ should draw a cottage and move on.
 list, the same sprite shapes) carry remote scenery - towns and castles
 out in the country that a seat can't select.
 
+`sites` carries the same country's names for the minimap: `x`, `y`,
+`name`, `kind` (`Town`, `Castle`, `Farm` or `Monastery`), and `keeper`
+- the keep's first bed's name, or null when the bed stands empty.
+Older servers omit it; a client should treat a missing `sites` as empty.
+
+```json
+{"x":44.0,"y":18.0,"name":"Oakhall","kind":"Castle","keeper":"Sir Brandr"}
+```
+
 `panel.social` is the seat's bond ledger: folk it has actually talked
 with (`met`), split by how far each bond has climbed. Only conversations
 count toward `met` - a barter or a shared meal alone doesn't.
@@ -225,6 +234,26 @@ count toward `met` - a barter or a shared meal alone doesn't.
 ```
 
 Scenes from an older server may omit `social`; read it as all zeroes.
+
+`panel.leader` names the org's head for the status line - `"you"` when
+the seat leads its own, a villager's name when the bond's passed to
+another. Older servers omit it or send null; a client should draw no
+"led by" then.
+
+`panel.org_status` carries the powers' standing words on the org, as
+plain short lines - "grant: the taxes", "part grant: the taxes",
+"N knights", "ban >N". Older servers send nothing; treat an absent
+field as an empty list.
+
+`log_dropped` counts how many log lines have rolled out the top - the
+log's a rolling window. Zero or an absent field means the top's the
+beginning; the client's last log row marks the count when it isn't.
+
+`food_yield` carries the season's weight on the fields - the climate's
+food multiplier (about 1.1 spring to 0.7 winter, before rain and the
+year's drift). Zero from an older server means no read; a client
+should draw no lean-word then. `harsh_winter` is the every-other-winter
+flag: while it runs the snow keeps falling and the store thins.
 
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",

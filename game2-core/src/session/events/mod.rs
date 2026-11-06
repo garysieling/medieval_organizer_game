@@ -352,6 +352,9 @@ impl Game {
                 let e = self.world.create_entity();
                 let start = self.road_far();
                 self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+                // a man of the road carries his purse: the scribe's
+                // pennies a page have to land somewhere
+                self.world.add_component(e, Purse { gold: 0.0 });
                 let at = self.event_pitch(id);
                 let path = self.map.walk_path(start, at).unwrap_or_default();
                 self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });

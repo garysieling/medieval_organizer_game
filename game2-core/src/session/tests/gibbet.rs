@@ -30,3 +30,17 @@ fn test_the_vigil_keeps_the_grave() {
         .map(|p| p.capacity).unwrap_or(0.0);
     assert!(after > before, "the remembering is a kind of organizing");
 }
+
+#[test]
+fn test_the_vigil_walks_out_to_the_grave() {
+    let mut g = Game::new();
+    g.martyr_grave = Some((30, 30));
+    g.martyr_tick(50);
+    let walked = g.travels.iter()
+        .filter(|t| matches!(t.goal, Goal::Wander)).count();
+    assert!(walked >= 1, "nobody walked out to keep the grave");
+    let toward = g.travels.iter().any(|t| {
+        t.path.last().map(|&(x, y)| (x, y)) == Some((30, 30))
+    });
+    assert!(toward, "the vigil didn't go to the grave");
+}

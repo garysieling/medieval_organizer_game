@@ -147,13 +147,40 @@ impl Game {
         outer.sort_by_key(|&(x, y)| (y, x));
         let stride = (outer.len() as f32 / n_homes.max(1) as f32).max(1.0);
         let picks: Vec<(i32, i32)> = (0..n_homes).filter_map(|k| outer.get((k as f32 * stride) as usize).copied()).collect();
-        let mut outer = picks.into_iter();
+        // a company town zones its homes by where they stand: the
+        // manager's row by the square, twins west, rowhouses east, the
+        // barracks at the south gate. The buildings and beds land the
+        // same either way - only the looks (and the river works below)
+        // differ; the other seeds keep the loose scatter. Its own rng
+        // stream, so the village's rolls land as they always have.
+        let mut town_rng = Rng(seed ^ 0xC0FFEE);
+        let company = town_rng.below(100) < 40;
+        let mid_x = (wall.0 + wall.2) / 2;
+        let mut twin: Option<usize> = None;
+        // the manager's row is one street of grand houses, not the whole
+        // quarter: the first few picks by the square wear it, the rest
+        // fall through to the twins and the terraces
+        let mut mansions = 0;
+        let looks: Vec<BSprite> = picks.iter().map(|&(x, y)| {
+            let d_sq = (x - vx).abs().max((y - vy).abs());
+            let d_gate = (x - gate_x).abs().max((y - wall.3).abs());
+            if d_gate <= 5 { BSprite::Barracks(((x + y) as usize) % 2) }
+            else if d_sq <= 6 && mansions < 4 { mansions += 1; BSprite::Mansion }
+            else if x < mid_x {
+                if let Some(i) = twin.take() { BSprite::House(i) }
+                else { let i = town_rng.below(9) as usize; twin = Some(i); BSprite::House(i) }
+            } else { BSprite::Rowhouse(((y * 37 + 11).rem_euclid(9)) as usize) }
+        }).collect();
+        let mut homes = picks.into_iter().zip(looks);
         for _ in 0..n_homes {
             let _ = (rng.around(1), rng.around(1));
-            let Some((bx, by)) = outer.by_ref().find(|&(x, y)| map.buildable(x, y)) else { break };
+            let Some(((bx, by), look)) = homes.by_ref().find(|&((x, y), _)| map.buildable(x, y)) else { break };
             map.build_at(bx, by);
             map.connect((bx, by));
-            buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
+            // the cottage roll is spent either way, so a company town's
+            // folk land the same as a loose one's on the same seed
+            let cottage = rng.below(97) as usize;
+            buildings.push((bx as f32, by as f32, if company { look } else { BSprite::House(cottage) }));
         }
         for &(x, y) in &[(wall.0 - 3, wall.3 + 3), (wall.2 + 4, wall.3 + 2), (wall.0 - 5, (wall.1 + wall.3) / 2)] {
             if let Some((bx, by)) = map.nearest_buildable(x, y) {
@@ -264,6 +291,10 @@ impl Game {
         // the smithy, church and guildhall already stand: shop for the
         // toolmaker, the priest's church, and the trader's stall
         for (x, y) in [(19, 19), (14, 9)] { let _ = (x, y); }
+        // the company town's works stands on the riverbank east of the
+        // wall: the weaver's bench moves out there to the fulling mill
+        let factory_site = if company { shore_site(&map, (wall.2, (wall.1 + wall.3) / 2)) } else { None };
+        let mut factory_built = false;
         for kind in shop_kinds.iter().copied() {
             // near the market for shops; farms by the south fields; the
             // fish-smoke house goes down to the water's edge
@@ -271,9 +302,14 @@ impl Game {
                 else if kind == BuildingKind::Shop(Vocation::Fisher) { (vx + 19, vy + 2) }
                 else { (vx + rng.around(4), vy - 1 + rng.around(4)) };
             let in_town = !matches!(kind, BuildingKind::Shop(Vocation::Farmer | Vocation::Fisher));
+            // the works takes the riverbank when it's got one
+            let site = if company && kind == BuildingKind::Shop(Vocation::Weaver) {
+                factory_site.filter(|&(x, y)| map.buildable(x, y))
+            } else { None };
             // a workshop takes the free plot nearest the square
-            let plot = if in_town { plots.iter().copied().find(|&(x, y)| map.buildable(x, y)) } else { None };
-            let Some((bx, by)) = plot.or_else(|| map.nearest_buildable(cx, cy)) else { continue };
+            let plot = if in_town && site.is_none() { plots.iter().copied().find(|&(x, y)| map.buildable(x, y)) } else { None };
+            let Some((bx, by)) = site.or(plot).or_else(|| map.nearest_buildable(cx, cy)) else { continue };
+            factory_built |= site.is_some();
             map.build_at(bx, by);
             map.connect((bx, by));
             buildings.push((bx as f32, by as f32, BSprite::House(rng.below(97) as usize)));
@@ -354,6 +390,21 @@ impl Game {
         for (i, &e) in building_entities.iter().enumerate() {
             let Some(look) = world.get_component::<Building>(e).and_then(|b| WorkLook::of(b.kind)) else { continue };
             if let BSprite::House(h) = buildings[i].2 { buildings[i].2 = BSprite::Work(look, h); }
+        }
+        // the company town's river works: the weaver's bench moved out to
+        // the bank - it answers to the factory's name and wears its look
+        if factory_built {
+            if let Some(i) = building_entities.iter().position(|&e| {
+                world.get_component::<Building>(e)
+                    .map(|b| b.kind == BuildingKind::Shop(Vocation::Weaver)).unwrap_or(false)
+            }) {
+                if let Some(b) = world.get_component_mut::<Building>(building_entities[i]) {
+                    b.name = "the factory".into();
+                }
+                if let BSprite::Work(_, h) = buildings[i].2 {
+                    buildings[i].2 = BSprite::Work(WorkLook::Factory, h);
+                }
+            }
         }
         // the trader's stall is the guildhall slot (index 5), stocked with imports
         let trader_stall = building_entities[5];

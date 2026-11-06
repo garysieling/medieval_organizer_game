@@ -643,7 +643,14 @@ impl Art {
 
         // the workplaces' own looks, one or two each, snowed over in winter
         let snowed = |s: &Sprite| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85));
-        let works = WorkLook::ALL.map(|w| (1..=2).filter_map(|i| at(&format!("rd/buildings/{}{}.png", w.file(), i))).map(Some).collect::<Vec<_>>());
+        let works = WorkLook::ALL.map(|w| {
+            let own: Vec<Sprite> = (1..=2).filter_map(|i| at(&format!("rd/buildings/{}{}.png", w.file(), i))).collect();
+            // the factory borrows the workshop's art until its own set lands
+            let set = if own.is_empty() && w == WorkLook::Factory {
+                (1..=2).filter_map(|i| at(&format!("rd/buildings/workshop{}.png", i))).collect()
+            } else { own };
+            set.into_iter().map(Some).collect::<Vec<_>>()
+        });
         let works_winter = works.clone().map(|set| set.iter().map(|s| s.as_ref().map(snowed)).collect());
         // the village's small things (assets/rd/bits), numbered from 1
         let bits = |name: &str| -> Vec<Sprite> { (1..=6).filter_map(|i| at(&format!("rd/bits/{}{}.png", name, i))).collect() };

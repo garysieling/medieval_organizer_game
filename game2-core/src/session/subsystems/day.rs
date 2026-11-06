@@ -490,8 +490,9 @@ impl Game {
                     !villager::is_dead(&self.world, v) && self.site_of(v).is_none())
                     .collect::<Vec<_>>() {
                     if let Some(h) = self.world.get_component_mut::<Health>(v) {
-                        // exposure wears a body down; it doesn't kill outright
-                        h.condition = (h.condition + drain).max(0.2);
+                        // exposure wears a body down; it doesn't kill
+                        // outright, and it doesn't mend a failing one
+                        h.condition = (h.condition + drain).max(0.2).min(h.condition);
                     }
                 }
             }

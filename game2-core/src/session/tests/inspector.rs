@@ -146,3 +146,21 @@ fn test_the_card_names_how_warm_they_are() {
     assert!(bio.contains("warm to you") || bio.contains("close to you") || bio.contains("has your ear"),
         "the warmth never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_their_cause_craft() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    g.world.add_component(v, crate::game::org_skills::Organizing {
+        turnout: 0.7, ..Default::default() });
+    // known, so the bio opens
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, crate::game::relationships::Relationship {
+        from: g.seats[0].player, other: v,
+        kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.95, interactions: 5 });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("brings them out"), "the cause-craft never showed: {}", bio);
+}

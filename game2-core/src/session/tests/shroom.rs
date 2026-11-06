@@ -234,3 +234,23 @@ fn test_the_player_knows_a_killer_when_he_sees_one() {
     assert!(g.log.iter().any(|l| l.contains("death - you know it")), "the lore didn't speak");
     assert_eq!(g.mush_patches[pi].next_ready, 0, "he picked a killer");
 }
+
+#[test]
+fn test_the_players_gut_turns_and_lifts() {
+    let mut g = Game::new();
+    let pi = deadly_patch(&g);
+    let pe = g.seats[0].player;
+    // he has to eat it first: an untrained eye on a day his roll fails
+    if let Some(c) = g.world.get_component_mut::<Craft>(pe) { c.skill = 0.0; }
+    let day = misread_day(pe, 0.0, false);
+    g.shroom_take(pe, pi, g.mush_patches[pi].kind, day);
+    let c = g.world.get_component::<villager::Condition>(pe)
+        .expect("the belly never turned on him");
+    assert_eq!(c.kind, "gut-poisoned");
+    assert!(g.lore_of(pe).contains(&pi), "the lesson never landed");
+    // and the bad belly lifts with its day
+    g.tick = (c.until..c.until + 8).find(|&t| t % 7 == 2).unwrap();
+    g.care_tick(g.tick);
+    assert!(g.world.get_component::<villager::Condition>(pe).is_none(),
+        "a lifted belly should come off");
+}

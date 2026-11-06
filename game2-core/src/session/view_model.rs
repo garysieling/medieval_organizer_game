@@ -740,7 +740,7 @@ impl Game {
             parts.push(format!("{:.0} winters", a.years));
         }
         if let Some(c) = world.get_component::<villager::Condition>(v) {
-            parts.push(c.kind.to_string());
+            if self.tick < c.until { parts.push(c.kind.to_string()); }
         }
         if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
             >= crate::game::organizing::RelStage::Known {

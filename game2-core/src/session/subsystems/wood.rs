@@ -41,7 +41,7 @@ impl Game {
             gut.stage = Stage::Mild;
             self.world.add_component(d, gut);
         } else {
-            self.world.add_component(who, villager::Condition { kind: "a turned gut" });
+            self.world.add_component(who, villager::Condition { kind: "a turned gut", until: self.tick + 2 });
         }
     }
 
@@ -119,7 +119,7 @@ impl Game {
                 if self.world.get_component::<crate::sim::illness::Health>(who).is_some() {
                     self.ailments.push(PendingAil { who, due: tick + 1, phase: AilPhase::ShroomBelly(pi) });
                 } else {
-                    self.world.add_component(who, villager::Condition { kind: "gut-poisoned" });
+                    self.world.add_component(who, villager::Condition { kind: "gut-poisoned", until: tick + 4 });
                     self.learn_shroom(who, pi);
                     self.say(who, "Your belly knows what the wood did to it.", CHAT_BUBBLE_SECS);
                 }

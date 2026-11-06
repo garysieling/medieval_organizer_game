@@ -181,7 +181,8 @@ impl Game {
             let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);
             // a lame leg covers less ground in a day
             let slow = self.world.get_component::<villager::Condition>(t.who)
-                .map(|c| if c.kind == "a lame leg" { 0.6 } else { 1.0 }).unwrap_or(1.0);
+                .filter(|c| self.tick < c.until)
+                .map(|c| if c.kind == "a lame leg" { 0.6 } else { 0.7 }).unwrap_or(1.0);
             let ride = if riders.contains(&t.who) { country::RIDE_PACE } else { 1.0 };
             let stride = MEETING_WALK * pace / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };

@@ -638,6 +638,15 @@ fn woods_edge_site(map: &TileMap, wall: (i32, i32, i32, i32), to: (i32, i32)) ->
 pub enum BSprite {
     /// Index into the cottage set (wraps round)
     House(usize),
+    /// A company town's manager's row: the grand look (the hall's art
+    /// stands in until the manor set lands)
+    Mansion,
+    /// A terraced street: the index picks the one cottage the whole row
+    /// shares, so the street reads as a single build
+    Rowhouse(usize),
+    /// The workers' quarters by the gate: the index picks the barracks
+    /// variant (the watch-house set stands in)
+    Barracks(usize),
     Blacksmith,
     Church,
     Guildhall,
@@ -651,12 +660,13 @@ pub enum BSprite {
 
 /// The workplaces that wear their own look instead of a cottage's
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop }
+pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop, Factory }
 
 impl WorkLook {
-    pub const N: usize = 8;
+    pub const N: usize = 9;
     pub const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
-        WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop];
+        WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop,
+        WorkLook::Factory];
 
     /// Its sprites' name under assets/rd/buildings (name1.png, name2.png)
     pub fn file(self) -> &'static str {
@@ -664,6 +674,7 @@ impl WorkLook {
             WorkLook::Tavern => "tavern", WorkLook::Bakery => "bakery", WorkLook::Granary => "granary",
             WorkLook::WatchHouse => "watch-house", WorkLook::Fold => "fold", WorkLook::Apiary => "apiary",
             WorkLook::Cellar => "cheese-cellar", WorkLook::Workshop => "workshop",
+            WorkLook::Factory => "factory",
         }
     }
 

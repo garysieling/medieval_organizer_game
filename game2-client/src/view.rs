@@ -103,6 +103,16 @@ impl View {
         match b {
             BSprite::House(i) if self.winter.get() => self.art.house_winter(i),
             BSprite::House(i) => self.art.house(i),
+            BSprite::Rowhouse(i) if self.winter.get() => self.art.house_winter(i),
+            BSprite::Rowhouse(i) => self.art.house(i),
+            BSprite::Mansion if self.winter.get() && self.art.trades_winter[1].is_some() =>
+                &self.art.trades_winter[1],
+            BSprite::Mansion => &self.art.guildhall_s,
+            BSprite::Barracks(i) => {
+                let set = if self.winter.get() { &self.art.works_winter[WorkLook::WatchHouse as usize] }
+                    else { &self.art.works[WorkLook::WatchHouse as usize] };
+                if set.is_empty() { self.sprite_of(BSprite::House(i)) } else { &set[i % set.len()] }
+            }
             BSprite::Blacksmith | BSprite::Guildhall | BSprite::RivalHouse | BSprite::RivalWoodhouse
                 if self.winter.get() && self.art.trades_winter[trade_index(b)].is_some() =>
                 &self.art.trades_winter[trade_index(b)],

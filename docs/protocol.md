@@ -162,6 +162,35 @@ visit (hail, drought, aurora...).
 {"text":"A hailstorm batters the thatch","at":null}
 ```
 
+`buildings` lists the village's built structures this frame, each a
+`BldgV` - `{"x":12.0,"y":9.0,"sprite":...,"risen":1.0,"derelict":false,
+"smoke":true}`: `risen` runs 0..1 while a building goes up, and `smoke`
+marks chimney smoke on the cottages nearest the market. `sprite` picks
+the look the client should draw:
+
+```
+"Church"                  - a single fixed look (a unit variant)
+{"House":3}               - index 3 into the cottage set (wraps round)
+{"Rowhouse":2}            - a terraced street sharing the one cottage
+{"Barracks":1}            - a company town's workers' quarters
+"Mansion"                 - a company town's manager's row
+{"Work":["Bakery",0]}     - a workplace's own look, plus its variant
+```
+
+The unit-look sprites are `Mansion`, `Blacksmith`, `Church`,
+`Guildhall`, `RivalHouse`, `RivalWoodhouse` and `CastleKeep`; the
+indexed ones are `House`, `Rowhouse` and `Barracks`. `Work`'s looks are
+`Tavern`, `Bakery`, `Granary`, `WatchHouse`, `Fold`, `Apiary`, `Cellar`,
+`Workshop` and `Factory` - the sim names a look and the client's art
+pack resolves it to pixels, standing a cottage in where a look has no
+art yet. Older servers never send the company-town sprites (`Mansion`,
+`Rowhouse`, `Barracks`, `Factory`); a client that doesn't know a sprite
+should draw a cottage and move on.
+
+`castle_keeps` (`[x,y]` list) and `settlement_houses` (`[x,y,sprite]`
+list, the same sprite shapes) carry remote scenery - towns and castles
+out in the country that a seat can't select.
+
 `panel.social` is the seat's bond ledger: folk it has actually talked
 with (`met`), split by how far each bond has climbed. Only conversations
 count toward `met` - a barter or a shared meal alone doesn't.

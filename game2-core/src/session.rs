@@ -1313,8 +1313,11 @@ impl Game {
                     // past every errand's reach the nudge below would walk
                     // them home a tile a day for months: once a day, put a
                     // stray this far out on the road itself - the same
-                    // walk_path the errands take, just longer
-                    if dx.abs() + dy.abs() > 30.0 && self.frame_n % ticks_per_frame == 0 {
+                    // walk_path the errands take, just longer. Not one
+                    // already walking: a second path would drag them back
+                    // toward its stale waypoints every frame
+                    if dx.abs() + dy.abs() > 30.0 && self.frame_n % ticks_per_frame == 0
+                        && !self.travels.iter().any(|t| t.who == *v) {
                         if let Some(t) = food_tile {
                             let from = (p.x.round() as i32, p.y.round() as i32);
                             if let Some(mut path) = self.map.walk_path(from, t) {

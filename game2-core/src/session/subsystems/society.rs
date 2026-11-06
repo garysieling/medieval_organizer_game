@@ -546,18 +546,13 @@ impl Game {
         }
     }
 
-    /// People power: it builds as the org spends it and atrophies when
-    /// idle - and the lord's estimate lags behind the truth, for he only
-    /// learns what the street shows him
+    /// People power: it builds as the org spends it and atrophies daily
+    /// when idle - and the lord's estimate lags behind the truth, for he
+    /// only learns what the street shows him
     pub fn power_tick(&mut self, tick: u64) {
         if tick % 7 != 3 { return; }
-        let capacity = {
-            if let Some(p) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                crate::sim::organized_power::step_idle(p,
-                    &crate::sim::organized_power::PowerParams { atrophy_rate: 0.02, ..Default::default() });
-                p.capacity
-            } else { 0.0 }
-        };
+        let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
+            .map(|p| p.capacity).unwrap_or(0.0);
         // the lord's estimate creeps toward what's shown - perceived, not raw
         self.lord_esteem += (capacity - self.lord_esteem) * 0.08;
     }

@@ -20,11 +20,34 @@ fn test_a_trusted_ear_can_be_won_and_the_rolls_count() {
     assert!(crate::sim::community::recruit(&mut g.world, oe, v, trust), "they wouldn't sign on");
     // the rolls pool their sway, and the dead leave them
     g.world.add_component(v, Citizen { influence: 0.7, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-    g.influence_tick();
+    g.influence_tick(1);
     let pool = g.world.get_component::<Organization>(oe).unwrap().influence_pool;
     assert!(pool > 0.0, "the roll holds no sway");
     g.world.get_component_mut::<Health>(v).unwrap().condition = 0.0;
-    g.influence_tick();
+    g.influence_tick(1);
     let o = g.world.get_component::<Organization>(oe).unwrap();
     assert!(!o.members.contains(&v), "the dead kept their seat on the roll");
+}
+
+#[test]
+fn test_a_muscle_unused_goes_soft() {
+    let mut g = Game::new();
+    let oe = g.seats[0].org;
+    g.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(oe)
+        .unwrap().capacity = 0.3;
+    // a season of doing nothing with it
+    for t in 1..40 { g.influence_tick(t); }
+    let p = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(oe).unwrap();
+    assert!(p.capacity < 0.3, "the muscle kept its strength unused");
+    assert!(g.log.iter().any(|l| l.contains("gone soft")), "the softening went unremarked");
+    // using it keeps it - a town of action stays fit
+    g.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(oe)
+        .unwrap().capacity = 0.3;
+    for t in 41..46 {
+        crate::sim::organized_power::record_action(&mut g.world, oe,
+            crate::sim::organized_power::ActionQuality::Transactional);
+        g.influence_tick(t);
+    }
+    let p2 = g.world.get_component::<crate::sim::organized_power::OrganizedPower>(oe).unwrap();
+    assert!(p2.capacity >= 0.3, "a used muscle still lost it: {}", p2.capacity);
 }

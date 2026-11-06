@@ -233,7 +233,7 @@ impl Game {
         crate::timed!("sim.rels", self.rel_tick());
         // the rolls are updated: the dead leave them, the sway re-pools,
         // and a sit-down held yesterday deepens into a real tie
-        crate::timed!("sim.influence", self.influence_tick());
+        crate::timed!("sim.influence", self.influence_tick(tick));
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));

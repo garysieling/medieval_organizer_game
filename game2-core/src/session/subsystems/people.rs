@@ -471,12 +471,21 @@ impl Game {
     }
 
     /// The rolls get updated daily: the dead leave them, each org's sway
-    /// re-pools from its living members, and a sit-down held yesterday
-    /// deepens into a real tie
-    pub fn influence_tick(&mut self) {
+    /// re-pools from its living members, a sit-down held yesterday
+    /// deepens into a real tie, and a muscle unused goes soft
+    pub fn influence_tick(&mut self, tick: u64) {
         use crate::engine::ecs::System;
+        let before = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(
+            self.seats[0].org).map(|p| p.capacity).unwrap_or(0.0);
         crate::sim::community::InfluenceSystem.run(&mut self.world);
         crate::sim::community::OneOnOneSystem.run(&mut self.world);
+        crate::sim::organized_power::PowerAtrophySystem.run(&mut self.world);
+        // the day the muscle's gone soft is worth saying aloud
+        let after = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(
+            self.seats[0].org).map(|p| p.capacity).unwrap_or(0.0);
+        if before >= 0.05 && after < 0.05 {
+            self.log.push(format!("t{}: the cause's muscle has gone soft - the habit of meeting is lost.", tick));
+        }
     }
 
     /// Ties drift a little toward neutral each day - bad blood settles,

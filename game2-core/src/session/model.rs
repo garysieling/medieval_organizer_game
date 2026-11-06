@@ -118,6 +118,11 @@ pub struct InspectorV {
     /// Draw a grave portrait (died on `died_day`)
     pub dead: bool,
     pub died_day: Option<u64>,
+    /// Rows the card spills past its own block (held heirlooms): the
+    /// panel sections below shift down by this many, so nothing's drawn
+    /// under the next label's feet
+    #[serde(default)]
+    pub extra_rows: i32,
     pub lines: Vec<Line>,
 }
 

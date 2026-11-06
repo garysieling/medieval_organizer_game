@@ -75,6 +75,15 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         EpisodeKind::Rejection => -0.2,
         EpisodeKind::Loss => -0.3,
     };
+    // the style they've grown reads each beat: a secure heart warms easy,
+    // an anxious one takes every blow harder, an avoidant one warms slow
+    let style = world.get_component::<AttachmentHistory>(agent).map(|h| infer_style(h));
+    let bond_update = match style {
+        Some(AttachmentStyle::Secure) if bond_update > 0.0 => bond_update * 1.3,
+        Some(AttachmentStyle::Anxious) if bond_update < 0.0 => bond_update * 1.4,
+        Some(AttachmentStyle::Avoidant) if bond_update > 0.0 => bond_update * 0.6,
+        _ => bond_update,
+    };
     let target = episode.with;
     let is_loss = matches!(episode.kind, EpisodeKind::Loss);
     if let Some(hist) = world.get_component_mut::<AttachmentHistory>(agent) {
@@ -90,7 +99,37 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         Some(b) if b.target == target => {
             b.security = (b.security + bond_update).clamp(0.0, 1.0);
         }
-        Some(_) => {}
+        Some(b) => {
+            // a heart can move: weigh the episodes each tie has earned;
+            // the first passerby holds it only until another clearly
+            // earns it more
+            let cur = b.target;
+            let _ = b;
+            let score = |t: Entity| -> f32 {
+                // the heart's style weighs each beat as it did when the
+                // bond was growing, or a switched bond lands wrong
+                let weight = |k: &EpisodeKind| {
+                    let w = match k {
+                        EpisodeKind::Warmth => 0.15, EpisodeKind::Anxiety => -0.1,
+                        EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3 };
+                    match style {
+                        Some(AttachmentStyle::Secure) if w > 0.0 => w * 1.3,
+                        Some(AttachmentStyle::Anxious) if w < 0.0 => w * 1.4,
+                        Some(AttachmentStyle::Avoidant) if w > 0.0 => w * 0.6,
+                        _ => w,
+                    }
+                };
+                world.get_component::<AttachmentHistory>(agent).map(|h| h.episodes.iter()
+                    .filter(|e| e.with == t).map(|e| weight(&e.kind)).sum()).unwrap_or(0.0)
+            };
+            let (new_s, old_s) = (score(target), score(cur));
+            if new_s > old_s + 0.3 {
+                if let Some(b) = world.get_component_mut::<Bond>(agent) {
+                    b.target = target;
+                    b.security = (0.5 + new_s).clamp(0.0, 1.0);
+                }
+            }
+        }
         None if is_loss => {} // losing someone doesn't form a first bond with them
         None => {
             world.add_component(agent, Bond { target, security: (0.5 + bond_update).clamp(0.0, 1.0) });

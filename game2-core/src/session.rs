@@ -37,7 +37,7 @@ use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
 use crate::game::player::{PlayerCharacter, act_talk, act_recruit, TalkCount};
-use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
+use crate::game::guilds::{GuildFormationSystem, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
 use crate::sim::illness::{self, Health, Disease, DiseaseKind, Stage, IllnessSystem};
@@ -128,6 +128,34 @@ fn sickness_name(world: &World, who: Entity) -> Option<String> {
 }
 
 /// Is `who` ill right now - showing symptoms?
+/// Write a beat into a villager's tale; when the tale first reads as a
+/// story - a theme takes shape - the log names it once
+fn note_story(
+    tales: &mut crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
+    told: &mut crate::engine::det::HashSet<usize>,
+    log: &mut Vec<String>,
+    i: usize, tick: u64, kind: crate::sim::story::EventKind, desc: String,
+) {
+    let ev = crate::sim::story::StoryEvent { tick, kind, description: desc };
+    let tale = tales.entry(i).or_default();
+    tale.push(ev);
+    if tale.len() > 12 { tale.remove(0); }
+    if told.contains(&i) { return; }
+    if let Some(st) = crate::sim::story::detect_story(tale) {
+        told.insert(i);
+        let word = match st.theme {
+            crate::sim::story::StoryTheme::Survival => "a tale of survival",
+            crate::sim::story::StoryTheme::Rise => "a tale of rising",
+            crate::sim::story::StoryTheme::Fall => "a tale of falling",
+            crate::sim::story::StoryTheme::Romance => "a tale of the heart",
+            crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
+            crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
+            crate::sim::story::StoryTheme::Community => "a tale of the commons",
+        };
+        log.push(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word));
+    }
+}
+
 fn is_sick(world: &World, who: Entity) -> bool {
     sickness_name(world, who).is_some()
 }
@@ -289,6 +317,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Meet => Button { label: "Meet".into(), key: ' ', x: UI_X as i32 + 150, y: 486, w: 60, h: 16, color: (140, 80, 80) },
         CtxAct::Cadence => Button { label: "Cadence".into(), key: ' ', x: UI_X as i32 + 150, y: 470, w: 60, h: 16, color: (100, 100, 130) },
         CtxAct::March => Button { label: "March".into(), key: ' ', x: UI_X as i32 + 216, y: 486, w: 60, h: 16, color: (150, 60, 60) },
+        CtxAct::MendHall => Button { label: "Mend hall".into(), key: ' ', x: UI_X as i32 + 150, y: 454, w: 60, h: 16, color: (100, 80, 120) },
         // Delegate and Strike act on the picked member - they live on the
         // bottom edge of their inspector card
         CtxAct::Delegate => Button { label: "Seat".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (80, 80, 140) },
@@ -300,11 +329,14 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
+        CtxAct::Pact => Button { label: "Swear aid".into(), key: ' ', x: UI_X as i32 + 10, y: 470, w: 130, h: 16, color: (80, 120, 90) },
         CtxAct::PetCat => Button { label: "Pet her".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
         // shares the row's right half with Pet her - pushed last, it
         // draws over her in the rare winter visit, and once the fight's
         // called its button's gone and she's pettable again
         CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
+        CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
+        CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -503,6 +535,8 @@ pub enum Goal {
     Levy(usize, usize),
     /// The steward back up to the castle with the provisions
     Deliver(usize),
+    /// The collector riding the takings out to the castle (site index)
+    Remit(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -811,6 +845,12 @@ pub struct Game {
     pub precip: Option<PrecipKind>, // what is falling today
     pub rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     pub was_sick: Vec<Option<String>>, // per villager, the disease they're showing - to log when someone falls ill or recovers
+    /// The village's tune: the evolving-music state the day's world
+    /// metrics steer
+    pub music: Entity,
+    /// The weather event rolling through: storm, dry spell, heat or
+    /// hard frost - fields and bones feel it while it lasts
+    pub weather: Entity,
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,
@@ -909,6 +949,13 @@ pub struct Game {
     /// The worst state each feud was announced at, so the log tells its
     /// turns once each
     pub feud_told: crate::engine::det::HashMap<Entity, crate::game::feuds::FeudStatus>,
+    /// (villager -> (day, units)) - what each one made at the bench today,
+    /// so the card can say the day's work plainly
+    pub produced: crate::engine::det::HashMap<Entity, (u64, f32)>,
+    /// (workshop -> (day, good -> net units)) - what flowed through a
+    /// shop today: inputs out of stock, outputs in, so the shop's card
+    /// can show the chain it worked
+    pub shop_flow: crate::engine::det::HashMap<Entity, (u64, Vec<(String, i32)>)>,
     /// The pack's been seen: a wolf night is coming once the roll lands
     pub wolf_coming: bool,
     /// The hens are restless: a fox night is coming once the roll lands
@@ -931,6 +978,9 @@ pub struct Game {
     pub numeracy: Numeracy,
     /// The clerk who keeps the tallies straight, when one's emerged
     pub translator: Option<Entity>,
+    /// Days of his books actually kept - a season of them and the
+    /// village takes the count up itself; the held teach no days
+    pub translator_days: u32,
     /// Reckonings that didn't add up - enough and a clerk steps up
     pub reckonings: u32,
     /// A sky event rides over the walls: ("comet"/"eclipse", the day it goes)
@@ -955,6 +1005,7 @@ pub struct Game {
     pub letters: Vec<(Entity, Entity, u64)>,
     /// The cave mouth at the map's edge - the monochrome under
     pub cave_pos: Option<(i32, i32)>,
+    /// The martyr's plot, when the gibbet made one
     /// The hermit who keeps to it
     pub hermit: Option<Entity>,
     /// Whether the player's first body's gone - the work goes on
@@ -997,6 +1048,36 @@ pub struct Game {
     pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
     /// The village's research: the printmaking track the print shop's
     /// work feeds (game::tech_tree)
+    /// When each dead villager fell - the day their home's still theirs
+    /// for the heirs before the bed goes free
+    pub dead_since: crate::engine::det::HashMap<Entity, u64>,
+    /// The first harvest got its line in the log
+    pub crop_noted: bool,
+    /// The village's crop fields - stocked sources like the granary,
+    /// standing at the edge where the ground allowed them
+    pub crop_fields: Vec<Entity>,
+    /// The last sim-year the orgs took the harvest in together
+    pub harvest_year: u64,
+    /// Each villager's tale as the days write it - the story events the
+    /// chronicle reads for themes
+    pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
+    /// Villager indexes whose formed tale was already named in the log
+    pub tales_told: crate::engine::det::HashSet<usize>,
+    /// The village's wood: a living stand that grows, spreads, burns
+    /// and regrows - the fuel commons its coverage leans on
+    pub forest: crate::sim::emergence::Automata,
+    /// The ground the village stands on: the landform's name, when one
+    /// shaped the heightfield
+    pub landform: Option<String>,
+    /// The wood's own chance-stream: a lightning roll mustn't shift the
+    /// village's other draws
+    pub forest_rng: Rng,
+    /// The parish congregation: every villager a member, the priest its
+    /// leader - holy-day services feed devotion, bonds and the poor box
+    pub congregation: Entity,
+    /// What the priest's old books have taught: the parish's reading,
+    /// collected
+    pub grimoire: crate::sim::magic::Grimoire,
     pub tech: Vec<crate::game::tech_tree::Tech>,
 }
 
@@ -1266,10 +1347,27 @@ impl Game {
                 if crate::game::dungeon::unavailable(world, *v) { continue; }
                 let (store, village_home) = country_homes.get(vi).copied().flatten()
                     .unwrap_or((self.market_food, village_home));
-                let market_has = world.get_component::<villager::FoodSource>(store)
-                    .map(|f| f.servings > 0).unwrap_or(false);
+                // the village table is the granary AND the fields: a village
+                // villager's store is whichever stocked one stands closest,
+                // while a countryman's is still his own settlement's granary
+                let vpos = world.get_component::<Pos>(*v).map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+                let (store, market_has) = if store == self.market_food {
+                    let stocked = |f: Entity| world.get_component::<villager::FoodSource>(f)
+                        .map(|fs| fs.servings > 0).unwrap_or(false);
+                    let nearest = std::iter::once(self.market_food).chain(self.crop_fields.iter().copied())
+                        .filter(|&f| stocked(f))
+                        .min_by_key(|&f| world.get_component::<Pos>(f)
+                            .map(|fp| ((fp.x - vpos.0).abs() + (fp.y - vpos.1).abs()) as i32).unwrap_or(i32::MAX));
+                    (nearest.unwrap_or(store), nearest.is_some())
+                } else {
+                    (store, world.get_component::<villager::FoodSource>(store)
+                        .map(|f| f.servings > 0).unwrap_or(false))
+                };
                 let vdata = world.get_component::<Villager>(*v);
-                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false);
+                let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false)
+                    // the remit rider's belly waits for the keep's table -
+                    // the pull doesn't fight his road for the granary
+                    && !self.travels.iter().any(|t| t.who == *v && matches!(t.goal, Goal::Remit(_)));
                 let target_food = vdata.and_then(|x| x.target_food);
                 if seeking && market_has && target_food != Some(store) {
                     if let Some(vill) = world.get_component_mut::<Villager>(*v) {
@@ -1313,6 +1411,23 @@ impl Game {
                 let heading_home = seeking && dx.abs() + dy.abs() > 0.5
                     || !seeking && !planned && d > VILLAGE_RADIUS;
                 if heading_home {
+                    // past every errand's reach the nudge below would walk
+                    // them home a tile a day for months: once a day, put a
+                    // stray this far out on the road itself - the same
+                    // walk_path the errands take, just longer. Not one
+                    // already walking: a second path would drag them back
+                    // toward its stale waypoints every frame
+                    if dx.abs() + dy.abs() > 30.0 && self.frame_n % ticks_per_frame == 0
+                        && !self.travels.iter().any(|t| t.who == *v) {
+                        if let Some(t) = food_tile {
+                            let from = (p.x.round() as i32, p.y.round() as i32);
+                            if let Some(mut path) = self.map.walk_path(from, t) {
+                                path.push(t);
+                                self.travels.push(Travel { who: *v, path, goal: Goal::Wander });
+                                continue;
+                            }
+                        }
+                    }
                     let step = 1.0 / ticks_per_frame as f32;
                     let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
                     if self.map.passable(nx.round() as i32, ny.round() as i32) {
@@ -1369,6 +1484,8 @@ impl Game {
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
+                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                        crate::sim::story::EventKind::Death, format!("{} died.", vill_name(i)));
                 }
             }
         }
@@ -1400,8 +1517,19 @@ impl Game {
         let sick_now: Vec<Option<String>> = villagers.iter().map(|v| sickness_name(world, *v)).collect();
         for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
             match (now, was.as_ref()) {
-                (Some(name), None) => log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name)),
-                (None, Some(old)) => log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old)),
+                (Some(name), None) => {
+                    log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name));
+                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                        crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
+                }
+                (None, Some(old)) => {
+                    // a disease gone because it took them isn't a recovery
+                    if self.died_on.get(i).and_then(|d| *d).is_none() {
+                        log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
+                        note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                            crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
+                    }
+                }
                 _ => {}
             }
             *was = now.clone();

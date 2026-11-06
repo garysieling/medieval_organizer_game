@@ -405,3 +405,19 @@ fn generated_country_has_repeatable_connected_satellite_sites() {
         }
     }
 }
+
+#[test]
+fn test_the_table_keeps_its_register() {
+    let mut g = Game::new();
+    g.tick = 10;
+    g.tavern_table.push((g.villagers[4], 8));
+    g.tavern_table.push((g.villagers[7], 9));
+    let tav_i = g.building_entities.iter().position(|&b| b == g.tavern.unwrap()).unwrap();
+    g.seats[0].selected_building = Some(tav_i);
+    g.seats[0].picked = false;
+    let ins = g.ui_model_at(0).inspector.expect("no card for the tavern");
+    assert!(ins.lines.iter().any(|l| l.text.contains("the table's company")
+        && l.text.contains(vill_name(4))),
+        "the card doesn't name the company: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

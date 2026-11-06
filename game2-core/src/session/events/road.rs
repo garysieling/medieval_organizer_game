@@ -127,6 +127,11 @@ impl Game {
                     let pays = self.world.get_component::<Purse>(v).map(|p| p.gold >= 1.0).unwrap_or(false);
                     if !pays { continue; }
                     if let Some(p) = self.world.get_component_mut::<Purse>(v) { p.gold -= 1.0; }
+                    // a penny a page - and it lands in the scribe's purse,
+                    // the fee that keeps him on the road
+                    if let Some(se) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.e) {
+                        if let Some(sp) = self.world.get_component_mut::<Purse>(se) { sp.gold += 1.0; }
+                    }
                     self.letters.push((v, to, tick + 30));
                     wrote += 1;
                 }

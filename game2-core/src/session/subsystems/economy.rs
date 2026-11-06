@@ -126,6 +126,10 @@ impl Game {
                 if let Some(b) = self.world.get_component_mut::<Building>(shop) { b.worker = None; }
                 let bname = self.world.get_component::<Building>(shop).map(|b| b.name.clone()).unwrap_or_else(|| "the shop".into());
                 self.log.push(format!("t{}: {} stands shuttered - no heir for {}'s bench.", tick, bname, dname));
+                // the day's derelict scan mustn't say it a second time
+                if let Some(i) = self.building_entities.iter().position(|&e| e == shop) {
+                    self.derelict.insert(i);
+                }
             }
         }
     }
@@ -366,13 +370,9 @@ impl Game {
         // their own counsel
         sitting.truncate(TAVERN_BENCH);
         if sitting.is_empty() { return; }
-        // the register, so the night's company is the night's company
+        // the register keeps a month of nights - written after the
+        // till answers, so a dry patron's name never lands on it
         self.tavern_table.retain(|&(_, d)| tick.saturating_sub(d) < 30);
-        for &v in &sitting {
-            if !self.tavern_table.iter().any(|&(w, d)| w == v && d == tick) {
-                self.tavern_table.push((v, tick));
-            }
-        }
         // a cup goes down at the bench. This is the keeper's whole till:
         // he laid the barrel in at the wholesale cut and it leaves his
         // shelf at the street price, one cup at a time. The thirsty buy
@@ -396,6 +396,9 @@ impl Game {
             // drunk at the bench, not carried home in the bag
             if let Some(sa) = self.world.get_component_mut::<Satchel>(v) {
                 if let Some(q) = sa.goods.get_mut(pour) { *q = q.saturating_sub(1); }
+            }
+            if !self.tavern_table.iter().any(|&(w, d)| w == v && d == tick) {
+                self.tavern_table.push((v, tick));
             }
             if self.rng.below(100) < TAVERN_DRUNK_PCT {
                 self.world.add_component(v, villager::Drunk { until: tick + 2 });

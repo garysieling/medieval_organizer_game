@@ -40,20 +40,40 @@ impl Game {
     /// holy day the priest's arbitration cools the hottest of them, the
     /// way the sagas end - talks first, a settlement if it's cooled enough
     pub(in crate::session) fn feud_tick(&mut self, tick: u64) {
-        for e in self.world.query::<crate::game::feuds::Feud>() {
-            let Some(f) = self.world.get_component::<crate::game::feuds::Feud>(e) else { continue };
+        let rows: Vec<_> = self.world.query::<crate::game::feuds::Feud>().into_iter()
+            .filter_map(|e| self.world.get_component::<crate::game::feuds::Feud>(e)
+                .map(|f| (e, f.status, f.offender, f.aggrieved, f.offense.clone())))
+            .collect();
+        for (e, status, offender, aggrieved, offense) in rows {
             let last = self.feud_told.get(&e).copied();
-            match f.status {
+            match status {
                 crate::game::feuds::FeudStatus::Burning if last != Some(crate::game::feuds::FeudStatus::Burning) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Burning);
-                    let (an, bn) = (self.name_of(f.aggrieved), self.name_of(f.offender));
-                    self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, f.offense));
-                    self.rep_apply(f.offender, RepAction::BadDeed);
+                    let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
+                    self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, offense));
+                    self.rep_apply(offender, RepAction::BadDeed);
+                    for who in [offender, aggrieved] {
+                        if let Some(i) = self.villagers.iter().position(|v| *v == who) {
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                                crate::sim::story::EventKind::Conflict, format!("{} - bad blood burns", offense));
+                        }
+                    }
+                    // open conflict breaks the offender's sworn word:
+                    // you can't aid a neighbour with one fist raised
+                    for other in crate::game::contracts::break_all_pacts(&mut self.world, offender) {
+                        self.log.push(format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(other)));
+                    }
                 }
                 crate::game::feuds::FeudStatus::Resolved if last != Some(crate::game::feuds::FeudStatus::Resolved) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Resolved);
-                    let (an, bn) = (self.name_of(f.aggrieved), self.name_of(f.offender));
+                    let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
                     self.log.push(format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
+                    for who in [offender, aggrieved] {
+                        if let Some(i) = self.villagers.iter().position(|v| *v == who) {
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                                crate::sim::story::EventKind::Recovery, "the bad blood is settled".into());
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -76,6 +96,25 @@ impl Game {
             });
         if let Some(fe) = hot {
             crate::game::feuds::peacemaking(&mut self.world, fe, priest);
+        }
+    }
+
+    /// The holy-day office, run once the day's plans are laid: everyone
+    /// keeping Worshipping today - church rows or the old rite, priest
+    /// or no priest - gathers a little devotion and a bond, and the
+    //  parish's poor box feeds the hungriest of the flock
+    pub(in crate::session) fn service_tick(&mut self, tick: u64) {
+        if !routine::is_holy(tick) { return; }
+        let attendees: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
+                && self.world.get_component::<routine::Routine>(v)
+                    .map(|r| r.mode == routine::Mode::Worshipping && r.day == tick)
+                    .unwrap_or(false)).collect();
+        if attendees.len() >= 2 {
+            crate::sim::religion::perform_service(&mut self.world, self.congregation,
+                crate::sim::religion::Service {
+                    name: "the holy-day office".into(), frequency: "weekly".into(),
+                    participants: attendees, cohesion_boost: 0.25, charity_output: 0.2 });
         }
     }
 
@@ -106,6 +145,9 @@ impl Game {
                 // scandal, a disliked one shamed is a lesson
                 if self.rep_of(v) > 0.5 {
                     self.rep_apply(v, RepAction::GreatDeed); // sympathy lifts them
+                    // the rung was recorded before the crowd answered -
+                    // a sentence never served is no rung at all
+                    self.sanctioned.retain(|(e, s, _)| !(*e == v && *s == Sanction::Stocks));
                     self.log.push(format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
                     self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
                 } else {
@@ -132,6 +174,18 @@ impl Game {
         self.world.get_component::<ReputationState>(v).map(|r| r.score).unwrap_or(0.45)
     }
 
+    /// New traders joining late - migrants, grown children - carry the
+    /// Merchant the guild's compact wants; a day of arrivals sees them
+    /// tagged and enrolled on its next run
+    pub(in crate::session) fn guild_tick(&mut self, _tick: u64) {
+        for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
+            if self.world.get_component::<crate::game::guilds::Merchant>(v).is_none()
+                && is_trader(&self.world, v) {
+                tag_trader(&mut self.world, v, vill_name(i));
+            }
+        }
+    }
+
     pub(in crate::session) fn rep_apply(&mut self, v: Entity, a: RepAction) {
         let _ = self.rep_of(v);
         if let Some(r) = self.world.get_component_mut::<ReputationState>(v) {
@@ -142,12 +196,12 @@ impl Game {
     /// Is this shop's worker under boycott or worse? Their trade dries up
     pub fn boycotted(&self, shop: Entity) -> bool {
         let Some(worker) = self.world.get_component::<Building>(shop).and_then(|b| b.worker) else { return false };
-        self.sanctioned.iter().any(|(e, s, _)| *e == worker && *s >= Sanction::Boycott)
+        self.sanctioned.iter().any(|(e, s, u)| *e == worker && *s >= Sanction::Boycott && self.tick < *u)
     }
 
     /// Is this villager under the cold shoulder or worse?
     pub fn shunned(&self, v: Entity) -> bool {
-        self.sanctioned.iter().any(|(e, s, _)| *e == v && *s >= Sanction::Shun)
+        self.sanctioned.iter().any(|(e, s, u)| *e == v && *s >= Sanction::Shun && self.tick < *u)
     }
 
     /// The lord's arm: every season a writ comes down - a levy of grain,
@@ -199,8 +253,10 @@ impl Game {
             }
             3 => {
                 // the drink levy: the castle's share of every barrel in
-                // the village - a quarter of what pours, off every stock
-                let share = |q: u32| ((q as f32) * if bargained { 0.125 } else { 0.25 }).ceil() as u32;
+                // the village - a quarter of what pours, off every stock;
+                // and the grudge reads its weight here too
+                let frac = if bargained { 0.125 } else { 0.25 };
+                let share = |q: u32| (((q as f32) * frac).ceil() as u32).saturating_mul(mult).min(q);
                 let mut taken = 0u32;
                 for &be in &self.building_entities.clone() {
                     if let Some(b) = self.world.get_component_mut::<Building>(be) {
@@ -219,7 +275,12 @@ impl Game {
                 // a strong org can stand against it
                 let mark = self.villagers.iter().copied()
                     .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
-                        && self.world.get_component::<TownRole>(v).is_none())
+                        && self.world.get_component::<TownRole>(v).is_none()
+                        // the guild's mutual protection: the bailiff's
+                        // summons finds no hold on a member
+                        && !self.world.query::<crate::game::guilds::Guild>().iter()
+                            .any(|&g| self.world.get_component::<crate::game::guilds::Guild>(g)
+                                .map(|gg| gg.members.contains(&v)).unwrap_or(false)))
                     .max_by_key(|&v| self.world.get_component::<InnerLife>(v)
                         .map(|l| l.grievances.len()).unwrap_or(0));
                 if let Some(m) = mark {
@@ -246,7 +307,7 @@ impl Game {
                         }
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
-                        self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty.", tick, self.name_of(m)));
+                        self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
                     } else {
                         self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
                         for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
@@ -402,11 +463,21 @@ impl Game {
     pub fn martyr_tick(&mut self, tick: u64) {
         let Some(_) = self.martyr_grave else { return };
         if tick % 30 != 20 { return; }
-        // a vigil: the org's members keep the grave, and it makes them
-        for v in self.villagers.iter().take(5).copied().collect::<Vec<_>>() {
-            if !villager::is_dead(&self.world, v) {
-                desires::satisfy(&mut self.world, v, Want::Faith, tick + 15);
-            }
+        // a vigil: the org's members keep the grave - the remembering
+        // feeds them where they stand; those free to walk, walk out to it
+        let Some(grave) = self.martyr_grave else { return };
+        let members = self.world.get_component::<Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        let mut roster: Vec<Entity> = self.villagers.iter().take(5).copied().collect();
+        for &m in &members { if !roster.contains(&m) { roster.push(m); } }
+        for v in roster {
+            if villager::is_dead(&self.world, v) { continue; }
+            desires::satisfy(&mut self.world, v, Want::Faith, tick + 15);
+            // a walk already under way is theirs, and a seat's own
+            // villager answers only its commands - the vigil takes neither
+            if self.travels.iter().any(|t| t.who == v) { continue; }
+            if self.seats.iter().any(|s| s.player == v) { continue; }
+            self.send_tile_walk(v, grave, Goal::Wander, 40);
         }
         self.record_power(crate::sim::organized_power::ActionQuality::Transactional);
         if tick % 90 == 20 {
@@ -490,20 +561,48 @@ impl Game {
         }
     }
 
-    /// People power: it builds as the org spends it and atrophies when
-    /// idle - and the lord's estimate lags behind the truth, for he only
-    /// learns what the street shows him
+    /// People power: it builds as the org spends it and atrophies daily
+    /// when idle - and the lord's estimate lags behind the truth, for he
+    /// only learns what the street shows him
     pub fn power_tick(&mut self, tick: u64) {
         if tick % 7 != 3 { return; }
-        let capacity = {
-            if let Some(p) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
-                crate::sim::organized_power::step_idle(p,
-                    &crate::sim::organized_power::PowerParams { atrophy_rate: 0.02, ..Default::default() });
-                p.capacity
-            } else { 0.0 }
-        };
+        let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
+            .map(|p| p.capacity).unwrap_or(0.0);
+        // a season of the clerk's books and the count is everyone's:
+        // the village keeps it the positional way for good, clerk or no
+        if let Some(c) = self.translator {
+            // the books count the days he's free to keep them: the held
+            // teach nothing till they're out and back at the tallies
+            if !crate::game::dungeon::unavailable(&self.world, c)
+                && !crate::game::villager::is_dead(&self.world, c) {
+                self.translator_days += 7;
+            }
+            if self.numeracy != Numeracy::Positional && self.translator_days >= 90 {
+                self.numeracy = Numeracy::Positional;
+                self.log.push(format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
+            }
+        }
         // the lord's estimate creeps toward what's shown - perceived, not raw
+        let was = self.lord_esteem;
         self.lord_esteem += (capacity - self.lord_esteem) * 0.08;
+        // and the word of it reaches the village: not a number, the mood
+        // the castle gives off - heard when it tips a step either way
+        let tier = |e: f32| if e >= 0.7 { 3 } else if e >= 0.5 { 2 } else if e >= 0.3 { 1 } else { 0 };
+        if tier(self.lord_esteem) != tier(was) {
+            let up = self.lord_esteem > was;
+            // it's the Harvesters' name on his lips, whichever seat reads it
+            let oname = self.world.get_component::<Organization>(self.org)
+                .map(|o| o.name.clone()).unwrap_or_else(|| "the cause".into());
+            let word = match (tier(self.lord_esteem), up) {
+                (3, true) => format!("word comes down - the lord frets over {}", oname),
+                (2, true) => format!("word comes down - the lord keeps an ear on {} now", oname),
+                (1, true) => format!("word comes down - the castle's heard the name {}", oname),
+                (2, false) => format!("word comes down - the castle's worry about {} eases a step", oname),
+                (1, false) => format!("word comes down - {} slips their minds", oname),
+                _ => format!("word comes down - the castle's forgot {} ever met", oname),
+            };
+            self.log.push(format!("t{}: {}.", tick, word));
+        }
     }
 
     /// An org action in the street: power builds as it's spent
@@ -589,9 +688,11 @@ impl Game {
                 }).unwrap_or("To the harvest!");
             self.say(v, line, CHAT_BUBBLE_SECS * 2);
         }
-        // the tax collector is never invited but always shows
+        // the tax collector is never invited but always shows - unless
+        // he's forty miles out with the lord's gold on his saddle
         if let Some(c) = self.collector {
-            if !villager::is_dead(&self.world, c) {
+            if !villager::is_dead(&self.world, c)
+                && !self.travels.iter().any(|t| t.who == c && matches!(t.goal, Goal::Remit(_))) {
                 self.travels.retain(|t| t.who != c);
                 self.send(c, Goal::HeadHome(store));
                 self.say(c, "Uninvited. As ever.", CHAT_BUBBLE_SECS * 2);
@@ -599,3 +700,27 @@ impl Game {
         }
     }
 }
+
+/// Is this villager a trader the guild's compact wants? The
+    /// trade-vocation folk and the stall's trader count; raw producers,
+    /// officials and the country folk don't - the guild's the village's
+    pub(in crate::session) fn is_trader(world: &World, v: Entity) -> bool {
+        if world.get_component::<crate::session::country::Outlander>(v).is_some() { return false; }
+        world.get_component::<TownRole>(v)
+            .map(|r| matches!(r, TownRole::Trader))
+            .unwrap_or(false)
+            || world.get_component::<Craft>(v)
+                .map(|c| !matches!(c.vocation,
+                    Vocation::Priest | Vocation::Knight | Vocation::Farmer
+                    | Vocation::Shepherd | Vocation::Fisher))
+                .unwrap_or(false)
+    }
+
+    /// Give a trader the Merchant the guild formation reads: their name,
+    /// their purse plus the stock and tools the writs can strip, their
+    /// stake marked exposed to the bailiff
+    pub(in crate::session) fn tag_trader(world: &mut World, v: Entity, name: &str) {
+        let wealth = world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) + 60.0;
+        world.add_component(v, crate::game::guilds::Merchant { name: name.into(),
+            wealth, trade_routes: vec!["the market".into()], vulnerable: true });
+    }

@@ -3,6 +3,16 @@
 use crate::session::*;
 
 impl Game {
+    /// Take a villager into the parish: a Faith of their own, and a name
+    /// on the congregation's roll
+    pub(in crate::session) fn join_parish(&mut self, v: Entity) {
+        self.world.add_component(v, crate::sim::religion::Faith {
+            religion: "the parish".into(), devotion: 0.4, traditions: vec![] });
+        if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+            c.members.push(v);
+        }
+    }
+
     /// A child born to a full house: a Kid like the ones the village
     /// started with, bedded where they were born
     pub(in crate::session) fn spawn_kid(&mut self, home: Entity, tick: u64) {
@@ -15,6 +25,11 @@ impl Game {
         self.world.add_component(v, Known::default());
         self.world.add_component(v, Kid);
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
+        self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+        self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant });
+        self.world.add_component(v, crate::game::lifecycle::Vitality {
+            health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, Purse { gold: 0.0 });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
@@ -22,11 +37,15 @@ impl Game {
         if let Some(si) = self.sites.iter().position(|s| s.homes.contains(&home)) {
             self.world.add_component(v, country::Outlander { site: si });
         }
+        // a village child is born into the parish
+        if self.site_of(v).is_none() { self.join_parish(v); }
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
         self.died_on.push(None);
         self.log.push(format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
+        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, self.villagers.len() - 1, tick,
+            crate::sim::story::EventKind::Birth, format!("{} is born.", vill_name(self.villagers.len() - 1)));
         // and the neighbours mark it: a small celebration at the house
         if let Some(p) = self.world.get_component::<Pos>(home) {
             self.local_celebration(tick, (p.x, p.y), None, "a new child");
@@ -42,8 +61,12 @@ impl Game {
                     // beds cap at four like the first settling - the
                     // building's capacity is its stock limit, not beds
                     && bb.occupants.len() < 4
+                    // a crib needs village parents - the rivals' houses
+                    // across the river breed no village children
                     && bb.occupants.iter().filter(|&&o|
-                        self.world.get_component::<Kid>(o).is_none()
+                        (self.villagers.contains(&o)
+                        || self.seats.iter().any(|s| s.player == o))
+                        && self.world.get_component::<Kid>(o).is_none()
                         && !crate::game::dungeon::unavailable(&self.world, o)).count() >= 2)
                 .unwrap_or(false);
             if full && self.rng.next() % 3 == 0 { self.spawn_kid(b, tick); return; }
@@ -63,7 +86,16 @@ impl Game {
         self.world.add_component(v, vocation::craft(roll_vocation(&mut self.rng),
             0.1 + (self.rng.next() % 40) as f32 / 100.0));
         self.world.add_component(v, Purse { gold: 8.0 });
+        let years = 19.0 + (self.rng.next() % 42) as f32;
+        self.world.add_component(v, crate::game::lifecycle::Age {
+            years, stage: crate::game::lifecycle::stage_for(years) });
+        self.world.add_component(v, crate::game::lifecycle::Vitality {
+            health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+        // a newcomer joins the parish
+        self.join_parish(v);
         self.villagers.push(v);
         // the parallel rolls grow with the roster or the next lookup panics
         self.was_sick.push(None);
@@ -117,6 +149,13 @@ impl Game {
         // a scan per afflicted villager multiplied by every bond in the
         // village, which grew without bound over a long game
         let bonds = relationships::bond_map(&self.world);
+        // a turned belly lifts with its day - the chronic ones never do.
+        // swept by the component, not the roster: the player isn't on it
+        let lifted: Vec<Entity> = self.world.query::<villager::Condition>().iter()
+            .filter(|&&e| self.world.get_component::<villager::Condition>(e)
+                .map(|c| tick >= c.until).unwrap_or(false))
+            .copied().collect();
+        for e in lifted { self.world.remove_component::<villager::Condition>(e); }
         for &v in &self.villagers.clone() {
             let Some(cond) = self.world.get_component::<villager::Condition>(v)
                 .map(|c| c.kind) else { continue };
@@ -388,6 +427,167 @@ impl Game {
             self.toasts.push_at((format!("{} comes of age - a {}!", name, trade), tick + 30),
                 toast_spot(&self.world, v));
             self.celebrate_person(tick, v, &format!("{} comes of age", name));
+        }
+        // and the years keep count: a day of the village is about a week
+        // of life (a youngster's 730 days is their fourteenth year);
+        // when the years outrun the span they were given, the village
+        // buries them
+        for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(a) = self.world.get_component_mut::<crate::game::lifecycle::Age>(v) else { continue };
+            a.years += 1.0 / 52.0;
+            a.stage = crate::game::lifecycle::stage_for(a.years);
+            let years = a.years;
+            let span = self.world.get_component::<crate::game::lifecycle::Vitality>(v)
+                .map(|x| x.max_age).unwrap_or(f32::MAX);
+            if years >= span {
+                if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                    h.condition = 0.0;
+                } else {
+                    self.world.add_component(v, villager::Dead);
+                }
+                if let Some(vx) = self.world.get_component_mut::<crate::game::lifecycle::Vitality>(v) {
+                    vx.cause_of_death.get_or_insert_with(|| "old age".into());
+                }
+                self.log.push(format!("t{}: {} dies at {} winters, of old age.", tick,
+                    vill_name(i), years.round() as u32));
+            }
+        }
+        // the dead give up their beds - but not before the heirs have
+        // read the house: a day's grace from the day they fell, then
+        // the bed goes free
+        let dead: Vec<(usize, Entity)> = self.villagers.iter().enumerate()
+            .filter(|&(_, &v)| villager::is_dead(&self.world, v))
+            .map(|(i, &v)| (i, v)).collect();
+        for &(i, d) in &dead {
+            // the true death day, when the roster knows it - an event
+            // late in the day shouldn't hold the bed an extra day
+            match self.died_on.get(i).and_then(|x| *x) {
+                Some(d0) => { self.dead_since.insert(d, d0); }
+                None => { self.dead_since.entry(d).or_insert(tick); }
+            }
+        }
+        let evict: Vec<Entity> = dead.iter().map(|(_, d)| *d)
+            .filter(|d| self.dead_since.get(d).copied().unwrap_or(tick) < tick).collect();
+        self.dead_since.retain(|d, _| dead.iter().any(|(_, e)| e == d));
+        if !evict.is_empty() {
+            for b in self.world.query::<household::Building>() {
+                if let Some(bd) = self.world.get_component_mut::<household::Building>(b) {
+                    if bd.occupants.iter().any(|o| evict.contains(o)) {
+                        bd.occupants.retain(|o| !evict.contains(o));
+                    }
+                }
+            }
+        }
+    }
+
+    /// The year's turn: when autumn comes round the org takes the
+    /// harvest in together - a shared lift for the members' ties and
+    /// the cause's own strength
+    pub fn harvest_tick(&mut self, tick: u64) {
+        let season = self.world.get_component::<crate::sim::climate::Climate>(self.climate)
+            .map(|c| c.season).unwrap_or(crate::sim::climate::Season::Summer);
+        let year = tick / 360; // SeasonSystem's own calendar: 90 ticks a season
+        if season != crate::sim::climate::Season::Autumn || year == self.harvest_year { return; }
+        self.harvest_year = year;
+        for seat in 0..self.seats.len() {
+            let oe = self.seats[seat].org;
+            let took = crate::game::organizing::harvest_together(&mut self.world, oe);
+            if took > 0 {
+                let oname = self.world.get_component::<Organization>(oe)
+                    .map(|o| o.name.clone()).unwrap_or_default();
+                self.log.push(format!("t{}: {} takes the harvest in together - {} share the lift.", tick, oname, took));
+            }
+        }
+    }
+
+    /// Starving hurts, eating well mends the unsick - the day's beat of
+    /// it, while weather keeps to its own floored drain in weather_tick
+    pub fn nourish_tick(&mut self) {
+        let sick: Vec<Entity> = self.world.query::<crate::sim::illness::Disease>().iter()
+            .filter_map(|&d| self.world.get_component::<crate::sim::illness::Disease>(d)
+                .map(|x| x.patient)).collect();
+        crate::game::villager::nourishment_step(&mut self.world, &sick);
+    }
+
+    /// The fields ripen a little each day at the season's pace, and the
+    /// first ears coming in are worth saying aloud once
+    pub fn crop_tick(&mut self, tick: u64) {
+        use crate::engine::ecs::System;
+        use crate::game::villager::{Crop, FoodSource};
+        crate::game::villager::CropGrowthSystem.run(&mut self.world);
+        if self.crop_noted { return; }
+        let grown: u32 = self.world.query::<Crop>().iter()
+            .filter_map(|&e| self.world.get_component::<Crop>(e))
+            .map(|c| c.grown).sum();
+        if grown > 0 {
+            self.crop_noted = true;
+            let stored: u32 = self.world.query::<FoodSource>().iter()
+                .filter_map(|&e| self.world.get_component::<FoodSource>(e))
+                .map(|f| f.servings).sum();
+            self.log.push(format!("t{}: the first ears come in - {} servings stand in store.", tick, stored));
+        }
+    }
+
+    /// The rolls get updated daily: the dead leave them, each org's sway
+    /// re-pools from its living members, a sit-down held yesterday
+    /// deepens into a real tie, and a muscle unused goes soft
+    pub fn influence_tick(&mut self, tick: u64) {
+        use crate::engine::ecs::System;
+        let before = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(
+            self.seats[0].org).map(|p| p.capacity).unwrap_or(0.0);
+        crate::sim::community::InfluenceSystem.run(&mut self.world);
+        crate::sim::community::OneOnOneSystem.run(&mut self.world);
+        crate::sim::organized_power::PowerAtrophySystem.run(&mut self.world);
+        // the day the muscle's gone soft is worth saying aloud
+        let after = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(
+            self.seats[0].org).map(|p| p.capacity).unwrap_or(0.0);
+        if before >= 0.05 && after < 0.05 {
+            self.log.push(format!("t{}: the cause's muscle has gone soft - the habit of meeting is lost.", tick));
+        }
+    }
+
+    /// Ties drift a little toward neutral each day - bad blood settles,
+    /// warmth cools, and a label the tie outgrew comes off
+    pub fn rel_tick(&mut self) {
+        use crate::engine::ecs::System;
+        crate::game::relationships::RelationshipSystem.run(&mut self.world);
+    }
+
+    /// The newly dead are mourned: a bond to them, or a tie worth
+    /// grieving, takes a Loss to the mourner's attachment history - and
+    /// the grief the village already knows how to carry
+    pub fn grief_tick(&mut self, tick: u64) {
+        use crate::sim::psychology::{Bond, Episode, EpisodeKind, Mourned, GRIEF_TIE, record_episode};
+        use crate::game::relationships::{find_relationship, Relationship};
+        // the roster and the seats' wanderers alike - the Wanderer's
+        // bonds grieve like anyone's, and their death's mourned too
+        let mut folk: Vec<Entity> = self.villagers.clone();
+        for s in &self.seats {
+            if !folk.contains(&s.player) { folk.push(s.player); }
+        }
+        let newly_dead: Vec<Entity> = folk.iter().copied()
+            .filter(|&v| villager::is_dead(&self.world, v)
+                && self.world.get_component::<Mourned>(v).is_none()).collect();
+        for d in newly_dead {
+            self.world.add_component(d, Mourned);
+            let mourners: Vec<Entity> = folk.iter().copied().filter(|&m| m != d
+                && !villager::is_dead(&self.world, m)
+                && (self.world.get_component::<Bond>(m).map(|b| b.target == d).unwrap_or(false)
+                    || find_relationship(&self.world, m, d)
+                        .and_then(|r| self.world.get_component::<Relationship>(r))
+                        .map(|r| r.strength >= GRIEF_TIE).unwrap_or(false))).collect();
+            if mourners.is_empty() { continue; }
+            let names: Vec<String> = mourners.iter().take(3)
+                .map(|&m| self.name_of(m)).collect();
+            if !names.is_empty() {
+                self.log.push(format!("t{}: {} mourn {}.", tick, names.join(" and "), self.name_of(d)));
+            }
+            for m in mourners {
+                record_episode(&mut self.world, m, Episode { with: d, kind: EpisodeKind::Loss });
+                crate::game::desires::add_grievance(&mut self.world, m,
+                    crate::game::desires::Problem::Bereaved, tick + 60);
+            }
         }
     }
 

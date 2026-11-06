@@ -11,6 +11,17 @@ use crate::sim::climate::Season;
 use crate::sim::precipitation::PrecipKind;
 use super::{BSprite, CtxAct};
 
+/// A country settlement on the minimap: where it stands, its name,
+/// and who keeps it - the keep's first bed for a castle
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SiteV {
+    pub x: f32,
+    pub y: f32,
+    pub name: String,
+    pub kind: crate::session::country::SiteKind,
+    pub keeper: Option<String>,
+}
+
 /// A villager, rival, pet or other figure standing on the map
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersonV {
@@ -146,6 +157,13 @@ pub struct PanelV {
     pub name: String,
     pub gold: f32,
     pub org: String,
+    /// Who heads it - the org's leader, by name; None before one's named
+    #[serde(default)]
+    pub leader: Option<String>,
+    /// The powers' standing words on it: a lord's grant, knights in
+    /// the streets, an assembly ban - empty when the state ignores it
+    #[serde(default)]
+    pub org_status: Vec<String>,
     pub members: Vec<String>,
     pub issues: Vec<String>,
     pub guilds: usize,
@@ -281,6 +299,10 @@ pub struct UiModel {
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<ToastV>,
     pub log: Vec<String>,
+    /// How many log lines have already rolled out the top - the log's a
+    /// rolling window; the view marks the drop with a count
+    #[serde(default)]
+    pub log_dropped: usize,
     /// The TALK panel, apart from the log
     #[serde(default)]
     pub talk: TalkPanelV,
@@ -336,6 +358,12 @@ pub struct UiModel {
     pub painted: Vec<(f32, f32)>,
     /// The cave mouth at the map's edge
     pub cave: Option<(f32, f32)>,
+    /// The martyr's plot, when the gibbet made one
+    pub grave: Option<(f32, f32)>,
+    /// The country's sites: name and kind for the minimap, the keeper
+    /// when the keep's first bed holds one
+    #[serde(default)]
+    pub sites: Vec<SiteV>,
     /// The seat's public KPIs as lines, for a debug overlay. Never the
     /// secret gauges (`Game::secret_kpis`): this goes over the wire
     pub debug_lines: Vec<String>,

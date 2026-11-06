@@ -82,6 +82,9 @@ pub struct BldgV {
     /// 0..1 while it rises (under construction)
     pub risen: f32,
     pub derelict: bool,
+    /// Shown open today: the printer's shop stands as a cutaway
+    #[serde(default)]
+    pub cutaway: bool,
     /// Chimney smoke (the cottages nearest the market)
     pub smoke: bool,
 }

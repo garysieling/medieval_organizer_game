@@ -841,6 +841,9 @@ pub struct Game {
     pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: crate::engine::det::HashSet<usize>,
+    /// Which workplaces show their cutaway today: a print shop whose
+    /// printer kept the bench (indices into building_entities)
+    pub cutaways: crate::engine::det::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
     /// parallel complaints make the next speaker likelier to share
     pub voiced: Vec<(Entity, desires::IssueTag)>,

@@ -363,12 +363,12 @@ impl View {
             }
             match who {
                 // windmill: the tower on its tile, its sails turning on the
-                // tower's face (frame cycles every 10 ticks)
+                // tower's face (frame cycles every 10 render frames)
                 Who::Mill => {
                     if let (Some(tower), true) = (&art.mill_tower, art.mill_rd) {
                         let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                         draw_standing(&mut buf, tower, msx, msy, zoom);
-                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                        if let Some(sails) = art.mill_frames.get(((m.frame / 10) % 4) as usize) {
                             let (hx, hy) = mill_hub_rd(tower, msx, msy, zoom);
                             let (w, h) = ((sails.width as f32 * zoom).round() as i32, (sails.height as f32 * zoom).round() as i32);
                             draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, zoom);
@@ -376,7 +376,7 @@ impl View {
                     } else if let Some(tower) = &art.mill_tower {
                         let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                         draw_on_tile(&mut buf, tower, msx, msy, zoom);
-                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                        if let Some(sails) = art.mill_frames.get(((m.frame / 10) % 4) as usize) {
                             let (hx, hy) = mill_hub(tower, msx, msy, zoom);
                             let k = MILL_SAILS * 2.0 * TILE_W as f32 * zoom / tower.width as f32;
                             let (w, h) = ((sails.width as f32 * k).round() as i32, (sails.height as f32 * k).round() as i32);

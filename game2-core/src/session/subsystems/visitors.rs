@@ -26,6 +26,7 @@ impl Game {
     /// while, then ride off - and the town wants music again next season
     pub fn advance_minstrel(&mut self) {
         let Some(mut m) = self.minstrel.take() else { return };
+        let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // the song's no good to anyone with the thatch alight: he turns
         // his horse for the road home
         if self.fire_at_feet(m.e, &m.path) {
@@ -41,8 +42,8 @@ impl Game {
                 let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.minstrel = Some(m);
         } else if self.tick <= m.playing_until.unwrap() {
@@ -74,8 +75,8 @@ impl Game {
                 let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.minstrel = Some(m);
         }
@@ -95,6 +96,7 @@ impl Game {
     /// gossip and oddities a few days, then the road takes him
     pub fn advance_pedlar(&mut self) {
         let Some(mut m) = self.pedlar.take() else { return };
+        let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // no stall is worth a burning pitch: he shoulders his pack
         if self.fire_at_feet(m.e, &m.path) {
             m.selling_until = Some(self.tick.saturating_sub(1));
@@ -141,8 +143,8 @@ impl Game {
                 let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.pedlar = Some(m);
         } else if self.tick <= m.selling_until.unwrap() {
@@ -176,8 +178,8 @@ impl Game {
                 let (nx, ny) = (m.path[0].0 as f32, m.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; m.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; m.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.pedlar = Some(m);
         }
@@ -200,6 +202,7 @@ impl Game {
     /// light fingers, then leave - and maybe not alone
     pub fn advance_circus(&mut self) {
         let Some(mut c) = self.circus.take() else { return };
+        let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // the meadow's burning or the road in is: the tents fold early
         if self.fire_at_feet(c.e, &c.path) {
             c.camped_until = Some(self.tick.saturating_sub(1));
@@ -214,8 +217,8 @@ impl Game {
                 let (nx, ny) = (c.path[0].0 as f32, c.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; c.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; c.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.circus = Some(c);
         } else {
@@ -309,6 +312,7 @@ impl Game {
     /// the cauldron a few days, then the road takes him back
     pub fn advance_ink_boiler(&mut self) {
         let Some(mut b) = self.ink_boiler.take() else { return };
+        let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // flames come for a pot of boiling oil too: he packs and goes
         if self.fire_at_feet(b.e, &b.path) {
             b.working_until = Some(self.tick.saturating_sub(1));
@@ -323,8 +327,8 @@ impl Game {
                 let (nx, ny) = (b.path[0].0 as f32, b.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; b.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; b.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.ink_boiler = Some(b);
         } else if self.tick <= b.working_until.unwrap() {
@@ -346,8 +350,8 @@ impl Game {
                 let (nx, ny) = (b.path[0].0 as f32, b.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; b.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; b.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.ink_boiler = Some(b);
         }

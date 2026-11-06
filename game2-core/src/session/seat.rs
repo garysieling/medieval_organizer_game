@@ -307,7 +307,7 @@ impl Game {
         let at = (px.round() as i32, py.round() as i32);
         // a well-worn path is quicker underfoot, whoever's feet wear it
         let worn = self.trails.get(&at).map(|t| t.strength).unwrap_or(0.0);
-        let spd = WALK_SPEED / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
+        let spd = WALK_SPEED * self.walk_pace() / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
             _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
             _ => 1.0,

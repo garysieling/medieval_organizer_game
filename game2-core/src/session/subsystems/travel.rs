@@ -148,6 +148,7 @@ impl Game {
     /// errand when it runs out
     pub fn advance_travels(&mut self) {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
+        let pace = self.walk_pace();
         // the country's carters and stewards go by cart and horse
         let riders: Vec<Entity> = self.sites.iter().filter_map(|s| s.carrier).collect();
         for t in self.travels.iter_mut() {
@@ -161,7 +162,7 @@ impl Game {
             let slow = self.world.get_component::<villager::Condition>(t.who)
                 .map(|c| if c.kind == "a lame leg" { 0.6 } else { 1.0 }).unwrap_or(1.0);
             let ride = if riders.contains(&t.who) { country::RIDE_PACE } else { 1.0 };
-            let stride = MEETING_WALK / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride;
+            let stride = MEETING_WALK * pace / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
             let ot = (p.x.round() as i32, p.y.round() as i32);
             let (nx, ny) = (t.path[0].0 as f32, t.path[0].1 as f32);

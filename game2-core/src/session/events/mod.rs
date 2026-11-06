@@ -413,6 +413,7 @@ impl Game {
 
     /// One frame for every afoot event: walk the road, stand the pitch
     pub fn advance_rare(&mut self) {
+        let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         for idx in 0..self.rare.len() {
             let mut r = self.rare[idx].clone();
             let Some(e) = r.e else { continue };
@@ -431,8 +432,8 @@ impl Game {
                 let (nx, ny) = (r.path[0].0 as f32, r.path[0].1 as f32);
                 let (dx, dy) = (nx - p.x, ny - p.y);
                 let d = (dx * dx + dy * dy).sqrt();
-                if d <= TRAVELLER_SPEED { p.x = nx; p.y = ny; r.path.remove(0); }
-                else { p.x += dx / d * TRAVELLER_SPEED; p.y += dy / d * TRAVELLER_SPEED; }
+                if d <= tr_spd { p.x = nx; p.y = ny; r.path.remove(0); }
+                else { p.x += dx / d * tr_spd; p.y += dy / d * tr_spd; }
             }
             self.rare[idx] = r;
         }

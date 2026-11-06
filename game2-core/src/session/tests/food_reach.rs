@@ -6,6 +6,7 @@ fn test_no_one_starves_beside_a_full_store() {
     // out of eating reach (1 tile) of the store: on main they sat at zero
     // hunger for up to 75 days in a row while it held ~480 servings
     let mut game = Game::new();
+    game.speed = 4; // turbo: the separation push still runs, just sampled thinner
     let (mut last, mut run, mut worst, mut who) = (0, vec![0u64; NAMES.len()], 0u64, 0usize);
     while game.tick < 720 {
         game.update();

@@ -346,6 +346,7 @@ impl Game {
     pub fn advance_meeting(&mut self) {
         let Some(mut m) = self.meeting.take() else { return };
         m.frames += 1;
+        let step = MEETING_WALK * self.walk_pace();
         // those who've arrived stand at their spot (no strolling off mid-meeting);
         // a dead invitee's grave stays where they died, it doesn't keep walking
         for (i, v) in m.invited.iter().enumerate() {
@@ -356,7 +357,7 @@ impl Game {
                     let (nx, ny) = (path[0].0 as f32, path[0].1 as f32);
                     let (dx, dy) = (nx - p.x, ny - p.y);
                     let d = (dx * dx + dy * dy).sqrt();
-                    if d <= MEETING_WALK { p.x = nx; p.y = ny; path.remove(0); } else { p.x += dx / d * MEETING_WALK; p.y += dy / d * MEETING_WALK; }
+                    if d <= step { p.x = nx; p.y = ny; path.remove(0); } else { p.x += dx / d * step; p.y += dy / d * step; }
                 }
                 Some(_) => { p.x = m.spots[i].0 as f32; p.y = m.spots[i].1 as f32; }
                 None => {}
@@ -414,11 +415,14 @@ impl Game {
         let mut people: Vec<Entity> = self.villagers.iter().copied()
             .filter(|v| !crate::game::dungeon::unavailable(&self.world, *v)).collect();
         people.push(self.player);
-        let pos = |w: &World, e: Entity| w.get_component::<Pos>(e).map(|p| (p.x, p.y));
+        // positions once for the whole pair pass - a lookup per pair was
+        // thousands of hashmap hits a frame on a crowded street
+        let spots: Vec<Option<(f32, f32)>> = people.iter()
+            .map(|&e| self.world.get_component::<Pos>(e).map(|p| (p.x, p.y))).collect();
         let mut near = vec![];
         for (i, &a) in people.iter().enumerate() {
-            for &b in &people[i + 1..] {
-                let (Some(pa), Some(pb)) = (pos(&self.world, a), pos(&self.world, b)) else { continue };
+            for (j, &b) in people[i + 1..].iter().enumerate() {
+                let (Some(pa), Some(pb)) = (spots[i], spots[i + 1 + j]) else { continue };
                 if (pa.0 - pb.0).powi(2) + (pa.1 - pb.1).powi(2) < CHAT_RANGE * CHAT_RANGE { near.push((a, b)); }
             }
         }

@@ -1039,9 +1039,20 @@ impl Game {
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
-        // room's talk can be read as it's said
-        let base = if self.speed == 1 { 21 * FPS } else { 15 * FPS / 4 };
+        // room's talk can be read as it's said. Speeds past turbo (tests
+        // fast-forwarding weeks at a time) thin the frames further: the
+        // per-frame strides scale by ticks_per_frame, so a day still
+        // covers the same ground, just sampled less often
+        let base = if self.speed == 1 { 21 * FPS } else { (15 * FPS / self.speed.max(4)).max(1) };
         if self.meeting.is_some() || self.seats.iter().any(|s| s.pending_founding.is_some()) { base * 2 } else { base }
+    }
+
+    /// A frame's share of a day's walking, whatever the watch speed. The
+    /// stroll constants are per-frame at walking pace (a day is 21s of
+    /// frames then); scaling by it keeps a day's stride the same at turbo
+    /// and beyond, the way the pull-home steps already do
+    pub fn walk_pace(&self) -> f32 {
+        21.0 * FPS as f32 / self.ticks_per_frame() as f32
     }
 
     /// Whether the player can stand at (x, y): not in the water or the
@@ -1113,6 +1124,7 @@ impl Game {
         self.advance_frame();
         // after every move this frame (the player's command, the sim, the
         // strolling), so the model's poses match its positions
+        let _poses = crate::infra::perf::scope("total.poses");
         self.track_poses();
         // and those standing for something turn to face it
         self.face_routines();
@@ -1120,6 +1132,7 @@ impl Game {
 
     fn advance_frame(&mut self) {
         let ticks_per_frame = self.ticks_per_frame();
+        let walk_pace = 21.0 * FPS as f32 / ticks_per_frame as f32;
         // the soundscape resets each frame: cues live exactly one read
         self.sfx.clear();
         // sim advance: one tick = one day, throttled by frame count
@@ -1162,6 +1175,7 @@ impl Game {
         // quadratically over a long game. Pushes write back into the
         // snapshot too, so later pairs read exactly what the old per-pair
         // lookups would have - the pass is faster, not different.
+        let _sep = crate::infra::perf::scope("sim.separate");
         let mut pos_now: Vec<Option<Pos>> = villagers.iter().map(|v| world.get_component::<Pos>(*v).copied()).collect();
         let yields: Vec<bool> = villagers.iter().map(|v| makes_room(world, *v)).collect();
         for i in 0..villagers.len() {
@@ -1173,7 +1187,7 @@ impl Game {
                 let d2 = dx*dx + dy*dy;
                 if d2 < 9.0 && d2 > 0.001 {
                     let d = d2.sqrt();
-                    let push = (3.0 - d) * 0.4 / FPS as f32; // eased apart over a few frames
+                    let push = (3.0 - d) * 0.4 / FPS as f32 * walk_pace; // eased apart over a few frames
                     let nx = dx / d * push; let ny = dy / d * push;
                     // a grave stays put; the living step around it. Nor is
                     // anyone shoved who's going for food: the push reaches 3
@@ -1193,6 +1207,7 @@ impl Game {
 
         // idle villagers keep to the day's plan (session::routine::amble,
         // after the errands walk) - no more drifting a step each way and back
+        drop(_sep);
 
         // rivals keep to their own village: idle drift is a random walk, so
         // without a pull home they'd wander across the river into ours
@@ -1213,6 +1228,7 @@ impl Game {
         // and so do ours: left to the random walk, a villager drifted east
         // until the rivals' food store was nearer than ours, then ate there
         // and lived in their village, off the edge of the view
+        let _pull = crate::infra::perf::scope("sim.pull_home");
         if !self.paused {
             let village_home = world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
             // our own store keeps them home: while it still serves, no one
@@ -1312,7 +1328,10 @@ impl Game {
             }
         }
 
+        drop(_pull);
+
         // death check: health <= 0 -> grave + log
+        let _checks = crate::infra::perf::scope("sim.frame_checks");
         let died_on = &mut self.died_on;
         for (i, v) in villagers.iter().enumerate() {
             if let Some(h) = world.get_component::<Health>(*v) {
@@ -1381,7 +1400,10 @@ impl Game {
                 .into_iter().find(|p| !blocked(p));
             *self.world.get_component_mut::<Pos>(*e).unwrap() = slide.unwrap_or(before);
         }
+        drop(_checks);
+
         if !self.paused {
+            let _tail = crate::infra::perf::scope("sim.frame_tail");
             for w in self.works.iter_mut() {
                 let laid = w.road_laid();
                 w.frames += 1;
@@ -1449,6 +1471,7 @@ impl Game {
                     if let Some(pp) = self.world.get_component_mut::<Pos>(a) { pp.x = nx; pp.y = ny; }
                 }
             }
+            drop(_tail);
         }
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
@@ -1464,7 +1487,7 @@ impl Game {
         }
         // movement is still processed while paused, but relationships and
         // last_chat shouldn't change while the day isn't advancing
-        if !self.paused { self.chat_in_passing(); }
+        if !self.paused { crate::timed!("sim.chat_in_passing", self.chat_in_passing()); }
     }
 
 

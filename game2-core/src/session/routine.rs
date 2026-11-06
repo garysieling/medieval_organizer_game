@@ -737,7 +737,7 @@ impl Game {
     /// stand on, and a path back if they've been carried off
     pub(super) fn amble(&mut self) {
         let t = self.frame_n as f32 / FPS as f32;
-        let step = AMBLE_SPEED / FPS as f32;
+        let step = AMBLE_SPEED / FPS as f32 * self.walk_pace();
         let mut lost: Vec<(Entity, (i32, i32))> = vec![];
         for i in 0..self.villagers.len() {
             let v = self.villagers[i];

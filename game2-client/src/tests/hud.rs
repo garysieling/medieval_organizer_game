@@ -11,6 +11,7 @@ fn test_hud_speaks_in_days_and_names_the_food_store() {
 #[test]
 fn test_hud_sits_on_a_dark_strip() {
     let mut game = Game::new_seeded(MAP_SEED);
+    game.speed = 4;
     let view = View::new(Art::load_fs("../assets", 0));
     while game.tick < 30 { game.update(); }
     let buf = view.render(&game.ui_model(), (-1, -1));

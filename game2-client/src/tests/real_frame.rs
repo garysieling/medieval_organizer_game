@@ -34,6 +34,7 @@ fn test_real_frames_show_panel_log_minimap_and_hud() {
     // tests run from game2-core/, the art lives in the repo's assets/
     assert!(std::path::Path::new("../assets").exists(), "assets folder not found from {:?}", std::env::current_dir());
     let mut game = Game::new_seeded(MAP_SEED);
+    game.speed = 16; // day 330 of frames is the suite's long pole
     let view = View::new(Art::load_fs("../assets", 0));
     // day 1, la grippe (150), rain (200, from the weather sim) and deep winter (330)
     for day in [1u64, 150, 200, 330] {

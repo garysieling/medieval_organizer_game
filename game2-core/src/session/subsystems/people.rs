@@ -438,15 +438,19 @@ impl Game {
                     vill_name(i), years.round() as u32));
             }
         }
-        // the dead give up their beds - a house of corpses still counts
-        // as full to births and newcomers without this sweep
-        let dead: crate::engine::det::HashSet<Entity> = self.villagers.iter().copied()
+        // the dead give up their beds - but not before the heirs have
+        // read the house: a day's grace, then the bed goes free
+        let dead: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| villager::is_dead(&self.world, v)).collect();
-        if !dead.is_empty() {
+        for &d in &dead { self.dead_since.entry(d).or_insert(tick); }
+        let evict: Vec<Entity> = dead.iter().copied()
+            .filter(|d| self.dead_since.get(d).copied().unwrap_or(tick) < tick).collect();
+        self.dead_since.retain(|d, _| dead.contains(d));
+        if !evict.is_empty() {
             for b in self.world.query::<household::Building>() {
                 if let Some(bd) = self.world.get_component_mut::<household::Building>(b) {
-                    if bd.occupants.iter().any(|o| dead.contains(o)) {
-                        bd.occupants.retain(|o| !dead.contains(o));
+                    if bd.occupants.iter().any(|o| evict.contains(o)) {
+                        bd.occupants.retain(|o| !evict.contains(o));
                     }
                 }
             }

@@ -993,6 +993,7 @@ impl Game {
             grimoire: crate::sim::magic::Grimoire { discoveries: vec![],
                 domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),
+            dead_since: Default::default(),
             landform,
             shop_flow: Default::default(),
             wolf_coming: false,

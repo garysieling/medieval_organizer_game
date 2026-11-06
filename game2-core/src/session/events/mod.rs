@@ -272,6 +272,19 @@ const OMENS: &[(EventId, &str)] = &[
 /// Days ahead an omen lands
 const OMEN_LEAD: u64 = 5;
 
+/// What's in the air when a booked day draws close: the event's own
+/// sign if it has one, else the family's - every due day gets a word
+fn omen_of(id: EventId) -> &'static str {
+    if let Some((_, o)) = OMENS.iter().find(|(i, _)| *i == id) { return o; }
+    match group(id) {
+        Group::Road => "strangers on the road - someone new's for the village",
+        Group::Sky => "the sky's got a strange look to it",
+        Group::Beasts => "the beasts are restless",
+        Group::IllLuck => "a bad feeling about the week",
+        Group::Findings => "a lucky wind's stirring",
+    }
+}
+
 /// Petting the stray cat: each stroke warms her a little, then she needs
 /// a moment before she'll take more - the cooldown rides in the event's
 /// `aux` as the frame_n deadline
@@ -303,11 +316,13 @@ impl Game {
     /// works its day, what's done walks out or fades
     pub fn events_tick(&mut self, tick: u64) {
         // what's booked speaks of its coming, a few days out - due is
-        // fixed until it fires, so the day hits once per booking
-        for (id, omen) in OMENS {
-            if self.next_rare.iter().any(|(i, d)| *i == *id && *d == tick + OMEN_LEAD)
-                && self.rare.iter().all(|r| r.id != *id) {
-                self.log.push(format!("t{}: {}.", tick, omen));
+        // fixed until it fires, so the day hits once per booking; two
+        // same-sign bookings still carry the one word between them
+        let mut said = crate::engine::det::HashSet::default();
+        for (id, d) in self.next_rare.clone() {
+            if d == tick + OMEN_LEAD && self.rare.iter().all(|r| r.id != id)
+                && said.insert(omen_of(id)) {
+                self.log.push(format!("t{}: {}.", tick, omen_of(id)));
             }
         }
         // what's due comes on (unless it's already afoot)

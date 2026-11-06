@@ -26,7 +26,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 5 | Market prices from supply and demand | `sim/economics.rs` (`spawn_market`, `update_price`, `add_supply`) | done #533 |
 | 6 | Recipes: several paths to the same good | `game/recipes.rs` (`can_make`, `printmaking_recipes`) | done #534 |
 | 7 | Printmaking tech tree (feathers -> lithography) | `game/tech_tree.rs` (`research`, `next_researchable`) | done #535 |
-| 8 | Music layers that evolve with the village's mood | `game/music.rs` (`infer_mood`, `evolve`, `describe`) | todo |
+| 8 | Music layers that evolve with the village's mood | `game/music.rs` (`infer_mood`, `evolve`, `describe`) | done #536 |
 | 9 | Faith, congregations and services | `sim/religion.rs` (`Faith`, `perform_service`, `DevotionSystem`, `GatherSystem`) | todo |
 | 10 | Weather events: storms, droughts, heat waves | `sim/weather.rs` (`WeatherSystem`, `food_effect`, `health_effect`) | todo |
 | 11 | Climate effects on crops and health | `sim/climate.rs` (`rain_effect`, `climate_multiplier`) | todo |

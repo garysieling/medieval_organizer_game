@@ -103,7 +103,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 72 | Reputation stage | `reputation_qsp` | done #600 |
 | 73 | Memorable episodes (what happened to them) | `psychology::Episode`, `record_episode` | done #601 |
 | 74 | Kind of tie between two people (friend, rival, kin...) | `relationships::RelKind` | done #602 |
-| 75 | Wants the player has learned (`Known`) as a list | `desires::InnerLife`, `Known` | todo |
+| 75 | Wants the player has learned (`Known`) as a list | `desires::InnerLife`, `Known` | done #603 |
 | 76 | Rapport and how often you've talked | `player::Rapport`, `TalkCount` | todo |
 | 77 | Organizing skills per person | `org_skills::Organizing` | todo |
 | 78 | Livestock they own | `livestock::Livestock` | todo |

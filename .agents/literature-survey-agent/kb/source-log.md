@@ -780,6 +780,60 @@ Condensed per-stream log; full per-source ratings live in each review's Key Sour
 
 ---
 
+### Printing History & Book History (added 2026-11-05)
+
+#### Smithsonian NMAH — Printing Presses collection (wooden/common presses, Kelsey Excelsior object record)
+**Type:** Museum collection + scholarly object records
+**Domain:** History of Technology / Printmaking
+**Rating:** A+
+**Year:** ongoing
+**Relevance:** Common-press mechanics (two-pull, ~240 imp/hr token, wooden frame/iron screw, <70 survive); Kelsey Excelsior = Meriden CT hobby press 1870s–1990s
+**Used In:** printing-press-history.md
+**Notes:** Primary institutional source for press hardware details.
+
+#### APHA History of Printing Timeline (printinghistory.org)
+**Type:** Specialist society timeline
+**Domain:** Printing History
+**Rating:** A-
+**Year:** ongoing
+**Relevance:** Master chronology spine: incunabula landmarks, first newspaper 1605, press milestones
+**Used In:** printing-press-history.md; sprint-4-printmaking.md (prior)
+
+#### Franklin & Marshall College LibGuides — History of the Book (hand press 1450–1800, mechanization 1800–1950)
+**Type:** Academic library research guide
+**Domain:** Book History
+**Rating:** A
+**Year:** undated
+**Relevance:** Press era split; Stanhope 1803, Koenig steam ~1811–14 (~10x speed), rotary press 1851 (~100x)
+**Used In:** printing-press-history.md
+
+#### Global Jikji project timeline (globaljikji.org) + Rijksmuseum *From Jikji to Gutenberg* (2020)
+**Type:** International research project + museum publication
+**Domain:** East Asian printing history
+**Rating:** A+
+**Year:** 2020–
+**Relevance:** Movable-type dates: Bi Sheng clay 1041–48, Korean metal type 1234–41, Jikji 1377 (oldest extant metal-type book, UNESCO), Hangul type 1447
+**Used In:** printing-press-history.md
+
+#### DPMA — Alois Senefelder biography; Met Museum — "Lithography in the Nineteenth Century"; Oxford History of Science Museum — Lithography
+**Type:** Patent-office + museum scholarly pages
+**Domain:** Lithography history
+**Rating:** A+
+**Year:** undated
+**Relevance:** Lithography 1796 discovery / 1798 planography / ~1820 commercial; zinc plates 1830; poster boom 1880s–90s
+**Used In:** printing-press-history.md; sprint-4-printmaking.md (prior)
+
+#### Wikipedia — Chromolithography; Offset printing
+**Type:** Encyclopedia (tertiary)
+**Domain:** Print processes
+**Rating:** B+
+**Year:** current
+**Relevance:** Engelmann chromolithography patent July 1837 (term coined); offset printing 1875 (tin)/1904 (paper, Rubel); Hoe 1843 rotary press
+**Used In:** printing-press-history.md
+**Notes:** Cross-checked Engelmann date against georgebaxter.com scholarship; treat exact patent month as B+ confidence.
+
+---
+
 ## Source Gaps to Fill
 
 ### High Priority

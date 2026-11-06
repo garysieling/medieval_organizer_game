@@ -29,3 +29,30 @@ fn test_the_errand_hirer_becomes_the_master() {
     assert_eq!(c.master, Some(master), "the hirer stands as master");
     assert_eq!(c.tasked_by, Some(master));
 }
+
+#[test]
+fn test_the_years_count_and_the_old_die_of_old_age() {
+    let mut g = Game::new();
+    // everyone carries their years and the card tells it
+    let i = 0;
+    let v = g.villagers[i];
+    let y0 = g.world.get_component::<crate::game::lifecycle::Age>(v).expect("no years on them").years;
+    g.seats[0].selected_target = i;
+    let insp = g.villager_inspector_at(0);
+    if let Some(bio) = insp.lines.iter().find(|l| l.text.contains("winters")) {
+        assert!(bio.text.contains(&(y0 as u32).to_string()) || bio.text.contains(&((y0 + 1.0) as u32).to_string()),
+            "the years miss the bio: {}", bio.text);
+    }
+    // a year of days ages them a year
+    g.lifecycle_tick(1);
+    let y1 = g.world.get_component::<crate::game::lifecycle::Age>(v).unwrap().years;
+    assert!((y1 - y0) - 1.0 / 365.0 < 0.001, "a day counted {} years", y1 - y0);
+    // and one past their span goes to old age
+    let e = g.villagers[1];
+    g.world.get_component_mut::<crate::game::lifecycle::Age>(e).unwrap().years = 91.0;
+    g.world.get_component_mut::<crate::game::lifecycle::Vitality>(e).unwrap().max_age = 91.0;
+    g.lifecycle_tick(2);
+    assert!(villager::is_dead(&g.world, e) || g.world.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false),
+        "the elder outlived their span");
+    assert!(g.log.iter().any(|l| l.contains("of old age")), "the death went untold");
+}

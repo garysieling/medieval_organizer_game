@@ -858,6 +858,16 @@ impl Game {
         if let Some(c) = world.get_component::<villager::Condition>(v) {
             if self.tick < c.until { parts.push(c.kind.to_string()); }
         }
+        // how warm they are to you: the talk-built rapport, plain to
+        // you whether or not the village knows them - a rival's many
+        // talks don't make them warm
+        let rival = self.rel_kind(self.seats[seat].player, v) == Some(crate::game::relationships::RelKind::Rival);
+        let warmth = crate::game::player::rapport(world, self.seats[seat].player, v);
+        if !rival {
+            if warmth >= 0.7 { parts.push("close to you".into()); }
+            else if warmth >= 0.3 { parts.push("warm to you".into()); }
+            else if warmth > 0.0 { parts.push("has your ear".into()); }
+        }
         // the tie between you: friend, rival, kin - plain to you
         // whether or not the village knows them yet
         if let Some((tie, them_senior)) = crate::game::relationships::find_relationship(world, self.seats[seat].player, v)

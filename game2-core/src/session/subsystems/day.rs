@@ -398,8 +398,9 @@ impl Game {
                     && self.site_of(f.offender).is_none() && self.site_of(f.aggrieved).is_none())
                 .unwrap_or(false))
             .count() as f32;
-        let graves = live.iter().filter(|(i, _)| self.died_on.get(*i)
-            .and_then(|d| d.map(|x| tick - x < 30)).unwrap_or(false)).count() as f32;
+        let graves = self.villagers.iter().copied().enumerate()
+            .filter(|(i, v)| self.died_on.get(*i).and_then(|d| d.map(|x| tick - x < 30))
+                .unwrap_or(false) && self.site_of(*v).is_none()).count() as f32;
         let kids = live.iter().filter(|(_, v)| self.world.get_component::<Kid>(*v).is_some())
             .count() as f32;
         let purse = live.iter().filter_map(|(_, v)| self.world.get_component::<Purse>(*v)

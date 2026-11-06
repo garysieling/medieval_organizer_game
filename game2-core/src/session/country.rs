@@ -1,16 +1,18 @@
-//! The country past the walls: market towns and castles placed fresh for
-//! every map, the folk who live in them, and the carts on the roads
-//! between.
+//! The country past the walls: market towns, castles, remote farms and a
+//! monastery placed fresh for every map, the folk who live in them, and
+//! the carts on the roads between.
 //!
 //! Each seed draws its own country: the towns stand on dry lowland, the
-//! castles on the high ground, all spread apart, clear of the river and
-//! on land that walks back to the village. Townsfolk farm and send a cart
-//! to the village market each month; the castles hold the knights and a
-//! chaplain, and their steward rides to the nearest town for provisions.
-//! The home village keeps its spot in the corner (every system is laid
-//! out round its market), and its own folk sort themselves too: farmers
-//! and herders take the cottages out among the fields, the gentry the
-//! houses inside the wall.
+//! castles on the high ground, the farms and the abbey out on their own
+//! ground, all spread apart, clear of the river and on land that walks
+//! back to the village. Townsfolk farm and send a cart to the village
+//! market each month; the castles hold the knights and a chaplain, and
+//! their steward rides to the nearest town for provisions. The farms and
+//! the abbey keep their own stores and their own company. The home
+//! village keeps its spot in the corner (every system is laid out round
+//! its market), and its own folk sort themselves too: farmers and herders
+//! take the cottages out among the fields, the gentry the houses inside
+//! the wall.
 
 use super::*;
 use crate::game::tilemap::WATER_LEVEL;
@@ -36,9 +38,12 @@ const TOWN_NAMES: [&str; 8] = ["Ashby", "Thornford", "Marrowdale", "Kelby",
     "Holloway", "Wenlock", "Brackenhurst", "Oakham"];
 const CASTLE_NAMES: [&str; 6] = ["Ravensholt", "Greymoor", "Dunmore",
     "Blackcrag", "Highwold", "Corvel"];
+const FARM_NAMES: [&str; 6] = ["Ashford", "Hartley", "Thornby",
+    "Greenshaw", "Longacre", "Fordley"];
+const HOLY_NAMES: [&str; 4] = ["Greyfriars", "Frosterley", "Ingleby", "Halewick"];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SiteKind { Town, Castle }
+pub enum SiteKind { Town, Castle, Farm, Monastery }
 
 /// A settlement out in the country, and who keeps it
 #[derive(Clone, Debug)]
@@ -65,8 +70,12 @@ pub struct Outlander { pub site: usize }
 pub struct CountryPlan {
     pub towns: Vec<(i32, i32, i32)>,
     pub castles: Vec<(i32, i32, i32)>,
+    pub farms: Vec<(i32, i32, i32)>,
+    pub monasteries: Vec<(i32, i32, i32)>,
     pub town_names: Vec<&'static str>,
     pub castle_names: Vec<&'static str>,
+    pub farm_names: Vec<&'static str>,
+    pub monastery_names: Vec<&'static str>,
     /// House sites round the towns (decorative scenery and real homes)
     pub houses: Vec<(i32, i32)>,
 }
@@ -173,11 +182,24 @@ pub fn plan_country(t: &Terrain, river: &[(i32, i32)], village: (i32, i32), rng:
             castles.push(s);
         }
     }
+    // and the remote steadings: farms on the lowland, a monastery or two
+    // out on their own ground - spread from everything else like the rest
+    let farm_r = 4;
+    let mut farms = vec![];
+    for _ in 0..3 { if let Some(s) = pick(farm_r, false, &[], &mut taken, rng) { farms.push(s); } }
+    let mut monasteries = vec![];
+    for _ in 0..1 + rng.below(2) {
+        if let Some(s) = pick(castle_r, false, &[], &mut taken, rng) { monasteries.push(s); }
+    }
     // names: drawn without repeats
     let mut tn: Vec<&'static str> = TOWN_NAMES.to_vec();
     let mut cn: Vec<&'static str> = CASTLE_NAMES.to_vec();
+    let mut fnames: Vec<&'static str> = FARM_NAMES.to_vec();
+    let mut mnames: Vec<&'static str> = HOLY_NAMES.to_vec();
     let town_names = towns.iter().map(|_| tn.remove(rng.below(tn.len() as i32) as usize)).collect();
     let castle_names = castles.iter().map(|_| cn.remove(rng.below(cn.len() as i32) as usize)).collect();
+    let farm_names = farms.iter().map(|_| fnames.remove(rng.below(fnames.len() as i32) as usize)).collect();
+    let monastery_names = monasteries.iter().map(|_| mnames.remove(rng.below(mnames.len() as i32) as usize)).collect();
     // five to seven houses round each town's green, a loose ring
     let mut houses = vec![];
     for &(cx, cy, _) in &towns {
@@ -189,7 +211,8 @@ pub fn plan_country(t: &Terrain, river: &[(i32, i32)], village: (i32, i32), rng:
             houses.push(((cx as f32 + rr * a.cos()).round() as i32, (cy as f32 + rr * a.sin()).round() as i32));
         }
     }
-    CountryPlan { towns, castles, town_names, castle_names, houses }
+    CountryPlan { towns, castles, farms, monasteries, town_names, castle_names,
+        farm_names, monastery_names, houses }
 }
 
 /// Who lives out in the country, site by site. A market town is a
@@ -219,6 +242,16 @@ fn site_folk(kind: SiteKind, nth: usize) -> Vec<Option<Vocation>> {
         SiteKind::Town => TOWN.to_vec(),
         SiteKind::Castle if nth == 0 => CASTLE_GENTRY.to_vec(),
         SiteKind::Castle => CASTLE_BLADES.to_vec(),
+        // a farmstead: the hands and the shepherd, and children underfoot
+        SiteKind::Farm => [
+            Some(Vocation::Farmer), Some(Vocation::Farmer), Some(Vocation::Farmer),
+            Some(Vocation::Shepherd), None, None,
+        ].to_vec(),
+        // the abbot, his prior, three lay brothers, and a novice underfoot
+        SiteKind::Monastery => [
+            Some(Vocation::Priest), Some(Vocation::Priest), Some(Vocation::Farmer),
+            Some(Vocation::Farmer), Some(Vocation::Farmer), None,
+        ].to_vec(),
     }
 }
 
@@ -227,6 +260,8 @@ pub fn country_folk(plan: &CountryPlan) -> usize {
     plan.towns.len() * site_folk(SiteKind::Town, 0).len()
         + plan.castles.iter().enumerate()
             .map(|(i, _)| site_folk(SiteKind::Castle, i).len()).sum::<usize>()
+        + plan.farms.len() * site_folk(SiteKind::Farm, 0).len()
+        + plan.monasteries.len() * site_folk(SiteKind::Monastery, 0).len()
 }
 
 impl Game {
@@ -239,16 +274,17 @@ impl Game {
         let mut sites: Vec<Site> = vec![];
         let towns = plan.towns.iter().zip(&plan.town_names).map(|(t, n)| (SiteKind::Town, *t, *n));
         let castles = plan.castles.iter().zip(&plan.castle_names).map(|(c, n)| (SiteKind::Castle, *c, *n));
-        for (kind, (cx, cy, r), name) in towns.chain(castles) {
+        let farms = plan.farms.iter().zip(&plan.farm_names).map(|(f, n)| (SiteKind::Farm, *f, *n));
+        let monasteries = plan.monasteries.iter().zip(&plan.monastery_names).map(|(m, n)| (SiteKind::Monastery, *m, *n));
+        for (kind, (cx, cy, r), name) in towns.chain(castles).chain(farms).chain(monasteries) {
             // the granary stands on the green (a castle keeps its stores
-            // in the courtyard, beside the keep)
+            // in the courtyard, beside the keep); it's sited after the
+            // roofs below so it keeps clear of them
             let green = if kind == SiteKind::Castle { (cx, cy + 1) } else { (cx, cy) };
-            let store_at = (-3..=3).flat_map(|dy| (-3..=3).map(move |dx| (green.0 + dx, green.1 + dy)))
-                .filter(|&(x, y)| self.map.passable(x, y))
-                .min_by_key(|&(x, y)| (x - green.0).abs() + (y - green.1).abs())
-                .unwrap_or(green);
-            let servings = if kind == SiteKind::Town { 200 } else { 140 };
-            let store = villager::spawn_food_source(&mut self.world, store_at.0 as f32, store_at.1 as f32, servings);
+            let servings = match kind {
+                SiteKind::Town => 200, SiteKind::Castle => 140,
+                SiteKind::Farm => 160, SiteKind::Monastery => 100,
+            };
             let mut homes = vec![];
             match kind {
                 SiteKind::Town => {
@@ -277,7 +313,41 @@ impl Game {
                     self.buildings.push((hall_at.0 as f32, hall_at.1 as f32,
                         BSprite::House((noise(hall_at.0, hall_at.1, 41) * 97.0) as usize)));
                 }
+                SiteKind::Farm => {
+            // the farmstead: strips of crop in the lee of the buildings,
+            // a farmhouse and its byre - the Carcassonne farm, not a cottage
+            for dy in 2..=5 {
+                for dx in -4..=4 {
+                    let (x, y) = (cx + dx, cy + dy);
+                    if matches!(self.map.get(x, y), Some(Tile::Grass)) && !self.map.is_occupied(x, y) {
+                        self.map.set(x, y, if dx % 3 == 0 { Tile::Corn } else { Tile::Wheat });
+                    }
+                }
             }
+            for (k, (dx, dy)) in [(0, 0), (2, 1)].iter().enumerate() {
+                let Some((bx, by)) = self.map.nearest_buildable(cx + dx, cy + dy) else { continue };
+                let label = if k == 0 { format!("the farm at {}", name) } else { format!("the byre at {}", name) };
+                homes.push(self.country_building(BuildingKind::Home, label, bx, by));
+                self.buildings.push((bx as f32, by as f32,
+                    BSprite::House((noise(bx, by, 41) * 97.0) as usize)));
+                self.map.connect((bx, by));
+            }
+                }
+                SiteKind::Monastery => {
+            // the abbey, drawn as a church overseas rather than a cottage
+            if let Some((bx, by)) = self.map.nearest_buildable(cx, cy) {
+                homes.push(self.country_building(BuildingKind::Home,
+                    format!("the abbey at {}", name), bx, by));
+                self.buildings.push((bx as f32, by as f32, BSprite::Church));
+                self.map.connect((bx, by));
+            }
+                }
+            }
+            let store_at = (-3..=3).flat_map(|dy| (-3..=3).map(move |dx| (green.0 + dx, green.1 + dy)))
+                .filter(|&(x, y)| self.map.passable(x, y))
+                .min_by_key(|&(x, y)| (x - green.0).abs() + (y - green.1).abs())
+                .unwrap_or(green);
+            let store = villager::spawn_food_source(&mut self.world, store_at.0 as f32, store_at.1 as f32, servings);
             sites.push(Site { name, kind, centre: (cx, cy), radius: r, store, homes, carrier: None, away_until: None });
         }
         // the folk, a household to a site under their own roofs; the
@@ -295,7 +365,12 @@ impl Game {
             for (k, spec) in folk.into_iter().enumerate() {
                 let home = homes[k % homes.len()];
                 let v = self.spawn_outlander(si, spec, home, k, &mut rng);
-                if k == if kind == SiteKind::Town { 0 } else { 1 } { sites[si].carrier = Some(v); }
+                // only the towns and castles run errands to the village:
+                // a farm's surplus and an abbey's alms stay home
+                if matches!(kind, SiteKind::Town | SiteKind::Castle)
+                    && k == if kind == SiteKind::Town { 0 } else { 1 } {
+                    sites[si].carrier = Some(v);
+                }
             }
         }
         self.sites = sites;
@@ -417,8 +492,8 @@ impl Game {
             let site = self.sites[si].clone();
             let folk: Vec<Entity> = self.villagers.iter().copied()
                 .filter(|&v| self.site_of(v) == Some(si) && !villager::is_dead(&self.world, v)).collect();
-            // a town's fields feed its granary
-            if site.kind == SiteKind::Town {
+            // a farm's or an abbey's fields feed its granary too
+            if matches!(site.kind, SiteKind::Town | SiteKind::Farm | SiteKind::Monastery) {
                 let hands = folk.iter().filter(|&&v| self.world.get_component::<Kid>(v).is_none()
                     && !self.is_away(v)).count() as u32;
                 if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(site.store) {
@@ -461,6 +536,9 @@ impl Game {
                         // take it up again from wherever they stand
                         let resumed = match kind {
                             SiteKind::Town => self.market_pitch(c).map(|p| self.send_far(c, p, Goal::Cart(si))).unwrap_or(false),
+                            // farms and abbeys never run an errand to the
+                            // village: their carrier stays home
+                            SiteKind::Farm | SiteKind::Monastery => false,
                             SiteKind::Castle => {
                                 // loaded at the granary already? carry the
                                 // provisions on home. otherwise the steward
@@ -486,6 +564,8 @@ impl Game {
                         r.day = tick;
                     }
                 }
+                // farms and abbeys send no cart and ride no levy
+                (SiteKind::Farm | SiteKind::Monastery, None) => {}
                 (SiteKind::Town, None) => {
                     // set out so as to come in for market day
                     let fed = self.world.get_component::<Hunger>(c).map(|h| h.value > 55.0).unwrap_or(false);
@@ -628,11 +708,44 @@ mod tests {
     fn test_the_country_moves_with_the_seed() {
         let a = Game::new_seeded(1);
         let b = Game::new_seeded(2);
-        assert_eq!(a.sites.len(), 4, "two towns and two castles");
+        assert_eq!(a.sites.iter().filter(|s| s.kind == SiteKind::Town).count(), 2, "two towns");
+        assert_eq!(a.sites.iter().filter(|s| s.kind == SiteKind::Castle).count(), 2, "two castles");
+        assert_eq!(a.sites.iter().filter(|s| s.kind == SiteKind::Farm).count(), 3, "three farms");
+        assert!(a.sites.iter().any(|s| s.kind == SiteKind::Monastery), "a monastery or two");
         assert_ne!(a.map.towns, b.map.towns, "towns stand somewhere new each map");
         assert_ne!(a.map.castles, b.map.castles, "and so do the castles");
         let again = Game::new_seeded(1);
         assert_eq!(a.map.towns, again.map.towns, "but a seed's country is its own");
+        assert_eq!(a.sites.iter().map(|s| (s.kind, s.centre)).collect::<Vec<_>>(),
+            again.sites.iter().map(|s| (s.kind, s.centre)).collect::<Vec<_>>(),
+            "and its steadings stand fast");
+    }
+
+    #[test]
+    fn test_the_far_farms_and_the_abbey_keep_their_own() {
+        for seed in [0u64, 1, 2, 3, 7, 42, 99] {
+            let g = Game::new_seeded(seed);
+            for (si, s) in g.sites.iter().enumerate() {
+                if !matches!(s.kind, SiteKind::Farm | SiteKind::Monastery) { continue }
+                let folk = g.villagers.iter().filter(|&&v| g.site_of(v) == Some(si)).count();
+                assert!(folk >= 2, "seed {} {:?} has folk", seed, s.kind);
+                assert!(!s.homes.is_empty(), "seed {} {:?} has a roof", seed, s.kind);
+            }
+        }
+        // the abbey draws as a church among the buildings, not a cottage
+        let g = Game::new_seeded(1);
+        let abbey = g.sites.iter().find(|s| s.kind == SiteKind::Monastery).unwrap();
+        let p = g.world.get_component::<Pos>(abbey.homes[0]).unwrap();
+        let (bx, by) = (p.x, p.y);
+        assert!(g.buildings.iter().any(|&(x, y, s)|
+            (x - bx).abs() < 0.5 && (y - by).abs() < 0.5 && s == BSprite::Church),
+            "the abbey wears a church");
+        // and a farm's strips are sown
+        let farm = g.sites.iter().find(|s| s.kind == SiteKind::Farm).unwrap();
+        let (cx, cy) = farm.centre;
+        let sown = (cy + 2..=cy + 5).flat_map(|y| (cx - 4..=cx + 4).map(move |x| (x, y)))
+            .filter(|&(x, y)| matches!(g.map.get(x, y), Some(Tile::Wheat) | Some(Tile::Corn))).count();
+        assert!(sown >= 10, "the farm's fields are sown: {} tiles", sown);
     }
 
     #[test]
@@ -663,10 +776,18 @@ mod tests {
                 SiteKind::Castle => assert_eq!(class, SocialClass::ProfessionalMiddle, "castle folk are gentry"),
                 // town trades and children are all working folk - never
                 // the gentry's trades
-                SiteKind::Town => {
-                    assert_eq!(class, SocialClass::Working, "town folk work for a living");
+                SiteKind::Town | SiteKind::Farm => {
+                    assert_eq!(class, SocialClass::Working, "farm and town folk work for a living");
                     if let Some(c) = g.world.get_component::<Craft>(v) {
-                        assert!(!vocation::is_pmc(c.vocation), "no knights or priests in the town roster");
+                        assert!(!vocation::is_pmc(c.vocation), "no knights or priests in the fields");
+                    }
+                }
+                // the abbey's brothers: the ordination is gentry, the
+                // lay brothers work the demesne
+                SiteKind::Monastery => {
+                    if let Some(c) = g.world.get_component::<Craft>(v) {
+                        assert!(matches!(c.vocation, Vocation::Priest | Vocation::Farmer),
+                            "the abbey keeps only its own");
                     }
                 }
             }
@@ -763,7 +884,11 @@ mod tests {
             for y in (0..g.map.height as i32).step_by(5) {
                 let row: String = (0..g.map.width as i32).step_by(3).map(|x| {
                     if g.sites.iter().any(|s| (s.centre.0 - x).abs() <= 2 && (s.centre.1 - y).abs() <= 3) {
-                        return if g.sites.iter().any(|s| s.kind == SiteKind::Castle && (s.centre.0 - x).abs() <= 2 && (s.centre.1 - y).abs() <= 3) { 'C' } else { 'T' };
+                        let at = |k: SiteKind| g.sites.iter().any(|s| s.kind == k
+                            && (s.centre.0 - x).abs() <= 2 && (s.centre.1 - y).abs() <= 3);
+                        return if at(SiteKind::Castle) { 'C' }
+                            else if at(SiteKind::Farm) { 'F' }
+                            else if at(SiteKind::Monastery) { 'M' } else { 'T' };
                     }
                     match g.map.get(x, y) { Some(Tile::Water) => '~', Some(Tile::River) => '=', Some(Tile::Road) | Some(Tile::Bridge) => '+',
                         Some(Tile::Hill) => '^', Some(Tile::Rock) => 'A', Some(Tile::Wheat) | Some(Tile::Corn) => '#', _ => '.' }

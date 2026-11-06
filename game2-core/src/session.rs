@@ -317,7 +317,7 @@ pub const NAMES: [&str; 31] = [
 /// The second roll, for the born and the come-lately: the village and
 /// the country grow past the first thirty-one, and they shouldn't all
 /// answer to "a newcomer"
-const NEW_NAMES: [&str; 54] = [
+const NEW_NAMES: [&str; 78] = [
     "Sible","Dunn","Hamelin","Avice","Colle","Merrick",
     "Sabyn","Tybalt","Imma","Peryn","Lettice","Hobkin",
     "Wymond","Tansy","Godelieve","Oswin","Milo","Sabine",
@@ -327,6 +327,10 @@ const NEW_NAMES: [&str; 54] = [
     "Garard","Denise","Thurstan","Rohese","Engelard","Conan",
     "Basilia","Warin","Melisende","Jocosa","Aldwin","Ermentrude",
     "Goscelin","Mahelt","Pernel","Simone","Adeline","Bartram",
+    "Serle","Hawise","Jankin","Matilda","Osbert","Peronell",
+    "Quintin","Rohaise","Tibbets","Urian","Wymark","Erk",
+    "Juliana","Miles","Nicolas","Orm","Petronel","Roget",
+    "Sanchia","Terrice","Vincent","Wymund","Aveline","Bricot",
 ];
 /// A villager's name by index - past the named roll, the second roll
 /// keeps them distinct; past that, a newcomer stands in

@@ -10,7 +10,7 @@ fn test_the_country_is_peopled_like_villages() {
             .filter(|&v| g.site_of(v) == Some(si)).collect();
         assert!(folk.len() >= 6, "{} holds only {} folk", s.name, folk.len());
         match s.kind {
-            SiteKind::Town => assert!(folk.iter().any(|&v|
+            SiteKind::Town | SiteKind::Farm | SiteKind::Monastery => assert!(folk.iter().any(|&v|
                 g.world.get_component::<Kid>(v).is_some()), "{} has children", s.name),
             SiteKind::Castle => {
                 assert!(s.homes.len() >= 2, "{} has a hall beside the keep", s.name);

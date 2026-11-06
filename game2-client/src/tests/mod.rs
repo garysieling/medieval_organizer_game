@@ -35,4 +35,5 @@ mod search;
 mod status_line;
 mod title;
 mod toast;
+mod walk_anim;
 mod zoom;

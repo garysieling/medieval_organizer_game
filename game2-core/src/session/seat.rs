@@ -157,6 +157,8 @@ impl Game {
         self.world.add_component(player, vocation::craft(roll_vocation(&mut self.rng), 0.2));
         self.world.add_component(player, Satchel::default());
         self.world.add_component(player, Purse { gold });
+        self.world.add_component(player, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         self.world.add_component(player, Organizer::default());
         let org = self.world.create_entity();
         self.world.add_component(org, Organization {

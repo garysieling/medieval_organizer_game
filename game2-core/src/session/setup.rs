@@ -566,6 +566,8 @@ impl Game {
 
         let player = world.create_entity();
         world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 100.0 });
+        world.add_component(player, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         world.add_component(player, Pos { x: (vx - 6) as f32, y: (vy - 6) as f32 }); // player has a position
         let org = world.create_entity();
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });

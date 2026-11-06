@@ -494,13 +494,10 @@ impl Game {
                         .and_then(|r| self.world.get_component::<Relationship>(r))
                         .map(|r| r.strength >= GRIEF_TIE).unwrap_or(false))).collect();
             if mourners.is_empty() { continue; }
-            if let Some(i) = self.villagers.iter().position(|&v| v == d) {
-                let names: Vec<String> = mourners.iter().take(3)
-                    .filter_map(|&m| self.villagers.iter().position(|&x| x == m)
-                        .map(|j| vill_name(j).to_string())).collect();
-                if !names.is_empty() {
-                    self.log.push(format!("t{}: {} mourn {}.", tick, names.join(" and "), vill_name(i)));
-                }
+            let names: Vec<String> = mourners.iter().take(3)
+                .map(|&m| self.name_of(m)).collect();
+            if !names.is_empty() {
+                self.log.push(format!("t{}: {} mourn {}.", tick, names.join(" and "), self.name_of(d)));
             }
             for m in mourners {
                 record_episode(&mut self.world, m, Episode { with: d, kind: EpisodeKind::Loss });

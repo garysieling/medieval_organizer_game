@@ -43,6 +43,7 @@ mod free_villager;
 mod garden;
 mod gibbet;
 mod grave;
+mod grief;
 mod growth;
 mod guilds;
 mod heart;

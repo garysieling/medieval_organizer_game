@@ -466,6 +466,40 @@ impl Game {
         }
     }
 
+    /// The newly dead are mourned: a bond to them, or a tie worth
+    /// grieving, takes a Loss to the mourner's attachment history - and
+    /// the grief the village already knows how to carry
+    pub fn grief_tick(&mut self, tick: u64) {
+        use crate::sim::psychology::{Bond, Episode, EpisodeKind, Mourned, GRIEF_TIE, record_episode};
+        use crate::game::relationships::{find_relationship, Relationship};
+        let newly_dead: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| villager::is_dead(&self.world, v)
+                && self.world.get_component::<Mourned>(v).is_none()).collect();
+        for d in newly_dead {
+            self.world.add_component(d, Mourned);
+            let mourners: Vec<Entity> = self.villagers.iter().copied().filter(|&m| m != d
+                && !villager::is_dead(&self.world, m)
+                && (self.world.get_component::<Bond>(m).map(|b| b.target == d).unwrap_or(false)
+                    || find_relationship(&self.world, m, d)
+                        .and_then(|r| self.world.get_component::<Relationship>(r))
+                        .map(|r| r.strength >= GRIEF_TIE).unwrap_or(false))).collect();
+            if mourners.is_empty() { continue; }
+            if let Some(i) = self.villagers.iter().position(|&v| v == d) {
+                let names: Vec<String> = mourners.iter().take(3)
+                    .filter_map(|&m| self.villagers.iter().position(|&x| x == m)
+                        .map(|j| vill_name(j).to_string())).collect();
+                if !names.is_empty() {
+                    self.log.push(format!("t{}: {} mourn {}.", tick, names.join(" and "), vill_name(i)));
+                }
+            }
+            for m in mourners {
+                record_episode(&mut self.world, m, Episode { with: d, kind: EpisodeKind::Loss });
+                crate::game::desires::add_grievance(&mut self.world, m,
+                    crate::game::desires::Problem::Grief, tick + 60);
+            }
+        }
+    }
+
     /// The heart-helper's rounds: she keeps her corner of the market, and
     /// now and then a lonely heart is nudged to come and sit with her
     pub fn matchmaker_tick(&mut self, tick: u64) {

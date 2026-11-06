@@ -98,7 +98,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 67 | How traits change what they do (tooltip) | `traits::modifies` | done #595 |
 | 68 | Craft level and progress | `game/vocation.rs` (`Level`, `skill_gain`, `train_day`) | done #596 |
 | 69 | Social class | `vocation::SocialClass` | done #597 |
-| 70 | A child's growth toward a trade | `vocation::KidGrowth` | todo |
+| 70 | A child's growth toward a trade | `vocation::KidGrowth` | done #598 |
 | 71 | Faith and its strength | `religion::Faith` | todo |
 | 72 | Reputation stage | `reputation_qsp` | todo |
 | 73 | Memorable episodes (what happened to them) | `psychology::Episode`, `record_episode` | todo |

@@ -840,6 +840,18 @@ impl Game {
         let mut parts: Vec<String> = vec![];
         if world.get_component::<Kid>(v).is_some() {
             parts.push("a child".into());
+            // their leaning, if one hirer keeps them busiest - the
+            // errands they run most pick their trade at coming of age
+            if let Some(g) = world.get_component::<vocation::KidGrowth>(v) {
+                if let Some((master, _)) = g.errands.iter().max_by_key(|(_, n)| *n)
+                    .filter(|(_, n)| *n >= 3)
+                    .filter(|(m, _)| !villager::is_dead(world, *m)) {
+                    if let Some(mc) = world.get_component::<Craft>(*master) {
+                        parts.push(format!("runs for the {}",
+                            vocation::vocation_name(mc.vocation).to_lowercase()));
+                    }
+                }
+            }
         } else if let Some(a) = world.get_component::<crate::game::lifecycle::Age>(v) {
             parts.push(format!("{:.0} winters", a.years));
         }

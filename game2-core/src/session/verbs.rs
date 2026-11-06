@@ -60,6 +60,20 @@ impl Game {
             CtxAct::PetCat => self.rare.iter().find(|r| r.id == events::EventId::StrayCat && !r.leaving)
                 .filter(|r| r.aux > self.frame_n as u64)
                 .map(|_| "she needs a moment".to_string()),
+            CtxAct::Flyers => {
+                let asked = self.world.get_component::<Organization>(self.seats[seat].org)
+                    .map(|o| o.members.iter().filter(|&&m| {
+                        !villager::is_dead(&self.world, m)
+                            && self.world.get_component::<Kid>(m).is_none()
+                            && !crate::game::dungeon::unavailable(&self.world, m)
+                    }).count()).unwrap_or(0);
+                if asked == 0 { Some("no one to ask".into()) }
+                else if !self.building_entities.iter().any(|&b| self.world.get_component::<Building>(b)
+                    .map(|bb| matches!(bb.kind, crate::game::household::BuildingKind::Shop(Vocation::Printmaker))
+                        && !crate::game::household::derelict(bb))
+                    .unwrap_or(false)) { Some("no print shop".into()) }
+                else { None }
+            }
             _ => None,
         }
     }
@@ -383,6 +397,7 @@ impl Game {
             self.seats[seat].ctx_actions.push(CtxAct::Meet);
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
             self.seats[seat].ctx_actions.push(CtxAct::March);
+            self.seats[seat].ctx_actions.push(CtxAct::Flyers);
         }
         if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
             let v = self.villagers[self.seats[seat].selected_target];
@@ -747,6 +762,7 @@ impl Game {
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
+            CtxAct::Flyers => self.flyers_at(seat),
         };
         if !msg.is_empty() {
             self.log.push(format!("t{}: {}", tick, msg));
@@ -946,5 +962,143 @@ impl Game {
         }
         self.log.push(format!("t{}: The talk stays talk for now.", self.tick));
         self.note_talk(d.record, None, "The talk stays talk for now.");
+    }
+
+    /// What a member's purse will stand for the hat
+    const HAT_ASK: f32 = 2.0;
+    /// Most flyers one collection posts
+    const FLYER_CAP: usize = 8;
+
+    /// Pass the hat and post the cause's flyers: living members chip
+    /// in, the treasury buys pamphlets off the print shop, and they go
+    /// up around the streets - folk who read them wake to the issue
+    fn flyers_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let org = self.seats[seat].org;
+        let Some(campaign) = crate::game::campaign::campaign_of(&self.world, org) else { return String::new() };
+        let issue = self.world.get_component::<crate::game::campaign::Campaign>(campaign)
+            .map(|c| c.issue.clone());
+        // who's asked: living grown members not banged up
+        let asked: Vec<Entity> = self.world.get_component::<Organization>(org)
+            .map(|o| o.members.clone()).unwrap_or_default().into_iter().filter(|&m| {
+                !villager::is_dead(&self.world, m)
+                    && self.world.get_component::<Kid>(m).is_none()
+                    && !crate::game::dungeon::unavailable(&self.world, m)
+            }).collect();
+        if asked.is_empty() { return "No one to ask.".into() }
+        // the print shop's shelf
+        let Some(shop) = self.building_entities.iter().copied().find(|&b| {
+            self.world.get_component::<Building>(b)
+                .map(|bb| matches!(bb.kind, crate::game::household::BuildingKind::Shop(Vocation::Printmaker))
+                    && !crate::game::household::derelict(bb))
+                .unwrap_or(false)
+        }) else { return "No print shop to buy from.".into() };
+        // the printer pays himself: the shop's own man, else the first about
+        let printer = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Printmaker).unwrap_or(false))
+            .max_by_key(|&v| {
+                self.world.get_component::<Craft>(v).and_then(|c| c.workplace) == Some(shop)
+            });
+        // the hat: everyone asked gives what they can spare
+        let mut raised = 0.0;
+        for &m in &asked {
+            let give = self.world.get_component::<Purse>(m).map(|p| p.gold.min(Self::HAT_ASK)).unwrap_or(0.0);
+            if give > 0.0 {
+                if let Some(p) = self.world.get_component_mut::<Purse>(m) { p.gold -= give; }
+                raised += give;
+            }
+        }
+        if let Some(o) = self.world.get_component_mut::<Organization>(org) { o.resources += raised; }
+        // where they go up: the market cross first, then the doors of
+        // the town's buildings in a fixed scatter, so the same
+        // collection always posts the same
+        let mut spots: Vec<(i32, i32)> = vec![];
+        if let Some(mp) = self.world.get_component::<Pos>(self.market_food) {
+            spots.push((mp.x.round() as i32, mp.y.round() as i32));
+        }
+        let mut doors: Vec<(i32, i32)> = vec![];
+        for &b in &self.building_entities {
+            if let Some(p) = self.world.get_component::<Pos>(b) {
+                let t = (p.x.round() as i32, p.y.round() as i32);
+                if !spots.contains(&t) && !doors.contains(&t) { doors.push(t); }
+            }
+        }
+        doors.sort_by(|a, b| noise(a.0, a.1, 0xF1EE9).partial_cmp(&noise(b.0, b.1, 0xF1EE9)).unwrap());
+        spots.extend(doors);
+        spots.truncate(Self::FLYER_CAP);
+        // the treasury buys what it can: the shop's shelf first, then
+        // the printer's own satchel
+        let price = crate::game::goods::worth_at(&self.world, "pamphlets").max(0.1);
+        let want = asked.len().min(Self::FLYER_CAP) as u32;
+        let treasury = self.world.get_component::<Organization>(org).map(|o| o.resources).unwrap_or(0.0);
+        let affordable = (treasury / price).floor() as u32;
+        let mut avail = self.world.get_component::<Building>(shop)
+            .map(|b| b.stock.get("pamphlets").copied().unwrap_or(0)).unwrap_or(0);
+        if let Some(pr) = printer {
+            avail += self.world.get_component::<Satchel>(pr)
+                .map(|s| s.goods.get("pamphlets").copied().unwrap_or(0)).unwrap_or(0);
+        }
+        let qty = want.min(affordable).min(avail).min(spots.len() as u32);
+        if qty == 0 {
+            return if affordable == 0 {
+                format!("The hat raises {:.0} gold - not enough for a flyer.", raised)
+            } else { "The print shop's out of pamphlets.".into() };
+        }
+        let mut left = qty;
+        if let Some(b) = self.world.get_component_mut::<Building>(shop) {
+            let take = b.stock.get("pamphlets").copied().unwrap_or(0).min(left);
+            if take > 0 { *b.stock.get_mut("pamphlets").unwrap() -= take; left -= take; }
+        }
+        if left > 0 {
+            if let Some(pr) = printer {
+                if let Some(s) = self.world.get_component_mut::<Satchel>(pr) {
+                    let take = s.goods.get("pamphlets").copied().unwrap_or(0).min(left);
+                    if take > 0 { *s.goods.get_mut("pamphlets").unwrap() -= take; }
+                }
+            }
+        }
+        let cost = qty as f32 * price;
+        if let Some(o) = self.world.get_component_mut::<Organization>(org) { o.resources -= cost; }
+        if let Some(pr) = printer {
+            if let Some(p) = self.world.get_component_mut::<Purse>(pr) { p.gold += cost; }
+        }
+        for &(sx, sy) in spots.iter().take(qty as usize) {
+            self.flyers.push((sx as f32 + 0.5, sy as f32 + 0.5));
+        }
+        // folk living near a posting read it: the issue gets into their
+        // heart whether or not anyone dragged them to a meeting
+        let mut woken = 0usize;
+        if let Some(issue) = &issue {
+            let members: Vec<Entity> = self.world.get_component::<Organization>(org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            let mut reached: Vec<Entity> = vec![];
+            for &(sx, sy) in spots.iter().take(qty as usize) {
+                for &v in &self.villagers {
+                    if reached.contains(&v) || members.contains(&v)
+                        || villager::is_dead(&self.world, v)
+                        || self.world.get_component::<Kid>(v).is_some() { continue; }
+                    let near = self.world.get_component::<Pos>(v)
+                        .map(|p| (p.x - sx as f32 - 0.5).abs() + (p.y - sy as f32 - 0.5).abs() <= 4.0)
+                        .unwrap_or(false);
+                    if near { reached.push(v); }
+                }
+            }
+            for v in reached {
+                if self.world.get_component::<crate::game::reactions::Sympathized>(v).is_none() {
+                    self.world.add_component(v, crate::game::reactions::Sympathized::default());
+                }
+                if let Some(s) = self.world.get_component_mut::<crate::game::reactions::Sympathized>(v) {
+                    s.issues.retain(|(i, _)| i != issue);
+                    s.issues.push((issue.clone(), tick));
+                }
+                woken += 1;
+            }
+        }
+        let mut msg = format!("The hat raises {:.0} gold; {} {} up around the streets.",
+            raised, qty, if qty == 1 { "flyer goes" } else { "flyers go" });
+        if woken > 0 { msg += &format!(" - {} wake{} to the issue.", woken, if woken == 1 { "s" } else { "" }); }
+        msg
     }
 }

@@ -137,3 +137,65 @@ fn test_the_organizer_names_a_seat_and_takes_the_street() {
     g.ctx_act_at(0, 1);
     assert!(g.log.last().unwrap().contains("march in the street"), "{:?}", g.log.last());
 }
+
+/// The cause's flyers: the hat comes round the members, the treasury
+/// buys pamphlets off the print shop, and they go up on doors and the
+/// market cross - folk who read them wake to the issue
+#[test]
+fn test_the_cause_passes_the_hat_and_posts_flyers() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    // a print shop with pamphlets on the shelf, and a printer minding it
+    let shop = household::spawn_building(&mut g.world,
+        household::BuildingKind::Shop(Vocation::Printmaker), "the print shop", 20.0, 20.0, 20);
+    g.world.get_component_mut::<Building>(shop).unwrap().stock.insert("pamphlets".into(), 6);
+    g.building_entities.push(shop);
+    let printer = g.villagers[3..].iter().copied().find(|&v| {
+        g.world.get_component::<Kid>(v).is_none()
+            && g.world.get_component::<Craft>(v).is_some()
+            && !villager::is_dead(&g.world, v)
+    }).unwrap();
+    {
+        let c = g.world.get_component_mut::<Craft>(printer).unwrap();
+        c.vocation = Vocation::Printmaker;
+        c.workplace = Some(shop);
+    }
+    g.world.get_component_mut::<Building>(shop).unwrap().worker = Some(printer);
+    let treasury = g.world.get_component::<Organization>(g.org).unwrap().resources;
+    let gold: Vec<f32> = g.villagers[..3].iter()
+        .map(|&v| g.world.get_component::<Purse>(v).unwrap().gold).collect();
+    let printer_gold = g.world.get_component::<Purse>(printer).unwrap().gold;
+    g.seats[0].ctx_actions.push(CtxAct::Flyers);
+    g.ctx_act_at(0, 0);
+    assert!(g.log.last().unwrap().contains("flyers go"), "{:?}", g.log.last());
+    let qty = g.flyers.len() as u32;
+    assert!(qty > 0 && qty <= 3, "one flyer a member at most: {qty}");
+    assert_eq!(g.ui_model().flyers.len(), qty as usize, "the model carries the postings");
+    // the hat came round: each member gave what they could spare
+    for (i, &v) in g.villagers[..3].iter().enumerate() {
+        let now = g.world.get_component::<Purse>(v).unwrap().gold;
+        assert!((now - (gold[i] - gold[i].min(2.0))).abs() < 0.01, "member {i} gave");
+    }
+    // the treasury paid the printer for the pamphlets
+    let price = crate::game::goods::worth_at(&g.world, "pamphlets");
+    let raised: f32 = gold.iter().map(|x| x.min(2.0)).sum();
+    let after = g.world.get_component::<Organization>(g.org).unwrap().resources;
+    assert!((after - (treasury + raised - qty as f32 * price)).abs() < 0.01,
+        "treasury {treasury} + {raised} - {qty}x{price} = {}", treasury + raised - qty as f32 * price);
+    assert!((g.world.get_component::<Purse>(printer).unwrap().gold - printer_gold - qty as f32 * price).abs() < 0.01,
+        "the printer was paid");
+    // and somebody who read a posting woke to the issue
+    let woken = g.villagers.iter().any(|&v| {
+        !g.villagers[..3].contains(&v)
+            && g.world.get_component::<crate::game::reactions::Sympathized>(v)
+                .map(|s| s.issues.iter().any(|(i, _)| i == "the taxes")).unwrap_or(false)
+    });
+    assert!(woken || !g.log.last().unwrap().contains("wake"), "sympathies where folk read them");
+}

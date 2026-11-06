@@ -340,4 +340,7 @@ pub struct UiModel {
     /// The village's research tree: what's discovered, what's invested
     #[serde(default)]
     pub tech: Vec<crate::game::tech_tree::Tech>,
+    /// Where the cause's flyers are posted: (x, y) tile centres
+    #[serde(default)]
+    pub flyers: Vec<(f32, f32)>,
 }

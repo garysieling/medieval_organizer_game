@@ -588,6 +588,16 @@ impl View {
             buf.rect(sx - s / 2, sy - s / 2 - (4.0 * zoom) as i32, s, s, 240, 245, 255);
         }
 
+        // the cause's flyers, nailed up on doors and the market cross
+        for &(fx, fy) in &m.flyers {
+            let (sx, sy) = iso_to_screen_cam(fx, fy, cam_x, cam_y, zoom);
+            if off_view(sx, sy, zoom) { continue; }
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(3.0), sy - k(14.0), k(6.0), k(5.0), 232, 224, 200);
+            buf.rect(sx - k(1.5), sy - k(13.0), k(3.0), k(1.0), 120, 100, 80);
+            buf.rect(sx - k(0.5), sy - k(9.0), k(1.0), k(9.0), 70, 55, 40);
+        }
+
         // gulls wheel over the open sea
         if let Some(gull) = &art.gull {
             for (i, pv) in m.people.iter().filter(|p| p.kind == PKind::Gull).enumerate() {

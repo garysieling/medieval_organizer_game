@@ -816,6 +816,7 @@ impl Game {
             built_count: 0,
             works: vec![],
             tech: crate::game::tech_tree::extended_printmaking_tree(),
+            flyers: vec![],
             rival_homes,
             toasts: Toasts::default(),
             last_guild_count: 0,

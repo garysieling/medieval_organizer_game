@@ -304,6 +304,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // draws over her in the rare winter visit, and once the fight's
         // called its button's gone and she's pettable again
         CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
+        // shares the card's bottom-left corner with Seat/Strike on the right
+        CtxAct::Flyers => Button { label: "Flyers".into(), key: ' ', x: UI_X as i32 + 10, y: 438, w: 130, h: 16, color: (120, 100, 40) },
     }
 }
 #[cfg(test)] // only the tests check against it
@@ -973,6 +975,8 @@ pub struct Game {
     /// The village's research: the printmaking track the print shop's
     /// work feeds (game::tech_tree)
     pub tech: Vec<crate::game::tech_tree::Tech>,
+    /// Where the cause's flyers are posted: (x, y) tile centres
+    pub flyers: Vec<(f32, f32)>,
 }
 
 /// An audio cue: the sim raises these, the audio layer maps them to

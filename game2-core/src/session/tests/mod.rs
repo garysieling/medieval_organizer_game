@@ -70,6 +70,7 @@ mod progression;
 mod quests;
 mod reckoning;
 mod river;
+mod roster;
 mod sanction;
 mod scenario;
 mod sfx;

@@ -29,6 +29,7 @@ fn test_weather_changes_do_not_push_events_out_of_the_log() {
 #[test]
 fn test_flu_from_a_real_game_stays_in_the_log_by_day_600() {
     let mut game = Game::new();
+    game.speed = 8;
     while game.tick < 600 { game.update(); }
     // however busy the village's been, the last sickness still pins above
     // everyday chatter - newer happenings (a birth, an exile) may outrank

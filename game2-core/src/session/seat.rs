@@ -307,7 +307,7 @@ impl Game {
         let at = (px.round() as i32, py.round() as i32);
         // a well-worn path is quicker underfoot, whoever's feet wear it
         let worn = self.trails.get(&at).map(|t| t.strength).unwrap_or(0.0);
-        let spd = WALK_SPEED / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
+        let spd = WALK_SPEED * self.walk_pace() / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
             _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
             _ => 1.0,
@@ -317,17 +317,28 @@ impl Game {
         // a still stick or noise on the wire: no step, and never a NaN position
         if !(len.is_finite() && len > 0.0) { return; }
         let (nx, ny) = (px + dx / len * spd, py + dy / len * spd);
-        let to = [(nx, ny), (nx, py), (px, ny)].into_iter().find(|&(x, y)| self.walkable(x, y));
-        if let (Some((x, y)), Some(p)) = (to, self.world.get_component_mut::<Pos>(self.seats[seat].player)) {
-            let ot = (p.x.round() as i32, p.y.round() as i32);
-            p.x = x;
-            p.y = y;
+        // a fast clock moves more than a tile a frame: take the stride in
+        // half-tile steps so a wall or the river between here and there is
+        // checked, not hopped. Each step keeps the slide round whatever's
+        // in the way
+        let steps = ((spd / 0.5).ceil() as u32).max(1);
+        let (ux, uy) = ((nx - px) / steps as f32, (ny - py) / steps as f32);
+        let mut at = (px, py);
+        for _ in 0..steps {
+            let Some(nxt) = [(at.0 + ux, at.1 + uy), (at.0 + ux, at.1), (at.0, at.1 + uy)]
+                .into_iter().find(|&(x, y)| self.walkable(x, y)) else { break };
+            let ot = (at.0.round() as i32, at.1.round() as i32);
+            at = nxt;
+            let nt = (at.0.round() as i32, at.1.round() as i32);
             // feet wear the ground the player walks, same as any villager's
-            let nt = (p.x.round() as i32, p.y.round() as i32);
             if nt != ot {
                 let tr = self.trails.entry(nt).or_insert(Trail::wild());
                 trails::step_trail(tr, 1, 0.0, &TRAIL_PARAMS);
             }
+        }
+        if let Some(p) = self.world.get_component_mut::<Pos>(self.seats[seat].player) {
+            p.x = at.0;
+            p.y = at.1;
         }
     }
 

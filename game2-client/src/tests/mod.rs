@@ -26,6 +26,7 @@ mod minimap_dead;
 mod nature;
 mod panel;
 mod pause_box;
+mod picker;
 mod rain;
 mod reach_name;
 mod real_frame;

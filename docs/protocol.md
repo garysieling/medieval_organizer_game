@@ -108,6 +108,28 @@ Also: `"Idle"`, `"WorkDay"`, `"JoinOrg"`, `{"TalkTo":{"e":51}}`,
 `{"Gather":{"good":"wood","x":40,"y":12}}`, `{"Press":{"prisoner":61}}`.
 Entities (`e`, `seller`, `shop`...) are the numbers `Obs` reports.
 
+### Pick (humans)
+
+Take a card off the roster the `Welcome` dealt: it rewrites your
+character - name, trade or childhood, purse, wants, and the figure you
+draw as. Send it once, after the Welcome; the seat's default wanderer
+stands if you never do.
+
+```json client
+{"Pick":3}
+```
+
+Or keep the default wanderer - still a decision, so a reclaim doesn't
+offer the cards again:
+
+```json client
+"DeclinePick"
+```
+
+Both answer a `CmdDone` (`{"ok":true,"note":"a card picked"}` or
+`"the wanderer kept"`) - a client that wants its choice safely in
+before it leaves (a fast Escape-then-reconnect) waits for it.
+
 ### Ping
 
 ```json client
@@ -118,9 +140,12 @@ Entities (`e`, `seller`, `shop`...) are the numbers `Obs` reports.
 
 ### Welcome
 
-`{"Welcome":{"you":87,"token":"9f3a1c...","model":{...}}}`: `you` is your
-character's entity, `token` your claim (keep it), and `model` a first frame
-(as in `Scene`, with no map).
+`{"Welcome":{"you":87,"token":"9f3a1c...","model":{...},"roster":[...]}}`:
+`you` is your character's entity, `token` your claim (keep it), `model` a
+first frame (as in `Scene`, with no map), and `roster` the seed's premade
+wanderers - `[{"name":"Sabyn","backstory":"...","work":"baker","kid":false,"look":3}, ...]` -
+for a fresh seat's character picker. Older servers omit it; read it as
+empty (no picker).
 
 ### Map (humans)
 
@@ -138,7 +163,7 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 ```
 {"e":57,"kind":{"Villager":8},"pos":[11.4,6.9],"label":"Wystan","dead":false,"kid":false,
  "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false,
- "find":"wystan heart helper"}
+ "find":"wystan heart helper","look":0}
 ```
 
 The figure whose `e` is your `you` is you. Only what the seat can see is

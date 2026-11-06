@@ -29,6 +29,10 @@ pub enum Input {
     AgentCmd { seat: usize, cmd: AgentCmd },
     /// The fallback driver nudging an idle wanderer seat
     DriveIdle { seat: usize },
+    /// A seat's player takes the `idx`-th card of the seed's roster
+    PickCharacter { seat: usize, idx: usize },
+    /// A seat's player keeps the default wanderer instead of picking
+    DeclinePick { seat: usize },
 }
 
 /// What an input gave back: the seat it made, or an agent command's answer
@@ -36,6 +40,9 @@ pub enum Input {
 pub enum Applied {
     Seat(usize),
     Agent(Result<(), String>),
+    /// A seat's roster choice landed (or was refused): a pick or a kept
+    /// wanderer - the caller acks it so a leaving client knows it's safe
+    Chose(bool),
     Done,
 }
 
@@ -49,6 +56,8 @@ impl Game {
             Input::Command { seat, cmd } => { self.command_at(*seat, cmd.clone()); Applied::Done }
             Input::AgentCmd { seat, cmd } => Applied::Agent(self.agent_command(*seat, cmd.clone())),
             Input::DriveIdle { seat } => { driver::drive_player(self, *seat); Applied::Done }
+            Input::PickCharacter { seat, idx } => Applied::Chose(self.pick_character_at(*seat, *idx)),
+            Input::DeclinePick { seat } => Applied::Chose(self.decline_pick_at(*seat)),
         }
     }
 

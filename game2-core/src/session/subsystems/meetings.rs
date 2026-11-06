@@ -344,20 +344,23 @@ impl Game {
     /// step towards their spot; once they're all there (or the host has
     /// waited GATHER_FRAMES) they talk in turns, then it resolves
     pub fn advance_meeting(&mut self) {
+        // the meeting slows the calendar: read the stretched day before
+        // the take below hides it, so its lines and its gather keep the
+        // same share of a meeting-day whatever the watch speed - else a
+        // fast day ticks by mid-sentence
+        let day = self.ticks_per_frame() as u64;
         let Some(mut m) = self.meeting.take() else { return };
         m.frames += 1;
+        let step = MEETING_WALK * self.walk_pace();
+        let line = ((LINE_FRAMES as u64 * day) / (2 * 21 * FPS as u64)).max(1) as u32;
+        let gather = ((GATHER_FRAMES as u64 * day) / (2 * 21 * FPS as u64)).max(1) as u32;
         // those who've arrived stand at their spot (no strolling off mid-meeting);
         // a dead invitee's grave stays where they died, it doesn't keep walking
         for (i, v) in m.invited.iter().enumerate() {
             if crate::game::dungeon::unavailable(&self.world, *v) { continue; }
             let Some(p) = self.world.get_component_mut::<Pos>(*v) else { continue };
             match &mut m.paths[i] {
-                Some(path) if !path.is_empty() => {
-                    let (nx, ny) = (path[0].0 as f32, path[0].1 as f32);
-                    let (dx, dy) = (nx - p.x, ny - p.y);
-                    let d = (dx * dx + dy * dy).sqrt();
-                    if d <= MEETING_WALK { p.x = nx; p.y = ny; path.remove(0); } else { p.x += dx / d * MEETING_WALK; p.y += dy / d * MEETING_WALK; }
-                }
+                Some(path) if !path.is_empty() => { Self::follow_path(p, path, step); }
                 Some(_) => { p.x = m.spots[i].0 as f32; p.y = m.spots[i].1 as f32; }
                 None => {}
             }
@@ -369,7 +372,7 @@ impl Game {
         };
         match m.talk_from {
             None => {
-                if (0..m.invited.len()).all(|i| arrived(&m, &self.world, i)) || m.frames >= GATHER_FRAMES {
+                if (0..m.invited.len()).all(|i| arrived(&m, &self.world, i)) || m.frames >= gather {
                     // whoever didn't get there in time (or died on the way) isn't at the meeting
                     let came: Vec<usize> = (0..m.invited.len()).filter(|&i| arrived(&m, &self.world, i)).collect();
                     m.invited = came.iter().map(|&i| m.invited[i]).collect();
@@ -386,17 +389,17 @@ impl Game {
                     // "since" tick after talk_from is 1, not 0, and the
                     // player's opening prompt (lines[0]) is skipped
                     if let Some((who, text)) = m.lines.first().cloned() {
-                        self.think(who, &text, LINE_FRAMES);
+                        self.think(who, &text, line);
                         self.note_talk(m.talk_id, Some(who), &text);
                     }
                 }
                 self.meeting = Some(m);
             }
             Some(start) => {
-                let (since, k) = (m.frames - start, ((m.frames - start) / LINE_FRAMES) as usize);
-                if since % LINE_FRAMES == 0 && k < m.lines.len() {
+                let (since, k) = (m.frames - start, ((m.frames - start) / line) as usize);
+                if since % line == 0 && k < m.lines.len() {
                     let (who, text) = m.lines[k].clone();
-                    self.think(who, &text, LINE_FRAMES); // gone as the next one speaks
+                    self.think(who, &text, line); // gone as the next one speaks
                     if k > 0 { self.note_talk(m.talk_id, Some(who), &text); }
                 }
                 if k < m.lines.len() { self.meeting = Some(m); return; }
@@ -414,11 +417,14 @@ impl Game {
         let mut people: Vec<Entity> = self.villagers.iter().copied()
             .filter(|v| !crate::game::dungeon::unavailable(&self.world, *v)).collect();
         people.push(self.player);
-        let pos = |w: &World, e: Entity| w.get_component::<Pos>(e).map(|p| (p.x, p.y));
+        // positions once for the whole pair pass - a lookup per pair was
+        // thousands of hashmap hits a frame on a crowded street
+        let spots: Vec<Option<(f32, f32)>> = people.iter()
+            .map(|&e| self.world.get_component::<Pos>(e).map(|p| (p.x, p.y))).collect();
         let mut near = vec![];
         for (i, &a) in people.iter().enumerate() {
-            for &b in &people[i + 1..] {
-                let (Some(pa), Some(pb)) = (pos(&self.world, a), pos(&self.world, b)) else { continue };
+            for (j, &b) in people[i + 1..].iter().enumerate() {
+                let (Some(pa), Some(pb)) = (spots[i], spots[i + 1 + j]) else { continue };
                 if (pa.0 - pb.0).powi(2) + (pa.1 - pb.1).powi(2) < CHAT_RANGE * CHAT_RANGE { near.push((a, b)); }
             }
         }

@@ -16,28 +16,41 @@ use game2_core::game::mycology::MushKind;
 /// out a month: the village still works, both surfaces still serve.
 #[test]
 fn every_event_plays_out_in_every_kind_of_village() {
-    for (i, s) in events::EVENTS.iter().enumerate() {
-        for st in stage::sweep_stages(i) {
-            let mut g = stage::staged(st);
-            let t0 = g.tick;
-            stage::force(&mut g, s.id);
-            // it fired: the record says so, whatever its shape
-            assert!(g.probe().rare_fired.iter().any(|(id, _)| *id == format!("{:?}", s.id)),
-                "{:?} didn't record its firing on {:?}", s.id, st);
-            // thirty days on: the same update() a player sits under
-            stage::run_days(&mut g, 30);
-            assert!(g.tick >= t0 + 30, "{:?}/{:?}: the clock didn't run", s.id, st);
-            // the backend's secret view still answers
-            let pv = g.probe();
-            assert_eq!(pv.tick, g.tick);
-            assert_eq!(pv.inner.len(), g.villagers.len());
-            // and the frame still draws: a serializable model with a village in it
-            let model = g.ui_model();
-            assert!(!model.people.is_empty(), "{:?}/{:?}: nobody on the map", s.id, st);
-            let json = serde_json::to_string(&model).unwrap();
-            assert!(!json.is_empty());
+    // ~300 seeded villages a month deep each - farm the combos out over
+    // every core; each is its own game, nothing is shared between them
+    let work: Vec<(usize, Stage)> = events::EVENTS.iter().enumerate()
+        .flat_map(|(i, _)| stage::sweep_stages(i).into_iter().map(move |st| (i, st)))
+        .collect();
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).min(16);
+    std::thread::scope(|scope| {
+        for _ in 0..threads {
+            scope.spawn(|| loop {
+                let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                if i >= work.len() { break; }
+                let (ei, st) = work[i];
+                let s = &events::EVENTS[ei];
+                let mut g = stage::staged(st);
+                let t0 = g.tick;
+                stage::force(&mut g, s.id);
+                // it fired: the record says so, whatever its shape
+                assert!(g.probe().rare_fired.iter().any(|(id, _)| *id == format!("{:?}", s.id)),
+                    "{:?} didn't record its firing on {:?}", s.id, st);
+                // thirty days on: the same update() a player sits under
+                stage::run_days(&mut g, 30);
+                assert!(g.tick >= t0 + 30, "{:?}/{:?}: the clock didn't run", s.id, st);
+                // the backend's secret view still answers
+                let pv = g.probe();
+                assert_eq!(pv.tick, g.tick);
+                assert_eq!(pv.inner.len(), g.villagers.len());
+                // and the frame still draws: a serializable model with a village in it
+                let model = g.ui_model();
+                assert!(!model.people.is_empty(), "{:?}/{:?}: nobody on the map", s.id, st);
+                let json = serde_json::to_string(&model).unwrap();
+                assert!(!json.is_empty());
+            });
         }
-    }
+    });
 }
 
 /// A visitor walks the road in, stands the pitch labelled by its errand,

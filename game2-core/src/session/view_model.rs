@@ -551,6 +551,28 @@ impl Game {
                     else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
                 rgb: (230, 200, 140) });
         }
+        // the tavern's register: who kept the table's company these
+        // last nights - the keeper's till knows the thirsty by name
+        if Some(be) == self.tavern {
+            // latest nights first, a patron only once
+            let mut seen = crate::engine::det::HashSet::default();
+            let drank: Vec<String> = self.tavern_table.iter().rev()
+                .filter(|(_, d)| self.tick.saturating_sub(*d) < 30)
+                .filter(|(w, _)| seen.insert(*w))
+                .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
+                    .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
+                .collect();
+            // the card's a fixed width: the last two nights' company,
+            // then a count
+            let company = match drank.len() {
+                0 => String::new(),
+                1..=2 => format!(" - {}", drank.join(", ")),
+                n => format!(" - {}, +{}", drank[..2].join(", "), n - 2),
+            };
+            lines.push(Line { x: 18, y: 432,
+                text: format!("the table's company{}", company),
+                rgb: (220, 180, 140) });
+        }
         // the herb-wife's tally, and who's called at her hut lately
         if Some(be) == self.herb_hut {
             let callers: Vec<String> = self.remedy_visits.iter()

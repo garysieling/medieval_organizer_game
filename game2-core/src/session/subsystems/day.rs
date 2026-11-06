@@ -225,6 +225,8 @@ impl Game {
         crate::timed!("sim.weather", self.weather_tick(tick));
         // the priest reads the old books; what they teach helps the sick
         crate::timed!("sim.magic", self.magic_tick(tick));
+        // new traders carry the Merchant the guild's compact wants
+        crate::timed!("sim.guild", self.guild_tick(tick));
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));

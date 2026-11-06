@@ -37,7 +37,7 @@ use crate::game::tilemap::{Layout, Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use crate::game::villager::{self, Hunger, Villager, Activity, Pos, Smell};
 use crate::game::pets::{self, Species, PetRole, Pet};
 use crate::game::player::{PlayerCharacter, act_talk, act_recruit, TalkCount};
-use crate::game::guilds::{GuildFormationSystem, Merchant, Guild};
+use crate::game::guilds::{GuildFormationSystem, Guild};
 use crate::sim::climate::{self, SeasonSystem, Season};
 use crate::sim::precipitation::{precip_kind, PrecipKind};
 use crate::sim::illness::{self, Health, Disease, DiseaseKind, Stage, IllnessSystem};

@@ -171,6 +171,18 @@ impl Game {
         self.world.get_component::<ReputationState>(v).map(|r| r.score).unwrap_or(0.45)
     }
 
+    /// New traders joining late - migrants, grown children - carry the
+    /// Merchant the guild's compact wants; a day of arrivals sees them
+    /// tagged and enrolled on its next run
+    pub(in crate::session) fn guild_tick(&mut self, _tick: u64) {
+        for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
+            if self.world.get_component::<crate::game::guilds::Merchant>(v).is_none()
+                && is_trader(&self.world, v) {
+                tag_trader(&mut self.world, v, vill_name(i));
+            }
+        }
+    }
+
     pub(in crate::session) fn rep_apply(&mut self, v: Entity, a: RepAction) {
         let _ = self.rep_of(v);
         if let Some(r) = self.world.get_component_mut::<ReputationState>(v) {
@@ -258,7 +270,12 @@ impl Game {
                 // a strong org can stand against it
                 let mark = self.villagers.iter().copied()
                     .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
-                        && self.world.get_component::<TownRole>(v).is_none())
+                        && self.world.get_component::<TownRole>(v).is_none()
+                        // the guild's mutual protection: the bailiff's
+                        // summons finds no hold on a member
+                        && !self.world.query::<crate::game::guilds::Guild>().iter()
+                            .any(|&g| self.world.get_component::<crate::game::guilds::Guild>(g)
+                                .map(|gg| gg.members.contains(&v)).unwrap_or(false)))
                     .max_by_key(|&v| self.world.get_component::<InnerLife>(v)
                         .map(|l| l.grievances.len()).unwrap_or(0));
                 if let Some(m) = mark {
@@ -638,3 +655,27 @@ impl Game {
         }
     }
 }
+
+/// Is this villager a trader the guild's compact wants? The
+    /// trade-vocation folk and the stall's trader count; raw producers,
+    /// officials and the country folk don't - the guild's the village's
+    pub(in crate::session) fn is_trader(world: &World, v: Entity) -> bool {
+        if world.get_component::<crate::session::country::Outlander>(v).is_some() { return false; }
+        world.get_component::<TownRole>(v)
+            .map(|r| matches!(r, TownRole::Trader))
+            .unwrap_or(false)
+            || world.get_component::<Craft>(v)
+                .map(|c| !matches!(c.vocation,
+                    Vocation::Priest | Vocation::Knight | Vocation::Farmer
+                    | Vocation::Shepherd | Vocation::Fisher))
+                .unwrap_or(false)
+    }
+
+    /// Give a trader the Merchant the guild formation reads: their name,
+    /// their purse plus the stock and tools the writs can strip, their
+    /// stake marked exposed to the bailiff
+    pub(in crate::session) fn tag_trader(world: &mut World, v: Entity, name: &str) {
+        let wealth = world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) + 60.0;
+        world.add_component(v, crate::game::guilds::Merchant { name: name.into(),
+            wealth, trade_routes: vec!["the market".into()], vulnerable: true });
+    }

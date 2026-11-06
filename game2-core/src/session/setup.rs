@@ -548,11 +548,6 @@ impl Game {
                 orthodoxy: 0.6, services: vec![] });
             c
         };
-        for i in 0..3 {
-            let m = world.create_entity();
-            world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
-        }
-
         // rival village: foreign settlement across the river, with its own
         // granary so its people eat at home instead of crossing to our market
         villager::spawn_food_source(&mut world, (vx + 14) as f32, (vy - 3) as f32, 500);
@@ -842,6 +837,14 @@ impl Game {
             let voc = world.get_component::<Craft>(v).map(|c| c.vocation);
             let wants = desires::sample_wants(class, voc, is_kid, &mut || g.next());
             world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
+        }
+        // the traders the guild forms of: the trade-vocation folk and
+        // the stall's trader - purses seeded now, their stake the purse
+        // plus the stock and tools the writs can strip
+        for (i, &v) in villagers.iter().enumerate() {
+            if subsystems::society::is_trader(&world, v) {
+                subsystems::society::tag_trader(&mut world, v, vill_name(i));
+            }
         }
         // the keeper opens with a float. His trade is the only one in the
         // village that buys before it sells, so a journeyman's purse

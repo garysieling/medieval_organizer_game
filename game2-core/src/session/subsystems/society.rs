@@ -85,9 +85,14 @@ impl Game {
         if let Some(fe) = hot {
             crate::game::feuds::peacemaking(&mut self.world, fe, priest);
         }
-        // the office itself: everyone keeping the holy day, church rows
-        // or the old rite, gathers a little devotion and a bond; and the
-        // parish's poor box feeds the hungriest of the flock
+    }
+
+    /// The holy-day office, run once the day's plans are laid: everyone
+    /// keeping Worshipping today - church rows or the old rite, priest
+    /// or no priest - gathers a little devotion and a bond, and the
+    //  parish's poor box feeds the hungriest of the flock
+    pub(in crate::session) fn service_tick(&mut self, tick: u64) {
+        if !routine::is_holy(tick) { return; }
         let attendees: Vec<Entity> = self.villagers.iter().copied()
             .filter(|&v| !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
                 && self.world.get_component::<routine::Routine>(v)

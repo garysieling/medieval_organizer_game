@@ -221,6 +221,9 @@ impl Game {
         crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
+        // the office gathers whoever's keeping the holy day - church
+        // rows or the stones, priest or no priest
+        crate::timed!("sim.faith", self.service_tick(tick));
         // and folk who've gotten to know the Wanderer ask for small jobs
         crate::timed!("sim.quests", self.quest_dawn(tick, &mut rng));
         let folk = crate::infra::perf::scope("sim.day.villagers");
@@ -328,7 +331,7 @@ impl Game {
         // and the village's tune follows the day the village had
         crate::timed!("sim.music", self.music_tick(tick));
         // faith unkept fades a little each day
-        crate::timed!("sim.faith", {
+        crate::timed!("sim.devotion", {
             use crate::engine::ecs::System;
             crate::sim::religion::DevotionSystem.run(&mut self.world);
         });

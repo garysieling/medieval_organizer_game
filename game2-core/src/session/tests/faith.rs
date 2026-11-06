@@ -25,7 +25,7 @@ fn test_the_office_feeds_devotion_and_the_hungry() {
     g.world.get_component_mut::<Hunger>(a).unwrap().value = 80.0;
     g.world.get_component_mut::<Hunger>(b).unwrap().value = 10.0;
     let d0 = g.world.get_component::<crate::sim::religion::Faith>(a).unwrap().devotion;
-    g.feud_tick(holy); // the holy-day block lives at the tail of feud_tick
+    g.service_tick(holy); // the office runs after the day's plans are laid
     let f = g.world.get_component::<crate::sim::religion::Faith>(a).unwrap();
     assert!(f.devotion > d0, "the office grew no devotion: {} -> {}", d0, f.devotion);
     assert!(g.world.get_component::<Hunger>(b).unwrap().value > 10.0,

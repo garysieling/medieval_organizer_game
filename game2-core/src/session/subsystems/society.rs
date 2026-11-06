@@ -250,8 +250,10 @@ impl Game {
             }
             3 => {
                 // the drink levy: the castle's share of every barrel in
-                // the village - a quarter of what pours, off every stock
-                let share = |q: u32| ((q as f32) * if bargained { 0.125 } else { 0.25 }).ceil() as u32;
+                // the village - a quarter of what pours, off every stock;
+                // and the grudge reads its weight here too
+                let frac = (if bargained { 0.125 } else { 0.25 }) * mult as f32;
+                let share = |q: u32| ((q as f32) * frac).ceil() as u32;
                 let mut taken = 0u32;
                 for &be in &self.building_entities.clone() {
                     if let Some(b) = self.world.get_component_mut::<Building>(be) {
@@ -302,7 +304,7 @@ impl Game {
                         }
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
-                        self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty.", tick, self.name_of(m)));
+                        self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
                     } else {
                         self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
                         for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }

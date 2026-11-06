@@ -68,7 +68,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 42 | The matchmaker's tried pairings | `Game::matchmaker`, `match_tried` | done #570 (already wired: TalkTo arrival runs `match_attempt`, `match_tried` gates retries) |
 | 43 | The herb-wife's tally of cures, and who's called at the hut | `Game::cured`, `remedy_visits` | done #571 |
 | 44 | Signs before a wolf / fox night | `Game::wolf_coming`, `fox_coming` | done #572 (already wired: hens/tracks log a few days out, the flags gate the nights) |
-| 45 | An unspoken discovery waiting to be disclosed | `Game::pending_discovery` | todo |
+| 45 | An unspoken discovery waiting to be disclosed | `Game::pending_discovery` | done #573 (already wired: ripens a fortnight then whispers out; org standing decides the answer) |
 | 46 | The hermit at the cave | `Game::hermit` | todo |
 | 47 | The martyr's grave | `Game::martyr_grave` | todo |
 | 48 | The rivals' homes across the river | `Game::rival_homes` | todo |

@@ -274,10 +274,12 @@ impl Game {
             // exile's road, which no belly's free to abandon
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
             if hungry {
-                self.travels.retain(|t| t.who != v || matches!(t.goal, Goal::Exile));
-                // an exile walks on, belly and all - the road's the
-                // only errand his sentence leaves him
-                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile)) {
+                // an exile walks on, belly and all - and the man riding
+                // the lord's gold doesn't set it down for lunch; the
+                // keep's table feeds him when he gets there
+                self.travels.retain(|t| t.who != v
+                    || matches!(t.goal, Goal::Exile | Goal::Remit(_)));
+                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile | Goal::Remit(_))) {
                     let at_store = self.world.get_component::<Pos>(self.store_of(v))
                         .zip(self.world.get_component::<Pos>(v))
                         .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)

@@ -72,3 +72,15 @@ fn test_the_card_tells_the_biography_you_know() {
     let bio = bio_of(&mut g, 7);
     assert!(bio.contains("kin:"), "family shows once known: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_the_rung() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    // a master on the bench, by skill
+    g.world.get_component_mut::<crate::game::vocation::Craft>(v).unwrap().skill = 0.95;
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    assert!(ins.lines.iter().any(|l| l.text.contains("Master")),
+        "the rung never showed: {:?}", ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

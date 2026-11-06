@@ -414,6 +414,9 @@ impl Game {
             tick: self.tick, frame: self.frame_n,
             map: if with_map { self.map.clone() } else { crate::game::tilemap::TileMap::default() }, town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
+            food_yield: world.get_component::<climate::Climate>(self.climate)
+                .map(|c| climate::climate_multiplier(c, "food")).unwrap_or(1.0),
+            harsh_winter: self.harsh_winter,
             paused: self.paused, speed: self.speed,
             stones: self.stones.clone(), buildings, people, bubbles,
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),

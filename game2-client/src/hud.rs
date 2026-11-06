@@ -3,9 +3,17 @@
 use super::*;
 
 /// The top-left status line: season, day, the village food store, weather, speed
-pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32) -> String {
-    format!("{:?} | day {} | food store {}{}{}", season, day, food,
+pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32,
+    food_yield: f32, harsh_winter: bool) -> String {
+    // two independent reads: what the climate does to the fields, and
+    // whether a harsh winter's also running - one can hide neither
+    let yield_word = format!("{}{}",
+        if food_yield > 0.0 && food_yield < 0.95 { " | lean fields" }
+        else if food_yield > 1.05 { " | rich fields" } else { "" },
+        if harsh_winter { " | the store thins" } else { "" });
+    format!("{:?} | day {} | food store {}{}{}{}", season, day, food,
         weather.map(|w| format!(" | {}", w)).unwrap_or_default(),
+        yield_word,
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
 }
 

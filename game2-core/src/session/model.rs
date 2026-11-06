@@ -282,6 +282,14 @@ pub struct UiModel {
     pub map: TileMap,
     pub town_wall: (i32, i32, i32, i32),
     pub season: Season,
+    /// How the season weighs on the fields (the climate's food
+    /// multiplier) - 0 from an older server means no read
+    #[serde(default)]
+    pub food_yield: f32,
+    /// Every other winter runs long: the snow keeps falling, the store
+    /// thins - the banner says so when it's on
+    #[serde(default)]
+    pub harsh_winter: bool,
     pub precip: Option<PrecipKind>,
     /// Frame the last rain stopped (rainbow fades from there)
     pub rainbow_from: Option<u32>,

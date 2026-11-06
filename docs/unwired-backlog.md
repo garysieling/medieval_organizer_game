@@ -39,7 +39,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 18 | Landforms in map generation | `game/landforms.rs` (`select_landform`, `apply_landform`) | done #546 |
 | 19 | Aging and life stages | `game/lifecycle.rs` (`AgingSystem`, `LifeStage`, `spawn_person`) | done #547 |
 | 20 | Grief and mourning | `sim/psychology.rs` (`GriefSystem`, `Mourned`) | done #548 |
-| 21 | Attachment styles shaping bonds | `sim/psychology.rs` (`AttachmentSystem`, `AttachmentStyle`) | todo |
+| 21 | Attachment styles shaping bonds | `sim/psychology.rs` (`AttachmentSystem`, `AttachmentStyle`) | done #549 |
 | 22 | Relationship drift from interactions | `game/relationships.rs` (`RelationshipSystem`, `infer_kind`) | todo |
 | 23 | Influence and one-on-ones as a running system | `sim/community.rs` (`InfluenceSystem`, `OneOnOneSystem`, `exert_influence`) | todo |
 | 24 | Organized power wasting away when unused | `sim/organized_power.rs` (`PowerAtrophySystem`) | todo |

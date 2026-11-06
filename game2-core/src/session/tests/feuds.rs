@@ -47,8 +47,7 @@ fn test_the_card_names_every_live_feud() {
     let insp = g.villager_inspector_at(0);
     let feud_lines: Vec<String> = insp.lines.iter().filter(|l| l.text.contains("feuds with"))
         .map(|l| l.text.clone()).collect();
-    assert_eq!(feud_lines.len(), 1, "the card's feud line: {:?}", feud_lines);
-    assert!(feud_lines[0].contains("Aldric") || feud_lines[0].contains(","), "both live feuds named: {:?}", feud_lines);
+    assert_eq!(feud_lines.len(), 2, "both live feuds show: {:?}", feud_lines);
     assert!(feud_lines.iter().any(|l| l.contains("it burns")), "the burning one says so: {:?}", feud_lines);
 }
 

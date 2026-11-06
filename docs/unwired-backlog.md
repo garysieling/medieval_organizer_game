@@ -34,7 +34,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 13 | Magic read out of old texts | `sim/magic.rs` (`ingest_text`, `magic_effects`) | done #541 |
 | 14 | Grass and forest spread (cellular automaton) | `sim/emergence.rs` | done #542 |
 | 15 | Reputation stages: unknown -> known -> trusted -> esteemed / disgraced | `sim/reputation_qsp.rs` (`spawn_reputation`) | done #543 |
-| 16 | Contract verb from the old text action menu | `game/action_menu.rs` | todo |
+| 16 | Contract verb from the old text action menu | `game/action_menu.rs` | done #526 |
 | 17 | Guilds forming and policing their trade | `game/guilds.rs` (`guild_should_form`, `form_guild`, `enforce_security`) | todo |
 | 18 | Landforms in map generation | `game/landforms.rs` (`select_landform`, `apply_landform`) | todo |
 | 19 | Aging and life stages | `game/lifecycle.rs` (`AgingSystem`, `LifeStage`, `spawn_person`) | todo |

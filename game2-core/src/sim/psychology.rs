@@ -99,7 +99,27 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         Some(b) if b.target == target => {
             b.security = (b.security + bond_update).clamp(0.0, 1.0);
         }
-        Some(_) => {}
+        Some(b) => {
+            // a heart can move: weigh the episodes each tie has earned;
+            // the first passerby holds it only until another clearly
+            // earns it more
+            let cur = b.target;
+            let _ = b;
+            let score = |t: Entity| -> f32 {
+                let weight = |k: &EpisodeKind| match k {
+                    EpisodeKind::Warmth => 0.15, EpisodeKind::Anxiety => -0.1,
+                    EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3 };
+                world.get_component::<AttachmentHistory>(agent).map(|h| h.episodes.iter()
+                    .filter(|e| e.with == t).map(|e| weight(&e.kind)).sum()).unwrap_or(0.0)
+            };
+            let (new_s, old_s) = (score(target), score(cur));
+            if new_s > old_s + 0.3 {
+                if let Some(b) = world.get_component_mut::<Bond>(agent) {
+                    b.target = target;
+                    b.security = (0.5 + new_s).clamp(0.0, 1.0);
+                }
+            }
+        }
         None if is_loss => {} // losing someone doesn't form a first bond with them
         None => {
             world.add_component(agent, Bond { target, security: (0.5 + bond_update).clamp(0.0, 1.0) });

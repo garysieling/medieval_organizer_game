@@ -8,7 +8,9 @@ fn test_a_talk_is_a_warmth_beat_and_the_style_reads_it() {
     let b = g.villagers[1];
     let w0 = g.world.get_component::<AttachmentHistory>(a).map(|h| h.warmth_episodes).unwrap_or(0);
     // a talk between them is a warmth beat for both
-    g.push_talk(crate::session::dialogue::TalkKind::Meeting, vec![a, b], vec![crate::session::dialogue::TalkLine { who: Some(a), name: "A".into(), text: "how do ye?".into(), gist: false }]);
+    g.push_talk(crate::session::dialogue::TalkKind::Chat, vec![a, b], vec![
+        crate::session::dialogue::TalkLine { who: Some(a), name: "A".into(), text: "how do ye?".into(), gist: false },
+        crate::session::dialogue::TalkLine { who: Some(b), name: "B".into(), text: "well enough".into(), gist: false }]);
     let h = g.world.get_component::<AttachmentHistory>(a).unwrap();
     assert!(h.warmth_episodes > w0, "no warmth counted");
     assert!(h.episodes.iter().any(|e| matches!(e.kind, EpisodeKind::Warmth) && e.with == b));

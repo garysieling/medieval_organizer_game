@@ -74,6 +74,8 @@ pub struct TalkRecord {
     /// Everyone in it (the player too, for a Talk or a meeting)
     pub with: Vec<Entity>,
     pub lines: Vec<TalkLine>,
+    /// The warmth beat was counted - a record only warms once
+    pub warmed: bool,
 }
 
 /// A Talk the player is in the middle of: replayed from its seed and the
@@ -209,24 +211,35 @@ impl Game {
     pub(in crate::session) fn push_talk(&mut self, kind: TalkKind, with: Vec<Entity>, lines: Vec<TalkLine>) -> u64 {
         self.talk_next_id += 1;
         let id = self.talk_next_id;
-        // a talk that went through is a warmth beat between the two
-        if !lines.is_empty() && with.len() == 2 {
-            for &m in &with {
-                crate::sim::psychology::record_episode(&mut self.world, m,
-                    crate::sim::psychology::Episode { with: with[if m == with[0] { 1 } else { 0 }],
-                        kind: crate::sim::psychology::EpisodeKind::Warmth });
-            }
-        }
-        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines });
+        self.talk_log.push(TalkRecord { id, tick: self.tick, kind, with, lines, warmed: false });
         if self.talk_log.len() > TALK_LOG_MAX {
             let extra = self.talk_log.len() - TALK_LOG_MAX;
             self.talk_log.drain(..extra);
         }
+        self.warm_exchange(id);
         id
     }
 
     fn talk_record_mut(&mut self, id: u64) -> Option<&mut TalkRecord> {
         self.talk_log.iter_mut().rev().find(|r| r.id == id)
+    }
+
+    /// A real exchange between two is a warmth beat for both - only a
+    /// chat or a Talk counts it, and only once both have spoken
+    fn warm_exchange(&mut self, id: u64) {
+        let Some(r) = self.talk_log.iter().find(|r| r.id == id) else { return };
+        if r.warmed || r.with.len() != 2
+            || matches!(r.kind, TalkKind::Meeting) { return }
+        let (a, b) = (r.with[0], r.with[1]);
+        if !(r.lines.iter().any(|l| l.who == Some(a))
+            && r.lines.iter().any(|l| l.who == Some(b))) { return }
+        let r = self.talk_record_mut(id).unwrap();
+        r.warmed = true;
+        for m in [a, b] {
+            crate::sim::psychology::record_episode(&mut self.world, m,
+                crate::sim::psychology::Episode { with: if m == a { b } else { a },
+                    kind: crate::sim::psychology::EpisodeKind::Warmth });
+        }
     }
 
     /// Add a line to a conversation on the record (a meeting, as it's said)
@@ -359,6 +372,7 @@ impl Game {
         }
         if said.is_empty() { lines.extend(Self::gist_lines(&t, &vname)); }
         if let Some(r) = self.talk_record_mut(t.id) { r.lines = lines; }
+        self.warm_exchange(t.id);
         match offered {
             Some(opts) if !opts.is_empty() => {
                 if let Some(cur) = self.seats[seat].talk.as_mut() { cur.options = opts; }

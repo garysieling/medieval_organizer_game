@@ -313,7 +313,7 @@ impl Game {
             // a day at the craft, at the bench
             self.plan_bench(v, tick);
             let (made, up) = livelihood::work_day(&mut self.world, v, tick);
-            let _ = made;
+            if made > 0.0 { self.produced.insert(v, (tick, made)); }
             if let Some(level) = up {
                 let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
                 self.toasts.push_at((format!("{} is now a {}!", vill_name(i), vocation::level_name(level)), tick + 30),

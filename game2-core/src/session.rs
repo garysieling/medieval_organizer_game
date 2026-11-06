@@ -907,6 +907,9 @@ pub struct Game {
     /// The worst state each feud was announced at, so the log tells its
     /// turns once each
     pub feud_told: crate::engine::det::HashMap<Entity, crate::game::feuds::FeudStatus>,
+    /// (villager -> (day, units)) - what each one made at the bench today,
+    /// so the card can say the day's work plainly
+    pub produced: crate::engine::det::HashMap<Entity, (u64, f32)>,
     /// The pack's been seen: a wolf night is coming once the roll lands
     pub wolf_coming: bool,
     /// The hens are restless: a fox night is coming once the roll lands

@@ -71,7 +71,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 45 | An unspoken discovery waiting to be disclosed | `Game::pending_discovery` | done #573 (already wired: ripens a fortnight then whispers out; org standing decides the answer) |
 | 46 | The hermit at the cave | `Game::hermit` | done #574 |
 | 47 | The martyr's grave | `Game::martyr_grave` | done #575 |
-| 48 | The rivals' homes across the river | `Game::rival_homes` | todo |
+| 48 | The rivals' homes across the river | `Game::rival_homes` | done #576 |
 | 49 | Towns and castles: names, keepers, on the minimap | `Game::sites` | todo |
 | 50 | Word that a minstrel / pedlar / circus / ink-maker is due | `Game::next_*` | todo |
 | 51 | Who drank at the tavern table | `Game::tavern_table` | todo |

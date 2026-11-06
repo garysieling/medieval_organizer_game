@@ -35,6 +35,7 @@ impl Game {
         // the felt-worth ledger rides beside the climate - what the
         // shelves show leans what a swap is worth, quietly
         goods::spawn_worths(&mut world);
+        let music = crate::game::music::spawn_music(&mut world);
         // tell the sim where the tile edge is, or its fixed bound pinches
         // anyone homed past the old 33-tile map
         world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
@@ -854,7 +855,7 @@ impl Game {
         }
 
         let mut g = Game {
-            world, sched, map, climate, villagers, rivals,
+            world, sched, map, climate, music, villagers, rivals,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             village: (vx, vy),

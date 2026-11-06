@@ -812,6 +812,9 @@ pub struct Game {
     pub precip: Option<PrecipKind>, // what is falling today
     pub rainbow_from: Option<u32>,   // frame the last rain stopped (rainbow fades from there)
     pub was_sick: Vec<Option<String>>, // per villager, the disease they're showing - to log when someone falls ill or recovers
+    /// The village's tune: the evolving-music state the day's world
+    /// metrics steer
+    pub music: Entity,
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,

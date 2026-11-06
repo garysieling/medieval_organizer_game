@@ -59,6 +59,7 @@ mod log_priority;
 mod market;
 mod member_line;
 mod minimap;
+mod music;
 mod organize;
 mod pacing;
 mod painter;

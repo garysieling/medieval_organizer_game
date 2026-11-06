@@ -223,6 +223,8 @@ impl Game {
         // the weather resolves before anyone lifts a tool: a rolled event
         // weighs on the day's harvest and health alike
         crate::timed!("sim.weather", self.weather_tick(tick));
+        // the priest reads the old books; what they teach helps the sick
+        crate::timed!("sim.magic", self.magic_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
         // the office gathers whoever's keeping the holy day - church
         // rows or the stones, priest or no priest
@@ -494,6 +496,41 @@ impl Game {
                         // outright, and it doesn't mend a failing one
                         h.condition = (h.condition + drain).max(0.2).min(h.condition);
                     }
+                }
+            }
+        }
+    }
+
+    /// The priest's reading: some days an old text yields a practice the
+    /// parish can use; each page of the healing arts sees the sick mend
+    /// a little faster
+    pub(crate) fn magic_tick(&mut self, tick: u64) {
+        use crate::sim::magic;
+        // a reading day comes for the priest about twice a month
+        let priest = self.villagers.iter().copied().find(|&v|
+            !crate::game::dungeon::unavailable(&self.world, v) && self.site_of(v).is_none()
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Priest).unwrap_or(false));
+        let sources = magic::ancient_sources();
+        // the old library is finite - when every text's been read the
+        // shelf holds no more discoveries
+        let unread = self.grimoire.discoveries.len() < sources.len();
+        if priest.is_some() && unread && self.rng.next() % 15 == 0 {
+            let (src, domain, strength) = sources[self.grimoire.discoveries.len()];
+            let d = magic::ingest_text(&mut self.grimoire, src, domain, strength);
+            let use_ = magic::magic_effects(domain).first().copied().unwrap_or("useful lore");
+            self.log.push(format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
+                tick, d.name, use_));
+        }
+        // the parish physick: each healing practice the books taught
+        // sees the sick mend a little faster
+        let healing = self.grimoire.domains_known.get("Healing").copied().unwrap_or(0) as f32;
+        if healing > 0.0 {
+            for v in self.villagers.iter().copied().filter(|&v|
+                !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
+                    && is_sick(&self.world, v)).collect::<Vec<_>>() {
+                if let Some(h) = self.world.get_component_mut::<Health>(v) {
+                    h.condition = (h.condition + 0.004 * healing).min(1.0);
                 }
             }
         }

@@ -858,6 +858,28 @@ impl Game {
         if let Some(c) = world.get_component::<villager::Condition>(v) {
             if self.tick < c.until { parts.push(c.kind.to_string()); }
         }
+        // the tie between you: friend, rival, kin - plain to you
+        // whether or not the village knows them yet
+        if let Some((tie, them_senior)) = crate::game::relationships::find_relationship(world, self.seats[seat].player, v)
+            .and_then(|e| world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| (r.kind, match r.kind {
+                // a Mentor tie runs mentor->pupil; an Apprentice tie
+                // runs pupil->master - either way the teacher's the
+                // end this side isn't
+                crate::game::relationships::RelKind::Mentor => r.from == v,
+                crate::game::relationships::RelKind::Apprentice => r.other == v,
+                _ => false,
+            })) {
+            use crate::game::relationships::RelKind::*;
+            let word = match tie {
+                Family => "kin to you", Lover => "your lover",
+                Friend => "your friend", Rival => "your rival",
+                Mentor | Apprentice if them_senior => "your teacher",
+                Mentor | Apprentice => "your apprentice",
+                Stranger | Acquaintance => "",
+            };
+            if !word.is_empty() { parts.push(word.into()); }
+        }
         // a loss they've carried: the episode names who, grief's
         // plain to see whether or not the bond's known
         if let Some(gone) = world.get_component::<AttachmentHistory>(v)

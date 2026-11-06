@@ -117,3 +117,18 @@ fn test_the_card_names_who_they_lost() {
     let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
     assert!(bio.contains("grieves for"), "the loss never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_the_tie_between_you() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, crate::game::relationships::Relationship {
+        from: g.seats[0].player, other: v,
+        kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.6, interactions: 3 });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("your friend"), "the tie never showed: {}", bio);
+}

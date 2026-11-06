@@ -97,6 +97,8 @@ impl Game {
         crate::timed!("sim.land", self.land_tick(tick));
         // the ladder of shame climbs one rung at a time
         crate::timed!("sim.sanction", self.sanction_tick(tick));
+        // and the blood feuds simmer or settle under it
+        crate::timed!("sim.feuds", self.feud_tick(tick));
         // and the year has its feast days
         crate::timed!("sim.festival", self.festival_tick(tick));
         let hearths = crate::infra::perf::scope("sim.day.hearths");

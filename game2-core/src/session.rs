@@ -899,6 +899,9 @@ pub struct Game {
     pub reach: Vec<(i32, i32)>,
     /// (who, the rung they're on, the day it ends) - the ladder of shame
     pub sanctioned: Vec<(Entity, Sanction, u64)>,
+    /// The worst state each feud was announced at, so the log tells its
+    /// turns once each
+    pub feud_told: crate::engine::det::HashMap<Entity, crate::game::feuds::FeudStatus>,
     /// The pack's been seen: a wolf night is coming once the roll lands
     pub wolf_coming: bool,
     /// The hens are restless: a fox night is coming once the roll lands

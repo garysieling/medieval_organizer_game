@@ -35,6 +35,48 @@ impl Game {
         if let Some(s) = step { self.apply_sanction(v, s, tick); }
     }
 
+    /// Bad blood made visible: a feud that turns hot is the village's
+    /// talk and its slander costs the offender good name; and on the
+    /// holy day the priest's arbitration cools the hottest of them, the
+    /// way the sagas end - talks first, a settlement if it's cooled enough
+    pub(in crate::session) fn feud_tick(&mut self, tick: u64) {
+        for e in self.world.query::<crate::game::feuds::Feud>() {
+            let Some(f) = self.world.get_component::<crate::game::feuds::Feud>(e) else { continue };
+            let last = self.feud_told.get(&e).copied();
+            match f.status {
+                crate::game::feuds::FeudStatus::Burning if last != Some(crate::game::feuds::FeudStatus::Burning) => {
+                    self.feud_told.insert(e, crate::game::feuds::FeudStatus::Burning);
+                    let (an, bn) = (self.name_of(f.aggrieved), self.name_of(f.offender));
+                    self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, f.offense));
+                    self.rep_apply(f.offender, RepAction::BadDeed);
+                }
+                crate::game::feuds::FeudStatus::Resolved if last != Some(crate::game::feuds::FeudStatus::Resolved) => {
+                    self.feud_told.insert(e, crate::game::feuds::FeudStatus::Resolved);
+                    let (an, bn) = (self.name_of(f.aggrieved), self.name_of(f.offender));
+                    self.log.push(format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
+                }
+                _ => {}
+            }
+        }
+        if !routine::is_holy(tick) { return; }
+        let Some(priest) = self.villagers.iter().copied().find(|&v|
+            !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Craft>(v)
+                    .map(|c| c.vocation == Vocation::Priest).unwrap_or(false)) else { return };
+        // the hottest unsettled blood gets the priest's word first
+        let hot = self.world.query::<crate::game::feuds::Feud>().into_iter()
+            .filter(|&e| self.world.get_component::<crate::game::feuds::Feud>(e)
+                .map(|f| f.status != crate::game::feuds::FeudStatus::Resolved).unwrap_or(false))
+            .max_by(|&a, &b| {
+                let ia = self.world.get_component::<crate::game::feuds::Feud>(a).unwrap().intensity;
+                let ib = self.world.get_component::<crate::game::feuds::Feud>(b).unwrap().intensity;
+                ia.partial_cmp(&ib).unwrap_or(std::cmp::Ordering::Equal)
+            });
+        if let Some(fe) = hot {
+            crate::game::feuds::peacemaking(&mut self.world, fe, priest);
+        }
+    }
+
     /// A rung lands: what the village does to its own
     pub(in crate::session) fn apply_sanction(&mut self, v: Entity, s: Sanction, tick: u64) {
         let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("someone");

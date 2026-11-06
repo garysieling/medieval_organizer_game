@@ -23,6 +23,7 @@ impl Game {
         sched.add_system(SeasonSystem);
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
+        sched.add_system(crate::game::feuds::FeudSystem); // bad blood worsens till it's talked down
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
         let _ = crate::game::landforms::shape_terrain(&mut terrain, seed);
@@ -940,6 +941,7 @@ impl Game {
             pit,
             reach,
             sanctioned: vec![],
+            feud_told: Default::default(),
             wolf_coming: false,
             takings: 0.0,
             fox_coming: false,

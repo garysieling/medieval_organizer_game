@@ -484,6 +484,18 @@ impl Game {
         } else {
             self.match_tried.push((a, b, tick + 30));
             self.say(a, "Perhaps another heart.", TALK_BUBBLE_SECS);
+            // a cold answer can start bad blood: the saga's way - unless
+            // the two are already at feud over something else
+            let bad_blood = self.world.query::<crate::game::feuds::Feud>().into_iter().any(|e| {
+                let f = self.world.get_component::<crate::game::feuds::Feud>(e).unwrap();
+                f.status != crate::game::feuds::FeudStatus::Resolved
+                    && ((f.offender == a && f.aggrieved == b) || (f.offender == b && f.aggrieved == a))
+            });
+            if !bad_blood {
+                crate::game::feuds::spawn_feud(&mut self.world, b, a, "a turned-down suit");
+                let (an, bn) = (self.name_of(a), self.name_of(b));
+                self.log.push(format!("t{}: {} won't forget {}'s cold answer - bad blood now.", tick, an, bn));
+            }
         }
     }
 }

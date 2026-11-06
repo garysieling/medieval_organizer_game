@@ -438,17 +438,26 @@ impl Game {
                 // short and how to come by it, not just "nothing yet"
                 let missing: Vec<&'static str> = voc.map(|v| vocation::inputs(v).iter().copied()
                     .filter(|g| {
-                        let held = self.world.get_component::<Satchel>(pe)
-                            .map(|s| s.goods.get(*g).copied().unwrap_or(0)).unwrap_or(0);
-                        let stocked = workplace
-                            .and_then(|b| self.world.get_component::<Building>(b))
-                            .map(|b| b.stock.get(*g).copied().unwrap_or(0)).unwrap_or(0);
-                        held + stocked < 1
+                        // a slot's only missing when nothing that fills
+                        // it is to hand - the named good or its fellows
+                        std::iter::once(*g).chain(crate::game::recipes::fillers(g).iter().copied())
+                            .all(|c| {
+                                let held = self.world.get_component::<Satchel>(pe)
+                                    .map(|s| s.goods.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                                let stocked = workplace
+                                    .and_then(|b| self.world.get_component::<Building>(b))
+                                    .map(|b| b.stock.get(c).copied().unwrap_or(0)).unwrap_or(0);
+                                held + stocked < 1
+                            })
                     }).collect()).unwrap_or_default();
                 if !missing.is_empty() {
-                    let how: Vec<String> = missing.iter().map(|g|
-                        if vocation::gatherable(g) { format!("{} - gather some", g) }
-                        else { format!("{} - buy some", g) }).collect();
+                    let how: Vec<String> = missing.iter().map(|g| {
+                        let opts: Vec<&'static str> = std::iter::once(*g)
+                            .chain(crate::game::recipes::fillers(g).iter().copied()).collect();
+                        let what = opts.join(" or ");
+                        if opts.iter().any(|o| vocation::gatherable(o)) { format!("{} - gather some", what) }
+                        else { format!("{} - buy some", what) }
+                    }).collect();
                     format!("You can't work: no {} to hand.", how.join(", "))
                 } else {
                     let what = voc.and_then(vocation::output).unwrap_or("goods");

@@ -100,19 +100,25 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
         (c.vocation, c.master.is_some(), tools, c.workplace, c.tasked_by, boost)
     };
     let Some(good) = vocation::output(vocation_) else { return (0.0, None) };
-    // inputs: only work if the day's raw goods are in hand
+    // inputs: only work if the day's raw goods are in hand - a slot
+    // fills from whatever's stocked, the named good or its fellows
     for &input in vocation::inputs(vocation_) {
-        let have = world.get_component::<Satchel>(e)
-            .map(|s| s.goods.get(input).copied().unwrap_or(0)).unwrap_or(0);
-        if have >= 1 {
-            let s = world.get_component_mut::<Satchel>(e).unwrap();
-            *s.goods.get_mut(input).unwrap() -= 1;
-            continue;
+        let mut fed = false;
+        for cand in std::iter::once(input).chain(crate::game::recipes::fillers(input).iter().copied()) {
+            let held = world.get_component::<Satchel>(e)
+                .map(|s| s.goods.get(cand).copied().unwrap_or(0)).unwrap_or(0);
+            if held >= 1 {
+                let s = world.get_component_mut::<Satchel>(e).unwrap();
+                *s.goods.get_mut(cand).unwrap() -= 1;
+                fed = true;
+                break;
+            }
+            let taken = workplace
+                .and_then(|b| world.get_component_mut::<Building>(b))
+                .map(|b| household::take_stock(b, cand, 1)).unwrap_or(0);
+            if taken >= 1 { fed = true; break; }
         }
-        let taken = workplace
-            .and_then(|b| world.get_component_mut::<Building>(b))
-            .map(|b| household::take_stock(b, input, 1)).unwrap_or(0);
-        if taken < 1 { return (0.0, None) } // can't work a day without it
+        if !fed { return (0.0, None) } // can't work a day without it
     }
     // the day's rate: workshop or not, overseer boost, tools. Fractions
     // carry over in `pending` - half a rate means a unit every other day

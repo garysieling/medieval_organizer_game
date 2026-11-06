@@ -44,3 +44,29 @@ fn test_the_feast_feeds_the_wants() {
     }).count();
     assert!(fed > 10, "the good stock feeds the crowd");
 }
+
+#[test]
+fn test_a_local_celebration_gathers_the_neighbours() {
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    let at = g.world.get_component::<Pos>(v).map(|p| (p.x, p.y)).unwrap();
+    g.local_celebration(10, at, Some(v), "a test feast");
+    // the honoured one and the neighbours in reach hold a Feasting routine today
+    let feasting = g.villagers.iter().filter(|&&o| g.world.get_component::<routine::Routine>(o)
+        .map(|r| r.mode == routine::Mode::Feasting && r.day == 10).unwrap_or(false)).count();
+    assert!(feasting >= 2, "{} neighbours celebrate", feasting);
+    assert!(g.log.iter().any(|l| l.contains("a small celebration")), "the log names it");
+    // and it's a neighbourhood affair, not the whole village at market
+    assert!(feasting < g.villagers.len() / 2, "only the neighbours come: {} of {}", feasting, g.villagers.len());
+}
+
+#[test]
+fn test_coming_of_age_draws_a_neighbourhood_celebration() {
+    let mut g = Game::new();
+    // age a kid to the day they take up a trade
+    let kid = g.villagers.iter().copied().find(|&v| g.world.get_component::<Kid>(v).is_some()).unwrap();
+    if let Some(kg) = g.world.get_component_mut::<KidGrowth>(kid) { kg.age_days = vocation::COMING_OF_AGE; }
+    g.lifecycle_tick(77);
+    assert!(g.log.iter().any(|l| l.contains("comes of age")), "they take up a trade");
+    assert!(g.log.iter().any(|l| l.contains("a small celebration")), "and the neighbours mark it");
+}

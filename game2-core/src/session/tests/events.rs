@@ -2077,6 +2077,101 @@ fn test_the_cat_makes_her_choice() {
     }
 }
 
+/// The stray cat's entity once she's made her pitch and taken to petting
+fn stray_cat_at_pitch(g: &Game) -> Option<Entity> {
+    g.rare.iter().find(|r| r.id == EventId::StrayCat && !r.leaving && r.until.is_some())
+        .and_then(|r| r.e)
+        .filter(|&e| g.world.get_component::<Pet>(e).is_some())
+}
+
+/// Stand the seat's player next to the cat so "Pet her" is in reach
+fn stand_by_cat(g: &mut Game) {
+    let e = stray_cat_at_pitch(g).expect("the cat's at her pitch");
+    let (cx, cy) = { let p = g.world.get_component::<Pos>(e).unwrap(); (p.x, p.y) };
+    let pp = g.seats[0].player;
+    if let Some(p) = g.world.get_component_mut::<Pos>(pp) { p.x = cx; p.y = cy + 1.0; }
+}
+
+/// Stroke the cat through the real button path, waiting out her cooldown
+fn pet_her(g: &mut Game, times: u32) {
+    g.update_ctx_actions();
+    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PetCat)
+        .expect("Pet her shows beside the cat");
+    for _ in 0..times {
+        g.ctx_act_at(0, i);
+        g.frame_n += STRAY_CAT_PET_COOLDOWN as u32 + 1;
+    }
+}
+
+/// A kind hand keeps her: enough strokes and the cat comes home with the
+/// player, not with the loneliest hearth
+#[test]
+fn test_a_kind_hand_keeps_the_stray_cat() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    g.force_event(EventId::StrayCat);
+    for _ in 0..2000 {
+        if stray_cat_at_pitch(&g).is_some() { break; }
+        g.advance_rare();
+    }
+    let cat = stray_cat_at_pitch(&g).expect("she's at her pitch");
+    stand_by_cat(&mut g);
+    pet_her(&mut g, 6);
+    assert!((g.world.get_component::<Pet>(cat).unwrap().bond_strength - 0.6).abs() < 0.01,
+        "six strokes warm her to the tame line");
+    stage::run_days(&mut g, 8);
+    let p = g.world.get_component::<Pet>(cat).expect("she's still here - she's yours");
+    assert_eq!(p.owner, Some(g.seats[0].player), "the cat chose the player's hand");
+    assert!(g.pets.iter().any(|&(e, sp, _)| e == cat && sp == Species::Cat),
+        "she walks with the player now");
+    assert!(g.log.iter().any(|l| l.contains("she's yours now")), "the log says so");
+}
+
+/// Between strokes she needs a moment: the button greys with the reason
+/// and a press in the cooldown does nothing
+#[test]
+fn test_the_stray_cat_needs_a_moment_between_strokes() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    g.force_event(EventId::StrayCat);
+    for _ in 0..2000 {
+        if stray_cat_at_pitch(&g).is_some() { break; }
+        g.advance_rare();
+    }
+    stand_by_cat(&mut g);
+    g.update_ctx_actions();
+    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PetCat).unwrap();
+    assert!(g.ctx_blocker_at(0, CtxAct::PetCat).is_none(), "she's ready for a stroke");
+    g.ctx_act_at(0, i);
+    let cat = stray_cat_at_pitch(&g).unwrap();
+    assert!((g.world.get_component::<Pet>(cat).unwrap().bond_strength - 0.1).abs() < 0.01);
+    assert_eq!(g.ctx_blocker_at(0, CtxAct::PetCat).as_deref(), Some("she needs a moment"));
+    g.ctx_act_at(0, i);
+    assert!((g.world.get_component::<Pet>(cat).unwrap().bond_strength - 0.1).abs() < 0.01,
+        "a press inside the cooldown strokes nothing");
+    g.frame_n += STRAY_CAT_PET_COOLDOWN as u32 + 1;
+    g.ctx_act_at(0, i);
+    assert!((g.world.get_component::<Pet>(cat).unwrap().bond_strength - 0.2).abs() < 0.01,
+        "once she's had her moment she takes another stroke");
+}
+
+/// A few strokes aren't enough: under the tame line the hearths still choose
+#[test]
+fn test_a_few_strokes_dont_keep_her() {
+    let mut g = stage::staged(stage::Stage::Ordinary);
+    g.force_event(EventId::StrayCat);
+    for _ in 0..2000 {
+        if stray_cat_at_pitch(&g).is_some() { break; }
+        g.advance_rare();
+    }
+    let cat = stray_cat_at_pitch(&g).unwrap();
+    stand_by_cat(&mut g);
+    pet_her(&mut g, 3);
+    stage::run_days(&mut g, 8);
+    assert!(!g.log.iter().any(|l| l.contains("she's yours now")), "she wasn't kept");
+    assert!(g.pets.iter().all(|&(e, _, _)| e != cat), "the visitor figure walks on");
+    assert!(g.pets.iter().any(|&(_, sp, _)| sp == Species::Cat)
+        || g.log.iter().any(|l| l.contains("slips off")), "a hearth took her, or she slipped");
+}
+
 /// A plague of rats: every larder pays them where no cat walks,
 /// the tally grows, and the swarm's gone when its ten days are out
 #[test]

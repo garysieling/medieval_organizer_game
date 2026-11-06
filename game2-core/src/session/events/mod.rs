@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::engine::ecs::Entity;
 use crate::game::desires::{self, Want};
 use crate::game::livelihood::Purse;
-use crate::game::pets::{self, Species, PetRole};
+use crate::game::pets::{self, Pet, Species, PetRole};
 use crate::game::villager::{self, Pos};
 use crate::game::household;
 use crate::sim::illness::Health;
@@ -248,6 +248,9 @@ pub struct RareEvent {
     pub leaving: bool,
     /// Per-event scratch: a counter, a picked target, a flag
     pub aux: u64,
+    /// The stray cat's petting cooldown (frame_n deadline) rides in `aux`;
+    /// this is the seat's player who's been stroking her
+    pub tamer: Option<Entity>,
 }
 
 /// When each event first becomes due: the opening months are full of
@@ -267,6 +270,17 @@ const OMENS: &[(EventId, &str)] = &[
 ];
 /// Days ahead an omen lands
 const OMEN_LEAD: u64 = 5;
+
+/// Petting the stray cat: each stroke warms her a little, then she needs
+/// a moment before she'll take more - the cooldown rides in the event's
+/// `aux` as the frame_n deadline
+pub const STRAY_CAT_PET_BOND: f32 = 0.1;
+/// Frames between strokes (two seconds at 60fps)
+pub const STRAY_CAT_PET_COOLDOWN: u64 = 120;
+/// Warmth at which the cat chooses the hand that's been kind to her
+pub const STRAY_CAT_TAME_BOND: f32 = 0.6;
+/// How close the player must stand to stroke her
+pub const STRAY_CAT_PET_DIST: f32 = 2.0;
 
 /// Which family an event belongs to: its handlers live in that family's file
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -339,12 +353,12 @@ impl Game {
                 self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
                 let at = self.event_pitch(id);
                 let path = self.map.walk_path(start, at).unwrap_or_default();
-                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0 });
+                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, tamer: None });
                 self.log.push(format!("t{}: {} has come to town.", self.tick, s.name));
             }
             EventKind::Spell => {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
-                    at: None, leaving: false, aux: 0 });
+                    at: None, leaving: false, aux: 0, tamer: None });
                 self.event_began(id);
                 // its first day is this one - the daily tick for tomorrow
                 // hasn't come yet, and a one-day spell sees no other
@@ -455,6 +469,14 @@ impl Game {
             }
             EventId::StrayCat => {
                 self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
+                // she's a pet to begin with - ownerless and bondless, but
+                // pettable: a player who's kind to her keeps her
+                if let Some(e) = e {
+                    self.world.add_component(e, Pet {
+                        name: "a stray".into(), species: Species::Cat, owner: None,
+                        bond_strength: 0.0, mood_effect: 0.0,
+                    });
+                }
             }
             EventId::ProdigalSon => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }

@@ -295,27 +295,46 @@ impl Game {
                 }
             }
             EventId::StrayCat => {
-                // the loneliest hearth takes her in - cats decide too;
-                // a hearth behind bars is no hearth to her
-                let mut bond_n: crate::engine::det::HashMap<Entity, usize> = crate::engine::det::HashMap::default();
-                self.world.iter::<crate::game::relationships::Relationship>(|_, r| {
-                    *bond_n.entry(r.from).or_default() += 1;
-                    if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
+                // a player who's kept her company keeps her - her own
+                // warmth decides before the hearths do; a hearth behind
+                // bars is no hearth to her either way
+                let cat = self.rare.iter().find(|r| r.id == EventId::StrayCat && !r.leaving)
+                    .and_then(|r| r.e.map(|e| (e, r.tamer)));
+                let tamed = cat.and_then(|(e, t)| {
+                    let bond = self.world.get_component::<Pet>(e)?.bond_strength;
+                    let owner = t.filter(|&t| self.seats.iter().any(|s| s.player == t))?;
+                    (bond >= STRAY_CAT_TAME_BOND).then_some((e, owner))
                 });
-                let mark = self.lonely_hearts().into_iter()
-                    .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v))
-                    .min_by_key(|&v| bond_n.get(&v).copied().unwrap_or(0));
-                if let Some(m) = mark {
-                    let name = self.name_of(m);
-                    // a village cat earns her keep - Hunting puts her
-                    // vermin watch to work, not just her company
-                    let pet = pets::spawn_pet(&mut self.world, "Tib", Species::Cat, PetRole::Hunting);
-                    pets::adopt(&mut self.world, pet, m);
-                    self.pets.push((pet, Species::Cat, (0.7, 0.4)));
-                    desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
-                    self.log.push(format!("t{}: the cat's made her choice - {} has a cat now.", tick, name));
+                if let Some((e, owner)) = tamed {
+                    pets::adopt(&mut self.world, e, owner);
+                    self.pets.push((e, Species::Cat, (0.7, 0.4)));
+                    // she's yours now - the event lets its figure go, so
+                    // the road doesn't walk her off and destroy her
+                    if let Some(r) = self.rare.iter_mut().find(|r| r.id == EventId::StrayCat) { r.e = None; }
+                    self.log.push(format!("t{}: the cat's made her choice - she's yours now.", tick));
                 } else {
-                    self.log.push(format!("t{}: the cat slips off the way she came.", tick));
+                    // the loneliest hearth takes her in - cats decide too;
+                    // a hearth behind bars is no hearth to her
+                    let mut bond_n: crate::engine::det::HashMap<Entity, usize> = crate::engine::det::HashMap::default();
+                    self.world.iter::<crate::game::relationships::Relationship>(|_, r| {
+                        *bond_n.entry(r.from).or_default() += 1;
+                        if r.other != r.from { *bond_n.entry(r.other).or_default() += 1; }
+                    });
+                    let mark = self.lonely_hearts().into_iter()
+                        .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v))
+                        .min_by_key(|&v| bond_n.get(&v).copied().unwrap_or(0));
+                    if let Some(m) = mark {
+                        let name = self.name_of(m);
+                        // a village cat earns her keep - Hunting puts her
+                        // vermin watch to work, not just her company
+                        let pet = pets::spawn_pet(&mut self.world, "Tib", Species::Cat, PetRole::Hunting);
+                        pets::adopt(&mut self.world, pet, m);
+                        self.pets.push((pet, Species::Cat, (0.7, 0.4)));
+                        desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
+                        self.log.push(format!("t{}: the cat's made her choice - {} has a cat now.", tick, name));
+                    } else {
+                        self.log.push(format!("t{}: the cat slips off the way she came.", tick));
+                    }
                 }
             }
             _ => {}

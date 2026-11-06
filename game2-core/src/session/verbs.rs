@@ -50,6 +50,9 @@ impl Game {
                     .any(|r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
                 if open { None } else { Some("every seat's spoken for".into()) }
             }
+            CtxAct::PetCat => self.rare.iter().find(|r| r.id == events::EventId::StrayCat && !r.leaving)
+                .filter(|r| r.aux > self.frame_n as u64)
+                .map(|_| "she needs a moment".to_string()),
             _ => None,
         }
     }
@@ -347,6 +350,11 @@ impl Game {
             if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
                 self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
             }
+        }
+        // a stray cat keeping you company can be stroked - "Pet her"
+        // shows while she's in reach, whatever else is going on
+        if self.stray_cat_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::PetCat);
         }
         // a house meeting is earned: the button shows once a place and a
         // promise are on the plan
@@ -692,8 +700,52 @@ impl Game {
                 }
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),
+            CtxAct::PetCat => self.pet_stray_cat_at(seat),
         };
-        self.log.push(format!("t{}: {}", tick, msg));
+        if !msg.is_empty() {
+            self.log.push(format!("t{}: {}", tick, msg));
+        }
+    }
+
+    /// The stray cat's entity when she's afoot, hasn't chosen yet, and the
+    /// seat's player is close enough to stroke her. Cooldown isn't checked
+    /// here - the button stays and greys with the reason instead
+    fn stray_cat_at(&self, seat: usize) -> Option<Entity> {
+        let r = self.rare.iter().find(|r| r.id == events::EventId::StrayCat && !r.leaving)?;
+        let e = r.e?;
+        // she's only a pet once she's made her pitch - the Pet lands on arrival
+        self.world.get_component::<Pet>(e)?;
+        let cp = self.world.get_component::<Pos>(e)?;
+        let (px, py) = self.player_pos_at(seat);
+        (((cp.x - px).powi(2) + (cp.y - py).powi(2)).sqrt() <= events::STRAY_CAT_PET_DIST)
+            .then_some(e)
+    }
+
+    /// Stroke the stray cat: a little warmth each time, then she needs a
+    /// moment - and a kind hand often keeps her when she chooses. The log
+    /// line is the caller's; this returns "" so routine pets stay quiet
+    /// and only the milestones speak
+    fn pet_stray_cat_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some(e) = self.stray_cat_at(seat) else { return String::new() };
+        let on_cooldown = self.rare.iter().find(|r| r.id == events::EventId::StrayCat)
+            .map(|r| r.aux > self.frame_n as u64).unwrap_or(false);
+        if on_cooldown { return String::new() }
+        let (was, now) = self.world.get_component::<Pet>(e)
+            .map(|p| (p.bond_strength, (p.bond_strength + events::STRAY_CAT_PET_BOND).min(1.0)))
+            .unwrap_or((0.0, 0.0));
+        if let Some(p) = self.world.get_component_mut::<Pet>(e) { p.bond_strength = now; }
+        if let Some(r) = self.rare.iter_mut().find(|r| r.id == events::EventId::StrayCat) {
+            r.aux = self.frame_n as u64 + events::STRAY_CAT_PET_COOLDOWN;
+            r.tamer = Some(self.seats[seat].player);
+        }
+        self.say(e, "*purrr*", 2);
+        if was <= 0.0 {
+            self.log.push(format!("t{}: the stray cat winds round your ankles.", tick));
+        } else if was < 0.5 && now >= 0.5 {
+            self.log.push(format!("t{}: she purrs under your hand - she's warming to you.", tick));
+        }
+        String::new()
     }
 
     /// The street: the cause marches. Returns the log line - turnout, the

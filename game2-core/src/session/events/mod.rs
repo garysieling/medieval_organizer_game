@@ -316,9 +316,12 @@ impl Game {
     /// works its day, what's done walks out or fades
     pub fn events_tick(&mut self, tick: u64) {
         // what's booked speaks of its coming, a few days out - due is
-        // fixed until it fires, so the day hits once per booking
+        // fixed until it fires, so the day hits once per booking; two
+        // same-sign bookings still carry the one word between them
+        let mut said = crate::engine::det::HashSet::default();
         for (id, d) in self.next_rare.clone() {
-            if d == tick + OMEN_LEAD && self.rare.iter().all(|r| r.id != id) {
+            if d == tick + OMEN_LEAD && self.rare.iter().all(|r| r.id != id)
+                && said.insert(omen_of(id)) {
                 self.log.push(format!("t{}: {}.", tick, omen_of(id)));
             }
         }

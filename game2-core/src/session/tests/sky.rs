@@ -36,4 +36,10 @@ fn test_every_booked_day_has_its_word() {
     g.events_tick(g.tick);
     assert!(g.log.iter().any(|l| l.contains("wolf tracks")),
         "the wolf lost her sign: {:?}", g.log.last());
+    // two road bookings the same day still carry the one word
+    g.next_rare = vec![(EventId::Tinker, g.tick + 5), (EventId::Scribe, g.tick + 5)];
+    g.log.clear();
+    g.events_tick(g.tick);
+    assert_eq!(g.log.iter().filter(|l| l.contains("strangers on the road")).count(), 1,
+        "the sign doubled: {:?}", g.log);
 }

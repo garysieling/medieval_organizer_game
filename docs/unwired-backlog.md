@@ -76,7 +76,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 50 | Word that a minstrel / pedlar / circus / ink-maker is due | `Game::next_*` | done #578 |
 | 51 | Who drank at the tavern table | `Game::tavern_table` | done #579 |
 | 52 | The swarm that took a liking to someone | `Game::swarm` | done #580 |
-| 53 | Succession: who inherited from the dead | `Game::succeeded` | todo |
+| 53 | Succession: who inherited from the dead | `Game::succeeded` | done #581 (already wired: `succession_tick` settles the bench to heir or shuttered, logs both) |
 | 54 | Named leader milestone | `Game::leader_named` | todo |
 | 55 | Buildings raised, buildings gone derelict | `Game::built_count`, `derelict` | todo |
 | 56 | Complaints voiced at the meeting under way | `Game::voiced` | todo |

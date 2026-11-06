@@ -47,6 +47,21 @@ fn test_the_card_tells_the_biography_you_know() {
         bio.contains(w)
     });
     assert!(told, "known folk show their temperament: {}", bio);
+    // and the word carries what it does to their day
+    let hinted = p.traits.iter().any(|t| {
+        let h = match t {
+            crate::game::traits::Trait::Lazy => "rests more",
+            crate::game::traits::Trait::Ambitious => "works harder",
+            crate::game::traits::Trait::Kind => "a warm word",
+            crate::game::traits::Trait::Stingy => "keeps his purse",
+            crate::game::traits::Trait::Pious => "keeps the faith",
+            crate::game::traits::Trait::Hotheaded => "takes offence",
+            crate::game::traits::Trait::Gregarious => "strolls the village",
+            crate::game::traits::Trait::Proud => "won't be led",
+        };
+        bio.contains(h)
+    });
+    assert!(hinted, "a trait should say what it does: {}", bio);
     // and kin by name, once the family tie is there to see
     let k = g.villagers[8];
     let krel = g.world.create_entity();

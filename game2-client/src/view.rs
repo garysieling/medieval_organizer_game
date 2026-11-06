@@ -287,6 +287,14 @@ impl View {
             buf.rect(sx - k(4.0), sy - k(4.0), k(8.0), k(5.0), 8, 8, 10);
             buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
         }
+        // the martyr's plot: a grey cairn where they hanged him
+        if let Some((gx, gy)) = m.grave {
+            let (sx, sy) = iso_to_screen_cam(gx, gy, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(5.0), sy - k(4.0), k(10.0), k(4.0), 70, 70, 75);
+            buf.rect(sx - k(3.0), sy - k(7.0), k(6.0), k(4.0), 96, 96, 102);
+            buf.rect(sx - k(1.0), sy - k(9.0), k(2.0), k(4.0), 130, 130, 135);
+        }
         // the painted halls: a bright trim above the door
         for &(tx, ty) in &m.painted {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);

@@ -252,8 +252,8 @@ impl Game {
                 // the drink levy: the castle's share of every barrel in
                 // the village - a quarter of what pours, off every stock;
                 // and the grudge reads its weight here too
-                let frac = (if bargained { 0.125 } else { 0.25 }) * mult as f32;
-                let share = |q: u32| ((q as f32) * frac).ceil() as u32;
+                let frac = if bargained { 0.125 } else { 0.25 };
+                let share = |q: u32| (((q as f32) * frac).ceil() as u32).saturating_mul(mult).min(q);
                 let mut taken = 0u32;
                 for &be in &self.building_entities.clone() {
                     if let Some(b) = self.world.get_component_mut::<Building>(be) {

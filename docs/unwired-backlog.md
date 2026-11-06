@@ -78,7 +78,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 52 | The swarm that took a liking to someone | `Game::swarm` | done #580 |
 | 53 | Succession: who inherited from the dead | `Game::succeeded` | done #581 (already wired: `succession_tick` settles the bench to heir or shuttered, logs both) |
 | 54 | Named leader milestone | `Game::leader_named` | done #582 |
-| 55 | Buildings raised, buildings gone derelict | `Game::built_count`, `derelict` | todo |
+| 55 | Buildings raised, buildings gone derelict | `Game::built_count`, `derelict` | done #583 |
 | 56 | Complaints voiced at the meeting under way | `Game::voiced` | todo |
 | 57 | The flock's grazing ground | `Game::graze_at`, `flock_wander` | todo |
 | 58 | Which homes keep hens | `Game::hen_houses` | todo |

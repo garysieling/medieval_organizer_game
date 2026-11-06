@@ -608,7 +608,7 @@ impl View {
 
         // inspector: a villager's card, or a building's when one's clicked
         if self.inspector_open {
-            draw_rect(&mut buf, UI_X as i32 + 10, 316, 270, 140, 45, 45, 65);
+            draw_rect(&mut buf, UI_X as i32 + 10, 316, 270, 150, 45, 45, 65);
             if let Some(insp) = &m.inspector {
                 if insp.dead {
                     draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);

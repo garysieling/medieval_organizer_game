@@ -52,6 +52,12 @@ impl Game {
                     let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
                     self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, offense));
                     self.rep_apply(offender, RepAction::BadDeed);
+                    for who in [offender, aggrieved] {
+                        if let Some(i) = self.villagers.iter().position(|v| *v == who) {
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                                crate::sim::story::EventKind::Conflict, format!("{} - bad blood burns", offense));
+                        }
+                    }
                     // open conflict breaks the offender's sworn word:
                     // you can't aid a neighbour with one fist raised
                     for other in crate::game::contracts::break_all_pacts(&mut self.world, offender) {
@@ -62,6 +68,12 @@ impl Game {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Resolved);
                     let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
                     self.log.push(format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
+                    for who in [offender, aggrieved] {
+                        if let Some(i) = self.villagers.iter().position(|v| *v == who) {
+                            note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
+                                crate::sim::story::EventKind::Recovery, "the bad blood is settled".into());
+                        }
+                    }
                 }
                 _ => {}
             }

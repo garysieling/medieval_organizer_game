@@ -128,6 +128,34 @@ fn sickness_name(world: &World, who: Entity) -> Option<String> {
 }
 
 /// Is `who` ill right now - showing symptoms?
+/// Write a beat into a villager's tale; when the tale first reads as a
+/// story - a theme takes shape - the log names it once
+fn note_story(
+    tales: &mut crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
+    told: &mut crate::engine::det::HashSet<usize>,
+    log: &mut Vec<String>,
+    i: usize, tick: u64, kind: crate::sim::story::EventKind, desc: String,
+) {
+    let ev = crate::sim::story::StoryEvent { tick, kind, description: desc };
+    let tale = tales.entry(i).or_default();
+    tale.push(ev);
+    if tale.len() > 12 { tale.remove(0); }
+    if told.contains(&i) { return; }
+    if let Some(st) = crate::sim::story::detect_story(tale) {
+        told.insert(i);
+        let word = match st.theme {
+            crate::sim::story::StoryTheme::Survival => "a tale of survival",
+            crate::sim::story::StoryTheme::Rise => "a tale of rising",
+            crate::sim::story::StoryTheme::Fall => "a tale of falling",
+            crate::sim::story::StoryTheme::Romance => "a tale of the heart",
+            crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
+            crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
+            crate::sim::story::StoryTheme::Community => "a tale of the commons",
+        };
+        log.push(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word));
+    }
+}
+
 fn is_sick(world: &World, who: Entity) -> bool {
     sickness_name(world, who).is_some()
 }
@@ -1008,6 +1036,11 @@ pub struct Game {
     pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
     /// The village's research: the printmaking track the print shop's
     /// work feeds (game::tech_tree)
+    /// Each villager's tale as the days write it - the story events the
+    /// chronicle reads for themes
+    pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
+    /// Villager indexes whose formed tale was already named in the log
+    pub tales_told: crate::engine::det::HashSet<usize>,
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,
@@ -1400,6 +1433,8 @@ impl Game {
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
+                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                        crate::sim::story::EventKind::Death, format!("{} died.", vill_name(i)));
                 }
             }
         }
@@ -1431,8 +1466,19 @@ impl Game {
         let sick_now: Vec<Option<String>> = villagers.iter().map(|v| sickness_name(world, *v)).collect();
         for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
             match (now, was.as_ref()) {
-                (Some(name), None) => log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name)),
-                (None, Some(old)) => log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old)),
+                (Some(name), None) => {
+                    log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name));
+                    note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                        crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
+                }
+                (None, Some(old)) => {
+                    // a disease gone because it took them isn't a recovery
+                    if self.died_on.get(i).and_then(|d| *d).is_none() {
+                        log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
+                        note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
+                            crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
+                    }
+                }
                 _ => {}
             }
             *was = now.clone();

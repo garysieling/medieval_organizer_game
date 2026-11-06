@@ -30,7 +30,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 9 | Faith, congregations and services | `sim/religion.rs` (`Faith`, `perform_service`, `DevotionSystem`, `GatherSystem`) | done #537 |
 | 10 | Weather events: storms, droughts, heat waves | `sim/weather.rs` (`WeatherSystem`, `food_effect`, `health_effect`) | done #538 |
 | 11 | Climate effects on crops and health | `sim/climate.rs` (`rain_effect`, `climate_multiplier`) | done #539 |
-| 12 | Story detection: name the stories the sim tells (a chronicle) | `sim/story.rs` (`detect_story`, `surface_story`) | todo |
+| 12 | Story detection: name the stories the sim tells (a chronicle) | `sim/story.rs` (`detect_story`, `surface_story`) | done #540 |
 | 13 | Magic read out of old texts | `sim/magic.rs` (`ingest_text`, `magic_effects`) | todo |
 | 14 | Grass and forest spread (cellular automaton) | `sim/emergence.rs` | todo |
 | 15 | Reputation stages: unknown -> known -> trusted -> esteemed / disgraced | `sim/reputation_qsp.rs` (`spawn_reputation`) | todo |

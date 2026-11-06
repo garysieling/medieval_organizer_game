@@ -17,6 +17,34 @@ impl Game {
     /// the lookalike, and folk rules ("a poisoned cap blackens silver")
     /// can clear a death outright. They eat what they believe is food or
     /// dream; the effect that lands is always the true cap's
+    /// Belly or satchel: the eat feeds a hungered forager, and sacks a
+    /// cap for the one who can't hunger - the player keeps what he picks
+    fn feed_or_sack(&mut self, who: Entity, food: f32) {
+        if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
+            h.value = (h.value + food).min(100.0);
+        } else if food > 0.0 {
+            if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+                *s.goods.entry("mushrooms".to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    /// A turned belly: villagers take a gut disease; the player, who
+    /// carries no Health for one to work on, takes the mark instead -
+    /// it slows their walking and shows on their card
+    fn gut_turn(&mut self, who: Entity, name: &str, severity: f32) {
+        if self.world.get_component::<crate::sim::illness::Health>(who).is_some() {
+            let d = self.world.create_entity();
+            let mut gut = Disease::new(DiseaseKind::Gripes, who, severity);
+            gut.name = name.into();
+            gut.incubation = 0;
+            gut.stage = Stage::Mild;
+            self.world.add_component(d, gut);
+        } else {
+            self.world.add_component(who, villager::Condition { kind: "a turned gut" });
+        }
+    }
+
     pub(in crate::session) fn shroom_take(&mut self, who: Entity, pi: usize, kind: MushKind, tick: u64) {
         let spec = kind.spec();
         let skilled = self.world.get_component::<Craft>(who).map(|c| c.skill).unwrap_or(0.2);
@@ -46,36 +74,20 @@ impl Game {
         // they eat the TRUE cap, whatever they believe it is
         match spec.effect {
             MushEffect::Meal => {
-                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
-                    h.value = (h.value + spec.food).min(100.0);
-                }
+                self.feed_or_sack(who, spec.food);
             }
             MushEffect::TurnsStomach => {
                 // the jack-o'-lantern's lesson: a sour night, and they
                 // mark the patch after
-                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
-                    h.value = (h.value + spec.food * 0.5).min(100.0);
-                }
-                let d = self.world.create_entity();
-                let mut gut = Disease::new(DiseaseKind::Gripes, who, 0.15);
-                gut.name = "a sour gut".into();
-                gut.incubation = 0;
-                gut.stage = Stage::Mild;
-                self.world.add_component(d, gut);
+                self.feed_or_sack(who, spec.food * 0.5);
+                self.gut_turn(who, "a sour gut", 0.15);
                 self.learn_shroom(who, pi);
             }
             MushEffect::Vision => {
-                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
-                    h.value = (h.value + spec.food).min(100.0);
-                }
+                self.feed_or_sack(who, spec.food);
                 // the field speaks - most keep the gift, some take a dark turn
                 if self.shroom_rng.below(100) < 20 {
-                    let d = self.world.create_entity();
-                    let mut turn = Disease::new(DiseaseKind::Gripes, who, 0.18);
-                    turn.name = "a fearful turn".into();
-                    turn.incubation = 0;
-                    turn.stage = Stage::Mild;
-                    self.world.add_component(d, turn);
+                    self.gut_turn(who, "a fearful turn", 0.18);
                     self.say(who, "The field opened its mouth.", CHAT_BUBBLE_SECS);
                 } else {
                     desires::satisfy(&mut self.world, who, Want::Joy, tick + 30);
@@ -94,25 +106,23 @@ impl Game {
             MushEffect::Delirium => {
                 // the red cap's dream: wild, rarely fatal - the fed take
                 // it on purpose, the hungry learn why folk leave it
-                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
-                    h.value = (h.value + spec.food * 0.5).min(100.0);
-                }
-                let d = self.world.create_entity();
-                let mut dream = Disease::new(DiseaseKind::Gripes, who, 0.28);
-                dream.name = "the red cap's dream".into();
-                dream.incubation = 0;
-                dream.stage = Stage::Moderate;
-                self.world.add_component(d, dream);
+                self.feed_or_sack(who, spec.food * 0.5);
+                self.gut_turn(who, "the red cap's dream", 0.28);
                 desires::satisfy(&mut self.world, who, Want::Joy, tick + 10);
             }
             MushEffect::Amatoxin => {
                 // nothing, at first. The belly lands a day on, when the
                 // meal's half forgotten - then the false mend, then the
-                // liver
-                if let Some(h) = self.world.get_component_mut::<Hunger>(who) {
-                    h.value = (h.value + spec.food).min(100.0);
+                // liver. The player can't die of it - his gut turns
+                // instead, and the patch's lesson lands hard
+                self.feed_or_sack(who, spec.food);
+                if self.world.get_component::<crate::sim::illness::Health>(who).is_some() {
+                    self.ailments.push(PendingAil { who, due: tick + 1, phase: AilPhase::ShroomBelly(pi) });
+                } else {
+                    self.world.add_component(who, villager::Condition { kind: "gut-poisoned" });
+                    self.learn_shroom(who, pi);
+                    self.say(who, "Your belly knows what the wood did to it.", CHAT_BUBBLE_SECS);
                 }
-                self.ailments.push(PendingAil { who, due: tick + 1, phase: AilPhase::ShroomBelly(pi) });
             }
         }
     }

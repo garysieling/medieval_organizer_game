@@ -388,11 +388,13 @@ fn main() {
                     }
                 }
                 let ctx_specs: Vec<session::Button> = m.ctx.iter().map(|a| session::ctx_button(*a)).collect();
-                for (i, b) in ctx_specs.iter().enumerate() {
-                    if mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h {
-                        cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
-                        cmds.push(Command::CtxAct(i));
-                    }
+                // one click, one button: overlapping rects (a shared slot
+                // like Pet her / Snowballs!) answer only the topmost
+                if let Some(i) = ctx_specs.iter().enumerate().rev()
+                    .find(|(_, b)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
+                    .map(|(i, _)| i) {
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    cmds.push(Command::CtxAct(i));
                 }
                 // a reply on the TALK panel
                 if let Some(pick) = client::talk::talk_click(&m.talk, mx, my) {

@@ -52,8 +52,11 @@ fn test_the_panel_carries_the_powers_words() {
     g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 10 });
     g.world.add_component(g.org, crate::game::reactions::AssemblyBan { cap: 3 });
     let m = g.ui_model_at(0);
-    assert!(m.panel.org_status.iter().any(|s| s.contains("knights in the streets")),
+    assert!(m.panel.org_status.iter().any(|s| s.contains("knights posted")),
         "the posted knights never surfaced: {:?}", m.panel.org_status);
-    assert!(m.panel.org_status.iter().any(|s| s.contains("assembly banned")),
+    assert!(m.panel.org_status.iter().any(|s| s.contains("assembly ban")),
         "the ban never surfaced: {:?}", m.panel.org_status);
+    // and all three powers would still fit the one line the panel gives them
+    let joined = m.panel.org_status.join(" · ");
+    assert!(joined.len() <= 55, "the line outruns the sidebar: {:?}", joined);
 }

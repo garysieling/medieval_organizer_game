@@ -386,21 +386,22 @@ impl Game {
         } else {
             Some(self.villager_inspector_at(seat))
         };
-        // the powers' standing words on the org, as they've landed
+        // the powers' standing words on the org - short enough that
+        // all three still fit the one line the panel gives them
         let org_status = {
             let mut v = vec![];
             if let Some(gr) = world.get_component::<crate::game::reactions::LordGrant>(self.seats[seat].org) {
-                if self.tick < gr.until {
-                    let word = if gr.hollow { "a hollow grant" }
-                        else if gr.partial { "a partial grant" } else { "the lord's grant" };
-                    v.push(format!("{} of {}", word, gr.issue));
+                if self.tick <= gr.until {
+                    let word = if gr.hollow { "hollow grant" }
+                        else if gr.partial { "part grant" } else { "lord's grant" };
+                    v.push(format!("{}: {}", word, gr.issue));
                 }
             }
             if let Some(g) = world.get_component::<crate::game::reactions::GuardsPosted>(self.seats[seat].org) {
-                v.push(format!("{} knights in the streets", g.knights));
+                v.push(format!("{} knights posted", g.knights));
             }
             if let Some(b) = world.get_component::<crate::game::reactions::AssemblyBan>(self.seats[seat].org) {
-                v.push(format!("assembly banned over {}", b.cap));
+                v.push(format!("assembly ban >{}", b.cap));
             }
             v
         };

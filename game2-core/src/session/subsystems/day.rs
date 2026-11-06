@@ -327,6 +327,11 @@ impl Game {
         crate::timed!("sim.tech", self.tech_tick(tick));
         // and the village's tune follows the day the village had
         crate::timed!("sim.music", self.music_tick(tick));
+        // faith unkept fades a little each day
+        crate::timed!("sim.faith", {
+            use crate::engine::ecs::System;
+            crate::sim::religion::DevotionSystem.run(&mut self.world);
+        });
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them

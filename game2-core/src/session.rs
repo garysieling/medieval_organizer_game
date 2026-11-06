@@ -1005,6 +1005,9 @@ pub struct Game {
     pub quest_rest: crate::engine::det::HashMap<Entity, u64>,
     /// The village's research: the printmaking track the print shop's
     /// work feeds (game::tech_tree)
+    /// The parish congregation: every villager a member, the priest its
+    /// leader - holy-day services feed devotion, bonds and the poor box
+    pub congregation: Entity,
     pub tech: Vec<crate::game::tech_tree::Tech>,
 }
 

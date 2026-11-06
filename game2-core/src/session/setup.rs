@@ -530,8 +530,22 @@ impl Game {
                     known_herbs: herbology::medicinal_herbs().iter().map(|(n, _, _)| n.to_string()).collect(),
                     remedies: vec![], skill: 0.55 });
             }
+            // a soul to tend: some come devout, some half-hearted
+            world.add_component(v, crate::sim::religion::Faith {
+                religion: "the parish".into(), devotion: 0.35 + (villagers.len() % 6) as f32 * 0.09,
+                traditions: vec![] });
             villagers.push(v);
         }
+        // the parish holds them all; the priest keeps the office
+        let congregation = {
+            let c = world.create_entity();
+            world.add_component(c, crate::sim::religion::Congregation {
+                name: "the village parish".into(), members: villagers.clone(),
+                leader: villagers.iter().copied().find(|&v| world.get_component::<Craft>(v)
+                    .map(|cr| cr.vocation == Vocation::Priest).unwrap_or(false)),
+                orthodoxy: 0.6, services: vec![] });
+            c
+        };
         for i in 0..3 {
             let m = world.create_entity();
             world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
@@ -855,7 +869,7 @@ impl Game {
         }
 
         let mut g = Game {
-            world, sched, map, climate, music, villagers, rivals,
+            world, sched, map, climate, music, congregation, villagers, rivals,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             village: (vx, vy),

@@ -85,6 +85,20 @@ impl Game {
         if let Some(fe) = hot {
             crate::game::feuds::peacemaking(&mut self.world, fe, priest);
         }
+        // the office itself: everyone keeping the holy day, church rows
+        // or the old rite, gathers a little devotion and a bond; and the
+        // parish's poor box feeds the hungriest of the flock
+        let attendees: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
+                && self.world.get_component::<routine::Routine>(v)
+                    .map(|r| r.mode == routine::Mode::Worshipping && r.day == tick)
+                    .unwrap_or(false)).collect();
+        if attendees.len() >= 2 {
+            crate::sim::religion::perform_service(&mut self.world, self.congregation,
+                crate::sim::religion::Service {
+                    name: "the holy-day office".into(), frequency: "weekly".into(),
+                    participants: attendees, cohesion_boost: 0.25, charity_output: 0.2 });
+        }
     }
 
     /// A rung lands: what the village does to its own

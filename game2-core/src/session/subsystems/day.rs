@@ -380,12 +380,48 @@ impl Game {
     /// seat, or the player's own hands: the units are remembered so the
     /// card can say what they made
     pub(in crate::session) fn bench_work(&mut self, v: Entity, tick: u64) -> (f32, Option<vocation::Level>) {
+        // watch the shelves a bench day can touch: the worker's own shop,
+        // and the senior's when a tasked hand sends part of the units
+        // that way - then the ledger writes what actually moved
+        let mut shops: Vec<Entity> = vec![];
+        if let Some(c) = self.world.get_component::<Craft>(v) {
+            if let Some(b) = c.workplace { shops.push(b); }
+            if let Some(b) = c.tasked_by
+                .and_then(|s| self.world.get_component::<Craft>(s)).and_then(|sc| sc.workplace) {
+                if !shops.contains(&b) { shops.push(b); }
+            }
+        }
+        let _ledger = crate::infra::perf::scope("sim.bench_ledger");
+        let before: Vec<_> = shops.iter()
+            .filter_map(|&b| self.world.get_component::<Building>(b).map(|bb| (b, bb.stock.clone())))
+            .collect();
         let (made, up) = livelihood::work_day(&mut self.world, v, tick);
         if made > 0.0 {
             let e = self.produced.entry(v).or_insert((tick, 0.0));
             if e.0 != tick { *e = (tick, 0.0); }
             e.1 += made;
         }
+        for (b, stock0) in before {
+            let Some(after) = self.world.get_component::<Building>(b).map(|bb| bb.stock.clone()) else { continue };
+            let mut delta: Vec<(String, i32)> = vec![];
+            for (g, &n1) in after.iter() {
+                let d = n1 as i32 - stock0.get(g).copied().unwrap_or(0) as i32;
+                if d != 0 { delta.push((g.clone(), d)); }
+            }
+            for (g, &n0) in stock0.iter() {
+                if !after.contains_key(g) { delta.push((g.clone(), -(n0 as i32))); }
+            }
+            if delta.is_empty() { continue; }
+            let e = self.shop_flow.entry(b).or_insert((tick, vec![]));
+            if e.0 != tick { *e = (tick, vec![]); }
+            for (g, n) in delta {
+                match e.1.iter_mut().find(|(f, _)| *f == g) {
+                    Some((_, m)) => *m += n,
+                    None => e.1.push((g, n)),
+                }
+            }
+        }
+        drop(_ledger);
         (made, up)
     }
 }

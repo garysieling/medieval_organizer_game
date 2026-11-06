@@ -22,7 +22,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 1 | Blood feuds: offense -> vengeance -> escalation -> peacemaking between families | `game/feuds.rs` (`FeudSystem`, `spawn_feud`, `peacemaking`) | done #523 |
 | 2 | Contracts and aid pacts: sign, breach, consequences | `game/contracts.rs` (`ContractSystem`, `seal_aid_pact`, `breach`) | done #526 |
 | 3 | Job production chain: wheat -> flour -> bread, visible work | `game/jobs.rs` (`JobSystem`, `assign_job`, `work_tick`) | done #531 |
-| 4 | Village production chains | `game/economy.rs` (`ProductionSystem`, `ProductionChainSystem`, `produce`) | todo |
+| 4 | Village production chains | `game/economy.rs` (`ProductionSystem`, `ProductionChainSystem`, `produce`) | done #532 |
 | 5 | Market prices from supply and demand | `sim/economics.rs` (`spawn_market`, `update_price`, `add_supply`) | todo |
 | 6 | Recipes: several paths to the same good | `game/recipes.rs` (`can_make`, `printmaking_recipes`) | todo |
 | 7 | Printmaking tech tree (feathers -> lithography) | `game/tech_tree.rs` (`research`, `next_researchable`) | todo |

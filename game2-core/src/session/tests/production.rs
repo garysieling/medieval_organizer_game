@@ -39,3 +39,18 @@ fn test_an_agents_bench_day_reads_on_the_card() {
     }
     assert!(found, "no agent could work a bench day");
 }
+
+#[test]
+fn test_the_shop_card_says_what_flowed_through_today() {
+    let mut g = Game::new();
+    while g.tick < 6 && g.shop_flow.is_empty() { g.update(); }
+    let shop = g.shop_flow.iter().find(|(_, (d, f))| *d == g.tick && !f.is_empty())
+        .map(|(&b, _)| b);
+    let Some(be) = shop else { panic!("no shop's ledger ran today") };
+    let bi = g.building_entities.iter().position(|b| *b == be).unwrap();
+    g.seats[0].selected_building = Some(bi);
+    let insp = g.building_inspector_at(0).unwrap();
+    assert!(insp.lines.iter().any(|l| l.text.contains("today:")),
+        "the chain doesn't show: {:?}",
+        insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

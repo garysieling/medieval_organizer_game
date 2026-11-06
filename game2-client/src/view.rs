@@ -173,7 +173,7 @@ impl View {
         enum Piece<'a> {
             Building(Option<&'a Sprite>, f32), // a house, and how much of it stands
             Prop(Option<&'a Sprite>, f32),     // a tree or boulder in the middle of its tile, and its zoom-1 scale
-            Castle(Option<&'a Sprite>),        // a town-wall block: wall, gatehouse or tower
+            Castle(Option<&'a Sprite>, f32),   // a town-wall block: wall, gatehouse or tower; the f32 stretches it taller (the castles' grand dress)
             Herb,                              // a wild herb tuft, flat on the meadow
             Shroom,                            // a wild mushroom in the shade
             Skep,                              // a woven beehive in the apiary's yard
@@ -198,7 +198,7 @@ impl View {
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
         // (a generated keep stands like the wall's towers, at its own size)
         standing.extend(m.castle_keeps.iter().map(|&(x, y)| (x, y, if art.castle_rd {
-            Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref())
+            Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0)
         } else { Piece::Building(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0) })));
         // a wood is a mix of the pack's trees, stable per tile
         standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4), art.tiles[season_tiles(season)].trees_k))));
@@ -324,6 +324,8 @@ impl View {
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
         standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
+        // the castles' curtains stand grand: taller towers, meaner walls
+        let grand: std::collections::HashSet<(i32, i32)> = m.map.grand_walls.iter().copied().collect();
         standing.extend(m.map.walls.iter().map(|&((x, y), piece)| {
             // the odd stretch of wall has a postern door in it
             let postern = noise(x, y, 15) < 0.15;
@@ -334,7 +336,10 @@ impl View {
                 WallPiece::GateAlongY => art.walls[3].as_ref(),
                 WallPiece::Tower => art.tower_s.as_ref(),
             };
-            (x as f32, y as f32, Piece::Castle(sprite))
+            let hk = if grand.contains(&(x, y)) {
+                if matches!(piece, WallPiece::Tower) { GRAND_TOWER_K } else { GRAND_WALL_K }
+            } else { 1.0 };
+            (x as f32, y as f32, Piece::Castle(sprite, hk))
         }));
         // only what can reach the view goes into the sort (the whole map's
         // trees and rocks are in the list)
@@ -352,8 +357,11 @@ impl View {
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
                 Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),
-                Piece::Castle(sprite) => if let Some(s) = sprite {
-                    if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
+                Piece::Castle(sprite, hk) => if let Some(s) = sprite {
+                    if hk == 1.0 {
+                        if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
+                    } else if art.castle_rd { draw_standing_h(buf, s, sx, sy, zoom, hk); }
+                    else { draw_castle_h(buf, s, sx, sy, zoom, hk); }
                 },
                 Piece::Building(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 { draw_on_tile(buf, s, sx, sy, zoom); }

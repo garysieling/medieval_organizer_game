@@ -321,3 +321,14 @@ Every mechanic must trace to:
 **Educational Value:** Real talk has a finite shelf; endings should be emergent
 **Fun Factor:** The talk dries up and they walk off - feels like a person, not a jukebox
 **Tags:** dialogue, versu, exclusivity, exhaustion, endings, smalltalk
+
+---
+
+### Pattern: Historical Chronology -> Era-Gated Asset Progression
+**Academic Source:** Printing-press history survey (printing-press-history.md) - verified tech chronology: substrate gate -> relief/intaglio -> movable type (East Asian precedents) -> Gutenberg ~1450 -> common press -> litho 1796 -> machine presses 1800-1851 -> offset 1904
+**Game Mechanic:** Tech nodes carry an era band; buildings/sprites select their visual design from the newest unlocked node in the band. Press designs: wooden screw -> common press -> litho stone/zinc -> iron platen -> steam cylinder -> rotary drum -> offset blanket
+**Implementation:** `PressDesign` enum keyed to tech node (planned D1/D5); `Tech.era` split into early_modern/industrial bands
+**Simplification:** Discrete designs per node, not continuous evolution; overlapping bands allowed (litho + machine presses coexist ~1800-1900)
+**Educational Value:** Players see technology as cumulative layering, not replacement - old presses keep working beside new ones
+**Fun Factor:** The printer's shop visibly modernizes; each era is a recognizable silhouette worth building toward
+**Tags:** printing, chronology, era-gating, sprites, tech-tree, press-designs, printer-arc

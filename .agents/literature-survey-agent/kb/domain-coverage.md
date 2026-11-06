@@ -395,12 +395,13 @@ Topics that emerge from other work and need immediate research.
 
 **Completed Hot-Pursuit:**
 - Ink Making - The Oil-Boiler's Fire (2026-10-31, Gary request) - confirmed the remembered event: linseed oil boiled to varnish outside the walls, bread crusts fried in it, lampblack (soot, not ash) ground in for printing ink -> periodic event + fire spread mechanics proposed
+- Printing Press History (2026-11-05, Gary request via printer arc) - fixed chronology for era-based press designs: lithography (1796) post-dates Gutenberg (~1450) by ~350 yrs; "Kelsey" resolved as small Meriden CT hobby presses (1872+), large presses = iron platen/steam/rotary machines -> era-band + sprite-progression mapping for D1-D5
 
 ---
 
 ## Research Quality Metrics
 
-**Total Surveys Completed:** 43 (+4: Balance Tester suite - fun/supply-chain, balance-testing methodology, storytelling arcs, reward-punishment; prior: 39) (+1: Incense Production/Distribution deep-dive; prior: 38) (+1: Religious Institutions Deep-Dive; prior: 37) (+1: Doctrine & Sacramental Politics; prior: 36 incl. round 4 Cult Dynamics + Hinduism-Caste) (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
+**Total Surveys Completed:** 44 (+1: Printing Press History hot-pursuit; prior: 43) (+1: Incense Production/Distribution deep-dive; prior: 38) (+1: Religious Institutions Deep-Dive; prior: 37) (+1: Doctrine & Sacramental Politics; prior: 36 incl. round 4 Cult Dynamics + Hinduism-Caste) (+2 round 4 on 2026-10-31: Cult Dynamics, Hinduism-Caste-Faith; prior: 34) (+13 on 2026-10-31 across 4 user-requested rounds + synthesis: Historical Campaigns, Counter-Organizing, Enforcement/Defense, Campaign Masters, Modern Counter-Playbook, Information Infrastructure, Anti-Colonial Campaigns, Messianic/Prophetic, Pre-Modern Resistance Orgs, Secret Societies, Faith-Power Interface, Critical Pedagogy, Synthesis Architecture; +1 hot-pursuit: Ink Making - The Oil-Boiler's Fire)
 **Domains Covered (High/Medium):** 20
 **Domains Partially Covered:** 1 (History - general, will refine over time)
 **Domains Uncovered:** 0 (100% COVERAGE ACHIEVED!)

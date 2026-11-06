@@ -989,3 +989,26 @@ Tracks completed literature surveys and their yields (mechanics, concepts, sourc
 
 **Confidence:** High (mechanisms all shipped in commercial/academic games)
 **Tags:** dialogue, conversation, rule-database, ruskin, valve, facade, mateas, stern, prom-week, comme-il-faut, cif, versu, social-physics, discourse-acts, specificity, quips, house-meeting
+
+---
+
+### USER-REQUESTED: Printing Press History (chronology fix for printer arc)
+**Date Completed:** 2026-11-05
+**Domain:** History of Technology / Printmaking / Book History
+**Output:** wiki/literature-reviews/printing-press-history.md
+**Yield:**
+- Corrected master chronology for the printer feature arc: substrates (papyrus→parchment→paper ~1390 Europe) → woodblock/intaglio → East Asian movable type (Bi Sheng clay 1041, Korean metal 1234, Jikji 1377) → Gutenberg screw press ~1450 → common press era (~1550–1800, two-pull wooden, ~240 imp/hr) → machine age (Stanhope iron 1800, Koenig steam 1814, Albion ~1820, Hoe rotary 1840s–51)
+- **Ordering correction (Gary's flag):** lithography (Senefelder 1796/98, commercial ~1820) sits ~350 yrs AFTER Gutenberg, not before — it belongs in an industrial-era band alongside machine presses; the bands overlap (litho + machine presses coexist ~1800–1900), so the tech tree is a web not a line
+- **"Kelsey" resolved:** William A. Kelsey Co. (Meriden CT) made small hobby/table presses from ~1872 (Excelsior 3x5–6x10, ran to ~1990) — NOT large works presses; the imposing presses of that era are iron platen (Stanhope/Albion/Imperial) and steam/rotary machines
+- Era-band table + sprite-progression mapping for D1–D5: wooden screw → common press → litho stone/zinc → iron hand press → steam cylinder → rotary drum → offset blanket (1904)
+- 5 mechanics proposed: era-gated PressDesign sprites, throughput tiers (240→1,000→10,000 imp/hr), litho=poster medium for flyers, cutaway contents per design, Kelsey as small-shop variant
+
+**Key Sources:**
+- Smithsonian NMAH press collection (common press mechanics, Kelsey object record) - A+
+- APHA printing timeline; F&M LibGuides press-period guides; Museum of Printing press history - A
+- Global Jikji timeline + Rijksmuseum Jikji-to-Gutenberg project - A+ (East Asian movable type)
+- DPMA Senefelder biography; Met Museum lithography essay; Oxford HSM lithography - A+ (lithography dates)
+- Wikipedia chromolithography/offset (Engelmann 1837 patent; offset 1904) - B+
+
+**Confidence:** High
+**Tags:** printing, press-history, gutenberg, movable-type, jikji, korea, woodblock, engraving, common-press, stanhope, koenig, steam-press, albion, hoe-rotary, lithography, senefelder, chromolithography, offset-printing, kelsey-press, book-history, chronology, printer-arc

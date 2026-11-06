@@ -508,12 +508,15 @@ impl Game {
         use crate::sim::magic;
         // a reading day comes for the priest about twice a month
         let priest = self.villagers.iter().copied().find(|&v|
-            !villager::is_dead(&self.world, v) && self.site_of(v).is_none()
+            !crate::game::dungeon::unavailable(&self.world, v) && self.site_of(v).is_none()
                 && self.world.get_component::<Craft>(v)
                     .map(|c| c.vocation == Vocation::Priest).unwrap_or(false));
-        if priest.is_some() && self.rng.next() % 15 == 0 {
-            let sources = magic::ancient_sources();
-            let (src, domain, strength) = sources[self.grimoire.discoveries.len() % sources.len()];
+        let sources = magic::ancient_sources();
+        // the old library is finite - when every text's been read the
+        // shelf holds no more discoveries
+        let unread = self.grimoire.discoveries.len() < sources.len();
+        if priest.is_some() && unread && self.rng.next() % 15 == 0 {
+            let (src, domain, strength) = sources[self.grimoire.discoveries.len()];
             let d = magic::ingest_text(&mut self.grimoire, src, domain, strength);
             let use_ = magic::magic_effects(domain).first().copied().unwrap_or("useful lore");
             self.log.push(format!("t{}: the priest's reading turns up {} - the parish learns to {}.",

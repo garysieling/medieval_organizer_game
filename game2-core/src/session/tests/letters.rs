@@ -36,8 +36,11 @@ fn test_the_scribe_pockets_his_penny() {
             kind: crate::game::relationships::InteractionKind::Conversation, intensity: 2.0 });
     if let Some(p) = g.world.get_component_mut::<Pos>(a) { p.x = at.0 as f32; p.y = at.1 as f32; }
     if let Some(p) = g.world.get_component_mut::<Purse>(a) { p.gold = 5.0; }
+    let cust = g.world.get_component::<Purse>(a).map(|p| p.gold).unwrap();
     for dt in 0..10 { g.events_tick(t + dt); }
-    let purse = g.world.get_component::<Purse>(se).map(|p| p.gold).unwrap_or(0.0);
-    assert!(g.letters.iter().any(|&(f, _, _)| f == a) || purse > 0.0,
-        "the scribe's penny never landed: at={:?} letters={:?}", at, g.letters);
+    assert!(g.letters.iter().any(|&(f, _, _)| f == a), "he never wrote the page");
+    assert_eq!(g.world.get_component::<Purse>(a).map(|p| p.gold).unwrap(), cust - 1.0,
+        "the penny was never charged");
+    assert!(g.world.get_component::<Purse>(se).map(|p| p.gold).unwrap_or(0.0) >= 1.0,
+        "the penny never reached the scribe");
 }

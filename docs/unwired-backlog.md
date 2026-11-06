@@ -101,7 +101,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 70 | A child's growth toward a trade | `vocation::KidGrowth` | done #598 |
 | 71 | Faith and its strength | `religion::Faith` | done #599 |
 | 72 | Reputation stage | `reputation_qsp` | done #600 |
-| 73 | Memorable episodes (what happened to them) | `psychology::Episode`, `record_episode` | todo |
+| 73 | Memorable episodes (what happened to them) | `psychology::Episode`, `record_episode` | done #601 |
 | 74 | Kind of tie between two people (friend, rival, kin...) | `relationships::RelKind` | todo |
 | 75 | Wants the player has learned (`Known`) as a list | `desires::InnerLife`, `Known` | todo |
 | 76 | Rapport and how often you've talked | `player::Rapport`, `TalkCount` | todo |

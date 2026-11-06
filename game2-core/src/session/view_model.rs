@@ -528,6 +528,16 @@ impl Game {
                     rgb: (170, 190, 230) });
             }
         }
+        // the cellar's character and the rack: how many wheels down,
+        // and the oldest one's age - the number the monger pays for
+        if b.kind == BuildingKind::Cellar {
+            let n = self.cheeses.len();
+            let oldest = self.cheeses.first().map(|t| self.tick - t).unwrap_or(0);
+            lines.push(Line { x: 18, y: 432,
+                text: if n == 0 { format!("{} - empty", self.cellar_trait) }
+                    else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
+                rgb: (230, 200, 140) });
+        }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 

@@ -26,3 +26,20 @@ fn test_a_noble_pays_triple_for_an_aged_wheel() {
     assert!(g.log.iter().any(|l| l.contains("stone-cellar")),
         "the village's cheese has a name");
 }
+
+#[test]
+fn test_the_cellars_card_names_its_cheese() {
+    let mut g = Game::new();
+    g.tick = 80;
+    g.cheeses = vec![5, 30, 60]; // three wheels down, the oldest since day 5
+    let bi = g.villagers.len(); // buildings sit past the figures? no - find its index
+    let cellar_i = g.building_entities.iter().position(|&b| b == g.cellar.unwrap()).unwrap();
+    let _ = bi;
+    g.seats[0].selected_building = Some(cellar_i);
+    g.seats[0].picked = false;
+    let m = g.ui_model_at(0);
+    let ins = m.inspector.expect("no card for the cellar");
+    assert!(ins.lines.iter().any(|l| l.text.contains("stone-cellar - 3 wheels, oldest 75d")),
+        "the card doesn't name the rack: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

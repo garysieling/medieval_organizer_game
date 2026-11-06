@@ -476,7 +476,7 @@ impl Game {
     pub fn harvest_tick(&mut self, tick: u64) {
         let season = self.world.get_component::<crate::sim::climate::Climate>(self.climate)
             .map(|c| c.season).unwrap_or(crate::sim::climate::Season::Summer);
-        let year = tick / 364;
+        let year = tick / 360; // SeasonSystem's own calendar: 90 ticks a season
         if season != crate::sim::climate::Season::Autumn || year == self.harvest_year { return; }
         self.harvest_year = year;
         for seat in 0..self.seats.len() {

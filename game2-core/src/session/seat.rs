@@ -168,6 +168,8 @@ impl Game {
         self.world.add_component(org, Organization {
             name: "The Free Folk".into(), members: vec![], leader: player,
             influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() });
+        // every cause starts with the muscle to spend - a quiet one fades
+        self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.seats.push(Seat { player, org, ..Seat::default() });
         self.seats.len() - 1
     }
@@ -179,6 +181,7 @@ impl Game {
         self.world.add_component(org, Organization {
             name: "-".into(), members: vec![], leader: villager,
             influence_pool: 0.0, resources: 0.0, charter: "-".into() });
+        self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
         self.seats.len() - 1
     }

@@ -385,6 +385,26 @@ impl Game {
             let e = self.produced.entry(v).or_insert((tick, 0.0));
             if e.0 != tick { *e = (tick, 0.0); }
             e.1 += made;
+            // and the shop's ledger sees the chain: what it took and what
+            // it made, so the shop's card can say it
+            let shop_bits = self.world.get_component::<Craft>(v).and_then(|c| c.workplace
+                .map(|w| (w, c.vocation)));
+            if let Some((b, voc)) = shop_bits {
+                let e = self.shop_flow.entry(b).or_insert((tick, vec![]));
+                if e.0 != tick { *e = (tick, vec![]); }
+                for g in vocation::inputs(voc) {
+                    match e.1.iter_mut().find(|(f, _)| f == g) {
+                        Some((_, n)) => *n -= 1,
+                        None => e.1.push((g.to_string(), -1)),
+                    }
+                }
+                if let Some(g) = vocation::output(voc) {
+                    match e.1.iter_mut().find(|(f, _)| f == g) {
+                        Some((_, n)) => *n += made as i32,
+                        None => e.1.push((g.to_string(), made as i32)),
+                    }
+                }
+            }
         }
         (made, up)
     }

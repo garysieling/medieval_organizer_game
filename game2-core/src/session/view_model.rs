@@ -494,6 +494,14 @@ impl Game {
         if let Some((g, q, pr)) = offers.first() {
             lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g", q, g, pr), rgb: (150, 210, 150) });
         }
+        // the chain the shop worked today: what went in and what came out
+        if let Some((_, flow)) = self.shop_flow.get(&be).filter(|(d, _)| *d == self.tick) {
+            let txt = flow.iter().map(|(g, n)| format!("{}{} {}", if *n < 0 { "" } else { "+" }, n, g))
+                .collect::<Vec<_>>().join("  ");
+            if !txt.is_empty() {
+                lines.push(Line { x: 18, y: 418, text: format!("today: {}", txt), rgb: (200, 190, 160) });
+            }
+        }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 

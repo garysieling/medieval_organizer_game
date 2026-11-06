@@ -325,6 +325,8 @@ impl Game {
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
         crate::timed!("sim.tech", self.tech_tick(tick));
+        // and the village's tune follows the day the village had
+        crate::timed!("sim.music", self.music_tick(tick));
         let _lutes = crate::infra::perf::scope("sim.day.lutes_and_purses");
         // a tune in the street: anyone with a lute plays, and it lifts the
         // want for music and for joy around them
@@ -376,6 +378,47 @@ impl Game {
                 // a discovery: the bench worked it out - the village hears
                 self.log.push(format!("t{}: the print shop works out {}!", tick, next));
             }
+        }
+    }
+
+    /// The village's tune, steered by the day the village had: burning
+    /// feuds and fresh graves weigh on it, full purses and new learning
+    /// lift it. When a new mood holds long enough to commit, the change
+    /// is worth a line in the log
+    pub(crate) fn music_tick(&mut self, tick: u64) {
+        use crate::game::music;
+        let live: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)).collect();
+        let n = live.len().max(1) as f32;
+        let burning = self.world.query::<crate::game::feuds::Feud>().iter()
+            .filter(|&&e| self.world.get_component::<crate::game::feuds::Feud>(e)
+                .map(|f| f.status == crate::game::feuds::FeudStatus::Burning).unwrap_or(false))
+            .count() as f32;
+        let graves = self.died_on.iter().filter(|d| d.map(|x| tick - x < 30).unwrap_or(false))
+            .count() as f32;
+        let kids = live.iter().filter(|&&v| self.world.get_component::<Kid>(v).is_some())
+            .count() as f32;
+        let purse = live.iter().filter_map(|&v| self.world.get_component::<Purse>(v)
+            .map(|p| p.gold)).sum::<f32>() / n;
+        let learned = self.tech.iter().filter(|t| t.discovered).count() as f32
+            / self.tech.len().max(1) as f32;
+        let m = music::WorldMetrics {
+            growth: (kids / n * 4.0).min(1.0),
+            conflict: (burning / 2.0).min(1.0),
+            loss: (graves / n * 8.0).min(1.0),
+            discovery: learned,
+            prosperity: (purse / 50.0).min(1.0),
+        };
+        let before = self.world.get_component::<music::MusicState>(self.music)
+            .map(|s| s.mood);
+        if let Some(st) = self.world.get_component_mut::<music::MusicState>(self.music) {
+            music::evolve(st, &m);
+        }
+        let after = self.world.get_component::<music::MusicState>(self.music)
+            .map(|s| s.mood);
+        if before != after {
+            self.log.push(format!("t{}: the village's tune turns - {} now.",
+                tick, music::recommend_mood(after.unwrap_or(music::Mood::Calm))));
         }
     }
 

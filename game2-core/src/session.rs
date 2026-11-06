@@ -534,6 +534,8 @@ pub enum Goal {
     Levy(usize, usize),
     /// The steward back up to the castle with the provisions
     Deliver(usize),
+    /// The collector riding the takings out to the castle (site index)
+    Remit(usize),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after

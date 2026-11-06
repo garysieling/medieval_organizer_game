@@ -72,6 +72,20 @@ impl Game {
                 if let Some(p) = self.world.get_component_mut::<Purse>(c) { p.gold -= remit.min(p.gold); }
                 self.takings = 0.0;
                 self.log.push(format!("t{}: the collector rides to the castle - {:.0} gold of the lord's cut goes over the wall.", tick, remit));
+                // and he rides it there himself: the road to the nearest
+                // keep, a meal at its store, and the long way home
+                let cp = self.world.get_component::<Pos>(c).map(|p| (p.x, p.y));
+                if let Some((si, _)) = self.sites.iter().enumerate()
+                    .filter(|(_, s)| matches!(s.kind, country::SiteKind::Castle))
+                    .min_by_key(|(_, s)| cp.map(|(x, y)|
+                        ((s.centre.0 as f32 - x).powi(2) + (s.centre.1 as f32 - y).powi(2)) as i64)
+                        .unwrap_or(0)) {
+                    let door = self.sites[si].homes.first()
+                        .and_then(|&k| self.world.get_component::<Pos>(k).copied())
+                        .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
+                        .unwrap_or(self.sites[si].centre);
+                    let _ = self.send_far(c, door, Goal::Remit(si));
+                }
             }
         }
         drop(prelude);

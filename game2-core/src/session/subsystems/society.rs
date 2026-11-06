@@ -661,9 +661,11 @@ impl Game {
                 }).unwrap_or("To the harvest!");
             self.say(v, line, CHAT_BUBBLE_SECS * 2);
         }
-        // the tax collector is never invited but always shows
+        // the tax collector is never invited but always shows - unless
+        // he's forty miles out with the lord's gold on his saddle
         if let Some(c) = self.collector {
-            if !villager::is_dead(&self.world, c) {
+            if !villager::is_dead(&self.world, c)
+                && !self.travels.iter().any(|t| t.who == c && matches!(t.goal, Goal::Remit(_))) {
                 self.travels.retain(|t| t.who != c);
                 self.send(c, Goal::HeadHome(store));
                 self.say(c, "Uninvited. As ever.", CHAT_BUBBLE_SECS * 2);

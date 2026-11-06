@@ -29,7 +29,7 @@ impl Game {
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(..) => return false, // gathers go through send_gather
-            Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) => return false, // country walks go through send_far
+            Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(_) => return false, // country walks go through send_far
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
@@ -503,6 +503,7 @@ impl Game {
             Goal::Cart(si) => self.arrive_cart(who, si),
             Goal::Levy(castle, town) => self.arrive_levy(who, castle, town),
             Goal::Deliver(castle) => self.arrive_deliver(who, castle),
+            Goal::Remit(castle) => self.arrive_remit(who, castle),
             Goal::TendGarden(gi) => {
                 // weeding and picking: the bed yields into the house's
                 // stock, and the tending itself is a small joy

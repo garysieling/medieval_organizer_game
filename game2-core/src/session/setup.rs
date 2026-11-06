@@ -548,24 +548,6 @@ impl Game {
                 orthodoxy: 0.6, services: vec![] });
             c
         };
-        // the traders the guild forms of: real villagers who keep a shop
-        // or work a craft for the market, their wealth their purse plus
-        // what's on their shelves - and the writs can strip the lot
-        for (i, &v) in villagers.iter().enumerate() {
-            let trades = world.get_component::<Craft>(v)
-                .map(|c| !matches!(c.vocation,
-                    Vocation::Priest | Vocation::Knight | Vocation::Farmer
-                    | Vocation::Shepherd | Vocation::Fisher))
-                .unwrap_or(false);
-            if trades {
-                // their stake is the purse plus the stock and tools of the
-                // trade - the lot the bailiff's writ can strip
-                let wealth = world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) + 60.0;
-                world.add_component(v, Merchant { name: format!("{}", crate::session::vill_name(i)),
-                    wealth, trade_routes: vec!["the market".into()], vulnerable: true });
-            }
-        }
-
         // rival village: foreign settlement across the river, with its own
         // granary so its people eat at home instead of crossing to our market
         villager::spawn_food_source(&mut world, (vx + 14) as f32, (vy - 3) as f32, 500);
@@ -855,6 +837,14 @@ impl Game {
             let voc = world.get_component::<Craft>(v).map(|c| c.vocation);
             let wants = desires::sample_wants(class, voc, is_kid, &mut || g.next());
             world.add_component(v, InnerLife { wants, grievances: vec![], satisfied: vec![] });
+        }
+        // the traders the guild forms of: the trade-vocation folk and
+        // the stall's trader - purses seeded now, their stake the purse
+        // plus the stock and tools the writs can strip
+        for (i, &v) in villagers.iter().enumerate() {
+            if is_trader(&world, v) {
+                tag_trader(&mut world, v, vill_name(i));
+            }
         }
         // the keeper opens with a float. His trade is the only one in the
         // village that buys before it sells, so a journeyman's purse

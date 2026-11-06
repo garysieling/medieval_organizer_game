@@ -171,6 +171,18 @@ impl Game {
         self.world.get_component::<ReputationState>(v).map(|r| r.score).unwrap_or(0.45)
     }
 
+    /// New traders joining late - migrants, grown children - carry the
+    /// Merchant the guild's compact wants; a day of arrivals sees them
+    /// tagged and enrolled on its next run
+    pub(in crate::session) fn guild_tick(&mut self, _tick: u64) {
+        for (i, &v) in self.villagers.iter().enumerate().collect::<Vec<_>>() {
+            if self.world.get_component::<crate::game::guilds::Merchant>(v).is_none()
+                && is_trader(&self.world, v) {
+                tag_trader(&mut self.world, v, vill_name(i));
+            }
+        }
+    }
+
     pub(in crate::session) fn rep_apply(&mut self, v: Entity, a: RepAction) {
         let _ = self.rep_of(v);
         if let Some(r) = self.world.get_component_mut::<ReputationState>(v) {

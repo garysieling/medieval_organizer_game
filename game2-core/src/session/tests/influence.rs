@@ -62,6 +62,8 @@ fn test_the_panel_reads_the_muscle() {
     }
     let m = g.ui_model_at(0);
     let pw = m.panel.power.as_deref().unwrap_or("");
-    assert!(pw.contains("muscle 0.4") && pw.contains("turnout") && pw.contains("fresh"),
+    // a word, not the gauge: the exact numbers stay the probe's
+    assert!(pw.contains("muscle") && pw.contains("call") && pw.contains("fresh"),
         "the muscle's read is wrong: {:?}", pw);
+    assert!(!pw.contains("0.4"), "the gauge leaked: {:?}", pw);
 }

@@ -670,6 +670,11 @@ impl View {
         if !m.panel.org_status.is_empty() {
             draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
         }
+        // the org's own muscle under the powers' words
+        if let Some(pw) = &m.panel.power {
+            let y = if m.panel.org_status.is_empty() { 54 } else { 66 };
+            draw_text(&mut buf, UI_X as i32 + 10, y, pw, 170, 200, 170);
+        }
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {

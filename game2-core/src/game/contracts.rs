@@ -10,6 +10,9 @@ pub struct Contract {
     pub terms: Vec<Term>,
     pub status: ContractStatus,
     pub breach_penalty: f32,
+    /// A sworn mutual-aid pact, as opposed to a trade or work contract:
+    /// only pacts tear when the holder's feud burns
+    pub aid_pact: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -97,7 +100,7 @@ pub fn breach(world: &mut World, contract: Entity) {
 pub fn break_all_pacts(world: &mut World, breacher: Entity) -> Vec<Entity> {
     let pacts: Vec<(Entity, Entity)> = world.query::<Contract>().into_iter()
         .filter_map(|c| world.get_component::<Contract>(c).and_then(|ct|
-            (matches!(ct.status, ContractStatus::Active | ContractStatus::Fulfilled)
+            (ct.aid_pact && matches!(ct.status, ContractStatus::Active | ContractStatus::Fulfilled)
                 && ct.parties.contains(&breacher))
                 .then(|| (c, *ct.parties.iter().find(|&&p| p != breacher).unwrap_or(&breacher)))))
         .collect();
@@ -121,7 +124,7 @@ pub const PACT_AID: f32 = 10.0;
 pub fn pact_live(world: &World, a: Entity, b: Entity) -> bool {
     world.query::<Contract>().into_iter()
         .filter_map(|c| world.get_component::<Contract>(c))
-        .any(|c| matches!(c.status, ContractStatus::Active | ContractStatus::Fulfilled)
+        .any(|c| c.aid_pact && matches!(c.status, ContractStatus::Active | ContractStatus::Fulfilled)
             && c.parties.contains(&a) && c.parties.contains(&b))
 }
 
@@ -129,7 +132,7 @@ pub fn pact_live(world: &World, a: Entity, b: Entity) -> bool {
 pub fn has_pact(world: &World, a: Entity, b: Entity) -> bool {
     world.query::<Contract>().into_iter()
         .filter_map(|c| world.get_component::<Contract>(c))
-        .any(|c| c.parties.contains(&a) && c.parties.contains(&b))
+        .any(|c| c.aid_pact && c.parties.contains(&a) && c.parties.contains(&b))
 }
 
 /// Seal a mutual-aid pact: `giver` hands `receiver` PACT_AID gold of aid
@@ -164,6 +167,7 @@ pub fn seal_aid_pact(world: &mut World, giver: Entity, receiver: Entity, gold: &
         terms: vec![Term { description: format!("give {:.0} gold of aid", PACT_AID), obligated: giver, fulfilled: true }],
         status: ContractStatus::Fulfilled,
         breach_penalty: 0.0,
+        aid_pact: true,
     });
     Some(c)
 }
@@ -187,6 +191,7 @@ mod tests {
             ],
             status: ContractStatus::Active,
             breach_penalty: 0.3,
+            aid_pact: false,
         });
         (c, miller, baker)
     }

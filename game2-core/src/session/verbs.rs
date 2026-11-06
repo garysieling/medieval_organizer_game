@@ -776,6 +776,9 @@ impl Game {
                         if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
                         let n = self.name_of(v);
                         self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
+                        note_story(&mut self.tales, &mut self.tales_told, &mut self.log,
+                            self.seats[seat].selected_target, tick,
+                            crate::sim::story::EventKind::Alliance, "sworn to aid the Wanderer".into());
                         format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
                     }
                     None => "There's no sealing it - too poor, or sworn already.".into(),

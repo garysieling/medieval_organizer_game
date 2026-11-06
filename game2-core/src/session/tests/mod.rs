@@ -74,6 +74,7 @@ mod production;
 mod progression;
 mod recipes;
 mod quests;
+mod story;
 mod tech;
 mod reckoning;
 mod river;

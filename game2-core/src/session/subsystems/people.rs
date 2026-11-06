@@ -39,6 +39,8 @@ impl Game {
         self.was_sick.push(None);
         self.died_on.push(None);
         self.log.push(format!("t{}: a child is born - {}.", tick, vill_name(self.villagers.len() - 1)));
+        note_story(&mut self.tales, &mut self.tales_told, &mut self.log, self.villagers.len() - 1, tick,
+            crate::sim::story::EventKind::Birth, format!("{} is born.", vill_name(self.villagers.len() - 1)));
         // and the neighbours mark it: a small celebration at the house
         if let Some(p) = self.world.get_component::<Pos>(home) {
             self.local_celebration(tick, (p.x, p.y), None, "a new child");

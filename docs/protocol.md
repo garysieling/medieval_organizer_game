@@ -241,9 +241,9 @@ another. Older servers omit it or send null; a client should draw no
 "led by" then.
 
 `panel.org_status` carries the powers' standing words on the org, as
-plain short lines - "lord's grant: the taxes", "part grant: the
-taxes", "N knights posted", "assembly ban >N". Older servers send
-nothing; treat an absent field as an empty list.
+plain short lines - "grant: the taxes", "part grant: the taxes",
+"N knights", "ban >N". Older servers send nothing; treat an absent
+field as an empty list.
 
 `log_dropped` counts how many log lines have rolled out the top - the
 log's a rolling window. Zero or an absent field means the top's the

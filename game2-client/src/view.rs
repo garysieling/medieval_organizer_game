@@ -665,8 +665,7 @@ impl View {
         // the powers' standing words on the org - one line, so a
         // stack of them can't run under the buttons
         if !m.panel.org_status.is_empty() {
-            let line = m.panel.org_status.join(" · ");
-            draw_text(&mut buf, UI_X as i32 + 10, 54, &line, 200, 150, 150);
+            draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
         }
 
         // buttons

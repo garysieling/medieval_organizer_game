@@ -594,7 +594,15 @@ impl Game {
         let faith = world.get_component::<crate::sim::religion::Faith>(v)
             .map(|f| if f.devotion > 0.6 { " \u{00b7} devout" }
                 else if f.devotion < 0.25 { " \u{00b7} lapsed" } else { "" }).unwrap_or("");
-        lines.push(Line { x: 18, y: 404, text: format!("{}{}", roost, faith), rgb: (190, 190, 210) });
+        // the village's word on them: a name in good standing or in ill
+        // repute - the stage they've earned, not the bond they hold
+        let standing = world.get_component::<crate::sim::reputation_qsp::ReputationState>(v)
+            .map(|r| match r.stage {
+                crate::sim::reputation_qsp::RepStage::Esteemed => " \u{00b7} esteemed",
+                crate::sim::reputation_qsp::RepStage::Trusted => " \u{00b7} well thought of",
+                crate::sim::reputation_qsp::RepStage::Disgraced => " \u{00b7} ill-spoken of",
+                _ => "" }).unwrap_or("");
+        lines.push(Line { x: 18, y: 404, text: format!("{}{}{}", roost, faith, standing), rgb: (190, 190, 210) });
         // how well the organizer knows them: the stage word sits beside
         // the name, clear of the two rows the card keeps for feuds and
         // secrets

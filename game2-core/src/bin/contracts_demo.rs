@@ -23,6 +23,7 @@ fn main() {
         ],
         status: ContractStatus::Active,
         breach_penalty: 0.3,
+        aid_pact: false,
     });
     println!("Contract signed: miller -> baker, 20 flour by t50");
 
@@ -55,6 +56,7 @@ fn main() {
         terms: vec![Term { description: "deliver 10 barley by t60".into(), obligated: honest, fulfilled: false }],
         status: ContractStatus::Active,
         breach_penalty: 0.2,
+        aid_pact: false,
     });
     println!("\nSecond contract signed: honest -> baker, 10 barley");
     // the delivery lands on time

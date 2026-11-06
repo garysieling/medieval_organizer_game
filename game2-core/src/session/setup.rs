@@ -24,6 +24,7 @@ impl Game {
         sched.add_system(GuildFormationSystem);
         sched.add_system(IllnessSystem); // diseases progress, spread to neighbours, and heal
         sched.add_system(crate::game::feuds::FeudSystem); // bad blood worsens till it's talked down
+        sched.add_system(crate::game::contracts::ContractSystem); // kept terms build a name for keeping them
 
         let mut terrain = Terrain::generate_country(MAP_TILES, 0.7, seed);
         let _ = crate::game::landforms::shape_terrain(&mut terrain, seed);

@@ -40,19 +40,27 @@ impl Game {
     /// holy day the priest's arbitration cools the hottest of them, the
     /// way the sagas end - talks first, a settlement if it's cooled enough
     pub(in crate::session) fn feud_tick(&mut self, tick: u64) {
-        for e in self.world.query::<crate::game::feuds::Feud>() {
-            let Some(f) = self.world.get_component::<crate::game::feuds::Feud>(e) else { continue };
+        let rows: Vec<_> = self.world.query::<crate::game::feuds::Feud>().into_iter()
+            .filter_map(|e| self.world.get_component::<crate::game::feuds::Feud>(e)
+                .map(|f| (e, f.status, f.offender, f.aggrieved, f.offense.clone())))
+            .collect();
+        for (e, status, offender, aggrieved, offense) in rows {
             let last = self.feud_told.get(&e).copied();
-            match f.status {
+            match status {
                 crate::game::feuds::FeudStatus::Burning if last != Some(crate::game::feuds::FeudStatus::Burning) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Burning);
-                    let (an, bn) = (self.name_of(f.aggrieved), self.name_of(f.offender));
-                    self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, f.offense));
-                    self.rep_apply(f.offender, RepAction::BadDeed);
+                    let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
+                    self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, offense));
+                    self.rep_apply(offender, RepAction::BadDeed);
+                    // open conflict breaks the offender's sworn word:
+                    // you can't aid a neighbour with one fist raised
+                    for other in crate::game::contracts::break_all_pacts(&mut self.world, offender) {
+                        self.log.push(format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(other)));
+                    }
                 }
                 crate::game::feuds::FeudStatus::Resolved if last != Some(crate::game::feuds::FeudStatus::Resolved) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Resolved);
-                    let (an, bn) = (self.name_of(f.aggrieved), self.name_of(f.offender));
+                    let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
                     self.log.push(format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
                 }
                 _ => {}

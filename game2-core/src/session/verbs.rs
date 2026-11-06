@@ -357,6 +357,17 @@ impl Game {
             if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
                 self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
             }
+            // a picked neighbour with no pact yet can be sworn to, wax
+            // and ten gold willing
+            let pe = self.seats[seat].player;
+            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+            if self.seats[seat].picked && !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && gold >= crate::game::contracts::PACT_AID
+                && !crate::game::contracts::has_pact(&self.world, pe, v) {
+                self.seats[seat].ctx_actions.push(CtxAct::Pact);
+            }
         }
         // a stray cat keeping you company can be stroked - "Pet her"
         // shows while she's in reach, whatever else is going on
@@ -742,6 +753,23 @@ impl Game {
                     let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(v)
                         .map(|r| r.pressure).unwrap_or(0.0);
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
+                }
+            }
+            CtxAct::Pact => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                let pe = self.seats[seat].player;
+                let mut gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+                match crate::game::contracts::seal_aid_pact(&mut self.world, pe, v, &mut gold) {
+                    Some(_) => {
+                        // both purses: trades move the Purse, the panel
+                        // reads resources - a build only syncs one way
+                        if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold = gold; }
+                        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
+                        let n = self.name_of(v);
+                        self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
+                        format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)
+                    }
+                    None => "There's no sealing it - too poor, or sworn already.".into(),
                 }
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),

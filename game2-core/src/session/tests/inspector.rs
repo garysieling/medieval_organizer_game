@@ -84,3 +84,20 @@ fn test_the_card_names_the_rung() {
     assert!(ins.lines.iter().any(|l| l.text.contains("Master")),
         "the rung never showed: {:?}", ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_a_child_s_card_names_their_leaning() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied()
+        .find(|&v| g.world.get_component::<Kid>(v).is_some()).unwrap();
+    // keep the smith's errands busiest
+    let smith = g.villagers.iter().copied()
+        .find(|&v| g.world.get_component::<crate::game::vocation::Craft>(v)
+            .map(|c| c.vocation == crate::game::vocation::Vocation::Toolmaker).unwrap_or(false)).unwrap();
+    g.world.get_component_mut::<crate::game::vocation::KidGrowth>(v).unwrap()
+        .errands.push((smith, 5));
+    g.seats[0].selected_target = g.villagers.iter().position(|&x| x == v).unwrap();
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("runs for the toolmaker"), "the leaning never showed: {}", bio);
+}

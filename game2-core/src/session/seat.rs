@@ -67,6 +67,8 @@ pub enum CtxAct {
     Gather,
     /// Take on the odd job the picked villager is asking for
     TakeJob,
+    /// Stroke the stray cat who's keeping you company
+    PetCat,
 }
 
 /// One player's hold on the game: which character they steer, what they've

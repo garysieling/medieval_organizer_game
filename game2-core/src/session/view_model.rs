@@ -562,15 +562,16 @@ impl Game {
             (None, None) => "no home".into(),
         };
         lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
-        // bad blood is the village's talk: who they're feuding with -
-        // every live feud, the burning ones first, under the activity
+        // bad blood is the village's talk: every live feud, the burning
+        // ones first, on the card's one free row under the membership
         // line and left of where the action buttons sit
         let feuds = self.feuds_of(v);
-        for (n, (other, burning)) in feuds.iter().take(2).enumerate() {
-            let more = if n == 1 && feuds.len() > 2 { format!(" +{}", feuds.len() - 2) } else { String::new() };
-            lines.push(Line { x: 18, y: 452 + n as i32 * 11,
-                text: format!("feuds with {}{}{}", self.name_of(*other), more,
-                    if *burning { " - it burns" } else { "" }),
+        if !feuds.is_empty() {
+            let names: Vec<String> = feuds.iter().take(2).map(|(o, _)| self.name_of(*o)).collect();
+            let more = if feuds.len() > 2 { format!(" +{}", feuds.len() - 2) } else { String::new() };
+            lines.push(Line { x: 18, y: 475,
+                text: format!("feuds with {}{}{}", names.join(", "), more,
+                    if feuds.iter().any(|(_, b)| *b) { " - it burns" } else { "" }),
                 rgb: (230, 140, 110) });
         }
         // how well the organizer knows them: the stage word beside the

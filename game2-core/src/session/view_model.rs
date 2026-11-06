@@ -977,8 +977,8 @@ fn trait_hint(t: crate::game::traits::Trait) -> &'static str {
     use crate::game::traits::Trait::*;
     match t {
         Lazy => "rests more", Ambitious => "works harder",
-        Kind => "a warm word", Stingy => "keeps his purse",
-        Pious => "keeps the faith", Hotheaded => "takes offence",
-        Gregarious => "strolls the village", Proud => "won't be led",
+        Kind => "a warm word", Stingy => "tight-fisted",
+        Pious => "keeps the faith", Hotheaded => "quick to anger",
+        Gregarious => "strolls the village", Proud => "a proud bearing",
     }
 }

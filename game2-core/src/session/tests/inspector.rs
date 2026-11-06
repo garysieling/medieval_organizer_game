@@ -53,11 +53,11 @@ fn test_the_card_tells_the_biography_you_know() {
             crate::game::traits::Trait::Lazy => "rests more",
             crate::game::traits::Trait::Ambitious => "works harder",
             crate::game::traits::Trait::Kind => "a warm word",
-            crate::game::traits::Trait::Stingy => "keeps his purse",
+            crate::game::traits::Trait::Stingy => "tight-fisted",
             crate::game::traits::Trait::Pious => "keeps the faith",
-            crate::game::traits::Trait::Hotheaded => "takes offence",
+            crate::game::traits::Trait::Hotheaded => "quick to anger",
             crate::game::traits::Trait::Gregarious => "strolls the village",
-            crate::game::traits::Trait::Proud => "won't be led",
+            crate::game::traits::Trait::Proud => "a proud bearing",
         };
         bio.contains(h)
     });

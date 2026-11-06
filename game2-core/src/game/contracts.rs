@@ -91,22 +91,26 @@ pub fn breach(world: &mut World, contract: Entity) {
     }
 }
 
-/// The wax cracks: a live pact between `breacher` and `other` is torn
-/// up, and the breacher's name takes the cost of breaking it. Returns
-/// whether a pact stood to break.
-pub fn break_pact(world: &mut World, breacher: Entity, other: Entity) -> bool {
-    let pact = world.query::<Contract>().into_iter().find(|&c|
-        world.get_component::<Contract>(c)
-            .map(|ct| matches!(ct.status, ContractStatus::Active | ContractStatus::Fulfilled)
-                && ct.parties.contains(&breacher) && ct.parties.contains(&other))
-            .unwrap_or(false));
-    let Some(c) = pact else { return false; };
-    if let Some(ct) = world.get_component_mut::<Contract>(c) { ct.status = ContractStatus::Breached; }
-    if let Some(r) = world.get_component_mut::<Reputation>(breacher) {
-        r.contracts_breached += 1;
-        r.trust_score = (r.trust_score - 0.2).max(0.0);
+/// The wax cracks: every live pact `breacher` holds is torn up, and
+/// their name takes the cost of breaking each. Returns the
+/// counterparties, so the caller can say who lost faith with whom.
+pub fn break_all_pacts(world: &mut World, breacher: Entity) -> Vec<Entity> {
+    let pacts: Vec<(Entity, Entity)> = world.query::<Contract>().into_iter()
+        .filter_map(|c| world.get_component::<Contract>(c).and_then(|ct|
+            (matches!(ct.status, ContractStatus::Active | ContractStatus::Fulfilled)
+                && ct.parties.contains(&breacher))
+                .then(|| (c, *ct.parties.iter().find(|&&p| p != breacher).unwrap_or(&breacher)))))
+        .collect();
+    let mut out = Vec::new();
+    for (c, other) in pacts {
+        if let Some(ct) = world.get_component_mut::<Contract>(c) { ct.status = ContractStatus::Breached; }
+        if let Some(r) = world.get_component_mut::<Reputation>(breacher) {
+            r.contracts_breached += 1;
+            r.trust_score = (r.trust_score - 0.2).max(0.0);
+        }
+        out.push(other);
     }
-    true
+    out
 }
 
 /// Gold the player gives when sealing a mutual-aid pact

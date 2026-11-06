@@ -54,11 +54,8 @@ impl Game {
                     self.rep_apply(offender, RepAction::BadDeed);
                     // open conflict breaks the offender's sworn word:
                     // you can't aid a neighbour with one fist raised
-                    let players: Vec<Entity> = self.seats.iter().map(|s| s.player).collect();
-                    for p in players {
-                        if crate::game::contracts::break_pact(&mut self.world, offender, p) {
-                            self.log.push(format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(p)));
-                        }
+                    for other in crate::game::contracts::break_all_pacts(&mut self.world, offender) {
+                        self.log.push(format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(other)));
                     }
                 }
                 crate::game::feuds::FeudStatus::Resolved if last != Some(crate::game::feuds::FeudStatus::Resolved) => {

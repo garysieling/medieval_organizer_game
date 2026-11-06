@@ -39,10 +39,16 @@ impl Game {
             if let Some(s) = self.trader_stall { livelihood::restock_trader(&mut self.world, s, tick); }
         }
         // workplaces nobody works stand dimmed - the derelicts of the street
+        let was_derelict = self.derelict.clone();
         self.derelict.clear();
         for (i, e) in self.building_entities.iter().enumerate() {
             if self.world.get_component::<Building>(*e).map(household::derelict).unwrap_or(false) {
                 self.derelict.insert(i);
+                if !was_derelict.contains(&i) {
+                    let name = self.world.get_component::<Building>(*e)
+                        .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
+                    self.log.push(format!("t{}: {} stands derelict - nobody works it.", tick, name));
+                }
             }
         }
         // word rides a few days ahead of whoever's on the road

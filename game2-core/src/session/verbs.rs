@@ -303,7 +303,7 @@ impl Game {
                     let road = self.map.plan_road((bx as i32, by as i32));
                     self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
                     self.built_count += 1;
-                    format!("Work starts on a new house beside you - {:.0} gold", BUILD_COST)
+                    format!("Work starts on a new house beside you - {:.0} gold (the village's {}th roof)", BUILD_COST, self.built_count)
                 }
                 _ => unreachable!("no action button {}", i),
             }

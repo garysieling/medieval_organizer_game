@@ -126,6 +126,10 @@ impl Game {
                 if let Some(b) = self.world.get_component_mut::<Building>(shop) { b.worker = None; }
                 let bname = self.world.get_component::<Building>(shop).map(|b| b.name.clone()).unwrap_or_else(|| "the shop".into());
                 self.log.push(format!("t{}: {} stands shuttered - no heir for {}'s bench.", tick, bname, dname));
+                // the day's derelict scan mustn't say it a second time
+                if let Some(i) = self.building_entities.iter().position(|&e| e == shop) {
+                    self.derelict.insert(i);
+                }
             }
         }
     }

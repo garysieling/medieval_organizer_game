@@ -61,6 +61,8 @@ impl Game {
         if !routine::is_holy(tick) { return; }
         let Some(priest) = self.villagers.iter().copied().find(|&v|
             !villager::is_dead(&self.world, v)
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && self.site_of(v).is_none()
                 && self.world.get_component::<Craft>(v)
                     .map(|c| c.vocation == Vocation::Priest).unwrap_or(false)) else { return };
         // the hottest unsettled blood gets the priest's word first

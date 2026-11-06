@@ -591,7 +591,7 @@ impl View {
         // inspector: a villager's card, or a building's when one's clicked
         // inspector: a villager's card, or a building's when one's clicked
         if self.inspector_open {
-            draw_rect(&mut buf, UI_X as i32 + 10, 316, 270, 140, 45, 45, 65);
+            draw_rect(&mut buf, UI_X as i32 + 10, 316, 320, 140, 45, 45, 65);
             if let Some(insp) = &m.inspector {
                 if insp.dead {
                     draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);
@@ -658,10 +658,10 @@ impl View {
         }
 
         // event log
-        draw_rect(&mut buf, UI_X as i32 + 10, 512, 270, 110, 25, 25, 40);
+        draw_rect(&mut buf, UI_X as i32 + 10, 512, 320, 110, 25, 25, 40);
         draw_text(&mut buf, UI_X as i32 + 14, 516, "LOG", 150, 150, 180);
         // newest first, word-wrapped to the box instead of cut off mid-word
-        const LOG_CHARS: usize = 43;      // (box width - padding) / glyph width
+        const LOG_CHARS: usize = 52;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 8;
         let mut row = 0;
         'log: for entry in &m.log {

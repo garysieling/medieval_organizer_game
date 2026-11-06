@@ -63,12 +63,8 @@ fn test_who_holds_it_shows_on_the_card() {
     g.seats[0].picked = true;
     let m = g.ui_model_at(0);
     let ins = m.inspector.expect("no card for him");
-    for name in ["a lute", "a fine toolset"] {
-        assert!(ins.lines.iter().any(|l| l.text.starts_with(&format!("holds {}", name))),
-            "the card doesn't say he holds {}: {:?}", name,
-            ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
-    }
-    // and the last thing it lived through rides with the name
-    assert!(ins.lines.iter().any(|l| l.text.contains("played at the Harvest Home")),
-        "the story dropped off the card");
+    // two in hand shows as one name and the count, inside one line
+    assert!(ins.lines.iter().any(|l| l.text.contains("holds a lute +1")),
+        "the card doesn't say what he holds: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }

@@ -528,7 +528,7 @@ impl Game {
                     rgb: (170, 190, 230) });
             }
         }
-        Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, extra_rows: 0, lines })
+        Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 
     /// Every live feud `v` is party to, burning ones first: who it's
@@ -557,7 +557,7 @@ impl Game {
         if let Some(day) = self.died_on[i] {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
-            return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), extra_rows: 0, lines };
+            return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), lines };
         }
         let org_members = world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.clone()).unwrap_or_default();
@@ -679,7 +679,17 @@ impl Game {
             let doing = (vil.activity == Activity::Idle)
                 .then(|| routine::routine_text(world, v, bench.as_deref())).flatten()
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
-            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}", nature, doing, cause), rgb: (200, 160, 160) });
+            // a thing made to outlast, in their hands - one name and a
+            // count, so it stays inside the line the card can show
+            let held: Vec<&str> = self.heirlooms.iter()
+                .filter_map(|&i| world.get_component::<villager::Heirloom>(i))
+                .filter(|h| h.owner == v).map(|h| h.name).collect();
+            let keepsake = match held.as_slice() {
+                [] => String::new(),
+                [one] => format!(" \u{00b7} holds {}", one),
+                [first, rest @ ..] => format!(" \u{00b7} holds {} +{}", first, rest.len()),
+            };
+            lines.push(Line { x: 18, y: 440, text: format!("{} \u{00b7} {}{}{}", nature, doing, cause, keepsake), rgb: (200, 160, 160) });
         }
         // the biography the seat knows: years and build are public, but
         // temperament and kin take a bond close enough to have been told
@@ -702,27 +712,7 @@ impl Game {
         } else if let Some(t) = tale {
             lines.push(Line { x: 18, y: 454, text: t.to_string(), rgb: (160, 180, 200) });
         }
-        // things made to outlast: the heirlooms in their hands each get a
-        // bounded row (capped at two), name and the last thing it lived
-        // through. extra_rows tells the panel to make room below
-        let mut extra_rows = 0;
-        if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
-            >= crate::game::organizing::RelStage::Known {
-            let held: Vec<String> = self.heirlooms.iter()
-                .filter_map(|&i| world.get_component::<villager::Heirloom>(i))
-                .filter(|h| h.owner == v)
-                .map(|h| match h.stories.last() {
-                    Some(s) => format!("holds {} - {}", h.name, s),
-                    None => format!("holds {}", h.name),
-                }).take(2).collect();
-            extra_rows = held.len() as i32;
-            for (n, text) in held.iter().enumerate() {
-                lines.push(Line { x: 18, y: 468 + n as i32 * 11,
-                    text: text.clone(), rgb: (210, 190, 130) });
-            }
-        }
-        InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(),
-            dead: false, died_day: None, extra_rows, lines }
+        InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }
 
     /// The biography the seat knows of `v`: what they are and what they

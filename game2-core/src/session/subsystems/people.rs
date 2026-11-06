@@ -470,6 +470,26 @@ impl Game {
         }
     }
 
+    /// The year's turn: when autumn comes round the org takes the
+    /// harvest in together - a shared lift for the members' ties and
+    /// the cause's own strength
+    pub fn harvest_tick(&mut self, tick: u64) {
+        let season = self.world.get_component::<crate::sim::climate::Climate>(self.climate)
+            .map(|c| c.season).unwrap_or(crate::sim::climate::Season::Summer);
+        let year = tick / 360; // SeasonSystem's own calendar: 90 ticks a season
+        if season != crate::sim::climate::Season::Autumn || year == self.harvest_year { return; }
+        self.harvest_year = year;
+        for seat in 0..self.seats.len() {
+            let oe = self.seats[seat].org;
+            let took = crate::game::organizing::harvest_together(&mut self.world, oe);
+            if took > 0 {
+                let oname = self.world.get_component::<Organization>(oe)
+                    .map(|o| o.name.clone()).unwrap_or_default();
+                self.log.push(format!("t{}: {} takes the harvest in together - {} share the lift.", tick, oname, took));
+            }
+        }
+    }
+
     /// Starving hurts, eating well mends the unsick - the day's beat of
     /// it, while weather keeps to its own floored drain in weather_tick
     pub fn nourish_tick(&mut self) {

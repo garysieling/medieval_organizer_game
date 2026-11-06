@@ -395,6 +395,10 @@ impl Game {
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
             self.seats[seat].ctx_actions.push(CtxAct::March);
         }
+        // a storm-hit hall stands roofless till the treasury mends it
+        if self.world.get_component::<crate::game::organizing::HallDamaged>(self.seats[seat].org).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::MendHall);
+        }
         if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
             let v = self.villagers[self.seats[seat].selected_target];
             if !crate::game::villager::is_dead(&self.world, v) {
@@ -773,6 +777,21 @@ impl Game {
                 }
             }
             CtxAct::Gather => self.call_meeting_at(seat),
+            CtxAct::MendHall => {
+                let oe = self.seats[seat].org;
+                let purse = self.world.get_component::<Organization>(oe)
+                    .map(|o| o.resources).unwrap_or(0.0);
+                if purse < crate::game::organizing::HALL_REPAIR_COST {
+                    let oname = self.world.get_component::<Organization>(oe)
+                        .map(|o| o.name.clone()).unwrap_or_default();
+                    format!("{} can't make the carpenter's bill - {} gold in the chest.", oname, purse as i32)
+                } else {
+                    self.world.get_component_mut::<Organization>(oe).unwrap().resources
+                        -= crate::game::organizing::HALL_REPAIR_COST;
+                    self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
+                    "The carpenters patch the roof - the hall's fit to meet in again.".into()
+                }
+            }
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];
                 // the cause's muscle signs the letters too - every member's

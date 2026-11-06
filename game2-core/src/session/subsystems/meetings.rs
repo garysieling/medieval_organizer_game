@@ -133,6 +133,9 @@ impl Game {
         }
         self.world.add_component(c, campaign::CampaignMeeting {
             cadence_days: 3, last_held: self.tick, held: 0, resolves: 0 });
+        // a cause that takes a vote takes a hall: the room it gathers in,
+        // till a storm or the roof's own mending says otherwise
+        self.world.add_component(org, crate::game::organizing::MeetingHall);
         self.toasts.push((format!("{} take a vote", oname), self.tick + 40));
         let mut msg = format!("{} take a vote - they'll fight for {}", oname, vote.winner);
         // they came along, but when the framing sits wrong on a stake they

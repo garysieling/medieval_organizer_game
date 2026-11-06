@@ -25,6 +25,8 @@ impl Game {
         self.world.add_component(v, Known::default());
         self.world.add_component(v, Kid);
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
+        self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
@@ -86,6 +88,8 @@ impl Game {
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         // a newcomer joins the parish
         self.join_parish(v);
         self.villagers.push(v);
@@ -472,12 +476,18 @@ impl Game {
     pub fn grief_tick(&mut self, tick: u64) {
         use crate::sim::psychology::{Bond, Episode, EpisodeKind, Mourned, GRIEF_TIE, record_episode};
         use crate::game::relationships::{find_relationship, Relationship};
-        let newly_dead: Vec<Entity> = self.villagers.iter().copied()
+        // the roster and the seats' wanderers alike - the Wanderer's
+        // bonds grieve like anyone's, and their death's mourned too
+        let mut folk: Vec<Entity> = self.villagers.clone();
+        for s in &self.seats {
+            if !folk.contains(&s.player) { folk.push(s.player); }
+        }
+        let newly_dead: Vec<Entity> = folk.iter().copied()
             .filter(|&v| villager::is_dead(&self.world, v)
                 && self.world.get_component::<Mourned>(v).is_none()).collect();
         for d in newly_dead {
             self.world.add_component(d, Mourned);
-            let mourners: Vec<Entity> = self.villagers.iter().copied().filter(|&m| m != d
+            let mourners: Vec<Entity> = folk.iter().copied().filter(|&m| m != d
                 && !villager::is_dead(&self.world, m)
                 && (self.world.get_component::<Bond>(m).map(|b| b.target == d).unwrap_or(false)
                     || find_relationship(&self.world, m, d)
@@ -495,7 +505,7 @@ impl Game {
             for m in mourners {
                 record_episode(&mut self.world, m, Episode { with: d, kind: EpisodeKind::Loss });
                 crate::game::desires::add_grievance(&mut self.world, m,
-                    crate::game::desires::Problem::Grief, tick + 60);
+                    crate::game::desires::Problem::Bereaved, tick + 60);
             }
         }
     }

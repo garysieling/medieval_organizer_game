@@ -18,7 +18,7 @@ fn test_the_closest_ones_mourn_the_dead() {
     let h = g.world.get_component::<crate::sim::psychology::AttachmentHistory>(mourner).unwrap();
     assert!(h.anxiety_episodes > before, "no loss recorded");
     let life = g.world.get_component::<crate::game::desires::InnerLife>(mourner).unwrap();
-    assert!(life.grievances.iter().any(|(p, _)| *p == crate::game::desires::Problem::Grief),
+    assert!(life.grievances.iter().any(|(p, _)| *p == crate::game::desires::Problem::Bereaved),
         "the grief carried no grievance");
     assert!(g.log.iter().any(|l| l.contains("mourn")), "the mourning went untold");
     // and only once

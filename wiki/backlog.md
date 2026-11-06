@@ -498,6 +498,7 @@ This file tracks research items that need to be completed for the game project.
 - **Completed:** 2026-10-25
 - **Output:** wiki/software-design/printmaking-tech-tree.md
 - **Notes:** Design detailed printmaking tech tree from basic early writing (feathers on papyrus) through stone lithography. DETAILED/ACCURATE simulation important. Research historical printing techniques, materials, processes.
+- **Update 2026-11-05:** Chronology verified for the printer arc (errands, flyers, cutaway, era press designs) → `wiki/literature-reviews/printing-press-history.md`. Key fix: lithography (1796) is ~350 yrs after Gutenberg (~1450); "Kelsey" = small hobby presses (1872+), large presses are iron/steam/rotary machines.
 
 ### [ ] Art Asset Library Strategy
 - **Status:** Completed

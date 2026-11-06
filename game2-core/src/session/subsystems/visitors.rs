@@ -29,7 +29,7 @@ impl Game {
         let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // the song's no good to anyone with the thatch alight: he turns
         // his horse for the road home
-        if self.fire_at_feet(m.e, &m.path) {
+        if self.fire_at_feet(m.e, &m.path, tr_spd.ceil() as usize + 1) {
             m.playing_until = Some(self.tick.saturating_sub(1));
             m.path.clear();
         }
@@ -90,7 +90,7 @@ impl Game {
         let Some(mut m) = self.pedlar.take() else { return };
         let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // no stall is worth a burning pitch: he shoulders his pack
-        if self.fire_at_feet(m.e, &m.path) {
+        if self.fire_at_feet(m.e, &m.path, tr_spd.ceil() as usize + 1) {
             m.selling_until = Some(self.tick.saturating_sub(1));
             m.path.clear();
         }
@@ -188,7 +188,7 @@ impl Game {
         let Some(mut c) = self.circus.take() else { return };
         let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // the meadow's burning or the road in is: the tents fold early
-        if self.fire_at_feet(c.e, &c.path) {
+        if self.fire_at_feet(c.e, &c.path, tr_spd.ceil() as usize + 1) {
             c.camped_until = Some(self.tick.saturating_sub(1));
             c.path.clear();
         }
@@ -264,14 +264,16 @@ impl Game {
         }
     }
 
-    /// Flames at a traveller's feet or on the road just ahead - reason
-    /// enough for any of them to turn for home
-    pub(in crate::session) fn fire_at_feet(&self, e: Entity, path: &[(i32, i32)]) -> bool {
+    /// Flames at a traveller's feet or on the road this frame could
+    /// carry them to - reason enough for any of them to turn for home.
+    /// `reach` is how many waypoints the frame's stride might land on;
+    /// a fast clock sees its whole stride checked, not just the next tile
+    pub(in crate::session) fn fire_at_feet(&self, e: Entity, path: &[(i32, i32)], reach: usize) -> bool {
         if !self.fire.active() { return false; }
         let near = self.world.get_component::<Pos>(e)
             .map(|p| self.fire.burns_near(p.x.round() as i32, p.y.round() as i32, 2))
             .unwrap_or(false);
-        near || path.first().map(|&(x, y)| self.fire.on_fire(x, y)).unwrap_or(false)
+        near || path.iter().take(reach).any(|&(x, y)| self.fire.on_fire(x, y))
     }
 
     /// The ink-maker comes up the road and pitches his cauldron on the
@@ -294,7 +296,7 @@ impl Game {
         let Some(mut b) = self.ink_boiler.take() else { return };
         let tr_spd = TRAVELLER_SPEED * self.walk_pace();
         // flames come for a pot of boiling oil too: he packs and goes
-        if self.fire_at_feet(b.e, &b.path) {
+        if self.fire_at_feet(b.e, &b.path, tr_spd.ceil() as usize + 1) {
             b.working_until = Some(self.tick.saturating_sub(1));
             b.path.clear();
         }

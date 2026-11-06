@@ -418,7 +418,7 @@ impl Game {
             let mut r = self.rare[idx].clone();
             let Some(e) = r.e else { continue };
             // flames at his feet or on the road ahead: turn for home early
-            if !r.leaving && self.fire_at_feet(e, &r.path) {
+            if !r.leaving && self.fire_at_feet(e, &r.path, tr_spd.ceil() as usize + 1) {
                 r.until = Some(self.tick);
                 r.path.clear();
             }

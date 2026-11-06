@@ -5,6 +5,7 @@ use game2_core::sim::illness::Health;
 #[test]
 fn test_the_dead_show_as_graves_on_the_minimap() {
     let mut game = Game::new_seeded(MAP_SEED);
+    game.speed = 8; // a couple of months of frames, sampled thinner
     let view = View::new(Art::load_fs("../assets", 0));
     while game.tick < 60 { game.update(); }
     let corvin = game.villagers[3];

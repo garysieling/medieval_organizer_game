@@ -3,6 +3,7 @@ use crate::session::*;
 #[test]
 fn test_a_grave_stays_where_the_villager_died() {
     let mut game = Game::new();
+    game.speed = 8;
     let bram = game.villagers[2];
     game.world.get_component_mut::<Health>(bram).unwrap().condition = 0.0;
     while game.tick < 5 { game.update(); } // the death check turns them into a grave

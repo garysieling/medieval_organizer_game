@@ -5,6 +5,7 @@ fn test_villagers_stay_in_their_own_village() {
     // on main, Aldric was at x 27.5 by day 1050 - the rivals' village -
     // and stayed there, eating from their store
     let mut game = Game::new();
+    game.speed = 16; // 1500 days of frames is the suite's long pole
     let home = *game.world.get_component::<Pos>(game.market_food).unwrap();
     // where each villager actually lives - an outskirts cottage is
     // legitimately far from the store, that's not straying

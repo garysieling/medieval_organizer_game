@@ -6,6 +6,7 @@ use super::fixtures::plan_ready_meeting;
 #[test]
 fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
     let mut game = Game::new();
+    game.speed = 4; // meetings and trust are daily; turbo keeps them honest
     // who was here when we started: visitors wander in over the years this
     // takes, and the village's win is over its own folk, not passing trade
     let folk = game.villagers.clone();

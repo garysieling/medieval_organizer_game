@@ -59,3 +59,33 @@ fn test_roads_are_quicker() {
     let (on_road, off_road) = (step(&mut game, road), step(&mut game, grass));
     assert!((on_road - WALK_SPEED * ROAD_SPEEDUP).abs() < 1e-4 && (off_road - WALK_SPEED).abs() < 1e-4, "road {} vs grass {}", on_road, off_road);
 }
+
+#[test]
+fn test_a_fast_clock_still_stops_at_a_building() {
+    // at speed 16 a frame's stride is over two tiles: the wall between
+    // here and the far side must still be walked, not leapt
+    let mut game = Game::new();
+    game.speed = 16;
+    let (bx, by, _) = *game.buildings.iter().find(|&&(bx, by, _)| {
+        game.walkable(bx - 1.0, by) && game.walkable(bx - 3.0, by) && game.walkable(bx + 1.0, by)
+    }).expect("a building with open ground either side");
+    put_player(&mut game, bx - 3.0, by);
+    for _ in 0..60 { game.walk(1.0, 0.0); }
+    let (px, _) = game.player_pos();
+    assert!(px.round() < bx, "a fast stride leapt the building at {} (player at {})", bx, px);
+}
+
+#[test]
+fn test_a_fast_clock_still_stops_at_the_river() {
+    let mut game = Game::new();
+    game.speed = 16;
+    // somewhere the river runs one tile wide, open ground either side
+    let river = (0..game.map.height as i32 - 1).flat_map(|y| (0..game.map.width as i32 - 1).map(move |x| (x, y)))
+        .find(|&(x, y)| matches!(game.map.get(x, y), Some(Tile::River))
+            && game.walkable(x as f32 - 1.0, y as f32) && game.walkable(x as f32 - 3.0, y as f32));
+    let Some((rx, ry)) = river else { return };
+    put_player(&mut game, rx as f32 - 3.0, ry as f32);
+    for _ in 0..60 { game.walk(1.0, 0.0); }
+    let (px, _) = game.player_pos();
+    assert!(px.round() < rx as f32, "a fast stride crossed the river at {} (player at {})", rx, px);
+}

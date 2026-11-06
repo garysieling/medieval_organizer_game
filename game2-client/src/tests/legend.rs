@@ -8,6 +8,7 @@ fn test_the_panel_explains_the_map_marks() {
     assert!(LEGEND_Y >= 450 + 170 && LEGEND_Y + GLYPH_H <= H as i32);
 
     let mut game = Game::new_seeded(MAP_SEED);
+    game.speed = 4;
     let view = View::new(Art::load_fs("../assets", 0));
     while game.tick < 30 { game.update(); }
     let buf = view.render(&game.ui_model(), (-1, -1));

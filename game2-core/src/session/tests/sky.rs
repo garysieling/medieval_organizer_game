@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::session::events::EventId;
 
 #[test]
 fn test_a_comet_rides_and_everyone_reads_it() {
@@ -18,4 +19,21 @@ fn test_a_comet_rides_and_everyone_reads_it() {
     // and it burns out
     g.sky_tick(160);
     assert!(g.sky.is_none(), "it burns for three nights, no more");
+}
+
+#[test]
+fn test_every_booked_day_has_its_word() {
+    let mut g = Game::new();
+    // a sky event five days out - the group omen lands where no
+    // event-specific sign exists
+    g.next_rare = vec![(EventId::BloodMoon, g.tick + 5)];
+    g.events_tick(g.tick);
+    assert!(g.log.iter().any(|l| l.contains("the sky's got a strange look")),
+        "the booking went silent: {:?}", g.log.last());
+    // and the wolf still gets her own sign
+    g.next_rare = vec![(EventId::WolfAtFold, g.tick + 5)];
+    g.log.clear();
+    g.events_tick(g.tick);
+    assert!(g.log.iter().any(|l| l.contains("wolf tracks")),
+        "the wolf lost her sign: {:?}", g.log.last());
 }

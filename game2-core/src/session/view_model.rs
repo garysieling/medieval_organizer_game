@@ -925,6 +925,24 @@ impl Game {
             if world.get_component::<country::Outlander>(v).is_some() {
                 parts.push("of the country".into());
             }
+            // their cause-craft, if they've a real one - the skill that
+            // leads, named by what it does
+            if let Some(o) = world.get_component::<crate::game::org_skills::Organizing>(v) {
+                use crate::game::org_skills::OrgSkill::*;
+                let (best_s, best_v) = [(OneOnOne, o.one_on_one), (HouseMeeting, o.house_meeting),
+                    (Turnout, o.turnout), (Agitation, o.agitation), (Training, o.training)]
+                    .into_iter().max_by(|a, b| a.1.partial_cmp(&b.1).unwrap()).unwrap();
+                if best_v >= 0.5 {
+                    let word = match best_s {
+                        OneOnOne => "reads a person",
+                        HouseMeeting => "works a room",
+                        Turnout => "brings them out",
+                        Agitation => "stirs a room",
+                        Training => "brings others on",
+                    };
+                    parts.push(word.into());
+                }
+            }
         }
         (!parts.is_empty()).then(|| parts.join(" \u{00b7} "))
     }

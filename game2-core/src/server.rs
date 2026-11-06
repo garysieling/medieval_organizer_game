@@ -23,6 +23,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::session::journal::{self, Applied, Input, Journal};
+use crate::session::roster;
 use crate::session::{driver, ClientKind, ClientMsg, Command, Game, ServerMsg};
 
 /// Frames between broadcasts to a client (2 = ~10 scenes a second at 20Hz)
@@ -557,7 +558,11 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                 s.claims.insert(tok.clone(), seat);
                 let you = s.game.seats[seat].player;
                 // their own seat's frame, never seat 0's; agents mostly read Obs
-                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)) };
+                // the roster goes out with the Welcome: a fresh seat picks
+                // its character off it, a returning claim already has one
+                let roster: Vec<roster::RosterCard> =
+                    roster::roster(s.game.seed).iter().map(roster::RosterCard::from).collect();
+                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)), roster };
                 let conn = Arc::new(Mutex::new(Conn::new(seat, kind)));
                 {
                     // the Welcome, then (for a player, who draws scenes) the
@@ -630,6 +635,9 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                             _ => unreachable!("an agent command answers"),
                         };
                         send_msg(&mut conn.lock().unwrap(), &ServerMsg::CmdDone { ok: note == "ok", note });
+                    }
+                    ClientMsg::Pick(idx) => {
+                        s.apply(Input::PickCharacter { seat, idx });
                     }
                     ClientMsg::Ping(n) => { send_msg(&mut conn.lock().unwrap(), &ServerMsg::Pong(n)); }
                     ClientMsg::Hello { .. } => {}

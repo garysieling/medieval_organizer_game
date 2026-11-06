@@ -45,6 +45,8 @@ struct Remote {
     token_seen: Mutex<Option<String>>,
     /// The server turned us away (a wrong join secret, a full village)
     denied: Mutex<Option<String>>,
+    /// The roster the Welcome dealt, for the character picker
+    roster: Mutex<Option<Vec<session::roster::RosterCard>>>,
 }
 
 fn connect_remote(url: &str) -> Arc<Remote> {
@@ -54,7 +56,8 @@ fn connect_remote(url: &str) -> Arc<Remote> {
             secret: std::env::var("GAME2_JOIN_SECRET").ok().filter(|s| !s.is_empty()) }).unwrap().into()
     )).ok();
     let remote = Arc::new(Remote {
-        ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None), denied: Mutex::new(None),
+        ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None),
+        denied: Mutex::new(None), roster: Mutex::new(None),
     });
     {
         let remote = remote.clone();
@@ -68,7 +71,10 @@ fn connect_remote(url: &str) -> Arc<Remote> {
                 match msg {
                     Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
                         Ok(msg) => {
-                            if let ServerMsg::Welcome { token, .. } = &msg { *remote.token_seen.lock().unwrap() = Some(token.clone()); }
+                            if let ServerMsg::Welcome { token, roster, .. } = &msg {
+                                *remote.token_seen.lock().unwrap() = Some(token.clone());
+                                *remote.roster.lock().unwrap() = Some(roster.clone());
+                            }
                             // a Denied before the Welcome is a refusal (we're not
                             // in); after it, it's a warning ("slow down") and play goes on
                             if let ServerMsg::Welcome { .. } = &msg { welcomed = true; }
@@ -172,12 +178,17 @@ fn main() {
     let mut window = Window::new("The Wanderer - Medieval Village", W, H, WindowOptions::default())
         .expect("window failed");
     let mut started = false;
+    // the character picker's cards and cursor, between the title and play
+    let mut picker: Option<(Vec<session::roster::RosterCard>, usize)> = None;
     let mut mouse_was_down = false;
     let frame_len = std::time::Duration::from_millis(1000 / FPS as u64);
 
     // remote mode: the server owns the world; this window sends Commands and
     // renders the Scenes it gets back. Same View, same render path.
     let remote = connect.map(|url| connect_remote(&url));
+    // a fresh remote seat picks once the Welcome's roster lands; a
+    // returning claim already has its character
+    let mut want_remote_pick = remote.is_some() && claim_token().is_none();
     let mut game = if remote.is_none() { Some(Game::new_seeded(seed)) } else { None };
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
@@ -189,7 +200,7 @@ fn main() {
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
-    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus) {
+    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none()) {
         let frame_at = std::time::Instant::now();
         // a refusal (a wrong join secret, a full village) ends the session
         // with the server's reason, not a silent title card
@@ -199,9 +210,59 @@ fn main() {
                 std::process::exit(2);
             }
         }
+        // the character picker stands between the title and the game
+        if picker.as_ref().is_some_and(|(c, _)| c.is_empty()) { picker = None; }
+        if let Some((cards, sel)) = picker.as_mut() {
+            present(&mut window, &client::render_picker(&view.art, cards, *sel));
+            if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)
+                || window.is_key_pressed(Key::W, minifb::KeyRepeat::No) {
+                *sel = (*sel + cards.len() - 1) % cards.len();
+            }
+            if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)
+                || window.is_key_pressed(Key::S, minifb::KeyRepeat::No) {
+                *sel = (*sel + 1) % cards.len();
+            }
+            if window.is_key_pressed(Key::Enter, minifb::KeyRepeat::No) {
+                let idx = *sel;
+                match &remote {
+                    Some(r) => {
+                        let msg = serde_json::to_string(&ClientMsg::Pick(idx)).unwrap();
+                        let _ = r.ws.lock().unwrap().send(tungstenite::Message::Text(msg.into()));
+                    }
+                    None => { if let Some(g) = game.as_mut() { g.pick_character_at(0, idx); } }
+                }
+                picker = None;
+                started = true;
+            }
+            if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) {
+                picker = None;
+                started = true;
+            }
+            continue;
+        }
+        // a fresh remote seat picks once the Welcome's roster lands -
+        // after the title's Enter, whenever that arrives
+        if started && want_remote_pick {
+            if let Some(r) = &remote {
+                // an older server deals no roster: no picker, the
+                // default wanderer stands
+                if let Some(cards) = r.roster.lock().unwrap().clone().filter(|c| !c.is_empty()) {
+                    picker = Some((cards, 0));
+                    want_remote_pick = false;
+                    continue;
+                }
+            } else { want_remote_pick = false; }
+        }
         if !started {
             present(&mut window, &client::render_title());
-            if window.is_key_down(Key::Enter) { started = true; }
+            if window.is_key_down(Key::Enter) {
+                if remote.is_some() { started = true; }
+                else {
+                    let cards: Vec<session::roster::RosterCard> = session::roster::roster(seed)
+                        .iter().map(session::roster::RosterCard::from).collect();
+                    picker = Some((cards, 0));
+                }
+            }
             continue;
         }
 

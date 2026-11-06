@@ -40,6 +40,10 @@ pub struct PersonV {
     /// creatures and fixtures nobody would look for
     #[serde(default)]
     pub find: String,
+    /// The player's picked figure look (villager pack index); unused for
+    /// everyone else, whose look comes from their roster slot
+    #[serde(default)]
+    pub look: u8,
 }
 
 /// Fold a name or epithet to what the find box compares: lowercase words,

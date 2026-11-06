@@ -11,6 +11,7 @@ pub mod dialogue;
 pub mod routine;
 pub mod country;
 pub mod quests;
+pub mod roster;
 
 pub mod journal;
 pub mod kpi;
@@ -757,6 +758,9 @@ pub struct Game {
     /// The map's own generator: settled at new_seeded, then handing out
     /// sprites (e.g. which cottage each new build gets)
     pub rng: Rng,
+    /// The seed this world was dealt: the character roster derives from
+    /// it, so a server and its clients deal the same hand
+    pub seed: u64,
     pub built_count: usize,
     pub works: Vec<Works>, // houses still being built
     pub toasts: Toasts,  // (msg, shown until tick, where it happened)

@@ -421,3 +421,25 @@ fn a_selected_child_inspects_as_a_kid_over_the_wire() {
     assert!(insp.kid, "a known child's inspector should say kid:true");
     server.stop();
 }
+
+#[test]
+fn a_fresh_seat_picks_its_character_off_the_roster() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    send(&mut human, &ClientMsg::Hello { token: None, kind: ClientKind::Human, name: None, secret: None });
+    let (me, roster) = until("a welcome with a roster", &mut human, 10, |m, _| match m {
+        ServerMsg::Welcome { you, roster, .. } => Some((*you, roster.clone())),
+        _ => None,
+    });
+    assert!(roster.len() >= 2, "the Welcome deals the picker its cards");
+    let pick = 1.min(roster.len() - 1);
+    send(&mut human, &ClientMsg::Pick(pick));
+    // the scenes that follow show the picked name folded into the player's find
+    let want = roster[pick].name.to_lowercase();
+    until("the picked name in the scenes", &mut human, 10, |m, _| match m {
+        ServerMsg::Scene(s) => s.people.iter().find(|p| p.e == me)
+            .filter(|p| p.find.contains(&want)).map(|_| ()),
+        _ => None,
+    });
+    server.stop();
+}

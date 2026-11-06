@@ -548,20 +548,35 @@ impl View {
                 Who::P(pv) if let PKind::Player = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                     let (facing, walking) = m.player_pose;
+                    // the picked look: a villager figure, small for a
+                    // childhood pick - the dedicated player sprite only
+                    // when the pack has no figures at all
+                    let look = figure_look(pv.kid, pv.look as usize, art.villager_sprites.len());
+                    let vws = art.villager_walks.get(look).and_then(|o| o.as_ref());
+                    let vfig = art.villager_sprites.get(look);
+                    let scale = if pv.kid { 0.6 * zoom } else { zoom };
                     let mut anchor = None;
-                    if let Some(ws) = &art.player_walk {
-                        // gold ring under player, then the 1x frame on its feet
-                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                    // the gold ring marks you whatever you wear
+                    buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                    if let Some(ws) = vws {
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                        let head = ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom);
-                        anchor = Some(head - SPRITE_HEAD);
+                        anchor = Some(ws.draw(&mut buf, facing, walking,
+                            self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD);
+                    } else if let Some(fig) = vfig {
+                        if pv.kid { draw_kid(&mut buf, fig, sx, sy, zoom); }
+                        else { draw_character(&mut buf, fig, sx, sy, zoom); }
+                        anchor = Some(sprite_label_anchor(fig, sy, zoom));
+                    } else if let Some(ws) = &art.player_walk {
+                        let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
+                        anchor = Some(ws.draw(&mut buf, facing, walking,
+                            self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom) - SPRITE_HEAD);
                     } else if let Some(ps) = &art.player_s {
                         draw_character(&mut buf, ps, sx, sy, zoom);
-                        buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
+                        anchor = Some(sprite_label_anchor(ps, sy, zoom));
                     } else {
                         draw_rect(&mut buf, sx - 4, sy - 8, 8, 8, 255, 255, 255);
                     }
-                    let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
+                    let anchor = anchor.unwrap_or_else(|| label_anchor(sy, zoom));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
                     player_marker = Some((sx, ly - 2, zoom, m.frame));
                     labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
@@ -1030,4 +1045,62 @@ pub fn draw_search_box(buf: &mut Buffer, query: &str, hits: usize, focused: bool
         let cx = SRCH_X + 40 + query.len() as i32 * GLYPH_W + 1;
         buf.rect(cx, SRCH_Y + 6, 1, 10, 220, 220, 235);
     }
+}
+
+/// The character picker: the seed's roster as cards - a figure, a name,
+/// who they are - two to a row, the selection marked. Up/down (or W/S)
+/// chooses, Enter takes them, Escape keeps the default wanderer.
+pub fn render_picker(art: &Art, cards: &[roster::RosterCard], sel: usize) -> Buffer {
+    let mut buf = Buffer::new(W, H);
+    buf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+    draw_centered(&mut buf, 70, "THE WANDERER", 4, (255, 220, 130));
+    draw_centered(&mut buf, 140, "choose who you are", 2, (200, 200, 200));
+    let cols = 2usize;
+    let per_col = (cards.len() + cols - 1) / cols;
+    let (cw, ch) = (580i32, 118i32);
+    let (x0, y0) = (130i32, 180i32);
+    for (i, c) in cards.iter().enumerate() {
+        let (cx, cy) = (x0 + (i / per_col) as i32 * cw, y0 + (i % per_col) as i32 * ch);
+        let on = i == sel;
+        // card plate
+        let (pr, pg, pb): (u8, u8, u8) = if on { (44, 44, 66) } else { (30, 30, 46) };
+        buf.rect(cx, cy, cw - 20, ch - 10, pr, pg, pb);
+        if on {
+            buf.rect(cx, cy, cw - 20, 1, 255, 220, 130);
+            buf.rect(cx, cy + ch - 11, cw - 20, 1, 255, 220, 130);
+            buf.rect(cx, cy, 1, ch - 10, 255, 220, 130);
+            buf.rect(cx + cw - 21, cy, 1, ch - 10, 255, 220, 130);
+        }
+        // the figure: the pack's look, small for a child
+        if !art.villager_sprites.is_empty() {
+            let look = figure_look(c.kid, c.look, art.villager_sprites.len());
+            let s = &art.villager_sprites[look];
+            let scale = if c.kid { 1.1 } else { 1.5 };
+            let fw = (s.width as f32 * scale) as i32;
+            let fh = (s.height as f32 * scale) as i32;
+            draw_zoomed(&mut buf, s, cx + 24 - fw / 2, cy + 60 - fh, scale);
+        }
+        let tx = cx + 96;
+        let (nr, ng, nb): (u8, u8, u8) = if on { (255, 220, 130) } else { (225, 225, 235) };
+        draw_text_scaled(&mut buf, tx, cy + 12, &c.name, 2, nr, ng, nb);
+        draw_text(&mut buf, tx, cy + 38, &c.work, 140, 140, 160);
+        // the backstory wraps to the card's width
+        let mut line = String::new();
+        let mut ly = cy + 60;
+        for word in c.backstory.split(' ') {
+            if line.len() + word.len() + 1 > 62 {
+                draw_text(&mut buf, tx, ly, &line, 190, 190, 205);
+                ly += 14;
+                line.clear();
+                if ly > cy + ch - 22 { break; }
+            }
+            if !line.is_empty() { line.push(' '); }
+            line.push_str(word);
+        }
+        if ly <= cy + ch - 22 { draw_text(&mut buf, tx, ly, &line, 190, 190, 205); }
+        if on { draw_text(&mut buf, cx + 8, cy + 8, ">", 255, 220, 130); }
+    }
+    draw_centered(&mut buf, y0 + ((cards.len() + 1) / 2) as i32 * ch + 30,
+        "up/down choose    ENTER take them    ESC keep the wanderer", 1, (150, 150, 170));
+    buf
 }

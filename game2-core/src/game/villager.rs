@@ -293,14 +293,15 @@ impl System for NourishmentSystem {
 pub fn nourishment_step(world: &mut World, sick: &[Entity]) {
     use crate::sim::illness::Health;
     for e in world.query::<Hunger>() {
-        // the dead are past eating, and the jail feeds its prisoners
-        // though their hunger stays where it was
-        if is_dead(world, e)
-            || world.get_component::<crate::game::dungeon::Imprisoned>(e).is_some() { continue; }
+        // the dead are past eating
+        if is_dead(world, e) { continue; }
         let hunger = world.get_component::<Hunger>(e).unwrap().value;
+        // the jail feeds its prisoners though their hunger stays put
+        let held = world.get_component::<crate::game::dungeon::Imprisoned>(e).is_some();
         let Some(h) = world.get_component_mut::<Health>(e) else { continue };
         if h.condition <= 0.0 { continue; }
         if hunger <= 0.0 {
+            if held { continue; }
             h.condition = (h.condition - STARVATION_DAMAGE).max(0.0);
         } else if hunger >= WELL_FED && !sick.contains(&e) && h.condition < NOURISHED_HEALTH {
             h.condition = (h.condition + NOURISHED_HEALING).min(NOURISHED_HEALTH);

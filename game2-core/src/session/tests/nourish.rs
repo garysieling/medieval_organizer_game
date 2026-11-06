@@ -47,3 +47,15 @@ fn test_the_dead_and_the_held_dont_starve_twice() {
     let h2 = g.world.get_component::<Health>(v).unwrap().condition;
     assert!((h2 - h0).abs() < 1e-6, "the held wasted on: {} -> {}", h0, h2);
 }
+
+#[test]
+fn test_a_well_fed_prisoner_still_mends() {
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    g.world.get_component_mut::<Hunger>(v).unwrap().value = 100.0;
+    g.world.get_component_mut::<Health>(v).unwrap().condition = 0.5;
+    g.world.add_component(v, crate::game::dungeon::Imprisoned { since: 0, charge: "sedition".into() });
+    for _ in 0..30 { g.nourish_tick(); }
+    let h = g.world.get_component::<Health>(v).unwrap().condition;
+    assert!(h > 0.5, "a fed prisoner didn't mend: {}", h);
+}

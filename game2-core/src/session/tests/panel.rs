@@ -33,3 +33,30 @@ fn test_the_panel_shows_the_meeting_plans_yeses() {
     assert!(mp.roles.iter().any(|r| r.contains("house:")), "{:?}", mp.roles);
     assert!(mp.roles.iter().any(|r| r == &format!("snacks: {}", vill_name(1))), "{:?}", mp.roles);
 }
+
+#[test]
+fn test_the_panel_names_the_org_s_head() {
+    let g = Game::new();
+    let m = g.ui_model_at(0);
+    let org = g.world.get_component::<Organization>(g.seats[0].org).unwrap();
+    // seat 0's own org is led by the seat itself - the panel says "you"
+    assert_eq!(org.leader, g.seats[0].player);
+    assert_eq!(m.panel.leader.as_deref(), Some("you"),
+        "the org's head isn't named on the panel");
+}
+
+#[test]
+fn test_the_panel_carries_the_powers_words() {
+    let mut g = Game::new();
+    // knights posted after a crackdown, and a ban on the crowd
+    g.world.add_component(g.org, crate::game::reactions::GuardsPosted { knights: 2, since: 10 });
+    g.world.add_component(g.org, crate::game::reactions::AssemblyBan { cap: 3 });
+    let m = g.ui_model_at(0);
+    assert!(m.panel.org_status.iter().any(|s| s.contains("knights")),
+        "the posted knights never surfaced: {:?}", m.panel.org_status);
+    assert!(m.panel.org_status.iter().any(|s| s.contains("ban")),
+        "the ban never surfaced: {:?}", m.panel.org_status);
+    // and all three powers would still fit the one line the panel gives them
+    let joined = m.panel.org_status.join(" · ");
+    assert!(joined.len() <= 55, "the line outruns the sidebar: {:?}", joined);
+}

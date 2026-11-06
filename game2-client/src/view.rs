@@ -288,6 +288,14 @@ impl View {
             buf.rect(sx - k(4.0), sy - k(4.0), k(8.0), k(5.0), 8, 8, 10);
             buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
         }
+        // the martyr's plot: a grey cairn where they hanged him
+        if let Some((gx, gy)) = m.grave {
+            let (sx, sy) = iso_to_screen_cam(gx, gy, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(5.0), sy - k(4.0), k(10.0), k(4.0), 70, 70, 75);
+            buf.rect(sx - k(3.0), sy - k(7.0), k(6.0), k(4.0), 96, 96, 102);
+            buf.rect(sx - k(1.0), sy - k(9.0), k(2.0), k(4.0), 130, 130, 135);
+        }
         // the painted halls: a bright trim above the door
         for &(tx, ty) in &m.painted {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
@@ -652,10 +660,15 @@ impl View {
         // status: members, season, tick
         let p = &m.panel;
         let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.leader.as_deref(), p.members.len(), p.gold, guild), 200, 200, 200);
         // the odd job under way, if the Wanderer's carrying one
         if let Some(q) = &m.panel.quest {
             draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
+        }
+        // the powers' standing words on the org - one line, so a
+        // stack of them can't run under the buttons
+        if !m.panel.org_status.is_empty() {
+            draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
         }
 
         // buttons
@@ -768,6 +781,8 @@ impl View {
         // newest first, word-wrapped to the box instead of cut off mid-word
         const LOG_CHARS: usize = 52;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 8;
+        // the last row marks what rolled off the top, when it did
+        let log_rows = if m.log_dropped > 0 { LOG_ROWS - 1 } else { LOG_ROWS };
         let mut row = 0;
         'log: for entry in &m.log {
             let (r, g, b) = log_colour(entry);
@@ -775,7 +790,7 @@ impl View {
             let (day, msg) = log_parts(entry);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
             for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
-                if row == LOG_ROWS { break 'log; }
+                if row == log_rows { break 'log; }
                 let y = 530 + row as i32 * 12;
                 match &day {
                     Some(d) if n == 0 && line.starts_with(d.as_str()) => {
@@ -786,6 +801,11 @@ impl View {
                 }
                 row += 1;
             }
+        }
+        // the reserved row holds the count of what's already gone
+        if m.log_dropped > 0 {
+            draw_text(&mut buf, UI_X as i32 + 14, 530 + row as i32 * 12,
+                &format!("· · · {} earlier lines", m.log_dropped), 100, 100, 125);
         }
 
         // the TALK panel under the find box: conversations, apart from the log
@@ -844,6 +864,23 @@ impl View {
             let (x, y) = tile_to_minimap(tx, ty, k);
             buf.rect(x as i32 - 1, y as i32 - 1, 2, 2, r, g, b);
         };
+        // the country's sites: a dot in the kind's colour, the name
+        // under it - the keeper's, if the keep's bed holds one
+        for sv in &m.sites {
+            let (x, y) = tile_to_minimap(sv.x, sv.y, k);
+            let (r, g, b) = match sv.kind {
+                country::SiteKind::Castle => (200, 170, 90),
+                country::SiteKind::Town => (170, 120, 70),
+                country::SiteKind::Farm => (110, 160, 80),
+                country::SiteKind::Monastery => (220, 220, 210),
+            };
+            buf.rect(x as i32 - 2, y as i32 - 2, 4, 4, r, g, b);
+            let label = match &sv.keeper {
+                Some(k) => format!("{} ({})", sv.name, k),
+                None => sv.name.clone(),
+            };
+            draw_text(&mut buf, x as i32 + 4, y as i32 - 3, &label, r, g, b);
+        }
         // graves go down last: a crowd at the graveside mustn't hide one
         let (living, graves): (Vec<&PersonV>, Vec<&PersonV>) = m.people.iter()
             .partition(|pv| !(matches!(pv.kind, PKind::Villager(_)) && pv.dead));

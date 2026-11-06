@@ -85,3 +85,20 @@ fn test_nothing_in_the_hedge_says_so() {
     assert!(game.bubbles.iter().any(|(e, t, _, _, _)| *e == game.herbologist.unwrap() && t.contains("Nothing")),
         "she says when she can't help");
 }
+
+#[test]
+fn test_the_huts_card_keeps_her_tally() {
+    let mut g = Game::new();
+    g.tick = 20;
+    g.cured = 4;
+    let who = g.villagers[3];
+    g.remedy_visits.push((who, 18));
+    let hut_i = g.building_entities.iter().position(|&b| b == g.herb_hut.unwrap()).unwrap();
+    g.seats[0].selected_building = Some(hut_i);
+    g.seats[0].picked = false;
+    let ins = g.ui_model_at(0).inspector.expect("no card for the hut");
+    assert!(ins.lines.iter().any(|l| l.text.contains("her tally: 4 cures")
+        && l.text.contains("lately:")),
+        "the card doesn't keep her tally: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

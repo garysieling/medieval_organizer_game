@@ -36,6 +36,19 @@ impl Recipe {
     }
 }
 
+/// Other goods a recipe slot will take when the named one isn't to
+/// hand - several paths to the same good. A miller grinds rye when the
+/// wheat's gone; a printer sets vellum when the paper's out.
+pub fn fillers(good: &str) -> &'static [&'static str] {
+    match good {
+        "wheat" => &["rye", "barley"],
+        "paper" => &["vellum", "papyrus"],
+        "wool" => &["flax"],
+        "wine" => &["cider", "mead", "ale", "beer"],
+        _ => &[],
+    }
+}
+
 /// Printmaking recipes (detailed sim per Gary's interest)
 pub fn printmaking_recipes() -> Vec<Recipe> {
     vec![

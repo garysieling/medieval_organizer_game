@@ -70,6 +70,9 @@ pub enum Problem {
     SourGut,
     /// The lord took his fifth of what the dead one left
     DeathDuty,
+    /// Someone they loved is gone - bereavement, not the trauma of
+    /// watching a hanging (that's Grief)
+    Bereaved,
     /// The wood's thin this side of the hill - gathers outpace regrowth
     ThinWood,
     /// The worked pit drowned - no stone to be had
@@ -178,6 +181,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::Broke) => "poverty",
         Reveal::Problem(Problem::Smelly) => "honest work's stink",
         Reveal::Problem(Problem::Loss) => "the wolves",
+        Reveal::Problem(Problem::Bereaved) => "the loss",
         Reveal::Problem(Problem::Blamed) => "the bad bread",
         Reveal::Problem(Problem::SourGut) => "the sour gut",
         Reveal::Problem(Problem::DeathDuty) => "the death duty",
@@ -287,6 +291,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::Broke => "is nearly broke".into(),
         Problem::Smelly => "smells of honest work".into(),
         Problem::Loss => "lost stock to wolves".into(),
+        Problem::Bereaved => "lost someone close".into(),
         Problem::Blamed => "is blamed for the sickness".into(),
         Problem::SourGut => "ate spoiled stock".into(),
         Problem::DeathDuty => "paid the lord's fifth on the dead".into(),
@@ -331,6 +336,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Broke) => (format!("{} is nearly broke", name), "Two coins left. Two.".into()),
         Reveal::Problem(Problem::Smelly) => (format!("{} stinks of honest work", name), "Aye, honest work hangs on - it'll wash off.".into()),
         Reveal::Problem(Problem::Loss) => (format!("{} lost stock to wolves", name), "The wolf came in the night. I found what's left of her.".into()),
+        Reveal::Problem(Problem::Bereaved) => (format!("{} is grieving", name), "They were taken too soon. I keep going over it.".into()),
         Reveal::Problem(Problem::Blamed) => (format!("{} is blamed for the sickness", name), "They say my bread did it. My bread.".into()),
         Reveal::Problem(Problem::SourGut) => (format!("{} ate spoiled stock", name), "It was all there was. Still smells.".into()),
         Reveal::Problem(Problem::DeathDuty) => (format!("{} paid the lord's fifth", name), "A fifth of all he had. For dying.".into()),

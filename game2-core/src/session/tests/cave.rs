@@ -1,4 +1,5 @@
 use crate::session::*;
+use crate::session::routine::{Routine, Spot};
 
 #[test]
 fn test_the_hermit_keeps_to_the_dark() {
@@ -10,4 +11,19 @@ fn test_the_hermit_keeps_to_the_dark() {
     // and the deep patch is there for the picking
     assert!(g.mush_patches.iter().any(|p| p.tile == (35, 33) && p.kind == MushKind::UnderCap),
         "the best mushrooms grow in the under");
+}
+
+#[test]
+fn test_the_dark_keeps_the_hermit_home() {
+    let mut g = Game::new();
+    let h = g.hermit.expect("a recluse keeps the cave");
+    let cave = g.cave_pos.expect("a cave at the map's edge");
+    // the real daily loop, not a plan_day call - the TownRole skip
+    // takes him before it if the loop doesn't name him
+    g.livelihood_tick(8);
+    let r = g.world.get_component::<Routine>(h).expect("no routine");
+    assert!(matches!(r.spot, Spot::Cave), "he's not bound for the cave: {:?}", r.spot);
+    assert_eq!((r.anchor.0.round() as i32, r.anchor.1.round() as i32), cave, "not the cave");
+    assert!(!desires::problems_of(&g.world, h, g.tick).contains(&desires::Problem::TheDark),
+        "the dark never kept him");
 }

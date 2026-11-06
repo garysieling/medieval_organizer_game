@@ -60,6 +60,8 @@ pub enum CtxAct {
     Townhall,
     /// Keep pressing for the prisoner's release
     Petition,
+    /// Mend the meeting hall a storm took - the org's treasury pays
+    MendHall,
     /// Set how often the cause meets: the organizer's recommendation
     Cadence,
     /// Call the house meeting the organizer has earned - a venue promised
@@ -67,10 +69,17 @@ pub enum CtxAct {
     Gather,
     /// Take on the odd job the picked villager is asking for
     TakeJob,
+    /// Press wax with the picked villager: ten gold of aid, sworn
+    Pact,
     /// Stroke the stray cat who's keeping you company
     PetCat,
     /// Call a snowball fight: everyone free comes out to play (winter)
     Snowballs,
+    /// Win the picked villager to the cause - it takes real trust first
+    Recruit,
+    /// Pick a cap off the patch you're standing by - the wood feeds,
+    /// and teaches its lessons the hard way
+    PickCaps,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -155,11 +164,15 @@ impl Game {
         self.world.add_component(player, vocation::craft(roll_vocation(&mut self.rng), 0.2));
         self.world.add_component(player, Satchel::default());
         self.world.add_component(player, Purse { gold });
+        self.world.add_component(player, crate::sim::psychology::AttachmentHistory {
+            anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         self.world.add_component(player, Organizer::default());
         let org = self.world.create_entity();
         self.world.add_component(org, Organization {
             name: "The Free Folk".into(), members: vec![], leader: player,
             influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() });
+        // every cause starts with the muscle to spend - a quiet one fades
+        self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.seats.push(Seat { player, org, ..Seat::default() });
         self.seats.len() - 1
     }
@@ -171,6 +184,7 @@ impl Game {
         self.world.add_component(org, Organization {
             name: "-".into(), members: vec![], leader: villager,
             influence_pool: 0.0, resources: 0.0, charter: "-".into() });
+        self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
         self.seats.len() - 1
     }
@@ -255,7 +269,7 @@ impl Game {
                 if self.errand_for_input(who, input, i) { Ok(()) } else { Err(format!("no {} to be had", input)) }
             }
             AgentCmd::WorkDay => {
-                let (made, up) = livelihood::work_day(&mut self.world, who, self.tick);
+                let (made, up) = self.bench_work(who, self.tick);
                 if made <= 0.0 && up.is_none() { Err("no craft to work".into()) } else { Ok(()) }
             }
             AgentCmd::Eat => {
@@ -307,11 +321,13 @@ impl Game {
         let at = (px.round() as i32, py.round() as i32);
         // a well-worn path is quicker underfoot, whoever's feet wear it
         let worn = self.trails.get(&at).map(|t| t.strength).unwrap_or(0.0);
+        let ailing = self.world.get_component::<villager::Condition>(self.seats[seat].player)
+            .map(|c| self.tick < c.until).unwrap_or(false);
         let spd = WALK_SPEED * self.walk_pace() / trails::movement_cost(1.0, worn, TRAIL_K) * match self.map.get(at.0, at.1) {
             Some(Tile::Road) | Some(Tile::Bridge) => ROAD_SPEEDUP,
             _ if self.map.trees.contains(&at) => WOODS_SLOWDOWN,
             _ => 1.0,
-        };
+        } * if ailing { 0.7 } else { 1.0 };
         // the same pace whichever way they go, diagonals included
         let len = (dx * dx + dy * dy).sqrt();
         // a still stick or noise on the wire: no step, and never a NaN position

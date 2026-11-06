@@ -2773,3 +2773,4 @@ fn test_the_stray_dog_picks_a_heart() {
     assert!(g.log.iter().any(|l| l.contains("has a dog now") || l.contains("drifts on")),
         "the log tells how it ended");
 }
+

@@ -42,7 +42,7 @@ const FARM_NAMES: [&str; 6] = ["Ashford", "Hartley", "Thornby",
     "Greenshaw", "Longacre", "Fordley"];
 const HOLY_NAMES: [&str; 4] = ["Greyfriars", "Frosterley", "Ingleby", "Halewick"];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SiteKind { Town, Castle, Farm, Monastery }
 
 /// A settlement out in the country, and who keeps it
@@ -374,6 +374,27 @@ impl Game {
             }
         }
         self.sites = sites;
+        // the village's fields stand at its edge: the map's made now, so
+        // each goes on open ground - a spot on water or a roof would feed
+        // no one
+        let (vx, vy) = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0));
+        for (fx, fy) in [(vx - 15, vy + 11), (vx + 16, vy - 10), (vx + 6, vy + 17)] {
+            let mut spot = None;
+            'probe: for r in 0..5 {
+                for (dx, dy) in [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r), (r, r), (-r, -r), (r, -r), (-r, r)] {
+                    if self.walkable((fx + dx) as f32, (fy + dy) as f32) {
+                        spot = Some((fx + dx, fy + dy));
+                        break 'probe;
+                    }
+                }
+            }
+            let Some((fx, fy)) = spot else { continue };
+            let f = villager::spawn_crop_field(&mut self.world, fx as f32, fy as f32, 60, 0.5);
+            // the year starts thin in the fields - the ripening shows
+            if let Some(fs) = self.world.get_component_mut::<villager::FoodSource>(f) { fs.servings = 15; }
+            self.crop_fields.push(f);
+        }
     }
 
     /// A Building entity out in the country (its sprite is the map's
@@ -414,6 +435,15 @@ impl Game {
             }
         }
         self.world.add_component(v, Outlander { site: si });
+        // the years they carry: a kid's grow from their growth-clock's
+        // days, an adult's rolled - the country ages like the village
+        let years = self.world.get_component::<KidGrowth>(v)
+            .map(|kg| kg.age_days as f32 / 52.0)
+            .unwrap_or(19.0 + (rng.next() % 42) as f32);
+        self.world.add_component(v, crate::game::lifecycle::Age {
+            years, stage: crate::game::lifecycle::stage_for(years) });
+        self.world.add_component(v, crate::game::lifecycle::Vitality {
+            health: 1.0, max_age: 58.0 + (rng.next() % 35) as f32, cause_of_death: None });
         if let Some(b) = self.world.get_component_mut::<Building>(home) { b.occupants.push(v); }
         let class = desires::class_of(&self.world, v);
         let gold = if voc.is_none() { 0.0 } else { livelihood::seed_gold(class, false, (rng.next() % 1000) as f32 / 1000.0) };
@@ -469,6 +499,9 @@ impl Game {
                 path.push(to);
                 self.travels.retain(|t| t.who != who);
                 self.travels.push(Travel { who, path, goal });
+                if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(_))) {
+                    self.world.add_component(who, villager::OnTheRoad);
+                }
                 true
             }
             None => false,
@@ -683,6 +716,27 @@ impl Game {
             if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) { f.servings += n; }
         }
         if let Some(s) = self.sites.get_mut(castle) { s.away_until = None; }
+    }
+
+    /// The collector at the keep with the lord's cut: a meal from its
+    /// store like the steward's, then the long road home
+    pub(super) fn arrive_remit(&mut self, who: Entity, castle: usize) {
+        if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
+            if let Some(store) = self.sites.get(castle).map(|s| s.store) {
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {
+                    if f.servings > 0 {
+                        f.servings -= 1;
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                    }
+                }
+            }
+        }
+        let home = household::home_of(&self.world, who);
+        let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+        if let (Some(h), Some(d)) = (home, door) {
+            self.send_far(who, d, Goal::HeadHome(h));
+        }
     }
 }
 

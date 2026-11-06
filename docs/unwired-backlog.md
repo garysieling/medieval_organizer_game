@@ -37,7 +37,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 16 | Contract verb from the old text action menu | `game/action_menu.rs` | done #526 |
 | 17 | Guilds forming and policing their trade | `game/guilds.rs` (`guild_should_form`, `form_guild`, `enforce_security`) | done #545 |
 | 18 | Landforms in map generation | `game/landforms.rs` (`select_landform`, `apply_landform`) | done #546 |
-| 19 | Aging and life stages | `game/lifecycle.rs` (`AgingSystem`, `LifeStage`, `spawn_person`) | todo |
+| 19 | Aging and life stages | `game/lifecycle.rs` (`AgingSystem`, `LifeStage`, `spawn_person`) | done #547 |
 | 20 | Grief and mourning | `sim/psychology.rs` (`GriefSystem`, `Mourned`) | todo |
 | 21 | Attachment styles shaping bonds | `sim/psychology.rs` (`AttachmentSystem`, `AttachmentStyle`) | todo |
 | 22 | Relationship drift from interactions | `game/relationships.rs` (`RelationshipSystem`, `infer_kind`) | todo |

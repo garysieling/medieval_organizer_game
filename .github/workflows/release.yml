@@ -3,8 +3,9 @@
 # Push a tag like `v0.2.0` (or run it by hand from the Actions tab with a tag
 # name) and this builds the game for Windows, Linux and macOS, packs each
 # build with the art it loads at runtime, and publishes a GitHub release with
-# notes: the merged PRs since the previous tag (GitHub's generated notes) under
-# a header listing the downloads and the commits.
+# notes: the merged PRs since the previous tag (GitHub's generated notes) and
+# the commits. The same notes ship inside every package as RELEASE-NOTES.md;
+# the release page adds a table of the downloads above them.
 name: Release
 
 on:
@@ -57,6 +58,46 @@ jobs:
           # create it here.
           sha=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || echo "$GITHUB_SHA")
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Write the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          # The previous release tag: the newest v* tag that isn't this one
+          # and is an ancestor of the release commit (none on the first release).
+          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$HEAD_SHA" | grep -vx "$TAG" | head -n1 || true)
+          range="$HEAD_SHA"; [ -n "$prev" ] && range="$prev..$HEAD_SHA"
+          # GitHub's generated notes (the merged PRs), asked for up front so
+          # the packages can carry them too. The tag needn't exist yet.
+          api=(-f tag_name="$TAG" -f target_commitish="$HEAD_SHA")
+          [ -n "$prev" ] && api+=(-f previous_tag_name="$prev")
+          generated=$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${api[@]}" --jq .body || true)
+          {
+            if [ -n "$generated" ]; then
+              echo "$generated"
+              echo
+            fi
+            echo "## Commits"
+            echo
+            if [ -n "$prev" ]; then
+              echo "Since \`$prev\`:"
+              echo
+              git log --no-merges --format='- %s (%h)' "$range"
+            else
+              echo "Initial release (last 50 commits):"
+              echo
+              git log --no-merges --format='- %s (%h)' -n 50 "$range"
+            fi
+            echo
+          } > changes.md
+          cat changes.md
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: release-notes
+          path: changes.md
+          if-no-files-found: error
 
   build:
     name: Build ${{ matrix.name }}
@@ -116,6 +157,11 @@ jobs:
           if [ -f game2-client/Cargo.toml ]; then packages+=(-p game2-client); fi
           cargo build --release "${packages[@]}" --target ${{ matrix.target }} "${args[@]}"
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-notes
+          path: notes
+
       - name: Package
         id: pkg
         run: |
@@ -127,6 +173,7 @@ jobs:
           # game_ui loads its sprites from ./assets relative to the working dir
           cp -R assets "dist/$pkg/assets"
           cp README.md PLAY.md "dist/$pkg/"
+          { echo "# game2 ${TAG}"; echo; cat notes/changes.md; } > "dist/$pkg/RELEASE-NOTES.md"
           cat > "dist/$pkg/HOW-TO-RUN.txt" <<EOF
           game2 ${TAG} (${{ matrix.name }})
 
@@ -134,6 +181,8 @@ jobs:
             game_ui${{ matrix.ext }}       the windowed game (see PLAY.md for controls)
             game${{ matrix.ext }}          the text-mode game
             game_server${{ matrix.ext }}   the multiplayer village server (--port 8787)
+
+          What's new in this release: RELEASE-NOTES.md
           EOF
           cd dist
           if [ "${{ matrix.archive }}" = zip ]; then
@@ -163,21 +212,20 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ needs.resolve.outputs.sha }}
-          fetch-depth: 0   # the whole history, for the previous tag and the log
 
       - uses: actions/download-artifact@v5
         with:
+          pattern: "*-*64"   # the packages, not the release-notes artifact
           path: dist
           merge-multiple: true
 
-      - name: Write release notes header
-        env:
-          HEAD_SHA: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-notes
+          path: notes
+
+      - name: Write the release page notes
         run: |
-          # The previous release tag: the newest v* tag that isn't this one
-          # and is an ancestor of the release commit (none on the first release).
-          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$HEAD_SHA" | grep -vx "$TAG" | head -n1 || true)
-          range="$HEAD_SHA"; [ -n "$prev" ] && range="$prev..$HEAD_SHA"
           {
             echo "## Downloads"
             echo
@@ -190,20 +238,9 @@ jobs:
               echo "| $plat | \`$n\` |"
             done
             echo
-            echo "Unpack and run \`game_ui\` from the unpacked folder (it loads \`./assets\`). Controls are in \`PLAY.md\`. Each package has a \`.sha256\` checksum."
+            echo "Unpack and run \`game_ui\` from the unpacked folder (it loads \`./assets\`). Controls are in \`PLAY.md\`, these notes in \`RELEASE-NOTES.md\`. Each package has a \`.sha256\` checksum."
             echo
-            echo "## Commits"
-            echo
-            if [ -n "$prev" ]; then
-              echo "Since \`$prev\`:"
-              echo
-              git log --no-merges --format='- %s (%h)' "$range"
-            else
-              echo "Initial release (last 50 commits):"
-              echo
-              git log --no-merges --format='- %s (%h)' -n 50 "$range"
-            fi
-            echo
+            cat notes/changes.md
           } > notes.md
           cat notes.md
 
@@ -222,7 +259,7 @@ jobs:
             # a re-run: refresh the packages, keep the notes as edited
             gh release upload "$TAG" dist/* --clobber
           else
-            # --generate-notes appends GitHub's merged-PR list after notes.md
+            # notes.md already holds GitHub's generated (merged-PR) notes
             gh release create "$TAG" dist/* \
               --title "game2 $TAG" \
               --notes-file notes.md \

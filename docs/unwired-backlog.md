@@ -24,7 +24,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 3 | Job production chain: wheat -> flour -> bread, visible work | `game/jobs.rs` (`JobSystem`, `assign_job`, `work_tick`) | done #531 |
 | 4 | Village production chains | `game/economy.rs` (`ProductionSystem`, `ProductionChainSystem`, `produce`) | done #532 |
 | 5 | Market prices from supply and demand | `sim/economics.rs` (`spawn_market`, `update_price`, `add_supply`) | done #533 |
-| 6 | Recipes: several paths to the same good | `game/recipes.rs` (`can_make`, `printmaking_recipes`) | todo |
+| 6 | Recipes: several paths to the same good | `game/recipes.rs` (`can_make`, `printmaking_recipes`) | done #534 |
 | 7 | Printmaking tech tree (feathers -> lithography) | `game/tech_tree.rs` (`research`, `next_researchable`) | todo |
 | 8 | Music layers that evolve with the village's mood | `game/music.rs` (`infer_mood`, `evolve`, `describe`) | todo |
 | 9 | Faith, congregations and services | `sim/religion.rs` (`Faith`, `perform_service`, `DevotionSystem`, `GatherSystem`) | todo |

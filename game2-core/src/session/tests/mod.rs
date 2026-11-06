@@ -69,6 +69,7 @@ mod perfume;
 mod power;
 mod production;
 mod progression;
+mod recipes;
 mod quests;
 mod reckoning;
 mod river;

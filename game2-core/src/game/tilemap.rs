@@ -104,6 +104,9 @@ pub struct TileMap {
     pub trees: Vec<(i32, i32)>,
     /// The town wall, piece by piece
     pub walls: Vec<((i32, i32), WallPiece)>,
+    /// Wall tiles that stand grand - the castles' curtains, not the
+    /// village's: the client draws them taller and meaner
+    pub grand_walls: Vec<(i32, i32)>,
     /// The remote castle sites and town clusters used by country generation.
     pub castles: Vec<(i32, i32, i32)>,
     /// Keep footprints at the center of each remote fortification.
@@ -130,7 +133,7 @@ impl Default for TileMap {
     /// `ServerMsg::Map` fills it in (see `session::net::SceneCache`)
     fn default() -> Self {
         TileMap { width: 0, height: 0, tiles: vec![], buildings: vec![], occupied: vec![], trees: vec![],
-            walls: vec![], castles: vec![], castle_keeps: vec![], castle_approaches: vec![], towns: vec![],
+            walls: vec![], grand_walls: vec![], castles: vec![], castle_keeps: vec![], castle_approaches: vec![], towns: vec![],
             settlement_houses: vec![], gates: vec![], hub: (0, 0), rev: 0 }
     }
 }
@@ -145,7 +148,7 @@ impl TileMap {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         (self.rev, self.width, self.height, self.hub).hash(&mut h);
         (&self.buildings, &self.trees, &self.castles, &self.castle_keeps, &self.castle_approaches,
-            &self.towns, &self.settlement_houses, &self.gates).hash(&mut h);
+            &self.towns, &self.settlement_houses, &self.gates, &self.grand_walls).hash(&mut h);
         for (t, w) in &self.walls { (t, *w as u8).hash(&mut h); }
         h.finish()
     }
@@ -259,7 +262,7 @@ impl TileMap {
             if v < WATER_LEVEL { Tile::Water } else if v < HILL_LEVEL { Tile::Grass } else if v < ROCK_LEVEL { Tile::Hill } else { Tile::Rock }
         }).collect();
         let mut map = TileMap { width: w, height: h, tiles, buildings: vec![], occupied: vec![false; w * h],
-            trees: vec![], walls: vec![], castles: layout.castles.clone(),
+            trees: vec![], walls: vec![], grand_walls: vec![], castles: layout.castles.clone(),
             castle_keeps: layout.castles.iter().map(|&(x, y, _)| (x, y)).collect(), towns: layout.towns.clone(),
             castle_approaches: layout.castles.iter().map(|&(x, y, _)| (x, y + 1)).collect(),
             settlement_houses: vec![], gates: vec![], hub: layout.road_hub, rev: 0 };
@@ -268,9 +271,9 @@ impl TileMap {
         for &(x, y, crop) in &layout.fields {
             if map.get(x, y) == Some(Tile::Grass) { map.set(x, y, crop); }
         }
-        if let Some(rect) = layout.town_wall { map.build_wall(rect); }
+        if let Some(rect) = layout.town_wall { map.build_wall(rect, false); }
         for &(x, y) in &layout.streets { map.pave(x, y); }
-        for &(cx, cy, r) in &layout.castles { map.build_wall((cx - r, cy - r, cx + r, cy + r)); }
+        for &(cx, cy, r) in &layout.castles { map.build_wall((cx - r, cy - r, cx + r, cy + r), true); }
         for &(x, y, _) in &layout.castles { map.occupy(x, y); }
         for &(x, y) in &layout.buildings {
             let (bx, by) = map.nearest_buildable(x, y).unwrap_or((x, y));
@@ -356,7 +359,8 @@ impl TileMap {
     /// Wall in the rectangle (x0, y0)-(x1, y1): towers at the corners, a
     /// gate midway along each side (left open, so the roads go through them),
     /// wall everywhere else. Wall and towers can't be built on or walked through.
-    fn build_wall(&mut self, (x0, y0, x1, y1): (i32, i32, i32, i32)) {
+    /// `grand` marks the tiles for the client's sterner castle dress.
+    fn build_wall(&mut self, (x0, y0, x1, y1): (i32, i32, i32, i32), grand: bool) {
         let (mx, my) = ((x0 + x1) / 2, (y0 + y1) / 2);
         for y in y0..=y1 {
             for x in x0..=x1 {
@@ -373,6 +377,7 @@ impl TileMap {
                 if matches!(self.get(x, y), Some(Tile::Water) | Some(Tile::River)) { self.set(x, y, Tile::Grass); }
                 if matches!(piece, WallPiece::GateAlongX | WallPiece::GateAlongY) { self.gates.push((x, y)); }
                 else { self.occupy(x, y); }
+                if grand { self.grand_walls.push((x, y)); }
                 self.walls.push(((x, y), piece));
             }
         }
@@ -797,6 +802,25 @@ mod tests {
         for &(x, y) in &map.settlement_houses {
             assert!(NEIGHBOURS.iter().any(|&(dx,dy)| map.get(x+dx,y+dy) == Some(Tile::Road)),
                 "satellite house ({},{}) has a road", x, y);
+        }
+    }
+
+    #[test]
+    fn test_the_castles_walls_stand_grand_not_the_villages() {
+        let mut t = Terrain::generate_country(81, 0.7, 42);
+        let layout = Layout {
+            town_wall: Some((8, 8, 21, 23)),
+            castles: vec![(53, 22, 4)],
+            ..Layout::default()
+        };
+        let map = TileMap::generate(&mut t, &layout);
+        assert!(!map.grand_walls.is_empty(), "the castle's curtains are marked grand");
+        for &(pos, _) in &map.walls {
+            // on the castle's rectangle border, inside it
+            let is_castle = (49..=57).contains(&pos.0) && (18..=26).contains(&pos.1)
+                && (pos.0 == 49 || pos.0 == 57 || pos.1 == 18 || pos.1 == 26);
+            assert_eq!(map.grand_walls.contains(&pos), is_castle,
+                "wall at {:?} marked grand={}", pos, is_castle);
         }
     }
 

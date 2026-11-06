@@ -48,7 +48,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 27 | Nourishment | `NourishmentSystem` | done #555 |
 | 28 | Organizing skills learned by doing and taught | `game/org_skills.rs` (`practice`, `teach`, `learn_from_meeting`) | done #556 |
 | 29 | Pets lifting their owner's mood | `game/pets.rs` (`pet_mood_boost`) | done #557 (wired: `comforting_pet` reads the boost; `care_tick` satisfies `Want::Joy` on a bonded pet's owner) |
-| 30 | Harvesting together, the storm on the hall, village concerns | `game/organizing.rs` (`harvest_together`, `storm_strikes_hall`, `village_concerns`) | todo |
+| 30 | Harvesting together, the storm on the hall, village concerns | `game/organizing.rs` (`harvest_together`, `storm_strikes_hall`, `village_concerns`) | done #558 |
 
 ## B. The sim runs it, the player never sees it
 

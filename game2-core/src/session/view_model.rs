@@ -860,12 +860,16 @@ impl Game {
         }
         // the tie between you: friend, rival, kin - plain to you
         // whether or not the village knows them yet
-        if let Some(tie) = self.rel_kind(self.seats[seat].player, v) {
+        if let Some((tie, them_senior)) = crate::game::relationships::find_relationship(world, self.seats[seat].player, v)
+            .and_then(|e| world.get_component::<crate::game::relationships::Relationship>(e))
+            .map(|r| (r.kind, r.other == v)) {
             use crate::game::relationships::RelKind::*;
+            // the teaching tie has a direction: `other` is the master
             let word = match tie {
                 Family => "kin to you", Lover => "your lover",
                 Friend => "your friend", Rival => "your rival",
-                Mentor => "your teacher", Apprentice => "your apprentice",
+                Mentor | Apprentice if them_senior => "your teacher",
+                Mentor | Apprentice => "your apprentice",
                 Stranger | Acquaintance => "",
             };
             if !word.is_empty() { parts.push(word.into()); }

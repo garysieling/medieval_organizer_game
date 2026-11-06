@@ -47,7 +47,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 26 | Stall system | `game/villager.rs` (`StallSystem`, `spawn_stall`) | done #554 (wired by the trader's stall + pedlar pitch + `Goal::BuyFrom`; the `Market`-pull model is the text-game's) |
 | 27 | Nourishment | `NourishmentSystem` | done #555 |
 | 28 | Organizing skills learned by doing and taught | `game/org_skills.rs` (`practice`, `teach`, `learn_from_meeting`) | done #556 |
-| 29 | Pets lifting their owner's mood | `game/pets.rs` (`pet_mood_boost`) | todo |
+| 29 | Pets lifting their owner's mood | `game/pets.rs` (`pet_mood_boost`) | done #557 (wired: `comforting_pet` reads the boost; `care_tick` satisfies `Want::Joy` on a bonded pet's owner) |
 | 30 | Harvesting together, the storm on the hall, village concerns | `game/organizing.rs` (`harvest_together`, `storm_strikes_hall`, `village_concerns`) | todo |
 
 ## B. The sim runs it, the player never sees it

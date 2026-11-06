@@ -670,11 +670,7 @@ impl View {
         if !m.panel.org_status.is_empty() {
             draw_text(&mut buf, UI_X as i32 + 10, 54, &org_status_line(&m.panel.org_status), 200, 150, 150);
         }
-        // the org's own muscle under the powers' words
-        if let Some(pw) = &m.panel.power {
-            let y = if m.panel.org_status.is_empty() { 54 } else { 66 };
-            draw_text(&mut buf, UI_X as i32 + 10, y, pw, 170, 200, 170);
-        }
+
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {
@@ -754,6 +750,12 @@ impl View {
         draw_text(&mut buf, UI_X as i32 + 18, 190, "BONDS", 255, 215, 0);
         for (n, line) in bond_lines(s).iter().enumerate() {
             draw_text(&mut buf, UI_X as i32 + 18, 202 + n as i32 * 12, line, 215, 215, 195);
+        }
+
+        // the org's own muscle - a word for its strength, the seat's
+        // call, and whether it's been used
+        if let Some(pw) = &m.panel.power {
+            draw_text(&mut buf, UI_X as i32 + 18, 452, pw, 170, 200, 170);
         }
 
         // organization: who has joined, by name

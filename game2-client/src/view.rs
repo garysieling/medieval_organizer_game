@@ -773,6 +773,8 @@ impl View {
         // newest first, word-wrapped to the box instead of cut off mid-word
         const LOG_CHARS: usize = 52;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 8;
+        // the last row marks what rolled off the top, when it did
+        let log_rows = if m.log_dropped > 0 { LOG_ROWS - 1 } else { LOG_ROWS };
         let mut row = 0;
         'log: for entry in &m.log {
             let (r, g, b) = log_colour(entry);
@@ -780,7 +782,7 @@ impl View {
             let (day, msg) = log_parts(entry);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
             for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
-                if row == LOG_ROWS { break 'log; }
+                if row == log_rows { break 'log; }
                 let y = 530 + row as i32 * 12;
                 match &day {
                     Some(d) if n == 0 && line.starts_with(d.as_str()) => {

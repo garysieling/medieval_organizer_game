@@ -54,3 +54,26 @@ fn test_the_shop_card_says_what_flowed_through_today() {
         "the chain doesn't show: {:?}",
         insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_the_offer_says_dear_and_cheap_against_the_ordinary() {
+    let mut g = Game::new();
+    // any shop with goods on the shelf
+    let (bi, good) = g.building_entities.iter().enumerate().find_map(|(i, &b)| {
+        g.world.get_component::<Building>(b).and_then(|bb|
+            bb.stock.iter().find(|(_, q)| **q > 0).map(|(g, _)| (i, g.clone())))
+    }).expect("nothing on offer anywhere");
+    g.seats[0].selected_building = Some(bi);
+    // run the felt worth into the ground: a glut reads cheap
+    for _ in 0..20 { goods::nudge(&mut g.world, &good, -0.1); }
+    let insp = g.building_inspector_at(0).unwrap();
+    assert!(insp.lines.iter().any(|l| l.text.contains("cheap")),
+        "a glut should read cheap: {:?}",
+        insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+    // and driven scarce it reads dear
+    for _ in 0..40 { goods::nudge(&mut g.world, &good, 0.1); }
+    let insp = g.building_inspector_at(0).unwrap();
+    assert!(insp.lines.iter().any(|l| l.text.contains("dear")),
+        "bare shelves should read dear: {:?}",
+        insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

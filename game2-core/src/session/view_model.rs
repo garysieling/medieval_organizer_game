@@ -492,7 +492,12 @@ impl Game {
             text: if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
             rgb: (180, 190, 210) });
         if let Some((g, q, pr)) = offers.first() {
-            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g", q, g, pr), rgb: (150, 210, 150) });
+            // the street reads a price against the ordinary: scarce
+            // shelves ask dear, a glut sells cheap
+            let base = goods::worth(g);
+            let lean = if *pr > base * 1.1 { " \u{00b7} dear" }
+                else if *pr < base * 0.9 { " \u{00b7} cheap" } else { "" };
+            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g{}", q, g, pr, lean), rgb: (150, 210, 150) });
         }
         // the chain the shop worked today: what went in and what came out
         if let Some((_, flow)) = self.shop_flow.get(&be).filter(|(d, _)| *d == self.tick) {

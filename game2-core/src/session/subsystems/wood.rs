@@ -44,6 +44,7 @@ impl Game {
             // a belly already turning keeps the worse of the two - the
             // longer until, and the harsher name if the marks differ
             let (kind, until) = self.world.get_component::<villager::Condition>(who)
+                .filter(|c| self.tick < c.until)
                 .map(|c| (c.kind, c.until.max(self.tick + 2)))
                 .unwrap_or(("a turned gut", self.tick + 2));
             self.world.add_component(who, villager::Condition { kind, until });
@@ -125,6 +126,7 @@ impl Game {
                     self.ailments.push(PendingAil { who, due: tick + 1, phase: AilPhase::ShroomBelly(pi) });
                 } else {
                     let until = self.world.get_component::<villager::Condition>(who)
+                        .filter(|c| tick < c.until)
                         .map(|c| c.until.max(tick + 4)).unwrap_or(tick + 4);
                     self.world.add_component(who, villager::Condition { kind: "gut-poisoned", until });
                     self.learn_shroom(who, pi);

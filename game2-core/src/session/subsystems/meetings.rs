@@ -12,6 +12,23 @@ impl Game {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
         let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
+        // the attendees' meeting lesson comes out of house_meeting itself;
+        // here a seated campaign hand practices their seat's craft, and the
+        // host's HouseMeeting grows by running the room
+        if let Some(c) = crate::game::campaign::campaign_of(&self.world, oe) {
+            let seats = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                .map(|cc| cc.seats.clone()).unwrap_or_default();
+            for s in &seats {
+                if invited.contains(&s.holder) {
+                    crate::game::org_skills::practice(&mut self.world, s.holder,
+                        crate::game::org_skills::role_skill(s.role),
+                        crate::game::org_skills::SEAT_PRACTICE);
+                }
+            }
+        }
+        crate::game::org_skills::practice(&mut self.world, pe,
+            crate::game::org_skills::OrgSkill::HouseMeeting,
+            crate::game::org_skills::MEETING_PRACTICE);
         let joined: Vec<&str> = invited.iter()
             .filter(|v| !members_before.contains(v))
             .filter(|v| self.world.get_component::<Organization>(oe).map(|o| o.members.contains(v)).unwrap_or(false))

@@ -669,8 +669,14 @@ impl Game {
                         let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
                             .find(|&r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
                         match open {
-                            Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) =>
-                                format!("You name {} the campaign's {}.", name, role_name(r)),
+                            Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) => {
+                                // naming a seat teaches its craft: a mentor
+                                // who's built it hands the trade down
+                                crate::game::org_skills::teach(&mut self.world,
+                                    Some(c), self.seats[seat].player, v,
+                                    crate::game::org_skills::role_skill(r), tick);
+                                format!("You name {} the campaign's {}.", name, role_name(r))
+                            }
                             Some(_) => format!("{} can't hold a seat - they have to be a living member.", name),
                             None => "Every seat is spoken for - someone would have to step down.".into(),
                         }
@@ -686,6 +692,9 @@ impl Game {
                 };
                 match crate::game::actions::strike_vote(&mut self.world, c, voc, tick) {
                     Some(out) => {
+                        crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                            crate::game::org_skills::OrgSkill::Turnout,
+                            crate::game::org_skills::SEAT_PRACTICE);
                         let ev = crate::game::campaign_arc::ArcEvent::Strike { called: out.called };
                         if let Some(d) = crate::game::campaign_arc::deliberate_arc(&mut self.world, c, ev, tick) {
                             self.record_campaign_talk(vec![self.seats[seat].player, v], &d);
@@ -703,7 +712,10 @@ impl Game {
                     .map(|cc| cc.target).unwrap_or(None).or(self.collector) else { return };
                 use crate::game::actions::{townhall, TargetResponse};
                 match townhall(&mut self.world, c, target, tick) {
-                    Some(out) => { let msg = match out.response {
+                    Some(out) => { crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                            crate::game::org_skills::OrgSkill::Agitation,
+                            crate::game::org_skills::SEAT_PRACTICE);
+                        let msg = match out.response {
                         TargetResponse::Carries => {
                             self.toasts.push(("the Reeve takes your demands to the king".into(), tick + 40));
                             // the carried demand lands as a grant: the load
@@ -767,6 +779,9 @@ impl Game {
                 // name on the vigil carries more than a stranger's plea
                 let sway = crate::sim::community::exert_influence(&mut self.world,
                     self.seats[seat].org, "the release");
+                crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                    crate::game::org_skills::OrgSkill::Agitation,
+                    crate::game::org_skills::SEAT_PRACTICE);
                 crate::game::dungeon::press(&mut self.world, v, 0.3 + sway * 0.15);
                 // the hold: what the state spends to keep them inside
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
@@ -786,6 +801,9 @@ impl Game {
                     .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
                     .map(|r| r.strength).unwrap_or(0.0);
                 if crate::sim::community::recruit(&mut self.world, oe, v, trust) {
+                    crate::game::org_skills::practice(&mut self.world, self.seats[seat].player,
+                        crate::game::org_skills::OrgSkill::Training,
+                        crate::game::org_skills::SEAT_PRACTICE);
                     format!("{} hears you out - and signs on with your cause.", self.name_of(v))
                 } else {
                     format!("{} won't be won over - the trust isn't there yet.", self.name_of(v))

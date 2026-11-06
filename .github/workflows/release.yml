@@ -3,13 +3,20 @@
 # Push a tag like `v0.2.0` (or run it by hand from the Actions tab with a tag
 # name) and this builds the game for Windows, Linux and macOS, packs each
 # build with the art it loads at runtime, and publishes a GitHub release with
-# notes: the merged PRs since the previous tag (GitHub's generated notes) under
-# a header listing the downloads and the commits.
+# notes: the merged PRs since the previous tag (GitHub's generated notes) and
+# the commits. The same notes ship inside every package as RELEASE-NOTES.md;
+# the release page adds a table of the downloads above them.
+#
+# It also runs weekly on its own: if main has commits since the newest v* tag,
+# it releases them as the next minor version (v0.3.0 after v0.2.x; v0.1.0
+# when there's no tag yet). A week with no new commits makes no release.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  schedule:
+    - cron: "0 14 * * 1"   # Mondays, 14:00 UTC
   workflow_dispatch:
     inputs:
       tag:
@@ -28,7 +35,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # The tag asked for by a push or a manual run; a scheduled run has none and
+  # picks the next version itself. Every job reads the result as $TAG.
+  REQUESTED_TAG: ${{ github.event_name == 'schedule' && '' || github.event.inputs.tag || github.ref_name }}
   CARGO_TERM_COLOR: always
   # The crate denies warnings to keep dev builds clean; a lint added by a newer
   # stable toolchain shouldn't be able to block a release.
@@ -41,11 +50,45 @@ jobs:
     name: Resolve the release commit
     runs-on: ubuntu-latest
     outputs:
+      tag: ${{ steps.tag.outputs.tag }}
       sha: ${{ steps.resolve.outputs.sha }}
+      skip: ${{ steps.tag.outputs.skip }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0   # need every tag to look $TAG up by name
+
+      - name: Pick the tag
+        id: tag
+        run: |
+          tag="$REQUESTED_TAG"; skip=false
+          if [ -z "$tag" ]; then
+            # The weekly run: nothing to do if main hasn't moved since the
+            # newest release tag of any kind.
+            last=$(git tag --list 'v*' --sort=-v:refname --merged HEAD | head -n1 || true)
+            if [ -n "$last" ] && [ "$(git rev-list --count "$last..HEAD")" = 0 ]; then
+              echo "No commits since $last - no release this week."
+              skip=true
+            fi
+            # The next minor after the newest plain vX.Y.Z (pre-releases
+            # and other names don't count toward the number).
+            stable=$(git tag --list 'v*' --sort=-v:refname --merged HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+            if [ -z "$stable" ]; then
+              tag=v0.1.0
+            else
+              IFS=. read -r major minor _ <<< "${stable#v}"
+              tag="v$major.$((minor + 1)).0"
+            fi
+            # Never land on a tag that's already taken (a hand-made one).
+            while git rev-parse -q --verify "refs/tags/$tag" > /dev/null; do
+              IFS=. read -r major minor _ <<< "${tag#v}"
+              tag="v$major.$((minor + 1)).0"
+            done
+          fi
+          echo "Release tag: $tag (skip=$skip)"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
 
       - name: Resolve the commit this release builds and ships from
         id: resolve
@@ -58,9 +101,54 @@ jobs:
           sha=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || echo "$GITHUB_SHA")
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
+      - name: Write the release notes
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          # The previous release tag: the newest v* tag that isn't this one
+          # and is an ancestor of the release commit (none on the first release).
+          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$HEAD_SHA" | grep -vx "$TAG" | head -n1 || true)
+          range="$HEAD_SHA"; [ -n "$prev" ] && range="$prev..$HEAD_SHA"
+          # GitHub's generated notes (the merged PRs), asked for up front so
+          # the packages can carry them too. The tag needn't exist yet.
+          api=(-f tag_name="$TAG" -f target_commitish="$HEAD_SHA")
+          [ -n "$prev" ] && api+=(-f previous_tag_name="$prev")
+          generated=$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${api[@]}" --jq .body || true)
+          {
+            if [ -n "$generated" ]; then
+              echo "$generated"
+              echo
+            fi
+            echo "## Commits"
+            echo
+            if [ -n "$prev" ]; then
+              echo "Since \`$prev\`:"
+              echo
+              git log --no-merges --format='- %s (%h)' "$range"
+            else
+              echo "Initial release (last 50 commits):"
+              echo
+              git log --no-merges --format='- %s (%h)' -n 50 "$range"
+            fi
+            echo
+          } > changes.md
+          cat changes.md
+
+      - uses: actions/upload-artifact@v5
+        if: steps.tag.outputs.skip != 'true'
+        with:
+          name: release-notes
+          path: changes.md
+          if-no-files-found: error
+
   build:
     name: Build ${{ matrix.name }}
     needs: resolve
+    if: needs.resolve.outputs.skip != 'true'
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -116,6 +204,11 @@ jobs:
           if [ -f game2-client/Cargo.toml ]; then packages+=(-p game2-client); fi
           cargo build --release "${packages[@]}" --target ${{ matrix.target }} "${args[@]}"
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-notes
+          path: notes
+
       - name: Package
         id: pkg
         run: |
@@ -127,6 +220,7 @@ jobs:
           # game_ui loads its sprites from ./assets relative to the working dir
           cp -R assets "dist/$pkg/assets"
           cp README.md PLAY.md "dist/$pkg/"
+          { echo "# game2 ${TAG}"; echo; cat notes/changes.md; } > "dist/$pkg/RELEASE-NOTES.md"
           cat > "dist/$pkg/HOW-TO-RUN.txt" <<EOF
           game2 ${TAG} (${{ matrix.name }})
 
@@ -134,6 +228,8 @@ jobs:
             game_ui${{ matrix.ext }}       the windowed game (see PLAY.md for controls)
             game${{ matrix.ext }}          the text-mode game
             game_server${{ matrix.ext }}   the multiplayer village server (--port 8787)
+
+          What's new in this release: RELEASE-NOTES.md
           EOF
           cd dist
           if [ "${{ matrix.archive }}" = zip ]; then
@@ -158,26 +254,28 @@ jobs:
   release:
     name: Publish release
     needs: [resolve, build]
+    if: needs.resolve.outputs.skip != 'true'
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ needs.resolve.outputs.sha }}
-          fetch-depth: 0   # the whole history, for the previous tag and the log
 
       - uses: actions/download-artifact@v5
         with:
+          pattern: "*-*64"   # the packages, not the release-notes artifact
           path: dist
           merge-multiple: true
 
-      - name: Write release notes header
-        env:
-          HEAD_SHA: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/download-artifact@v5
+        with:
+          name: release-notes
+          path: notes
+
+      - name: Write the release page notes
         run: |
-          # The previous release tag: the newest v* tag that isn't this one
-          # and is an ancestor of the release commit (none on the first release).
-          prev=$(git tag --list 'v*' --sort=-v:refname --merged "$HEAD_SHA" | grep -vx "$TAG" | head -n1 || true)
-          range="$HEAD_SHA"; [ -n "$prev" ] && range="$prev..$HEAD_SHA"
           {
             echo "## Downloads"
             echo
@@ -190,20 +288,9 @@ jobs:
               echo "| $plat | \`$n\` |"
             done
             echo
-            echo "Unpack and run \`game_ui\` from the unpacked folder (it loads \`./assets\`). Controls are in \`PLAY.md\`. Each package has a \`.sha256\` checksum."
+            echo "Unpack and run \`game_ui\` from the unpacked folder (it loads \`./assets\`). Controls are in \`PLAY.md\`, these notes in \`RELEASE-NOTES.md\`. Each package has a \`.sha256\` checksum."
             echo
-            echo "## Commits"
-            echo
-            if [ -n "$prev" ]; then
-              echo "Since \`$prev\`:"
-              echo
-              git log --no-merges --format='- %s (%h)' "$range"
-            else
-              echo "Initial release (last 50 commits):"
-              echo
-              git log --no-merges --format='- %s (%h)' -n 50 "$range"
-            fi
-            echo
+            cat notes/changes.md
           } > notes.md
           cat notes.md
 
@@ -222,11 +309,11 @@ jobs:
             # a re-run: refresh the packages, keep the notes as edited
             gh release upload "$TAG" dist/* --clobber
           else
-            # --generate-notes appends GitHub's merged-PR list after notes.md
+            # notes.md already holds GitHub's generated (merged-PR) notes,
+            # so --generate-notes here would duplicate that section.
             gh release create "$TAG" dist/* \
               --title "game2 $TAG" \
               --notes-file notes.md \
-              --generate-notes \
               --target "$HEAD_SHA" \
               "${flags[@]}"
           fi

@@ -238,7 +238,8 @@ impl Game {
             };
             people.push(PersonV { e, kind, pos: (p.x, p.y),
                 label: Some(spec.name.into()), find: find_key(spec.name), dead: false, kid: false, selected: false,
-                in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false });
+                in_reach: false, hungry: false, sick: false, act_mark: 0,
+                bond: world.get_component::<Pet>(e).map(|p| p.bond_strength >= 0.5).unwrap_or(false) });
         }
         for &(x, y) in &self.gulls {
             people.push(PersonV { e: 0, kind: PKind::Gull, pos: (x, y),

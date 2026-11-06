@@ -57,3 +57,16 @@ fn test_the_swarm_gives_them_their_little_fame() {
     assert!(desires::is_satisfied(&g.world, who, desires::Want::Joy, g.tick),
         "the memorable part never landed on them");
 }
+
+#[test]
+fn test_a_hen_house_s_card_says_so() {
+    let mut g = Game::new();
+    let hh = g.hen_houses.first().copied().expect("no hen house");
+    let i = g.building_entities.iter().position(|&b| b == hh).unwrap();
+    g.seats[0].selected_building = Some(i);
+    g.seats[0].picked = false;
+    let ins = g.ui_model_at(0).inspector.expect("no card for the hen house");
+    assert!(ins.lines.iter().any(|l| l.text.contains("keeps hens")),
+        "the card doesn't say it keeps hens: {:?}",
+        ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}

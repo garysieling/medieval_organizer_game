@@ -58,6 +58,7 @@ mod land;
 mod letter;
 mod lifecycle;
 mod log_priority;
+mod magic;
 mod market;
 mod member_line;
 mod minimap;

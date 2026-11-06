@@ -963,6 +963,8 @@ impl Game {
             feud_told: Default::default(),
             produced: Default::default(),
             tales: Default::default(),
+            grimoire: crate::sim::magic::Grimoire { discoveries: vec![],
+                domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),
             shop_flow: Default::default(),
             wolf_coming: false,

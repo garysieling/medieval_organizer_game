@@ -1044,6 +1044,9 @@ pub struct Game {
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,
+    /// What the priest's old books have taught: the parish's reading,
+    /// collected
+    pub grimoire: crate::sim::magic::Grimoire,
     pub tech: Vec<crate::game::tech_tree::Tech>,
 }
 

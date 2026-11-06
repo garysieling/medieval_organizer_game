@@ -218,6 +218,11 @@ impl Game {
         }
         self.travels.retain(|t| !t.path.is_empty());
         for (who, goal) in arrived { self.arrive(who, goal); }
+        // no ride, no flag: whoever's off the road seeks food again
+        let stray: Vec<Entity> = self.world.query::<villager::OnTheRoad>().iter().copied()
+            .filter(|&w| !self.travels.iter().any(|t| t.who == w && matches!(t.goal, Goal::Remit(_))))
+            .collect();
+        for w in stray { self.world.remove_component::<villager::OnTheRoad>(w); }
     }
 
     /// What happens when a walk reaches its end: the trade, the

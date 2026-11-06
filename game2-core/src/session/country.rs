@@ -499,6 +499,9 @@ impl Game {
                 path.push(to);
                 self.travels.retain(|t| t.who != who);
                 self.travels.push(Travel { who, path, goal });
+                if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(_))) {
+                    self.world.add_component(who, villager::OnTheRoad);
+                }
                 true
             }
             None => false,

@@ -490,7 +490,8 @@ impl Game {
         }
         if b.kind == BuildingKind::Home {
             let names: Vec<&str> = b.occupants.iter()
-                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i)))
+                .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i))
+                    .or_else(|| self.rivals.iter().position(|r| *r == *o).map(|i| RIVAL_NAMES[i])))
                 .collect();
             lines.push(Line { x: 18, y: 368,
                 text: format!("lives here: {}", if names.is_empty() { "no one".into() } else { names.join(", ") }),

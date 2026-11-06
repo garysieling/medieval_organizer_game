@@ -463,15 +463,20 @@ impl Game {
     pub fn martyr_tick(&mut self, tick: u64) {
         let Some(_) = self.martyr_grave else { return };
         if tick % 30 != 20 { return; }
-        // a vigil: the org's members keep the grave - they walk out
-        // to it, and the standing there makes them
+        // a vigil: the org's members keep the grave - the remembering
+        // feeds them where they stand; those free to walk, walk out to it
         let Some(grave) = self.martyr_grave else { return };
         let members = self.world.get_component::<Organization>(self.org)
             .map(|o| o.members.clone()).unwrap_or_default();
-        for v in self.villagers.iter().take(5).copied()
-            .chain(members.iter().copied()).collect::<Vec<_>>() {
+        let mut roster: Vec<Entity> = self.villagers.iter().take(5).copied().collect();
+        for &m in &members { if !roster.contains(&m) { roster.push(m); } }
+        for v in roster {
             if villager::is_dead(&self.world, v) { continue; }
             desires::satisfy(&mut self.world, v, Want::Faith, tick + 15);
+            // a walk already under way is theirs, and a seat's own
+            // villager answers only its commands - the vigil takes neither
+            if self.travels.iter().any(|t| t.who == v) { continue; }
+            if self.seats.iter().any(|s| s.player == v) { continue; }
             self.send_tile_walk(v, grave, Goal::Wander, 40);
         }
         self.record_power(crate::sim::organized_power::ActionQuality::Transactional);

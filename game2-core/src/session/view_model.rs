@@ -414,7 +414,8 @@ impl Game {
             inspector,
             panel: PanelV {
                 name: my_name, gold: my_gold,
-                org: org.name.clone(), members, issues, guilds, food, campaign,
+                org: org.name.clone(), leader: Some(name_of(org.leader)),
+                members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
                 social, meeting,
             },

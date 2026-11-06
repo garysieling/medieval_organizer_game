@@ -657,7 +657,7 @@ impl View {
         // status: members, season, tick
         let p = &m.panel;
         let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.leader.as_deref(), p.members.len(), p.gold, guild), 200, 200, 200);
         // the odd job under way, if the Wanderer's carrying one
         if let Some(q) = &m.panel.quest {
             draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);

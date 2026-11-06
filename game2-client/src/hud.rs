@@ -74,9 +74,10 @@ pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8
 /// The panel's status line: your organization by name, your gold, and the
 /// rival merchants' guild by size (it was "Org 5 | Guilds 1 | ... | lead at
 /// 2.0" - a count of guild objects, and the goal the bar already shows)
-pub(crate) fn status_line(org: &str, members: usize, gold: f32, guild: Option<usize>) -> String {
+pub(crate) fn status_line(org: &str, leader: Option<&str>, members: usize, gold: f32, guild: Option<usize>) -> String {
     let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
-    format!("{} {} | Gold {:.0} | {}", org.trim_start_matches("The "), members, gold, rival)
+    let head = leader.map(|l| format!(" led by {}", l)).unwrap_or_default();
+    format!("{} {}{} | Gold {:.0} | {}", org.trim_start_matches("The "), members, head, gold, rival)
 }
 
 /// Label for who's in your organization, on the villager card ("Org:" never

@@ -761,7 +761,10 @@ impl Game {
                 let mut gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
                 match crate::game::contracts::seal_aid_pact(&mut self.world, pe, v, &mut gold) {
                     Some(_) => {
+                        // both purses: trades move the Purse, the panel
+                        // reads resources - a build only syncs one way
                         if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold = gold; }
+                        if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(pe) { p.resources = gold; }
                         let n = self.name_of(v);
                         self.say(v, "It's sworn - you've a friend in me.", TALK_BUBBLE_SECS);
                         format!("You press wax with {} - sworn to aid each other ({:.0}g).", n, crate::game::contracts::PACT_AID)

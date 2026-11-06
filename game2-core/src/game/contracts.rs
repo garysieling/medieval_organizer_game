@@ -112,6 +112,15 @@ pub fn break_pact(world: &mut World, breacher: Entity, other: Entity) -> bool {
 /// Gold the player gives when sealing a mutual-aid pact
 pub const PACT_AID: f32 = 10.0;
 
+/// Whether `a` and `b` are sworn NOW: a contract between them that
+/// still stands (not void, not torn)
+pub fn pact_live(world: &World, a: Entity, b: Entity) -> bool {
+    world.query::<Contract>().into_iter()
+        .filter_map(|c| world.get_component::<Contract>(c))
+        .any(|c| matches!(c.status, ContractStatus::Active | ContractStatus::Fulfilled)
+            && c.parties.contains(&a) && c.parties.contains(&b))
+}
+
 /// Whether `a` and `b` already have a pact (a contract between them)
 pub fn has_pact(world: &World, a: Entity, b: Entity) -> bool {
     world.query::<Contract>().into_iter()

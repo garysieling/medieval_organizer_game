@@ -584,7 +584,7 @@ impl Game {
             band += 1;
         }
         // a sworn hand shows in the same band - the pact's no secret
-        if band < 2 && crate::game::contracts::has_pact(world, self.seats[seat].player, v) {
+        if band < 2 && crate::game::contracts::pact_live(world, self.seats[seat].player, v) {
             lines.push(Line { x: 18, y: 416 + band * 11, text: "sworn to you".into(), rgb: (150, 210, 150) });
             band += 1;
         }

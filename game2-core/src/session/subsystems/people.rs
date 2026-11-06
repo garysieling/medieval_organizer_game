@@ -507,10 +507,6 @@ impl Game {
                 crate::game::feuds::spawn_feud(&mut self.world, b, a, "a turned-down suit");
                 let (an, bn) = (self.name_of(a), self.name_of(b));
                 self.log.push(format!("t{}: {} won't forget {}'s cold answer - bad blood now.", tick, an, bn));
-                // and if they'd sworn aid to each other, the wax tears
-                if crate::game::contracts::break_pact(&mut self.world, b, a) {
-                    self.log.push(format!("t{}: the pact between {} and {} is torn.", tick, an, bn));
-                }
             }
         }
     }

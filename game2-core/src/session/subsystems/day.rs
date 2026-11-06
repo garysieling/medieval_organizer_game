@@ -550,11 +550,13 @@ impl Game {
             .map(|w| (w.kind, w.intensity)).unwrap_or((crate::sim::weather::Weather::Clear, 0.0));
         let spark = cur.0 == crate::sim::weather::Weather::Drought
             && cur.1 > 0.7 && self.forest_rng.below(20) == 0;
+        let mut ignited = false;
         if spark {
             if let Some((x, y)) = self.forest.cells.iter().enumerate()
                 .flat_map(|(y, row)| row.iter().enumerate().map(move |(x, c)| (x, y, c)))
                 .find(|(_, _, c)| **c == Cell::Tree).map(|(x, y, _)| (x, y)) {
                 self.forest.cells[y][x] = Cell::Burning;
+                ignited = true;
                 self.log.push(format!("t{}: fire breaks out in the wood!", tick));
             }
         }
@@ -562,7 +564,7 @@ impl Game {
         let burning = self.forest.cells.iter().flatten().any(|c| *c == Cell::Burning);
         // a struck tree that had no neighbours catches and dies in the
         // same step - the end log still owes it a line
-        was_burning |= spark;
+        was_burning |= ignited;
         if was_burning && !burning {
             self.log.push(format!("t{}: the wood fire's out - bare for a while.", tick));
         }

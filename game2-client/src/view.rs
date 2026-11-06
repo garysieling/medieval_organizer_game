@@ -48,8 +48,8 @@ pub struct View {
     winter: std::cell::Cell<bool>,
     /// Walk-cycle phase per entity: ground covered, so a stroll and a
     /// sprint stride at their own pace instead of every figure
-    /// moonwalking to the same beat. (last x, last y, tiles walked)
-    walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32)>>,
+    /// moonwalking to the same beat. (last x, last y, tiles walked, frame)
+    walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32, u32)>>,
 }
 
 impl View {
@@ -77,16 +77,24 @@ impl View {
     /// The `t` a walk sheet animates on, built from ground covered rather
     /// than wall-clock frames: `cycle` frames make one loop, a loop covers
     /// STRIDE_TILES of ground, and `t` counts the sheets' 6-tick steps.
-    /// Distance is clamped per frame so a teleport doesn't spin the legs.
-    pub(crate) fn walk_t(&self, e: u32, x: f32, y: f32, cycle: usize) -> u32 {
+    /// `frame` is the model's sim frame: renders can skip frames (a
+    /// recording captures every few), so the teleport check divides the
+    /// step by frames elapsed - anything faster than a sprint is a jump,
+    /// not a stride, and doesn't spin the legs.
+    pub(crate) fn walk_t(&self, e: u32, x: f32, y: f32, cycle: usize, frame: u32) -> u32 {
         const STRIDE_TILES: f32 = 0.5;
-        const MAX_STEP: f32 = 0.08;
+        /// tiles per sim frame anyone can legitimately cover (~9 t/s)
+        const FASTEST: f32 = 0.15;
         let mut w = self.walk.borrow_mut();
-        let st = w.entry(e).or_insert((x, y, (e as f32 * 0.618_033_9) % STRIDE_TILES));
-        let d = ((x - st.0).powi(2) + (y - st.1).powi(2)).sqrt().min(MAX_STEP);
+        let st = w.entry(e).or_insert((x, y, (e as f32 * 0.618_033_9) % STRIDE_TILES, frame));
+        let elapsed = frame.saturating_sub(st.3).max(1) as f32;
+        let d = ((x - st.0).powi(2) + (y - st.1).powi(2)).sqrt();
         st.0 = x;
         st.1 = y;
-        st.2 += d;
+        st.3 = frame;
+        if d / elapsed <= FASTEST {
+            st.2 += d;
+        }
         (st.2 / STRIDE_TILES * 6.0 * cycle.max(1) as f32) as u32
     }
 
@@ -445,7 +453,7 @@ impl View {
                             let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
                             let scale = if pv.kid { 0.6 * zoom } else { zoom };
                             let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                            ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle), sx, sy, scale) - SPRITE_HEAD
+                            ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD
                         } else {
                             // children draw small and flagged: the pack has no
                             // figure for them, so they're a scaled villager
@@ -512,7 +520,7 @@ impl View {
                     if let Some(ws) = &art.traveller_walk {
                         let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                        ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle), sx, sy, zoom);
+                        ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom);
                     } else if let Some(s) = &art.traveller_s { draw_character(&mut buf, s, sx, sy, zoom); }
                 },
                 Who::P(pv) if let PKind::Chicken = pv.kind => {
@@ -528,7 +536,7 @@ impl View {
                         (Some(Some(ws)), _) => {
                             let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
                             let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                            ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle), sx, sy, zoom) - SPRITE_HEAD
+                            ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom) - SPRITE_HEAD
                         }
                         (_, Some(rs)) => { draw_character(&mut buf, rs, sx, sy, zoom); sprite_label_anchor(rs, sy, zoom) }
                         _ => label_anchor(sy, zoom),
@@ -545,7 +553,7 @@ impl View {
                         // gold ring under player, then the 1x frame on its feet
                         buf.rect(sx - 12, sy - 4, 24, 3, 255, 215, 0);
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                        let head = ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle), sx, sy, zoom);
+                        let head = ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, zoom);
                         anchor = Some(head - SPRITE_HEAD);
                     } else if let Some(ps) = &art.player_s {
                         draw_character(&mut buf, ps, sx, sy, zoom);

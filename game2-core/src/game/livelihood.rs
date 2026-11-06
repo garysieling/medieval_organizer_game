@@ -135,13 +135,16 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
     let mut rate = if workplace.is_some() { 1.0 } else { NO_SHOP_RATE };
     if overseer_boost { rate *= OVERSEER_BOOST; }
     if has_tools { rate *= TOOL_BOOST; }
-    // foul weather thins a food harvest: a storm flattens the field, a
-    // dry spell stints it, a hard frost kills it outright. It hits what
-    // comes out of the ground and the net - the baker's oven takes its
-    // wheat as it finds it, rain or shine
+    // the season and the sky both tell on what comes out of the ground
+    // and the net: a lean winter, a dry spell, a storm rolling through.
+    // The baker's oven takes its wheat as it finds it, rain or shine
     if vocation::inputs(vocation_).is_empty()
         && crate::game::goods::spec(good)
         .map(|s| s.tags.contains(&crate::game::goods::Tag::StapleFood)).unwrap_or(false) {
+        if let Some(c) = world.query::<crate::sim::climate::Climate>().first().copied()
+            .and_then(|e| world.get_component::<crate::sim::climate::Climate>(e)) {
+            rate *= crate::sim::climate::climate_multiplier(c, "food");
+        }
         if let Some(w) = world.query::<crate::sim::weather::CurrentWeather>().first().copied()
             .and_then(|e| world.get_component::<crate::sim::weather::CurrentWeather>(e)) {
             rate *= crate::sim::weather::food_effect(w);

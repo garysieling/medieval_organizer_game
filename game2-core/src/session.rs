@@ -1041,6 +1041,12 @@ pub struct Game {
     pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
     /// Villager indexes whose formed tale was already named in the log
     pub tales_told: crate::engine::det::HashSet<usize>,
+    /// The village's wood: a living stand that grows, spreads, burns
+    /// and regrows - the fuel commons its coverage leans on
+    pub forest: crate::sim::emergence::Automata,
+    /// The wood's own chance-stream: a lightning roll mustn't shift the
+    /// village's other draws
+    pub forest_rng: Rng,
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,

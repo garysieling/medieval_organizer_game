@@ -946,6 +946,7 @@ impl Game {
             shroom_lore: vec![],
             ailments: vec![],
             shroom_rng: Rng(seed ^ 0xCA45),
+            forest_rng: Rng(seed ^ 0xF12E),
             shroom_disclaimed: false,
             tavern,
             tavern_table: vec![],
@@ -963,6 +964,11 @@ impl Game {
             feud_told: Default::default(),
             produced: Default::default(),
             tales: Default::default(),
+            forest: {
+                let mut f = crate::sim::emergence::Automata::new(24, 24);
+                f.seed();
+                f
+            },
             grimoire: crate::sim::magic::Grimoire { discoveries: vec![],
                 domains_known: Default::default(), total_power: 0.0 },
             tales_told: Default::default(),

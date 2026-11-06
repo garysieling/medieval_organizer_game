@@ -776,6 +776,8 @@ pub struct Game {
     pub snowball_day: u64,
     /// Whether today's fight has raised its hubbub yet
     pub snowball_cued: bool,
+    /// Where today's fight is being made, for the sound's pan
+    pub snowball_at: (f32, f32),
     /// Snowballs in the air this frame
     pub snowballs: Vec<routine::Snowball>,
     /// Pairs of people standing near each other, and the day each pair last chatted

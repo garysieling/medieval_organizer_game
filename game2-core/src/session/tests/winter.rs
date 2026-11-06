@@ -66,7 +66,11 @@ fn test_a_snowball_fight_calls_the_village_out() {
     // and the hubbub reaches the frame, not the void between clicks
     g.snowball_cued = false;
     g.update();
-    assert!(g.sfx.iter().any(|c| c.kind == "snowballs"), "the fight is heard");
+    let cue = g.sfx.iter().find(|c| c.kind == "snowballs").expect("the fight is heard");
+    // and it pans from where the fight is, not from the village
+    let pp = g.world.get_component::<Pos>(g.player).unwrap();
+    assert!((cue.x - pp.x).abs() < 0.01 && (cue.y - pp.y).abs() < 0.01,
+        "the sound stands where the fighters are");
 }
 
 #[test]

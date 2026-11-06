@@ -829,6 +829,7 @@ impl Game {
             meeting: None,
             snowball_day: u64::MAX,
             snowball_cued: false,
+            snowball_at: (0.0, 0.0),
             snowballs: vec![],
             near: vec![],
             last_chat: vec![],

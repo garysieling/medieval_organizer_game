@@ -646,6 +646,7 @@ impl Game {
         }
         self.snowball_day = tick;
         self.snowball_cued = false;
+        self.snowball_at = centre;
         // and somebody actually there hollers it
         let speaker = self.villagers.iter().copied().find(|&v| self.world.get_component::<Routine>(v)
             .map(|r| r.mode == Mode::Playing && r.day == tick).unwrap_or(false));
@@ -663,7 +664,7 @@ impl Game {
         // the fight's hubbub, raised inside the frame so the cue survives
         // to the scene (a cue raised by the click itself dies in the clear)
         if !self.snowball_cued {
-            self.emit_sfx("snowballs", self.village.0 as f32, self.village.1 as f32, 0.8);
+            self.emit_sfx("snowballs", self.snowball_at.0, self.snowball_at.1, 0.8);
             self.snowball_cued = true;
         }
         let fighters: Vec<(Entity, (f32, f32))> = self.villagers.iter().copied()

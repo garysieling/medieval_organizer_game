@@ -76,8 +76,15 @@ pub(crate) fn draw_overlay(buf: &mut Buffer, w: i32, title: &str, title_rgb: (u8
 /// 2.0" - a count of guild objects, and the goal the bar already shows)
 pub(crate) fn status_line(org: &str, leader: Option<&str>, members: usize, gold: f32, guild: Option<usize>) -> String {
     let rival = match guild { Some(n) => format!("Merchant Guild {}", n), None => "no guild yet".into() };
-    let head = leader.map(|l| format!(" led by {}", l)).unwrap_or_default();
-    format!("{} {}{} | Gold {:.0} | {}", org.trim_start_matches("The "), members, head, gold, rival)
+    // the line fits ~55 glyphs before the screen edge: the count and the
+    // guild must always survive, so the name takes what's left
+    let tail = format!(" | Gold {:.0} | {}", gold, rival);
+    let room = 55i32 - (org.trim_start_matches("The ").len() + 3 + tail.len()) as i32;
+    let head = leader.filter(|_| room >= 13).map(|l| {
+        let cap = (room - 9) as usize; // " led by " is 8 glyphs + the name
+        if l.len() <= cap { format!(" led by {}", l) } else { format!(" led by {}", &l[..cap]) }
+    }).unwrap_or_default();
+    format!("{} {}{}{}", org.trim_start_matches("The "), members, head, tail)
 }
 
 /// Label for who's in your organization, on the villager card ("Org:" never

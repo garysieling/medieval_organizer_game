@@ -235,6 +235,11 @@ count toward `met` - a barter or a shared meal alone doesn't.
 
 Scenes from an older server may omit `social`; read it as all zeroes.
 
+`panel.leader` names the org's head for the status line - `"you"` when
+the seat leads its own, a villager's name when the bond's passed to
+another. Older servers omit it or send null; a client should draw no
+"led by" then.
+
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",
 "notes: Corvin"]}` - the folk who've said yes, by name, so the seat can

@@ -64,7 +64,8 @@ impl Game {
                     // a crib needs village parents - the rivals' houses
                     // across the river breed no village children
                     && bb.occupants.iter().filter(|&&o|
-                        self.villagers.contains(&o)
+                        (self.villagers.contains(&o)
+                        || self.seats.iter().any(|s| s.player == o))
                         && self.world.get_component::<Kid>(o).is_none()
                         && !crate::game::dungeon::unavailable(&self.world, o)).count() >= 2)
                 .unwrap_or(false);

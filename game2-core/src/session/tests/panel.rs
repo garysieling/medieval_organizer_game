@@ -33,3 +33,14 @@ fn test_the_panel_shows_the_meeting_plans_yeses() {
     assert!(mp.roles.iter().any(|r| r.contains("house:")), "{:?}", mp.roles);
     assert!(mp.roles.iter().any(|r| r == &format!("snacks: {}", vill_name(1))), "{:?}", mp.roles);
 }
+
+#[test]
+fn test_the_panel_names_the_org_s_head() {
+    let g = Game::new();
+    let m = g.ui_model_at(0);
+    let org = g.world.get_component::<Organization>(g.seats[0].org).unwrap();
+    // seat 0's own org is led by the seat itself - the panel says "you"
+    assert_eq!(org.leader, g.seats[0].player);
+    assert_eq!(m.panel.leader.as_deref(), Some("you"),
+        "the org's head isn't named on the panel");
+}

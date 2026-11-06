@@ -154,6 +154,9 @@ pub struct PanelV {
     pub name: String,
     pub gold: f32,
     pub org: String,
+    /// Who heads it - the org's leader, by name; None before one's named
+    #[serde(default)]
+    pub leader: Option<String>,
     pub members: Vec<String>,
     pub issues: Vec<String>,
     pub guilds: usize,

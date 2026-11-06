@@ -145,6 +145,9 @@ impl Game {
                 // scandal, a disliked one shamed is a lesson
                 if self.rep_of(v) > 0.5 {
                     self.rep_apply(v, RepAction::GreatDeed); // sympathy lifts them
+                    // the rung was recorded before the crowd answered -
+                    // a sentence never served is no rung at all
+                    self.sanctioned.retain(|(e, s, _)| !(*e == v && *s == Sanction::Stocks));
                     self.log.push(format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
                     self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
                 } else {
@@ -193,12 +196,12 @@ impl Game {
     /// Is this shop's worker under boycott or worse? Their trade dries up
     pub fn boycotted(&self, shop: Entity) -> bool {
         let Some(worker) = self.world.get_component::<Building>(shop).and_then(|b| b.worker) else { return false };
-        self.sanctioned.iter().any(|(e, s, _)| *e == worker && *s >= Sanction::Boycott)
+        self.sanctioned.iter().any(|(e, s, u)| *e == worker && *s >= Sanction::Boycott && self.tick < *u)
     }
 
     /// Is this villager under the cold shoulder or worse?
     pub fn shunned(&self, v: Entity) -> bool {
-        self.sanctioned.iter().any(|(e, s, _)| *e == v && *s >= Sanction::Shun)
+        self.sanctioned.iter().any(|(e, s, u)| *e == v && *s >= Sanction::Shun && self.tick < *u)
     }
 
     /// The lord's arm: every season a writ comes down - a levy of grain,

@@ -742,6 +742,12 @@ impl Game {
         if let Some(c) = world.get_component::<villager::Condition>(v) {
             if self.tick < c.until { parts.push(c.kind.to_string()); }
         }
+        // the village's answer, public as the stocks: the rung they're on
+        if let Some(s) = self.sanctioned.iter()
+            .filter(|(e, _, u)| *e == v && self.tick < *u)
+            .map(|(_, s, _)| *s).max() {
+            parts.push(crate::game::sanctions::label(s).into());
+        }
         if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
             >= crate::game::organizing::RelStage::Known {
             if let Some(p) = world.get_component::<crate::game::traits::Personality>(v) {

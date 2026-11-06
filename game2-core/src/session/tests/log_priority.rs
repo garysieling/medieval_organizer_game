@@ -30,9 +30,17 @@ fn test_weather_changes_do_not_push_events_out_of_the_log() {
 fn test_flu_from_a_real_game_stays_in_the_log_by_day_600() {
     let mut game = Game::new();
     while game.tick < 600 { game.update(); }
-    let shown: Vec<&String> = visible_log(&game.log).into_iter().take(8).collect();
-    assert!(shown.iter().any(|e| e.contains("is taken with") || e.contains("recovered from")),
-        "by day 600 the sickness has scrolled away: {:?}", shown);
+    // however busy the village's been, the last sickness still pins above
+    // everyday chatter - newer happenings (a birth, an exile) may outrank
+    // it, but gossip and weather never do
+    let shown = visible_log(&game.log);
+    let sick = shown.iter().position(|e| e.contains("is taken with") || e.contains("recovered from"));
+    let chatter = shown.iter().position(|e| is_gossip(e) || is_weather_note(e));
+    assert!(sick.is_some(), "sickness should reach the log in a real game by day 600: {:?}",
+        game.log.iter().rev().take(20).collect::<Vec<_>>());
+    if let (Some(s), Some(c)) = (sick, chatter) {
+        assert!(s < c, "the sickness should outrank routine chatter: {:?} vs {:?}", shown[s], shown[c]);
+    }
 }
 
 #[test]

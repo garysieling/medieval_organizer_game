@@ -46,6 +46,7 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)
                         && self.world.get_component::<crate::game::vocation::Kid>(v).is_some()).collect();
                 let roll = self.rare_roll(id);
+                let lost_at;
                 if let Some(&k) = kids.get((roll as usize / 5) % kids.len().max(1)) {
                     // the kid herself rides in aux - a roster shift can't
                     // send the wrong one home
@@ -57,6 +58,9 @@ impl Game {
                         p.x = wood.0 as f32;
                         p.y = wood.1 as f32;
                     }
+                    // capture after the move - the toast should point at
+                    // the wood she's lost in, not where she was standing
+                    lost_at = toast_spot(&self.world, k);
                     let until = self.rare.iter().find(|r| r.id == id).and_then(|r| r.until)
                         .unwrap_or(self.tick + 2 * 80);
                     if let Some(hh) = household::home_of(&self.world, k) {
@@ -69,9 +73,10 @@ impl Game {
                     }
                     self.log.push(format!("t{}: a lost child - she's not come in for supper, and the wood's dark already.", self.tick));
                 } else {
+                    lost_at = None;
                     self.log.push(format!("t{}: a child was late for supper - it gave the village a turn.", self.tick));
                 }
-                self.toasts.push(("A lost child".into(), self.tick + 40));
+                self.toasts.push_at(("A lost child".into(), self.tick + 40), lost_at);
             }
             _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
         }
@@ -91,6 +96,8 @@ impl Game {
                     self.world.get_component::<household::Building>(be)
                         .map(|bb| bb.kind == household::BuildingKind::Home).unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
+                let fire_at = homes.get((roll as usize / 3) % homes.len().max(1))
+                    .and_then(|&h| toast_spot(&self.world, h));
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
                     let lit = self.world.get_component::<Pos>(h).copied()
                         .map(|p| self.fire.ignite(&self.map, p.x.round() as i32, p.y.round() as i32))
@@ -114,7 +121,7 @@ impl Game {
                 } else {
                     self.log.push(format!("t{}: a chimney fire - smoke gone wrong, but the neighbors put it out.", self.tick));
                 }
-                self.toasts.push(("A chimney fire!".into(), self.tick + 40));
+                self.toasts.push_at(("A chimney fire!".into(), self.tick + 40), fire_at);
             }
             EventId::GranaryLeak => {
                 // the rain got in: a share of the granary's stock
@@ -130,7 +137,8 @@ impl Game {
                 } else {
                     self.log.push(format!("t{}: a granary leak - the rain found a seam.", self.tick));
                 }
-                self.toasts.push(("A granary leak".into(), self.tick + 40));
+                self.toasts.push_at(("A granary leak".into(), self.tick + 40),
+                    toast_spot(&self.world, self.market_food));
             }
             EventId::CartOverturns => {
                 // the wheel finds the rut: a rolled home's load spills
@@ -145,6 +153,8 @@ impl Game {
                                     && !crate::game::dungeon::unavailable(&self.world, o)))
                         .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
+                let cart_at = homes.get((roll as usize / 3) % homes.len().max(1))
+                    .and_then(|&h| toast_spot(&self.world, h));
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
                     let mut sorted: Vec<String> = self.world.get_component::<household::Building>(h)
                         .map(|b| b.stock.iter().filter(|(_g, q)| **q > 0)
@@ -169,7 +179,7 @@ impl Game {
                 } else {
                     self.log.push(format!("t{}: a cart overturns on the road - nothing much in her to spill.", self.tick));
                 }
-                self.toasts.push(("A cart overturns".into(), self.tick + 40));
+                self.toasts.push_at(("A cart overturns".into(), self.tick + 40), cart_at);
             }
             EventId::DrownedInPond => {
                 // a rolled soul goes to the pond and doesn't come back:
@@ -195,7 +205,8 @@ impl Game {
                 } else {
                     self.log.push(format!("t{}: a body in the pond - nobody of ours, thank the saints.", self.tick));
                 }
-                self.toasts.push(("Drowned in the pond".into(), self.tick + 40));
+                self.toasts.push_at(("Drowned in the pond".into(), self.tick + 40),
+                    self.pit.map(|(x, y)| (x as f32, y as f32)));
             }
             EventId::Foundling => {
                 // a babe in a basket on the step: a rolled home takes
@@ -211,13 +222,15 @@ impl Game {
                                 && !crate::game::dungeon::unavailable(&self.world, o)))
                         .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
+                let baby_at = homes.get((roll as usize / 7) % homes.len().max(1))
+                    .and_then(|&h| toast_spot(&self.world, h));
                 if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
                     self.spawn_kid(h, self.tick);
                     self.log.push(format!("t{}: a foundling - a babe in a basket on the step, and whose she is nobody's saying.", self.tick));
                 } else {
                     self.log.push(format!("t{}: a foundling - a babe in a basket, but no door to lay her at.", self.tick));
                 }
-                self.toasts.push(("A foundling".into(), self.tick + 40));
+                self.toasts.push_at(("A foundling".into(), self.tick + 40), baby_at);
             }
             EventId::Quarrel => {
                 // two tempers meet in the square: the whole street
@@ -227,6 +240,8 @@ impl Game {
                         && !crate::game::dungeon::unavailable(&self.world, v)
                         && self.world.get_component::<crate::game::vocation::Kid>(v).is_none()).collect();
                 let roll = self.rare_roll(id);
+                let quarrel_at = able.get((roll as usize / 3) % able.len().max(1))
+                    .and_then(|&v| toast_spot(&self.world, v));
                 if able.len() >= 2 {
                     let a = able[(roll as usize / 3) % able.len()];
                     let b = able[(roll as usize / 3 + 1) % able.len()];
@@ -241,7 +256,7 @@ impl Game {
                 } else {
                     self.log.push(format!("t{}: words were had in the square - nothing came of it.", self.tick));
                 }
-                self.toasts.push(("A quarrel in the square".into(), self.tick + 40));
+                self.toasts.push_at(("A quarrel in the square".into(), self.tick + 40), quarrel_at);
             }
             EventId::OldOakFalls => {
                 // she was older than the church: the landmark's gone,

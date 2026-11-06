@@ -11,7 +11,6 @@ use game2_core::engine::ecs::Entity;
 use game2_core::engine::render::Buffer;
 use game2_core::engine::sprite::{Assets, Sprite};
 use game2_core::game::pets::Species;
-use game2_core::game::player::recruit_influence_needed;
 use game2_core::game::tilemap::{Tile, TileMap, WallPiece, NEIGHBOURS, noise};
 use game2_core::sim::climate::Season;
 use game2_core::sim::precipitation::PrecipKind;

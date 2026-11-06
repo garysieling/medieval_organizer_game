@@ -35,6 +35,19 @@ pub struct PersonV {
     pub act_mark: u8,
     /// A pet bonded strongly to its owner (the <3 label)
     pub bond: bool,
+    /// What the find box matches against, already folded by [`find_key`]:
+    /// their name and posting ("eliza journeyman baker"), empty for
+    /// creatures and fixtures nobody would look for
+    #[serde(default)]
+    pub find: String,
+}
+
+/// Fold a name or epithet to what the find box compares: lowercase words,
+/// anything that isn't a letter or digit becomes a space
+pub fn find_key(s: &str) -> String {
+    s.chars().flat_map(|c| c.to_lowercase())
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect::<String>().split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -94,6 +107,10 @@ pub struct Line {
 pub struct InspectorV {
     /// Villager sprite index for the portrait; None for a building card or grave
     pub fig: Option<usize>,
+    /// The figure is a child: the portrait wears a young look, not the
+    /// grown-up one the bare index would cycle to
+    #[serde(default)]
+    pub kid: bool,
     /// Draw a grave portrait (died on `died_day`)
     pub dead: bool,
     pub died_day: Option<u64>,
@@ -120,8 +137,6 @@ pub struct CampaignV {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelV {
     pub name: String,
-    pub standing: String,
-    pub influence: f32,
     pub gold: f32,
     pub org: String,
     pub members: Vec<String>,
@@ -131,9 +146,39 @@ pub struct PanelV {
     pub food: u32,
     /// The org's campaign, when it's founded one
     pub campaign: Option<CampaignV>,
+    /// The odd job the seat is running, in a line ("take the note to Willa")
+    pub quest: Option<String>,
+    /// Who the seat has gotten to know, by how far each bond runs
+    #[serde(default)]
+    pub social: SocialV,
+    /// The house meeting being planned: who said yes to what, so the
+    /// seat can see the plan fill before it calls the meeting
+    pub meeting: Option<MeetingPlanV>,
 }
 
-/// Which of the four action buttons is blocked and why
+/// The seat's bond ledger: folk they've talked to, counted by the stage
+/// their relationship has reached - the reward for keeping company
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct SocialV {
+    /// Folk with any bond at all - someone the seat has spoken to
+    pub met: usize,
+    pub acquaintances: usize,
+    pub known: usize,
+    pub followers: usize,
+    pub coleaders: usize,
+}
+
+/// The meeting plan's yeses, by name - who's said they'd come, who'll
+/// bring friends, and the promises already filled ("house: Willa")
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MeetingPlanV {
+    pub coming: Vec<String>,
+    pub spreaders: Vec<String>,
+    /// Role promises as "role: name" lines (house, snacks, notes...)
+    pub roles: Vec<String>,
+}
+
+/// Which of the action buttons is blocked and why
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Selection {
     pub target: usize,
@@ -188,6 +233,14 @@ pub struct ConvoPanelV {
     pub leave: bool,
 }
 
+/// A big moment announced at the top of the map; `at` is where it
+/// happened, when it happened somewhere - a click jumps the camera there
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToastV {
+    pub text: String,
+    pub at: Option<(f32, f32)>,
+}
+
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
@@ -219,7 +272,7 @@ pub struct UiModel {
     pub settlement_houses: Vec<(f32, f32, BSprite)>,
     pub people: Vec<PersonV>,
     pub bubbles: Vec<BubbleV>,
-    pub toasts: Vec<String>,
+    pub toasts: Vec<ToastV>,
     pub log: Vec<String>,
     /// The TALK panel, apart from the log
     #[serde(default)]
@@ -234,13 +287,13 @@ pub struct UiModel {
     /// Whom Talk/Recruit would go to now (a villager index)
     pub reach_target: usize,
     /// Disabled reason per action button
-    pub blocked: [Option<String>; 4],
+    pub blocked: [Option<String>; 3],
     pub ctx: Vec<CtxAct>,
     /// Disabled reason per ctx button, same index order as `ctx`
     pub ctx_blocked: Vec<Option<String>>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
-    /// Mill stands at MILL_TILE when the art has a mill
+    /// Mill stands at the map's mill tile when the art has a mill
     pub mill: Option<(f32, f32)>,
     /// Wild herb tufts that are ready to pick
     pub herbs: Vec<(f32, f32)>,

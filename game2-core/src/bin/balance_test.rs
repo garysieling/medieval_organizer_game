@@ -154,8 +154,8 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
     // writes "Can't X" to the log, spam that isn't the village talking
     let can_recruit = game.action_blocker_at(seat, 1).is_none();
     if !can_recruit {
-        // influence comes from fresh conversation (+0.05 while rapport is
-        // new) - work the room, don't chat up your best friend forever
+        // rapport comes from fresh conversation - work the room, don't
+        // chat up your best friend forever
         cands.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         if let Some(&(i, _)) = cands.first() {
             game.seats[seat].selected_target = i;

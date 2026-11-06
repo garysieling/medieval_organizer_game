@@ -109,6 +109,31 @@ fn test_talk_opens_a_conversation_on_the_talk_panel_with_replies() {
 }
 
 #[test]
+fn test_the_choice_list_stops_at_three() {
+    use crate::game::desires::{Known, Problem, Reveal};
+    let mut g = Game::new();
+    let i = adults(&g)[0];
+    let v = g.villagers[i];
+    // they've told you something of themselves: the asks open up
+    g.world.add_component(v, Known { revealed: vec![Reveal::Problem(Problem::Taxed)] });
+    talk_beside(&mut g, i);
+    let t = g.seats[0].talk.as_ref().unwrap().clone();
+    assert!(t.asks.len() > 1, "asks on offer: {:?}", t.asks);
+    // replies plus asks, but never more than three on offer at once
+    let convo = g.convo_panel_at(0).unwrap();
+    assert_eq!(convo.options.len(), t.options.len() + t.asks_shown());
+    assert!(convo.options.len() <= TALK_MAX_CHOICES, "{:?}", convo.options);
+    let panel = g.talk_panel_at(0);
+    assert_eq!(panel.options.len(), convo.options.len());
+    // a pick past the shown three does nothing; the first ask still lands
+    g.talk_pick_at(0, Some(t.options.len() + t.asks_shown()));
+    assert!(g.seats[0].talk.is_some(), "an unseen ask can't be picked");
+    let ask = t.asks[0];
+    g.talk_pick_at(0, Some(t.options.len()));
+    assert!(!g.seats[0].talk.as_ref().unwrap().asks.contains(&ask), "the ask was spent");
+}
+
+#[test]
 fn test_leaving_or_walking_off_ends_the_talk() {
     let mut g = Game::new();
     let ad = adults(&g);

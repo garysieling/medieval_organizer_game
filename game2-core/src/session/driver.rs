@@ -1,7 +1,7 @@
 //! Heuristic drivers: simple goals for characters nobody's steering.
 //!
 //! `drive_player` runs a wanderer seat whose person went idle - keep them
-//! useful: eat, work, talk, invest. `drive_agent` is the same instinct for
+//! useful: eat, work, talk, build. `drive_agent` is the same instinct for
 //! a bot's villager. Both bias toward things that keep the village running.
 
 use super::{AgentCmd, AgentObs, Command, Game};
@@ -36,14 +36,15 @@ pub fn drive_player(game: &mut Game, seat: usize) {
         return;
     }
     // at the market: talk to whoever's in reach; the ties it builds are how
-    // influence (and recruits) happen later
+    // trust (and recruits) happen later
     let near = game.villagers_in_reach_at(seat);
     if !near.is_empty() {
         game.command_at(seat, Command::Act(0)); // Talk to the reach target
         return;
     }
-    if gold > 40.0 {
-        game.command_at(seat, Command::Act(2)); // Invest: gold into standing
+    // flush with gold: a house beside them is worth more than coin idle
+    if gold > 40.0 && game.action_blocker_at(seat, 2).is_none() {
+        game.command_at(seat, Command::Act(2)); // Build
         return;
     }
     // otherwise amble a little, so they don't stand stock still
@@ -65,7 +66,7 @@ pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
     // already on something that isn't idling: let it run
     if obs.busy.as_deref() != Some("Idle") && obs.busy.is_some() { return AgentCmd::Idle; }
     // someone's beside you and breathing: a word builds the ties that make
-    // influence and recruits later - but it's a word, not a life's work, so
+    // trust and recruits later - but it's a word, not a life's work, so
     // it answers on its own cadence (a talk day out of every few work days),
     // and only when they're close enough to actually hear it
     let near = obs.near.iter().filter(|p| !p.dead && p.dist <= 8.0)

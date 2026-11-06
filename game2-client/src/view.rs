@@ -30,6 +30,10 @@ pub struct View {
     pub zoom: f32,
     pub inspector_open: bool,
     pub help_open: bool,
+    /// The find box under the minimap: what was typed and whether it has
+    /// the keys - widget state like the toggles above
+    pub search_q: String,
+    pub search_focus: bool,
     /// The ground layer repainted only when stale
     pub(crate) ground: std::cell::RefCell<Option<GroundCache>>,
     /// Ground blocks at the current zoom, as opaque runs (draw_ground):
@@ -54,6 +58,8 @@ impl View {
             zoom: 1.0,
             inspector_open: true,
             help_open: false,
+            search_q: String::new(),
+            search_focus: false,
             ground: std::cell::RefCell::new(None),
             blocks: std::cell::RefCell::new(BlockCache::default()),
             spare: std::cell::RefCell::new(None),
@@ -354,6 +360,9 @@ impl View {
         // name labels are drawn after every sprite (so no sprite covers one)
         // and de-overlapped: (text, x, y, colour, hungry, selected)
         let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
+        // the player's dart waits for the label pass: a displaced name
+        // mustn't paint over the one mark that says "this one is you"
+        let mut player_marker: Option<(i32, i32, f32, u32)> = None;
         let mut standing = standing.iter().peekable();
         for &(px, py, who) in &people {
             while let Some(st) = standing.next_if(|st| st.0 + st.1 <= px + py) { draw_piece(&mut buf, st); }
@@ -363,12 +372,12 @@ impl View {
             }
             match who {
                 // windmill: the tower on its tile, its sails turning on the
-                // tower's face (frame cycles every 10 ticks)
+                // tower's face (frame cycles every 10 render frames)
                 Who::Mill => {
                     if let (Some(tower), true) = (&art.mill_tower, art.mill_rd) {
                         let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                         draw_standing(&mut buf, tower, msx, msy, zoom);
-                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                        if let Some(sails) = art.mill_frames.get(((m.frame / 10) % 4) as usize) {
                             let (hx, hy) = mill_hub_rd(tower, msx, msy, zoom);
                             let (w, h) = ((sails.width as f32 * zoom).round() as i32, (sails.height as f32 * zoom).round() as i32);
                             draw_zoomed(&mut buf, sails, hx - w / 2, hy - h / 2, zoom);
@@ -376,7 +385,7 @@ impl View {
                     } else if let Some(tower) = &art.mill_tower {
                         let (msx, msy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                         draw_on_tile(&mut buf, tower, msx, msy, zoom);
-                        if let Some(sails) = art.mill_frames.get(((tick / 10) % 4) as usize) {
+                        if let Some(sails) = art.mill_frames.get(((m.frame / 10) % 4) as usize) {
                             let (hx, hy) = mill_hub(tower, msx, msy, zoom);
                             let k = MILL_SAILS * 2.0 * TILE_W as f32 * zoom / tower.width as f32;
                             let (w, h) = ((sails.width as f32 * k).round() as i32, (sails.height as f32 * k).round() as i32);
@@ -408,7 +417,7 @@ impl View {
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
                     } else {
-                        let look = i % art.villager_sprites.len().max(1);
+                        let look = figure_look(pv.kid, i, art.villager_sprites.len());
                         let fig = &art.villager_sprites[look];
                         let anchor = if let Some(Some(ws)) = art.villager_walks.get(look) {
                             // a generated walk cycle: facing and striding as they move
@@ -521,6 +530,7 @@ impl View {
                     }
                     let anchor = anchor.unwrap_or_else(|| art.player_s.as_ref().map(|ps| sprite_label_anchor(ps, sy, zoom)).unwrap_or(label_anchor(sy, zoom)));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
+                    player_marker = Some((sx, ly - 2, zoom, m.frame));
                     labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
                 },
                 Who::P(_) => {},
@@ -553,26 +563,23 @@ impl View {
             // selection: underline the selected villager's name
             if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
         }
+        if let Some((cx, top, z, f)) = player_marker {
+            draw_player_marker(&mut buf, cx, top, z, f);
+        }
 
         prof.mark("render.gulls+labels");
         // --- UI PANEL ---
         draw_rect(&mut buf, UI_X as i32, 0, W as i32 - UI_X as i32, H as i32, 32, 32, 48);
         draw_text_scaled(&mut buf, UI_X as i32 + 10, 8, "THE WANDERER", 2, 255, 220, 130);
 
-        // status: influence bar, members, season, tick
+        // status: members, season, tick
         let p = &m.panel;
         let guild = Some(m.panel.guilds).filter(|g| *g > 0);
-        // influence bar runs to the win: reach WIN_INFLUENCE and the village
-        // follows you; the tick marks where recruiting starts to work
-        const BAR_W: i32 = 120;
-        draw_text(&mut buf, UI_X as i32 + 10, 30, "Influence", 200, 200, 200);
-        draw_rect(&mut buf, UI_X as i32 + 70, 30, BAR_W, 10, 40, 40, 60);
-        let infl_w = ((p.influence / WIN_INFLUENCE).clamp(0.0, 1.0) * BAR_W as f32) as i32;
-        draw_rect(&mut buf, UI_X as i32 + 70, 30, infl_w, 10, 255, 200, 80);
-        let recruit_x = UI_X as i32 + 70 + ((recruit_influence_needed() / WIN_INFLUENCE) * BAR_W as f32) as i32;
-        draw_rect(&mut buf, recruit_x, 28, 1, 14, 120, 255, 120);
-        draw_text(&mut buf, UI_X as i32 + 70 + BAR_W + 6, 31, &format!("{:.2}/{:.1} lead", p.influence, WIN_INFLUENCE), 255, 220, 130);
-        draw_text(&mut buf, UI_X as i32 + 10, 44, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
+        draw_text(&mut buf, UI_X as i32 + 10, 30, &status_line(&p.org, p.members.len(), p.gold, guild), 200, 200, 200);
+        // the odd job under way, if the Wanderer's carrying one
+        if let Some(q) = &m.panel.quest {
+            draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
+        }
 
         // buttons
         for (i, b) in action_buttons().iter().enumerate() {
@@ -588,15 +595,26 @@ impl View {
             }
         }
 
-        // inspector: a villager's card, or a building's when one's clicked
+        // the house-meeting plan filling in: who's said yes, by name -
+        // sits under the Gather button's slot, above the inspector card
+        if let Some(mp) = &m.panel.meeting {
+            draw_text(&mut buf, UI_X as i32 + 18, 272, "MEETING", 255, 215, 0);
+            let lines: Vec<String> = meeting_lines(mp).iter()
+                .flat_map(|l| wrap_text(l, 42)).collect();
+            for (n, line) in lines.iter().take(3).enumerate() {
+                draw_text(&mut buf, UI_X as i32 + 18, 284 + n as i32 * 11, line, 220, 220, 180);
+            }
+        }
+
         // inspector: a villager's card, or a building's when one's clicked
         if self.inspector_open {
-            draw_rect(&mut buf, UI_X as i32 + 10, 316, 270, 140, 45, 45, 65);
+            draw_rect(&mut buf, UI_X as i32 + 10, 316, 320, 140, 45, 45, 65);
             if let Some(insp) = &m.inspector {
                 if insp.dead {
                     draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);
                 } else if let Some(fig_i) = insp.fig {
-                    let fig = &art.villager_sprites[fig_i % art.villager_sprites.len().max(1)];
+                    let look = figure_look(insp.kid, fig_i, art.villager_sprites.len());
+                    let fig = &art.villager_sprites[look];
                     fig.blit_scaled(&mut buf, UI_X as i32 + 6, 322, 2);
                 }
                 for line in &insp.lines {
@@ -633,6 +651,16 @@ impl View {
             }
         }
 
+        // the bond ledger: the reward for keeping company - who the
+        // seat has spoken to and how far each bond has climbed. It sits
+        // between the Build button (ends 184) and the Gather ctx button
+        // (starts 236), so the block can't outgrow three lines
+        let s = &m.panel.social;
+        draw_text(&mut buf, UI_X as i32 + 18, 190, "BONDS", 255, 215, 0);
+        for (n, line) in bond_lines(s).iter().enumerate() {
+            draw_text(&mut buf, UI_X as i32 + 18, 202 + n as i32 * 12, line, 215, 215, 195);
+        }
+
         // organization: who has joined, by name
         let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
         draw_text(&mut buf, UI_X as i32 + 18, 464, MEMBERS_LABEL, 255, 215, 0);
@@ -658,10 +686,10 @@ impl View {
         }
 
         // event log
-        draw_rect(&mut buf, UI_X as i32 + 10, 512, 270, 110, 25, 25, 40);
+        draw_rect(&mut buf, UI_X as i32 + 10, 512, 320, 110, 25, 25, 40);
         draw_text(&mut buf, UI_X as i32 + 14, 516, "LOG", 150, 150, 180);
         // newest first, word-wrapped to the box instead of cut off mid-word
-        const LOG_CHARS: usize = 43;      // (box width - padding) / glyph width
+        const LOG_CHARS: usize = 52;      // (box width - padding) / glyph width
         const LOG_ROWS: usize = 8;
         let mut row = 0;
         'log: for entry in &m.log {
@@ -683,8 +711,12 @@ impl View {
             }
         }
 
-        // the TALK panel under the minimap: conversations, apart from the log
+        // the TALK panel under the find box: conversations, apart from the log
         talk::draw_talk_panel(&mut buf, &m.talk, (mx, my));
+
+        // the find box under the minimap
+        draw_search_box(&mut buf, &self.search_q,
+            search_people(&m.people, &self.search_q).len(), self.search_focus);
 
         // the conversation box, top-right of the map: a Talk under way or
         // a house meeting's lines as they're said - and the call one leaves
@@ -794,16 +826,15 @@ impl View {
             }
         }
 
-        // toasts (big moments)
-        let mut ty = 40;
-        for msg in m.toasts.iter() {
-            {
-                let tw = msg.len() as i32 * 6 + 16;
-                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 20, 20, 20, 35);
-                buf.rect(MAP_W as i32 / 2 - tw / 2, ty, tw, 1, 255, 215, 0);
-                draw_text(&mut buf, MAP_W as i32 / 2 - tw / 2 + 8, ty + 6, msg, 255, 220, 130);
-                ty += 26;
-            }
+        // toasts (big moments); one that happened somewhere is a button -
+        // a click jumps the camera there (toast_hit knows the same boxes)
+        for (t, (bx, by, bw)) in m.toasts.iter().zip(toast_boxes(&m.toasts)) {
+            let hovered = t.at.is_some() && mx >= bx && mx < bx + bw && my >= by && my < by + 20;
+            buf.rect(bx, by, bw, 20, 20, 20, 35);
+            buf.rect(bx, by, bw, 1, 255, 215, 0);
+            let (r, g, b) = if t.at.is_some() { (255, 232, 160) } else { (255, 220, 130) };
+            draw_text(&mut buf, bx + 8, by + 6, &t.text, r, g, b);
+            if hovered { buf.rect(bx, by + 19, bw, 1, 255, 240, 170); }
         }
 
         // season banner
@@ -905,4 +936,57 @@ impl View {
         GroundCache { buf, camera, zoom, season: m.season, rev: m.map.rev() }
     }
 
+}
+
+/// The banner box each toast draws as: (x, y, w), top-center of the map
+pub(crate) fn toast_boxes(toasts: &[ToastV]) -> Vec<(i32, i32, i32)> {
+    let mut out = Vec::with_capacity(toasts.len());
+    let mut ty = 40;
+    for t in toasts {
+        let tw = t.text.len() as i32 * 6 + 16;
+        out.push((MAP_W as i32 / 2 - tw / 2, ty, tw));
+        ty += 26;
+    }
+    out
+}
+
+/// Which toast the mouse is over - render draws the same boxes, so a
+/// click on a banner that has `at` can jump the camera there
+pub fn toast_hit(toasts: &[ToastV], mx: i32, my: i32) -> Option<usize> {
+    toast_boxes(toasts).iter().position(|&(x, y, w)|
+        mx >= x && mx < x + w && my >= y && my < y + 20)
+}
+
+/// Who the find box's query fits, as indexes into `people`: a folded
+/// substring match on each person's `find` text (name and posting)
+pub fn search_people(people: &[PersonV], query: &str) -> Vec<usize> {
+    let q = find_key(query);
+    if q.is_empty() { return vec![]; }
+    people.iter().enumerate()
+        .filter(|(_, p)| !p.find.is_empty() && p.find.contains(&q))
+        .map(|(i, _)| i).collect()
+}
+
+/// The find box under the minimap: "find:" and what was typed, with the
+/// match count (or the notice that no one fits) at the right
+pub fn draw_search_box(buf: &mut Buffer, query: &str, hits: usize, focused: bool) {
+    buf.rect(SRCH_X, SRCH_Y, SRCH_W, SRCH_H, 30, 30, 48);
+    buf.rect(SRCH_X, SRCH_Y, SRCH_W, 1, 60, 60, 80);
+    buf.rect(SRCH_X, SRCH_Y + SRCH_H - 1, SRCH_W, 1, 60, 60, 80);
+    buf.rect(SRCH_X, SRCH_Y, 1, SRCH_H, 60, 60, 80);
+    buf.rect(SRCH_X + SRCH_W - 1, SRCH_Y, 1, SRCH_H, 60, 60, 80);
+    draw_text(buf, SRCH_X + 6, SRCH_Y + 8, "find:", 140, 140, 160);
+    let q = if focused && query.is_empty() { "type a name".to_string() } else { query.to_string() };
+    let (qr, qg, qb) = if query.is_empty() { (110, 110, 130) } else { (235, 235, 245) };
+    draw_text(buf, SRCH_X + 40, SRCH_Y + 8, &q, qr, qg, qb);
+    let status = if query.is_empty() { String::new() }
+        else if hits == 0 { "no one by that name".into() }
+        else { format!("{} found", hits) };
+    let sw = status.len() as i32 * GLYPH_W;
+    draw_text(buf, SRCH_X + SRCH_W - sw - 6, SRCH_Y + 8, &status, 150, 150, 170);
+    if focused {
+        // a caret after the typed text so it's plain the box has the keys
+        let cx = SRCH_X + 40 + query.len() as i32 * GLYPH_W + 1;
+        buf.rect(cx, SRCH_Y + 6, 1, 10, 220, 220, 235);
+    }
 }

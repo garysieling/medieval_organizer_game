@@ -85,6 +85,18 @@ pub fn tile_to_minimap(tx: f32, ty: f32, k: f32) -> (f32, f32) {
     (MM_LEFT as f32 + MM_W as f32 / 2.0 + (tx - ty) * k, MM_TOP as f32 + 2.0 + (tx + ty) * k / 2.0)
 }
 
+/// The find box under the minimap: type a name or a posting ("heart
+/// helper") and Enter walks the camera to who fits
+pub const SRCH_X: i32 = MM_LEFT;
+pub const SRCH_Y: i32 = MM_TOP + MM_H + 4;
+pub const SRCH_W: i32 = MM_W;
+pub const SRCH_H: i32 = 20;
+
+/// Is the point on the find box?
+pub fn search_box_at(mx: i32, my: i32) -> bool {
+    mx >= SRCH_X && mx < SRCH_X + SRCH_W && my >= SRCH_Y && my < SRCH_Y + SRCH_H
+}
+
 /// The tile under minimap pixel (mx, my), if it's on the minimap's tiles
 /// (inverse of tile_to_minimap)
 /// Where a minimap click centres the camera, for any map (sim's or a model's)
@@ -107,6 +119,30 @@ pub fn minimap_tile(mx: f32, my: f32, w_t: f32, h_t: f32) -> Option<(f32, f32)> 
 /// (at any zoom: the zoom pivots about the view's centre)
 pub fn camera_on(tx: f32, ty: f32) -> (i32, i32) {
     (-((tx - ty) * TILE_W as f32).round() as i32, (ZOOM_PIVOT.1 + 60.0 - (tx + ty) * TILE_H as f32).round() as i32)
+}
+
+/// How close to the map view's rim the mouse has to be before the camera
+/// starts to drift, in px
+pub const EDGE_MARGIN: i32 = 28;
+/// The fastest that drift, in screen px per frame at zoom 1 - about a
+/// slow walk across the view, quicker the deeper the mouse sits
+pub const EDGE_SPEED: f32 = 3.0;
+
+/// The camera drift a mouse near the map view's rim asks for, in screen
+/// px per frame (the caller divides by zoom for a steady on-screen pace).
+/// Positive pushes the way the arrow keys do: +x pans the view left,
+/// +y pans it up. Zero outside the map view - the side panel and find
+/// box are not its rim.
+pub fn edge_scroll(mx: i32, my: i32) -> (f32, f32) {
+    if mx < 0 || mx >= MAP_W as i32 || my < 0 || my >= H as i32 { return (0.0, 0.0); }
+    let push = |pos: i32, hi: i32| -> f32 {
+        if pos < EDGE_MARGIN {
+            EDGE_SPEED * (EDGE_MARGIN - pos) as f32 / EDGE_MARGIN as f32
+        } else if pos > hi - EDGE_MARGIN {
+            -EDGE_SPEED * (pos - (hi - EDGE_MARGIN)) as f32 / EDGE_MARGIN as f32
+        } else { 0.0 }
+    };
+    (push(mx, MAP_W as i32), push(my, H as i32))
 }
 
 /// Font glyph width and height (ui::font)

@@ -24,12 +24,12 @@ use serde::{Deserialize, Serialize};
 use crate::engine::ecs::Entity;
 use crate::game::desires::{self, Want};
 use crate::game::livelihood::Purse;
-use crate::game::pets::{self, Species, PetRole};
+use crate::game::pets::{self, Pet, Species, PetRole};
 use crate::game::villager::{self, Pos};
 use crate::game::household;
 use crate::sim::illness::Health;
 use crate::game::mycology::MushKind;
-use super::{Game, Goal, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS};
+use super::{Game, Goal, MushPatch, Rng, TRAVELLER_SPEED, TALK_BUBBLE_SECS, CHAT_BUBBLE_SECS, toast_spot};
 
 /// Which of the hundred
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -246,14 +246,20 @@ pub struct RareEvent {
     pub at: Option<(i32, i32)>,
     /// Heading home already
     pub leaving: bool,
-    /// Per-event scratch: a counter, a picked target, a flag
+    /// Per-event scratch: a counter, a picked target, a flag. For the
+    /// stray cat it's the petting cooldown - the frame_n deadline
     pub aux: u64,
+    /// The stray cat's strokes, per player: when she chooses, the kindest
+    /// hand keeps her
+    pub petters: crate::engine::det::HashMap<Entity, u32>,
 }
 
-/// When each event first becomes due: its gap window from the start, jittered
+/// When each event first becomes due: the opening months are full of
+/// strangers and wonders - every id gets a first date inside the first
+/// season, jittered - then the road settles to each spec's own gap
 pub fn initial_due(seed: u64) -> Vec<(EventId, u64)> {
     let mut rng = Rng(seed ^ 0x5EED5EED);
-    EVENTS.iter().map(|s| (s.id, s.gap + rng.next() % s.span)).collect()
+    EVENTS.iter().map(|s| (s.id, 10 + rng.next() % 120)).collect()
 }
 
 /// The events that tell on themselves: what the village notices a few
@@ -265,6 +271,17 @@ const OMENS: &[(EventId, &str)] = &[
 ];
 /// Days ahead an omen lands
 const OMEN_LEAD: u64 = 5;
+
+/// Petting the stray cat: each stroke warms her a little, then she needs
+/// a moment before she'll take more - the cooldown rides in the event's
+/// `aux` as the frame_n deadline
+pub const STRAY_CAT_PET_BOND: f32 = 0.1;
+/// Frames between strokes (two seconds at 60fps)
+pub const STRAY_CAT_PET_COOLDOWN: u64 = 120;
+/// Warmth at which the cat chooses the hand that's been kind to her
+pub const STRAY_CAT_TAME_BOND: f32 = 0.6;
+/// How close the player must stand to stroke her
+pub const STRAY_CAT_PET_DIST: f32 = 2.0;
 
 /// Which family an event belongs to: its handlers live in that family's file
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -333,16 +350,16 @@ impl Game {
         match s.kind {
             EventKind::Visitor => {
                 let e = self.world.create_entity();
-                let start = self.traveller_path.last().copied().unwrap_or((29, 14));
+                let start = self.road_far();
                 self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
                 let at = self.event_pitch(id);
                 let path = self.map.walk_path(start, at).unwrap_or_default();
-                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0 });
+                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });
                 self.log.push(format!("t{}: {} has come to town.", self.tick, s.name));
             }
             EventKind::Spell => {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
-                    at: None, leaving: false, aux: 0 });
+                    at: None, leaving: false, aux: 0, petters: Default::default() });
                 self.event_began(id);
                 // its first day is this one - the daily tick for tomorrow
                 // hasn't come yet, and a one-day spell sees no other
@@ -361,13 +378,13 @@ impl Game {
     fn event_pitch(&self, id: EventId) -> (i32, i32) {
         match id {
             EventId::CharcoalBurner | EventId::Deserter =>
-                self.map.nearest_buildable(self.town_wall.0 - 3, self.town_wall.1 - 3).unwrap_or((16, 16)),
+                self.map.nearest_buildable(self.town_wall.0 - 3, self.town_wall.1 - 3).unwrap_or(self.village),
             EventId::LeperBand | EventId::RefugeeFamily | EventId::Recruiter =>
-                self.map.nearest_buildable(self.town_wall.0 + 2, self.town_wall.3 + 2).unwrap_or((16, 16)),
+                self.map.nearest_buildable(self.town_wall.0 + 2, self.town_wall.3 + 2).unwrap_or(self.village),
             _ => {
                 let mp = self.world.get_component::<Pos>(self.market_food)
-                    .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((16, 16));
-                self.map.nearest_buildable(mp.0 + 2, mp.1 + 2).unwrap_or((16, 16))
+                    .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(self.village);
+                self.map.nearest_buildable(mp.0 + 2, mp.1 + 2).unwrap_or(self.village)
             }
         }
     }
@@ -430,7 +447,7 @@ impl Game {
     fn depart_event(&mut self, idx: usize) {
         if idx >= self.rare.len() { return; }
         let mut r = self.rare[idx].clone();
-        let back = self.traveller_path.last().copied().unwrap_or((29, 14));
+        let back = self.road_far();
         r.path = self.world.get_component::<Pos>(r.e.unwrap_or(0))
             .and_then(|p| self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back))
             .unwrap_or_default();
@@ -453,6 +470,17 @@ impl Game {
             }
             EventId::StrayCat => {
                 self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
+                // she's a pet to begin with - ownerless and bondless, but
+                // pettable: a player who's kind to her keeps her. Hunting
+                // like any village cat: vermin watch and a warm lap once
+                // she's bond enough to give it
+                if let Some(e) = e {
+                    self.world.add_component(e, Pet {
+                        name: "a stray".into(), species: Species::Cat, owner: None,
+                        bond_strength: 0.0, mood_effect: 0.15,
+                    });
+                    self.world.add_component(e, PetRole::Hunting);
+                }
             }
             EventId::ProdigalSon => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
@@ -464,7 +492,8 @@ impl Game {
                             && bb.occupants.iter().any(|o| self.villagers.contains(o)))
                         .unwrap_or(false)).collect();
                 let roll = self.rare_roll(id);
-                if let Some(&h) = homes.get((roll as usize / 7) % homes.len().max(1)) {
+                let home = homes.get((roll as usize / 7) % homes.len().max(1)).copied();
+                if let Some(h) = home {
                     for &o in self.world.get_component::<household::Building>(h)
                         .map(|b| b.occupants.clone()).unwrap_or_default().iter() {
                         if villager::is_dead(&self.world, o) { continue; }
@@ -472,7 +501,8 @@ impl Game {
                     }
                 }
                 self.log.push(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick));
-                self.toasts.push(("A prodigal returns".into(), self.tick + 40));
+                self.toasts.push_at(("A prodigal returns".into(), self.tick + 40),
+                    home.and_then(|h| toast_spot(&self.world, h)));
             }
             EventId::KnifeGrinder => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }

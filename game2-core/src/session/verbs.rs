@@ -6,7 +6,7 @@ impl Game {
     /// Why action button `i` can't be used right now, if it can't: Build's
     /// own rules (gold, a free site), otherwise disabled_reason
     pub fn action_blocker_at(&self, seat: usize, i: usize) -> Option<String> {
-        if i == 3 {
+        if i == 2 {
             let gold = self.world.get_component::<PlayerCharacter>(self.seats[seat].player).map(|p| p.resources).unwrap_or(0.0);
             if gold < BUILD_COST { return Some(format!("need {:.0} gold", BUILD_COST)); }
             if self.build_site_at(seat).is_none() { return Some("no room nearby".into()); }
@@ -16,7 +16,7 @@ impl Game {
     }
 
     /// Why a ctx button can't answer right now, if it can't - shown greyed
-    /// with the reason beside it, like the five main buttons' `blocked`
+    /// with the reason beside it, like the main buttons' `blocked`
     pub fn ctx_blocker_at(&self, seat: usize, act: CtxAct) -> Option<String> {
         match act {
             CtxAct::Meet => {
@@ -50,6 +50,9 @@ impl Game {
                     .any(|r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
                 if open { None } else { Some("every seat's spoken for".into()) }
             }
+            CtxAct::PetCat => self.rare.iter().find(|r| r.id == events::EventId::StrayCat && !r.leaving)
+                .filter(|r| r.aux > self.frame_n as u64)
+                .map(|_| "she needs a moment".to_string()),
             _ => None,
         }
     }
@@ -58,15 +61,11 @@ impl Game {
     /// can't - the seat's own selection, reach, purse and org answer, not
     /// seat 0's
     pub fn disabled_reason_at(&self, seat: usize, i: usize) -> Option<String> {
-        // Recruit is pointless on a member and Invest on an empty purse: say
-        // so on the button, as Build does, rather than fail in the log
-        // Talk and Recruit need the selected villager alive (they walk over
-        // to them)
+        // Recruit is pointless on a member: say so on the button, as Build
+        // does, rather than fail in the log. Talk and Recruit need the
+        // selected villager alive (they walk over to them)
         let target = self.villagers[if (i == 0 || i == 1) && self.seats[seat].picked { self.seats[seat].selected_target } else { self.reach_target_at(seat) }];
         let target_alive = self.world.get_component::<Health>(target).is_some();
-        let p = self.world.get_component::<PlayerCharacter>(self.seats[seat].player)
-            .map(|p| (p.influence, p.resources)).unwrap_or((0.0, 0.0));
-        let recruit_infl_ok = can_recruit(p.0);
         let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
         let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(target).is_some()
@@ -75,10 +74,8 @@ impl Game {
         else if (i == 0 || i == 1) && held { Some("in the dungeon".into()) }
         else if i == 1 && member { Some("already a member".into()) }
         else if i == 1 && campaign.is_none() { Some("no campaign to join".into()) }
-        else if i == 2 && p.1 < INVEST_GOLD { Some(format!("need {:.0} gold", INVEST_GOLD)) }
-        else if i == 1 && !recruit_infl_ok { Some(format!("need influence {:.2}", recruit_influence_needed())) }
         else if i == 1 && !campaign.map(|c| crate::game::player::sympathizes(&self.world, c, target)).unwrap_or(false)
-            && crate::game::player::rapport(&self.world, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
+            && crate::game::player::rapport(&self.world, self.seats[seat].player, target) < crate::game::player::RECRUIT_RAPPORT_NEEDED { Some("talk with them more".into()) }
         else { None }
     }
 
@@ -93,7 +90,7 @@ impl Game {
             let on = |bx: f32, by: f32| bx.round() as i32 == x && by.round() as i32 == y;
             let beside = |bx: f32, by: f32| (bx.round() as i32 - x).abs() <= 1 && (by.round() as i32 - y).abs() <= 1;
             self.buildings.iter().any(|(bx, by, _)| beside(*bx, *by))
-                || beside(MILL_TILE.0, MILL_TILE.1)
+                || beside(self.mill.0, self.mill.1)
                 || self.world.query::<villager::FoodSource>().iter()
                     .filter_map(|f| self.world.get_component::<Pos>(*f))
                     .any(|p| on(p.x, p.y))
@@ -179,7 +176,14 @@ impl Game {
         // the conversation itself goes on the TALK panel, the replies yours to pick
         self.open_player_talk(seat, v, rel, &said);
         if !coached.is_empty() { self.narrate_talk(seat, coached.trim()); }
-        format!("{}: \"{}\"{}", did, said, coached)
+        // and if they were the one the job was for, it's handed over now
+        let quest_note = self.quest_talk_done(seat, v);
+        let mut line = format!("{}: \"{}\"{}", did, said, coached);
+        if let Some(q) = quest_note {
+            self.log.push(q);
+            line.push_str(" - and the job's done.");
+        }
+        line
     }
 
     /// Distance from the player to villager `who`, in tiles
@@ -254,7 +258,7 @@ impl Game {
         self.seats[seat].approach = Some(a);
     }
 
-    /// Take action button `i` (Talk, Recruit, Invest, Build)
+    /// Take action button `i` (Talk, Recruit, Build)
     pub fn act_at(&mut self, seat: usize, i: usize) {
         let tick = self.tick;
         // Talk and Recruit go to whoever the player picked; otherwise to
@@ -277,8 +281,7 @@ impl Game {
                     if r.success { format!("{} joined!", vill_name(selected_target)) }
                     else { format!("{}: {}", vill_name(selected_target), r.description.to_lowercase()) }
                 }
-                2 => { let pe = self.seats[seat].player; let r = act_invest(&mut self.world, pe, INVEST_GOLD); r.description }
-                3 => {
+                2 => {
                     // action_blocker checked there's gold and a site
                     let (bx, by) = self.build_site_at(seat).unwrap();
                     if let Some(p) = self.world.get_component_mut::<PlayerCharacter>(self.seats[seat].player) { p.resources -= BUILD_COST; }
@@ -294,8 +297,7 @@ impl Game {
             }
         };
         // every action line is dated like the rest of the log. It doesn't
-        // show the influence it earned: the log reads as what happened in
-        // the village, not a score sheet (the panel's bar shows standing)
+        // show a score: the log reads as what happened in the village
         if !talked { self.log.push(format!("t{}: {}", tick, msg)); }
         // gold spent here is the same purse the day's trading counts
         let pe = self.seats[seat].player; sync_purse(&mut self.world, pe, true);
@@ -340,6 +342,19 @@ impl Game {
             if lonely_known >= 2 {
                 self.seats[seat].ctx_actions.push(CtxAct::Matchmake);
             }
+            // and while they're asking within earshot: the odd job
+            // they've got going begging, till the seat's hands are full
+            let in_earshot = self.world.get_component::<Pos>(v)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= TALK_DIST)
+                .unwrap_or(false);
+            if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
+                self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
+            }
+        }
+        // a stray cat keeping you company can be stroked - "Pet her"
+        // shows while she's in reach, whatever else is going on
+        if self.stray_cat_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::PetCat);
         }
         // a house meeting is earned: the button shows once a place and a
         // promise are on the plan
@@ -676,7 +691,7 @@ impl Game {
                 // the hold: what the state spends to keep them inside
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = vill_name(self.seats[seat].selected_target);
-                    self.toasts.push((format!("{} walks free", name), tick + 40));
+                    self.toasts.push_at((format!("{} walks free", name), tick + 40), toast_spot(&self.world, v));
                     format!("The letters don't stop - and the cell opens. {} walks free.", name)
                 } else {
                     let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(v)
@@ -684,8 +699,53 @@ impl Game {
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
                 }
             }
+            CtxAct::TakeJob => self.accept_quest_at(seat),
+            CtxAct::PetCat => self.pet_stray_cat_at(seat),
         };
-        self.log.push(format!("t{}: {}", tick, msg));
+        if !msg.is_empty() {
+            self.log.push(format!("t{}: {}", tick, msg));
+        }
+    }
+
+    /// The stray cat's entity when she's afoot, hasn't chosen yet, and the
+    /// seat's player is close enough to stroke her. Cooldown isn't checked
+    /// here - the button stays and greys with the reason instead
+    fn stray_cat_at(&self, seat: usize) -> Option<Entity> {
+        let r = self.rare.iter().find(|r| r.id == events::EventId::StrayCat && !r.leaving)?;
+        let e = r.e?;
+        // she's only a pet once she's made her pitch - the Pet lands on arrival
+        self.world.get_component::<Pet>(e)?;
+        let cp = self.world.get_component::<Pos>(e)?;
+        let (px, py) = self.player_pos_at(seat);
+        (((cp.x - px).powi(2) + (cp.y - py).powi(2)).sqrt() <= events::STRAY_CAT_PET_DIST)
+            .then_some(e)
+    }
+
+    /// Stroke the stray cat: a little warmth each time, then she needs a
+    /// moment - and a kind hand often keeps her when she chooses. The log
+    /// line is the caller's; this returns "" so routine pets stay quiet
+    /// and only the milestones speak
+    fn pet_stray_cat_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some(e) = self.stray_cat_at(seat) else { return String::new() };
+        let on_cooldown = self.rare.iter().find(|r| r.id == events::EventId::StrayCat)
+            .map(|r| r.aux > self.frame_n as u64).unwrap_or(false);
+        if on_cooldown { return String::new() }
+        let (was, now) = self.world.get_component::<Pet>(e)
+            .map(|p| (p.bond_strength, (p.bond_strength + events::STRAY_CAT_PET_BOND).min(1.0)))
+            .unwrap_or((0.0, 0.0));
+        if let Some(p) = self.world.get_component_mut::<Pet>(e) { p.bond_strength = now; }
+        if let Some(r) = self.rare.iter_mut().find(|r| r.id == events::EventId::StrayCat) {
+            r.aux = self.frame_n as u64 + events::STRAY_CAT_PET_COOLDOWN;
+            *r.petters.entry(self.seats[seat].player).or_default() += 1;
+        }
+        self.say(e, "*purrr*", 2);
+        if was <= 0.0 {
+            self.log.push(format!("t{}: the stray cat winds round your ankles.", tick));
+        } else if was < 0.5 && now >= 0.5 {
+            self.log.push(format!("t{}: she purrs under your hand - she's warming to you.", tick));
+        }
+        String::new()
     }
 
     /// The street: the cause marches. Returns the log line - turnout, the
@@ -774,7 +834,7 @@ impl Game {
                             }
                         }
                         if signed > 0 { msg += &format!(" {} sign on to free them.", signed); }
-                        self.toasts.push((format!("{} is taken", tn), tick + 40));
+                        self.toasts.push_at((format!("{} is taken", tn), tick + 40), toast_spot(&self.world, taken));
                     }
                 }
                 // the campaign talks over what the street brought

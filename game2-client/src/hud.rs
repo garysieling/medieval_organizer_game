@@ -100,6 +100,57 @@ pub(crate) fn members_line(names: &[&str]) -> String {
     format!("{} ..", line)
 }
 
+/// `n` things called `one`/`many`: "1 follower", "2 followers"
+fn counted(n: usize, one: &str, many: &str) -> String {
+    if n == 1 { format!("1 {}", one) } else { format!("{} {}", n, many) }
+}
+
+/// The BONDS block under the action buttons: who the seat has spoken
+/// to, then the count at each stage the bond has climbed. The first
+/// line is the headline; the breakdown only shows once there's anyone
+/// to break down
+pub(crate) fn bond_lines(s: &SocialV) -> Vec<String> {
+    let mut lines = vec![if s.met == 1 {
+        "1 person you've spoken to".to_string()
+    } else {
+        format!("{} folk you've spoken to", s.met)
+    }];
+    if s.met > 0 {
+        lines.push(format!("{} · {}",
+            counted(s.acquaintances, "acquaintance", "acquaintances"),
+            counted(s.known, "known", "known")));
+        lines.push(format!("{} · {}",
+            counted(s.followers, "follower", "followers"),
+            counted(s.coleaders, "co-leader", "co-leaders")));
+    }
+    lines
+}
+
+/// A yeses list cut to one sidebar row: names joined `sep`, whatever
+/// won't fit counted as "+n" - so a long crowd can't push the roles off
+fn capped_list(label: &str, items: &[String], sep: &str, cap: usize) -> String {
+    let head = if label.is_empty() { String::new() } else { format!("{}: ", label) };
+    let mut kept = items.len();
+    loop {
+        let rest = items.len() - kept;
+        let mut s = format!("{}{}", head, items[..kept].join(sep));
+        if rest > 0 { s.push_str(&format!(" +{}", rest)); }
+        if s.len() <= cap || kept == 0 { return s; }
+        kept -= 1;
+    }
+}
+
+/// The house-meeting plan's yeses as sidebar lines, one row apiece:
+/// who's said they'd come, who'll bring friends, and the promises
+/// already filled - capped so the roles always show
+pub(crate) fn meeting_lines(m: &MeetingPlanV) -> Vec<String> {
+    let mut out = vec![];
+    if !m.coming.is_empty() { out.push(capped_list("coming", &m.coming, ", ", 40)); }
+    if !m.spreaders.is_empty() { out.push(capped_list("bringing friends", &m.spreaders, ", ", 40)); }
+    if !m.roles.is_empty() { out.push(capped_list("", &m.roles, " · ", 40)); }
+    out
+}
+
 /// Width in pixels of `text` at `scale`: each glyph is 5px plus 1px
 /// spacing, and the last space doesn't count
 pub(crate) fn text_width(text: &str, scale: usize) -> i32 {

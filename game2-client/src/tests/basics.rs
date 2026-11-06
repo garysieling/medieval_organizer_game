@@ -41,3 +41,18 @@ fn test_name_label_sits_just_above_the_head_and_centred() {
     let centre = lx + "Aldric".len() as i32 * GLYPH_W / 2;
     assert_eq!(centre, sx, "label should be centred over the character");
 }
+
+#[test]
+fn test_children_wear_only_the_young_pack_looks() {
+    // the pack's first two figures are the peasant lad and lass: kids
+    // cycle just those, so no elder's beard or noble's poise lands on
+    // one - and they still get a boy and a girl between them
+    for i in 0..40 {
+        let look = figure_look(true, i, 8);
+        assert!(look < 2, "kid {i} drew grown-up look {look}");
+    }
+    assert_ne!(figure_look(true, 26, 8), figure_look(true, 27, 8), "the children should differ");
+    // grown folk still cycle the whole pack
+    assert_eq!(figure_look(false, 2, 8), 2);
+    assert_eq!(figure_look(false, 9, 8), 1);
+}

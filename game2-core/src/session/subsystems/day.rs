@@ -219,6 +219,8 @@ impl Game {
         crate::timed!("sim.country", self.country_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
+        // and folk who've gotten to know the Wanderer ask for small jobs
+        crate::timed!("sim.quests", self.quest_dawn(tick, &mut rng));
         let folk = crate::infra::perf::scope("sim.day.villagers");
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {
@@ -312,7 +314,8 @@ impl Game {
             let _ = made;
             if let Some(level) = up {
                 let voc = self.world.get_component::<Craft>(v).map(|c| vocation::vocation_name(c.vocation)).unwrap_or("trade");
-                self.toasts.push((format!("{} is now a {}!", vill_name(i), vocation::level_name(level)), tick + 30));
+                self.toasts.push_at((format!("{} is now a {}!", vill_name(i), vocation::level_name(level)), tick + 30),
+                    toast_spot(&self.world, v));
                 self.log.push(format!("t{}: {} is now a {} {}.", tick, vill_name(i), vocation::level_name(level).to_lowercase(), voc));
             }
         }

@@ -161,6 +161,17 @@ pub(crate) fn name_label_pos(sx: i32, sy: i32, text: &str) -> (i32, i32) {
     (sx - text.len() as i32 * GLYPH_W / 2, sy + SPRITE_HEAD - GLYPH_H - LABEL_GAP)
 }
 
+/// The bobbing gold dart over the player's head - the one mark that says
+/// "this one is you" even when the crowd presses the name away. `top` is
+/// the y just above where the name label sits
+pub(crate) fn draw_player_marker(buf: &mut Buffer, cx: i32, top: i32, zoom: f32, frame: u32) {
+    let bob = ((frame as f32 * 0.12).sin() * 2.0 * zoom).round() as i32;
+    let cy = top - (9.0 * zoom).round() as i32 - bob;
+    let (hw, hh) = ((5.0 * zoom).round().max(2.0) as i32, (7.0 * zoom).round().max(3.0) as i32);
+    buf.diamond(cx, cy, hw + 1, hh + 1, 30, 22, 4);
+    buf.diamond(cx, cy, hw, hh, 255, 215, 0);
+}
+
 
 /// Base colour of a terrain tile by height - shared by the map and minimap
 /// so they agree on what is water, grass, fields, hills and peaks
@@ -413,6 +424,14 @@ pub(crate) fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f3
     draw_zoomed(buf, s, sx - w / 2, sy + (3.0 * zoom) as i32 - h, k);
 }
 
+/// Which villager figure a person wears: grown folk cycle the whole
+/// pack; children take only its two youngest - a peasant lad or lass -
+/// so no elder's beard or noble's poise lands on a kid
+pub(crate) fn figure_look(kid: bool, i: usize, n: usize) -> usize {
+    let n = n.max(1);
+    if kid { i % n.min(2) } else { i % n }
+}
+
 /// Draw a child's figure - the pack has none, so they're a scaled-down
 /// villager flagged "(child)" on the label
 pub(crate) fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {
@@ -486,9 +505,8 @@ pub(crate) fn draw_rect(buf: &mut Buffer, x: i32, y: i32, w: i32, h: i32, r: u8,
     buf.rect(x, y, w, h, r, g, b);
 }
 
-pub(crate) const TOOLTIPS: [&str; 4] = [
+pub(crate) const TOOLTIPS: [&str; 3] = [
     "talk to someone nearby",
     "recruit villager to your org",
-    "spend gold for influence",
     "commission a new house",
 ];

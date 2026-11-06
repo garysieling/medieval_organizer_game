@@ -83,7 +83,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 57 | The flock's grazing ground | `Game::graze_at`, `flock_wander` | done #585 (already wired: the ground drifts every few days, the flock wanders it on their own clocks) |
 | 58 | Which homes keep hens | `Game::hen_houses` | done #586 |
 | 59 | The log silently dropping lines | `Game::log_dropped` | done #587 |
-| 60 | The player's first body passing, the work going on | `Game::player_passed` | todo |
+| 60 | The player's first body passing, the work going on | `Game::player_passed` | done #588 (already wired: `continuation_tick` passes the purse and work to the closest member or kin) |
 | 61 | Castle grants, guards posted, assembly bans as standing status | `game/reactions.rs` (`LordGrant`, `GuardsPosted`, `AssemblyBan`) | todo |
 | 62 | Seasons' effects on work and food (HUD) | `sim/climate.rs` `ClimateEffect` | todo |
 | 63 | The org's real power vs its parameters (public part: turnout, discipline) | `sim/organized_power.rs` | todo |

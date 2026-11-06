@@ -539,6 +539,14 @@ impl View {
         for st in standing { draw_piece(&mut buf, st); }
         prof.mark("render.sprites");
 
+        // snowballs in the air, over the sprites and under the names
+        for &(bx, by) in &m.snowballs {
+            let (sx, sy) = iso_to_screen_cam(bx, by, cam_x, cam_y, zoom);
+            if off_view(sx, sy, zoom) { continue; }
+            let s = (2.0 * zoom).max(1.0) as i32;
+            buf.rect(sx - s / 2, sy - s / 2 - (4.0 * zoom) as i32, s, s, 240, 245, 255);
+        }
+
         // gulls wheel over the open sea
         if let Some(gull) = &art.gull {
             for (i, pv) in m.people.iter().filter(|p| p.kind == PKind::Gull).enumerate() {

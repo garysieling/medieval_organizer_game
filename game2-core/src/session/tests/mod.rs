@@ -17,6 +17,7 @@ mod cave;
 mod chat;
 mod cheese;
 mod circus;
+mod climate;
 mod continuation;
 mod contracts;
 mod country;

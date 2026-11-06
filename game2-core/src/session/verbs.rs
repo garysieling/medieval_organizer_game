@@ -402,19 +402,30 @@ impl Game {
                     // someone's inside: the way out is pressure - the
                     // letters go on whether the cause still marches or not
                     self.seats[seat].ctx_actions.push(CtxAct::Petition);
-                } else if !crate::game::dungeon::unavailable(&self.world, v) && cause {
+                } else if !crate::game::dungeon::unavailable(&self.world, v) {
                     let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                         .map(|o| o.members.contains(&v)).unwrap_or(false);
-                    if is_member {
-                        self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                    // a trusted ear can be won to the cause: it takes a tie
+                    // of its own, not just the cause existing
+                    let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
+                        .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                        .map(|r| r.strength).unwrap_or(0.0);
+                    if !is_member && trust >= crate::sim::community::RECRUIT_MIN_TRUST
+                        && self.world.get_component::<crate::session::country::Outlander>(v).is_none() {
+                        self.seats[seat].ctx_actions.push(CtxAct::Recruit);
                     }
-                    if self.world.get_component::<Craft>(v).is_some() {
-                        self.seats[seat].ctx_actions.push(CtxAct::Strike);
-                    }
-                    if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
-                        .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
-                        .map(|c| c.target == Some(v)).unwrap_or_else(|| Some(v) == self.collector) {
-                        self.seats[seat].ctx_actions.push(CtxAct::Townhall);
+                    if cause {
+                        if is_member {
+                            self.seats[seat].ctx_actions.push(CtxAct::Delegate);
+                        }
+                        if self.world.get_component::<Craft>(v).is_some() {
+                            self.seats[seat].ctx_actions.push(CtxAct::Strike);
+                        }
+                        if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)
+                            .and_then(|c| self.world.get_component::<crate::game::campaign::Campaign>(c))
+                            .map(|c| c.target == Some(v)).unwrap_or_else(|| Some(v) == self.collector) {
+                            self.seats[seat].ctx_actions.push(CtxAct::Townhall);
+                        }
                     }
                 }
             }
@@ -752,7 +763,11 @@ impl Game {
             CtxAct::Gather => self.call_meeting_at(seat),
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];
-                crate::game::dungeon::press(&mut self.world, v, 0.3);
+                // the cause's muscle signs the letters too - every member's
+                // name on the vigil carries more than a stranger's plea
+                let sway = crate::sim::community::exert_influence(&mut self.world,
+                    self.seats[seat].org, "the release");
+                crate::game::dungeon::press(&mut self.world, v, 0.3 + sway * 0.15);
                 // the hold: what the state spends to keep them inside
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = vill_name(self.seats[seat].selected_target);
@@ -762,6 +777,18 @@ impl Game {
                     let p = self.world.get_component::<crate::game::dungeon::ReleaseCampaign>(v)
                         .map(|r| r.pressure).unwrap_or(0.0);
                     format!("Letters, vigils, a line out the door ({:.0}% there).", p * 100.0)
+                }
+            }
+            CtxAct::Recruit => {
+                let v = self.villagers[self.seats[seat].selected_target];
+                let oe = self.seats[seat].org;
+                let trust = crate::game::relationships::find_relationship(&self.world, self.seats[seat].player, v)
+                    .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+                    .map(|r| r.strength).unwrap_or(0.0);
+                if crate::sim::community::recruit(&mut self.world, oe, v, trust) {
+                    format!("{} hears you out - and signs on with your cause.", self.name_of(v))
+                } else {
+                    format!("{} won't be won over - the trust isn't there yet.", self.name_of(v))
                 }
             }
             CtxAct::Pact => {

@@ -242,10 +242,16 @@ impl Game {
             && r.lines.iter().any(|l| l.who == Some(b))) { return }
         let r = self.talk_record_mut(id).unwrap();
         r.warmed = true;
+        let is_talk = matches!(r.kind, TalkKind::Talk);
         for m in [a, b] {
             crate::sim::psychology::record_episode(&mut self.world, m,
                 crate::sim::psychology::Episode { with: if m == a { b } else { a },
                     kind: crate::sim::psychology::EpisodeKind::Warmth });
+        }
+        // a Talk sat down to is a real 1-1 - it deepens into a tie beyond
+        // the warmth of the moment
+        if is_talk {
+            self.world.add_component(a, crate::sim::community::OneOnOne { with: b, depth: 0.7 });
         }
     }
 

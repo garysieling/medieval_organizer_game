@@ -349,6 +349,24 @@ impl Game {
                 RelStage::CoLeader => { social.met += 1; social.coleaders += 1; }
             }
         }
+        // the meeting plan's yeses, by name - who's said they'd come and
+        // what promises are filled, so planning shows its progress
+        let meeting = self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
+            .filter(|p| !p.holders().is_empty())
+            .map(|p| {
+                let who = |e: Entity| name_of(e);
+                let mut roles: Vec<String> = vec![];
+                if let Some((host, _)) = p.venue { roles.push(format!("house: {}", who(host))); }
+                for (slot, label) in [(p.snacks, "snacks"), (p.notes, "notes"), (p.opener, "opener"),
+                    (p.song, "song"), (p.closer, "closer")] {
+                    if let Some(e) = slot { roles.push(format!("{}: {}", label, who(e))); }
+                }
+                MeetingPlanV {
+                    coming: p.coming.iter().map(|&e| who(e)).collect(),
+                    spreaders: p.spreaders.iter().map(|&e| who(e)).collect(),
+                    roles,
+                }
+            });
         let inspector = if self.seats[seat].selected_building.filter(|_| !self.seats[seat].picked).is_some() {
             self.building_inspector_at(seat)
         } else {
@@ -384,7 +402,7 @@ impl Game {
                 name: my_name, gold: my_gold,
                 org: org.name.clone(), members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
-                social,
+                social, meeting,
             },
             mill: Some(self.mill),
             herbs: self.herb_patches.iter().filter(|p| self.tick >= p.next_ready)

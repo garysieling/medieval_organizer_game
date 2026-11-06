@@ -32,3 +32,31 @@ fn test_bond_lines_headline_and_breakdown() {
     assert_eq!(lines[2], "2 followers · 1 co-leader");
     for l in &lines { assert!(l.len() <= 46, "the line must fit the panel: {l}"); }
 }
+
+#[test]
+fn test_meeting_lines_name_the_yeses() {
+    let mp = MeetingPlanV {
+        coming: vec!["Willa".into(), "Bram".into()],
+        spreaders: vec!["Corvin".into()],
+        roles: vec!["house: Aldric".into(), "notes: Nell".into()],
+    };
+    assert_eq!(meeting_lines(&mp), vec![
+        "coming: Willa, Bram".to_string(),
+        "bringing friends: Corvin".to_string(),
+        "house: Aldric · notes: Nell".to_string(),
+    ]);
+    // an empty plan says nothing
+    assert!(meeting_lines(&MeetingPlanV::default()).is_empty());
+    // a crowd can't push the roles off: each category holds one row,
+    // the overflow counted
+    let crowd = MeetingPlanV {
+        coming: vec!["Willa".into(), "Bram".into(), "Corvin".into(), "Nell".into(), "Aldric".into(), "Dagny".into()],
+        spreaders: vec!["Eliza".into()],
+        roles: vec!["house: Hob".into()],
+    };
+    let lines = meeting_lines(&crowd);
+    assert_eq!(lines.len(), 3, "one row per category: {:?}", lines);
+    assert!(lines[0].contains("+"), "the overflow is counted: {}", lines[0]);
+    assert_eq!(lines[2], "house: Hob");
+    for l in &lines { assert!(l.len() <= 40, "one row: {}", l); }
+}

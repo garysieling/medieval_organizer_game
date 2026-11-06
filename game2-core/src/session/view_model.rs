@@ -562,11 +562,12 @@ impl Game {
             (None, None) => "no home".into(),
         };
         lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
-        // how well the organizer knows them: the stage word beside the
-        // secrets they've told
+        // how well the organizer knows them: the stage word sits beside
+        // the name, clear of the two rows the card keeps for feuds and
+        // secrets
         let stage = crate::game::organizing::stage_of(world, self.seats[seat].player, v);
         if stage > crate::game::organizing::RelStage::Stranger {
-            lines.push(Line { x: 60, y: 428,
+            lines.push(Line { x: 150, y: 330,
                 text: crate::game::organizing::stage_label(stage).to_string(), rgb: (170, 200, 160) });
         }
         // the card's two reserved rows say what the village knows of

@@ -497,6 +497,22 @@ impl Game {
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
     }
 
+    /// Every live feud `v` is party to, burning ones first: who it's
+    /// with and whether it burns
+    fn feuds_of(&self, v: Entity) -> Vec<(Entity, bool)> {
+        let mut out: Vec<(Entity, bool)> = self.world.query::<crate::game::feuds::Feud>().into_iter()
+            .filter_map(|e| {
+                let f = self.world.get_component::<crate::game::feuds::Feud>(e)?;
+                if f.status == crate::game::feuds::FeudStatus::Resolved { return None; }
+                let hot = f.status == crate::game::feuds::FeudStatus::Burning;
+                if f.offender == v { Some((f.aggrieved, hot)) }
+                else if f.aggrieved == v { Some((f.offender, hot)) }
+                else { None }
+            }).collect();
+        out.sort_by_key(|(_, hot)| !hot);
+        out
+    }
+
     /// The inspector card for the selected villager
     pub(in crate::session) fn villager_inspector_at(&self, seat: usize) -> InspectorV {
         let world = &self.world;
@@ -546,6 +562,18 @@ impl Game {
             (None, None) => "no home".into(),
         };
         lines.push(Line { x: 18, y: 404, text: roost, rgb: (190, 190, 210) });
+        // bad blood is the village's talk: every live feud, the burning
+        // ones first, on the card's one free row under the membership
+        // line and left of where the action buttons sit
+        let feuds = self.feuds_of(v);
+        if !feuds.is_empty() {
+            let names: Vec<String> = feuds.iter().take(2).map(|(o, _)| self.name_of(*o)).collect();
+            let more = if feuds.len() > 2 { format!(" +{}", feuds.len() - 2) } else { String::new() };
+            lines.push(Line { x: 18, y: 475,
+                text: format!("feuds with {}{}{}", names.join(", "), more,
+                    if feuds.iter().any(|(_, b)| *b) { " - it burns" } else { "" }),
+                rgb: (230, 140, 110) });
+        }
         // how well the organizer knows them: the stage word beside the
         // secrets they've told
         let stage = crate::game::organizing::stage_of(world, self.seats[seat].player, v);

@@ -30,6 +30,7 @@ mod edge;
 mod edict;
 mod events;
 mod festival;
+mod feuds;
 mod fisher;
 mod fixtures;
 mod flock;

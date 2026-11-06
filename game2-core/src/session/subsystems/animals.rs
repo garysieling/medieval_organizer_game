@@ -172,6 +172,10 @@ impl Game {
             self.swarm = Some((who, tick + 1));
             let name = self.villagers.iter().position(|x| *x == who).map(|x| vill_name(x)).unwrap_or("someone");
             self.log.push(format!("t{}: a swarm took a liking to {} - it follows them about.", tick, name));
+            // memorable to the one it keeps: their little moment of fame,
+            // for they can't help being talked about
+            desires::satisfy(&mut self.world, who, desires::Want::Joy, tick + 5);
+            self.say(who, "They're following me - I can't shoo them.", CHAT_BUBBLE_SECS);
         }
         if let Some((_, until)) = self.swarm { if tick >= until { self.swarm = None; } }
         // the beekeeper walks out to the skeps most days, but not hungry

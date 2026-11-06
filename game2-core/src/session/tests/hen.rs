@@ -30,7 +30,7 @@ fn test_eggs_lay_and_a_hungry_house_eats_them() {
 fn test_eggs_do_not_pile_past_the_larder() {
     let mut g = Game::new();
     let h = g.hen_houses[0];
-    for t in 0..10 { g.livestock_tick(t); }
+    for t in 0..10 { g.apiary_tick(t); }
     assert!(g.world.get_component::<Building>(h).unwrap().stock.get("eggs").copied().unwrap_or(0) <= 6);
 }
 
@@ -41,4 +41,19 @@ fn test_the_fox_takes_a_hen_and_the_house_grieves() {
     g.fox_night(75);
     assert!(before - g.hens.len() <= 1, "a fox takes one, not the yard");
     assert!(g.log.iter().any(|l| l.contains("a fox")), "the yard says so");
+}
+
+#[test]
+fn test_the_swarm_gives_them_their_little_fame() {
+    let mut g = Game::new();
+    // run the %90==70 days until a swarm takes its liking
+    let mut who = None;
+    for t in (70..4500).step_by(90) {
+        g.apiary_tick(t);
+        if let Some((w, _)) = g.swarm { who = Some(w); break; }
+    }
+    let who = who.expect("no swarm ever took a liking");
+    assert!(g.log.iter().any(|l| l.contains("took a liking")), "the word never went out");
+    assert!(desires::is_satisfied(&g.world, who, desires::Want::Joy, g.tick),
+        "the memorable part never landed on them");
 }

@@ -352,7 +352,13 @@ impl Game {
     /// age they take up a trade - the master they ran the most errands
     /// for, else whatever trade the village can use
     pub fn lifecycle_tick(&mut self, tick: u64) {
-        for &v in self.villagers.clone().iter() {
+        let mut growing = self.villagers.clone();
+        // the seats' wanderers grow too - a picked childhood isn't
+        // forever; an agent's seat is a villager already counted above
+        for s in &self.seats {
+            if !s.agent { growing.push(s.player); }
+        }
+        for &v in growing.iter() {
             if villager::is_dead(&self.world, v) { continue; }
             let Some(g) = self.world.get_component_mut::<KidGrowth>(v) else { continue };
             g.age_days += 1;
@@ -360,6 +366,10 @@ impl Game {
             let errands = g.errands.clone();
             self.world.remove_component::<Kid>(v);
             self.world.remove_component::<KidGrowth>(v);
+            // grown, the picked figure is a grown one too
+            if let Some(a) = self.world.get_component_mut::<crate::game::player::Avatar>(v) {
+                a.kid = false;
+            }
             // the hirer they ran for most is their likeliest master
             let master = errands.iter().max_by_key(|(_, n)| *n).map(|(e, _)| *e)
                 .filter(|&m| !villager::is_dead(&self.world, m)
@@ -370,7 +380,9 @@ impl Game {
             c.master = master;
             c.tasked_by = master;
             self.world.add_component(v, c);
-            let name = self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i)).unwrap_or("a youngster");
+            let name = self.world.get_component::<PlayerCharacter>(v).map(|p| p.name.clone())
+                .or_else(|| self.villagers.iter().position(|x| *x == v).map(|i| vill_name(i).to_string()))
+                .unwrap_or_else(|| "a youngster".into());
             let trade = vocation::vocation_name(voc).to_lowercase();
             self.log.push(format!("t{}: {} takes up the {}.", tick, name, trade));
             self.toasts.push_at((format!("{} comes of age - a {}!", name, trade), tick + 30),

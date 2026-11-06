@@ -864,6 +864,7 @@ impl Game {
             gulls,
             chicken_at: (gate_x as f32 + 0.4, farm_y as f32 + 0.3),
             rng,
+            seed,
             built_count: 0,
             works: vec![],
             tech: crate::game::tech_tree::extended_printmaking_tree(),

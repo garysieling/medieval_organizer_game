@@ -554,7 +554,23 @@ impl Game {
         let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
             .map(|p| p.capacity).unwrap_or(0.0);
         // the lord's estimate creeps toward what's shown - perceived, not raw
+        let was = self.lord_esteem;
         self.lord_esteem += (capacity - self.lord_esteem) * 0.08;
+        // and the word of it reaches the village: not a number, the mood
+        // the castle gives off - heard when it tips a step either way
+        let tier = |e: f32| if e >= 0.7 { 3 } else if e >= 0.5 { 2 } else if e >= 0.3 { 1 } else { 0 };
+        if tier(self.lord_esteem) != tier(was) {
+            let up = self.lord_esteem > was;
+            let word = match (tier(self.lord_esteem), up) {
+                (3, true) => "word comes down - the lord frets over your cause",
+                (2, true) => "word comes down - the lord keeps an ear on it now",
+                (1, true) => "word comes down - the castle's heard the name",
+                (2, false) => "word comes down - the castle's worry eases a step",
+                (1, false) => "word comes down - the name slips their minds",
+                _ => "word comes down - the castle's forgot you ever met",
+            };
+            self.log.push(format!("t{}: {}.", tick, word));
+        }
     }
 
     /// An org action in the street: power builds as it's spent

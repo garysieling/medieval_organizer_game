@@ -841,6 +841,9 @@ pub struct Game {
     pub fire: Fire,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: crate::engine::det::HashSet<usize>,
+    /// Which buildings the disasters finished - indices into
+    /// `building_entities`, like `derelict`; the view dims them too
+    pub ruined: crate::engine::det::HashSet<usize>,
     /// (who, complaint family) already voiced at the meeting under way -
     /// parallel complaints make the next speaker likelier to share
     pub voiced: Vec<(Entity, desires::IssueTag)>,

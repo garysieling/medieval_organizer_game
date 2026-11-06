@@ -36,8 +36,8 @@ impl Game {
     /// A full house gets a child every so often - two grown folk under
     /// one roof, and the roof fills out from there
     pub(in crate::session) fn maybe_birth(&mut self, tick: u64) {
-        for &b in &self.building_entities.clone() {
-            let full = self.world.get_component::<Building>(b)
+        for (i, &b) in self.building_entities.iter().enumerate() {
+            let full = !self.ruined.contains(&i) && self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home
                     // beds cap at four like the first settling - the
                     // building's capacity is its stock limit, not beds
@@ -72,13 +72,13 @@ impl Game {
         // stranger long; otherwise a bed is the first thing on their
         // mind. Same exclusions as the first settling - the herb hut is
         // hers alone, and the foreign houses aren't for our strangers
-        let room = self.building_entities.iter().copied().find(|&b|
-            self.world.get_component::<Building>(b)
+        let room = self.building_entities.iter().enumerate().find(|(i, &b)|
+            !self.ruined.contains(i) && self.world.get_component::<Building>(b)
                 .map(|bb| bb.kind == BuildingKind::Home && bb.occupants.len() < 4
                     && bb.name != "the herb hut" && bb.name != "a foreign house"
                     && !bb.name.starts_with("a cottage in ") && !bb.name.starts_with("the keep at ")
                     && !bb.name.starts_with("the hall at "))
-                .unwrap_or(false));
+                .unwrap_or(false)).map(|(_, &b)| b);
         match room {
             Some(h) => self.world.get_component_mut::<household::Building>(h).unwrap().occupants.push(v),
             None => {

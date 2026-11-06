@@ -1310,6 +1310,20 @@ impl Game {
                 let heading_home = seeking && dx.abs() + dy.abs() > 0.5
                     || !seeking && !planned && d > VILLAGE_RADIUS;
                 if heading_home {
+                    // past every errand's reach the nudge below would walk
+                    // them home a tile a day for months: once a day, put a
+                    // stray this far out on the road itself - the same
+                    // walk_path the errands take, just longer
+                    if dx.abs() + dy.abs() > 30.0 && self.frame_n % ticks_per_frame == 0 {
+                        if let Some(t) = food_tile {
+                            let from = (p.x.round() as i32, p.y.round() as i32);
+                            if let Some(mut path) = self.map.walk_path(from, t) {
+                                path.push(t);
+                                self.travels.push(Travel { who: *v, path, goal: Goal::Wander });
+                                continue;
+                            }
+                        }
+                    }
                     let step = 1.0 / ticks_per_frame as f32;
                     let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
                     if self.map.passable(nx.round() as i32, ny.round() as i32) {

@@ -545,10 +545,14 @@ impl Game {
                 .map(|(w, _)| self.villagers.iter().position(|v| *v == *w)
                     .map(|i| vill_name(i).to_string()).unwrap_or_else(|| "someone".into()))
                 .collect();
+            // the card's a fixed width: the first two callers, then a count
+            let late = match callers.len() {
+                0 => String::new(),
+                1..=2 => format!(" - lately: {}", callers.join(", ")),
+                n => format!(" - lately: {}, +{}", callers[..2].join(", "), n - 2),
+            };
             lines.push(Line { x: 18, y: 432,
-                text: format!("her tally: {} cures{}", self.cured,
-                    if callers.is_empty() { String::new() }
-                    else { format!(" - lately: {}", callers.join(", ")) }),
+                text: format!("her tally: {} cures{}", self.cured, late),
                 rgb: (190, 210, 150) });
         }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })

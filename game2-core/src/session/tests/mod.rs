@@ -110,7 +110,7 @@ mod vermin;
 mod village;
 mod walk;
 mod weather;
-mod weaver;
 mod winter;
+mod weaver;
 mod works;
 mod zoom;

@@ -774,6 +774,8 @@ pub struct Game {
     pub meeting: Option<Meeting>,
     /// The day a snowball fight was called (u64::MAX = never)
     pub snowball_day: u64,
+    /// Whether today's fight has raised its hubbub yet
+    pub snowball_cued: bool,
     /// Snowballs in the air this frame
     pub snowballs: Vec<routine::Snowball>,
     /// Pairs of people standing near each other, and the day each pair last chatted

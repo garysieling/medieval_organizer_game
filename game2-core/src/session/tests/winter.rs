@@ -63,4 +63,18 @@ fn test_a_snowball_fight_calls_the_village_out() {
     // once a day: the button's gone till tomorrow
     g.update_ctx_actions();
     assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Snowballs), "not twice in one day");
+    // and the hubbub reaches the frame, not the void between clicks
+    g.snowball_cued = false;
+    g.update();
+    assert!(g.sfx.iter().any(|c| c.kind == "snowballs"), "the fight is heard");
+}
+
+#[test]
+fn test_a_snowball_fight_too_far_out_finds_no_ears() {
+    let mut g = Game::new();
+    // the Wanderer's well outside town: no villager's path is in reach
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x += 60.0; }
+    let msg = g.snowball_fight_at(0);
+    assert!(msg.contains("doesn't carry"), "{}", msg);
+    assert_ne!(g.snowball_day, g.tick, "the day's call isn't spent on nobody");
 }

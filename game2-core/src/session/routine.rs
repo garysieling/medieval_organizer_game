@@ -633,7 +633,10 @@ impl Game {
             .collect();
         if folk.is_empty() { return "Nobody's free to play - try again later.".into() }
         let slots = self.ring_round(centre, folk.len(), 2.5);
-        self.assemble(tick, Mode::Playing, Spot::Play, None, &folk, &slots, centre, 30);
+        let n = self.assemble(tick, Mode::Playing, Spot::Play, None, &folk, &slots, centre, 30);
+        // nobody could hear the call (the Wanderer's too far out): the
+        // day's call isn't spent on a fight that isn't happening
+        if n == 0 { return "Your voice doesn't carry - nobody hears the call.".into() }
         // and they don't stand about like congregation: they mill about
         // the fight, drifting a pace or two from their slot
         for v in self.villagers.clone() {
@@ -642,9 +645,12 @@ impl Game {
             }
         }
         self.snowball_day = tick;
-        self.emit_sfx("snowballs", centre.0, centre.1, 0.8);
-        if let Some(&v) = folk.first() { self.say(v, "Snowballs!", TALK_BUBBLE_SECS * 2); }
-        format!("Snowball fight! {} folk pour out to play.", folk.len())
+        self.snowball_cued = false;
+        // and somebody actually there hollers it
+        let speaker = self.villagers.iter().copied().find(|&v| self.world.get_component::<Routine>(v)
+            .map(|r| r.mode == Mode::Playing && r.day == tick).unwrap_or(false));
+        if let Some(v) = speaker { self.say(v, "Snowballs!", TALK_BUBBLE_SECS * 2); }
+        format!("Snowball fight! {} folk pour out to play.", n)
     }
 
     /// Each frame of a snowball fight: the fighters let fly, on their own
@@ -654,6 +660,12 @@ impl Game {
         self.snowballs.retain(|s| s.alive(self.frame_n));
         // nothing flies unless today's the fight's day
         if self.snowball_day != self.tick { return; }
+        // the fight's hubbub, raised inside the frame so the cue survives
+        // to the scene (a cue raised by the click itself dies in the clear)
+        if !self.snowball_cued {
+            self.emit_sfx("snowballs", self.village.0 as f32, self.village.1 as f32, 0.8);
+            self.snowball_cued = true;
+        }
         let fighters: Vec<(Entity, (f32, f32))> = self.villagers.iter().copied()
             .filter(|&v| !villager::is_dead(&self.world, v))
             .filter(|&v| self.world.get_component::<Routine>(v)

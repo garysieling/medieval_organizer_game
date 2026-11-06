@@ -258,7 +258,12 @@ impl Game {
                 // a strong org can stand against it
                 let mark = self.villagers.iter().copied()
                     .filter(|&v| !crate::game::dungeon::unavailable(&self.world, v)
-                        && self.world.get_component::<TownRole>(v).is_none())
+                        && self.world.get_component::<TownRole>(v).is_none()
+                        // the guild's mutual protection: the bailiff's
+                        // summons finds no hold on a member
+                        && !self.world.query::<crate::game::guilds::Guild>().iter()
+                            .any(|&g| self.world.get_component::<crate::game::guilds::Guild>(g)
+                                .map(|gg| gg.members.contains(&v)).unwrap_or(false)))
                     .max_by_key(|&v| self.world.get_component::<InnerLife>(v)
                         .map(|l| l.grievances.len()).unwrap_or(0));
                 if let Some(m) = mark {

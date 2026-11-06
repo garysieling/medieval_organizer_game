@@ -548,9 +548,22 @@ impl Game {
                 orthodoxy: 0.6, services: vec![] });
             c
         };
-        for i in 0..3 {
-            let m = world.create_entity();
-            world.add_component(m, Merchant { name: format!("Merchant{}",i), wealth: 60.0, trade_routes: vec!["north_road".into()], vulnerable: i < 2 });
+        // the traders the guild forms of: real villagers who keep a shop
+        // or work a craft for the market, their wealth their purse plus
+        // what's on their shelves - and the writs can strip the lot
+        for (i, &v) in villagers.iter().enumerate() {
+            let trades = world.get_component::<Craft>(v)
+                .map(|c| !matches!(c.vocation,
+                    Vocation::Priest | Vocation::Knight | Vocation::Farmer
+                    | Vocation::Shepherd | Vocation::Fisher))
+                .unwrap_or(false);
+            if trades {
+                // their stake is the purse plus the stock and tools of the
+                // trade - the lot the bailiff's writ can strip
+                let wealth = world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0) + 60.0;
+                world.add_component(v, Merchant { name: format!("{}", crate::session::vill_name(i)),
+                    wealth, trade_routes: vec!["the market".into()], vulnerable: true });
+            }
         }
 
         // rival village: foreign settlement across the river, with its own

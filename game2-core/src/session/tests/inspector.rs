@@ -198,3 +198,19 @@ fn test_the_card_names_their_pet() {
     let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
     assert!(bio.contains("keeps Fido the dog"), "the pet never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_says_how_the_sickness_runs() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    let d = g.world.create_entity();
+    g.world.add_component(d, crate::sim::illness::Disease {
+        kind: crate::sim::illness::DiseaseKind::Influenza, name: "flu".into(),
+        patient: v, stage: crate::sim::illness::Stage::Severe,
+        severity: 0.8, contagious: true, incubation: 0 });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("laid low") || bio.contains("taken ill") || bio.contains("near death"),
+        "the stage never showed: {}", bio);
+}

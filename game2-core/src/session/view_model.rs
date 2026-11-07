@@ -858,6 +858,18 @@ impl Game {
         if let Some(c) = world.get_component::<villager::Condition>(v) {
             if self.tick < c.until { parts.push(c.kind.to_string()); }
         }
+        // how the sickness runs: the stage's word, if they're ill -
+        // getting worse reads differently to on the mend
+        if let Some(d) = world.query::<crate::sim::illness::Disease>().iter()
+            .find_map(|&e| world.get_component::<crate::sim::illness::Disease>(e)
+                .filter(|d| d.patient == v)) {
+            use crate::sim::illness::Stage::*;
+            let word = match d.stage {
+                Latent => "", Mild => "a touch of it", Moderate => "taken ill",
+                Severe => "laid low", Critical => "near death", Recovering => "on the mend",
+            };
+            if !word.is_empty() { parts.push(word.into()); }
+        }
         // how warm they are to you: the talk-built rapport, plain to
         // you whether or not the village knows them - a rival's many
         // talks don't make them warm

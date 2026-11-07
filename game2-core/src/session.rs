@@ -246,6 +246,8 @@ const INK_YIELD: u32 = 6;
 const OIL_FLARE_PCT: i32 = 8;
 
 const CHAT_BUBBLE_SECS: u32 = 2;
+/// How far the bucket line reaches for water and flames, in tiles
+const BUCKET_REACH: i32 = 30;
 /// How near two people must be to chat in passing (tiles), how many days
 /// before the same pair chat again, and how much a chat counts for (a fifth
 /// of a conversation: +0.01 to the relationship)

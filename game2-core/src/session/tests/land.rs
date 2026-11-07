@@ -196,8 +196,9 @@ fn test_a_bucket_on_the_flames_puts_it_out() {
     g.fire.ignite(&g.map, fx, fy, g.tick);
     let v = g.villagers.iter().copied().find(|&v|
         !villager::is_dead(&g.world, v) && g.world.get_component::<Kid>(v).is_none()).unwrap();
-    // she stands a pace from the flames with a full pail
+    // she stands a pace from the flames with a full pail, on the line
     *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: (fx + 1) as f32, y: fy as f32 };
+    g.fire_crew.push(v);
     g.arrive(v, Goal::DouseFire((fx, fy)));
     assert!(!g.fire.on_fire(fx, fy), "one bucket, one tile out");
     assert!(g.fire.is_doused(fx, fy, g.tick), "and the ground stays wet");
@@ -224,6 +225,25 @@ fn test_the_player_can_pitch_in() {
     *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: 2.0, y: 2.0 };
     g.update_ctx_actions_at(0);
     assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Douse), "no flames near, no bucket");
+}
+
+#[test]
+fn test_a_seat_alike_is_neither_drafted_nor_sent_running() {
+    let mut g = Game::new();
+    g.speed = 4;
+    let (fx, fy) = fire_spot(&g);
+    g.fire.ignite(&g.map, fx, fy, g.tick);
+    // claim a neighbour of the flames before the line musters, errand in hand
+    let v = g.villagers.iter().copied().find(|&v|
+        !villager::is_dead(&g.world, v) && g.world.get_component::<Kid>(v).is_none()).unwrap();
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: (fx + 1) as f32, y: fy as f32 };
+    g.add_agent_seat(v);
+    g.travels.push(Travel { who: v, path: vec![(fx, fy + 3)], goal: Goal::Gather("wood", (fx, fy)) });
+    for _ in 0..8 { g.update(); }
+    assert!(!g.fire_crew.contains(&v), "the line doesn't draft a seat's own");
+    g.fire_tick(g.tick);
+    assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Gather(..))),
+        "and the flames don't cancel her errand either");
 }
 
 #[test]

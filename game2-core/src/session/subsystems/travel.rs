@@ -34,8 +34,8 @@ impl Game {
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
-            Goal::FillBucket => self.fire_bank_near((from.x.round() as i32, from.y.round() as i32)),
-            Goal::DouseFire(t) => self.douse_spot(*t, (from.x.round() as i32, from.y.round() as i32)),
+            Goal::FillBucket => self.fire_bank_walkable((from.x.round() as i32, from.y.round() as i32)),
+            Goal::DouseFire(t) => self.douse_spot_walkable(*t, (from.x.round() as i32, from.y.round() as i32)),
             Goal::Eat => {
                 // the village table while it's laid: folk eat at their
                 // own market - or the field that stands closer to them -
@@ -75,7 +75,7 @@ impl Game {
             Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat
             | Goal::BuyFrom(..) | Goal::BuyAt(..) => 30,
             // the bucket line reaches as far as the tax round does
-            Goal::FillBucket | Goal::DouseFire(_) => 30,
+            Goal::FillBucket | Goal::DouseFire(_) => BUCKET_REACH,
             Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {

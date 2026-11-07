@@ -460,6 +460,11 @@ impl Game {
                     .map(|r| (v, crate::game::relationships::hearts_of(r.strength)))
                     .filter(|&(_, h)| h > 0.0)
             }).collect();
+        // the seat's own roster - the map marks a member's name where
+        // their hearts show; the player's dart already marks them
+        let org_members: Vec<Entity> = world.get_component::<Organization>(self.seats[seat].org)
+            .map(|o| o.members.iter().copied().filter(|&m| m != seat_player).collect())
+            .unwrap_or_default();
         UiModel {
             player_pose: (self.seats[seat].facing, self.seats[seat].walking),
             // the courier (entity 0 in people) faces the way it rides
@@ -473,7 +478,7 @@ impl Game {
                 .map(|c| climate::climate_multiplier(c, "food")).unwrap_or(1.0),
             harsh_winter: self.harsh_winter,
             paused: self.paused, speed: self.speed,
-            stones: self.stones.clone(), buildings, people, bonds, bubbles,
+            stones: self.stones.clone(), buildings, people, bonds, org_members, bubbles,
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
             settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
                 (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),

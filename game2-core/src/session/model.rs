@@ -335,6 +335,10 @@ pub struct UiModel {
     /// to show, and absent from older servers
     #[serde(default)]
     pub bonds: Vec<(Entity, f32)>,
+    /// The viewing seat's org roster - the map marks a member's name tag
+    /// where their hearts show; absent from older servers
+    #[serde(default)]
+    pub org_members: Vec<Entity>,
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<ToastV>,
     pub log: Vec<String>,

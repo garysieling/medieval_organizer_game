@@ -67,3 +67,19 @@ fn test_the_panel_reads_the_muscle() {
         "the muscle's read is wrong: {:?}", pw);
     assert!(!pw.contains("0.4"), "the gauge leaked: {:?}", pw);
 }
+
+#[test]
+fn test_the_model_marks_the_roster() {
+    let mut g = Game::new();
+    let oe = g.seats[0].org;
+    let pe = g.seats[0].player;
+    let v = g.villagers[0];
+    g.world.get_component_mut::<Organization>(oe).unwrap().members.push(v);
+    let m = g.ui_model_at(0);
+    assert!(m.org_members.contains(&v), "the roster never reached the model");
+    // the player's own dart already marks them
+    assert!(!m.org_members.contains(&pe), "the player's on their own roll call");
+    // and nobody off the roll carries it
+    let other = g.villagers.iter().copied().find(|&x| x != v && x != pe).unwrap();
+    assert!(!m.org_members.contains(&other), "a stranger wore the mark");
+}

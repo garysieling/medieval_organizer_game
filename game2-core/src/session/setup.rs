@@ -986,6 +986,8 @@ impl Game {
             fire_line_called: false,
             brigade: None,
             brigade_gear: 0,
+            cairns: vec![],
+            monuments: vec![],
             derelict: Default::default(),
             ruined: Default::default(),
             cutaways: Default::default(),

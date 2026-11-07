@@ -228,6 +228,8 @@ impl Game {
         }
         // and the wise stack while the path's open
         crate::timed!("sim.woodpile", self.woodpile_tick(tick));
+        crate::timed!("sim.cairns", self.cairn_tick(tick));
+        crate::timed!("sim.monuments", self.monument_tick(tick));
         drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));
@@ -364,6 +366,24 @@ impl Game {
                             if let Some(d) = sp.and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) {
                                 fed = self.send_far(v, d, Goal::Eat);
                             }
+                        }
+                    }
+                }
+                if !fed {
+                    // a stranded soul eats at the market table - nobody
+                    // starves beside a full store for the road home
+                    // being too long
+                    let near = self.world.get_component::<Pos>(self.market_food).copied()
+                        .zip(self.world.get_component::<Pos>(v).copied())
+                        .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 3.0).unwrap_or(false);
+                    if near {
+                        let has = self.world.get_component::<villager::FoodSource>(self.market_food)
+                            .map(|f| f.servings > 0).unwrap_or(false);
+                        if has {
+                            self.world.get_component_mut::<villager::FoodSource>(self.market_food)
+                                .unwrap().servings -= 1;
+                            if let Some(h) = self.world.get_component_mut::<Hunger>(v) { h.value = 100.0; }
+                            fed = true;
                         }
                     }
                 }

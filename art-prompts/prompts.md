@@ -1030,3 +1030,9 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | prop-circus-tent-8e2f1a04 | striped canvas round tent, medieval traveling circus, red and cream stripes | rd_pro__isometric | 64x64 | 1 | 0.06 | camp prop; sits on any ground - strip base |
 | prop-circus-ring-4b9d30c7 | small round performing ring of posts and rope, medieval fair | rd_pro__isometric | 64x64 | 1 | 0.06 | camp prop; flat ring, performers stand inside |
 | prop-campfire-pot-6a3e8b12 | iron cauldron over a campfire, medieval | rd_pro__isometric | 64x64 | 1 | 0.06 | ink-boiler's pot; also sells the meadow camp |
+
+## MINE - the pit head (#698)
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| prop-pit-head-7c1a2e93 | timber headframe over an open pit, medieval mine, wooden crane and spoil heap | rd_pro__isometric | 64x64 | 1 | 0.06 | mine site prop; flush base - stands on hill ground |

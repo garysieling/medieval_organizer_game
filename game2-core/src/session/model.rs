@@ -67,6 +67,10 @@ pub struct PersonV {
     /// the figure
     #[serde(default)]
     pub sign: Option<u8>,
+    /// Riding a horse (a knight on a country journey): the client draws
+    /// the mounted figure instead of the walker
+    #[serde(default)]
+    pub mounted: bool,
 }
 
 /// Fold a name or epithet to what the find box compares: lowercase words,
@@ -413,6 +417,9 @@ pub struct UiModel {
     /// Sim speed when local control is allowed (always 1 when networked)
     pub speed: u32,
     pub stones: Vec<(i32, i32)>,
+    /// The standing monuments: where each stands, its kind (0 column,
+    /// 1 the org's ring), and the words it carries
+    pub monuments: Vec<(i32, i32, u8, String)>,
     pub buildings: Vec<BldgV>,
     /// Keep sprites at the centers of remote castle enclosures.
     pub castle_keeps: Vec<(f32, f32)>,

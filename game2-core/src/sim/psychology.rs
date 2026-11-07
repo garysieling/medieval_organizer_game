@@ -40,6 +40,7 @@ pub enum EpisodeKind {
     Warmth,    // positive bonding moment
     Rejection, // bid for comfort rebuffed
     Loss,      // attachment figure absent/removed
+    Remembrance, // the dead brought to mind - a cairn does it, a keepsake
 }
 
 /// Personality traits (simplified Big5-inspired)
@@ -100,6 +101,7 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
         EpisodeKind::Anxiety => -0.1,
         EpisodeKind::Rejection => -0.2,
         EpisodeKind::Loss => -0.3,
+        EpisodeKind::Remembrance => -0.2,
     };
     // the style they've grown reads each beat: a secure heart warms easy,
     // an anxious one takes every blow harder, an avoidant one warms slow
@@ -137,7 +139,8 @@ pub fn record_episode(world: &mut World, agent: Entity, episode: Episode) {
                 let weight = |k: &EpisodeKind| {
                     let w = match k {
                         EpisodeKind::Warmth => 0.15, EpisodeKind::Anxiety => -0.1,
-                        EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3 };
+                        EpisodeKind::Rejection => -0.2, EpisodeKind::Loss => -0.3,
+                        EpisodeKind::Remembrance => -0.2 };
                     match style {
                         Some(AttachmentStyle::Secure) if w > 0.0 => w * 1.3,
                         Some(AttachmentStyle::Anxious) if w < 0.0 => w * 1.4,

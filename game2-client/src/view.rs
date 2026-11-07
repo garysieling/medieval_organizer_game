@@ -413,6 +413,24 @@ impl View {
             buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
         }
         // the martyr's plot: a grey cairn where they hanged him
+        // the monuments stand at their spots: a pale column that names
+        // the deed it keeps
+        for &(mx, my, kind, ref _words) in &m.monuments {
+            let (sx, sy) = iso_to_screen_cam(mx as f32, my as f32, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            if kind == 1 {
+                // the org's ring: standing stones in a circle
+                for i in 0..6 {
+                    let a = (i as f32 * 1.0472).sin();
+                    let b = (i as f32 * 1.0472).cos();
+                    buf.rect(sx + (a * k(6.0) as f32) as i32 - k(1.0),
+                        sy + (b * k(3.0) as f32) as i32 - k(4.0), k(2.0), k(4.0), 195, 190, 180);
+                }
+            } else {
+                buf.rect(sx - k(2.0), sy - k(9.0), k(4.0), k(8.0), 210, 205, 195);
+                buf.rect(sx - k(3.0), sy - k(2.0), k(6.0), k(2.0), 170, 165, 155);
+            }
+        }
         if let Some((gx, gy)) = m.grave {
             let (sx, sy) = iso_to_screen_cam(gx, gy, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
@@ -626,23 +644,33 @@ impl View {
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected, false, false, 0.0, false));
                     } else {
-                        let look = figure_look(pv.kid, i, art.villager_sprites.len());
-                        let fig = &art.villager_sprites[look];
-                        let anchor = if let Some(Some(ws)) = art.villager_walks.get(look) {
-                            // a generated walk cycle: facing and striding as they move
-                            let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
-                            let scale = if pv.kid { 0.6 * zoom } else { zoom };
-                            let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                            ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD
+                        // a knight on the long roads rides: one
+                        // horse-and-rider figure, mirrored leftward
+                        let mounted_fig = if pv.mounted { art.mounted.as_ref() } else { None };
+                        let anchor = if let Some(ms) = mounted_fig {
+                            let facing = m.poses.iter().find(|p| p.0 == pv.e).map(|p| p.1).unwrap_or(2);
+                            let s = if facing == 3 { art.mounted_flip.as_ref().unwrap_or(ms) } else { ms };
+                            let h = draw_animal(&mut buf, s, sx, sy, zoom);
+                            sy - h + 24
                         } else {
-                            // children draw small and flagged: the pack has no
-                            // figure for them, so they're a scaled villager
-                            if pv.kid {
-                                draw_kid(&mut buf, fig, sx, sy, zoom);
+                            let look = figure_look(pv.kid, i, art.villager_sprites.len());
+                            let fig = &art.villager_sprites[look];
+                            if let Some(Some(ws)) = art.villager_walks.get(look) {
+                                // a generated walk cycle: facing and striding as they move
+                                let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
+                                let scale = if pv.kid { 0.6 * zoom } else { zoom };
+                                let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
+                                ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD
                             } else {
-                                draw_character(&mut buf, fig, sx, sy, zoom);
+                                // children draw small and flagged: the pack has no
+                                // figure for them, so they're a scaled villager
+                                if pv.kid {
+                                    draw_kid(&mut buf, fig, sx, sy, zoom);
+                                } else {
+                                    draw_character(&mut buf, fig, sx, sy, zoom);
+                                }
+                                sprite_label_anchor(fig, sy, zoom)
                             }
-                            sprite_label_anchor(fig, sy, zoom)
                         };
                         // a protester carries their board
                         if let Some(d) = pv.sign { draw_picket_sign(&mut buf, sx, sy, zoom, d); }
@@ -1162,6 +1190,7 @@ impl View {
                 country::SiteKind::Town => (170, 120, 70),
                 country::SiteKind::Farm => (110, 160, 80),
                 country::SiteKind::Monastery => (220, 220, 210),
+                country::SiteKind::Mine => (140, 115, 90),
             };
             buf.rect(x as i32 - 2, y as i32 - 2, 4, 4, r, g, b);
             // the head's style leads the name ("Earl Godric of

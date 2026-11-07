@@ -111,7 +111,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 80 | Illness stage, route, treatment | `illness::Disease`, `Stage`, `Treatment` | done #608 |
 | 81 | Immunity after recovery, relapses | `illness::immunity_gain`, `relapse` | done #609 |
 | 82 | Life stage and vitality | `lifecycle::Vitality` | done #610 |
-| 83 | Odd jobs and deals in their purse | `livelihood::OddJob`, `Deal` | todo |
+| 83 | Odd jobs and deals in their purse | `livelihood::OddJob`, `Deal` | done #611 |
 | 84 | Quality tier of goods in a satchel | `goods::tier` | todo |
 | 85 | Backstory | `dialogue_trees::backstory` | todo |
 | 86 | Personality (attachment) | `psychology::Personality` | todo |

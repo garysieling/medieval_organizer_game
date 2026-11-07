@@ -933,11 +933,28 @@ impl Game {
                 crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
                 crate::sim::story::StoryTheme::Community => "a tale of the commons",
             });
+        // the family's record follows the tale: the last beats of a
+        // life - born, took ill, lost one - in a word each
+        let beats: Vec<&'static str> = self.tales.get(&i).map(|t| t.iter().rev().take(2).map(|e| match e.kind {
+            crate::sim::story::EventKind::Birth => "born",
+            crate::sim::story::EventKind::Death => "died",
+            crate::sim::story::EventKind::Illness => "took ill",
+            crate::sim::story::EventKind::Recovery => "healed",
+            crate::sim::story::EventKind::Bonding => "grew close",
+            crate::sim::story::EventKind::Betrayal => "betrayed",
+            crate::sim::story::EventKind::Recruitment => "joined the cause",
+            crate::sim::story::EventKind::Rejection => "turned away",
+            crate::sim::story::EventKind::Alliance => "swore in",
+            crate::sim::story::EventKind::Conflict => "bad blood",
+            crate::sim::story::EventKind::Discovery => "found out",
+            crate::sim::story::EventKind::Achievement => "made their name",
+        }).collect()).unwrap_or_default();
+        let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
         if let Some(bio) = self.bio_line_at(seat, v) {
             let suffix = tale.map(|t| format!(" - {}", t)).unwrap_or_default();
-            lines.push(Line { x: 18, y: 454, text: format!("{}{}", bio, suffix), rgb: (160, 180, 200) });
+            lines.push(Line { x: 18, y: 454, text: format!("{}{}{}", bio, suffix, record), rgb: (160, 180, 200) });
         } else if let Some(t) = tale {
-            lines.push(Line { x: 18, y: 454, text: t.to_string(), rgb: (160, 180, 200) });
+            lines.push(Line { x: 18, y: 454, text: format!("{}{}", t, record), rgb: (160, 180, 200) });
         }
         InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
     }

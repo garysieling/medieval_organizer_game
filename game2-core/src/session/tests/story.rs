@@ -32,3 +32,14 @@ fn test_a_tale_of_survival_reads_on_the_card() {
     let st = story::detect_story(&g.tales[&i]).unwrap();
     assert!(story::surface_story(&st).contains("theme: Survival"));
 }
+
+#[test]
+fn test_the_card_carries_the_family_record() {
+    let mut g = Game::new();
+    note(&mut g, 1, 10, EventKind::Illness, "Aldric is taken with la grippe");
+    note(&mut g, 1, 30, EventKind::Recovery, "Aldric recovered");
+    g.seats[0].selected_target = 1;
+    let insp = g.villager_inspector_at(0);
+    let t = insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>().join(" ");
+    assert!(t.contains("took ill") && t.contains("healed"), "the record's missing: {}", t);
+}

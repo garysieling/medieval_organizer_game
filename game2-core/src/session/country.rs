@@ -57,9 +57,11 @@ const CASTLE_NAMES: [&str; 6] = ["Ravensholt", "Greymoor", "Dunmore",
 const FARM_NAMES: [&str; 6] = ["Ashford", "Hartley", "Thornby",
     "Greenshaw", "Longacre", "Fordley"];
 const HOLY_NAMES: [&str; 4] = ["Greyfriars", "Frosterley", "Ingleby", "Halewick"];
+const MINE_NAMES: [&str; 4] = ["Gritstone Cut", "Blackrake", "Owd Vein", "Silverdyke"];
 
+/// The workings out on the hills: an open pit keeps its own crew
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum SiteKind { Town, Castle, Farm, Monastery }
+pub enum SiteKind { Town, Castle, Farm, Monastery, Mine }
 
 /// A settlement out in the country, and who keeps it
 #[derive(Clone, Debug)]
@@ -101,10 +103,13 @@ pub struct CountryPlan {
     pub castles: Vec<(i32, i32, i32)>,
     pub farms: Vec<(i32, i32, i32)>,
     pub monasteries: Vec<(i32, i32, i32)>,
+    /// The hills the pits stand on - a vein runs where the land gives one
+    pub mines: Vec<(i32, i32, i32)>,
     pub town_names: Vec<&'static str>,
     pub castle_names: Vec<&'static str>,
     pub farm_names: Vec<&'static str>,
     pub monastery_names: Vec<&'static str>,
+    pub mine_names: Vec<&'static str>,
     /// House sites round the towns (decorative scenery and real homes)
     pub houses: Vec<(i32, i32)>,
 }
@@ -220,15 +225,23 @@ pub fn plan_country(t: &Terrain, river: &[(i32, i32)], village: (i32, i32), rng:
     for _ in 0..1 + rng.below(2) {
         if let Some(s) = pick(castle_r, false, &[], &mut taken, rng) { monasteries.push(s); }
     }
+    // and the workings: a vein shows on the high ground, where a seed
+    // has the land for it - some countries have no pit at all
+    let mut mines = vec![];
+    if rng.below(2) == 0 {
+        if let Some(s) = pick(4, true, &[], &mut taken, rng) { mines.push(s); }
+    }
     // names: drawn without repeats
     let mut tn: Vec<&'static str> = TOWN_NAMES.to_vec();
     let mut cn: Vec<&'static str> = CASTLE_NAMES.to_vec();
     let mut fnames: Vec<&'static str> = FARM_NAMES.to_vec();
     let mut mnames: Vec<&'static str> = HOLY_NAMES.to_vec();
+    let mut minen: Vec<&'static str> = MINE_NAMES.to_vec();
     let town_names = towns.iter().map(|_| tn.remove(rng.below(tn.len() as i32) as usize)).collect();
     let castle_names = castles.iter().map(|_| cn.remove(rng.below(cn.len() as i32) as usize)).collect();
     let farm_names = farms.iter().map(|_| fnames.remove(rng.below(fnames.len() as i32) as usize)).collect();
     let monastery_names = monasteries.iter().map(|_| mnames.remove(rng.below(mnames.len() as i32) as usize)).collect();
+    let mine_names = mines.iter().map(|_| minen.remove(rng.below(minen.len() as i32) as usize)).collect();
     // five to seven houses round each town's green, a loose ring
     let mut houses = vec![];
     for &(cx, cy, _) in &towns {
@@ -240,8 +253,8 @@ pub fn plan_country(t: &Terrain, river: &[(i32, i32)], village: (i32, i32), rng:
             houses.push(((cx as f32 + rr * a.cos()).round() as i32, (cy as f32 + rr * a.sin()).round() as i32));
         }
     }
-    CountryPlan { towns, castles, farms, monasteries, town_names, castle_names,
-        farm_names, monastery_names, houses }
+    CountryPlan { towns, castles, farms, monasteries, mines, town_names, castle_names,
+        farm_names, monastery_names, mine_names, houses }
 }
 
 /// Who lives out in the country, site by site. A market town is a
@@ -281,6 +294,12 @@ fn site_folk(kind: SiteKind, nth: usize) -> Vec<Option<Vocation>> {
             Some(Vocation::Priest), Some(Vocation::Priest), Some(Vocation::Farmer),
             Some(Vocation::Farmer), Some(Vocation::Farmer), None,
         ].to_vec(),
+        // the workings: three to the face and a hand for the pot and
+        // the cart - a small crew keeps a small vein
+        SiteKind::Mine => [
+            Some(Vocation::Miner), Some(Vocation::Miner), Some(Vocation::Miner),
+            Some(Vocation::Farmer), None, None,
+        ].to_vec(),
     }
 }
 
@@ -291,6 +310,7 @@ pub fn country_folk(plan: &CountryPlan) -> usize {
             .map(|(i, _)| site_folk(SiteKind::Castle, i).len()).sum::<usize>()
         + plan.farms.len() * site_folk(SiteKind::Farm, 0).len()
         + plan.monasteries.len() * site_folk(SiteKind::Monastery, 0).len()
+        + plan.mines.len() * site_folk(SiteKind::Mine, 0).len()
 }
 
 impl Game {
@@ -305,7 +325,8 @@ impl Game {
         let castles = plan.castles.iter().zip(&plan.castle_names).map(|(c, n)| (SiteKind::Castle, *c, *n));
         let farms = plan.farms.iter().zip(&plan.farm_names).map(|(f, n)| (SiteKind::Farm, *f, *n));
         let monasteries = plan.monasteries.iter().zip(&plan.monastery_names).map(|(m, n)| (SiteKind::Monastery, *m, *n));
-        for (kind, (cx, cy, r), name) in towns.chain(castles).chain(farms).chain(monasteries) {
+        let mines = plan.mines.iter().zip(&plan.mine_names).map(|(m, n)| (SiteKind::Mine, *m, *n));
+        for (kind, (cx, cy, r), name) in towns.chain(castles).chain(farms).chain(monasteries).chain(mines) {
             // the granary stands on the green (a castle keeps its stores
             // in the courtyard, beside the keep); it's sited after the
             // roofs below so it keeps clear of them
@@ -313,6 +334,7 @@ impl Game {
             let servings = match kind {
                 SiteKind::Town => 200, SiteKind::Castle => 140,
                 SiteKind::Farm => 160, SiteKind::Monastery => 100,
+                SiteKind::Mine => 100,
             };
             let mut homes = vec![];
             match kind {
@@ -371,12 +393,40 @@ impl Game {
                 self.map.connect((bx, by));
             }
                 }
+                SiteKind::Mine => {
+            // the pit head and the crib cabin: the workings' huts stand
+            // by the cut, drawn as mill-stone machinery
+            for (k, (dx, dy)) in [(0, 0), (2, 1)].iter().enumerate() {
+                // the cabins stand on the workings' own ground: buildable
+                // if the hill allows, rough ground if it doesn't - and
+                // never a walk down from the pit they keep
+                let want = (cx + dx, cy + dy);
+                let spot = (0..=11i32).find_map(|r| (-r..=r)
+                        .flat_map(|dy| (-r..=r).map(move |dx| (dx, dy)))
+                        .filter(|&(dx, dy)| dx.abs().max(dy.abs()) == r)
+                        .map(|(dx, dy)| (want.0 + dx, want.1 + dy))
+                        .find(|&(x, y)| self.map.buildable(x, y)))
+                    .or_else(|| self.map.nearest_passable(want.0, want.1))
+                    .or_else(|| self.map.nearest_buildable(want.0, want.1));
+                let Some((bx, by)) = spot else { continue };
+                let label = if k == 0 { format!("the workings at {}", name) } else { format!("the crib at {}", name) };
+                homes.push(self.country_building(BuildingKind::Home, label, bx, by));
+                self.buildings.push((bx as f32, by as f32,
+                    BSprite::House((noise(bx, by, 43) * 97.0) as usize)));
+                self.map.connect((bx, by));
+            }
+                }
             }
             let store_at = (-3..=3).flat_map(|dy| (-3..=3).map(move |dx| (green.0 + dx, green.1 + dy)))
                 .filter(|&(x, y)| self.map.passable(x, y))
                 .min_by_key(|&(x, y)| (x - green.0).abs() + (y - green.1).abs())
                 .unwrap_or(green);
             let store = villager::spawn_food_source(&mut self.world, store_at.0 as f32, store_at.1 as f32, servings);
+            // a pit stockpiles ore beside its granary - the store keeps a
+            // sack for it
+            if kind == SiteKind::Mine {
+                self.world.add_component(store, Satchel::default());
+            }
             sites.push(Site { name, kind, centre: (cx, cy), radius: r, store, homes,
                 carrier: None, away_until: None, liege: None, title: None,
                 lord: None, treasury: 0.0 });
@@ -398,8 +448,8 @@ impl Game {
                 let v = self.spawn_outlander(si, spec, home, k, &mut rng);
                 // only the towns and castles run errands to the village:
                 // a farm's surplus and an abbey's alms stay home
-                if matches!(kind, SiteKind::Town | SiteKind::Castle)
-                    && k == if kind == SiteKind::Town { 0 } else { 1 } {
+                if matches!(kind, SiteKind::Town | SiteKind::Castle | SiteKind::Mine)
+                    && k == match kind { SiteKind::Town => 0, SiteKind::Mine => 3, _ => 1 } {
                     sites[si].carrier = Some(v);
                 }
                 // the head of the household is the first grown folk who
@@ -484,6 +534,7 @@ impl Game {
                 SiteKind::Castle => {}
                 SiteKind::Town | SiteKind::Farm => sites[si].title = Some("Reeve"),
                 SiteKind::Monastery => sites[si].title = Some(if rng.below(2) == 0 { "Abbot" } else { "Abbess" }),
+                SiteKind::Mine => sites[si].title = Some("Foreman"),
             }
             if sites[si].kind != SiteKind::Castle {
                 sites[si].liege = castles.iter().copied()
@@ -644,6 +695,19 @@ impl Game {
                     f.servings = (f.servings + hands * 2).min(TOWN_STORE_CAP);
                 }
             }
+            // the cut takes daily at a mine: each man at the face
+            // brings up his barrow of ore
+            if site.kind == SiteKind::Mine {
+                let dug = folk.iter().filter(|&&v|
+                    self.world.get_component::<Craft>(v)
+                        .map(|c| c.vocation == Vocation::Miner).unwrap_or(false)
+                ).count() as u32;
+                if dug > 0 {
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(site.store) {
+                        *s.goods.entry("ore".into()).or_insert(0) += dug;
+                    }
+                }
+            }
             // strays (an errand cancelled on the road, a feast's pull)
             // walk home rather than standing lost in the country
             for &v in &folk {
@@ -683,6 +747,7 @@ impl Game {
                             // farms and abbeys never run an errand to the
                             // village: their carrier stays home
                             SiteKind::Farm | SiteKind::Monastery => false,
+                            SiteKind::Mine => self.market_pitch(c).map(|p| self.send_far(c, p, Goal::Cart(si))).unwrap_or(false),
                             SiteKind::Castle => {
                                 // loaded at the granary already? carry the
                                 // provisions on home. otherwise the steward
@@ -748,6 +813,34 @@ impl Game {
                             Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
                     }
                 }
+                (SiteKind::Mine, None) => {
+                    // the ore cart: a load goes for market when the
+                    // stockpile's worth the road - weekly at most
+                    if tick % 7 != (si as u64) % 7 || self.travels.iter().any(|t| t.who == c) { continue; }
+                    let Some(pitch) = self.market_pitch(c) else { continue };
+                    // the crew's barrows and the pit's own pile
+                    let mut load = 0u32;
+                    for &v in &folk {
+                        if v == c { continue; }
+                        if let Some(s) = self.world.get_component_mut::<Satchel>(v) {
+                            load += s.goods.remove("ore").unwrap_or(0);
+                        }
+                    }
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(site.store) {
+                        load += s.goods.remove("ore").unwrap_or(0).min(12);
+                    }
+                    if load < 4 { continue; } // not worth the road yet
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(c) {
+                        *s.goods.entry("ore".into()).or_insert(0) += load;
+                    }
+                    if self.send_far(c, pitch, Goal::Cart(si)) {
+                        self.sites[si].away_until = Some(u64::MAX);
+                        let ci = self.villagers.iter().position(|&x| x == c);
+                        let name = ci.map(vill_name).unwrap_or("a carter");
+                        self.log.push_at_who(format!("t{}: {}'s cart sets out from {} - a load of ore for the market.", tick, name, site.name),
+                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
+                    }
+                }
                 (SiteKind::Castle, None) => {
                     if tick % LEVY_EVERY != (si as u64 * 7) % LEVY_EVERY || self.travels.iter().any(|t| t.who == c) { continue; }
                     // the nearest town's granary keeps the castle
@@ -773,7 +866,8 @@ impl Game {
     pub(super) fn arrive_cart(&mut self, who: Entity, si: usize) {
         let tick = self.tick;
         let Some(site) = self.sites.get(si).cloned() else { return };
-        let load = self.world.get_component::<Satchel>(who).map(|s| s.goods.get("wheat").copied().unwrap_or(0)).unwrap_or(0);
+        let load = self.world.get_component::<Satchel>(who).map(|s|
+            s.goods.get("wheat").copied().unwrap_or(0) + s.goods.get("ore").copied().unwrap_or(0)).unwrap_or(0);
         // a meal in town after the road
         if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(self.market_food) {
             if f.servings > 0 {
@@ -794,7 +888,7 @@ impl Game {
         self.sites[si].away_until = Some(stay_from + MARKET_STAY);
         let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a carter");
         self.log_entity(who, format!("t{}: {}'s cart comes in from {}{}.", tick, name, site.name,
-            if load > 0 { format!(" with {} wheat for the market", load) } else { String::new() }));
+            if load > 0 { format!(" with {} to sell at the market", load) } else { String::new() }));
     }
 
     /// The steward at the town granary: loads what the castle needs
@@ -870,6 +964,7 @@ impl Game {
                 SiteKind::Town => TRIBUTE_TOWN,
                 SiteKind::Farm => TRIBUTE_FARM,
                 SiteKind::Monastery => TRIBUTE_MONASTERY,
+                SiteKind::Mine => TRIBUTE_TOWN,
                 SiteKind::Castle => continue,
             };
             let runner = self.sites[si].lord.or(self.sites[si].carrier)
@@ -1087,7 +1182,7 @@ mod tests {
                 SiteKind::Castle => assert_eq!(class, SocialClass::ProfessionalMiddle, "castle folk are gentry"),
                 // town trades and children are all working folk - never
                 // the gentry's trades
-                SiteKind::Town | SiteKind::Farm => {
+                SiteKind::Town | SiteKind::Farm | SiteKind::Mine => {
                     assert_eq!(class, SocialClass::Working, "farm and town folk work for a living");
                     if let Some(c) = g.world.get_component::<Craft>(v) {
                         assert!(!vocation::is_pmc(c.vocation), "no knights or priests in the fields");

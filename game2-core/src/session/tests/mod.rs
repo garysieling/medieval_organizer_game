@@ -73,6 +73,7 @@ mod lifecycle;
 mod log_priority;
 mod magic;
 mod market;
+mod mine;
 mod member_line;
 mod minimap;
 mod music;

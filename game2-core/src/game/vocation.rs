@@ -45,6 +45,8 @@ pub enum Vocation {
     Perfumer,
     /// Mixes pigment and lays it on wood: painted signs, murals, heraldry
     Painter,
+    /// Works the pit: ore up out of the open cut, day after day
+    Miner,
     /// Works the river's edge: fish, eels, and the strange things the
     /// water brings up
     Fisher,
@@ -152,7 +154,7 @@ pub fn is_pmc(v: Vocation) -> bool {
 pub fn inputs(v: Vocation) -> &'static [&'static str] {
     match v {
         Vocation::Baker => &["wheat"],
-        Vocation::Toolmaker => &["wood", "stone"],
+        Vocation::Toolmaker => &["wood", "stone", "ore"],
         Vocation::Tailor => &["cloth"],
         Vocation::Weaver => &["wool"],
         Vocation::Painter => &["pigment", "wood"],
@@ -180,6 +182,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
     match v {
         Vocation::Farmer => Some("wheat"),
         Vocation::Baker => Some("bread"),
+        Vocation::Miner => Some("ore"),
         Vocation::Toolmaker => Some("tools"),
         Vocation::Knight => Some("security"),
         Vocation::Tailor => Some("garments"),
@@ -221,7 +224,9 @@ pub fn gatherable(good: &str) -> bool {
 /// water of life the apothecaries bring
 pub fn imported(good: &str) -> bool {
     matches!(good, "cloth" | "paper" | "ink" | "pigment"
-        | "hops" | "grapes" | "wine" | "spirits" | "charcoal" | "salt" | "spice" | "silk")
+        | "hops" | "grapes" | "wine" | "spirits" | "charcoal" | "salt" | "spice" | "silk"
+        // the pit's ore comes in by cart from the workings
+        | "ore")
 }
 
 /// Everyday price of a good or service, in gold
@@ -266,6 +271,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
     match v {
         Vocation::Farmer => "the farm",
         Vocation::Baker => "the bakery",
+        Vocation::Miner => "the pit",
         Vocation::Toolmaker => "the smithy",
         Vocation::Knight => "the watch house",
         Vocation::Tailor => "the tailor's",
@@ -294,6 +300,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
     match v {
         Vocation::Farmer => "Farmer",
         Vocation::Baker => "Baker",
+        Vocation::Miner => "Miner",
         Vocation::Toolmaker => "Toolmaker",
         Vocation::Knight => "Knight",
         Vocation::Tailor => "Tailor",
@@ -357,6 +364,10 @@ const fn a(name: &'static str, does: &'static str) -> VocationAction {
 
 pub fn actions(v: Vocation) -> Vec<VocationAction> {
     match v {
+        Vocation::Miner => vec![
+            a("work the face", "cut ore at the pit's face"),
+            a("sell ore", "sell ore to whoever's buying"),
+        ],
         Vocation::Farmer => vec![
             a("sell crops", "sell wheat to whoever's buying"),
             a("hire a hand", "task a journeyman to work the rows"),

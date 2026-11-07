@@ -353,7 +353,10 @@ impl Game {
             // panel says more than the vote's date
             let facts = crate::game::campaign_arc::arc_facts(world, e, self.tick);
             let state = [
-                ("arc:won", "won through"), ("arc:leader_taken", "their leader's held"),
+                ("arc:won", "won through"), ("arc:lost", "their demand's refused"),
+                ("arc:delayed", "their answer's put off"), ("arc:partial", "won only part"),
+                ("arc:expired", "the grant's run out"), ("arc:diluted", "the grant went hollow"),
+                ("arc:leader_taken", "their leader's held"),
                 ("arc:crackdown", "crackdown's on"), ("arc:countered", "the streets are banned"),
                 ("arc:promise_broken", "their word's broken"), ("arc:split", "the room's split"),
                 ("arc:fatigue", "the cause's weary"), ("arc:consent", "the room consents"),

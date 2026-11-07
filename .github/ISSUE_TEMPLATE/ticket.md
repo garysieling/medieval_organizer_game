@@ -1,9 +1,8 @@
 ---
 name: Ticket
-description: A unit of work an agent (or human) can pick up end to end
-about: Fill every section. An issue is only safe for an agent to take when the last box is checked - that check applies the agent-ready label.
+description: Fill every section. An issue is only safe for an agent to take when the last box is checked - that check applies the agent-ready label.
 title: ""
-labels: []
+labels: [agent-ready]
 body:
   - type: textarea
     id: summary

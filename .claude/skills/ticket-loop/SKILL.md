@@ -84,13 +84,20 @@ form and proceed. Don't ask what you can verify yourself.
 ## Stage 4 - Branch + worktree
 
 One worktree per ticket, sibling of the main checkout (the repo already
-has ~40 of these):
+has ~40 of these). Find the main checkout from wherever you are - never
+hardcode a path:
 
 ```bash
-git -C C:/projects/game2 fetch origin main
-git -C C:/projects/game2 worktree add ../game2-<slug> -b <area>/<N>-<slug> origin/main
-cd ../game2-<slug>
+MAIN=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+WT="$(dirname "$MAIN")/game2-<slug>"
+git -C "$MAIN" fetch origin main
+git -C "$MAIN" worktree add "$WT" -b <area>/<N>-<slug> origin/main
+cd "$WT"
 ```
+
+- Record `$MAIN` and `$WT` in the Ticket Form - Stage 8 needs them.
+- `git -C` does not change your shell's directory; the `cd "$WT"` is
+  what puts you in the worktree.
 
 - Branch prefix matches repo convention: `ui/`, `fb/`, `feat/`, `fix/`,
   `art/`, `docs/` - pick the area, keep the issue number: `ui/675-research-meetings`.
@@ -207,11 +214,12 @@ Loop until clean:
 ## Stage 8 - Merge, then next ticket
 
 ```bash
+cd "$MAIN"        # the main checkout recorded in Stage 4
 gh pr merge <PR> -R garysieling/game2 --merge        # repo convention: merge commits
-git -C C:/projects/game2 fetch origin --prune
-git -C C:/projects/game2 worktree remove ../game2-<slug>
-git -C C:/projects/game2 branch -d <branch>          # -d, only if merged
-git -C C:/projects/game2 push origin --delete <branch>  # if the remote branch remains
+git fetch origin --prune
+git worktree remove "$WT"
+git branch -d <branch>          # -d, only if merged
+git push origin --delete <branch>  # if the remote branch remains
 gh issue edit <N> -R garysieling/game2 --remove-label in-progress
 ```
 
@@ -253,7 +261,8 @@ Agent: devin | claude    Started: <date>    PR: #___
 - [ ] PLAY.md / protocol.md updated if needed
 
 ### Branch / worktree
-- branch: <area>/<N>-<slug>    worktree: ../game2-<slug>
+- branch: <area>/<N>-<slug>
+- main checkout: <abs path>    worktree: <abs path>
 
 ### AI review rounds
 - round 1 (<date>): <N> findings - <fixed/replied each>

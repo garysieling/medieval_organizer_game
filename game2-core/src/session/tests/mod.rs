@@ -75,6 +75,7 @@ mod magic;
 mod market;
 mod mine;
 mod monuments;
+mod stone_circle;
 mod cairns;
 mod member_line;
 mod minimap;

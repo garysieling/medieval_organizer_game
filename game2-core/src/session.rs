@@ -715,7 +715,14 @@ pub struct Monument {
     pub build_until: u64,
     /// The day it stood (None while still rising)
     pub stood_on: Option<u64>,
+    /// Who raised it: the lord's column or the org's ring
+    pub kind: MonumentKind,
 }
+
+/// What stands: a lord's column for a villager, or the org's own ring
+/// of stones - the bigger honor, paid from the org's own purse
+#[derive(Clone, Copy, PartialEq)]
+pub enum MonumentKind { Column, Circle }
 
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;

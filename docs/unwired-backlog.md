@@ -125,7 +125,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 89 | Herb-wife's remedies: which herb treats what, preparing them | `herbology` (`knows_cure`, `prepare_remedy`, `treats_illness`, `herb_tree`) | done #617 |
 | 90 | Wild herbs spawning | `herbology::spawn_herb` | done #618 |
 | 91 | Fire risk: what's flammable near a fire | `fire::flammable`, `is_scorched` | done #619 |
-| 92 | Recruit odds shown before you ask | `player::recruit_trust` | todo |
+| 92 | Recruit odds shown before you ask | `player::recruit_trust` | done #620 |
 | 93 | Campaign elite shadowing / mass ties | `campaign::shadow_elite`, `tie_mass` | todo |
 | 94 | Campaign history: recent beats and who consented | `campaign_arc` (`recent_beats`, `record_consent`, `arc_facts`) | todo |
 | 95 | Personal facts feeding meeting dialogue | `campaign_dialogue` (`personal_facts`, `meeting_facts`) | todo |

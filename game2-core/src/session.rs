@@ -601,8 +601,18 @@ pub enum Goal {
     Levy(usize, usize),
     /// The steward back up to the castle with the provisions
     Deliver(usize),
-    /// The collector riding the takings out to the castle (site index)
-    Remit(usize),
+    /// The collector riding the takings out to the castle (site index,
+    /// gold carried - the keep's treasury takes it on arrival)
+    Remit(usize, f32),
+    /// A site's lord riding its tribute up to the liege's keep
+    /// (from, to, gold carried)
+    Owe(usize, usize, f32),
+    /// A castle's gift train down to a tributary (from, to): wheat and
+    /// tools in the satchel, sold on arrival for the site's treasury
+    Gift(usize, usize),
+    /// A castle knight riding escort to a tribute train's destination
+    /// (from, to) - turns for home once the cargo is safe
+    Escort(usize, usize),
     /// The bucket line's first leg: walk to the water's edge and fill up
     FillBucket,
     /// Second leg: carry the bucket to this burning tile and douse it
@@ -1523,7 +1533,7 @@ impl Game {
                 let seeking = vdata.map(|x| x.activity == Activity::SeekingFood).unwrap_or(false)
                     // the remit rider's belly waits for the keep's table -
                     // the pull doesn't fight his road for the granary
-                    && !self.travels.iter().any(|t| t.who == *v && matches!(t.goal, Goal::Remit(_)));
+                    && !self.travels.iter().any(|t| t.who == *v && matches!(t.goal, Goal::Remit(..)));
                 let target_food = vdata.and_then(|x| x.target_food);
                 if seeking && market_has && target_food != Some(store) {
                     if let Some(vill) = world.get_component_mut::<Villager>(*v) {

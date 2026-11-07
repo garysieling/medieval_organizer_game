@@ -134,7 +134,7 @@ impl Game {
                         .and_then(|&k| self.world.get_component::<Pos>(k).copied())
                         .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32))
                         .unwrap_or(self.sites[si].centre);
-                    let _ = self.send_far(c, door, Goal::Remit(si));
+                    let _ = self.send_far(c, door, Goal::Remit(si, remit));
                 }
             }
         }
@@ -341,12 +341,15 @@ impl Game {
             let hungry = self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false);
             if hungry {
                 // an exile walks on, belly and all - and the man riding
-                // the lord's gold doesn't set it down for lunch; the
-                // keep's table feeds him when he gets there
+                // the lord's gold, the tribute or the gift train doesn't
+                // set it down for lunch; the keep's table feeds him when
+                // he gets there
                 self.travels.retain(|t| t.who != v
-                    || matches!(t.goal, Goal::Exile | Goal::Remit(_)));
+                    || matches!(t.goal, Goal::Exile | Goal::Remit(..) | Goal::Owe(..)
+                        | Goal::Gift(..) | Goal::Escort(..)));
                 let mut fed = false;
-                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile | Goal::Remit(_))) {
+                if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile | Goal::Remit(..)
+                    | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..))) {
                     let at_store = self.world.get_component::<Pos>(self.store_of(v))
                         .zip(self.world.get_component::<Pos>(v))
                         .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)

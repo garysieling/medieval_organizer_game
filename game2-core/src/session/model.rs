@@ -20,6 +20,13 @@ pub struct SiteV {
     pub name: String,
     pub kind: crate::session::country::SiteKind,
     pub keeper: Option<String>,
+    /// The head's style and name ("Earl Godric"), when the site has one
+    #[serde(default)]
+    pub head: Option<String>,
+    /// The site's treasury in gold - tribute in, gifts and the crown's
+    /// cut out
+    #[serde(default)]
+    pub treasury: f32,
 }
 
 /// A villager, rival, pet or other figure standing on the map
@@ -515,4 +522,8 @@ pub struct UiModel {
     /// Where the cause's flyers are posted: (x, y) tile centres
     #[serde(default)]
     pub flyers: Vec<(f32, f32)>,
+    /// Freight on the roads: carts, tribute and gift trains - the wagon
+    /// a carrier walks behind, as (x, y)
+    #[serde(default)]
+    pub trains: Vec<(f32, f32)>,
 }

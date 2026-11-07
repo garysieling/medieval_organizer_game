@@ -247,6 +247,16 @@ fn test_a_seat_alike_is_neither_drafted_nor_sent_running() {
 }
 
 #[test]
+fn test_seed_42_fire_does_not_run_away() {
+    let mut g = Game::new();
+    g.speed = 16;
+    while g.tick < 1500 { g.update(); }
+    assert!(!g.fire.active(), "fire still has {} burning tiles and {} scorched at tick {}",
+        g.fire.burning.len(), g.fire.scorched.len(), g.tick);
+    assert!(g.ruined.len() < 5, "one seed lost {} buildings to fires", g.ruined.len());
+}
+
+#[test]
 fn test_the_village_names_the_ground_it_stands_on() {
     let g = Game::new();
     if let Some(n) = &g.landform {

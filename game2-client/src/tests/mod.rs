@@ -43,5 +43,6 @@ mod sign;
 mod status_line;
 mod title;
 mod toast;
+mod train;
 mod walk_anim;
 mod zoom;

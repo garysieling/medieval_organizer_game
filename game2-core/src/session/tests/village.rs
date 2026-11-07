@@ -64,7 +64,12 @@ fn some_seeds_zone_their_town_into_company_districts() {
     let mut first_zoned = None;
     for seed in 0u64..16 {
         let g = Game::new_seeded(seed);
-        let sprites: Vec<BSprite> = g.buildings.iter().map(|b| b.2).collect();
+        // the company district is a village read - a farm's manor out in
+        // the country isn't its own zoning
+        let (vx, vy) = g.village;
+        let sprites: Vec<BSprite> = g.buildings.iter()
+            .filter(|b| (b.0 - vx as f32).abs() + (b.1 - vy as f32).abs() < 60.0)
+            .map(|b| b.2).collect();
         let is_zone = |s: &BSprite| matches!(s, BSprite::Mansion | BSprite::Rowhouse(_) | BSprite::Barracks(_));
         if sprites.iter().any(is_zone) {
             zoned += 1;
@@ -77,7 +82,11 @@ fn some_seeds_zone_their_town_into_company_districts() {
     }
     // the same seed always draws the same town
     let (seed, sprites) = first_zoned.expect("no seed zoned a company town");
-    let again: Vec<BSprite> = Game::new_seeded(seed).buildings.iter().map(|b| b.2).collect();
+    let g2 = Game::new_seeded(seed);
+    let (vx2, vy2) = g2.village;
+    let again: Vec<BSprite> = g2.buildings.iter()
+        .filter(|b| (b.0 - vx2 as f32).abs() + (b.1 - vy2 as f32).abs() < 60.0)
+        .map(|b| b.2).collect();
     assert_eq!(sprites, again, "seed {} drew two towns", seed);
     assert!(zoned > 0, "no seed zoned a company town");
     assert!(plain > 0, "every seed zoned - the coin never lands plain");

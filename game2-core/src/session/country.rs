@@ -284,10 +284,11 @@ fn site_folk(kind: SiteKind, nth: usize) -> Vec<Option<Vocation>> {
         SiteKind::Town => TOWN.to_vec(),
         SiteKind::Castle if nth == 0 => CASTLE_GENTRY.to_vec(),
         SiteKind::Castle => CASTLE_BLADES.to_vec(),
-        // a farmstead: the hands and the shepherd, and children underfoot
+        // a farmstead: its lord in the manor, the hands and the
+        // shepherd under him, and children underfoot
         SiteKind::Farm => [
-            Some(Vocation::Farmer), Some(Vocation::Farmer), Some(Vocation::Farmer),
-            Some(Vocation::Shepherd), None, None,
+            Some(Vocation::Knight), Some(Vocation::Farmer), Some(Vocation::Farmer),
+            Some(Vocation::Farmer), Some(Vocation::Shepherd), None,
         ].to_vec(),
         // the abbot, his prior, three lay brothers, and a novice underfoot
         SiteKind::Monastery => [
@@ -374,6 +375,14 @@ impl Game {
                         self.map.set(x, y, if dx % 3 == 0 { Tile::Corn } else { Tile::Wheat });
                     }
                 }
+            }
+            // the manor stands for its lord: first in the homes so his
+            // bed lands under its roof, drawn like the hall it is
+            if let Some((bx, by)) = self.map.nearest_buildable(cx - 2, cy - 1) {
+                homes.push(self.country_building(BuildingKind::Home,
+                    format!("the manor at {}", name), bx, by));
+                self.buildings.push((bx as f32, by as f32, BSprite::Mansion));
+                self.map.connect((bx, by));
             }
             for (k, (dx, dy)) in [(0, 0), (2, 1)].iter().enumerate() {
                 let Some((bx, by)) = self.map.nearest_buildable(cx + dx, cy + dy) else { continue };
@@ -1189,9 +1198,16 @@ mod tests {
                 // town trades and children are all working folk - never
                 // the gentry's trades
                 SiteKind::Town | SiteKind::Farm | SiteKind::Mine => {
-                    assert_eq!(class, SocialClass::Working, "farm and town folk work for a living");
+                    let is_manor_lord = g.sites[si].kind == SiteKind::Farm && g.world
+                        .get_component::<Craft>(v).map(|c| c.vocation == Vocation::Knight)
+                        .unwrap_or(false);
+                    // the manor's own lord is gentry among the hands
+                    if !is_manor_lord {
+                        assert_eq!(class, SocialClass::Working, "farm and town folk work for a living");
+                    }
                     if let Some(c) = g.world.get_component::<Craft>(v) {
-                        assert!(!vocation::is_pmc(c.vocation), "no knights or priests in the fields");
+                        assert!(!vocation::is_pmc(c.vocation) || is_manor_lord,
+                            "no knights or priests in the fields");
                     }
                 }
                 // the abbey's brothers: the ordination is gentry, the

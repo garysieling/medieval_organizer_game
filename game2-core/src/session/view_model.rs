@@ -925,6 +925,17 @@ impl Game {
             if world.get_component::<country::Outlander>(v).is_some() {
                 parts.push("of the country".into());
             }
+            // the fold they keep, if the bench behind their day's a
+            // pasture - its live count named
+            if let Some(fold) = world.get_component::<Craft>(v).and_then(|c| c.workplace)
+                .filter(|&b| world.get_component::<Building>(b)
+                    .map(|bb| bb.kind == BuildingKind::Pasture).unwrap_or(false)) {
+                let (sheep, goats) = livestock::counts(&self.world, fold);
+                let mut keeps = vec![];
+                if sheep > 0 { keeps.push(format!("{} sheep", sheep)); }
+                if goats > 0 { keeps.push(format!("{} goats", goats)); }
+                if !keeps.is_empty() { parts.push(format!("keeps {}", keeps.join(" and "))); }
+            }
             // their cause-craft, if they've a real one - the skill that
             // leads, named by what it does
             if let Some(o) = world.get_component::<crate::game::org_skills::Organizing>(v) {

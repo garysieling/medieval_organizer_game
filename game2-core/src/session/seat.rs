@@ -240,7 +240,7 @@ impl Game {
             AgentCmd::GoTo { x, y } => {
                 let Some(p) = self.world.get_component::<Pos>(who) else { return Err("you aren't in the world".into()) };
                 let from = (p.x.round() as i32, p.y.round() as i32);
-                match self.map.walk_path(from, (x, y)) {
+                match self.trail_path(from, (x, y)) {
                     Some(mut path) => {
                         path.push((x, y));
                         self.travels.retain(|t| t.who != who);
@@ -294,7 +294,7 @@ impl Game {
                 // step to the market store; the hunger logic does the rest
                 let Some(p) = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
                     return Err("no store".into()) };
-                match self.map.walk_path(
+                match self.trail_path(
                     self.world.get_component::<Pos>(who).map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(p), p)
                 {
                     // already standing at the store: eat now, no walk to take

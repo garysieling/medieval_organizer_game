@@ -17,7 +17,7 @@ impl Game {
         let e = self.world.create_entity();
         let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        let path = self.map.walk_path(start, self.village).unwrap_or_default();
+        let path = self.trail_path(start, self.village).unwrap_or_default();
         self.minstrel = Some(Minstrel { e, path, playing_until: None });
         self.log.push(format!("t{}: a travelling minstrel has come to town.", self.tick));
     }
@@ -60,7 +60,7 @@ impl Game {
             if let Some(p) = self.world.get_component_mut::<Pos>(m.e).copied() {
                 let back = self.road_far();
                 if m.path.is_empty() {
-                    m.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                    m.path = self.trail_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
                 }
                 if m.path.is_empty() {
                     self.world.destroy_entity(m.e);
@@ -79,7 +79,7 @@ impl Game {
         let e = self.world.create_entity();
         let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        let path = self.map.walk_path(start, self.village).unwrap_or_default();
+        let path = self.trail_path(start, self.village).unwrap_or_default();
         self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None, rumor_sold: false });
         self.log.push(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick));
     }
@@ -153,7 +153,7 @@ impl Game {
             if let Some(p) = self.world.get_component_mut::<Pos>(m.e).copied() {
                 let back = self.road_far();
                 if m.path.is_empty() {
-                    m.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                    m.path = self.trail_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
                 }
                 if m.path.is_empty() {
                     if let Some(s) = m.stall { self.world.destroy_entity(s); }
@@ -177,7 +177,7 @@ impl Game {
         // a meadow spot just outside the south wall
         let camp = self.map.nearest_buildable(self.town_wall.0 + 4, self.town_wall.3 + 3)
             .unwrap_or((self.town_wall.0 + 12, self.town_wall.3 + 6));
-        let path = self.map.walk_path(start, camp).unwrap_or_default();
+        let path = self.trail_path(start, camp).unwrap_or_default();
         self.circus = Some(Circus { e, path, camped_until: None, camp });
         self.log.push(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick));
     }
@@ -285,7 +285,7 @@ impl Game {
         // a clear spot beyond the south wall, off the circus's patch
         let camp = self.map.nearest_buildable(self.town_wall.0 + 8, self.town_wall.3 + 4)
             .unwrap_or((self.town_wall.0 + 16, self.town_wall.3 + 6));
-        let path = self.map.walk_path(start, camp).unwrap_or_default();
+        let path = self.trail_path(start, camp).unwrap_or_default();
         self.ink_boiler = Some(InkBoiler { e, path, working_until: None, camp });
         self.log.push(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick));
     }
@@ -316,7 +316,7 @@ impl Game {
             if let Some(p) = self.world.get_component_mut::<Pos>(b.e).copied() {
                 let back = self.road_far();
                 if b.path.is_empty() {
-                    b.path = self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
+                    b.path = self.trail_path((p.x.round() as i32, p.y.round() as i32), back).unwrap_or_default();
                 }
                 if b.path.is_empty() {
                     self.world.destroy_entity(b.e);

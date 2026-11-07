@@ -387,8 +387,8 @@ impl View {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);
             let shade = (30.0 * s) as u8;
-            buf.rect(sx - k(3.0), sy - k(1.0), k(6.0), k(2.0),
-                95u8.saturating_sub(shade), 75u8.saturating_sub(shade), 55u8.saturating_sub(shade));
+            buf.rect(sx - k(3.5), sy - k(1.5), k(7.0), k(3.0),
+                105u8.saturating_sub(shade), 86u8.saturating_sub(shade), 64u8.saturating_sub(shade));
         }
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));

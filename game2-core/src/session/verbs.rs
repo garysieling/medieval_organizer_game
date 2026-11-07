@@ -227,7 +227,7 @@ impl Game {
     pub fn path_to_at(&self, seat: usize, who: usize) -> Option<Vec<(i32, i32)>> {
         let (px, py) = self.player_pos_at(seat);
         let p = self.world.get_component::<Pos>(self.villagers[who])?;
-        self.map.walk_path((px.round() as i32, py.round() as i32), (p.x.round() as i32, p.y.round() as i32))
+        self.trail_path((px.round() as i32, py.round() as i32), (p.x.round() as i32, p.y.round() as i32))
     }
 
     /// Talk or Recruit (action button `action`) on someone who isn't beside

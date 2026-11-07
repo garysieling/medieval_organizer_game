@@ -90,17 +90,41 @@ impl Game {
         self.sfx.push(SfxCue { kind, x, y, intensity });
     }
 
-    /// The BFS is the game's hot line - a path's the same all day, so
-    /// remember it until the map might have moved
+    /// The search is the game's hot line - a path's the same all frame,
+    /// so remember it until the next one. Frame-scoped, not day-scoped:
+    /// trail strength shifts underfoot as folk walk, and a path priced
+    /// on this morning's wear shouldn't stand in for the evening's
     pub(in crate::session) fn walk_memo(&mut self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
-        if self.path_tick != self.tick {
+        if self.path_tick != self.frame_n as u64 {
             self.path_cache.clear();
-            self.path_tick = self.tick;
+            self.path_tick = self.frame_n as u64;
         }
         if let Some(cached) = self.path_cache.get(&(from, to)) { return cached.clone(); }
-        let p = crate::timed!("sim.walk_path", self.map.walk_path(from, to));
+        let p = self.trail_path(from, to);
         self.path_cache.insert((from, to), p.clone());
         p
+    }
+
+    /// The walk from `from` to `to` that keeps to the beaten ways: a
+    /// worn trail or a road costs less than wild grass, so folk stick
+    /// to the paths the village actually uses instead of cutting
+    /// fresh lines over the fields.
+    pub(in crate::session) fn trail_path(&self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
+        Self::trail_path_on(&self.map, &self.trails, from, to)
+    }
+
+    /// `trail_path` over its parts, for callers holding field borrows
+    /// that a whole-`self` method call would conflict with.
+    pub(in crate::session) fn trail_path_on(map: &TileMap, worn_map: &crate::engine::det::HashMap<(i32, i32), Trail>, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
+        // the cheapest a tile can be: a trail worn to saturation
+        const FLOOR: f32 = 1.0 - TRAIL_K * TRAIL_PARAMS.saturation;
+        crate::timed!("sim.walk_path", map.walk_path_weighted(from, to, FLOOR, |x, y| {
+            // roads aren't free for the planner: advance_travels prices
+            // a step by the trail actually recorded on the tile, so a
+            // road only earns its keep once folk have worn it in too
+            let worn = worn_map.get(&(x, y)).map(|t| t.strength).unwrap_or(0.0);
+            trails::movement_cost(1.0, worn, TRAIL_K)
+        }))
     }
 
     /// A passable tile right next to a building's (occupied) one: where a
@@ -144,7 +168,7 @@ impl Game {
         // gathers get the forage-errand reach: wood and stone have no
         // other source, and the craft can't wait on a near tree
         if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > 16 { return false; }
-        match self.map.walk_path((from.x.round() as i32, from.y.round() as i32), t) {
+        match self.trail_path((from.x.round() as i32, from.y.round() as i32), t) {
             Some(mut path) => { path.push(t); self.travels.push(Travel { who, path, goal: Goal::Gather(good, t) }); true }
             None => false,
         }
@@ -640,7 +664,7 @@ impl Game {
                         self.world.get_component::<Pos>(who).copied(),
                         self.world.get_component::<Pos>(job.to).copied()) {
                         let to = (to_p.x.round() as i32, to_p.y.round() as i32);
-                        if let Some(mut path) = self.map.walk_path((from_p.x.round() as i32, from_p.y.round() as i32), to) {
+                        if let Some(mut path) = self.trail_path((from_p.x.round() as i32, from_p.y.round() as i32), to) {
                             path.push(to);
                             self.travels.push(Travel { who, path, goal: Goal::RunOddJob });
                         }

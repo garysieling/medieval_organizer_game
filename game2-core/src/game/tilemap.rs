@@ -440,6 +440,68 @@ impl TileMap {
         })
     }
 
+    /// The cheapest walk from `from` to `to`, where `cost(x, y)` prices
+    /// each tile entered - a worn trail or a road is cheaper than wild
+    /// grass, so folk keep to the ways the village actually uses. A*
+    /// over the same passable ground `walk_path` uses; `floor` is the
+    /// cheapest a tile can cost, for the heuristic. Same result shape:
+    /// `from` left out, `to` last; None if there's no way there.
+    pub fn walk_path_weighted(&self, from: (i32, i32), to: (i32, i32), floor: f32, cost: impl Fn(i32, i32) -> f32) -> Option<Vec<(i32, i32)>> {
+        let (w, h) = (self.width as i32, self.height as i32);
+        if !self.passable(to.0, to.1) || from.0 < 0 || from.1 < 0 || from.0 >= w || from.1 >= h { return None; }
+        if from == to { return Some(vec![]); }
+        let idx = |p: (i32, i32)| (p.1 * w + p.0) as usize;
+        let heur = |p: (i32, i32)| ((to.0 - p.0).abs() + (to.1 - p.1).abs()) as f32 * floor;
+        WALK_SCRATCH.with(|sc| {
+            let mut sc = sc.borrow_mut();
+            let n = (w * h) as usize;
+            if sc.stamp.len() != n { sc.stamp = vec![0; n]; sc.prev = vec![0; n]; sc.gen = 0; }
+            if sc.g.len() != n { sc.g = vec![0.0; n]; sc.closed = vec![0; n]; }
+            sc.gen = sc.gen.wrapping_add(1);
+            if sc.gen == 0 { sc.stamp.iter_mut().for_each(|s| *s = 0); sc.closed.iter_mut().for_each(|s| *s = 0); sc.gen = 1; }
+            let gen = sc.gen;
+            let Scratch { stamp, prev, closed, g, heap, seq, .. } = &mut *sc;
+            heap.clear();
+            *seq = 0;
+            let start = idx(from);
+            let goal = idx(to);
+            stamp[start] = gen;
+            g[start] = 0.0;
+            heap.push(Step { f: heur(from), seq: *seq, at: start as u32 });
+            *seq += 1;
+            while let Some(Step { at, .. }) = heap.pop() {
+                let at = at as usize;
+                if closed[at] == gen { continue; }
+                closed[at] = gen;
+                if at == goal {
+                    let mut path = vec![to];
+                    let mut cur = prev[at] as usize;
+                    while cur != start {
+                        path.push(((cur as i32) % w, (cur as i32) / w));
+                        cur = prev[cur] as usize;
+                    }
+                    path.reverse();
+                    return Some(path);
+                }
+                let p = ((at as i32) % w, (at as i32) / w);
+                for (dx, dy) in NEIGHBOURS {
+                    let q = (p.0 + dx, p.1 + dy);
+                    if q.0 < 0 || q.1 < 0 || q.0 >= w || q.1 >= h || !self.passable(q.0, q.1) { continue; }
+                    let qi = idx(q);
+                    if closed[qi] == gen { continue; }
+                    let ng = g[at] + cost(q.0, q.1);
+                    if stamp[qi] == gen && g[qi] <= ng { continue; }
+                    stamp[qi] = gen;
+                    g[qi] = ng;
+                    prev[qi] = at as u32;
+                    heap.push(Step { f: ng + heur(q), seq: *seq, at: qi as u32 });
+                    *seq += 1;
+                }
+            }
+            None
+        })
+    }
+
     /// Run a road from the hub to a new building at `to`
     pub fn connect(&mut self, to: (i32, i32)) {
         self.lay_road(self.hub, to);
@@ -863,10 +925,40 @@ mod tests {
 struct Scratch {
     /// The search number that last saw each cell
     stamp: Vec<u32>,
+    /// The search number that settled each cell (A*)
+    closed: Vec<u32>,
     /// Each seen cell's predecessor (a cell index)
     prev: Vec<u32>,
+    /// Each seen cell's best known cost-to-reach (A*)
+    g: Vec<f32>,
     gen: u32,
     queue: std::collections::VecDeque<(i32, i32)>,
+    /// The A* frontier
+    heap: std::collections::BinaryHeap<Step>,
+    /// Push order, so equal-f pops come off in the order they were found
+    seq: u64,
+}
+
+/// An A* queue entry: cheapest f first, ties to the earliest found -
+/// the heap is a max-heap, so `Ord` is inverted
+#[derive(Clone, Copy, PartialEq)]
+struct Step {
+    f: f32,
+    seq: u64,
+    at: u32,
+}
+
+impl Eq for Step {}
+
+impl PartialOrd for Step {
+    fn partial_cmp(&self, o: &Self) -> Option<std::cmp::Ordering> { Some(self.cmp(o)) }
+}
+
+impl Ord for Step {
+    fn cmp(&self, o: &Self) -> std::cmp::Ordering {
+        o.f.partial_cmp(&self.f).unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| o.seq.cmp(&self.seq))
+    }
 }
 
 thread_local! {

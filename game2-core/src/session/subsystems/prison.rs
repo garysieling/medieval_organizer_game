@@ -23,6 +23,8 @@ impl Game {
         let mut held: Vec<(usize, Entity)> = vec![];
         for &v in &self.villagers {
             if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none() { continue; }
+            // the dead take their leave of the cell too
+            if villager::is_dead(&self.world, v) { continue; }
             let si = self.site_of(v)
                 .filter(|&si| self.sites[si].kind == country::SiteKind::Castle)
                 .unwrap_or_else(|| self.castle_site());

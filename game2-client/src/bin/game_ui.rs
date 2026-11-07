@@ -433,6 +433,7 @@ fn main() {
             }
         }
         if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }
+        if !view.search_focus && (window.is_key_pressed(Key::F3, minifb::KeyRepeat::No)) { view.ledger_open = !view.ledger_open; }
         if let Some((_, scroll_y)) = window.get_scroll_wheel() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.

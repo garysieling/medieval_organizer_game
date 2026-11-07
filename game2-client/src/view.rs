@@ -30,6 +30,8 @@ pub struct View {
     pub zoom: f32,
     pub inspector_open: bool,
     pub help_open: bool,
+    /// the village ledger (F3): the public KPI lines the session built
+    pub ledger_open: bool,
     /// The find box under the minimap: what was typed and whether it has
     /// the keys - widget state like the toggles above
     pub search_q: String,
@@ -62,6 +64,7 @@ impl View {
             zoom: 1.0,
             inspector_open: true,
             help_open: false,
+            ledger_open: false,
             search_q: String::new(),
             search_focus: false,
             ground: std::cell::RefCell::new(None),
@@ -986,6 +989,16 @@ impl View {
 
         // help overlay
         if self.help_open { draw_help(&mut buf); }
+
+        // the ledger overlay: the public KPIs the model carried (F3)
+        if self.ledger_open && !m.debug_lines.is_empty() {
+            let rows = m.debug_lines.len();
+            draw_rect(&mut buf, 10, 60, 200, rows as i32 * 12 + 22, 20, 22, 34);
+            draw_text(&mut buf, 14, 64, "LEDGER", 150, 150, 180);
+            for (i, line) in m.debug_lines.iter().take(14).enumerate() {
+                draw_text(&mut buf, 14, 76 + i as i32 * 12, line, 190, 190, 210);
+            }
+        }
 
         // pause menu overlay
         if m.paused {

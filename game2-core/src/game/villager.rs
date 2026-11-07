@@ -65,6 +65,38 @@ pub struct OnTheRoad;
 /// mount is for the road, not the doorstep
 pub struct Mounted;
 
+/// Made a Christian of the parish or sworn to the old stones: the rite
+/// of coming of age is once-only, marked here
+#[derive(Clone, Copy)]
+pub struct Initiated;
+
+/// The coming-of-age rite is done; the household party is still owed
+#[derive(Clone, Copy)]
+pub struct DueParty;
+
+/// Walking to the coming-of-age rite: `site` is the gather tile (the
+/// church door, the stones, the grove), `by` who officiates
+#[derive(Clone, Copy)]
+pub struct PendingRite {
+    pub site: (i32, i32),
+    pub by: Entity,
+    /// the old faith's rite at the stones or grove rather than the church
+    pub old: bool,
+    /// the day it was called - a rite that can't gather gives way
+    pub since: u64,
+}
+
+/// Betrothed and walking to the wedding: `partner` the other half,
+/// `site` where the ceremony gathers, `by` who officiates
+#[derive(Clone, Copy)]
+pub struct Betrothed {
+    pub partner: Entity,
+    pub site: (i32, i32),
+    pub by: Entity,
+    pub old: bool,
+    pub since: u64,
+}
+
 /// Marks an entity as permanently dead. The windowed game removes `Health`
 /// on death (for its grave/alive checks) rather than leaving it at 0, so
 /// this marker is the durable record `is_dead` can still see afterward.

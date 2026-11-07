@@ -156,7 +156,7 @@ pub fn keeps_old_ways(world: &World, v: Entity) -> bool {
     !priest && mix(v, 17) % 5 == 0
 }
 
-fn has_trait(world: &World, v: Entity, t: crate::game::traits::Trait) -> bool {
+pub(in crate::session) fn has_trait(world: &World, v: Entity, t: crate::game::traits::Trait) -> bool {
     world.get_component::<crate::game::traits::Personality>(v)
         .map(|p| p.traits.contains(&t)).unwrap_or(false)
 }
@@ -224,7 +224,7 @@ impl Game {
         out
     }
 
-    fn tile_of(&self, v: Entity) -> Option<(i32, i32)> {
+    pub(in crate::session) fn tile_of(&self, v: Entity) -> Option<(i32, i32)> {
         self.world.get_component::<Pos>(v).map(|p| (p.x.round() as i32, p.y.round() as i32))
     }
 
@@ -282,7 +282,7 @@ impl Game {
             .filter(|b| self.world.get_component::<Pos>(*b).is_some())
     }
 
-    fn door_of(&self, b: Entity) -> Option<(i32, i32)> {
+    pub(in crate::session) fn door_of(&self, b: Entity) -> Option<(i32, i32)> {
         let p = self.world.get_component::<Pos>(b)?;
         self.at_the_door(p.x.round() as i32, p.y.round() as i32)
     }

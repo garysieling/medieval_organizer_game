@@ -575,6 +575,9 @@ pub enum Goal {
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere
     Wander,
+    /// Walking to a coming-of-age rite or a wedding at a named tile:
+    /// arrival does nothing itself - the day's rites scan completes it
+    AttendRite,
     /// The herb-wife walks out to pick a herb patch (index into herb_patches)
     Forage(usize),
     /// Someone sick walks out to the herb hut for a cure
@@ -1076,6 +1079,9 @@ pub struct Game {
     /// The heart-helper, and the pairings she's already tried this month
     pub matchmaker: Option<Entity>,
     pub match_tried: Vec<(Entity, Entity, u64)>,
+    /// Pairs the heart-helper kindled: (a, b, the day the spark caught) -
+    /// the wedding countdown runs from the day they became lovers
+    pub courtships: Vec<(Entity, Entity, u64)>,
     /// Wild mushroom patches in the shade of the wood
     pub mush_patches: Vec<MushPatch>,
     /// (who, the day they last gathered) - so the wood isn't stripped by one soul

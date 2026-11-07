@@ -79,6 +79,13 @@ fn test_coming_of_age_draws_a_neighbourhood_celebration() {
     let kid = g.villagers.iter().copied().find(|&v| g.world.get_component::<Kid>(v).is_some()).unwrap();
     if let Some(kg) = g.world.get_component_mut::<KidGrowth>(kid) { kg.age_days = vocation::COMING_OF_AGE; }
     g.lifecycle_tick(77);
+    // the rite comes first now: walk the initiate and the officiant to
+    // the church or the stones, hold it, and the party is owed after
+    for _ in 0..20000 {
+        g.advance_travels();
+        g.rites_tick(77);
+        if g.log.iter().any(|l| l.contains("comes of age")) { break; }
+    }
     assert!(g.log.iter().any(|l| l.contains("comes of age")), "they take up a trade");
     assert!(g.log.iter().any(|l| l.contains("a small celebration")), "and the neighbours mark it");
 }

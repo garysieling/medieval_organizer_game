@@ -34,6 +34,7 @@ impl Game {
             Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..) | Goal::Post(_)
             | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) => return false, // country walks go through send_far
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
+            Goal::AttendRite => return false, // rites walk to their tile through send_tile_walk
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
@@ -564,7 +565,7 @@ impl Game {
                     self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
                 }
             }
-            Goal::Wander => {}
+            Goal::Wander | Goal::AttendRite => {}
             Goal::Eat => {
                 // a real meal off the nearest table - if the day's hunger
                 // system already fed them mid-errand, no second helping

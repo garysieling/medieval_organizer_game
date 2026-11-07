@@ -261,13 +261,16 @@ should draw no lean-word then. `harsh_winter` is the every-other-winter
 flag: while it runs the snow keeps falling and the store thins.
 
 `panel.campaign` is the org's settled fight, or absent before the vote:
-`{"issue","framing","dissenters","seats","shadow","resolves","due",
-"cadence_days"}` - the issue the vote picked, how it's framed, the
+`{"issue","framing","dissenters","seats","shadow","state","resolves",
+"due","cadence_days"}` - the issue the vote picked, how it's framed, the
 losers left grumbling, the three seats' keepers ("turnout: Aldric" /
 "notes: (empty)"), the resolutions passed, whether a meeting's due, and
 the days between them. `shadow` names the member whose ties drive the
 room when no live coordinator holds the seat - `null` while the formal
-structure holds it.
+structure holds it. `state` is the cause's posture in a word - "won
+through", "their demand's refused", "crackdown's on", "the room's
+split", "the room consents" and such - empty while nothing's settled.
+Older servers omit it; read it as empty.
 
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",

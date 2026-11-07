@@ -791,9 +791,13 @@ impl View {
             draw_text(&mut buf, UI_X as i32 + 18, 488,
                 &format!("FIGHT {}{}", c.issue, pull), 255, 180, 120);
             let due = if c.due { "meet due" } else { "meet to come" };
-            // cadence leads: it's the bit you set - the seats can trail off
+            // the cause's posture rides the cadence: won through, the
+            // room's split, the cause's weary
+            let state = if c.state.is_empty() { String::new() } else { format!(" - {}", c.state) };
             draw_text(&mut buf, UI_X as i32 + 18, 500,
-                &format!("every {}d - {} - {}", c.cadence_days, due, c.seats.join(" ")), 120, 120, 140);
+                &format!("every {}d - {}{}{}", c.cadence_days, due, state,
+                    if c.seats.join(" ").is_empty() { String::new() } else { format!(" - {}", c.seats.join(" ")) }),
+                120, 120, 140);
         } else {
             draw_text(&mut buf, UI_X as i32 + 18, 500, PANEL_HINT, 120, 120, 140);
         }

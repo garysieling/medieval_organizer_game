@@ -256,3 +256,22 @@ fn test_the_panel_names_who_pulls_the_room() {
     assert_eq!(cv.shadow.as_deref(), Some(crate::session::vill_name(0)),
         "the pull wasn't named: {:?}", cv.shadow);
 }
+
+#[test]
+fn test_the_panel_names_the_cause_s_posture() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    // the room banked its consent last meeting - the cause's word shows
+    crate::game::campaign_arc::record_consent(&mut g.world, c, true);
+    let m = g.ui_model();
+    let cv = m.panel.campaign.as_ref().unwrap();
+    assert_eq!(cv.state, "the room consents", "posture read: {}", cv.state);
+}

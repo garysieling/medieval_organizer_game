@@ -795,29 +795,33 @@ impl Game {
         // the name, clear of the two rows the card keeps for feuds and
         // secrets
         let stage = crate::game::organizing::stage_of(world, self.seats[seat].player, v);
+        // the odds before the ask: a campaign under way, a member not yet
+        // made - shown for a sympathetic stranger too, since their ask
+        // lands without rapport at all
+        let oe = self.seats[seat].org;
+        let member = world.get_component::<crate::sim::community::Organization>(oe)
+            .map(|o| o.members.contains(&v)).unwrap_or(true);
+        let campaign = crate::game::campaign::campaign_of(world, oe);
+        let hope = match (member, campaign) {
+            (false, Some(c)) => {
+                let pe = self.seats[seat].player;
+                let rp = crate::game::player::rapport(world, pe, v);
+                let personal = crate::game::relationships::find_relationship(world, pe, v)
+                    .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+                    .map(|r| r.strength).unwrap_or(0.0);
+                if crate::game::player::sympathizes(world, c, v) { "sure to sign on" }
+                else if rp < crate::game::player::RECRUIT_RAPPORT_NEEDED { "a stranger's ask" }
+                else if (personal + rp * 0.4).min(1.0) >= crate::sim::community::RECRUIT_MIN_TRUST { "likely to join" }
+                else { "a cold ask" }
+            }
+            _ => "",
+        };
         if stage > crate::game::organizing::RelStage::Stranger {
-            // the odds before the ask: a campaign under way, a member not
-            // yet made - the word rides beside the stage
-            let oe = self.seats[seat].org;
-            let member = world.get_component::<crate::sim::community::Organization>(oe)
-                .map(|o| o.members.contains(&v)).unwrap_or(true);
-            let campaign = crate::game::campaign::campaign_of(world, oe);
-            let hope = match (member, campaign) {
-                (false, Some(c)) => {
-                    let pe = self.seats[seat].player;
-                    let rp = crate::game::player::rapport(world, pe, v);
-                    let personal = crate::game::relationships::find_relationship(world, pe, v)
-                        .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
-                        .map(|r| r.strength).unwrap_or(0.0);
-                    if crate::game::player::sympathizes(world, c, v) { " \u{00b7} sure to sign on" }
-                    else if rp < crate::game::player::RECRUIT_RAPPORT_NEEDED { " \u{00b7} a stranger's ask" }
-                    else if (personal + rp * 0.4).min(1.0) >= crate::sim::community::RECRUIT_MIN_TRUST { " \u{00b7} likely to join" }
-                    else { " \u{00b7} a cold ask" }
-                }
-                _ => "",
-            };
+            let tail = if hope.is_empty() { String::new() } else { format!(" \u{00b7} {}", hope) };
             lines.push(Line { x: 150, y: 330,
-                text: format!("{}{}", crate::game::organizing::stage_label(stage), hope), rgb: (170, 200, 160) });
+                text: format!("{}{}", crate::game::organizing::stage_label(stage), tail), rgb: (170, 200, 160) });
+        } else if !hope.is_empty() {
+            lines.push(Line { x: 150, y: 330, text: hope.into(), rgb: (170, 200, 160) });
         }
         // the card's two reserved rows say what the village knows of
         // them: bad blood first - it burns brightest in the talk - then

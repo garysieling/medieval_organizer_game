@@ -874,6 +874,9 @@ impl Game {
                                     }
                                 }
                             }
+                            // a carried demand walks the streets: the
+                            // village takes the win out in the open
+                            self.victory_parade();
                             format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
                         }
                         TargetResponse::Concedes => {
@@ -1292,42 +1295,22 @@ impl Game {
             && self.world.get_component::<Pos>(v).is_some());
         members.sort();
         if members.is_empty() { return "there's nobody to march with you.".into() }
-        // the route: the town's paved ways in a ring round the market
-        // cross, started nearest the head's own spot
-        let (wx0, wy0, wx1, wy1) = self.town_wall;
-        let mut ring: Vec<(i32, i32)> = vec![];
-        for y in wy0..=wy1 {
-            for x in wx0..=wx1 {
-                if self.map.get(x, y) == Some(Tile::Road) { ring.push((x, y)); }
-            }
-        }
-        if ring.is_empty() { return "the streets won't hold a march.".into() }
-        let (cx, cy) = {
-            let n = ring.len() as f32;
-            (ring.iter().map(|t| t.0 as f32).sum::<f32>() / n,
-             ring.iter().map(|t| t.1 as f32).sum::<f32>() / n)
-        };
-        ring.sort_by(|a, b| (a.1 as f32 - cy).atan2(a.0 as f32 - cx)
-            .partial_cmp(&(b.1 as f32 - cy).atan2(b.0 as f32 - cx)).unwrap());
-        let mut route: Vec<(f32, f32)> = ring.iter().step_by(3)
-            .map(|t| (t.0 as f32 + 0.5, t.1 as f32 + 0.5)).collect();
+        // the route: the town's paved ways rung round the market cross,
+        // started nearest the head - a show of strength, one turn of
+        // the town, not a pilgrimage
         let hp = self.world.get_component::<Pos>(members[0]).copied().unwrap();
-        let nearest = route.iter().enumerate()
-            .min_by(|(_, a), (_, b)| ((a.0 - hp.x).powi(2) + (a.1 - hp.y).powi(2))
-                .partial_cmp(&((b.0 - hp.x).powi(2) + (b.1 - hp.y).powi(2))).unwrap())
-            .map(|(i, _)| i).unwrap_or(0);
-        route.rotate_left(nearest);
-        // a march is a show of strength, not a pilgrimage: one turn
-        // about the town, then home
-        route.truncate(24);
+        let route = self.street_route((hp.x, hp.y), 24);
+        if route.is_empty() { return "the streets won't hold a march.".into() }
         // whoever was walking somewhere, they march now instead
         for &m in &members {
             self.travels.retain(|t| t.who != m);
+            self.world.remove_component::<routine::Routine>(m);
             self.world.add_component(m, villager::InFormation);
         }
         self.formation = Some(formation::Formation {
             kind: formation::FormationKind::March, seat,
-            members: members.clone(), route, at: 0, stuck: 0 });
+            members: members.clone(), route, at: 0, stuck: 0,
+            cheered: Default::default() });
         format!("the cause marches: {} take to the streets.", members.len())
     }
 

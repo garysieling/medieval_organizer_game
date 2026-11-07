@@ -38,6 +38,12 @@ fn test_the_feast_half_hearts_a_few_random_souls() {
         before.insert((r.from.min(r.other), r.from.max(r.other)), r.strength);
     }
     g.festival_tick(45);
+    // the feast waits at the cross for the column to walk it in -
+    // walk it straight out: the parade's own tests cover the march
+    if let Some(f) = g.formation.take() {
+        for &m in &f.members { g.world.remove_component::<villager::InFormation>(m); }
+        if let formation::FormationKind::Parade { feast } = f.kind { g.parade_resolved(feast, &f.members); }
+    }
     // each pair the feast warmed gained half a heart at most - one
     // bump a pair, however the crowd presses in
     let mut warmed = 0;
@@ -60,6 +66,12 @@ fn test_a_player_at_the_feast_leaves_with_half_hearts() {
     let mp = g.world.get_component::<Pos>(g.market_food).map(|p| (p.x, p.y)).unwrap();
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.0, y: mp.1 };
     g.festival_tick(45);
+    // the feast waits at the cross for the column to walk it in -
+    // walk it straight out: the parade's own tests cover the march
+    if let Some(f) = g.formation.take() {
+        for &m in &f.members { g.world.remove_component::<villager::InFormation>(m); }
+        if let formation::FormationKind::Parade { feast } = f.kind { g.parade_resolved(feast, &f.members); }
+    }
     let warmed = g.world.query::<Relationship>().iter()
         .filter(|&&e| g.world.get_component::<Relationship>(e)
             .map(|r| (r.from == g.player || r.other == g.player) && r.strength > 0.0).unwrap_or(false))
@@ -76,6 +88,12 @@ fn test_the_dead_cant_warm_the_feast() {
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.0, y: mp.1 };
     g.world.add_component(g.player, villager::Dead);
     g.festival_tick(45);
+    // the feast waits at the cross for the column to walk it in -
+    // walk it straight out: the parade's own tests cover the march
+    if let Some(f) = g.formation.take() {
+        for &m in &f.members { g.world.remove_component::<villager::InFormation>(m); }
+        if let formation::FormationKind::Parade { feast } = f.kind { g.parade_resolved(feast, &f.members); }
+    }
     let warmed = g.world.query::<Relationship>().iter()
         .filter(|&&e| g.world.get_component::<Relationship>(e)
             .map(|r| (r.from == g.player || r.other == g.player) && r.strength > 0.0).unwrap_or(false))

@@ -644,10 +644,37 @@ impl Game {
                 && self.site_of(v).is_none()
                 && !self.shunned(v))
             .collect();
+        // the village walks it in first: the column takes the streets
+        // and the feast waits for it at the cross - unless something
+        // else already has the streets
+        let mut folk: Vec<Entity> = gathered.iter().copied()
+            // a player walks themselves - the column doesn't take them
+            .filter(|&v| !self.seats.iter().any(|s| s.player == v)).collect();
+        folk.sort();
+        let head = folk.first().and_then(|&v| self.world.get_component::<Pos>(v).copied())
+            .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
+        let route = self.street_route(head, 30);
+        if self.formation.is_none() && route.len() >= 4 {
+            self.start_parade(folk, route, Some((feast, loaves, poured, tick)));
+            return;
+        }
+        // something else has the streets today: feast anyway, but
+        // whoever's marching keeps step - the feast doesn't pin them
+        let free: Vec<Entity> = gathered.iter().copied()
+            .filter(|&v| self.world.get_component::<villager::InFormation>(v).is_none())
+            .collect();
+        self.feast_day(tick, feast, &free, loaves, poured);
+    }
+
+    /// The feast itself: the column home, the ring forms round the
+    /// cross, the good stock and the warmth go round - called the moment
+    /// a feast parade finishes (or straight off, when it never marched)
+    pub(in crate::session) fn feast_day(&mut self, tick: u64, feast: &str,
+            gathered: &[Entity], loaves: u32, poured: u32) {
         // everyone comes to market for the day, in a ring round the cross
         let store = self.market_food;
-        for &v in &gathered { self.travels.retain(|t| t.who != v); }
-        self.gather_feast(tick, &gathered);
+        for &v in gathered { self.travels.retain(|t| t.who != v); }
+        self.gather_feast(tick, gathered);
         // and somebody says so out loud for whoever's within earshot
         let voice = self.tavern.and_then(|t| self.world.get_component::<Building>(t))
             .and_then(|b| b.worker)
@@ -656,7 +683,7 @@ impl Game {
         if let Some(v) = voice {
             self.say(v, &format!("{} - the good stock's out!", feast), TALK_BUBBLE_SECS * 2);
         }
-        for &v in &gathered {
+        for &v in gathered {
             // the day feeds the wants that never quite get fed
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 90);
             desires::satisfy(&mut self.world, v, Want::Music, tick + 90);
@@ -674,7 +701,7 @@ impl Game {
         let n = gathered.len();
         if n >= 2 {
             let mut bumps: Vec<(Entity, Entity)> = vec![];
-            for &v in &gathered {
+            for &v in gathered {
                 for _ in 0..3 {
                     let j = self.rng.below(n as i32) as usize;
                     if j < n { bumps.push((v, gathered[j])); }
@@ -732,6 +759,40 @@ impl Game {
                 self.say(c, "Uninvited. As ever.", CHAT_BUBBLE_SECS * 2);
             }
         }
+    }
+
+    /// The parade's done: a feast column hands its stock and its people
+    /// to the ring; a victory column just breaks up at the cross
+    pub(in crate::session) fn parade_resolved(&mut self,
+            feast: Option<(&'static str, u32, u32, u64)>, members: &[Entity]) {
+        if let Some((name, loaves, poured, day)) = feast {
+            self.feast_day(day, name, members, loaves, poured);
+        }
+    }
+
+    /// A carried demand sends the village out in the open: the column
+    /// walks the streets and breaks up at the cross. Nothing else it
+    /// could be doing is more worth the day
+    pub(in crate::session) fn victory_parade(&mut self) {
+        if self.formation.is_some() { return; }
+        let mut folk: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<TownRole>(v).is_none()
+                // the village's day: the country keeps its own
+                && self.site_of(v).is_none()
+                && !self.shunned(v)
+                // a player walks themselves - the column doesn't take them
+                && !self.seats.iter().any(|s| s.player == v)
+                && self.world.get_component::<Pos>(v).is_some())
+            .collect();
+        if folk.is_empty() { return; }
+        folk.sort();
+        let head = self.world.get_component::<Pos>(folk[0]).copied()
+            .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
+        let route = self.street_route(head, 30);
+        if route.len() < 4 { return; }
+        self.start_parade(folk, route, None);
+        self.log.push(format!("t{}: the cause carries it - the village walks the win in.", self.tick));
     }
 }
 

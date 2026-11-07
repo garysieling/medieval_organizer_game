@@ -7,8 +7,10 @@ impl Game {
     /// Returns whether a way was found - otherwise nothing happens
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
         // the held take no errands - the jailer's rounds aren't theirs;
-        // the dead take none either, however short the walk
+        // the dead take none either, however short the walk; and the
+        // marching take none - the column's walking them
         if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        if self.world.get_component::<villager::InFormation>(who).is_some() { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()

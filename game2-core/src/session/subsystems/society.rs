@@ -114,7 +114,11 @@ impl Game {
             crate::sim::religion::perform_service(&mut self.world, self.congregation,
                 crate::sim::religion::Service {
                     name: "the holy-day office".into(), frequency: "weekly".into(),
-                    participants: attendees, cohesion_boost: 0.25, charity_output: 0.2 });
+                    participants: attendees.clone(), cohesion_boost: 0.25, charity_output: 0.2 });
+            // and the office moves a few souls a stage deeper now and then
+            for &v in &attendees {
+                crate::sim::religion::stage_up(&mut self.world, v, routine::mix(v, tick));
+            }
         }
     }
 

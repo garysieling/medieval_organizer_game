@@ -8,6 +8,11 @@ impl Game {
     pub(in crate::session) fn join_parish(&mut self, v: Entity) {
         self.world.add_component(v, crate::sim::religion::Faith {
             religion: "the parish".into(), devotion: 0.4, traditions: vec![] });
+        // and where their soul stands - weighted by the years they carry
+        let years = self.world.get_component::<crate::game::lifecycle::Age>(v)
+            .map(|a| a.years).unwrap_or(30.0);
+        self.world.add_component(v, crate::sim::religion::FaithStage::for_years(years,
+            crate::sim::religion::stage_roll(v, 23)));
         if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
             c.members.push(v);
         }

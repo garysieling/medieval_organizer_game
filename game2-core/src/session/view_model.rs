@@ -349,9 +349,20 @@ impl Game {
                 let driven = mtg.and_then(|m| m.driven_by);
                 if pulled.is_some() && pulled == driven { pulled.map(|s| name_of(s)) } else { None }
             } else { None };
+            // the cause's posture: the arc's own facts in a word, so the
+            // panel says more than the vote's date
+            let facts = crate::game::campaign_arc::arc_facts(world, e, self.tick);
+            let state = [
+                ("arc:won", "won through"), ("arc:leader_taken", "their leader's held"),
+                ("arc:crackdown", "crackdown's on"), ("arc:countered", "the streets are banned"),
+                ("arc:promise_broken", "their word's broken"), ("arc:split", "the room's split"),
+                ("arc:fatigue", "the cause's weary"), ("arc:consent", "the room consents"),
+                ("arc:strong", "runs strong"), ("arc:weak", "runs thin"),
+            ].iter().find(|(f, _)| facts.has(f)).map(|(_, w)| w.to_string()).unwrap_or_default();
             CampaignV {
                 issue: c.issue.clone(),
                 shadow,
+                state,
                 framing: match c.framing { Framing::SharedGrievance => "shared grievance",
                     Framing::CommonFoe => "common foe", Framing::MoralDuty => "moral duty" }.to_string(),
                 dissenters: c.dissenters.len(), seats,

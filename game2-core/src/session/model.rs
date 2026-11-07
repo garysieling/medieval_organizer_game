@@ -146,6 +146,8 @@ pub struct CampaignV {
     pub seats: Vec<String>,
     /// The member whose pull runs the room's empty seats, if one's grown
     pub shadow: Option<String>,
+    /// The cause's posture in a word: won, split, flagging, consents
+    pub state: String,
     pub resolves: u32,
     /// A meeting is due on the cadence
     pub due: bool,

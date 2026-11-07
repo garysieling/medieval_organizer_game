@@ -236,3 +236,13 @@ fn test_deciding_founds_the_campaign_on_the_picked_framing() {
     let rec = g.talk_log.iter().find(|r| r.id == id).unwrap();
     assert!(rec.lines.iter().any(|l| l.text.contains("they'll fight for the taxes")), "{:?}", rec.lines);
 }
+
+#[test]
+fn test_a_talk_opens_with_who_they_are() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    g.open_player_talk(0, v, crate::game::conversation::Relation::Acquaintance, "the day's work");
+    let t = g.seats[0].talk.as_ref().expect("a talk under way");
+    // the profile line heads the talk - who they are before the gist
+    assert!(!t.profile.is_empty(), "the talk opened bare");
+}

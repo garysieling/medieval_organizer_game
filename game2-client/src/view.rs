@@ -626,23 +626,33 @@ impl View {
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected, false, false, 0.0, false));
                     } else {
-                        let look = figure_look(pv.kid, i, art.villager_sprites.len());
-                        let fig = &art.villager_sprites[look];
-                        let anchor = if let Some(Some(ws)) = art.villager_walks.get(look) {
-                            // a generated walk cycle: facing and striding as they move
-                            let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
-                            let scale = if pv.kid { 0.6 * zoom } else { zoom };
-                            let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
-                            ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD
+                        // a knight on the long roads rides: one
+                        // horse-and-rider figure, mirrored leftward
+                        let mounted_fig = if pv.mounted { art.mounted.as_ref() } else { None };
+                        let anchor = if let Some(ms) = mounted_fig {
+                            let facing = m.poses.iter().find(|p| p.0 == pv.e).map(|p| p.1).unwrap_or(2);
+                            let s = if facing == 3 { art.mounted_flip.as_ref().unwrap_or(ms) } else { ms };
+                            let h = draw_animal(&mut buf, s, sx, sy, zoom);
+                            sy - h + 24
                         } else {
-                            // children draw small and flagged: the pack has no
-                            // figure for them, so they're a scaled villager
-                            if pv.kid {
-                                draw_kid(&mut buf, fig, sx, sy, zoom);
+                            let look = figure_look(pv.kid, i, art.villager_sprites.len());
+                            let fig = &art.villager_sprites[look];
+                            if let Some(Some(ws)) = art.villager_walks.get(look) {
+                                // a generated walk cycle: facing and striding as they move
+                                let (facing, walking) = m.poses.iter().find(|p| p.0 == pv.e).map(|p| (p.1, p.2)).unwrap_or((2, false));
+                                let scale = if pv.kid { 0.6 * zoom } else { zoom };
+                                let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
+                                ws.draw(&mut buf, facing, walking, self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD
                             } else {
-                                draw_character(&mut buf, fig, sx, sy, zoom);
+                                // children draw small and flagged: the pack has no
+                                // figure for them, so they're a scaled villager
+                                if pv.kid {
+                                    draw_kid(&mut buf, fig, sx, sy, zoom);
+                                } else {
+                                    draw_character(&mut buf, fig, sx, sy, zoom);
+                                }
+                                sprite_label_anchor(fig, sy, zoom)
                             }
-                            sprite_label_anchor(fig, sy, zoom)
                         };
                         // a protester carries their board
                         if let Some(d) = pv.sign { draw_picket_sign(&mut buf, sx, sy, zoom, d); }

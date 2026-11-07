@@ -176,6 +176,11 @@ pub struct Art {
     /// travellers' (courier, minstrel, pedlar, the rare visitors)
     pub rival_walks: Vec<Option<WalkSheet>>,
     pub traveller_walk: Option<WalkSheet>,
+    /// A knight's mount (assets/rd/mounted): horse and rider as one
+    /// figure for `PersonV.mounted`; `mounted_flip` mirrors it for the
+    /// leftward ride. None: the walker figure stands in
+    pub mounted: Option<Sprite>,
+    pub mounted_flip: Option<Sprite>,
     /// The animals: Retro Diffusion art (assets/rd/farm-animals, sliced
     /// from one generated sheet - see assets/rd/README.md), drawn at 1x
     /// zoom by draw_animal. If those files are missing the old hand-drawn
@@ -601,6 +606,24 @@ impl Art {
         let player_walk = walk("rd/player/walk.png");
         let villager_walks: Vec<Option<WalkSheet>> = vpeople.iter()
             .map(|&(role, gender)| walk(&format!("rd/villagers/{}-{}.png", role, gender))).collect();
+        // the knight's mount: one horse-and-rider figure, mirrored for
+        // the leftward ride
+        let mounted = at("rd/mounted/knight.png");
+        let mounted_flip = mounted.as_ref().map(|s| {
+            let (w, h) = (s.width as usize, s.height as usize);
+            let mut px = s.pixels.clone();
+            for y in 0..h {
+                for x in 0..w / 2 {
+                    let a = (y * w + x) * 4;
+                    let b = (y * w + (w - 1 - x)) * 4;
+                    let t = [px[a], px[a + 1], px[a + 2], px[a + 3]];
+                    let u = [px[b], px[b + 1], px[b + 2], px[b + 3]];
+                    px[a..a + 4].copy_from_slice(&u);
+                    px[b..b + 4].copy_from_slice(&t);
+                }
+            }
+            Sprite { width: s.width, height: s.height, pixels: px }
+        });
 
         // the animals: generated art if it's there, else the hand-drawn
         // fallback doubled so both draw at the same 1x scale
@@ -740,6 +763,8 @@ impl Art {
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
             rival_walks,
             traveller_walk: walk("rd/traveller/courier.png"),
+            mounted,
+            mounted_flip,
             guards,
             dog: rd("dog").or_else(|| Some(doubled(dog_sprite()))),
             cat: rd("cat").or_else(|| Some(doubled(cat_sprite()))),

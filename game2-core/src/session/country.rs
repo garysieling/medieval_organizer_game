@@ -611,6 +611,12 @@ impl Game {
                 if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(..))) {
                     self.world.add_component(who, villager::OnTheRoad);
                 }
+                // a knight takes the horse for the long roads - the mount
+                // goes when the ride does (advance_travels sweeps)
+                if self.world.get_component::<Craft>(who)
+                    .map(|c| c.vocation == Vocation::Knight).unwrap_or(false) {
+                    self.world.add_component(who, villager::Mounted);
+                }
                 true
             }
             None => false,

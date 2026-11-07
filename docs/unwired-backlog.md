@@ -108,7 +108,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 77 | Organizing skills per person | `org_skills::Organizing` | done #605 |
 | 78 | Livestock they own | `livestock::Livestock` | done #606 |
 | 79 | Their pet and its bond | `pets::Pet` | done #607 |
-| 80 | Illness stage, route, treatment | `illness::Disease`, `Stage`, `Treatment` | todo |
+| 80 | Illness stage, route, treatment | `illness::Disease`, `Stage`, `Treatment` | done #608 |
 | 81 | Immunity after recovery, relapses | `illness::immunity_gain`, `relapse` | todo |
 | 82 | Life stage and vitality | `lifecycle::Vitality` | todo |
 | 83 | Odd jobs and deals in their purse | `livelihood::OddJob`, `Deal` | todo |

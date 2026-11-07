@@ -285,3 +285,19 @@ fn test_the_card_names_their_temperament() {
     }
     panic!("no temperament word showed: {}", bio);
 }
+
+#[test]
+fn test_the_dead_s_card_names_their_mourners() {
+    let mut g = Game::new();
+    let dead = g.villagers[9];
+    g.died_on[9] = Some(12);
+    let m = g.villagers[7];
+    g.world.get_component_mut::<crate::sim::psychology::AttachmentHistory>(m).unwrap()
+        .episodes.push(crate::sim::psychology::Episode {
+            with: dead, kind: crate::sim::psychology::EpisodeKind::Loss });
+    g.seats[0].selected_target = 9;
+    let ins = g.villager_inspector_at(0);
+    assert!(ins.lines.iter().any(|l| l.text.contains("mourned by")),
+        "the mourner never showed: {:?}",
+        ins.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

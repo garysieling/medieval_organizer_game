@@ -258,6 +258,9 @@ fn test_an_introduction_names_someone_to_look_at() {
     g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
     relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
         other: friend, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    // the talk can be started with a building still picked - the named
+    // friend takes the selection over, building and all
+    g.seats[0].selected_building = Some(0);
     // ask until the proposition lands - the roll is the rng's, so a few
     // tries may be needed; each refusal just asks again
     let mut landed = false;
@@ -287,6 +290,7 @@ fn test_an_introduction_names_someone_to_look_at() {
     }
     assert!(landed, "an introduction lands and the camera's asked over");
     assert!(g.seats[0].picked, "the named one's picked");
+    assert_eq!(g.seats[0].selected_building, None, "the building's selection is let go");
     assert_eq!(g.seats[0].selected_target, friend_i, "it's them, not the asker");
     let (fx, fy, ff) = g.seats[0].focus.unwrap();
     let fp = *g.world.get_component::<Pos>(friend).unwrap();

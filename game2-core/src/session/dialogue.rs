@@ -468,6 +468,7 @@ impl Game {
             // and ask the camera over
             if let Some(f) = named {
                 if let Some(i) = self.villagers.iter().position(|&v| v == f) {
+                    self.seats[seat].selected_building = None;
                     self.seats[seat].selected_target = i;
                     self.seats[seat].picked = true;
                 }

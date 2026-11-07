@@ -546,8 +546,27 @@ impl Game {
                 .filter_map(|o| self.villagers.iter().position(|v| *v == *o).map(|i| vill_name(i))
                     .or_else(|| self.rivals.iter().position(|r| *r == *o).map(|i| RIVAL_NAMES[i])))
                 .collect();
+            // a home's other faces: rooms to let when it stands empty,
+            // or the bench someone's laid up in it
+            let empty = b.occupants.is_empty() && !self.ruined.contains(&bi);
+            let works_here = self.villagers.iter().any(|&v| {
+                match world.get_component::<Craft>(v) {
+                    Some(c) => match c.workplace {
+                        Some(w) => w == be,
+                        // no bench of their own - a cottage trade works
+                        // its own door, like plan_bench falls back to home
+                        None => household::home_of(&self.world, v) == Some(be),
+                    },
+                    None => false,
+                }
+            });
+            let also = match (empty, works_here) {
+                (true, _) => " \u{00b7} to let",
+                (false, true) => " \u{00b7} a workshop too",
+                (false, false) => "",
+            };
             lines.push(Line { x: 18, y: 368,
-                text: format!("lives here: {}", if names.is_empty() { "no one".into() } else { names.join(", ") }),
+                text: format!("lives here: {}{}", if names.is_empty() { "no one".into() } else { names.join(", ") }, also),
                 rgb: (190, 190, 210) });
         }
         let offers = household::on_offer_at(&self.world, b);

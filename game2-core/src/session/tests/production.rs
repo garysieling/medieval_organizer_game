@@ -93,3 +93,19 @@ fn test_a_luxury_s_offer_line_says_so() {
     let offer = insp.lines.iter().find(|l| l.y == 404).map(|l| l.text.clone()).unwrap_or_default();
     assert!(offer.contains("a luxury"), "the tier never showed: {}", offer);
 }
+
+#[test]
+fn test_an_empty_home_s_card_offers_it_up() {
+    let mut g = Game::new();
+    let home = g.building_entities.iter().copied()
+        .find(|&b| g.world.get_component::<Building>(b)
+            .map(|bb| bb.kind == BuildingKind::Home).unwrap_or(false)).unwrap();
+    if let Some(bb) = g.world.get_component_mut::<Building>(home) {
+        bb.occupants.clear();
+    }
+    g.seats[0].selected_building = g.building_entities.iter().position(|&x| x == home);
+    let insp = g.building_inspector_at(0).unwrap();
+    assert!(insp.lines.iter().any(|l| l.text.contains("to let")),
+        "the letting never showed: {:?}",
+        insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

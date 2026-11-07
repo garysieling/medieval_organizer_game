@@ -27,3 +27,17 @@ fn test_help_box_is_centred_on_the_map_and_fits_its_text() {
     let (left, right) = (lo - x, x + w - hi);
     assert!((left - right).abs() <= 12, "help text hugs one side: {}px left, {}px right", left, right);
 }
+
+#[test]
+fn test_the_ledger_draws_when_open() {
+    let game = Game::new_seeded(MAP_SEED);
+    let mut view = View::new(Art::load_fs("../assets", 0));
+    view.ledger_open = true;
+    let buf = view.render(&game.ui_model(), (-1, -1));
+    // the box sits at (10, 60) - a dark panel with the LEDGER head on it
+    let dark = (60..200).any(|yy| (10..210).any(|xx| {
+        let i = (yy * W + xx) * 4;
+        buf.pixels[i] == 20 && buf.pixels[i + 1] == 22 && buf.pixels[i + 2] == 34
+    }));
+    assert!(dark, "the ledger box never drew");
+}

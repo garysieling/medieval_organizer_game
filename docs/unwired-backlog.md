@@ -114,7 +114,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 83 | Odd jobs and deals in their purse | `livelihood::OddJob`, `Deal` | done #611 |
 | 84 | Quality tier of goods in a satchel | `goods::tier` | done #612 |
 | 85 | Backstory | `dialogue_trees::backstory` | done #613 |
-| 86 | Personality (attachment) | `psychology::Personality` | todo |
+| 86 | Personality (attachment) | `psychology::Personality` | done #614 |
 | 87 | Whether a home is also a workplace / up for sale | `household::is_workplace`, `on_offer` | todo |
 | 88 | Who's mourning whom | `psychology::Mourned` | todo |
 

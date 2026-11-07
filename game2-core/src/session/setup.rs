@@ -984,6 +984,8 @@ impl Game {
             fire_spent: Default::default(),
             fire_banks: None,
             fire_line_called: false,
+            brigade: None,
+            brigade_gear: 0,
             derelict: Default::default(),
             ruined: Default::default(),
             cutaways: Default::default(),

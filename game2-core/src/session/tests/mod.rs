@@ -65,6 +65,7 @@ mod key;
 mod kpi;
 mod layering;
 mod land;
+mod fire_brigade;
 mod lordeye;
 mod letter;
 mod letters;

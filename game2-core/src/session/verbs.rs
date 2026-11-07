@@ -29,6 +29,10 @@ mod ordinal_tests {
     }
 }
 
+/// The chest's price for outfitting a brigade: the buckets,
+/// the bell, and the first crew's share
+const BRIGADE_COST: f32 = 30.0;
+
 impl Game {
     /// Why action button `i` can't be used right now, if it can't: Build's
     /// own rules (gold, a free site), otherwise disabled_reason
@@ -97,6 +101,15 @@ impl Game {
                     .map(|o| o.resources).unwrap_or(0.0);
                 (purse < crate::game::organizing::HALL_REPAIR_COST)
                     .then(|| "the chest can't make the carpenter's bill".to_string())
+            }
+            CtxAct::Brigade => {
+                let oe = self.seats[seat].org;
+                if self.world.get_component::<crate::game::organizing::MeetingHall>(oe).is_none() {
+                    Some("the brigade needs a hall to muster in".to_string())
+                } else if self.world.get_component::<Organization>(oe)
+                    .map(|o| o.resources < BRIGADE_COST).unwrap_or(true) {
+                    Some("the chest can't outfit a crew".to_string())
+                } else { None }
             }
             CtxAct::Delegate => {
                 let c = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
@@ -523,6 +536,14 @@ impl Game {
             && self.world.get_component::<Organization>(self.seats[seat].org)
                 .map(|o| o.resources >= crate::game::organizing::HALL_REPAIR_COST).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::MendHall);
+        }
+        // the charter's offered while there's a hall to muster in and
+        // gold enough for buckets - and no brigade yet to answer
+        if self.brigade.is_none()
+            && self.world.get_component::<crate::game::organizing::MeetingHall>(self.seats[seat].org).is_some()
+            && self.world.get_component::<Organization>(self.seats[seat].org)
+                .map(|o| o.resources >= BRIGADE_COST).unwrap_or(false) {
+            self.seats[seat].ctx_actions.push(CtxAct::Brigade);
         }
         if self.seats[seat].selected_building.is_none()
             && (self.seats[seat].picked || self.seats[seat].agent) {
@@ -1042,6 +1063,7 @@ impl Game {
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Tame => self.tame_stroke_at(seat),
             CtxAct::School => self.school_at(seat),
+            CtxAct::Brigade => self.brigade_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
@@ -1461,6 +1483,45 @@ impl Game {
 
     /// The schoolhouse ask: raise the room the first time, send for a
     /// teacher after - the org's treasury pays either way
+    /// The charter: the chest outfits a crew, and the able and willing
+    /// take the bell - the brigade answers fires before the line forms
+    fn brigade_at(&mut self, seat: usize) -> String {
+        let oe = self.seats[seat].org;
+        if self.brigade.is_some() {
+            return "The brigade already answers.".into();
+        }
+        if self.world.get_component::<crate::game::organizing::MeetingHall>(oe).is_none() {
+            return "The brigade needs a hall to muster in.".into();
+        }
+        let Some(o) = self.world.get_component_mut::<Organization>(oe)
+            .filter(|o| o.resources >= BRIGADE_COST) else {
+            return "The chest can't outfit a crew.".into();
+        };
+        o.resources -= BRIGADE_COST;
+        let leader = o.leader;
+        // the bell goes out: the able and willing step forward - the
+        // cause's own first, then the neighbours who'll answer
+        let mut members = vec![leader];
+        for &v in &self.villagers.clone() {
+            if members.len() >= 5 { break; }
+            if v == leader || villager::is_dead(&self.world, v)
+                || self.world.get_component::<Kid>(v).is_some()
+                || self.world.get_component::<country::Outlander>(v).is_some() { continue; }
+            members.push(v);
+        }
+        let e = self.world.create_entity();
+        self.world.add_component(e, Organization {
+            name: "the fire brigade".into(),
+            members, leader,
+            influence_pool: 0.0, resources: 0.0,
+            charter: "answer every fire bell".into(),
+        });
+        self.brigade = Some(e);
+        self.brigade_gear = 3;
+        self.log.push(format!("t{}: the fire brigade is chartered - sworn hands, oiled buckets, every bell answered.", self.tick));
+        "The brigade's chartered - the chest bought the buckets, and the bell has hands.".into()
+    }
+
     fn school_at(&mut self, seat: usize) -> String {
         let oe = self.seats[seat].org;
         if self.school.is_none() {

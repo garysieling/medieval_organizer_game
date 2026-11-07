@@ -88,7 +88,7 @@ has ~40 of these). Find the main checkout from wherever you are - never
 hardcode a path:
 
 ```bash
-MAIN=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
+MAIN=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
 WT="$(dirname "$MAIN")/game2-<slug>"
 git -C "$MAIN" fetch origin main
 git -C "$MAIN" worktree add "$WT" -b <area>/<N>-<slug> origin/main
@@ -213,7 +213,12 @@ Loop until clean:
 
 ## Stage 8 - Merge, then next ticket
 
+Shell variables don't survive between agent shells - restore both from
+the Ticket Form before running this (or re-derive `MAIN` the same way):
+
 ```bash
+MAIN=<main checkout abs path from the Ticket Form>
+WT=<worktree abs path from the Ticket Form>
 cd "$MAIN"        # the main checkout recorded in Stage 4
 gh pr merge <PR> -R garysieling/game2 --merge        # repo convention: merge commits
 git fetch origin --prune

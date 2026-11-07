@@ -240,7 +240,7 @@ impl Game {
         }
         for c in &self.couriers {
             if let Some(p) = world.get_component::<Pos>(c.e) {
-                people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                people.push(PersonV { sign: None, e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the courier".into()), find: find_key("the courier"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }

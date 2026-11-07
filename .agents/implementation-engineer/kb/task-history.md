@@ -179,3 +179,10 @@ Completed task task_16: Add a comment to main.rs
 **Notes:** Apply the teen exception before checking the final digit; remove parenthetical wording from the member-facing line.
 
 ---
+
+### Task: Show live crop plots as worked ground (issue #733)
+**Date:** 2026-11-07
+**Type:** bug fix
+**Files Changed:** `game2-core/src/session/country.rs`, `game2-core/src/session/view_model.rs`, `game2-core/src/session/tests/country.rs`
+**Outcome:** Crop-field tile test passes across five seeds; 99 client tests pass. The core suite has the five unrelated failures documented in #700; seed 1 frame captured and inspected (`evidence/issue-733-crop-fields.bmp`).
+**Notes:** Reuse existing wheat/corn map tiles for the live fields, avoiding a UiModel or wire-shape change; keep crop plots clear of tree sprites. Add the missing courier `sign: None` initializer required to compile the test target.

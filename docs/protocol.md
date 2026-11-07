@@ -261,10 +261,14 @@ out in the country that a seat can't select.
 `sites` carries the same country's names for the minimap: `x`, `y`,
 `name`, `kind` (`Town`, `Castle`, `Farm` or `Monastery`), and `keeper`
 - the keep's first bed's name, or null when the bed stands empty.
-Older servers omit it; a client should treat a missing `sites` as empty.
+`head` names the site's styled head and liege ("Earl Godric"), or null
+when the site has no head; `treasury` is its gold - tribute in, gifts
+and the crown's cut out. Older servers omit `sites`, `head` or
+`treasury`; a client should treat a missing `sites` as empty, a missing
+`head` as no head, and a missing `treasury` as empty.
 
 ```json
-{"x":44.0,"y":18.0,"name":"Oakhall","kind":"Castle","keeper":"Sir Brandr"}
+{"x":44.0,"y":18.0,"name":"Oakhall","kind":"Castle","keeper":"Sir Brandr","head":"Earl Godric","treasury":120.0}
 ```
 
 `panel.social` is the seat's bond ledger: folk it has actually talked
@@ -341,6 +345,10 @@ read it as empty.
 `flyers` lists where the cause's flyers are posted, each `[x,y]` a tile
 centre - empty until the org has passed the hat and bought some.
 Older servers omit it; read it as empty.
+
+`trains` lists the freight on the roads, each `[x,y]` where a cart,
+levy, remit, tribute or gift train's driver stands - a wagon follows
+them. Older servers omit it; read it as empty.
 
 ### Obs (agents)
 

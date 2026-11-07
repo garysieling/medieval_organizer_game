@@ -29,6 +29,22 @@ const MARKET_STAY: u64 = 2;
 const LEVY_EVERY: u64 = 20;
 /// The most a steward brings back in one trip
 const LEVY_TAKE: u32 = 12;
+/// How often a site sends its tribute up to the liege's keep
+const TRIBUTE_EVERY: u64 = 60;
+/// What each kind of site is assessed, in gold a tribute
+const TRIBUTE_TOWN: f32 = 50.0;
+const TRIBUTE_FARM: f32 = 15.0;
+const TRIBUTE_MONASTERY: f32 = 25.0;
+/// How often a castle answers its tributaries with a gift train
+const GIFT_EVERY: u64 = 45;
+/// Wheat and tools a gift train carries, in satchel counts - the
+/// closest goods the registry has to grain and iron
+const GIFT_WHEAT: u32 = 12;
+const GIFT_TOOLS: u32 = 1;
+/// How often a castle remits to the crown, and the least treasury that
+/// makes the trip worth the writing
+const CROWN_EVERY: u64 = 90;
+const CROWN_RESERVE: f32 = 40.0;
 /// A town's granary tops out here; each working townsman adds a serving a day
 const TOWN_STORE_CAP: u32 = 320;
 /// Strays farther than this from their own town walk home
@@ -60,6 +76,19 @@ pub struct Site {
     pub carrier: Option<Entity>,
     /// While the carrier's away: the day they turn for home
     pub away_until: Option<u64>,
+    /// Who this site answers to: the index of its liege castle, or None
+    /// for a castle itself - castles remit to the crown, which is off
+    /// the map and so has no site
+    pub liege: Option<usize>,
+    /// The head's style before their name ("Earl", "Reeve", "Abbot") -
+    /// None for a site with no headed household
+    pub title: Option<&'static str>,
+    /// Who holds the site: the castle's lord, a town's reeve, a farm's
+    /// headman, the abbey's abbot. They ride the tribute when it's due
+    pub lord: Option<Entity>,
+    /// The site's treasury in gold: tribute in, gifts and the crown's
+    /// cut out
+    pub treasury: f32,
 }
 
 /// Lives out at `sites[site]`, not in the village
@@ -348,7 +377,9 @@ impl Game {
                 .min_by_key(|&(x, y)| (x - green.0).abs() + (y - green.1).abs())
                 .unwrap_or(green);
             let store = villager::spawn_food_source(&mut self.world, store_at.0 as f32, store_at.1 as f32, servings);
-            sites.push(Site { name, kind, centre: (cx, cy), radius: r, store, homes, carrier: None, away_until: None });
+            sites.push(Site { name, kind, centre: (cx, cy), radius: r, store, homes,
+                carrier: None, away_until: None, liege: None, title: None,
+                lord: None, treasury: 0.0 });
         }
         // the folk, a household to a site under their own roofs; the
         // roster puts children last so the carrier slots - the first
@@ -371,8 +402,14 @@ impl Game {
                     && k == if kind == SiteKind::Town { 0 } else { 1 } {
                     sites[si].carrier = Some(v);
                 }
+                // the head of the household is the first grown folk who
+                // isn't the carrier out on the roads
+                if spec.is_some() && sites[si].carrier != Some(v) && sites[si].lord.is_none() {
+                    sites[si].lord = Some(v);
+                }
             }
         }
+        self.assign_hierarchy(&mut sites, &mut rng);
         self.sites = sites;
         // the post: an office at each town and castle, and a rider to
         // keep it - the village hands its letters off at the market
@@ -418,6 +455,53 @@ impl Game {
             // the year starts thin in the fields - the ripening shows
             if let Some(fs) = self.world.get_component_mut::<villager::FoodSource>(f) { fs.servings = 15; }
             self.crop_fields.push(f);
+        }
+    }
+
+    /// The lordly map: castles answer to the crown (off the map, so
+    /// `liege` stays None), every other site answers to its nearest
+    /// castle, and each headed household gets its style - a castle's
+    /// rolled from the royal styles, a town's or farm's a reeve, an
+    /// abbey's abbot or abbess. Rolls come off the country's own stream
+    /// so the village's rolls don't shift
+    fn assign_hierarchy(&mut self, sites: &mut [Site], rng: &mut Rng) {
+        /// (style, lady's style) - a castle's rank down the peerage
+        const CASTLE_STYLES: [(&'static str, &'static str); 4] = [
+            ("Duke", "Duchess"), ("Earl", "Countess"),
+            ("Margrave", "Margravine"), ("Baron", "Baroness")];
+        let castles: Vec<usize> = sites.iter().enumerate()
+            .filter(|(_, s)| s.kind == SiteKind::Castle).map(|(i, _)| i).collect();
+        // the peerage's headroom shifts a step or two by seed, so one
+        // seed's earls are another's barons
+        let offset = rng.below(CASTLE_STYLES.len() as i32) as usize;
+        for (rank, &ci) in castles.iter().enumerate() {
+            let (male, female) = CASTLE_STYLES[(offset + rank) % CASTLE_STYLES.len()];
+            let style = if rng.below(2) == 0 { male } else { female };
+            sites[ci].title = Some(style);
+        }
+        for si in 0..sites.len() {
+            match sites[si].kind {
+                SiteKind::Castle => {}
+                SiteKind::Town | SiteKind::Farm => sites[si].title = Some("Reeve"),
+                SiteKind::Monastery => sites[si].title = Some(if rng.below(2) == 0 { "Abbot" } else { "Abbess" }),
+            }
+            if sites[si].kind != SiteKind::Castle {
+                sites[si].liege = castles.iter().copied()
+                    .min_by_key(|&c| (sites[c].centre.0 - sites[si].centre.0).abs()
+                        + (sites[c].centre.1 - sites[si].centre.1).abs());
+            }
+        }
+        // the keep's name carries its lord: "the keep of Earl Godric of
+        // Ravensholt" - the inspector and any log line reads the same
+        for &ci in &castles {
+            let Some(lord) = sites[ci].lord else { continue };
+            let Some(style) = sites[ci].title else { continue };
+            let Some(li) = self.villagers.iter().position(|&v| v == lord) else { continue };
+            if let Some(&keep) = sites[ci].homes.first() {
+                if let Some(b) = self.world.get_component_mut::<Building>(keep) {
+                    b.name = format!("the keep of {} {} of {}", style, vill_name(li), sites[ci].name);
+                }
+            }
         }
     }
 
@@ -524,7 +608,7 @@ impl Game {
                 path.push(to);
                 self.travels.retain(|t| t.who != who);
                 self.travels.push(Travel { who, path, goal });
-                if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(_))) {
+                if matches!(self.travels.last().map(|t| &t.goal), Some(Goal::Remit(..))) {
                     self.world.add_component(who, villager::OnTheRoad);
                 }
                 true
@@ -544,8 +628,10 @@ impl Game {
 
     /// The country's day: the granaries fill with the towns' work, the
     /// carts set out for market (timed to arrive for market day) and come
-    /// home after, the stewards ride for provisions, and strays walk home
+    /// home after, the stewards ride for provisions, the tribute goes up
+    /// and the gifts come down, and strays walk home
     pub(super) fn country_tick(&mut self, tick: u64) {
+        self.tribute_tick(tick);
         for si in 0..self.sites.len() {
             let site = self.sites[si].clone();
             let folk: Vec<Entity> = self.villagers.iter().copied()
@@ -748,8 +834,9 @@ impl Game {
     }
 
     /// The collector at the keep with the lord's cut: a meal from its
-    /// store like the steward's, then the long road home
-    pub(super) fn arrive_remit(&mut self, who: Entity, castle: usize) {
+    /// store like the steward's, the gold into the castle's treasury,
+    /// then the long road home
+    pub(super) fn arrive_remit(&mut self, who: Entity, castle: usize, gold: f32) {
         if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
             if let Some(store) = self.sites.get(castle).map(|s| s.store) {
                 if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {
@@ -760,6 +847,174 @@ impl Game {
                 }
             }
         }
+        if let Some(s) = self.sites.get_mut(castle) { s.treasury += gold; }
+        let home = household::home_of(&self.world, who);
+        let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+        if let (Some(h), Some(d)) = (home, door) {
+            self.send_far(who, d, Goal::HeadHome(h));
+        }
+    }
+
+    /// The tribute's round: each headed site sends its assessment up to
+    /// the liege's keep on its own day, each castle answers its
+    /// tributaries with a gift train on theirs (knights riding escort),
+    /// and each castle remits its surplus to the crown - gold that
+    /// leaves the world for a throne nobody sees
+    fn tribute_tick(&mut self, tick: u64) {
+        // up: the site's head rides the assessment to the liege's keep
+        for si in 0..self.sites.len() {
+            let Some(liege) = self.sites[si].liege else { continue };
+            if tick % TRIBUTE_EVERY != (si as u64 * 7) % TRIBUTE_EVERY { continue; }
+            let assessment = match self.sites[si].kind {
+                SiteKind::Town => TRIBUTE_TOWN,
+                SiteKind::Farm => TRIBUTE_FARM,
+                SiteKind::Monastery => TRIBUTE_MONASTERY,
+                SiteKind::Castle => continue,
+            };
+            let runner = self.sites[si].lord.or(self.sites[si].carrier)
+                .filter(|&r| !villager::is_dead(&self.world, r)
+                    && !crate::game::dungeon::unavailable(&self.world, r));
+            let Some(runner) = runner else { continue };
+            if self.travels.iter().any(|t| t.who == runner) { continue; }
+            let purse = self.world.get_component::<Purse>(runner).map(|p| p.gold).unwrap_or(0.0);
+            let pay = assessment.min(purse);
+            if pay < 1.0 { continue; }
+            let Some(door) = self.sites[liege].homes.first()
+                .and_then(|&k| self.world.get_component::<Pos>(k).copied())
+                .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) else { continue };
+            // coin out of the purse before the wheel turns - a train lost
+            // on the road is a loss the books already carry
+            if let Some(p) = self.world.get_component_mut::<Purse>(runner) { p.gold -= pay; }
+            if self.send_far(runner, door, Goal::Owe(si, liege, pay)) {
+                let name = self.villagers.iter().position(|&x| x == runner).map(vill_name).unwrap_or("the headman");
+                self.log.push(format!("t{}: {} rides out of {} with {:.0} gold for {}.", tick, name,
+                    self.sites[si].name, pay, self.sites[liege].name));
+            } else if let Some(p) = self.world.get_component_mut::<Purse>(runner) { p.gold += pay; }
+        }
+        // down: each castle answers its tributaries with grain and iron,
+        // and its blades ride escort
+        for ci in 0..self.sites.len() {
+            if self.sites[ci].kind != SiteKind::Castle { continue; }
+            let Some(runner) = self.sites[ci].lord.or(self.sites[ci].carrier)
+                .filter(|&r| !villager::is_dead(&self.world, r)
+                    && !crate::game::dungeon::unavailable(&self.world, r)) else { continue };
+            for ti in 0..self.sites.len() {
+                if self.sites[ti].liege != Some(ci) { continue; }
+                if tick % GIFT_EVERY != ((ci * 31 + ti * 7) as u64) % GIFT_EVERY { continue; }
+                if self.sites[ci].treasury < CROWN_RESERVE { continue; }
+                if self.travels.iter().any(|t| t.who == runner) { continue; }
+                let Some(sp) = self.world.get_component::<Pos>(self.sites[ti].store).copied() else { continue };
+                let Some(door) = self.at_the_door(sp.x.round() as i32, sp.y.round() as i32) else { continue };
+                // the cargo: wheat and tools out of the treasury's worth
+                let cargo = GIFT_WHEAT as f32 * goods::worth_at(&self.world, "wheat")
+                    + GIFT_TOOLS as f32 * goods::worth_at(&self.world, "tools");
+                if self.sites[ci].treasury < cargo { continue; }
+                if let Some(s) = self.world.get_component_mut::<Satchel>(runner) {
+                    *s.goods.entry("wheat".into()).or_insert(0) += GIFT_WHEAT;
+                    *s.goods.entry("tools".into()).or_insert(0) += GIFT_TOOLS;
+                }
+                self.sites[ci].treasury -= cargo;
+                if self.send_far(runner, door, Goal::Gift(ci, ti)) {
+                    // the guard: up to two of the castle's blades ride
+                    // with the train - the ones not already on the road
+                    let guards: Vec<Entity> = self.villagers.iter().copied()
+                        .filter(|&v| self.site_of(v) == Some(ci)
+                            && !villager::is_dead(&self.world, v)
+                            && self.world.get_component::<Craft>(v)
+                                .map(|c| c.vocation == Vocation::Knight).unwrap_or(false)
+                            && Some(v) != self.sites[ci].lord && Some(v) != self.sites[ci].carrier
+                            && !self.travels.iter().any(|t| t.who == v))
+                        .take(2).collect();
+                    for g in guards { let _ = self.send_far(g, door, Goal::Escort(ci, ti)); }
+                    let name = self.villagers.iter().position(|&x| x == runner).map(vill_name).unwrap_or("the lord");
+                    self.log.push(format!("t{}: {}'s gift train rides from {} to {} - wheat and tools for the stores.", tick, name,
+                        self.sites[ci].name, self.sites[ti].name));
+                } else {
+                    if let Some(s) = self.world.get_component_mut::<Satchel>(runner) {
+                        if let Some(n) = s.goods.get_mut("wheat") { *n = n.saturating_sub(GIFT_WHEAT); }
+                        if let Some(n) = s.goods.get_mut("tools") { *n = n.saturating_sub(GIFT_TOOLS); }
+                    }
+                    self.sites[ci].treasury += cargo;
+                }
+            }
+        }
+        // the crown's cut: a castle remits its surplus and the gold
+        // leaves the world - the throne is off the map
+        for ci in 0..self.sites.len() {
+            if self.sites[ci].kind != SiteKind::Castle { continue; }
+            if tick % CROWN_EVERY != (ci as u64 * 11) % CROWN_EVERY { continue; }
+            let surplus = self.sites[ci].treasury - CROWN_RESERVE;
+            if surplus < 10.0 { continue; }
+            self.sites[ci].treasury -= surplus;
+            let style = self.sites[ci].title.unwrap_or("the lord");
+            self.log.push(format!("t{}: {} of {} sends {:.0} gold up to the crown.", tick, style,
+                self.sites[ci].name, surplus));
+        }
+    }
+
+    /// The tribute reaches the liege's keep: the gold into the castle's
+    /// treasury, the runner fed at the keep's table, then the long road
+    /// home
+    pub(super) fn arrive_owe(&mut self, who: Entity, from: usize, to: usize, gold: f32) {
+        if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
+            if let Some(store) = self.sites.get(to).map(|s| s.store) {
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {
+                    if f.servings > 0 {
+                        f.servings -= 1;
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                    }
+                }
+            }
+        }
+        if let Some(s) = self.sites.get_mut(to) { s.treasury += gold; }
+        let (from_name, to_name) = (self.sites.get(from).map(|s| s.name).unwrap_or("a holding"),
+            self.sites.get(to).map(|s| s.name).unwrap_or("the keep"));
+        self.log.push(format!("t{}: {}'s tribute comes into {} - {:.0} gold for the treasury.", self.tick, from_name, to_name, gold));
+        let home = household::home_of(&self.world, who);
+        let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+        if let (Some(h), Some(d)) = (home, door) {
+            self.send_far(who, d, Goal::HeadHome(h));
+        }
+    }
+
+    /// The gift train reaches the tributary: the wheat and tools sell at
+    /// the market and the takings go to the site's treasury
+    pub(super) fn arrive_gift(&mut self, who: Entity, from: usize, to: usize) {
+        if self.world.get_component::<Hunger>(who).map(|h| h.value < 70.0).unwrap_or(false) {
+            if let Some(store) = self.sites.get(to).map(|s| s.store) {
+                if let Some(f) = self.world.get_component_mut::<villager::FoodSource>(store) {
+                    if f.servings > 0 {
+                        f.servings -= 1;
+                        if let Some(h) = self.world.get_component_mut::<Hunger>(who) { h.value = 100.0; }
+                    }
+                }
+            }
+        }
+        let mut counts = Vec::new();
+        if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
+            for good in ["wheat", "tools"] {
+                if let Some(n) = s.goods.remove(good) { counts.push((good, n)); }
+            }
+        }
+        let gold: f32 = counts.iter()
+            .map(|&(g, n)| goods::worth_at(&self.world, g) * n as f32).sum();
+        if let Some(s) = self.sites.get_mut(to) { s.treasury += gold; }
+        let (from_name, to_name) = (self.sites.get(from).map(|s| s.name).unwrap_or("the castle"),
+            self.sites.get(to).map(|s| s.name).unwrap_or("the holding"));
+        self.log.push(format!("t{}: {}'s gift train comes into {} - {:.0} gold for the treasury.", self.tick, from_name, to_name, gold));
+        let home = household::home_of(&self.world, who);
+        let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+            .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+        if let (Some(h), Some(d)) = (home, door) {
+            self.send_far(who, d, Goal::HeadHome(h));
+        }
+    }
+
+    /// The escort's work is done once the train it guarded stands at the
+    /// destination's door: turn for home
+    pub(super) fn arrive_escort(&mut self, who: Entity, _from: usize, _to: usize) {
         let home = household::home_of(&self.world, who);
         let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
             .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));

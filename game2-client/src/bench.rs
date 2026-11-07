@@ -131,6 +131,16 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     // and buildings: the first of each, a tree in a wood rather than a
     // lone one
     let m = game.ui_model();
+    // --focus train: centre on the first freight wagon on the road
+    if focus == Some("train") {
+        match m.trains.first() {
+            Some(&(tx, ty)) => {
+                (view.cam_x, view.cam_y) = cam_centred_on(tx, ty);
+                println!("focus train: tile ({:.1}, {:.1}) cam {},{}", tx, ty, view.cam_x, view.cam_y);
+            }
+            None => eprintln!("focus train: no freight on the road at tick {}", target_tick),
+        }
+    }
     let woods = |&&(x, y): &&(i32, i32)| m.map.trees.iter().filter(|&&(tx, ty)| (tx - x).abs() + (ty - y).abs() <= 2).count() >= 5;
     let feature = match focus {
         Some("tree") => m.map.trees.iter().find(woods).map(|&(x, y)| (x as f32, y as f32)),

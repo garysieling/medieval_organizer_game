@@ -574,8 +574,14 @@ impl Game {
                     .and_then(|b| b.occupants.first().copied())
                     .and_then(|o| self.villagers.iter().position(|v| *v == o))
                     .map(|i| vill_name(i).to_string());
+                // the head, styled: "Earl Godric" - the site's lord by
+                // the title their house holds
+                let head = s.lord
+                    .and_then(|l| self.villagers.iter().position(|v| *v == l))
+                    .map(|i| format!("{} {}", s.title.unwrap_or("the head"), vill_name(i)));
                 SiteV { x: s.centre.0 as f32, y: s.centre.1 as f32,
-                    name: s.name.to_string(), kind: s.kind.clone(), keeper }
+                    name: s.name.to_string(), kind: s.kind.clone(), keeper,
+                    head, treasury: s.treasury }
             }).collect(),
             talk: self.talk_panel_at(seat),
             convo: self.convo_panel_at(seat),
@@ -584,6 +590,14 @@ impl Game {
             snowballs: self.snowballs.iter().map(|s| s.pos_at(self.frame_n)).collect(),
             tech: self.tech.clone(),
             flyers: self.flyers.clone(),
+            // the freight on the roads: whoever's driving a cart, a
+            // levy, a remit, a tribute or a gift train pulls a wagon
+            trains: self.travels.iter()
+                .filter(|t| matches!(t.goal, Goal::Cart(_) | Goal::Levy(..)
+                    | Goal::Deliver(_) | Goal::Remit(..) | Goal::Owe(..)
+                    | Goal::Gift(..)))
+                .filter_map(|t| world.get_component::<Pos>(t.who)
+                    .map(|p| (p.x, p.y))).collect(),
         }
     }
 

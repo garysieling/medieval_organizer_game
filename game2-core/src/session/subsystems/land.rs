@@ -353,7 +353,7 @@ impl Game {
         // doesn't commandeer them
         if self.seats.iter().any(|s| s.player == v) { return false; }
         !self.travels.iter().any(|t| t.who == v && matches!(t.goal,
-            Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(_)))
+            Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..)))
     }
 
     /// The able villager nearest the flames who isn't already on the

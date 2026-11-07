@@ -1313,6 +1313,7 @@ impl Game {
                             .map(|(i, v)| (if i > idx { i - 1 } else { i }, v))
                             .collect();
                         self.tales_told = std::mem::take(&mut self.tales_told).into_iter()
+                            .filter(|&i| i != idx)
                             .map(|i| if i > idx { i - 1 } else { i })
                             .collect();
                         for seat in self.seats.iter_mut() {

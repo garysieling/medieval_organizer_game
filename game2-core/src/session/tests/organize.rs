@@ -358,3 +358,55 @@ fn test_the_person_you_asked_comes_back_around() {
     assert!(after > before, "the visit warms the bond");
     assert!(g.world.get_component::<RoundBack>(asker).is_none(), "the note's spent on the hello");
 }
+
+#[test]
+fn test_an_intro_with_no_friend_sends_you_to_the_village_ear() {
+    use crate::game::organizing::{propose, PropKind};
+    use crate::game::vocation::{Craft, TownRole, Vocation};
+    let mut g = Game::new();
+    let (pe, asker) = (g.player, g.villagers[26]);
+    // a kid with no trade and nothing heard: no friend can be named -
+    // but folk still know where the village's ear is
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, named) = propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Wick", 0.0, tick);
+    let p = named.expect("someone to send you to");
+    let voc = g.world.get_component::<Craft>(p).map(|c| c.vocation);
+    let role = g.world.get_component::<TownRole>(p).copied();
+    assert!(voc == Some(Vocation::Priest)
+        || matches!(role, Some(TownRole::Matchmaker) | Some(TownRole::TaxCollector)),
+        "the named one's an open ear: {:?} {:?}", voc, role);
+    assert!(msg.contains("tell the"), "{}", msg);
+    // and the named one starts a little warm to you
+    assert!(relationships::find_relationship(&g.world, pe, p).is_some());
+}
+
+#[test]
+fn test_a_remote_chaplain_isnt_the_village_ear() {
+    use crate::game::organizing::{propose, PropKind};
+    use crate::game::vocation::{Craft, TownRole, Vocation};
+    let mut g = Game::new();
+    let (pe, asker) = (g.player, g.villagers[26]);
+    // every priest in the world is out in the country - none hears the
+    // parish, so the ear must be a village role, not a distant chaplain
+    let church = g.world.query::<Building>().iter().copied()
+        .find(|&b| g.world.get_component::<Building>(b)
+            .map(|bb| bb.kind == BuildingKind::Church).unwrap_or(false))
+        .and_then(|b| g.world.get_component::<Pos>(b).copied()).expect("the church stands");
+    let priests: Vec<Entity> = g.world.query::<Craft>().iter().copied()
+        .filter(|&e| g.world.get_component::<Craft>(e)
+            .map(|c| c.vocation == Vocation::Priest).unwrap_or(false)).collect();
+    assert!(!priests.is_empty(), "the country keeps chaplains to exclude");
+    for p in priests {
+        *g.world.get_component_mut::<Pos>(p).unwrap() = Pos { x: church.x + 200.0, y: church.y };
+        // a plan where they now stand, so a later sim doesn't walk them back
+        g.plan_visit(p, g.tick);
+    }
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, named) = propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Wick", 0.0, tick);
+    let p = named.expect("someone to send you to");
+    let voc = g.world.get_component::<Craft>(p).map(|c| c.vocation);
+    let role = g.world.get_component::<TownRole>(p).copied();
+    assert!(voc != Some(Vocation::Priest), "a remote chaplain isn't the parish ear: {}", msg);
+    assert!(matches!(role, Some(TownRole::Matchmaker) | Some(TownRole::TaxCollector)),
+        "a village role answers instead: {:?} {:?}", voc, role);
+}

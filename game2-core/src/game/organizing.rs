@@ -616,6 +616,9 @@ pub enum RelStage {
 pub const FOLLOWER_TIE: f32 = crate::sim::community::RECRUIT_MIN_TRUST;
 /// Pieces of a person's self-interest that make them "known" to you
 pub const KNOWN_PIECES: usize = 3;
+/// How far from the church "the village" reaches for an introduction's
+/// fallback ear - the country settlements stand well outside it
+const VILLAGE_EAR_REACH: f32 = 40.0;
 
 /// Errands run for a person, kept on the bond with you: a job carried
 /// through tells you who they are as surely as their secrets do - one
@@ -906,8 +909,52 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
                 other: friend, kind: InteractionKind::Conversation, intensity: 0.6 });
             (format!("{} names a friend - someone you should know. A word from {} opens the door.", name, name), Some(friend))
         }
-        None => (format!("{} can't think of anyone to send you to.", name), None),
+        None => match someone_to_send_to(world, organizer, person) {
+            // no friend comes to mind, but folk know where the village's
+            // ear is - and they'd send you there
+            Some((p, office)) => {
+                record_interaction(world, organizer, Interaction {
+                    other: p, kind: InteractionKind::Conversation, intensity: 0.6 });
+                (format!("{} can't think of anyone - but \"go and tell the {} your piece, {}.\"", name, office, name), Some(p))
+            }
+            None => (format!("{} can't think of anyone to send you to.", name), None),
+        },
     }
+}
+
+/// The village's open ears, for when a friend can't be named: the priest
+/// first - he hears everything - then the heart-helper, who knows every
+/// heart, then the collector, who counts every soul. "The village" is
+/// measured from its church: the country settlements are deliberately
+/// far off, and their chaplains aren't the parish ear
+fn someone_to_send_to(world: &World, organizer: Entity, person: Entity) -> Option<(Entity, &'static str)> {
+    let church = world.query::<crate::game::household::Building>().iter().copied()
+        .filter(|&b| world.get_component::<crate::game::household::Building>(b)
+            .map(|bb| bb.kind == crate::game::household::BuildingKind::Church).unwrap_or(false))
+        .min()
+        .and_then(|b| world.get_component::<crate::game::villager::Pos>(b).copied());
+    let open = |e: Entity| {
+        if e == organizer || e == person
+            || crate::game::villager::is_dead(world, e)
+            || crate::game::dungeon::unavailable(world, e) { return false; }
+        match (church, world.get_component::<crate::game::villager::Pos>(e)) {
+            (Some(c), Some(p)) => (p.x - c.x).abs() + (p.y - c.y).abs() <= VILLAGE_EAR_REACH,
+            _ => true,
+        }
+    };
+    let priest = world.query::<crate::game::vocation::Craft>().iter().copied()
+        .filter(|&e| open(e) && world.get_component::<crate::game::vocation::Craft>(e)
+            .map(|c| c.vocation == crate::game::vocation::Vocation::Priest).unwrap_or(false))
+        .min();
+    if let Some(p) = priest { return Some((p, "priest")); }
+    let role = |e: Entity, r: crate::game::vocation::TownRole| open(e)
+        && world.get_component::<crate::game::vocation::TownRole>(e) == Some(&r);
+    let helper = world.query::<crate::game::vocation::TownRole>().iter().copied()
+        .filter(|&e| role(e, crate::game::vocation::TownRole::Matchmaker)).min();
+    if let Some(p) = helper { return Some((p, "heart-helper")); }
+    world.query::<crate::game::vocation::TownRole>().iter().copied()
+        .filter(|&e| role(e, crate::game::vocation::TownRole::TaxCollector)).min()
+        .map(|p| (p, "collector"))
 }
 
 /// Sick guests stay home

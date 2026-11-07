@@ -484,6 +484,7 @@ impl Game {
                 org_status, power,
                 members, issues, guilds, food, campaign,
                 quest: self.seats[seat].quest.as_ref().map(|q| self.quest_panel_line(q)),
+                mystery: self.mystery_panel_line(seat),
                 social, meeting,
             },
             mill: Some(self.mill),

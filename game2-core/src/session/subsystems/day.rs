@@ -282,6 +282,9 @@ impl Game {
         crate::timed!("sim.faith", self.service_tick(tick));
         // and folk who've gotten to know the Wanderer ask for small jobs
         crate::timed!("sim.quests", self.quest_dawn(tick, &mut rng));
+        // now and then a mystery starts doing the rounds - the gossip's
+        // out there to be heard a fact at a time
+        crate::timed!("sim.mystery", self.mystery_dawn(tick, &mut rng));
         let folk = crate::infra::perf::scope("sim.day.villagers");
         let villagers = self.villagers.clone();
         for i in 0..villagers.len() {

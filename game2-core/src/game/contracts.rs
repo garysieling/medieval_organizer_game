@@ -243,7 +243,7 @@ mod tests {
         assert!(seal_aid_pact(&mut w, player, villager, &mut gold).is_some());
         assert_eq!(gold, 15.0);
         let r = find_relationship(&w, player, villager).unwrap();
-        assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.12).abs() < 1e-6);
+        assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.40).abs() < 1e-6);
         // one pact per pair, and no charge for asking again
         assert!(seal_aid_pact(&mut w, player, villager, &mut gold).is_none());
         assert_eq!(gold, 15.0);

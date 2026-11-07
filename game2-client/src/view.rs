@@ -806,6 +806,11 @@ impl View {
                         draw_text(&mut buf, UI_X as i32 + line.x, line.y, &line.text, line.rgb.0, line.rgb.1, line.rgb.2);
                     }
                 }
+                // the seat's hearts for them, top-right of the card -
+                // five pixels-hearts in half steps, clear of the name row
+                if let Some(h) = insp.hearts {
+                    draw_hearts(&mut buf, UI_X as i32 + 10 + 320 - 4 - 5 * 8, 320, h, 5);
+                }
             }
         }
 

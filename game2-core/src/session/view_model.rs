@@ -893,10 +893,7 @@ impl Game {
         // what the body's learned, or still hides: a survivor's
         // hardiness, and the seed a sickness leaves to wake again
         if let Some(h) = world.get_component::<crate::sim::illness::Health>(v) {
-            if h.immunity >= 0.5 { parts.push("weathered".into()); }
-        }
-        if world.get_component::<crate::sim::illness::Relapse>(v).is_some() {
-            parts.push("it sleeps in them".into());
+            if h.immunity > 0.5 { parts.push("weathered".into()); }
         }
         // the fold they keep, if the bench behind their day's a
         // pasture - its live count named, ahead of the wordy parts
@@ -974,6 +971,11 @@ impl Game {
             if !kin.is_empty() { parts.push(format!("kin: {}", kin.join(", "))); }
             if world.get_component::<country::Outlander>(v).is_some() {
                 parts.push("of the country".into());
+            }
+            // a seed they carry: something only the ones who've earned
+            // their confidence could know
+            if world.get_component::<crate::sim::illness::Relapse>(v).is_some() {
+                parts.push("it sleeps in them".into());
             }
             // their cause-craft, if they've a real one - the skill that
             // leads, named by what it does

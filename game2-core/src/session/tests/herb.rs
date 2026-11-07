@@ -102,3 +102,21 @@ fn test_the_huts_card_keeps_her_tally() {
         "the card doesn't keep her tally: {:?}",
         ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_the_herb_wife_s_card_names_what_she_brewed() {
+    let mut g = Game::new();
+    let hw = g.villagers.iter().copied()
+        .find(|&v| livelihood::has_role(&g.world, v, TownRole::Herbologist)).unwrap();
+    let herb = herbology::spawn_herb(&mut g.world, "yarrow", 0.5,
+        herbology::HerbEffect::Healing, herbology::PrepMethod::Poultice);
+    g.world.add_component(hw, herbology::Apothecary {
+        known_herbs: vec!["yarrow".into()],
+        remedies: vec![herbology::Remedy { herb, method: herbology::PrepMethod::Poultice, efficacy: 0.5 }],
+        skill: 0.3 });
+    g.seats[0].selected_target = g.villagers.iter().position(|&x| x == hw).unwrap();
+    let ins = g.villager_inspector_at(0);
+    assert!(ins.lines.iter().any(|l| l.text.contains("yarrow")),
+        "the brew never showed: {:?}",
+        ins.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

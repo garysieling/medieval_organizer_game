@@ -20,6 +20,18 @@ pub struct GroundCache {
     pub rev: u64,       // map.rev() when it was drawn
 }
 
+/// A toast's screen life in model frames - about five seconds at 60fps,
+/// whatever the watch speed (the sim's own expiry is days, for the log)
+pub(crate) const TOAST_LIFE: u32 = 300;
+/// The stretch at the end a toast fades over, in frames
+pub(crate) const TOAST_FADE: u32 = 45;
+/// How far a toast climbs over its life, px - under the pitch so it
+/// never quite reaches the banner above
+const TOAST_RISE: f32 = 10.0;
+/// The feed's first banner top; each older one sits a pitch higher
+const TOAST_TOP: i32 = 44;
+const TOAST_PITCH: i32 = 30;
+
 /// Everything a frame needs that isn't the game itself: the sprite pack,
 /// the camera and UI toggles, and the caches repainting costs too much to
 /// redo every frame. One View per client (or per local player).
@@ -103,6 +115,37 @@ impl View {
             st.2 += d;
         }
         (st.2 / STRIDE_TILES * 6.0 * cycle.max(1) as f32) as u32
+    }
+
+    /// Where each live toast draws and how faded it is: (index into
+    /// `toasts`, x, y, w, fade). The feed runs top-down like a
+    /// conveyor - a new toast pops in at the bottom and, as the oldest
+    /// expires off the top, the rest move up a place; each also climbs
+    /// a little and fades over its last frames. A toast's age is its
+    /// own stamp against the model's frame - an older server that sends
+    /// none reads as just arrived
+    pub(crate) fn toast_layout(&self, toasts: &[ToastV], now: u32)
+        -> Vec<(usize, i32, i32, i32, f32)> {
+        let live: Vec<(usize, u32)> = toasts.iter().enumerate()
+            .filter_map(|(i, t)| {
+                let age = t.born.map(|b| now.wrapping_sub(b)).unwrap_or(0);
+                (age < TOAST_LIFE).then_some((i, age))
+            }).collect();
+        live.iter().enumerate().map(|(slot, &(i, age))| {
+            let t = &toasts[i];
+            let tw = t.text.len() as i32 * 6 + 16;
+            let rise = age as f32 / TOAST_LIFE as f32 * TOAST_RISE;
+            let fade = ((TOAST_LIFE - age) as f32 / TOAST_FADE as f32).min(1.0);
+            (i, MAP_W as i32 / 2 - tw / 2, TOAST_TOP + slot as i32 * TOAST_PITCH - rise as i32, tw, fade)
+        }).collect()
+    }
+
+    /// Which toast the mouse is over - the same boxes render draws, so
+    /// a click on a banner that has `at` can jump the camera there
+    pub fn toast_hit(&self, m: &UiModel, mx: i32, my: i32) -> Option<usize> {
+        self.toast_layout(&m.toasts, m.frame).iter()
+            .find(|&&(_, x, y, w, _)| mx >= x && mx < x + w && my >= y && my < y + 20)
+            .map(|&(i, ..)| i)
     }
 
     /// The sprite a building draws with
@@ -999,13 +1042,24 @@ impl View {
 
         // toasts (big moments); one that happened somewhere is a button -
         // a click jumps the camera there (toast_hit knows the same boxes)
-        for (t, (bx, by, bw)) in m.toasts.iter().zip(toast_boxes(&m.toasts)) {
+        for (i, bx, by, bw, fade) in self.toast_layout(&m.toasts, m.frame) {
+            let t = &m.toasts[i];
             let hovered = t.at.is_some() && mx >= bx && mx < bx + bw && my >= by && my < by + 20;
+            // the fade runs every colour toward the banner's own dark
+            let mix = |(r, g, b): (i32, i32, i32)| -> (u8, u8, u8) {
+                ((20.0 + (r as f32 - 20.0) * fade) as u8,
+                 (20.0 + (g as f32 - 20.0) * fade) as u8,
+                 (35.0 + (b as f32 - 35.0) * fade) as u8)
+            };
             buf.rect(bx, by, bw, 20, 20, 20, 35);
-            buf.rect(bx, by, bw, 1, 255, 215, 0);
-            let (r, g, b) = if t.at.is_some() { (255, 232, 160) } else { (255, 220, 130) };
+            let (br, bg, bb) = mix((255, 215, 0));
+            buf.rect(bx, by, bw, 1, br, bg, bb);
+            let (r, g, b) = if t.at.is_some() { mix((255, 232, 160)) } else { mix((255, 220, 130)) };
             draw_text(&mut buf, bx + 8, by + 6, &t.text, r, g, b);
-            if hovered { buf.rect(bx, by + 19, bw, 1, 255, 240, 170); }
+            if hovered {
+                let (hr, hg, hb) = mix((255, 240, 170));
+                buf.rect(bx, by + 19, bw, 1, hr, hg, hb);
+            }
         }
 
         // season banner
@@ -1117,25 +1171,6 @@ impl View {
         GroundCache { buf, camera, zoom, season: m.season, rev: m.map.rev() }
     }
 
-}
-
-/// The banner box each toast draws as: (x, y, w), top-center of the map
-pub(crate) fn toast_boxes(toasts: &[ToastV]) -> Vec<(i32, i32, i32)> {
-    let mut out = Vec::with_capacity(toasts.len());
-    let mut ty = 40;
-    for t in toasts {
-        let tw = t.text.len() as i32 * 6 + 16;
-        out.push((MAP_W as i32 / 2 - tw / 2, ty, tw));
-        ty += 26;
-    }
-    out
-}
-
-/// Which toast the mouse is over - render draws the same boxes, so a
-/// click on a banner that has `at` can jump the camera there
-pub fn toast_hit(toasts: &[ToastV], mx: i32, my: i32) -> Option<usize> {
-    toast_boxes(toasts).iter().position(|&(x, y, w)|
-        mx >= x && mx < x + w && my >= y && my < y + 20)
 }
 
 /// Who the find box's query fits, as indexes into `people`: a folded

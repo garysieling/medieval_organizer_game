@@ -503,6 +503,38 @@ fn a_declined_pick_stays_declined_on_reclaim() {
     server.stop();
 }
 
+#[test]
+fn a_scene_carries_each_toasts_announcement_frame() {
+    let server = start(None);
+    let mut human = connect(server.addr);
+    hello(&mut human, None, ClientKind::Human);
+    // turbo: the village announces itself soon enough - a promotion, an
+    // omen, a market day. Wait for the first banner to ride a scene
+    send(&mut human, &ClientMsg::Command(Command::ToggleSpeed));
+    let (model, raw) = until("a toast in a scene", &mut human, 90, |m, t| match m {
+        ServerMsg::Scene(s) if !s.toasts.is_empty() => Some((s.as_ref().clone(), t.to_string())),
+        _ => None,
+    });
+    // every banner says when it was announced - never after the frame
+    // that's carrying it
+    for tv in &model.toasts {
+        let born = tv.born.expect("the stamp rides the wire");
+        assert!(born <= model.frame, "born {born} is after the scene's frame {}", model.frame);
+    }
+    // and the stamp's stable: the same banner keeps it scene to scene
+    let first = model.toasts[0].clone();
+    let again = until("the same banner again", &mut human, 10, |m, _| match m {
+        ServerMsg::Scene(s) => s.toasts.iter()
+            .find(|t| t.text == first.text && t.at == first.at)
+            .map(|t| t.born),
+        _ => None,
+    });
+    assert_eq!(again, first.born, "the stamp moved between scenes");
+    // and the JSON itself carries the field, not just the parsed model
+    assert!(raw.contains("\"born\":"), "the stamp's not on the wire");
+    server.stop();
+}
+
 /// Who `i` is on the scene, when it's one of the villagers
 fn villager(s: &UiModel, i: usize) -> Option<&game2_core::session::PersonV> {
     s.people.iter().find(|p| p.kind == PKind::Villager(i))

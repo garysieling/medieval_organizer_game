@@ -277,6 +277,10 @@ pub struct ConvoPanelV {
 pub struct ToastV {
     pub text: String,
     pub at: Option<(f32, f32)>,
+    /// The model frame it was announced on, so the client can age it
+    /// itself; absent from an older server reads as just arrived
+    #[serde(default)]
+    pub born: Option<u32>,
 }
 
 /// Everything `View::render` draws that comes from the simulation.

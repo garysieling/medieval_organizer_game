@@ -178,9 +178,12 @@ would otherwise cycle to), `dead` and `died_day` (a grave portrait), and
 defaults to `false` when absent.
 
 `toasts` holds the banners announced at the top of the map, each a
-`{"text":"...","at":[x,y]|null}`: `at` is where it happened, for a click
-to jump the camera there, or `null` for a sky-wide omen with no spot to
-visit (hail, drought, aurora...).
+`{"text":"...","at":[x,y]|null,"born":1234}`: `at` is where it happened,
+for a click to jump the camera there, or `null` for a sky-wide omen with
+no spot to visit (hail, drought, aurora...). `born` is the model frame
+it was announced on - a client ages each banner itself (about five
+seconds on screen); an older server omits it, which reads as just
+arrived.
 
 ```
 {"text":"A chimney fire!","at":[12.0,9.0]}

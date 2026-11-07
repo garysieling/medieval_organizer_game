@@ -2535,12 +2535,24 @@ pub fn village_library() -> Vec<DialogueTree> {
 /// A one-line backstory from a speaker's profile
 pub fn backstory(s: &Speaker) -> String {
     let mut parts: Vec<String> = vec![];
-    parts.push(match s.ideology {
-        "clergy" => format!("{} serves the village church.", s.name),
-        "merchant" => format!("{} trades on the road between villages.", s.name),
-        "lord" => format!("{} holds the manor's leases.", s.name),
-        _ => format!("{} works the fields for a day's wage.", s.name),
-    });
+    // the lead's their real standing: a craft named in their statuses
+    // outranks the ideology's guess, and a child is a child
+    let trade = s.status.iter().copied().find(|st| matches!(*st,
+        "smith" | "miller" | "baker" | "weaver" | "carpenter" | "mason"
+        | "shepherd" | "brewer" | "taverner" | "beekeeper" | "herb_wife"
+        | "fisher" | "charcoal_burner"));
+    if s.status.iter().any(|st| *st == "child") {
+        parts.push(format!("{} is still a child.", s.name));
+    } else if let Some(tr) = trade {
+        parts.push(format!("{} is the village {}.", s.name, tr.replace('_', " ")));
+    } else {
+        parts.push(match s.ideology {
+            "clergy" => format!("{} serves the village church.", s.name),
+            "merchant" => format!("{} trades on the road between villages.", s.name),
+            "lord" => format!("{} holds the manor's leases.", s.name),
+            _ => format!("{} works the fields for a day's wage.", s.name),
+        });
+    }
     for t in &s.traits {
         parts.push(match t {
             Trait::Lazy => "They'd sooner watch the clouds than the plough.".into(),
@@ -2554,6 +2566,7 @@ pub fn backstory(s: &Speaker) -> String {
         });
     }
     for st in &s.status {
+        if *st == "child" { continue; }
         parts.push(match *st {
             "sick" => "A cough's had them these two weeks.".into(),
             "hungry" => "The store ran out and the belly knows it.".into(),

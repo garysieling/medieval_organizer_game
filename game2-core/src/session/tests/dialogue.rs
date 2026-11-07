@@ -244,7 +244,5 @@ fn test_a_talk_opens_with_who_they_are() {
     g.open_player_talk(0, v, crate::game::conversation::Relation::Acquaintance, "the day's work");
     let t = g.seats[0].talk.as_ref().expect("a talk under way");
     // the profile line heads the talk - who they are before the gist
-    assert!(t.notes.first().map(|n| n.contains("work the fields")
-        || n.contains("church") || n.contains("road") || n.contains("manor")
-        || !n.is_empty()).unwrap_or(false), "the talk opened bare");
+    assert!(!t.profile.is_empty(), "the talk opened bare");
 }

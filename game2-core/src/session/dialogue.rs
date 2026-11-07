@@ -93,6 +93,8 @@ pub struct PlayerTalk {
     pub rel: Relation,
     pub seed: u64,
     pub picks: Vec<usize>,
+    /// Who they are, read ahead of what's on their mind
+    pub profile: String,
     /// What's on their mind, said after their opening line
     pub gist: String,
     /// The replies on offer now: (act, the line)
@@ -375,12 +377,12 @@ impl Game {
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
-        // who they are opens the talk: the profile line ahead of
-        // what's on their mind
-        let notes = vec![crate::game::dialogue_trees::backstory(&villager)];
+        let profile = crate::game::dialogue_trees::backstory(&villager);
         self.seats[seat].talk = Some(PlayerTalk {
-            id, who: v, villager, player, rel, seed, picks: vec![], gist: gist.to_string(),
-            options: vec![], opt_tree: None, since: self.tick, notes, asks,
+            id, who: v, villager, player, rel, seed, picks: vec![],
+            profile,
+            gist: gist.to_string(),
+            options: vec![], opt_tree: None, since: self.tick, notes: vec![], asks,
         });
         self.refresh_player_talk(seat);
     }
@@ -426,6 +428,9 @@ impl Game {
     /// What Talk drew out of them, and any narration that came of it
     fn gist_lines(t: &PlayerTalk, vname: &str) -> Vec<TalkLine> {
         let mut v = vec![];
+        if !t.profile.is_empty() {
+            v.push(TalkLine { who: None, name: String::new(), text: t.profile.clone(), gist: false });
+        }
         if !t.gist.is_empty() {
             v.push(TalkLine { who: Some(t.who), name: vname.to_string(), text: t.gist.clone(), gist: true });
         }

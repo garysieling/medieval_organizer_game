@@ -551,7 +551,8 @@ impl Game {
                 rgb: (190, 190, 210) });
         }
         let offers = household::on_offer_at(&self.world, b);
-        let stock_line = offers.iter().take(3).map(|(g, q, _)| format!("{} {}", g, q))
+        let stock_line = offers.iter().take(3).map(|(g, q, _)| format!("{}{} {}",
+            g, if goods::tier(g) == goods::Tier::Luxury { "*" } else { "" }, q))
             .collect::<Vec<_>>().join(" \u{00b7} ");
         lines.push(Line { x: 18, y: 390,
             text: if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
@@ -563,7 +564,7 @@ impl Game {
             let lean = if *pr > base * 1.1 { " \u{00b7} dear" }
                 else if *pr < base * 0.9 { " \u{00b7} cheap" } else { "" };
             // a luxury reads so - the street knows silk from salt
-            let kind = if goods::tier(g) == goods::Tier::Luxury { " \u{00b7} a luxury" } else { "" };
+            let kind = if goods::tier(g) == goods::Tier::Luxury { " \u{00b7} a luxury (* = luxury)" } else { "" };
             lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g{}{}", q, g, pr, lean, kind), rgb: (150, 210, 150) });
         }
         // the chain the shop worked today: what went in and what came out

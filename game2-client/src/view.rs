@@ -76,6 +76,32 @@ pub struct View {
     walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32, u32)>>,
 }
 
+/// The mystery panel's display line, composed the way the sim used to
+/// send it - a legacy bare-string entry (empty title) draws verbatim
+fn mystery_line(mz: &MysteryV) -> String {
+    if mz.title.is_empty() {
+        mz.asker_name.clone()
+    } else {
+        format!("Mystery: {} - {}/{} whispers ({} wants to know)",
+            mz.title, mz.heard, mz.total, mz.asker_name)
+    }
+}
+
+/// Where the asker's name lands in the wrapped panel line: (row, first
+/// char col, one past the last). The name rides inside the "(name" word,
+/// which greedy wrapping places identically whether or not the suffix
+/// follows, so wrapping just up to the name finds its row and column
+fn mystery_name_col(mz: &MysteryV) -> Option<(usize, usize, usize)> {
+    if mz.title.is_empty() || mz.asker_name.is_empty() { return None; }
+    let prefix = format!("Mystery: {} - {}/{} whispers (", mz.title, mz.heard, mz.total);
+    let lines = wrap_text(&format!("{}{}", prefix, mz.asker_name), 30);
+    let (row, last) = lines.iter().enumerate().last()?;
+    if row >= 3 { return None; }
+    let byte = last.find(&format!("({}", mz.asker_name))?;
+    let col = last[..byte].chars().count() + 1;
+    Some((row, col, col + mz.asker_name.chars().count()))
+}
+
 impl View {
     /// A view of the game drawn with `art`, looking at the market to start
     pub fn new(art: Art) -> View {
@@ -178,6 +204,19 @@ impl View {
             }
         }
         None
+    }
+
+    /// Which mystery-panel asker the mouse is over, as their villager
+    /// index - only the name's own cells answer; the rest of the line is
+    /// inert, and a legacy bare-string entry has no asker to click (#646)
+    pub fn mystery_hit(&self, m: &UiModel, mx: i32, my: i32) -> Option<usize> {
+        let mz = m.panel.mystery.as_ref()?;
+        let asker = mz.asker?;
+        let (row, c0, c1) = mystery_name_col(mz)?;
+        let y = 68 + row as i32 * 11;
+        let x0 = UI_X as i32 + 150 + c0 as i32 * GLYPH_W;
+        let x1 = UI_X as i32 + 150 + c1 as i32 * GLYPH_W;
+        (mx >= x0 && mx < x1 && my >= y && my < y + 11).then_some(asker)
     }
 
     /// The sprite a building draws with
@@ -840,10 +879,29 @@ impl View {
             draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
         }
         // the mystery doing the rounds, if the seat's piecing one
-        // together - right of the action buttons, where nothing else sits
+        // together - right of the action buttons, where nothing else sits;
+        // the asker's name is a button (mystery_hit knows the same rows)
         if let Some(mz) = &m.panel.mystery {
-            for (n, line) in wrap_text(mz, 30).iter().take(3).enumerate() {
-                draw_text(&mut buf, UI_X as i32 + 150, 68 + n as i32 * 11, line, 200, 180, 235);
+            let line = mystery_line(mz);
+            let name_col = mystery_name_col(mz);
+            for (n, l) in wrap_text(&line, 30).iter().take(3).enumerate() {
+                let y = 68 + n as i32 * 11;
+                // the name's cells draw bright - and brighter still under
+                // the mouse, the way the log's clickable lines do
+                let span = name_col.and_then(|(row, c0, c1)| (row == n).then_some((c0, c1)));
+                let hovered = span.map(|(c0, c1)| {
+                    mx >= UI_X as i32 + 150 + c0 as i32 * GLYPH_W
+                        && mx < UI_X as i32 + 150 + c1 as i32 * GLYPH_W
+                        && my >= y && my < y + 11
+                }).unwrap_or(false);
+                draw_text(&mut buf, UI_X as i32 + 150, y, l, 200, 180, 235);
+                if let Some((c0, c1)) = span {
+                    let chars: Vec<char> = l.chars().collect();
+                    let name: String = chars[c0..c1.min(chars.len())].iter().collect();
+                    let x = UI_X as i32 + 150 + c0 as i32 * GLYPH_W;
+                    let (r, g, b) = if hovered { (255, 240, 160) } else { (255, 220, 120) };
+                    draw_text(&mut buf, x, y, &name, r, g, b);
+                }
             }
         }
         // the powers' standing words on the org - one line, so a

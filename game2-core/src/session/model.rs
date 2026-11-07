@@ -194,7 +194,7 @@ pub struct PanelV {
     /// The village mystery the seat is piecing together, and how much
     /// of the gossip is in ("Mystery: ... - 3/5 whispers")
     #[serde(default)]
-    pub mystery: Option<String>,
+    pub mystery: Option<MysteryV>,
     /// Who the seat has gotten to know, by how far each bond runs
     #[serde(default)]
     pub social: SocialV,
@@ -322,6 +322,50 @@ impl<'de> Deserialize<'de> for LogEntryV {
         Ok(match Repr::deserialize(d)? {
             Repr::Plain(text) => LogEntryV { text, at: None, who: None },
             Repr::Full { text, at, who } => LogEntryV { text, at, who },
+        })
+    }
+}
+
+/// The seat's mystery under way, structured so the panel can make the
+/// asker's name a button: a click selects them and jumps there (#646).
+/// Older servers send the whole line as a bare string; that decodes
+/// with `title` empty and the line itself in `asker_name`, which the
+/// client draws verbatim with nothing clickable.
+#[derive(Debug, Clone, Serialize)]
+pub struct MysteryV {
+    pub title: String,
+    pub heard: usize,
+    pub total: usize,
+    pub asker_name: String,
+    /// The asker's villager index (like `Command::Select`), when they're
+    /// still on the roll
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asker: Option<usize>,
+    /// Where they stood this frame
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asker_at: Option<(f32, f32)>,
+}
+
+impl<'de> Deserialize<'de> for MysteryV {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            Plain(String),
+            Full {
+                title: String,
+                #[serde(default)] heard: usize,
+                #[serde(default)] total: usize,
+                asker_name: String,
+                #[serde(default)] asker: Option<usize>,
+                #[serde(default)] asker_at: Option<(f32, f32)>,
+            },
+        }
+        Ok(match Repr::deserialize(d)? {
+            Repr::Plain(line) => MysteryV { title: String::new(), heard: 0, total: 0,
+                asker_name: line, asker: None, asker_at: None },
+            Repr::Full { title, heard, total, asker_name, asker, asker_at } =>
+                MysteryV { title, heard, total, asker_name, asker, asker_at },
         })
     }
 }

@@ -501,6 +501,17 @@ fn main() {
                     cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     cmds.push(Command::TalkPick(pick));
                 }
+                // the mystery panel's asker name: select them and jump
+                // there, same as a positioned log line (#646)
+                if let Some(i) = view.mystery_hit(m, mx, my) {
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    if let Some(mz) = &m.panel.mystery {
+                        if let Some(at) = mz.asker_at {
+                            (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                        }
+                    }
+                    cmds.push(Command::Select(i));
+                }
                 // the conversation box: a speaker's line selects them, a
                 // choice button answers it (a reply, leave, or the call)
                 if let Some(c) = &m.convo {

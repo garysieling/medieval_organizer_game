@@ -574,6 +574,9 @@ impl Game {
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
+            monuments: self.monuments.iter().filter(|m| m.stood_on.is_some())
+                .map(|m| (m.pos.0, m.pos.1,
+                    format!("{} - {}", vill_name(m.honoree), m.title))).collect(),
             sites: self.sites.iter().map(|s| {
                 // the keeper: who holds the keep's first bed, when the
                 // site has one - the castle's lord, a town's first house

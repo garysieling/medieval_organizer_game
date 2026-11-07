@@ -413,6 +413,14 @@ impl View {
             buf.rect(sx - k(7.0), sy - k(7.0), k(14.0), k(1.0), 40, 40, 45);
         }
         // the martyr's plot: a grey cairn where they hanged him
+        // the monuments stand at their spots: a pale column that names
+        // the deed it keeps
+        for &(mx, my, ref _words) in &m.monuments {
+            let (sx, sy) = iso_to_screen_cam(mx as f32, my as f32, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            buf.rect(sx - k(2.0), sy - k(9.0), k(4.0), k(8.0), 210, 205, 195);
+            buf.rect(sx - k(3.0), sy - k(2.0), k(6.0), k(2.0), 170, 165, 155);
+        }
         if let Some((gx, gy)) = m.grave {
             let (sx, sy) = iso_to_screen_cam(gx, gy, cam_x, cam_y, zoom);
             let k = |v: f32| ((v * zoom).round() as i32).max(1);

@@ -701,6 +701,22 @@ pub struct Cairn {
     pub stones: u32,
 }
 
+/// A standing monument: the lord of the nearest castle pays for it
+/// when a villager's tale earns the honor - it builds over days and
+/// stands where folk walk
+pub struct Monument {
+    /// Where it stands (tile coords)
+    pub pos: (i32, i32),
+    /// The villager index it honors
+    pub honoree: usize,
+    /// What it's for - the tale's title
+    pub title: String,
+    /// The tick it finishes building (stands when tick >= this)
+    pub build_until: u64,
+    /// The day it stood (None while still rising)
+    pub stood_on: Option<u64>,
+}
+
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;
 
@@ -888,6 +904,9 @@ pub struct Game {
     /// The cairns: piles of stones raised for the lost, each one laid
     /// by a hand that remembers
     pub cairns: Vec<Cairn>,
+    /// The monuments: the village remembers only its greatest few - a
+    /// standing stone the castle's lord pays for when a tale earns it
+    pub monuments: Vec<Monument>,
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),

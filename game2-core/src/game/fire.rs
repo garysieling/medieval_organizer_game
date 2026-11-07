@@ -15,14 +15,18 @@ pub const BURN_TICKS: u8 = 3;
 pub const RECOVER_DAYS: u64 = 30;
 /// Per-tick chance a burning tile lights a flammable neighbour
 pub const SPREAD_CHANCE: f32 = 0.3;
+/// Days a doused tile stays wet enough that the fire can't take it again
+pub const DOUSE_DAYS: u64 = 2;
 
-/// The fire: what's alight, and what's burnt out and healing. Burning
-/// tiles hold the ticks they have left; scorched tiles hold the tick
-/// they're green again.
+/// The fire: what's alight, what's burnt out and healing, and what's been
+/// wet down and can't catch again yet. Burning tiles hold the ticks they
+/// have left; scorched tiles hold the tick they're green again; doused
+/// tiles hold the tick they're dry enough to burn.
 #[derive(Debug, Default)]
 pub struct Fire {
     pub burning: HashMap<(i32, i32), u8>,
     pub scorched: HashMap<(i32, i32), u64>,
+    pub doused: HashMap<(i32, i32), u64>,
 }
 
 impl Fire {
@@ -36,6 +40,20 @@ impl Fire {
 
     /// Whether a tile is burnt out and waiting to recover
     pub fn is_scorched(&self, x: i32, y: i32) -> bool { self.scorched.contains_key(&(x, y)) }
+
+    /// Whether a tile's still wet from a dousing - it won't catch
+    pub fn is_doused(&self, x: i32, y: i32, tick: u64) -> bool {
+        self.doused.get(&(x, y)).map(|&until| tick < until).unwrap_or(false)
+    }
+
+    /// A bucket on the flames: the tile goes out and stays wet long
+    /// enough that the fire can't take it straight back. Returns whether
+    /// it was alight.
+    pub fn douse(&mut self, x: i32, y: i32, tick: u64) -> bool {
+        if self.burning.remove(&(x, y)).is_none() { return false; }
+        self.doused.insert((x, y), tick + DOUSE_DAYS);
+        true
+    }
 
     /// Whether anything is alight within `within` tiles of (x, y) - the
     /// one place "is the fire near me" gets asked, so callers don't
@@ -60,9 +78,10 @@ impl Fire {
     }
 
     /// Light a tile if it can burn. Returns whether it caught.
-    pub fn ignite(&mut self, map: &TileMap, x: i32, y: i32) -> bool {
+    pub fn ignite(&mut self, map: &TileMap, x: i32, y: i32, tick: u64) -> bool {
         if self.burning.contains_key(&(x, y)) { return false; }
         if self.scorched.contains_key(&(x, y)) { return false; }
+        if self.is_doused(x, y, tick) { return false; }
         if !Self::flammable(map, x, y) { return false; }
         self.burning.insert((x, y), BURN_TICKS);
         true
@@ -91,6 +110,7 @@ impl Fire {
             for (dx, dy) in NEIGHBOURS {
                 let n = (x + dx, y + dy);
                 if self.burning.contains_key(&n) || self.scorched.contains_key(&n) { continue; }
+                if self.is_doused(n.0, n.1, tick) { continue; }
                 if !Self::flammable(map, n.0, n.1) { continue; }
                 if roll(n.0, n.1, tick) < SPREAD_CHANCE {
                     ignited.push(n);
@@ -116,11 +136,15 @@ impl Fire {
             }
         }
 
-        // the ground forgets, slowly
+        // the ground forgets, slowly - and the wet tiles dry off
         let healed: Vec<(i32, i32)> = self.scorched.iter()
             .filter(|(_, &until)| tick >= until)
             .map(|(&c, _)| c).collect();
         for c in healed { self.scorched.remove(&c); }
+        let dried: Vec<(i32, i32)> = self.doused.iter()
+            .filter(|(_, &until)| tick >= until)
+            .map(|(&c, _)| c).collect();
+        for c in dried { self.doused.remove(&c); }
 
         (ignited, out)
     }
@@ -161,12 +185,12 @@ mod tests {
         let m = map();
         let mut f = Fire::new();
         let (gx, gy) = find(&m, Tile::Grass);
-        assert!(f.ignite(&m, gx, gy), "grass catches");
-        assert!(!f.ignite(&m, gx, gy), "twice doesn't count");
+        assert!(f.ignite(&m, gx, gy, 0), "grass catches");
+        assert!(!f.ignite(&m, gx, gy, 0), "twice doesn't count");
         let (rx, ry) = find(&m, Tile::Road);
-        assert!(!f.ignite(&m, rx, ry), "the road is a firebreak");
+        assert!(!f.ignite(&m, rx, ry, 0), "the road is a firebreak");
         let (wx, wy) = find(&m, Tile::Wheat);
-        assert!(f.ignite(&m, wx, wy), "a standing crop burns - that's the tragedy");
+        assert!(f.ignite(&m, wx, wy, 0), "a standing crop burns - that's the tragedy");
     }
 
     #[test]
@@ -174,7 +198,7 @@ mod tests {
         let mut m = map();
         let mut f = Fire::new();
         let (gx, gy) = find(&m, Tile::Grass);
-        f.ignite(&m, gx, gy);
+        f.ignite(&m, gx, gy, 0);
         // every neighbour always catches: the fire runs to its firebreaks
         let (ignited, _) = f.tick_rolled(&mut m, 1, |_, _, _| 0.0);
         assert!(!ignited.is_empty(), "an eager fire spreads");
@@ -200,7 +224,7 @@ mod tests {
         let mut m = map();
         let mut f = Fire::new();
         let (gx, gy) = find(&m, Tile::Grass);
-        f.ignite(&m, gx, gy);
+        f.ignite(&m, gx, gy, 0);
         // nothing ever catches: the spark becomes a scorched patch
         for t in 1..=BURN_TICKS as u64 { f.tick_rolled(&mut m, t, |_, _, _| 1.0); }
         assert!(!f.active());
@@ -214,13 +238,13 @@ mod tests {
         let wall_cells: Vec<(i32, i32)> = m.walls.iter().map(|&(p, _)| p).collect();
         assert!(!wall_cells.is_empty());
         for &(x, y) in &wall_cells {
-            assert!(!f.ignite(&m, x, y), "stone doesn't catch at ({},{})", x, y);
+            assert!(!f.ignite(&m, x, y, 0), "stone doesn't catch at ({},{})", x, y);
         }
         // fire on the meadow laps at the wall but never comes through it
         let (x, y) = (8..=21).flat_map(|x| (24..=27).map(move |y| (x, y)))
             .find(|&(x, y)| Fire::flammable(&m, x, y))
             .expect("there's meadow below the south wall");
-        f.ignite(&m, x, y);
+        f.ignite(&m, x, y, 0);
         for t in 1..80 {
             f.tick_rolled(&mut m, t, |_, _, _| 0.0);
             if !f.active() { break; }
@@ -237,10 +261,30 @@ mod tests {
             panic!("the test map should have a wooded hill");
         };
         assert!(Fire::flammable(&m, tx, ty), "a wooded hill burns");
-        f.ignite(&m, tx, ty);
+        f.ignite(&m, tx, ty, 0);
         for t in 1..=BURN_TICKS as u64 { f.tick_rolled(&mut m, t, |_, _, _| 1.0); }
         assert!(!m.trees.contains(&(tx, ty)), "the tree is gone");
         assert!(!Fire::flammable(&m, tx, ty), "a bare hill doesn't catch");
+    }
+
+    #[test]
+    fn test_a_doused_tile_stays_wet() {
+        let mut m = map();
+        let mut f = Fire::new();
+        let (gx, gy) = find(&m, Tile::Grass);
+        f.ignite(&m, gx, gy, 0);
+        assert!(f.douse(gx, gy, 1), "the bucket puts it out");
+        assert!(!f.on_fire(gx, gy));
+        // wet ground won't catch again - not by a spark, not by the
+        // spread from a neighbour still alight
+        assert!(!f.ignite(&m, gx, gy, 1), "a wet tile won't re-light");
+        for t in 2..=DOUSE_DAYS {
+            let (ignited, _) = f.tick_rolled(&mut m, t, |_, _, _| 0.0);
+            assert!(!ignited.contains(&(gx, gy)), "the fire can't spread onto wet ground");
+        }
+        // and once it's dry it can burn again
+        f.tick_rolled(&mut m, DOUSE_DAYS + 1, |_, _, _| 1.0);
+        assert!(f.ignite(&m, gx, gy, DOUSE_DAYS + 1), "dry ground catches again");
     }
 
     #[test]
@@ -256,6 +300,6 @@ mod tests {
         m.build_at(hx, hy);
         assert!(Fire::flammable(&m, hx, hy), "a house on the hill is fuel, tree or no tree");
         let mut f = Fire::new();
-        assert!(f.ignite(&m, hx, hy), "the new house catches");
+        assert!(f.ignite(&m, hx, hy, 0), "the new house catches");
     }
 }

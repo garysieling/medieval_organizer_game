@@ -386,7 +386,7 @@ impl Game {
             // and now and then the vapours take fire, as they will; and
             // the acrolein reaches whoever's downwind - sharp on the eyes
             0 | 1 => {
-                if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1) {
+                if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1, tick) {
                     self.say(be, "She's caught - keep back!", TALK_BUBBLE_SECS);
                     self.log.push(format!("t{}: the oil takes fire on the meadow.", tick));
                 }

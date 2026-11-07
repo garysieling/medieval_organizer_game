@@ -340,6 +340,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // draws over her in the rare winter visit, and once the fight's
         // called its button's gone and she's pettable again
         CtxAct::Snowballs => Button { label: "Snowballs!".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (130, 160, 220) },
+        // and shares it again with the fire - pushed last of all, a blaze
+        // near enough to throw on outranks a cat or a snowball
+        CtxAct::Douse => Button { label: "Throw water".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (70, 120, 170) },
         // shares the card's bottom-left corner with Seat/Strike on the right
         CtxAct::Flyers => Button { label: "Flyers".into(), key: ' ', x: UI_X as i32 + 10, y: 438, w: 130, h: 16, color: (120, 100, 40) },
         CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
@@ -546,6 +549,10 @@ pub enum Goal {
     Deliver(usize),
     /// The collector riding the takings out to the castle (site index)
     Remit(usize),
+    /// The bucket line's first leg: walk to the water's edge and fill up
+    FillBucket,
+    /// Second leg: carry the bucket to this burning tile and douse it
+    DouseFire((i32, i32)),
 }
 
 /// A herb patch on the map: a tuft of `herb` that regrows a season after
@@ -894,6 +901,17 @@ pub struct Game {
     pub next_ink_boiler: u64,
     /// Whatever's alight on the map, and the ground it scorched
     pub fire: Fire,
+    /// The bucket line answering the fire: the nearest few able villagers
+    /// hold their ground at the flames while everyone else runs for home.
+    /// `fire_spent` are those who found no reachable blaze this fire;
+    /// both clear when the last tile goes out
+    pub fire_crew: Vec<Entity>,
+    pub fire_spent: crate::engine::det::HashSet<Entity>,
+    /// Passable tiles beside the water - where the brigade fills buckets.
+    /// Scanned lazily once; the river doesn't move
+    pub fire_banks: Option<Vec<(i32, i32)>>,
+    /// Whether this blaze's bucket line has been cried - the log says it once
+    pub fire_line_called: bool,
     /// Which buildings currently stand derelict (the view darkens them)
     pub derelict: crate::engine::det::HashSet<usize>,
     /// Which buildings the disasters finished - indices into
@@ -1591,6 +1609,7 @@ impl Game {
             crate::timed!("sim.advance_meeting", self.advance_meeting());
             crate::timed!("sim.advance_player_talks", self.advance_player_talks());
             crate::timed!("sim.advance_travels", self.advance_travels());
+            crate::timed!("sim.fire_duty", self.fire_duty());
             crate::timed!("sim.snowball_frame", self.snowball_frame());
             // and the jobs folk asked of the Wanderer: picked up where
             // they lie, handed over where they're bound

@@ -228,10 +228,13 @@ impl Game {
                 self.ruin_building(be, "gone, burned to shells");
             }
         }
-        // folk beside the flames run for home - errands and all
+        // folk beside the flames run for home - errands and all. The
+        // bucket line is the exception: they hold their ground at the
+        // fire, wet and purposeful, where everyone else runs
         if self.fire.active() {
             let fleeing: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                 !villager::is_dead(&self.world, v)
+                    && !self.fire_crew.contains(&v)
                     && self.world.get_component::<Pos>(v)
                         .map(|p| self.fire.burns_near(p.x.round() as i32, p.y.round() as i32, 2))
                         .unwrap_or(false)
@@ -253,9 +256,12 @@ impl Game {
                 }
             }
             // and whoever's still in it when it closes takes the hurt -
-            // the fire outruns the slowest feet
+            // the fire outruns the slowest feet. The bucket line stands
+            // its ground: they've buckets and sense enough to take the
+            // heat where the runners can't
             let caught: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                 !villager::is_dead(&self.world, v)
+                    && !self.fire_crew.contains(&v)
                     && self.world.get_component::<Pos>(v)
                         .map(|p| self.fire.burning.keys().any(|&(bx, by)| {
                             (p.x.round() as i32 - bx).abs() + (p.y.round() as i32 - by).abs() <= 1
@@ -270,6 +276,170 @@ impl Game {
         }
         if !lit.is_empty() || !out.is_empty() {
             self.log.push(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()));
+        }
+    }
+
+    /// The bucket line: while anything's alight the nearest four able
+    /// villagers answer it - to the water, then onto the flames - and
+    /// hold their ground where everyone else runs for home. The line's
+    /// cried once a blaze, in the log
+    pub(in crate::session) fn fire_duty(&mut self) {
+        if !self.fire.active() {
+            if !self.fire_crew.is_empty() || !self.fire_spent.is_empty() {
+                self.fire_crew.clear();
+                self.fire_spent.clear();
+                self.fire_line_called = false;
+            }
+            return;
+        }
+        // the dead and the held fall off the line
+        self.fire_crew.retain(|&v| !villager::is_dead(&self.world, v)
+            && !crate::game::dungeon::unavailable(&self.world, v)
+            && !self.fire_spent.contains(&v));
+        // hands with nothing under way take up the bucket again
+        let idle: Vec<Entity> = self.fire_crew.iter().copied()
+            .filter(|&v| !self.travels.iter().any(|t| t.who == v)).collect();
+        for v in idle {
+            if self.task_firefighter(v) {
+                self.say(v, "To the river!", CHAT_BUBBLE_SECS);
+            } else {
+                // no way to water from here - they're off the line
+                self.fire_spent.insert(v);
+                self.fire_crew.retain(|&c| c != v);
+            }
+        }
+        // and the line tops up to four, nearest the flames first
+        while self.fire_crew.len() < 4 {
+            let Some(v) = self.nearest_firefighter() else { break };
+            // pulled off whatever they were doing, the way the runners are
+            self.travels.retain(|t| t.who != v);
+            if self.task_firefighter(v) {
+                self.fire_crew.push(v);
+                self.say(v, "Fire! To the river!", CHAT_BUBBLE_SECS);
+            } else {
+                self.fire_spent.insert(v);
+            }
+        }
+        if !self.fire_line_called && !self.fire_crew.is_empty() {
+            self.fire_line_called = true;
+            self.log.push(format!("t{}: the bucket line forms - {} to the river!", self.tick, self.fire_crew.len()));
+        }
+    }
+
+    /// Whether `v` can answer the fire: alive, free, a villager of the
+    /// village - not the country, not a child, not mid-meeting, and not
+    /// away on the lord's or the country's business
+    fn fire_fighter_able(&self, v: Entity) -> bool {
+        if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { return false; }
+        if self.world.get_component::<Kid>(v).is_some() { return false; }
+        if self.world.get_component::<country::Outlander>(v).is_some() { return false; }
+        if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { return false; }
+        !self.travels.iter().any(|t| t.who == v && matches!(t.goal,
+            Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(_)))
+    }
+
+    /// The able villager nearest the flames who isn't already on the
+    /// line - village index breaks ties, so the pick is stable
+    fn nearest_firefighter(&self) -> Option<Entity> {
+        let burning: Vec<(i32, i32)> = self.fire.burning.keys().copied().collect();
+        if burning.is_empty() { return None; }
+        self.villagers.iter().enumerate()
+            .filter(|(_, &v)| self.fire_fighter_able(v)
+                && !self.fire_crew.contains(&v) && !self.fire_spent.contains(&v))
+            .filter_map(|(i, &v)| {
+                let p = self.world.get_component::<Pos>(v)?;
+                let d = burning.iter().map(|&(bx, by)| {
+                    (p.x.round() as i32 - bx).abs() + (p.y.round() as i32 - by).abs()
+                }).min().unwrap_or(i32::MAX);
+                Some((d, i, v))
+            })
+            .min_by_key(|&(d, i, _)| (d, i))
+            .map(|(_, _, v)| v)
+    }
+
+    /// Set `v` walking the bucket line's first leg - to the water
+    fn task_firefighter(&mut self, v: Entity) -> bool {
+        self.send(v, Goal::FillBucket)
+    }
+
+    /// The bank tile nearest `from`: dry ground beside the water - where
+    /// a bucket gets filled. The banks are scanned once and kept; the
+    /// river doesn't move
+    pub(in crate::session) fn fire_bank_near(&mut self, from: (i32, i32)) -> Option<(i32, i32)> {
+        if self.fire_banks.is_none() {
+            let mut banks = vec![];
+            for y in 0..self.map.height as i32 {
+                for x in 0..self.map.width as i32 {
+                    if !matches!(self.map.get(x, y), Some(Tile::Water) | Some(Tile::River)) { continue; }
+                    for &(dx, dy) in &[(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)] {
+                        let b = (x + dx, y + dy);
+                        if self.map.passable(b.0, b.1) { banks.push(b); }
+                    }
+                }
+            }
+            banks.sort_unstable();
+            banks.dedup();
+            self.fire_banks = Some(banks);
+        }
+        self.fire_banks.as_ref()?.iter().copied()
+            .filter(|&(x, y)| self.map.passable(x, y))
+            .min_by_key(|&(x, y)| ((x - from.0).abs() + (y - from.1).abs(), x, y))
+    }
+
+    /// Where `who` stands to throw water on burning tile `t`: the
+    /// nearest dry neighbour - they don't stand in the flames. The tile
+    /// itself only when nothing beside it will do
+    pub(in crate::session) fn douse_spot(&self, t: (i32, i32), from: (i32, i32)) -> Option<(i32, i32)> {
+        [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)].iter()
+            .map(|&(dx, dy)| (t.0 + dx, t.1 + dy))
+            .filter(|&(x, y)| self.map.passable(x, y))
+            .min_by_key(|&(x, y)| ((x - from.0).abs() + (y - from.1).abs(), x, y))
+            .or_else(|| self.map.passable(t.0, t.1).then_some(t))
+    }
+
+    /// Send `who` (bucket in hand) to the nearest burning tile they can
+    /// still reach. False when no flame answers - they walk off wet.
+    fn send_fire_to(&mut self, who: Entity, from: (i32, i32)) -> bool {
+        let mut targets: Vec<(i32, i32)> = self.fire.burning.keys().copied().collect();
+        targets.sort_by_key(|&t| ((t.0 - from.0).abs() + (t.1 - from.1).abs(), t.0, t.1));
+        // a handful is enough: the first reachable blaze takes the pail
+        for t in targets.into_iter().take(8) {
+            if self.send(who, Goal::DouseFire(t)) { return true; }
+        }
+        false
+    }
+
+    /// The bucket line's first leg done: at the water with an empty
+    /// pail - on to the nearest flame they can still reach
+    pub(in crate::session) fn fire_bucket_fill(&mut self, who: Entity) {
+        if !self.fire.active() { return; }
+        let Some(from) = self.world.get_component::<Pos>(who)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)) else { return };
+        if !self.send_fire_to(who, from) {
+            self.fire_spent.insert(who);
+            self.fire_crew.retain(|&c| c != who);
+            self.say(who, "It's too far - let it burn.", CHAT_BUBBLE_SECS);
+        }
+    }
+
+    /// The second leg done: the bucket's off on the flames. Back to the
+    /// water while the fire lives; a tile someone else already saved
+    /// just moves the pail to the next flame
+    pub(in crate::session) fn fire_bucket_douse(&mut self, who: Entity, t: (i32, i32)) {
+        if self.fire.burning.contains_key(&t) {
+            self.fire.douse(t.0, t.1, self.tick);
+            self.say(who, "Got it!", CHAT_BUBBLE_SECS);
+            if self.fire.active() { self.send(who, Goal::FillBucket); }
+            return;
+        }
+        // already out - the pail's still full: the next flame alight
+        if !self.fire.active() { return; }
+        let Some(from) = self.world.get_component::<Pos>(who)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)) else { return };
+        if !self.send_fire_to(who, from) {
+            self.fire_spent.insert(who);
+            self.fire_crew.retain(|&c| c != who);
+            self.say(who, "It's too far - let it burn.", CHAT_BUBBLE_SECS);
         }
     }
 

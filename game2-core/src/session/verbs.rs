@@ -469,6 +469,12 @@ impl Game {
                 }
             }
         }
+        // a fire close enough to throw on: the player can pitch in -
+        // pushed last so it wins the shared row slot over a cat or a
+        // snowball
+        if self.fire_douse_spot_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::Douse);
+        }
     }
 
     /// Take a contextual action (entry `i` of ctx_actions)
@@ -900,6 +906,7 @@ impl Game {
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
+            CtxAct::Douse => self.player_douse_at(seat),
         };
         if !msg.is_empty() {
             self.log.push(format!("t{}: {}", tick, msg));
@@ -931,6 +938,33 @@ impl Game {
             .filter(|(_, d2)| *d2 <= 36.0)
             .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(i, _)| i)
+    }
+
+    /// The burning tile nearest the seat's player within throwing
+    /// distance, if any - the Throw water button lives and dies by this
+    fn fire_douse_spot_at(&self, seat: usize) -> Option<(i32, i32)> {
+        let (px, py) = self.player_pos_at(seat);
+        self.fire.burning.keys().copied()
+            .map(|t| {
+                let (dx, dy) = (t.0 as f32 - px, t.1 as f32 - py);
+                (dx * dx + dy * dy, t)
+            })
+            .filter(|&(d2, _)| d2 <= 9.0)
+            .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal).then(a.1.cmp(&b.1)))
+            .map(|(_, t)| t)
+    }
+
+    /// Throw a bucket on the nearest flame in reach. Returns the log
+    /// line; "" when there's nothing alight close enough
+    fn player_douse_at(&mut self, seat: usize) -> String {
+        let Some(t) = self.fire_douse_spot_at(seat) else { return String::new() };
+        if self.fire.douse(t.0, t.1, self.tick) {
+            let (px, py) = self.player_pos_at(seat);
+            self.emit_sfx("splash", px, py, 0.6);
+            "You throw a bucket of water on the flames.".into()
+        } else {
+            String::new()
+        }
     }
 
     /// Stroke the stray cat: a little warmth each time, then she needs a

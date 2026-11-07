@@ -193,6 +193,8 @@ fn voice(kind: &str, t: f32, x: f32) -> f32 {
         // the snowball fight's hubbub: warbling children shrieks, short
         "snowballs" => ((2.0 * PI * 660.0 * t).sin() + (2.0 * PI * 880.0 * t).sin())
             * (0.5 + 0.5 * (2.0 * PI * 9.0 * t).sin()) * (-8.0 * t).exp() * 0.5,
+        // a bucket on the flames: a short crackle of water
+        "splash" => noise.signum() * noise.abs() * (-14.0 * t).exp() * 0.5,
         // anything else: a small blip so it isn't silent
         _ => (2.0 * PI * 520.0 * t).sin() * (-15.0 * t).exp() * 0.4,
     }
@@ -200,7 +202,7 @@ fn voice(kind: &str, t: f32, x: f32) -> f32 {
 
 /// How long each cue's voice rings for, in seconds
 fn voice_len(kind: &str) -> f32 {
-    match kind { "rain" => 0.8, "anvil" => 0.4, "festival" => 1.4, "wonder" => 1.5, "bell" => 2.0, "snowballs" => 0.9, _ => 0.25 }
+    match kind { "rain" => 0.8, "anvil" => 0.4, "festival" => 1.4, "wonder" => 1.5, "bell" => 2.0, "snowballs" => 0.9, "splash" => 0.3, _ => 0.25 }
 }
 
 /// Render captured cues into 16-bit stereo PCM on the WATCH timeline:

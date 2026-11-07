@@ -100,7 +100,7 @@ impl Game {
                     .and_then(|&h| toast_spot(&self.world, h));
                 if let Some(&h) = homes.get((roll as usize / 3) % homes.len().max(1)) {
                     let lit = self.world.get_component::<Pos>(h).copied()
-                        .map(|p| self.fire.ignite(&self.map, p.x.round() as i32, p.y.round() as i32))
+                        .map(|p| self.fire.ignite(&self.map, p.x.round() as i32, p.y.round() as i32, self.tick))
                         .unwrap_or(false);
                     let name = self.world.get_component::<household::Building>(h)
                         .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());

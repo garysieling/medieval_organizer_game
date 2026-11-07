@@ -301,7 +301,7 @@ impl Game {
         let Some(&c) = cells.get(((roll / 5) as usize) % cells.len().max(1)) else { return };
         let mut lit = 0;
         for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] {
-            if self.fire.ignite(&self.map, c.0 + dx, c.1 + dy) { lit += 1; }
+            if self.fire.ignite(&self.map, c.0 + dx, c.1 + dy, self.tick) { lit += 1; }
         }
         if lit > 0 {
             self.log.push(format!("t{}: the bolt sets the grass alight - white fire in the dry grass.", self.tick));

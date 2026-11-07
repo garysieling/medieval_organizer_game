@@ -277,6 +277,12 @@ Older servers omit it; read it as empty.
 "notes: Corvin"]}` - the folk who've said yes, by name, so the seat can
 watch the plan fill before it calls the meeting.
 
+`panel.mystery` is the village mystery the seat is piecing together, or
+absent: one line naming the question and the count of whispers heard -
+`"Mystery: who keeps leaving gifts on doorsteps - 3/5 whispers (Matilda
+wants to know)"`. Older servers omit it; read it as no mystery under
+way.
+
 `snowballs` lists the snowballs in the air this frame, each `[x,y]` where
 it has got to - empty outside a snowball fight. Older servers omit it;
 read it as empty.

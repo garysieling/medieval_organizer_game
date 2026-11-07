@@ -89,6 +89,54 @@ fn test_telling_the_asker_makes_them_a_friend() {
 }
 
 #[test]
+fn test_the_question_passes_on_when_the_asker_is_gone() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    let asker = folk[0];
+    g.seats[0].mystery = Some(SeatMystery {
+        def: 0, known: (1 << FACTS) - 1, asker });
+    // the asker dies - telling it to them is refused
+    g.world.add_component(asker, crate::game::villager::Dead);
+    g.seats[0].picked = true;
+    g.seats[0].selected_target = g.villagers.iter().position(|&v| v == asker).unwrap();
+    let msg = g.mystery_deliver_at(0);
+    assert!(msg.contains("gone from the village"), "{}", msg);
+    assert!(g.seats[0].mystery.is_some(), "the mystery's still under way");
+    // and at dawn the question finds new ears - what was heard still counts
+    let mut rng = Rng(5);
+    g.mystery_dawn(g.tick, &mut rng);
+    let m = g.seats[0].mystery.as_ref().expect("the mystery lives on");
+    assert_ne!(m.asker, asker, "somebody else is asking now");
+    assert!(g.villagers.contains(&m.asker) && !crate::game::villager::is_dead(&g.world, m.asker),
+        "and they're somebody who can still hear the answer");
+    assert_eq!(m.heard(), FACTS, "what was heard still counts");
+}
+
+#[test]
+fn test_the_same_question_doesnt_come_round_twice() {
+    let mut g = Game::new();
+    let mut rng = Rng(9);
+    // the last-told mystery sits out of the next draw: no two deals in
+    // a row pick the same one
+    let mut last_dealt: Option<usize> = None;
+    let mut deals = 0;
+    for _ in 0..400 {
+        g.mystery_dawn(g.tick, &mut rng);
+        if let Some(m) = &g.seats[0].mystery {
+            if let Some(p) = last_dealt {
+                assert_ne!(m.def, p, "the same question doesn't come round twice running");
+            }
+            last_dealt = Some(m.def);
+            deals += 1;
+            // clear it so the next dawn can deal another
+            g.seats[0].mystery = None;
+            g.seats[0].mystery_wait = 0;
+        }
+    }
+    assert!(deals > 5, "enough dawns dealt a few: {}", deals);
+}
+
+#[test]
 fn test_it_wont_be_told_to_the_wrong_person() {
     let mut g = Game::new();
     let folk = askers(&g);

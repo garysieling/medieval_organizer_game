@@ -36,25 +36,64 @@ const MYSTERY_CHANCE: i32 = 12;
 const FACT_CHANCE: i32 = 12;
 
 impl Game {
+    /// Grown folk of the village who could actually be asked - and hear
+    /// the answer: not children, not the dead or held, not country folk
+    fn mystery_folk(&self) -> Vec<Entity> {
+        self.villagers.iter().copied().filter(|&v| {
+            self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
+        }).collect()
+    }
+
+    /// Who's asking after `def`: the trade it suits, if the village's got
+    /// one going, else any grown folk
+    fn mystery_asker(&self, def: usize, folk: &[Entity], rng: &mut Rng) -> Option<Entity> {
+        let suited = MYSTERIES[def].asker.and_then(|voc| folk.iter().copied().find(|&v|
+            self.world.get_component::<crate::game::vocation::Craft>(v)
+                .map(|c| c.vocation == voc).unwrap_or(false)));
+        suited.or_else(|| folk.get(rng.below(folk.len() as i32) as usize).copied())
+    }
+
     /// Dawn of each day: now and then a mystery starts doing the rounds -
     /// somebody's asking, and the gossip's out there to be heard
     pub(super) fn mystery_dawn(&mut self, tick: u64, rng: &mut Rng) {
         for seat in 0..self.seats.len() {
-            if self.seats[seat].agent || self.seats[seat].mystery.is_some() { continue; }
+            if self.seats[seat].agent { continue; }
+            // the asker's gone - died, or held where they can't be asked:
+            // the question passes to another pair of ears, and the
+            // gossip heard so far still counts
+            if let Some(m) = &self.seats[seat].mystery {
+                if crate::game::dungeon::unavailable(&self.world, m.asker) {
+                    let folk = self.mystery_folk();
+                    match self.mystery_asker(m.def, &folk, rng) {
+                        Some(v) => {
+                            let who = self.name_of(v);
+                            if let Some(mm) = &mut self.seats[seat].mystery { mm.asker = v; }
+                            self.log.push(format!("t{}: {} is asking after it now.", tick, who));
+                        }
+                        None => {
+                            self.seats[seat].mystery = None;
+                            self.log.push(format!("t{}: the question's gone unanswered.", tick));
+                        }
+                    }
+                }
+            }
+            if self.seats[seat].mystery.is_some() { continue; }
             if tick < self.seats[seat].mystery_wait || rng.below(100) >= MYSTERY_CHANCE { continue; }
-            // who's asking: the trade the mystery suits, if the village
-            // has one going, else any grown folk of the village
-            let folk: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
-                self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
-                    && !crate::game::villager::is_dead(&self.world, v)
-                    && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
-            }).collect();
+            let folk = self.mystery_folk();
             if folk.is_empty() { continue; }
-            let def = rng.below(MYSTERIES.len() as i32) as usize;
-            let suited = MYSTERIES[def].asker.and_then(|voc| folk.iter().copied().find(|&v|
-                self.world.get_component::<crate::game::vocation::Craft>(v)
-                    .map(|c| c.vocation == voc).unwrap_or(false)));
-            let asker = suited.unwrap_or(folk[rng.below(folk.len() as i32) as usize]);
+            // which mystery: any but the one just told, once there's been one
+            let n = MYSTERIES.len();
+            let last = self.seats[seat].mystery_last;
+            let def = if n > 1 && last < n {
+                let mut d = rng.below((n - 1) as i32) as usize;
+                if d >= last { d += 1; }
+                d
+            } else {
+                rng.below(n as i32) as usize
+            };
+            let Some(asker) = self.mystery_asker(def, &folk, rng) else { continue };
             self.seats[seat].mystery_last = def;
             self.seats[seat].mystery = Some(SeatMystery { def, known: 0, asker });
             let title = MYSTERIES[def].title;
@@ -94,6 +133,9 @@ impl Game {
         if !m.solved() { return "You haven't heard all of it yet.".into(); }
         let v = self.villagers[self.seats[seat].selected_target];
         if v != m.asker { return "They weren't the one asking.".into(); }
+        if crate::game::dungeon::unavailable(&self.world, v) {
+            return "They can't hear you - they've gone from the village.".into();
+        }
         // within earshot, like the job handover
         let (px, py) = self.player_pos_at(seat);
         let near = self.world.get_component::<Pos>(v)

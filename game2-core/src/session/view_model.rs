@@ -860,11 +860,21 @@ impl Game {
         }
         // how the sickness runs: the stage's word, if they're ill -
         // getting worse reads differently to on the mend
-        if let Some(d) = world.query::<crate::sim::illness::Disease>().iter()
-            .find_map(|&e| world.get_component::<crate::sim::illness::Disease>(e)
-                .filter(|d| d.patient == v)) {
+        if let Some(stage) = world.query::<crate::sim::illness::Disease>().iter()
+            .filter_map(|&e| world.get_component::<crate::sim::illness::Disease>(e)
+                .filter(|d| d.patient == v).map(|d| d.stage))
+            .max_by_key(|s| match *s {
+                // the worst case tells: a recovering belly can hide a
+                // failing liver if the first match wins
+                crate::sim::illness::Stage::Latent => 0,
+                crate::sim::illness::Stage::Recovering => 1,
+                crate::sim::illness::Stage::Mild => 2,
+                crate::sim::illness::Stage::Moderate => 3,
+                crate::sim::illness::Stage::Severe => 4,
+                crate::sim::illness::Stage::Critical => 5,
+            }) {
             use crate::sim::illness::Stage::*;
-            let word = match d.stage {
+            let word = match stage {
                 Latent => "", Mild => "a touch of it", Moderate => "taken ill",
                 Severe => "laid low", Critical => "near death", Recovering => "on the mend",
             };

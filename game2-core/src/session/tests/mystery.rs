@@ -55,10 +55,24 @@ fn test_talk_now_and_then_passes_on_a_fact() {
     assert!(m.solved(), "five facts and it's whole - got {}", m.heard());
     assert!(g.toasts.iter().any(|(t, ..)| t.contains("Mystery solved")),
         "the solve is a notification: {:?}", g.toasts);
-    // and the panel says how much of it's in
-    let line = g.mystery_panel_line(0).expect("the panel names the mystery");
-    assert!(line.contains(&mysteries::MYSTERIES[m.def].title) && line.contains("5/5"),
-        "the line reads the question and the count: {}", line);
+    // and the panel says how much of it's in, with the asker as data
+    // so their name can be a button (#646)
+    let mz = g.mystery_panel_line(0).expect("the panel names the mystery");
+    assert_eq!(mz.title, mysteries::MYSTERIES[m.def].title);
+    assert_eq!((mz.heard, mz.total), (FACTS, FACTS), "five of five whispers");
+    assert_eq!(mz.asker, Some(g.villagers.iter().position(|&v| v == m.asker).unwrap()));
+    assert_eq!(mz.asker_name, g.name_of(m.asker));
+    assert!(mz.asker_at.is_some(), "the asker's spot rides along");
+    // the solved line names the asker and carries their click-through
+    // meta - entity and spot snapshotted when it was pushed (#646)
+    let i = g.log.iter().position(|l| l.contains("that's all of it")).expect("the solve is logged");
+    let line = &g.log[i];
+    assert!(line.contains(&g.name_of(m.asker)), "the asker is named: {}", line);
+    let meta = g.log.meta(i);
+    let want = g.villagers.iter().position(|&v| v == m.asker).unwrap();
+    assert_eq!(meta.who, Some(want), "clicking selects the asker");
+    let ap = *g.world.get_component::<Pos>(m.asker).unwrap();
+    assert_eq!(meta.at, Some((ap.x, ap.y)), "and jumps to where they stood");
 }
 
 #[test]
@@ -156,3 +170,4 @@ fn test_it_wont_be_told_to_the_wrong_person() {
     assert!(msg.contains("weren't the one asking"), "{}", msg);
     assert!(g.seats[0].mystery.is_some(), "the mystery's still under way");
 }
+

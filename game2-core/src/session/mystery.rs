@@ -117,8 +117,13 @@ impl Game {
         let text = def.facts[i].to_string();
         let m2 = self.seats[seat].mystery.clone().unwrap();
         if m2.solved() {
-            self.toasts.push((format!("Mystery solved: {}", def.title), self.tick + 80));
-            self.log.push(format!("t{}: that's all of it - the mystery of {} is yours to tell.", self.tick, def.title));
+            // name whoever's been asking - the log line's clickable, the
+            // toast jumps to them (#646)
+            let who = self.name_of(m2.asker);
+            self.toasts.push_at((format!("Mystery solved: {} - {} wants to hear it.", def.title, who),
+                self.tick + 80), toast_spot(&self.world, m2.asker));
+            self.log_entity(m2.asker, format!("t{}: that's all of it - the mystery of {} is {}'s to tell.",
+                self.tick, def.title, who));
         }
         Some(text)
     }
@@ -166,13 +171,19 @@ impl Game {
     }
 
     /// The panel's line for the mystery under way: the question and how
-    /// much of the gossip is in
-    pub fn mystery_panel_line(&self, seat: usize) -> Option<String> {
+    /// much of the gossip is in, with the asker carried as data so their
+    /// name can be a button (#646)
+    pub fn mystery_panel_line(&self, seat: usize) -> Option<MysteryV> {
         let m = self.seats[seat].mystery.as_ref()?;
         let def = &MYSTERIES[m.def];
-        let who = self.name_of(m.asker);
-        Some(format!("Mystery: {} - {}/{} whispers ({} wants to know)",
-            def.title, m.heard(), FACTS, who))
+        Some(MysteryV {
+            title: def.title.to_string(),
+            heard: m.heard(),
+            total: FACTS,
+            asker_name: self.name_of(m.asker),
+            asker: self.villagers.iter().position(|&v| v == m.asker),
+            asker_at: self.world.get_component::<Pos>(m.asker).map(|p| (p.x, p.y)),
+        })
     }
 }
 

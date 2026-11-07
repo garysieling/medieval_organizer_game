@@ -5,6 +5,7 @@ mod action_log;
 mod basics;
 mod blocker;
 mod bubble;
+mod camera;
 mod campaign_part_grant;
 mod dead_portrait;
 mod death;

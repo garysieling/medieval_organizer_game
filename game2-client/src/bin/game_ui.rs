@@ -202,6 +202,8 @@ fn main() {
     let mut search_at = 0usize;
     // leftover edge-scroll drift too small for the whole-px camera
     let mut edge_cam = (0.0f32, 0.0f32);
+    // where the player stood last frame, for the camera's follow
+    let mut player_seen: Option<(f32, f32)> = None;
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
@@ -320,6 +322,15 @@ fn main() {
                     (view.cam_x, view.cam_y) = session::camera_on(p.pos.0, p.pos.1);
                     cam_centered = true;
                 }
+            }
+        }
+
+        // the character walking clean off the map view: the camera
+        // follows them back to centre, though only while they move -
+        // a deliberate pan or jump with them standing still isn't fought
+        if let Some(m) = &cur_model {
+            if let Some(cam) = client::camera_follow(m, (view.cam_x, view.cam_y), view.zoom, &mut player_seen) {
+                (view.cam_x, view.cam_y) = cam;
             }
         }
 

@@ -9,6 +9,7 @@ mod economy;
 mod land;
 mod meetings;
 mod people;
+pub(in crate::session) mod cairns;
 pub(in crate::session) mod hearth;
 pub(in crate::session) mod post;
 pub(in crate::session) mod prison;

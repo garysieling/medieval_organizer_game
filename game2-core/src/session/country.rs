@@ -418,6 +418,7 @@ impl Game {
         let i = self.villagers.len();
         self.world.add_component(v, Health { condition: 0.9, immunity: 0.5 });
         self.world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
+        self.world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
         self.world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         self.world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
         self.world.add_component(v, Satchel::default());

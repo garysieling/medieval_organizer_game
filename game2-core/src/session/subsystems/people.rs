@@ -27,6 +27,7 @@ impl Game {
         self.world.add_component(v, KidGrowth { age_days: 0, errands: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+        self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
         self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
@@ -94,6 +95,7 @@ impl Game {
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+        self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
         // a newcomer joins the parish
         self.join_parish(v);
         self.villagers.push(v);

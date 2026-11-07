@@ -116,6 +116,63 @@ fn test_a_parcel_is_carried_out_to_the_far_village() {
         "the log says the parcel landed: {:?}", g.log.iter().rev().take(4).collect::<Vec<_>>());
 }
 
+/// One job at a time: a second ask can't be taken while the first's
+/// still under way - the offer waits
+#[test]
+fn test_only_one_job_at_a_time() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    assert!(folk.len() >= 3, "enough folk to ask");
+    let (giver, other) = (folk[0], folk[1]);
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Note, target: QuestTarget::Villager(other),
+        stage: QuestStage::ToCarry, pickup: None, expires: g.tick + 10 });
+    // another folk's job going begging, picked and in earshot
+    g.pending_quests.push(pending(folk[2], QuestKind::Egg, QuestTarget::Villager(folk[2]),
+        Some((g.chicken_at.0, g.chicken_at.1))));
+    g.seats[0].selected_target = g.villagers.iter().position(|&v| v == folk[2]).unwrap();
+    let msg = g.accept_quest_at(0);
+    assert!(msg.contains("already got a job"), "the refusal says why: {}", msg);
+    let q = g.seats[0].quest.as_ref().expect("the first job's still under way");
+    assert_eq!(q.giver, giver, "and it wasn't swapped out");
+    assert_eq!(g.pending_quests.len(), 1, "the second ask still waits");
+}
+
+/// Doing a job for someone bumps them to known: the deed's a bond, and
+/// they open up enough that the card reads "known"
+#[test]
+fn test_a_finished_job_makes_them_known() {
+    let mut g = Game::new();
+    let folk = askers(&g);
+    let (giver, other) = (folk[0], folk[1]);
+    // enough self-interest in the pool to climb the whole ladder
+    if let Some(life) = g.world.get_component_mut::<InnerLife>(giver) {
+        for w in [Want::GoodFood, Want::Love, Want::Music, Want::Faith] {
+            if !life.wants.contains(&w) { life.wants.push(w); }
+        }
+    }
+    g.seats[0].quest = Some(PlayerQuest {
+        giver, kind: QuestKind::Note, target: QuestTarget::Villager(other),
+        stage: QuestStage::ToCarry, pickup: None, expires: g.tick + 10 });
+    let who = g.villagers.iter().position(|&v| v == other).unwrap();
+    g.seats[0].picked = true;
+    g.seats[0].selected_target = who;
+    let op = *g.world.get_component::<Pos>(other).unwrap();
+    if let Some(p) = g.world.get_component_mut::<Pos>(g.player) { p.x = op.x; p.y = op.y; }
+    g.act_at(0, 0);
+    assert!(g.seats[0].quest.is_none(), "handing it over ends the job");
+    let stage = crate::game::organizing::stage_of(&g.world, g.player, giver);
+    assert_eq!(stage, crate::game::organizing::RelStage::Known,
+        "a job done for them reads as known, got {:?}", stage);
+    // and the giver's card says so
+    g.seats[0].picked = true;
+    g.seats[0].selected_target = g.villagers.iter().position(|&v| v == giver).unwrap();
+    let m = g.ui_model();
+    let card = m.inspector.expect("the picked villager's card");
+    assert!(card.lines.iter().any(|l| l.text.contains("you know them")),
+        "the card names the stage: {:?}", card.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
+}
+
 /// A fetch spot beside an occupied tile still counts: the pickup is the
 /// passable tile's centre, and dawn's check has to find that tile, not
 /// the blocked one the centre rounds up onto

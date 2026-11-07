@@ -82,6 +82,7 @@ mod orgskills;
 mod pacing;
 mod painter;
 mod panel;
+mod parade;
 mod pedlar;
 mod perf;
 mod perfume;

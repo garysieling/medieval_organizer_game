@@ -4,6 +4,12 @@ use crate::session::*;
 fn test_the_feast_gathers_the_village() {
     let mut g = Game::new();
     g.festival_tick(45);
+    // the feast waits at the cross for the column to walk it in -
+    // walk it straight out: the parade's own tests cover the march
+    if let Some(f) = g.formation.take() {
+        for &m in &f.members { g.world.remove_component::<villager::InFormation>(m); }
+        if let formation::FormationKind::Parade { feast } = f.kind { g.parade_resolved(feast, &f.members); }
+    }
     assert!(g.log.iter().any(|l| l.contains("the village gathers")),
         "the log names the feast");
     // to a place in the ring round the market cross
@@ -39,6 +45,12 @@ fn test_the_feast_feeds_the_wants() {
         household::add_stock(b, "bread", 20);
     }
     g.festival_tick(45);
+    // the feast waits at the cross for the column to walk it in -
+    // walk it straight out: the parade's own tests cover the march
+    if let Some(f) = g.formation.take() {
+        for &m in &f.members { g.world.remove_component::<villager::InFormation>(m); }
+        if let formation::FormationKind::Parade { feast } = f.kind { g.parade_resolved(feast, &f.members); }
+    }
     let fed = g.villagers.iter().filter(|&&v| {
         g.world.get_component::<Hunger>(v).map(|h| h.value > 30.0).unwrap_or(false)
     }).count();

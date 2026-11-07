@@ -104,10 +104,12 @@ const LOG_TRIM_TO: usize = 12288;
 
 
 /// Whether the crowd-separation pass may push this villager aside: not the
-/// dead, and not someone on their way to food
+/// dead, not someone on their way to food, and not the marching - a
+/// column keeps step, it doesn't make room
 fn makes_room(world: &World, v: Entity) -> bool {
     !villager::is_dead(world, v)
         && world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none()
+        && world.get_component::<villager::InFormation>(v).is_none()
         && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
         && !routine::holds_slot(world, v)
 }

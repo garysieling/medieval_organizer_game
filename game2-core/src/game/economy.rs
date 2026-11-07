@@ -21,7 +21,7 @@ pub struct Producer {
     pub partial: crate::engine::det::HashMap<String, f32>,
 }
 
-/// System: each producer runs one cycle per tick against the village
+/// Demo-only system: each producer runs one cycle per tick against the village
 /// stockpile (the first Stockpile in the world), converting inputs to
 /// outputs when the stock covers them
 pub struct ProductionChainSystem;

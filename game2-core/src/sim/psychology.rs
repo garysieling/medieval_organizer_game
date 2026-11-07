@@ -170,7 +170,7 @@ pub struct Mourned;
 /// Relationship strength at which someone grieves a death
 pub const GRIEF_TIE: f32 = 0.3;
 
-/// System: when someone dies (villager::is_dead - health 0, or marked Dead
+/// Demo-only system: when someone dies (villager::is_dead - health 0, or marked Dead
 /// as the windowed game does after removing Health), everyone still alive
 /// who was attached to them - their primary bond, or a relationship of at
 /// least GRIEF_TIE - records a Loss episode, shaking their attachment
@@ -203,19 +203,6 @@ impl crate::engine::ecs::System for GriefSystem {
                 .collect();
             for m in mourners {
                 record_episode(world, m, Episode { with: dead, kind: EpisodeKind::Loss });
-            }
-        }
-    }
-}
-
-/// System: attachment episodes accumulate; styles emerge
-pub struct AttachmentSystem;
-impl crate::engine::ecs::System for AttachmentSystem {
-    fn run(&mut self, world: &mut World) {
-        for e in world.query::<AttachmentHistory>() {
-            if let Some(hist) = world.get_component::<AttachmentHistory>(e) {
-                let style = infer_style(hist);
-                let _ = style; // would store as component
             }
         }
     }

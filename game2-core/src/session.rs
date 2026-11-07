@@ -16,6 +16,7 @@ pub mod roster;
 pub mod formation;
 
 pub mod journal;
+pub mod gamelog;
 pub mod kpi;
 pub mod layout;
 pub mod seat;
@@ -137,7 +138,7 @@ fn sickness_name(world: &World, who: Entity) -> Option<String> {
 fn note_story(
     tales: &mut crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
     told: &mut crate::engine::det::HashSet<usize>,
-    log: &mut Vec<String>,
+    log: &mut gamelog::GameLog,
     i: usize, tick: u64, kind: crate::sim::story::EventKind, desc: String,
 ) {
     let ev = crate::sim::story::StoryEvent { tick, kind, description: desc };
@@ -156,7 +157,7 @@ fn note_story(
             crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
             crate::sim::story::StoryTheme::Community => "a tale of the commons",
         };
-        log.push(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word));
+        log.push_who(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word), i);
     }
 }
 
@@ -875,7 +876,7 @@ pub struct Game {
     pub tick: u64,
     pub paused: bool,
     pub speed: u32,   // 1=normal 2=fast 4=turbo
-    pub log: Vec<String>,
+    pub log: gamelog::GameLog,
     /// Lines trimmed off the log's front so far - a cursor into "every
     /// line ever pushed" is `log_dropped + index into log`, so readers
     /// that pace the log (the balance harness) survive a trim
@@ -1240,6 +1241,22 @@ impl std::ops::DerefMut for Game {
 }
 
 impl Game {
+    /// A log line about villager `i`: click selects them and jumps to
+    /// where they stood when it happened (#645)
+    pub(in crate::session) fn log_villager(&mut self, i: usize, line: String) {
+        let at = self.villagers.get(i)
+            .and_then(|&v| self.world.get_component::<Pos>(v)).map(|p| (p.x, p.y));
+        self.log.push_at_who(line, at, Some(i));
+    }
+
+    /// A log line about the villager entity `e`: resolves their index
+    /// for `who` the way `name_of` does, and snapshots where they stood
+    pub(in crate::session) fn log_entity(&mut self, e: Entity, line: String) {
+        let i = self.villagers.iter().position(|&v| v == e);
+        let at = self.world.get_component::<Pos>(e).map(|p| (p.x, p.y));
+        self.log.push_at_who(line, at, i);
+    }
+
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
@@ -1576,7 +1593,7 @@ impl Game {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
                     toasts.push_at((format!("{} has died.", vill_name(i)), tick + 60), toast_spot(world, *v));
-                    log.push(format!("t{}: {} died.", tick, vill_name(i)));
+                    log.push_at_who(format!("t{}: {} died.", tick, vill_name(i)), toast_spot(world, *v), Some(i));
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
@@ -1614,14 +1631,16 @@ impl Game {
         for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
             match (now, was.as_ref()) {
                 (Some(name), None) => {
-                    log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name));
+                    log.push_at_who(format!("t{}: {} is taken with {}", tick, vill_name(i), name),
+                        world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)), Some(i));
                     note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
                         crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
                 }
                 (None, Some(old)) => {
                     // a disease gone because it took them isn't a recovery
                     if self.died_on.get(i).and_then(|d| *d).is_none() {
-                        log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
+                        log.push_at_who(format!("t{}: {} recovered from {}", tick, vill_name(i), old),
+                            world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)), Some(i));
                         note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
                             crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
                     }
@@ -1755,7 +1774,7 @@ impl Game {
         // the log is a rolling window - the oldest lines drop in blocks
         if self.log.len() > LOG_MAX {
             let dropped = self.log.len() - LOG_TRIM_TO;
-            self.log.drain(..dropped);
+            self.log.drop_front(dropped);
             self.log_dropped += dropped;
         }
         // movement is still processed while paused, but relationships and

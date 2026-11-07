@@ -19,7 +19,8 @@ impl Game {
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
         let path = self.trail_path(start, self.village).unwrap_or_default();
         self.minstrel = Some(Minstrel { e, path, playing_until: None });
-        self.log.push(format!("t{}: a travelling minstrel has come to town.", self.tick));
+        self.log.push_at_who(format!("t{}: a travelling minstrel has come to town.", self.tick),
+            toast_spot(&self.world, self.market_food), None);
     }
 
     /// One frame of the minstrel's visit: ride to the market, play a
@@ -81,7 +82,8 @@ impl Game {
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
         let path = self.trail_path(start, self.village).unwrap_or_default();
         self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None, rumor_sold: false });
-        self.log.push(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick));
+        self.log.push_at_who(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick),
+            toast_spot(&self.world, self.market_food), None);
     }
 
     /// One frame of the pedlar's visit: walk in, pitch the stall, trade
@@ -159,7 +161,7 @@ impl Game {
                     if let Some(s) = m.stall { self.world.destroy_entity(s); }
                     self.world.destroy_entity(m.e);
                     self.next_pedlar = self.tick + 60 + self.rng.next() % 60;
-                    self.log.push(format!("t{}: the pedlar's moved on.", self.tick));
+                    self.log_entity(m.e, format!("t{}: the pedlar's moved on.", self.tick));
                     return;
                 }
                 let p = self.world.get_component_mut::<Pos>(m.e).unwrap();
@@ -179,7 +181,8 @@ impl Game {
             .unwrap_or((self.town_wall.0 + 12, self.town_wall.3 + 6));
         let path = self.trail_path(start, camp).unwrap_or_default();
         self.circus = Some(Circus { e, path, camped_until: None, camp });
-        self.log.push(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick));
+        self.log.push_at_who(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick),
+            Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
     }
 
     /// One frame of the circus: walk in, camp a fortnight of wonder and
@@ -252,7 +255,7 @@ impl Game {
                 });
             if let Some(m) = mark {
                 let name = self.name_of(m);
-                self.log.push(format!("t{}: {} has run off with the circus!", tick, name));
+                self.log_entity(m, format!("t{}: {} has run off with the circus!", tick, name));
                 // the road takes them whole - whatever errand they were
                 // on is spent
                 self.travels.retain(|t| t.who != m);
@@ -260,7 +263,8 @@ impl Game {
             }
             self.circus = None;
             self.next_circus = tick + 300 + self.rng.next() % 200;
-            self.log.push(format!("t{}: the circus folds its tents and goes.", tick));
+            self.log.push_at_who(format!("t{}: the circus folds its tents and goes.", tick),
+                Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
         }
     }
 
@@ -287,7 +291,8 @@ impl Game {
             .unwrap_or((self.town_wall.0 + 16, self.town_wall.3 + 6));
         let path = self.trail_path(start, camp).unwrap_or_default();
         self.ink_boiler = Some(InkBoiler { e, path, working_until: None, camp });
-        self.log.push(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick));
+        self.log.push_at_who(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick),
+            Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
     }
 
     /// One frame of the ink-maker's visit: walk out to the meadow, work
@@ -321,7 +326,7 @@ impl Game {
                 if b.path.is_empty() {
                     self.world.destroy_entity(b.e);
                     self.next_ink_boiler = self.tick + 250 + self.rng.next() % 200;
-                    self.log.push(format!("t{}: the ink-maker's moved on, smelling of his trade.", self.tick));
+                    self.log_entity(b.e, format!("t{}: the ink-maker's moved on, smelling of his trade.", self.tick));
                     return;
                 }
                 let p = self.world.get_component_mut::<Pos>(b.e).unwrap();
@@ -356,7 +361,7 @@ impl Game {
                 // ask until someone can actually make the walk
                 for v in candidates {
                     if self.send(v, Goal::TalkTo(be)) {
-                        self.log.push(format!("t{}: a villager carries the day's crusts out to the cauldron.", tick));
+                        self.log_entity(v, format!("t{}: a villager carries the day's crusts out to the cauldron.", tick));
                         break;
                     }
                 }
@@ -364,7 +369,8 @@ impl Game {
             3 => {
                 // day four: dripped on the slate it hangs like thin glue
                 self.say(be, "See it hang off the slate? That's varnish now.", TALK_BUBBLE_SECS);
-                self.log.push(format!("t{}: the oil's boiled down to varnish - sticky as thin glue off the slate.", tick));
+                self.log.push_at_who(format!("t{}: the oil's boiled down to varnish - sticky as thin glue off the slate.", tick),
+                    Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
             }
             4 => {
                 // day five: the lampblack goes in - soot, not ash - and
@@ -380,7 +386,8 @@ impl Game {
                     }
                 }
                 self.say(be, "The black goes in - there's your ink.", TALK_BUBBLE_SECS);
-                self.log.push(format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD));
+                self.log.push_at_who(format!("t{}: lampblack into the varnish - the ink-maker sells {} ink before he goes.", tick, INK_YIELD),
+                    Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
             }
             // days one and two: the oil just boils, watched and smoking -
             // and now and then the vapours take fire, as they will; and
@@ -388,7 +395,8 @@ impl Game {
             0 | 1 => {
                 if self.rng.below(100) < OIL_FLARE_PCT && self.fire.ignite(&self.map, camp.0, camp.1, tick) {
                     self.say(be, "She's caught - keep back!", TALK_BUBBLE_SECS);
-                    self.log.push(format!("t{}: the oil takes fire on the meadow.", tick));
+                    self.log.push_at_who(format!("t{}: the oil takes fire on the meadow.", tick),
+                        Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
                 }
                 let near: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                     !villager::is_dead(&self.world, v)

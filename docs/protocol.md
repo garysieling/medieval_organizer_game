@@ -209,6 +209,18 @@ arrived.
 {"text":"A hailstorm batters the thatch","at":null}
 ```
 
+`log` holds the event log's visible window, newest first. Each entry is
+`{"text":"...","at":[x,y],"who":8}`: `at` is where it happened,
+`who` the villager index it was about - either may be absent, and an
+entry with neither is a plain line. A click on a positioned entry jumps
+the camera there; one naming a villager also selects them. Older
+servers send bare strings in `log`; those read as unclickable lines.
+
+```
+{"text":"t640: Aldric died.","at":[11.0,7.5],"who":3}
+{"text":"t641: drizzle begins"}
+```
+
 `focus` is the sim's camera ask, or absent: `[x, y, frame]` - where to
 look and the frame it was asked on, so a client can answer each ask
 once (an introduction's name, say). Older servers omit it; read it as

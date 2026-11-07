@@ -224,9 +224,10 @@ impl Game {
                         }
                     }
                     self.say(v, "...", CHAT_BUBBLE_SECS);
-                    self.log.push(format!("t{}: lightning strikes the village - one of them's knocked flat where it lands.", self.tick));
+                    self.log_entity(v, format!("t{}: lightning strikes the village - one of them's knocked flat where it lands.", self.tick));
                 } else {
-                    self.log.push(format!("t{}: lightning strikes the common - white fire in the grass.", self.tick));
+                    self.log.push_at_who(format!("t{}: lightning strikes the common - white fire in the grass.", self.tick),
+                        Some((self.village.0 as f32 + 0.5, self.village.1 as f32 + 0.5)), None);
                 }
                 self.toasts.push(("Lightning!".into(), self.tick + 40));
                 // and now and then the bolt itself is the spark: a knot
@@ -304,7 +305,8 @@ impl Game {
             if self.fire.ignite(&self.map, c.0 + dx, c.1 + dy, self.tick) { lit += 1; }
         }
         if lit > 0 {
-            self.log.push(format!("t{}: the bolt sets the grass alight - white fire in the dry grass.", self.tick));
+            self.log.push_at_who(format!("t{}: the bolt sets the grass alight - white fire in the dry grass.", self.tick),
+                Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)), None);
             self.toasts.push_at(("Fire!".into(), self.tick + 40), Some((c.0 as f32 + 0.5, c.1 as f32 + 0.5)));
         }
     }

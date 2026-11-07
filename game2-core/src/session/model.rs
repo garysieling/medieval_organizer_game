@@ -287,6 +287,40 @@ pub struct ToastV {
     pub born: Option<u32>,
 }
 
+/// One event-log line plus where it happened / who it was about, when the
+/// event had a position or a villager to point at (#645): a click jumps
+/// the camera there and selects the villager. Older servers send bare
+/// strings; those decode as plain, unclickable lines.
+#[derive(Debug, Clone, Serialize)]
+pub struct LogEntryV {
+    pub text: String,
+    /// Where it happened, snapshotted at log time
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<(f32, f32)>,
+    /// The villager it was about (a villager index, like `Command::Select`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub who: Option<usize>,
+}
+
+impl<'de> Deserialize<'de> for LogEntryV {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            Plain(String),
+            Full {
+                text: String,
+                #[serde(default)] at: Option<(f32, f32)>,
+                #[serde(default)] who: Option<usize>,
+            },
+        }
+        Ok(match Repr::deserialize(d)? {
+            Repr::Plain(text) => LogEntryV { text, at: None, who: None },
+            Repr::Full { text, at, who } => LogEntryV { text, at, who },
+        })
+    }
+}
+
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
@@ -349,7 +383,10 @@ pub struct UiModel {
     pub player_hunger: f32,
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<ToastV>,
-    pub log: Vec<String>,
+    /// The event log, newest first after `visible_log`'s ordering; entries
+    /// carrying `at`/`who` are clickable on the LOG panel (#645)
+    #[serde(default)]
+    pub log: Vec<LogEntryV>,
     /// How many log lines have already rolled out the top - the log's a
     /// rolling window; the view marks the drop with a count
     #[serde(default)]

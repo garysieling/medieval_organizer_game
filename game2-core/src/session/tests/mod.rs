@@ -74,6 +74,7 @@ mod log_priority;
 mod magic;
 mod market;
 mod mine;
+mod levy;
 mod monuments;
 mod stone_circle;
 mod cairns;

@@ -724,6 +724,17 @@ pub struct Monument {
 #[derive(Clone, Copy, PartialEq)]
 pub enum MonumentKind { Column, Circle }
 
+/// The imperial levy's course: the crown's collector takes grain at a
+/// pace, and if the lord intercedes the pace halves for a stretch
+pub struct ImperialProject {
+    /// The day the levy lifts
+    pub until: u64,
+    /// Servings the store bleeds a day while it runs
+    pub rate: u32,
+    /// The lord's intercession holds until this day (rate halves)
+    pub eased_until: u64,
+}
+
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;
 
@@ -914,6 +925,9 @@ pub struct Game {
     /// The monuments: the village remembers only its greatest few - a
     /// standing stone the castle's lord pays for when a tale earns it
     pub monuments: Vec<Monument>,
+    /// The emperor's levy: while it runs, the granary bleeds for a
+    /// project nobody here will ever see
+    pub imperial_project: Option<ImperialProject>,
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),

@@ -988,6 +988,7 @@ impl Game {
             brigade_gear: 0,
             cairns: vec![],
             monuments: vec![],
+            imperial_project: None,
             derelict: Default::default(),
             ruined: Default::default(),
             cutaways: Default::default(),

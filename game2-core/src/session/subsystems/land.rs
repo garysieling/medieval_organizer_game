@@ -235,6 +235,9 @@ impl Game {
             let fleeing: Vec<Entity> = self.villagers.iter().copied().filter(|&v| {
                 !villager::is_dead(&self.world, v)
                     && !self.fire_crew.contains(&v)
+                    // a seat's own villager walks where its master says -
+                    // the flames don't cancel her errand either
+                    && !self.seats.iter().any(|s| s.player == v)
                     && self.world.get_component::<Pos>(v)
                         .map(|p| self.fire.burns_near(p.x.round() as i32, p.y.round() as i32, 2))
                         .unwrap_or(false)

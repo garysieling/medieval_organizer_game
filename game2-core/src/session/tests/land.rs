@@ -228,6 +228,25 @@ fn test_the_player_can_pitch_in() {
 }
 
 #[test]
+fn test_a_seat_alike_is_neither_drafted_nor_sent_running() {
+    let mut g = Game::new();
+    g.speed = 4;
+    let (fx, fy) = fire_spot(&g);
+    g.fire.ignite(&g.map, fx, fy, g.tick);
+    // claim a neighbour of the flames before the line musters, errand in hand
+    let v = g.villagers.iter().copied().find(|&v|
+        !villager::is_dead(&g.world, v) && g.world.get_component::<Kid>(v).is_none()).unwrap();
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: (fx + 1) as f32, y: fy as f32 };
+    g.add_agent_seat(v);
+    g.travels.push(Travel { who: v, path: vec![(fx, fy + 3)], goal: Goal::Gather("wood", (fx, fy)) });
+    for _ in 0..8 { g.update(); }
+    assert!(!g.fire_crew.contains(&v), "the line doesn't draft a seat's own");
+    g.fire_tick(g.tick);
+    assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Gather(..))),
+        "and the flames don't cancel her errand either");
+}
+
+#[test]
 fn test_the_village_names_the_ground_it_stands_on() {
     let g = Game::new();
     if let Some(n) = &g.landform {

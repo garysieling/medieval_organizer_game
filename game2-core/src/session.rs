@@ -645,6 +645,8 @@ pub struct Circus {
     pub camped_until: Option<u64>,
     /// The meadow tile it pitches on
     pub camp: (i32, i32),
+    /// The troupe that travelled with him - the camp's performers
+    pub members: Vec<Entity>,
 }
 
 /// The ink-maker: once a year or so he walks the road in and boils his
@@ -960,6 +962,9 @@ pub struct Game {
     pub ink_boiler: Option<InkBoiler>,
     /// Day the next ink-maker is due
     pub next_ink_boiler: u64,
+    /// Failed road-outs: a no-show's retry count, shared across kinds
+    /// - the road's either broken for everyone or it isn't
+    pub visit_misses: u8,
     /// Whatever's alight on the map, and the ground it scorched
     pub fire: Fire,
     /// The bucket line answering the fire: the nearest few able villagers

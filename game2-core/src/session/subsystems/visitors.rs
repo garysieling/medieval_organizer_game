@@ -12,15 +12,51 @@ impl Game {
         })
     }
 
+    /// The nearest paved road to a point - the far road a traveller
+    /// actually sets out from when his first road doesn't reach us
+    fn road_near(&self, at: (i32, i32)) -> (i32, i32) {
+        for r in 1..40 {
+            for dy in -r..=r {
+                for dx in -r..=r {
+                    let p = (at.0 + dx, at.1 + dy);
+                    if self.map.get(p.0, p.1) == Some(Tile::Road) { return p; }
+                }
+            }
+        }
+        at
+    }
+
+    /// The road a visitor sets out on: the far road's path to the
+    /// village, or None when no road reaches - an offscreen visit is
+    /// no visit at all
+    fn visitor_path(&mut self) -> Option<((i32, i32), Vec<(i32, i32)>)> {
+        let start = self.road_far();
+        if let Some(path) = self.trail_path(start, self.village) {
+            self.visit_misses = 0;
+            return Some((start, path));
+        }
+        // no road to us: nobody comes, and the log tells no lies
+        self.visit_misses += 1;
+        if self.visit_misses < 7 { return None; }
+        // the far road keeps failing him: he sets out from nearer in
+        let near = self.road_near(start);
+        self.visit_misses = 0;
+        self.trail_path(near, self.village).map(|path| (near, path))
+    }
+
     /// The travelling minstrel rides in
     pub fn spawn_minstrel(&mut self) {
+        let Some((start, path)) = self.visitor_path() else {
+            self.next_minstrel = self.tick + 1;
+            return;
+        };
         let e = self.world.create_entity();
-        let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        let path = self.trail_path(start, self.village).unwrap_or_default();
         self.minstrel = Some(Minstrel { e, path, playing_until: None });
         self.log.push_at_who(format!("t{}: a travelling minstrel has come to town.", self.tick),
             toast_spot(&self.world, self.market_food), None);
+        self.toasts.push_at(("A travelling minstrel has come to town!".into(), self.tick + 40),
+            toast_spot(&self.world, self.market_food));
     }
 
     /// One frame of the minstrel's visit: ride to the market, play a
@@ -77,13 +113,17 @@ impl Game {
 
     /// The roving pedlar comes up the road
     pub fn spawn_pedlar(&mut self) {
+        let Some((start, path)) = self.visitor_path() else {
+            self.next_pedlar = self.tick + 1;
+            return;
+        };
         let e = self.world.create_entity();
-        let start = self.road_far();
         self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        let path = self.trail_path(start, self.village).unwrap_or_default();
         self.pedlar = Some(Pedlar { e, path, selling_until: None, stall: None, rumor_sold: false });
         self.log.push_at_who(format!("t{}: a pedlar comes up the road - pots, pins, and word of the next village.", self.tick),
             toast_spot(&self.world, self.market_food), None);
+        self.toasts.push_at(("A pedlar has come to town!".into(), self.tick + 40),
+            toast_spot(&self.world, self.market_food));
     }
 
     /// One frame of the pedlar's visit: walk in, pitch the stall, trade
@@ -173,16 +213,35 @@ impl Game {
 
     /// The circus comes up the road and pitches on the meadow by the gate
     pub fn spawn_circus(&mut self) {
-        let e = self.world.create_entity();
-        let start = self.road_far();
-        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
-        // a meadow spot just outside the south wall
+        // a meadow spot just outside the south wall - the road in runs
+        // to the market, then the troupe turns off for the meadow
         let camp = self.map.nearest_buildable(self.town_wall.0 + 4, self.town_wall.3 + 3)
             .unwrap_or((self.town_wall.0 + 12, self.town_wall.3 + 6));
-        let path = self.trail_path(start, camp).unwrap_or_default();
-        self.circus = Some(Circus { e, path, camped_until: None, camp });
+        let Some((start, mut path)) = self.visitor_path() else {
+            self.next_circus = self.tick + 1;
+            return;
+        };
+        if let Some(p) = self.world.get_component::<Pos>(self.market_food).copied() {
+            if let Some(leg) = self.trail_path((p.x.round() as i32, p.y.round() as i32), camp) {
+                path.extend(leg);
+            }
+        }
+        let e = self.world.create_entity();
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        // the troupe travels with him: a camp is a camp for having
+        // people in it, not one man alone in a field
+        let mut members = vec![];
+        for i in 0..4 {
+            let m = self.world.create_entity();
+            self.world.add_component(m, Pos { x: start.0 as f32 - (i + 1) as f32 * 0.6,
+                y: start.1 as f32 - (i + 1) as f32 * 0.6 });
+            members.push(m);
+        }
+        self.circus = Some(Circus { e, path, camped_until: None, camp, members });
         self.log.push_at_who(format!("t{}: a circus comes up the road - tents on the meadow by the gate.", self.tick),
             Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
+        self.toasts.push_at(("A circus has come to town!".into(), self.tick + 40),
+            Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)));
     }
 
     /// One frame of the circus: walk in, camp a fortnight of wonder and
@@ -203,8 +262,33 @@ impl Game {
             } else {
                 Self::follow_path(p, &mut c.path, tr_spd);
             }
+            // the troupe trails him in, a loose file on the road
+            if let Some(lp) = self.world.get_component::<Pos>(c.e).copied() {
+                for (i, &m) in c.members.iter().enumerate() {
+                    if let Some(mp) = self.world.get_component_mut::<Pos>(m) {
+                        let (dx, dy) = (lp.x - (i + 1) as f32 * 0.6 - mp.x, lp.y - (i + 1) as f32 * 0.6 - mp.y);
+                        let d = (dx * dx + dy * dy).sqrt();
+                        if d > 0.3 { mp.x += dx / d * tr_spd.min(d); mp.y += dy / d * tr_spd.min(d); }
+                    }
+                }
+            }
             self.circus = Some(c);
         } else {
+            // camped: the performers wander the ring - juggling,
+            // tuning, showing off - the meadow's their stage
+            if let Some(lp) = self.world.get_component::<Pos>(c.e).copied() {
+                let t = self.tick as i32;
+                for (i, &m) in c.members.iter().enumerate() {
+                    if let Some(mp) = self.world.get_component_mut::<Pos>(m) {
+                        let ring = (t / 20 + i as i32) as usize % 8;
+                        let (tx, ty) = (lp.x + [1.5,1.0,0.0,-1.0,-1.5,-1.0,0.0,1.0][ring],
+                                        lp.y + [0.0,1.0,1.5,1.0,0.0,-1.0,-1.5,-1.0][ring]);
+                        let (dx, dy) = (tx - mp.x, ty - mp.y);
+                        let d = (dx * dx + dy * dy).sqrt();
+                        if d > 0.1 { mp.x += dx / d * (tr_spd * 0.4).min(d); mp.y += dy / d * (tr_spd * 0.4).min(d); }
+                    }
+                }
+            }
             self.circus = Some(c);
         }
     }
@@ -261,6 +345,11 @@ impl Game {
                 self.travels.retain(|t| t.who != m);
                 self.send(m, Goal::Exile);
             }
+            // the whole troupe goes - no performer left standing in
+            // a field that isn't a camp anymore
+            for m in self.circus.as_ref().map(|c| c.members.clone()).unwrap_or_default() {
+                self.world.destroy_entity(m);
+            }
             self.circus = None;
             self.next_circus = tick + 300 + self.rng.next() % 200;
             self.log.push_at_who(format!("t{}: the circus folds its tents and goes.", tick),
@@ -283,16 +372,25 @@ impl Game {
     /// The ink-maker comes up the road and pitches his cauldron on the
     /// meadow outside the gate - where the law wants a fire like his
     pub fn spawn_ink_boiler(&mut self) {
-        let e = self.world.create_entity();
-        let start = self.road_far();
-        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
+        let Some((start, mut path)) = self.visitor_path() else {
+            self.next_ink_boiler = self.tick + 1;
+            return;
+        };
         // a clear spot beyond the south wall, off the circus's patch
         let camp = self.map.nearest_buildable(self.town_wall.0 + 8, self.town_wall.3 + 4)
             .unwrap_or((self.town_wall.0 + 16, self.town_wall.3 + 6));
-        let path = self.trail_path(start, camp).unwrap_or_default();
+        if let Some(p) = self.world.get_component::<Pos>(self.market_food).copied() {
+            if let Some(leg) = self.trail_path((p.x.round() as i32, p.y.round() as i32), camp) {
+                path.extend(leg);
+            }
+        }
+        let e = self.world.create_entity();
+        self.world.add_component(e, Pos { x: start.0 as f32, y: start.1 as f32 });
         self.ink_boiler = Some(InkBoiler { e, path, working_until: None, camp });
         self.log.push_at_who(format!("t{}: an ink-maker comes up the road - his cauldron will smoke on the meadow, where such fires belong.", self.tick),
             Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)), None);
+        self.toasts.push_at(("An ink-maker has come to town!".into(), self.tick + 40),
+            Some((camp.0 as f32 + 0.5, camp.1 as f32 + 0.5)));
     }
 
     /// One frame of the ink-maker's visit: walk out to the meadow, work

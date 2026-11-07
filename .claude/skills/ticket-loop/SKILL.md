@@ -1,6 +1,6 @@
 ---
 name: ticket-loop
-description: Work one GitHub issue end to end - claim an agent-ready ticket, plan how to test it, grill the user with questions, branch + worktree, implement using the repo's existing verification tools, survive the AI PR review, merge, then take the next ticket. Use when asked to "take a ticket", "work an issue", "pick up issue #N", "do the next ticket", or run the ticket loop.
+description: Work one GitHub issue end to end - claim a grilled ticket, plan how to test it, branch + worktree, implement using the repo's existing verification tools, survive the AI PR review, merge, then take the next ticket. Use when asked to "take a ticket", "work an issue", "pick a grilled ticket", "do the next ticket", or run the ticket loop.
 allowed-tools:
   - Read
   - Write
@@ -23,20 +23,23 @@ Repo: `github.com/garysieling/game2`. Pass `-R garysieling/game2` to every
 
 ## Stage 0 - Find a safe ticket
 
-Only issues labeled **`agent-ready`** are safe to take. That label means a
-human filled in the ticket form: acceptance criteria, a verify plan, and
-the UI surface. Everything else is not yours.
+Only issues labeled **`grilled`** are safe to take - `/grill` already
+asked the user the hard questions and recorded the answers on the issue.
+(`agent-ready` tickets a human fully specified are also eligible - they
+skipped grilling by definition.) Everything else is not yours: if the
+user hands you an un-grilled ticket, offer to `/grill` it first.
 
 ```bash
+gh issue list -R garysieling/game2 --label grilled --state open
 gh issue list -R garysieling/game2 --label agent-ready --state open
 gh pr list  -R garysieling/game2 --state open --search "<N>"   # already claimed?
-gh issue view <N> -R garysieling/game2 --comments
+gh issue view <N> -R garysieling/game2 --comments             # grilling answers live here
 ```
 
 - Skip issues with an open PR referencing them, an assignee, or the
   `in-progress` label.
-- If no `agent-ready` issues exist, say so and stop. Do not promote your
-  own issue to `agent-ready`.
+- If no `grilled`/`agent-ready` issues exist, say so and stop. Do not
+  promote your own issue to either label.
 - Claim it: `gh issue edit <N> -R garysieling/game2 --add-label in-progress`
   and comment `Taking this - <agent name> (<model>)`.
 
@@ -59,27 +62,24 @@ style):
 
 Write the plan into the Ticket Form below. The **test plan must name real
 commands from Stage 5** - "it works" is not a test plan. Post the plan +
-test plan as the first comment on the issue so the user can veto before
-you build:
+test plan as a comment on the issue so the user can veto before you
+build (the `/grill` comment may already be there - yours comes after it):
 
 ```bash
 gh issue comment <N> -R garysieling/game2 --body-file plan.md
 ```
 
-## Stage 3 - Grill the user
+## Stage 3 - Read the grilling record
 
-Ask real questions before writing code - use the platform's question UI
-(`ask_user_question` / AskUserQuestion), 1-4 focused questions per call.
-Grill means surfacing what the issue *doesn't* say:
+The hard questions were already asked by `/grill` - its comment on the
+issue holds the answers and judgment calls. Read it along with the issue
+body before planning.
 
-- Ambiguous acceptance criteria: what does "done" look like concretely?
-- Scope edges: which of several plausible wirings is intended?
-- Probe truths: may the player see the real number, or only a rumour/sign?
-- New art needed? Which `assets/rd` prompt / fallback?
-- Anything in the issue's verify steps you can't actually run - say so.
-
-If the user says "use your judgment", record each judgment call in the
-form and proceed. Don't ask what you can verify yourself.
+Only grill inline (question UI, 1-4 focused questions per call) when
+implementation surfaces *genuinely new* ambiguity the grilling didn't
+cover - a decision that only became visible once you read the code.
+Record any new answers as another issue comment. Don't re-ask what the
+grilling comment already settled.
 
 ## Stage 4 - Branch + worktree
 
@@ -231,7 +231,7 @@ gh issue edit <N> -R garysieling/game2 --remove-label in-progress
 Merge before cleanup is fully done? The remote branch may already be
 deleted by the merge - check `git ls-remote` before pushing a delete.
 Only after the issue is closed and the worktree gone do you go back to
-Stage 0 for the next `agent-ready` ticket.
+Stage 0 for the next `grilled` ticket.
 
 ---
 
@@ -245,7 +245,7 @@ empty section means the stage didn't happen.
 Agent: devin | claude    Started: <date>    PR: #___
 
 ### Claim
-- Label: agent-ready -> in-progress at <date>
+- Label: grilled/agent-ready -> in-progress at <date>
 
 ### Plan
 - <what changes, in which layer, which files>
@@ -255,7 +255,8 @@ Agent: devin | claude    Started: <date>    PR: #___
 - dump-frame: evidence/<name>.bmp at tick <N> - <what it shows>
 
 ### Questions asked / answers
-- Q: ... A: ... (or "user deferred to judgment" + what was decided)
+- From /grill comment: <link or summary>
+- New questions this session: Q: ... A: ... (or "none - grilling covered it")
 
 ### UI wiring (player-facing only)
 - [ ] sim produces it (system scheduled)

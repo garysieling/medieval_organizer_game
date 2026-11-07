@@ -550,11 +550,14 @@ impl Game {
             // or the bench someone's laid up in it
             let empty = b.occupants.is_empty() && !self.ruined.contains(&bi);
             let works_here = self.villagers.iter().any(|&v| {
-                match world.get_component::<Craft>(v).and_then(|c| c.workplace) {
-                    Some(w) => w == be,
-                    // no bench of their own - a cottage trade works its
-                    // own door, like plan_bench falls back to home
-                    None => household::home_of(&self.world, v) == Some(be),
+                match world.get_component::<Craft>(v) {
+                    Some(c) => match c.workplace {
+                        Some(w) => w == be,
+                        // no bench of their own - a cottage trade works
+                        // its own door, like plan_bench falls back to home
+                        None => household::home_of(&self.world, v) == Some(be),
+                    },
+                    None => false,
                 }
             });
             let also = match (empty, works_here) {

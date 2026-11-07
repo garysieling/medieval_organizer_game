@@ -42,8 +42,14 @@ fn test_the_one_an_ask_would_land_on_marks_its_name() {
     let near = game.villagers[0];
     *game.world.get_component_mut::<Pos>(near).unwrap() = Pos { x: px + 1.5, y: py };
     let m = game.ui_model();
-    // the ask lands on the villager in reach - the client marks their name
-    assert_eq!(m.reach_target, 0);
+    // nobody picked: the ask lands on the villager in reach
+    assert!(!m.sel.picked && m.reach_target == 0);
+    // picked and far: the ask walks to the picked one, not the near one
+    game.selected_target = 4;
+    game.seats[0].picked = true;
+    let m = game.ui_model();
+    let t = if m.sel.picked { m.sel.target } else { m.reach_target };
+    assert_eq!(t, 4, "the mark should name the picked villager");
     let buf = view.render(&m, (-1, -1));
     assert!(buf.pixels.iter().any(|&p| p > 0), "the frame drew");
 }

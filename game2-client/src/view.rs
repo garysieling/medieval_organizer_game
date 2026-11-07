@@ -498,12 +498,7 @@ impl View {
                             }
                             sprite_label_anchor(fig, sy, zoom)
                         };
-                        // the one an ask would land on leads its name
-                        let lbl = if i == m.reach_target && pv.in_reach {
-                            format!("\u{203a} {}", pv.label.clone().unwrap_or_else(|| vill_name(i).into()))
-                        } else {
-                            pv.label.clone().unwrap_or_else(|| vill_name(i).into())
-                        };
+                        let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
                         let (lx, ly) = name_label_pos(sx, anchor, &lbl);
                         // bright when close enough to talk, recruit or meet; dim otherwise
                         let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
@@ -512,6 +507,14 @@ impl View {
                         if pv.sick {
                             let (mk, (r, g, b), _) = MARK_SICK;
                             draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), mk, r, g, b);
+                        }
+                        // the one an ask would land on: the picked
+                        // villager, or the one in reach when nobody's
+                        // picked - bright when they'd hear it now
+                        let t = if m.sel.picked { m.sel.target } else { m.reach_target };
+                        if i == t && !pv.dead {
+                            let rgb = if pv.in_reach { (240, 220, 130) } else { (160, 150, 120) };
+                            draw_text_outlined(&mut buf, sx - 26, head_y(sy, zoom), "\u{203a}", rgb.0, rgb.1, rgb.2);
                         }
                         // activity marker beside the head
                         if pv.act_mark > 0 {

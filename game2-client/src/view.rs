@@ -785,8 +785,11 @@ impl View {
         // the campaign the org fights for, once it's taken its vote - the
         // Meet button (a ctx action) sits to the right of the issue line
         if let Some(c) = &m.panel.campaign {
+            // the pull behind the seats: the member whose ties run the
+            // room's empty chairs
+            let pull = c.shadow.as_ref().map(|s| format!(" - {} pulls", s)).unwrap_or_default();
             draw_text(&mut buf, UI_X as i32 + 18, 488,
-                &format!("FIGHT {}", c.issue), 255, 180, 120);
+                &format!("FIGHT {}{}", c.issue, pull), 255, 180, 120);
             let due = if c.due { "meet due" } else { "meet to come" };
             // cadence leads: it's the bit you set - the seats can trail off
             draw_text(&mut buf, UI_X as i32 + 18, 500,

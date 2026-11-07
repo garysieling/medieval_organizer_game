@@ -225,3 +225,29 @@ fn test_the_card_names_the_odds_before_the_ask() {
     }
     panic!("no odds word rode the stage: {}", stage);
 }
+
+#[test]
+fn test_the_panel_names_who_pulls_the_room() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    // Bram's pull outdraws the leader's: tie him to the other members
+    let elite = g.villagers[0];
+    for &m in &g.villagers[1..3] {
+        let rel = g.world.create_entity();
+        g.world.add_component(rel, crate::game::relationships::Relationship {
+            from: elite, other: m,
+            kind: crate::game::relationships::RelKind::Friend,
+            strength: 0.95, interactions: 5 });
+    }
+    let m = g.ui_model();
+    let cv = m.panel.campaign.as_ref().unwrap();
+    assert_eq!(cv.shadow.as_deref(), Some(crate::session::vill_name(0)),
+        "the pull wasn't named: {:?}", cv.shadow);
+}

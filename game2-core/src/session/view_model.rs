@@ -337,8 +337,10 @@ impl Game {
                     .unwrap_or_else(|| "(empty)".to_string());
                 format!("{} {}", label, holder)
             }).collect();
+            let shadow = crate::game::campaign::shadow_elite(world, e).map(|s| name_of(s));
             CampaignV {
                 issue: c.issue.clone(),
+                shadow,
                 framing: match c.framing { Framing::SharedGrievance => "shared grievance",
                     Framing::CommonFoe => "common foe", Framing::MoralDuty => "moral duty" }.to_string(),
                 dissenters: c.dissenters.len(), seats,

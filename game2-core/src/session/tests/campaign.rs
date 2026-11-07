@@ -199,3 +199,29 @@ fn test_the_cause_passes_the_hat_and_posts_flyers() {
     });
     assert!(woken || !g.log.last().unwrap().contains("wake"), "sympathies where folk read them");
 }
+
+#[test]
+fn test_the_card_names_the_odds_before_the_ask() {
+    let mut g = Game::new();
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    let v = g.villagers[7];
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, crate::game::relationships::Relationship {
+        from: g.seats[0].player, other: v,
+        kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.95, interactions: 5 });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let stage = ins.lines.iter().find(|l| l.x == 150 && l.y == 330).map(|l| l.text.clone()).unwrap_or_default();
+    for w in ["sure to sign on", "a stranger's ask", "likely to join", "a cold ask"] {
+        if stage.contains(w) { return; }
+    }
+    panic!("no odds word rode the stage: {}", stage);
+}

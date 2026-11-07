@@ -269,7 +269,7 @@ impl Game {
         let paths = invited.iter().zip(&spots).map(|(v, &spot)| {
             let p = self.world.get_component::<Pos>(*v).copied()?;
             let from = (p.x.round() as i32, p.y.round() as i32);
-            if from == spot { Some(vec![spot]) } else { self.map.walk_path(from, spot) }
+            if from == spot { Some(vec![spot]) } else { self.trail_path(from, spot) }
         }).collect();
         let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
             plan.song.is_some(), plan.closer.is_some());

@@ -499,7 +499,7 @@ impl Game {
             feast: self.villagers.iter().any(|&v| world.get_component::<routine::Routine>(v)
                 .is_some_and(|r| r.mode == routine::Mode::Feasting && r.day == self.tick)),
             stalls: self.stalls_standing(),
-            trails: self.trails.iter().filter(|(_, t)| t.strength > 0.15)
+            trails: self.trails.iter().filter(|(_, t)| t.strength > 0.3)
                 .map(|(&(x, y), t)| (x as f32, y as f32, t.strength)).collect(),
             stumps: self.land.tree_cover.iter().filter(|(_, &c)| c < 0.3)
                 .map(|(&(x, y), _)| (x as f32, y as f32)).collect(),

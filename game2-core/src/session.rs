@@ -1442,7 +1442,7 @@ impl Game {
                         && !self.travels.iter().any(|t| t.who == *v) {
                         if let Some(t) = food_tile {
                             let from = (p.x.round() as i32, p.y.round() as i32);
-                            if let Some(mut path) = self.map.walk_path(from, t) {
+                            if let Some(mut path) = Self::trail_path_on(&self.map, &self.trails, from, t) {
                                 path.push(t);
                                 self.travels.push(Travel { who: *v, path, goal: Goal::Wander });
                                 continue;
@@ -1453,7 +1453,7 @@ impl Game {
                     let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
                     if self.map.passable(nx.round() as i32, ny.round() as i32) {
                         p.x = nx; p.y = ny;
-                    } else if let Some(path) = food_tile.and_then(|t| self.map.walk_path((p.x.round() as i32, p.y.round() as i32), t)) {
+                    } else if let Some(path) = food_tile.and_then(|t| Self::trail_path_on(&self.map, &self.trails, (p.x.round() as i32, p.y.round() as i32), t)) {
                         if let Some(&(qx, qy)) = path.first() {
                             let (ddx, ddy) = (qx as f32 - p.x, qy as f32 - p.y);
                             let dd = (ddx * ddx + ddy * ddy).sqrt().max(1e-4);

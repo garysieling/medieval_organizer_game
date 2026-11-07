@@ -371,7 +371,7 @@ impl Game {
                 // pennies a page have to land somewhere
                 self.world.add_component(e, Purse { gold: 0.0 });
                 let at = self.event_pitch(id);
-                let path = self.map.walk_path(start, at).unwrap_or_default();
+                let path = self.trail_path(start, at).unwrap_or_default();
                 self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });
                 self.log.push(format!("t{}: {} has come to town.", self.tick, s.name));
             }
@@ -464,7 +464,7 @@ impl Game {
         let mut r = self.rare[idx].clone();
         let back = self.road_far();
         r.path = self.world.get_component::<Pos>(r.e.unwrap_or(0))
-            .and_then(|p| self.map.walk_path((p.x.round() as i32, p.y.round() as i32), back))
+            .and_then(|p| self.trail_path((p.x.round() as i32, p.y.round() as i32), back))
             .unwrap_or_default();
         r.leaving = true;
         self.log.push(format!("t{}: {} moves on.", self.tick, spec(r.id).name));

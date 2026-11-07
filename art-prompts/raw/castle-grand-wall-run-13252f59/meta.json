@@ -1,0 +1,28 @@
+{
+ "created_at": 1794072638,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 38.37,
+ "request_id": "e0675568-25cb-4a02-b6e1-4d79e6346ad7",
+ "outputs_retained_until": 1794158991,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 38.37
+ },
+ "id": "castle-grand-wall-run-13252f59",
+ "prompt": "single isometric medieval village asset: one tall block of crenellated grey stone castle curtain wall, a grand fortress wall taller than a cottage, battlements along the top, a straight wall section",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-07T12:30:39",
+ "seconds": 48.5
+}

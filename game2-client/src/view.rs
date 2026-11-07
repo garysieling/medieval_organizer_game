@@ -257,9 +257,13 @@ impl View {
         }
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
-        // (a generated keep stands over the wall's towers, the tallest in the country)
+        // (the keep stands over the wall's towers, the tallest in the
+        // country; on the generated path it's its own sprite at 1x, the
+        // pack fallback keeps the stretch it always had)
+        let keep = art.keep_s.as_ref().or(art.tower_s.as_ref());
+        let (kwk, kkh) = if art.castle_rd { (1.0, 1.0) } else { (KEEP_WK, KEEP_K) };
         standing.extend(m.castle_keeps.iter().map(|&(x, y)|
-            (x, y, Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref(), KEEP_WK, KEEP_K))));
+            (x, y, Piece::Castle(keep, kwk, kkh))));
         // a wood is a mix of the pack's trees, stable per tile
         standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4), art.tiles[season_tiles(season)].trees_k))));
         // boulders and flat rocks, a different one each time
@@ -392,19 +396,34 @@ impl View {
         let rocks = (0..m.map.height as i32).flat_map(|y| (0..m.map.width as i32).map(move |x| (x, y)))
             .filter(|&(x, y)| m.map.get(x, y) == Some(Tile::Rock));
         standing.extend(rocks.map(|(x, y)| (x as f32, y as f32, Piece::Prop(rock_prop(x, y), art.stones_k))));
-        // the castles' curtains stand grand: tall curtains, loftier towers
+        // the castles' curtains stand grand: the grand set's own pieces
+        // at true proportions on the generated path, the pack's stretch
+        // on the fallback one
         let grand: std::collections::HashSet<(i32, i32)> = m.map.grand_walls.iter().copied().collect();
         standing.extend(m.map.walls.iter().map(|&((x, y), piece)| {
-            // the odd stretch of wall has a postern door in it
+            let is_grand = grand.contains(&(x, y));
+            // the odd stretch of wall has a postern door in it; a castle's
+            // takes the grand set's door, then its plain wall, then the
+            // town wall's - the ensemble never mixes scales
             let postern = noise(x, y, 15) < 0.15;
-            let sprite = match piece {
-                WallPiece::AlongX => art.wall_posts[0].as_ref().filter(|_| postern).or(art.walls[0].as_ref()),
-                WallPiece::AlongY => art.wall_posts[1].as_ref().filter(|_| postern).or(art.walls[1].as_ref()),
-                WallPiece::GateAlongX => art.walls[2].as_ref(),
-                WallPiece::GateAlongY => art.walls[3].as_ref(),
-                WallPiece::Tower => art.tower_s.as_ref(),
+            let g = if is_grand { art.castle_grand.as_ref() } else { None };
+            let wall_at = |gi: usize, post: bool| -> Option<&Sprite> {
+                let gw = g.and_then(|g| g.walls.get(gi).and_then(|s| s.as_ref()));
+                let bw = art.walls.get(gi).and_then(|s| s.as_ref());
+                if !post { return gw.or(bw); }
+                g.and_then(|g| g.posts.get(gi).and_then(|s| s.as_ref()))
+                    .or(gw)
+                    .or(art.wall_posts.get(gi).and_then(|s| s.as_ref()))
+                    .or(bw)
             };
-            let (wk, hk) = if grand.contains(&(x, y)) {
+            let sprite = match piece {
+                WallPiece::AlongX => wall_at(0, postern),
+                WallPiece::AlongY => wall_at(1, postern),
+                WallPiece::GateAlongX => wall_at(2, false),
+                WallPiece::GateAlongY => wall_at(3, false),
+                WallPiece::Tower => g.and_then(|g| g.tower.as_ref()).or(art.tower_s.as_ref()),
+            };
+            let (wk, hk) = if !art.castle_rd && is_grand {
                 if matches!(piece, WallPiece::Tower) {
                     // the odd tower stands loftier than its brothers
                     let lift = if noise(x, y, 37) < 0.35 { 1.3 } else { 1.0 };
@@ -432,10 +451,11 @@ impl View {
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
                 Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),
                 Piece::Castle(sprite, wk, hk) => if let Some(s) = sprite {
+                    // the generated set draws every piece at 1x; only the
+                    // pack fallback still takes the grand stretch
                     if wk == 1.0 && hk == 1.0 {
                         if art.castle_rd { draw_standing(buf, s, sx, sy, zoom); } else { draw_castle(buf, s, sx, sy, zoom); }
-                    } else if art.castle_rd { draw_standing_wh(buf, s, sx, sy, zoom, wk, hk); }
-                    else { draw_castle_wh(buf, s, sx, sy, zoom, wk, hk); }
+                    } else { draw_castle_wh(buf, s, sx, sy, zoom, wk, hk); }
                 },
                 Piece::Building(sprite, up) | Piece::Cutaway(sprite, up) => if let Some(s) = sprite {
                     if up >= 1.0 {

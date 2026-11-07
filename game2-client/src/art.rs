@@ -102,6 +102,15 @@ pub(crate) fn gull_sprite() -> Sprite {
     Sprite { width: w, height: h, pixels }
 }
 
+/// The castles' grand set: the same slots as the town wall's pieces
+/// (curtain along x, along y, the two gatehouses; posterns along x, y;
+/// one tower look per map), at fortress scale
+pub struct CastleGrand {
+    pub walls: [Option<Sprite>; 4],
+    pub posts: [Option<Sprite>; 2],
+    pub tower: Option<Sprite>,
+}
+
 /// Every sprite the game draws, loaded once up front
 #[derive(Default)]
 pub struct Art {
@@ -143,6 +152,14 @@ pub struct Art {
     pub walls: [Option<Sprite>; 4],
     /// The odd wall stretch with a postern door in it: along x, along y
     pub wall_posts: [Option<Sprite>; 2],
+    /// The castles' own set (assets/rd/castle/grand_*): fortress-scale
+    /// curtains, gates, posterns and towers at true proportions, where the
+    /// village wall's pieces stand at fence height. All-or-nothing with
+    /// keep_s: a partial set would mix scales inside one castle.
+    pub castle_grand: Option<CastleGrand>,
+    /// The keep in each castle's courtyard (assets/rd/castle/keep*): the
+    /// tallest thing the country raises. None: tower_s stands in.
+    pub keep_s: Option<Sprite>,
     pub church_s: Option<Sprite>,
     pub guildhall_s: Option<Sprite>,
     pub rival_house: Option<Sprite>,
@@ -639,6 +656,21 @@ impl Art {
             posts: [c("postern_x"), c("postern_y")],
             towers: chosen((1..=4).map(|i| c(&format!("tower{}", i))).collect()),
         }).filter(|r| r.walls.iter().chain(&r.posts).all(|s| s.is_some()) && r.towers.is_some());
+        // the castles' grand set and keep (#643): fortress-scale pieces
+        // at true proportions, drawn 1x where the stretch used to be -
+        // only alongside the town wall's set, and all-or-nothing like it:
+        // a partial set would mix scales inside one castle
+        let (castle_grand, keep_s) = if rd_castle.is_some() {
+            let grand = CastleGrand {
+                walls: [c("grand_wall_x"), c("grand_wall_y"), c("grand_gate_x"), c("grand_gate_y")],
+                posts: [c("grand_postern_x"), c("grand_postern_y")],
+                tower: chosen((1..=2).map(|i| c(&format!("grand_tower{}", i))).collect()),
+            };
+            let keep = chosen((1..=2).map(|i| c(&format!("keep{}", i))).collect());
+            let whole = grand.walls.iter().chain(&grand.posts).all(Option::is_some)
+                && grand.tower.is_some() && keep.is_some();
+            if whole { (Some(grand), keep) } else { (None, None) }
+        } else { (None, None) };
         let (rd_stones, rd_grounds) = if rd_stones.is_empty() || rd_grounds.is_empty() { (vec![], vec![]) } else { (rd_stones, rd_grounds) };
 
         // the workplaces' own looks, one or two each, snowed over in winter
@@ -694,6 +726,8 @@ impl Art {
             // wall(4) and wall(3): the same runs with a postern door in them
             wall_posts: match &rd_castle { Some(c) => c.posts.clone(),
                 None => [4, 3].map(|n| pack(&format!("Castle walls/castle_wall({}).png", n))) },
+            castle_grand,
+            keep_s,
             // a generated stone church, else one of the pack's tall keeps
             church_s: chosen((1..=2).map(|i| at(&format!("rd/buildings/church{}.png", i))).collect())
                 .or_else(|| chosen([7, 8, 9].iter().map(|i| pack(&format!("Towers/Blue towers/castle_tower_blue({}).png", i))).collect())),

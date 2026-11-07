@@ -1,0 +1,28 @@
+{
+ "created_at": 1794072828,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 37.65,
+ "request_id": "6fe5811d-b25b-43e1-b629-d2cb0e79ec1f",
+ "outputs_retained_until": 1794159190,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 37.65
+ },
+ "id": "castle-grand-tower-0606f8ae",
+ "prompt": "single isometric medieval village asset: one tall square grey stone castle corner tower, a grand fortress tower taller than the curtain wall, battlements on top",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 96,
+  "height": 176,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-07T12:33:49",
+ "seconds": 38.5
+}

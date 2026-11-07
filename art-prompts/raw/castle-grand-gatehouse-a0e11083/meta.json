@@ -1,0 +1,28 @@
+{
+ "created_at": 1794072723,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 38.19,
+ "request_id": "f63c7ec8-7b4f-49f2-a094-283c76d55f5d",
+ "outputs_retained_until": 1794159039,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 38.19
+ },
+ "id": "castle-grand-gatehouse-a0e11083",
+ "prompt": "single isometric medieval village asset: one tall block of grey stone castle wall with an open arched gateway through it, a grand fortress gatehouse, battlements along the top",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 96,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-07T12:32:03",
+ "seconds": 84.3
+}

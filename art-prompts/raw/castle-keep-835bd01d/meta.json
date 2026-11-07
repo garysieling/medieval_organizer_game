@@ -1,0 +1,28 @@
+{
+ "created_at": 1794072590,
+ "credit_cost": 2,
+ "balance_cost": 0.36,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 38.55,
+ "request_id": "904ef37b-b3e8-4fc3-99ae-7466fb65da10",
+ "outputs_retained_until": 1794158917,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.36,
+  "balance_left": 38.55
+ },
+ "id": "castle-keep-835bd01d",
+ "prompt": "single isometric medieval village asset: one tall stone castle keep with crenellated battlements and small corner turrets, the grandest tower of a fortress, sheer stone walls",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 128,
+  "height": 224,
+  "num_images": 2,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-07T12:29:51",
+ "seconds": 73.4
+}

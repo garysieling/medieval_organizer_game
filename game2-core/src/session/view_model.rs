@@ -337,7 +337,15 @@ impl Game {
                     .unwrap_or_else(|| "(empty)".to_string());
                 format!("{} {}", label, holder)
             }).collect();
-            let shadow = crate::game::campaign::shadow_elite(world, e).map(|s| name_of(s));
+            // the shadow only pulls when no live coordinator holds the
+            // seat - name it only when it truly drives the room
+            let o = world.get_component::<Organization>(c.org).unwrap();
+            let coordinator = crate::game::campaign::seat_holder(world, e, Role::TurnoutCoordinator)
+                .filter(|&h| !crate::game::dungeon::unavailable(world, h)
+                    && (h == o.leader || o.members.contains(&h)));
+            let shadow = if coordinator.is_none() {
+                crate::game::campaign::shadow_elite(world, e).map(|s| name_of(s))
+            } else { None };
             CampaignV {
                 issue: c.issue.clone(),
                 shadow,

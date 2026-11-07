@@ -260,6 +260,15 @@ year's drift). Zero from an older server means no read; a client
 should draw no lean-word then. `harsh_winter` is the every-other-winter
 flag: while it runs the snow keeps falling and the store thins.
 
+`panel.campaign` is the org's settled fight, or absent before the vote:
+`{"issue","framing","dissenters","seats","shadow","resolves","due",
+"cadence_days"}` - the issue the vote picked, how it's framed, the
+losers left grumbling, the three seats' keepers ("turnout: Aldric" /
+"notes: (empty)"), the resolutions passed, whether a meeting's due, and
+the days between them. `shadow` names the member whose ties drive the
+room when no live coordinator holds the seat - `null` while the formal
+structure holds it.
+
 `panel.meeting` is the house-meeting plan being gathered, or absent:
 `{"coming":["Willa","Bram"],"spreaders":[],"roles":["house: Aldric",
 "notes: Corvin"]}` - the folk who've said yes, by name, so the seat can

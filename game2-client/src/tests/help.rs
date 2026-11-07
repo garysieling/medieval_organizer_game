@@ -7,6 +7,11 @@ fn test_the_panel_points_to_help() {
 }
 
 #[test]
+fn test_help_lists_the_fullscreen_key() {
+    assert!(HELP_LINES.iter().any(|l| l.contains("F11")), "F11 fullscreen missing from help");
+}
+
+#[test]
 fn test_help_box_is_centred_on_the_map_and_fits_its_text() {
     let (x, y, w, h) = help_rect();
     assert!(((x + w / 2) - MAP_W as i32 / 2).abs() <= 1, "help box not centred on the map view");

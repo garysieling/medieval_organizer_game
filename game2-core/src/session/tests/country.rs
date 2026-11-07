@@ -234,3 +234,27 @@ fn test_a_rich_castle_remits_to_the_crown() {
     assert!(kept >= 40.0 - 0.01, "the reserve went with it: {:.0}", kept);
     assert!(g.log.iter().any(|l| l.contains("crown")), "the remittance went unsaid");
 }
+
+#[test]
+fn test_the_manor_stands_and_holds_its_lord() {
+    let g = Game::new();
+    let farms: Vec<usize> = (0..g.sites.len())
+        .filter(|&si| g.sites[si].kind == country::SiteKind::Farm).collect();
+    assert!(!farms.is_empty(), "no steadings in this seed");
+    for &si in &farms {
+        let s = &g.sites[si];
+        // the manor stands: a home carrying its name
+        let manor = s.homes.iter().copied().find(|&h|
+            g.world.get_component::<Building>(h)
+                .map(|b| b.name.contains("the manor at")).unwrap_or(false));
+        assert!(manor.is_some(), "{} keeps no manor", s.name);
+        // and a lord beds there: the knight folk under its roof
+        let lord = g.villagers.iter().copied().find(|&v|
+            g.world.get_component::<country::Outlander>(v).map(|o| o.site == si).unwrap_or(false)
+            && g.world.get_component::<Craft>(v)
+                .map(|c| c.vocation == Vocation::Knight).unwrap_or(false));
+        let Some(lord) = lord else { panic!("{}'s lord is missing", s.name) };
+        assert_eq!(household::home_of(&g.world, lord), manor,
+            "the lord doesn't bed in his own manor");
+    }
+}

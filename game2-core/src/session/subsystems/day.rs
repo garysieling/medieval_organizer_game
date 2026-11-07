@@ -375,7 +375,7 @@ impl Game {
                     // being too long
                     let near = self.world.get_component::<Pos>(self.market_food).copied()
                         .zip(self.world.get_component::<Pos>(v).copied())
-                        .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 3.0).unwrap_or(false);
+                        .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 8.0).unwrap_or(false);
                     if near {
                         let has = self.world.get_component::<villager::FoodSource>(self.market_food)
                             .map(|f| f.servings > 0).unwrap_or(false);

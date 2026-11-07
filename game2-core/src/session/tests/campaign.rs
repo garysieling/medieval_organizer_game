@@ -246,6 +246,11 @@ fn test_the_panel_names_who_pulls_the_room() {
             kind: crate::game::relationships::RelKind::Friend,
             strength: 0.95, interactions: 5 });
     }
+    // the pull's only named once the room's observably followed them -
+    // a drifted meeting marks its driver
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c).unwrap()
+        .driven_by = Some(elite);
     let m = g.ui_model();
     let cv = m.panel.campaign.as_ref().unwrap();
     assert_eq!(cv.shadow.as_deref(), Some(crate::session::vill_name(0)),

@@ -2,6 +2,33 @@
 
 use crate::session::*;
 
+fn ordinal_suffix(n: usize) -> &'static str {
+    if (11..=13).contains(&(n % 100)) {
+        "th"
+    } else {
+        match n % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        }
+    }
+}
+
+#[cfg(test)]
+mod ordinal_tests {
+    use super::ordinal_suffix;
+
+    #[test]
+    fn ordinal_suffix_handles_teens_and_units() {
+        let cases = [(1, "st"), (2, "nd"), (3, "rd"), (4, "th"),
+            (11, "th"), (12, "th"), (13, "th"), (21, "st"), (22, "nd"), (23, "rd")];
+        for (n, expected) in cases {
+            assert_eq!(ordinal_suffix(n), expected, "{n}");
+        }
+    }
+}
+
 impl Game {
     /// Why action button `i` can't be used right now, if it can't: Build's
     /// own rules (gold, a free site), otherwise disabled_reason
@@ -338,7 +365,7 @@ impl Game {
                     let road = self.map.plan_road((bx as i32, by as i32));
                     self.works.push(Works { building: self.buildings.len() - 1, road, frames: 0 });
                     self.built_count += 1;
-                    format!("Work starts on a new house beside you - {:.0} gold (the village's {}th roof)", BUILD_COST, self.built_count)
+                    format!("Work starts on a new house beside you - {:.0} gold; it will be the village's {}{} roof.", BUILD_COST, self.built_count, ordinal_suffix(self.built_count))
                 }
                 _ => unreachable!("no action button {}", i),
             }

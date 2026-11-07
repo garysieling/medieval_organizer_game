@@ -8,5 +8,5 @@ fn test_build_log_doesnt_quote_tile_coordinates() {
     game.world.get_component_mut::<PlayerCharacter>(game.player).unwrap().resources = 100.0;
     game.act(2);
     let line = game.log.last().unwrap();
-    assert!(line.contains("new house") && !line.contains('('), "{}", line);
+    assert!(line.contains("new house") && line.contains("1st roof.") && !line.contains('('), "{}", line);
 }

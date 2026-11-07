@@ -473,6 +473,18 @@ fn main() {
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     }
                 }
+                // a log line that knows where it happened or who it's
+                // about: the click jumps there and selects them (#645)
+                if let Some(i) = view.log_hit(m, mx, my) {
+                    let entry = &m.log[i];
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    if let Some(at) = entry.at {
+                        (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                    }
+                    if let Some(who) = entry.who {
+                        cmds.push(Command::Select(who));
+                    }
+                }
                 // the same layout the draw uses - one source of truth, so
                 // a click can never land on a different rect than it sees
                 let ctx_specs: Vec<session::Button> = session::ctx_buttons(&m.ctx);

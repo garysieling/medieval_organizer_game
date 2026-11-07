@@ -144,7 +144,7 @@ impl Game {
                 other: to, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
         }
         desires::satisfy(&mut self.world, to, Want::Joy, tick + 15);
-        self.log.push(format!("t{}: a letter comes for {}.", tick, self.name_of(to)));
+        self.log_entity(to, format!("t{}: a letter comes for {}.", tick, self.name_of(to)));
     }
 
     /// The office that owes a site its post: its own if it keeps one,

@@ -652,8 +652,10 @@ impl Game {
                     }
                     if self.send_far(c, pitch, Goal::Cart(si)) {
                         self.sites[si].away_until = Some(u64::MAX);
-                        let name = self.villagers.iter().position(|&x| x == c).map(vill_name).unwrap_or("a carter");
-                        self.log.push(format!("t{}: {}'s cart sets out from {} for market day.", tick, name, site.name));
+                        let ci = self.villagers.iter().position(|&x| x == c);
+                        let name = ci.map(vill_name).unwrap_or("a carter");
+                        self.log.push_at_who(format!("t{}: {}'s cart sets out from {} for market day.", tick, name, site.name),
+                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
                     }
                 }
                 (SiteKind::Castle, None) => {
@@ -665,8 +667,10 @@ impl Game {
                     let Some(to) = self.at_the_door(sp.x.round() as i32, sp.y.round() as i32) else { continue };
                     if self.send_far(c, to, Goal::Levy(si, ti)) {
                         self.sites[si].away_until = Some(u64::MAX);
-                        let name = self.villagers.iter().position(|&x| x == c).map(vill_name).unwrap_or("the steward");
-                        self.log.push(format!("t{}: {} rides out of {} to fetch provisions from {}.", tick, name, site.name, self.sites[ti].name));
+                        let ci = self.villagers.iter().position(|&x| x == c);
+                        let name = ci.map(vill_name).unwrap_or("the steward");
+                        self.log.push_at_who(format!("t{}: {} rides out of {} to fetch provisions from {}.", tick, name, site.name, self.sites[ti].name),
+                            Some((site.centre.0 as f32 + 0.5, site.centre.1 as f32 + 0.5)), ci);
                     }
                 }
             }
@@ -699,7 +703,7 @@ impl Game {
         let stay_from = if into <= routine::MARKET_DAY { tick - into + routine::MARKET_DAY } else { tick };
         self.sites[si].away_until = Some(stay_from + MARKET_STAY);
         let name = self.villagers.iter().position(|&x| x == who).map(vill_name).unwrap_or("a carter");
-        self.log.push(format!("t{}: {}'s cart comes in from {}{}.", tick, name, site.name,
+        self.log_entity(who, format!("t{}: {}'s cart comes in from {}{}.", tick, name, site.name,
             if load > 0 { format!(" with {} wheat for the market", load) } else { String::new() }));
     }
 

@@ -200,7 +200,7 @@ impl Game {
                 let pe = self.seats[seat].player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                    self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                    self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                 }
                 (d, s)
             }

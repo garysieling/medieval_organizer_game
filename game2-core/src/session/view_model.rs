@@ -61,9 +61,9 @@ pub(in crate::session) fn is_important(entry: &str) -> bool {
 /// LOG_GOSSIP_SHOWN pieces of gossip and the latest weather change.
 /// The moments that matter - sickness, death, an exile - pin to the top:
 /// routine village business scrolls below them no matter how busy it gets.
-pub(in crate::session) fn visible_log(log: &[String]) -> Vec<&String> {
+pub(in crate::session) fn visible_log(log: &[String]) -> Vec<usize> {
     let (mut gossip, mut weather, mut town) = (0, 0, 0);
-    let filtered: Vec<&String> = log.iter().rev().filter(|e| {
+    let filtered: Vec<(usize, &String)> = log.iter().enumerate().rev().filter(|(_, e)| {
         if is_gossip(e) { gossip += 1; return gossip <= LOG_GOSSIP_SHOWN; }
         if is_weather_note(e) { weather += 1; return weather <= LOG_WEATHER_SHOWN; }
         if is_town_note(e) { town += 1; return town <= LOG_TOWN_SHOWN; }
@@ -74,12 +74,12 @@ pub(in crate::session) fn visible_log(log: &[String]) -> Vec<&String> {
     // wall of old headlines can't bury today's warning
     let mut imp_rank = 0usize;
     let (important, rest): (Vec<_>, Vec<_>) = filtered.into_iter()
-        .partition(|e| {
+        .partition(|(_, e)| {
             if !is_important(e) { return false; }
             imp_rank += 1;
             imp_rank <= LOG_PINNED_SHOWN
         });
-    important.into_iter().chain(rest).collect()
+    important.into_iter().chain(rest).map(|(i, _)| i).collect()
 }
 
 /// A villager's attachment style as a player would put it: the card showed
@@ -503,8 +503,12 @@ impl Game {
             toasts: self.toasts.iter().filter(|(_, until, _, _)| self.tick < *until)
                 .map(|(m, _, at, born)| ToastV { text: m.clone(), at: *at, born: Some(*born) }).collect(),
             // only the lines the window would show - cloning the whole
-            // history every frame was the model's biggest copy
-            log: visible_log(&self.log).into_iter().cloned().collect(),
+            // history every frame was the model's biggest copy; the meta
+            // rides along so a click can jump to where it happened (#645)
+            log: visible_log(&self.log).into_iter().map(|i| {
+                let meta = self.log.meta(i);
+                LogEntryV { text: self.log[i].clone(), at: meta.at, who: meta.who }
+            }).collect(),
             log_dropped: self.log_dropped,
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),

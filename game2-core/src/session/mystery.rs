@@ -70,7 +70,7 @@ impl Game {
                         Some(v) => {
                             let who = self.name_of(v);
                             if let Some(mm) = &mut self.seats[seat].mystery { mm.asker = v; }
-                            self.log.push(format!("t{}: {} is asking after it now.", tick, who));
+                            self.log_entity(v, format!("t{}: {} is asking after it now.", tick, who));
                         }
                         None => {
                             self.seats[seat].mystery = None;
@@ -99,7 +99,7 @@ impl Game {
             let title = MYSTERIES[def].title;
             let who = self.name_of(asker);
             self.say(asker, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
-            self.log.push(format!("t{}: {} has been asking after {} - folk might know.", tick, who, title));
+            self.log_entity(asker, format!("t{}: {} has been asking after {} - folk might know.", tick, who, title));
         }
     }
 
@@ -160,7 +160,7 @@ impl Game {
         }
         self.seats[seat].mystery = None;
         self.seats[seat].mystery_wait = tick + MYSTERY_WAIT;
-        self.log.push(format!("t{}: you tell {} what you pieced together about {}. {}", tick, who, def.title, def.thanks));
+        self.log_entity(v, format!("t{}: you tell {} what you pieced together about {}. {}", tick, who, def.title, def.thanks));
         self.say(v, def.thanks, TALK_BUBBLE_SECS * 3);
         format!("{}: \"{}\"", who, def.wonders)
     }

@@ -182,6 +182,10 @@ pub struct PanelV {
     pub campaign: Option<CampaignV>,
     /// The odd job the seat is running, in a line ("take the note to Willa")
     pub quest: Option<String>,
+    /// The village mystery the seat is piecing together, and how much
+    /// of the gossip is in ("Mystery: ... - 3/5 whispers")
+    #[serde(default)]
+    pub mystery: Option<String>,
     /// Who the seat has gotten to know, by how far each bond runs
     #[serde(default)]
     pub social: SocialV,

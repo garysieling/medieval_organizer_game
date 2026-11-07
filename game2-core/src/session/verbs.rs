@@ -187,7 +187,11 @@ impl Game {
                 }
                 (d, s)
             }
-            None => talk_response(&self.world, v, vill_name(who), talks_before),
+            None => match self.mystery_fact_at(seat) {
+                // gossip carries a piece of the mystery, now and then
+                Some(text) => (format!("{} passes on a rumor", vill_name(who)), text),
+                None => talk_response(&self.world, v, vill_name(who), talks_before),
+            },
         };
         let pe = self.seats[seat].player;
         // the bond as it stood before this talk: a first talk is with a stranger
@@ -375,6 +379,12 @@ impl Game {
                 .unwrap_or(false);
             if self.seats[seat].quest.is_none() && self.quest_offer_at(v).is_some() && in_earshot {
                 self.seats[seat].ctx_actions.push(CtxAct::TakeJob);
+            }
+            // a solved mystery wants delivering to whoever's been asking
+            if let Some(m) = &self.seats[seat].mystery {
+                if m.solved() && v == m.asker {
+                    self.seats[seat].ctx_actions.push(CtxAct::ShareFindings);
+                }
             }
             // a picked neighbour with no pact yet can be sworn to, wax
             // and ten gold willing
@@ -886,6 +896,7 @@ impl Game {
                 }
             }
             CtxAct::TakeJob => self.accept_quest_at(seat),
+            CtxAct::ShareFindings => self.mystery_deliver_at(seat),
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),

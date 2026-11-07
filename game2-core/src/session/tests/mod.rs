@@ -73,6 +73,7 @@ mod market;
 mod member_line;
 mod minimap;
 mod music;
+mod mystery;
 mod nourish;
 mod organize;
 mod orgskills;

@@ -696,6 +696,13 @@ impl View {
         if let Some(q) = &m.panel.quest {
             draw_text(&mut buf, UI_X as i32 + 10, 42, q, 240, 220, 140);
         }
+        // the mystery doing the rounds, if the seat's piecing one
+        // together - right of the action buttons, where nothing else sits
+        if let Some(mz) = &m.panel.mystery {
+            for (n, line) in wrap_text(mz, 30).iter().take(3).enumerate() {
+                draw_text(&mut buf, UI_X as i32 + 150, 68 + n as i32 * 11, line, 200, 180, 235);
+            }
+        }
         // the powers' standing words on the org - one line, so a
         // stack of them can't run under the buttons
         if !m.panel.org_status.is_empty() {

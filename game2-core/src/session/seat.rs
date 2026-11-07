@@ -83,6 +83,9 @@ pub enum CtxAct {
     /// Pick a cap off the patch you're standing by - the wood feeds,
     /// and teaches its lessons the hard way
     PickCaps,
+    /// Tell the picked villager what the gossip added up to - the
+    /// mystery's asker, once it's whole
+    ShareFindings,
 }
 
 /// One player's hold on the game: which character they steer, what they've
@@ -115,6 +118,13 @@ pub struct Seat {
     /// The odd job this seat is running for a villager, if any
     /// (session::quests)
     pub quest: Option<quests::PlayerQuest>,
+    /// The village mystery this seat is piecing together, if any
+    /// (session::mystery)
+    pub mystery: Option<mystery::SeatMystery>,
+    /// The day another mystery can start, once one's been told
+    pub mystery_wait: u64,
+    /// The last mystery dealt, so the same one doesn't come round twice
+    pub mystery_last: usize,
     /// Where the character stood last frame, which way they face (0 up,
     /// 1 right, 2 down, 3 left on screen) and whether they moved: drives
     /// the walk cycle
@@ -127,7 +137,8 @@ impl Default for Seat {
     fn default() -> Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
-               pending_founding: None, quest: None, last_pos: None, facing: 2, walking: false }
+               pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
+               mystery_last: usize::MAX, last_pos: None, facing: 2, walking: false }
     }
 }
 

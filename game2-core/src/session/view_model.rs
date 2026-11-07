@@ -694,10 +694,11 @@ impl Game {
             // death's mourned left behind
             // villagers and the seats' wanderers alike - grief records
             // losses for both
-            let mut folk: Vec<Entity> = self.villagers.clone();
-            for s in &self.seats {
-                if !folk.contains(&s.player) { folk.push(s.player); }
-            }
+            // the seats' wanderers lead - a player's own grief shouldn't
+            // trail the whole village and fall off the card's three
+            let seats: Vec<Entity> = self.seats.iter().map(|s| s.player).collect();
+            let mut folk: Vec<Entity> = seats.clone();
+            folk.extend(self.villagers.iter().copied().filter(|v| !seats.contains(v)));
             let mourners: Vec<String> = folk.iter().copied()
                 .filter(|&m| m != v && self.world.get_component::<crate::sim::psychology::AttachmentHistory>(m)
                     .map(|h| h.episodes.iter().any(|e|

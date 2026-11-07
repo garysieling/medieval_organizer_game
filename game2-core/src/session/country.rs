@@ -15,7 +15,7 @@
 //! the wall.
 
 use super::*;
-use crate::game::tilemap::WATER_LEVEL;
+use crate::game::tilemap::{Tile, WATER_LEVEL};
 
 /// Carts and horses cover this many times a walker's ground
 pub const RIDE_PACE: f32 = 2.0;
@@ -399,17 +399,21 @@ impl Game {
         // no one
         let (vx, vy) = self.world.get_component::<Pos>(self.market_food)
             .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0));
-        for (fx, fy) in [(vx - 15, vy + 11), (vx + 16, vy - 10), (vx + 6, vy + 17)] {
+        for (i, (fx, fy)) in [(vx - 15, vy + 11), (vx + 16, vy - 10), (vx + 6, vy + 17)].into_iter().enumerate() {
             let mut spot = None;
             'probe: for r in 0..5 {
                 for (dx, dy) in [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r), (r, r), (-r, -r), (r, -r), (-r, r)] {
-                    if self.walkable((fx + dx) as f32, (fy + dy) as f32) {
+                    let at = (fx + dx, fy + dy);
+                    if self.walkable(at.0 as f32, at.1 as f32) && !self.map.trees.contains(&at) {
                         spot = Some((fx + dx, fy + dy));
                         break 'probe;
                     }
                 }
             }
             let Some((fx, fy)) = spot else { continue };
+            // These are the working fields' ground, sent to clients as part
+            // of the map so they draw as crops instead of open grass.
+            self.map.set(fx, fy, if i == 1 { Tile::Corn } else { Tile::Wheat });
             let f = villager::spawn_crop_field(&mut self.world, fx as f32, fy as f32, 60, 0.5);
             // the year starts thin in the fields - the ripening shows
             if let Some(fs) = self.world.get_component_mut::<villager::FoodSource>(f) { fs.servings = 15; }

@@ -56,6 +56,22 @@ fn test_the_far_farms_and_the_abbey_keep_their_own() {
 }
 
 #[test]
+fn test_live_crop_fields_are_drawn_as_worked_ground() {
+    for seed in [0u64, 1, 5, 42, 99] {
+        let g = Game::new_seeded(seed);
+        assert!(!g.crop_fields.is_empty(), "seed {seed} has live crop fields");
+        for &field in &g.crop_fields {
+            let p = g.world.get_component::<Pos>(field).expect("crop field has a position");
+            let at = (p.x.round() as i32, p.y.round() as i32);
+            let tile = g.map.get(at.0, at.1);
+            assert!(matches!(tile, Some(Tile::Wheat | Tile::Corn)),
+                "seed {seed} crop field at ({:.0},{:.0}) has worked ground: {:?}", p.x, p.y, tile);
+            assert!(!g.map.trees.contains(&at), "seed {seed} crop field is not hidden by a tree");
+        }
+    }
+}
+
+#[test]
 fn test_the_brothers_keep_the_office_at_their_abbey() {
     let mut g = Game::new_seeded(1);
     let Some(si) = g.sites.iter().position(|s| s.kind == SiteKind::Monastery) else { return };

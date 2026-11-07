@@ -42,3 +42,15 @@ fn test_a_tasked_heir_reports_the_inherited_shop_once() {
     // the shared shelf's take is named once - not again as the senior's
     assert!(!last.contains("through"), "{}", last);
 }
+
+#[test]
+fn test_the_players_promotion_names_the_craft() {
+    let mut g = Game::new();
+    // a bench-day short of Apprentice, wheat in hand for the day
+    g.world.add_component(g.player, vocation::craft(Vocation::Baker, 0.396));
+    g.world.get_component_mut::<Satchel>(g.player).unwrap().goods.insert("wheat".into(), 2);
+    g.seats[0].ctx_actions = vec![CtxAct::Work];
+    g.ctx_act_at(0, 0);
+    let last = g.log.last().unwrap();
+    assert!(last.contains("reach Apprentice Baker!"), "{}", last);
+}

@@ -322,6 +322,14 @@ pub fn level_name(l: Level) -> &'static str {
     }
 }
 
+/// "a" or "an" for the word that follows - "an Apprentice", "a Master"
+pub fn article(word: &str) -> &'static str {
+    match word.chars().next().map(|c| c.to_ascii_lowercase()) {
+        Some('a') | Some('e') | Some('i') | Some('o') | Some('u') => "an",
+        _ => "a",
+    }
+}
+
 pub fn class_name(c: SocialClass) -> &'static str {
     match c {
         SocialClass::Working => "working",

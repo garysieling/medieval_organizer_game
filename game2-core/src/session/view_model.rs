@@ -28,7 +28,8 @@ pub(in crate::session) const LOG_TOWN_SHOWN: usize = 3;
 
 /// Is this log entry routine town business?
 pub(in crate::session) fn is_town_note(entry: &str) -> bool {
-    entry.contains(" is now a ") || entry.contains("has come to town")
+    entry.contains(" is now a ") || entry.contains(" is now an ")
+        || entry.contains("has come to town")
         // the country's carts and stewards on the road
         || entry.contains("'s cart ") || entry.contains("to fetch provisions")
         || entry.contains("takes his cut") || entry.contains("Organizer discovers issue")

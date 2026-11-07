@@ -252,6 +252,10 @@ const CHAT_BUBBLE_SECS: u32 = 2;
 const CHAT_RANGE: f32 = 1.5;
 const CHAT_COOLDOWN: u64 = 20;
 const CHAT_INTENSITY: f32 = 0.2;
+/// A promised visit counts as found within this many tiles of where the
+/// walk ended - and how many empty doorsteps they check before giving up
+const VISIT_RANGE: f32 = 3.0;
+const VISIT_MISSES: u8 = 4;
 /// How low the tavern's barrel runs before the keeper walks out to buy
 pub const TAVERN_BAR_LOW: u32 = 3;
 /// How many measures he lays in at a time

@@ -625,13 +625,16 @@ pub struct Deeds { pub n: u32 }
 
 /// "I'll come find you": when an introduction goes down well the person
 /// you asked owes the organizer a return visit - the day loop sends
-/// them over once `after` has come, and the note's spent on the walk
+/// them over once `after` has come, and the note's spent only when the
+/// greeting actually lands
 #[derive(Debug, Clone, Copy)]
 pub struct RoundBack {
     /// Who they said they'd come back to
     pub to: Entity,
     /// The first day the visit may start (ticks are days)
     pub after: u64,
+    /// Empty doorsteps found so far - they don't chase forever
+    pub misses: u8,
 }
 
 /// Where `organizer` stands with `who`, read off the world. A stage is
@@ -877,7 +880,7 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
     use crate::game::desires::{issue_tag, unrevealed, Known};
     // a word well spent comes back around: they said they'd think on it,
     // and come find you about it
-    world.add_component(person, RoundBack { to: organizer, after: tick + 1 });
+    world.add_component(person, RoundBack { to: organizer, after: tick + 1, misses: 0 });
     let voc = world.get_component::<crate::game::vocation::Craft>(person).map(|c| c.vocation);
     let their_tags: Vec<String> = world.get_component::<Known>(person)
         .map(|k| k.revealed.iter().map(|r| issue_tag(world, person, r)).collect()).unwrap_or_default();

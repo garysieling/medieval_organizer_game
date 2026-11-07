@@ -467,6 +467,11 @@ impl Game {
                 if crate::game::dungeon::unavailable(&self.world, e)
                     || self.world.get_component::<Pos>(e).is_none() {
                     self.say(who, "Oh.", TALK_BUBBLE_SECS);
+                    // a visit promised to someone gone is let go
+                    if self.world.get_component::<crate::game::organizing::RoundBack>(who)
+                        .map(|rb| rb.to == e).unwrap_or(false) {
+                        self.world.remove_component::<crate::game::organizing::RoundBack>(who);
+                    }
                 } else if Some(e) == self.matchmaker && who != e {
                     // a lonely heart comes to sit with the heart-helper
                     self.match_attempt(who, tick, Some(e), "the heart-helper");
@@ -475,6 +480,31 @@ impl Game {
                     desires::satisfy(&mut self.world, who, Want::GoodFood, tick + 30);
                     self.say(who, "The crusts come back fried.", CHAT_BUBBLE_SECS);
                 } else {
+                    // a promised visit only counts if you're actually
+                    // there: the walk was set out for where you stood that
+                    // morning - an empty doorstep is noted and tried again,
+                    // a few times over before they stop looking
+                    let visit = self.world.get_component::<crate::game::organizing::RoundBack>(who)
+                        .filter(|rb| rb.to == e).copied();
+                    if let Some(rb) = visit {
+                        let near = match (self.world.get_component::<Pos>(who), self.world.get_component::<Pos>(e)) {
+                            (Some(a), Some(b)) => (a.x - b.x).abs() + (a.y - b.y).abs() <= VISIT_RANGE,
+                            _ => false,
+                        };
+                        if !near {
+                            if rb.misses + 1 >= VISIT_MISSES {
+                                self.world.remove_component::<crate::game::organizing::RoundBack>(who);
+                                let name = self.villagers.iter().position(|v| *v == who)
+                                    .map(|i| vill_name(i)).unwrap_or("someone");
+                                self.log.push(format!("t{}: {} stops looking for you - the road's run out.", tick, name));
+                            } else if let Some(rb) = self.world.get_component_mut::<crate::game::organizing::RoundBack>(who) {
+                                rb.misses += 1;
+                                rb.after = tick + 1;
+                            }
+                            return;
+                        }
+                        self.world.remove_component::<crate::game::organizing::RoundBack>(who);
+                    }
                     // stand and chat: a conversation, a step toward a tie
                     relationships::record_interaction(&mut self.world, who, relationships::Interaction {
                         other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,

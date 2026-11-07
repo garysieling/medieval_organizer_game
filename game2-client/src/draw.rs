@@ -14,10 +14,9 @@ pub(crate) fn draw_zoomed(buf: &mut Buffer, sprite: &Sprite, x: i32, y: i32, sca
     }
 }
 
-/// Where the panel portrait's feet are: a 32px frame drawn 2x from
-/// (UI_X+6, 312), the figure centred in it and ending at its bottom row
-pub(crate) const PORTRAIT_FOOT: (i32, i32) = (UI_X as i32 + 6 + 32, 322 + 62);
-
+/// Where a floating inspector's grave portrait stands, as offsets from
+/// the card's old panel slot: the view's lx/ly shift them to the card
+pub(crate) const PORTRAIT_FOOT: (i32, i32) = (38, 384);
 /// Villager name colours on the map: within MEETING_REACH of the player
 /// (Talk, Recruit and Organize can reach them) or not
 pub(crate) const NAME_IN_REACH: (u8, u8, u8) = (255, 255, 255);

@@ -834,64 +834,72 @@ impl View {
         }
 
         // the house-meeting plan filling in: who's said yes, by name -
-        // sits under the Gather button's slot, above the inspector card
+        // it sits right of the BONDS block, clear of the ctx band below
         if let Some(mp) = &m.panel.meeting {
-            draw_text(&mut buf, UI_X as i32 + 18, 272, "MEETING", 255, 215, 0);
+            draw_text(&mut buf, UI_X as i32 + 190, 190, "MEETING", 255, 215, 0);
             let lines: Vec<String> = meeting_lines(mp).iter()
-                .flat_map(|l| wrap_text(l, 42)).collect();
+                .flat_map(|l| wrap_text(l, 23)).collect();
             for (n, line) in lines.iter().take(3).enumerate() {
-                draw_text(&mut buf, UI_X as i32 + 18, 284 + n as i32 * 11, line, 220, 220, 180);
+                draw_text(&mut buf, UI_X as i32 + 190, 201 + n as i32 * 11, line, 220, 220, 180);
             }
         }
 
-        // inspector: a villager's card, or a building's when one's clicked
-        if self.inspector_open {
-            draw_rect(&mut buf, UI_X as i32 + 10, 316, 320, 150, 45, 45, 65);
-            if let Some(insp) = &m.inspector {
-                if insp.dead {
-                    draw_grave(&mut buf, PORTRAIT_FOOT.0, PORTRAIT_FOOT.1, 2.0);
-                } else if let Some(fig_i) = insp.fig {
-                    let look = figure_look(insp.kid, fig_i, art.villager_sprites.len());
-                    let fig = &art.villager_sprites[look];
-                    fig.blit_scaled(&mut buf, UI_X as i32 + 6, 322, 2);
+        // inspector: a villager's card, or a building's when one's clicked -
+        // it floats on the map's bottom-left now that the panel's middle
+        // band belongs to the context buttons. The card's lines carry
+        // offsets from its old panel slot, shifted by the delta
+        const INSP_X: i32 = 16;
+        const INSP_Y: i32 = 780;
+        if self.inspector_open && m.inspector.is_some() {
+            let lx = |k: i32| INSP_X + k - 10;
+            let ly = |k: i32| INSP_Y + k - 316;
+            draw_rect(&mut buf, lx(10), ly(316), 320, 150, 45, 45, 65);
+            let insp = m.inspector.as_ref().unwrap();
+            if insp.dead {
+                draw_grave(&mut buf, lx(PORTRAIT_FOOT.0), ly(PORTRAIT_FOOT.1), 2.0);
+            } else if let Some(fig_i) = insp.fig {
+                let look = figure_look(insp.kid, fig_i, art.villager_sprites.len());
+                let fig = &art.villager_sprites[look];
+                fig.blit_scaled(&mut buf, lx(6), ly(322), 2);
+            }
+            for line in &insp.lines {
+                if line.text.starts_with('\u{1}') {
+                    // "METER:name:frac:note" sentinel from the sim
+                    let mut it = line.text[3..].split('\u{2}');
+                    let (name, rest) = (it.next().unwrap_or(""), it.next().unwrap_or(""));
+                    let (frac, note) = rest.split_once(':')
+                        .map(|(a, b)| (a.parse::<f32>().unwrap_or(0.0), b))
+                        .unwrap_or((0.0, ""));
+                    draw_meter(&mut buf, lx(line.x), ly(line.y), name, frac, note);
+                } else {
+                    draw_text(&mut buf, lx(line.x), ly(line.y), &line.text, line.rgb.0, line.rgb.1, line.rgb.2);
                 }
-                for line in &insp.lines {
-                    if line.text.starts_with('\u{1}') {
-                        // "METER:name:frac:note" sentinel from the sim
-                        let mut it = line.text[3..].split('\u{2}');
-                        let (name, rest) = (it.next().unwrap_or(""), it.next().unwrap_or(""));
-                        let (frac, note) = rest.split_once(':')
-                            .map(|(a, b)| (a.parse::<f32>().unwrap_or(0.0), b))
-                            .unwrap_or((0.0, ""));
-                        draw_meter(&mut buf, UI_X as i32 + line.x, line.y, name, frac, note);
-                    } else {
-                        draw_text(&mut buf, UI_X as i32 + line.x, line.y, &line.text, line.rgb.0, line.rgb.1, line.rgb.2);
-                    }
-                }
-                // the seat's hearts for them, top-right of the card -
-                // five pixels-hearts in half steps, clear of the name row
-                if let Some(h) = insp.hearts {
-                    draw_hearts(&mut buf, UI_X as i32 + 10 + 320 - 4 - 5 * 8, 320, h, 5);
-                }
+            }
+            // the seat's hearts for them, top-right of the card -
+            // five pixels-hearts in half steps, clear of the name row
+            if let Some(h) = insp.hearts {
+                draw_hearts(&mut buf, lx(286), ly(320), h, 5);
             }
         }
 
-        // contextual actions: after the inspector, so the ones that live on
-        // the card's bottom edge (Seat/Strike) stay visible. Meet sits on
-        // the campaign's FIGHT line, the rest under the main buttons
-        // two passes: the buttons first, then any greyed reason on hover -
-        // drawn last so a neighbouring button or status line can't cover it
-        let ctx_btns: Vec<(Button, Option<&String>)> = m.ctx.iter().map(|a| ctx_button(*a))
+        // contextual actions: one layout for the draw and the click -
+        // ctx_buttons stacks them in list order across the panel's band,
+        // so no two rects ever meet. Greyed reasons still show on hover
+        // for the rate-limited ones (a used-up snowball fight, a walked
+        // cat); the unavailable never reach the list at all
+        let ctx_btns: Vec<(Button, Option<&String>)> = ctx_buttons(&m.ctx).into_iter()
             .zip(m.ctx_blocked.iter()).map(|(b, r)| (b, r.as_ref())).collect();
         for (b, reason) in &ctx_btns {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             draw_button(&mut buf, b, hover, reason.is_some());
         }
-        for (b, reason) in &ctx_btns {
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            if let Some(r) = reason.filter(|_| hover) {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 255, 180, 140);
-            }
+        // a greyed reason reads on one line under the band - beside its
+        // button it would land on the neighbouring column
+        if let Some(r) = ctx_btns.iter()
+            .find(|(b, _)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
+            .and_then(|(_, r)| r.as_deref()) {
+            let bottom = ctx_btns.iter().map(|(b, _)| b.y + b.h).max().unwrap_or(CTX_BAND_Y);
+            draw_text(&mut buf, UI_X as i32 + 18, bottom + 4, r, 255, 180, 140);
         }
 
         // the bond ledger: the reward for keeping company - who the
@@ -904,10 +912,10 @@ impl View {
             draw_text(&mut buf, UI_X as i32 + 18, 202 + n as i32 * 12, line, 215, 215, 195);
         }
 
-        // the org's own muscle - a word for its strength, the seat's
-        // call, and whether it's been used; the row's the inspector
-        // card's when one's open, so it only shows on the clear panel
-        if let (Some(pw), None) = (&m.panel.power, &m.inspector) {
+        // the org's own muscle - a word for its strength and whether it's
+        // been used; the inspector card floats on the map now, so the row
+        // always has the panel to itself
+        if let Some(pw) = &m.panel.power {
             draw_text(&mut buf, UI_X as i32 + 18, 452, pw, 170, 200, 170);
         }
 

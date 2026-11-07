@@ -7,6 +7,7 @@ mod blocker;
 mod bubble;
 mod camera;
 mod campaign_part_grant;
+mod ctx;
 mod dead_portrait;
 mod death;
 mod depth;

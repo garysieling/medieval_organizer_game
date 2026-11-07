@@ -229,7 +229,12 @@ fn test_the_player_knows_a_killer_when_he_sees_one() {
     let t = g.mush_patches[pi].tile;
     if let Some(p) = g.world.get_component_mut::<Pos>(pe) { p.x = t.0 as f32; p.y = t.1 as f32; }
     g.update_ctx_actions_at(0);
-    let i = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::PickCaps).expect("no pick-caps button");
+    // a patch the belly's learned isn't offered at all
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::PickCaps),
+        "a known killer stays off the card: {:?}", g.seats[0].ctx_actions);
+    // and a stale click still can't pick it - the verb re-checks
+    g.seats[0].ctx_actions.push(CtxAct::PickCaps);
+    let i = g.seats[0].ctx_actions.len() - 1;
     g.ctx_act_at(0, i);
     assert!(g.log.iter().any(|l| l.contains("death - you know it")), "the lore didn't speak");
     assert_eq!(g.mush_patches[pi].next_ready, 0, "he picked a killer");

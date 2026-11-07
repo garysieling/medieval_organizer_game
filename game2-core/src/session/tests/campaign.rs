@@ -61,7 +61,8 @@ fn test_the_organizer_sets_how_often_they_meet() {
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days, 7);
     assert_eq!(g.ui_model().panel.campaign.unwrap().cadence_days, 7);
-    for _ in 0..3 { g.ctx_act_at(0, i); }
+    // the organizer answers once a day - the cycle walks a day a step
+    for _ in 0..3 { g.tick += 1; g.ctx_act_at(0, i); }
     assert_eq!(g.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
         .unwrap().cadence_days, 3, "the cycle wraps to the fight's rhythm");
 }
@@ -274,4 +275,73 @@ fn test_the_panel_names_the_cause_s_posture() {
     let m = g.ui_model();
     let cv = m.panel.campaign.as_ref().unwrap();
     assert_eq!(cv.state, "the room consents", "posture read: {}", cv.state);
+}
+
+#[test]
+fn test_the_panel_only_offers_what_can_fire() {
+    let mut g = Game::new();
+    // before any cause exists the campaign verbs aren't on the card
+    g.update_ctx_actions_at(0);
+    for a in [CtxAct::Meet, CtxAct::Cadence, CtxAct::March, CtxAct::Flyers,
+              CtxAct::Delegate, CtxAct::Strike, CtxAct::Townhall] {
+        assert!(!g.seats[0].ctx_actions.contains(&a), "{a:?}: {:?}", g.seats[0].ctx_actions);
+    }
+    // a founded cause offers its street verbs - but not a Meet that
+    // isn't due, nor flyers with no print shop to buy from
+    for &v in &g.villagers[..3] {
+        desires::add_grievance(&mut g.world, v, desires::Problem::Taxed, g.tick + 200);
+    }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members =
+        g.villagers[..3].to_vec();
+    g.world.get_component_mut::<desires::Organizer>(g.player).unwrap()
+        .issues.push("the taxes".into());
+    g.maybe_found_campaign(0).unwrap();
+    g.update_ctx_actions_at(0);
+    {
+        let ctx = &g.seats[0].ctx_actions;
+        assert!(ctx.contains(&CtxAct::Cadence) && ctx.contains(&CtxAct::March), "{ctx:?}");
+        assert!(!ctx.contains(&CtxAct::Meet), "just founded - not due yet: {ctx:?}");
+        assert!(!ctx.contains(&CtxAct::Flyers), "no print shop stands: {ctx:?}");
+    }
+    // due is due: Meet joins the card
+    let c = crate::game::campaign::campaign_of(&g.world, g.org).unwrap();
+    g.world.get_component_mut::<crate::game::campaign::CampaignMeeting>(c)
+        .unwrap().cadence_days = 0;
+    g.update_ctx_actions_at(0);
+    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Meet), "{:?}", g.seats[0].ctx_actions);
+    // a picked member is offered a seat while one stands empty
+    g.seats[0].selected_target = 0;
+    g.seats[0].picked = true;
+    g.update_ctx_actions_at(0);
+    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Delegate), "{:?}", g.seats[0].ctx_actions);
+    // every seat spoken for: Delegate has nothing left to offer
+    for (role, holder) in [
+        (crate::game::campaign::Role::TurnoutCoordinator, g.villagers[1]),
+        (crate::game::campaign::Role::NoteTaker, g.villagers[2]),
+        (crate::game::campaign::Role::Chair, g.villagers[0]),
+    ] {
+        crate::game::campaign::delegate_role(&mut g.world, c, role, holder);
+    }
+    g.update_ctx_actions_at(0);
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Delegate),
+        "a full roster offers no seat: {:?}", g.seats[0].ctx_actions);
+    // the Reeve honouring a full grant closes the demands too
+    g.world.get_component_mut::<crate::game::campaign::Campaign>(c).unwrap()
+        .target = g.collector;
+    g.seats[0].selected_target = COLLECTOR_IDX;
+    g.update_ctx_actions_at(0);
+    assert!(g.seats[0].ctx_actions.contains(&CtxAct::Townhall), "{:?}", g.seats[0].ctx_actions);
+    g.world.add_component(g.org, crate::game::reactions::LordGrant::full(
+        "the taxes", g.tick, g.tick + 100));
+    g.update_ctx_actions_at(0);
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Townhall),
+        "the grant stands: {:?}", g.seats[0].ctx_actions);
+    // and the street verbs cool off: March answers once a day
+    g.seats[0].selected_target = 0;
+    g.update_ctx_actions_at(0);
+    let mi = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::March).unwrap();
+    g.ctx_act_at(0, mi);
+    assert!(g.ctx_blocker_at(0, CtxAct::March).is_some(), "same-day march refused");
+    g.tick += 1;
+    assert!(g.ctx_blocker_at(0, CtxAct::March).is_none(), "tomorrow's march answers");
 }

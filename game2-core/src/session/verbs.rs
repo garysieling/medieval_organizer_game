@@ -398,6 +398,18 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Pact);
             }
         }
+        // a shop you're standing by will sell you one of what it makes:
+        // the bag takes it, the walking purse pays the street's price
+        let pe = self.seats[seat].player;
+        if self.world.get_component::<Satchel>(pe).is_some() {
+            let sellable = self.building_entities.iter().copied().any(|b| {
+                let bb = self.world.get_component::<Building>(b);
+                bb.map(|bb| bb.worker.is_some() && bb.stock.iter().any(|(_, &n)| n > 0)).unwrap_or(false)
+                    && self.world.get_component::<Pos>(b)
+                        .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0).unwrap_or(false)
+            });
+            if sellable { self.seats[seat].ctx_actions.push(CtxAct::Buy); }
+        }
         // a stray cat keeping you company can be stroked - "Pet her"
         // shows while she's in reach, whatever else is going on
         if self.stray_cat_at(seat).is_some() {
@@ -442,6 +454,16 @@ impl Game {
                     // letters go on whether the cause still marches or not
                     self.seats[seat].ctx_actions.push(CtxAct::Petition);
                 } else if !crate::game::dungeon::unavailable(&self.world, v) {
+                    // a gift for the picked one, from your own bag: near
+                    // enough to hand it over, and holding something
+                    let in_reach = self.world.get_component::<Pos>(v)
+                        .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= TALK_DIST)
+                        .unwrap_or(false);
+                    let holds = self.world.get_component::<Satchel>(self.seats[seat].player)
+                        .map(|s| s.goods.iter().any(|(_, &n)| n > 0)).unwrap_or(false);
+                    if in_reach && holds {
+                        self.seats[seat].ctx_actions.push(CtxAct::Give);
+                    }
                     let is_member = self.world.get_component::<Organization>(self.seats[seat].org)
                         .map(|o| o.members.contains(&v)).unwrap_or(false);
                     // a trusted ear can be won to the cause: it takes a tie
@@ -913,6 +935,95 @@ impl Game {
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
+            CtxAct::Give => {
+                let pe = self.seats[seat].player;
+                let v = self.villagers[self.seats[seat].selected_target];
+                let bag: Vec<String> = self.world.get_component::<Satchel>(pe)
+                    .map(|s| s.goods.iter().filter(|(_, &n)| n > 0).map(|(g, _)| g.clone()).collect())
+                    .unwrap_or_default();
+                let edible = |g: &str| goods::spec(g)
+                    .map(|sp| [goods::Tag::StapleFood, goods::Tag::Fruit, goods::Tag::Sweet]
+                        .iter().any(|t| sp.tags.contains(t)))
+                    .unwrap_or(false);
+                let their_hungry = self.world.get_component::<Hunger>(v)
+                    .map(|h| h.value < 30.0).unwrap_or(false);
+                // the gift picks itself: a meal for the hungry, the
+                // thing they're after, else the best of the bag
+                let gift = if their_hungry { bag.iter().find(|g| edible(g)).cloned() } else { None }
+                    .or_else(|| {
+                        let wants: Vec<desires::Want> = self.world.get_component::<desires::InnerLife>(v)
+                            .map(|l| l.wants.iter().copied()
+                                .filter(|w| !l.satisfied.iter().any(|(s, _)| *s == *w)).collect())
+                            .unwrap_or_default();
+                        bag.iter().find(|g| wants.iter().any(|w| match w {
+                            desires::Want::GoodFood => edible(g),
+                            desires::Want::Finery => goods::spec(g).map(|s| s.tags.contains(&goods::Tag::Finery)).unwrap_or(false),
+                            desires::Want::Drink => goods::spec(g).map(|s| s.tags.contains(&goods::Tag::Drink)).unwrap_or(false),
+                            desires::Want::Instrument => g.as_str() == "lute",
+                            desires::Want::BetterTools => g.as_str() == "tools",
+                            _ => false,
+                        })).cloned()
+                    })
+                    .or_else(|| bag.iter()
+                        .max_by(|a, b| goods::worth_at(&self.world, a)
+                            .partial_cmp(&goods::worth_at(&self.world, b)).unwrap_or(std::cmp::Ordering::Equal))
+                        .cloned());
+                match gift {
+                    Some(g) => {
+                        let worth = goods::worth_at(&self.world, &g);
+                        if let Some(s) = self.world.get_component_mut::<Satchel>(pe) {
+                            if let Some(n) = s.goods.get_mut(&g) { *n -= 1; if *n == 0 { s.goods.remove(&g); } }
+                        }
+                        if let Some(s) = self.world.get_component_mut::<Satchel>(v) {
+                            *s.goods.entry(g.clone()).or_insert(0) += 1;
+                        }
+                        let kind = if edible(&g) { crate::game::relationships::InteractionKind::SharedMeal }
+                            else { crate::game::relationships::InteractionKind::Aid };
+                        crate::game::relationships::record_interaction(&mut self.world, pe,
+                            crate::game::relationships::Interaction {
+                                other: v, kind, intensity: (worth / 10.0).clamp(0.5, 2.0) });
+                        let who = vill_name(self.seats[seat].selected_target);
+                        format!("you give {} the {} - and it warms them.", who, g)
+                    }
+                    None => "your satchel's empty - nothing to give.".into(),
+                }
+            }
+            CtxAct::Buy => {
+                let pe = self.seats[seat].player;
+                let (px, py) = self.player_pos_at(seat);
+                // the nearest shop that'll sell: a worker on it and
+                // something on the shelf
+                let shop = self.building_entities.iter().copied()
+                    .filter(|&b| {
+                        self.world.get_component::<Building>(b)
+                            .map(|bb| bb.worker.is_some() && bb.stock.iter().any(|(_, &n)| n > 0)).unwrap_or(false)
+                            && self.world.get_component::<Pos>(b)
+                                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() < 4.0).unwrap_or(false)
+                    })
+                    .min_by(|&a, &b| {
+                        let d = |e: Entity| self.world.get_component::<Pos>(e)
+                            .map(|p| (p.x - px).powi(2) + (p.y - py).powi(2)).unwrap_or(f32::MAX);
+                        d(a).partial_cmp(&d(b)).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                match shop {
+                    Some(b) => {
+                        let good = self.world.get_component::<Building>(b).and_then(|bb| {
+                            let own = match bb.kind { BuildingKind::Shop(voc) => vocation::output(voc), _ => None };
+                            own.filter(|g| bb.stock.get(*g).copied().unwrap_or(0) > 0)
+                                .or_else(|| bb.stock.iter().filter(|(_, &n)| n > 0)
+                                    .max_by_key(|(_, &n)| n).map(|(g, _)| g.as_str()))
+                        }).map(|g| g.to_string());
+                        match good {
+                            Some(g) => match crate::game::household::buy_at_shop(&mut self.world, b, pe, &g, 1) {
+                                Some(paid) => format!("you buy {} for {:.0} gold.", g, paid),
+                                None => "you can't cover it.".into(),
+                            },
+                            None => "the shelf's bare.".into(),
+                        }
+                    }
+                    None => "no shop in reach will sell.".into(),
+                }
+            }
         };
         if !msg.is_empty() {
             self.log.push(format!("t{}: {}", tick, msg));

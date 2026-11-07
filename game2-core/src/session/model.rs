@@ -339,6 +339,14 @@ pub struct UiModel {
     /// where their hearts show; absent from older servers
     #[serde(default)]
     pub org_members: Vec<Entity>,
+    /// The seat's own bag - what's in the wanderer's satchel; absent
+    /// from older servers
+    #[serde(default)]
+    pub player_satchel: Vec<(String, u32)>,
+    /// The seat's belly, 0 to 100 - the strip marks it hungry under 40;
+    /// absent from older servers, which read as a full belly
+    #[serde(default)]
+    pub player_hunger: f32,
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<ToastV>,
     pub log: Vec<String>,

@@ -182,6 +182,11 @@ the field is absent from older servers.
 seat's own character excluded) - the client marks a member's name tag
 where their hearts show. The field is absent from older servers.
 
+`player_satchel` lists what the seat's own character carries, as
+`[good, count]` pairs - the client draws it as a strip under the HUD.
+`player_hunger` is their belly, 0 to 100; under 40 the strip marks them
+hungry. Both are absent from older servers (empty bag, full belly).
+
 `inspector` is the card for the current selection: `fig` (the portrait's
 villager index, or `null` for a building or a grave), `kid` (draw the
 portrait with a child's look, not the grown-up one `fig`'s bare index

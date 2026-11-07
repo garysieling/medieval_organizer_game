@@ -88,6 +88,12 @@ pub enum CtxAct {
     ShareFindings,
     /// Throw water on the flames - offered standing by a fire
     Douse,
+    /// Give the picked villager something from your satchel - the meal
+    /// for the hungry, the thing they're after, or the best of the bag
+    Give,
+    /// Buy from a shop you're standing by - one of what it makes, at
+    /// the street's price, out of your walking purse
+    Buy,
 }
 
 /// One player's hold on the game: which character they steer, what they've

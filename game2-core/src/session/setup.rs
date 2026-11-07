@@ -610,6 +610,9 @@ impl Game {
         let pskill = if pclass == SocialClass::PetitBourgeois { 0.8 } else { 0.1 + rng.below(20) as f32 / 100.0 };
         world.add_component(player, vocation::craft(pvoc, pskill));
         world.add_component(player, Satchel::default());
+        // the wanderer hungers like anyone - pressure without lethality:
+        // no Health, so the nourishment step never lets it bite
+        world.add_component(player, Hunger { value: 100.0 });
         world.add_component(player, Purse { gold: livelihood::seed_gold(pclass, false, (rng.next() % 1000) as f32 / 1000.0) });
         world.add_component(player, Organizer::default());
         {

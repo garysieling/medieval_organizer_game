@@ -17,6 +17,19 @@ pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, w
         if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
 }
 
+/// The seat's own bag and belly, as one strip under the HUD line:
+/// "satchel: breadx2, cheesex1 | hungry" - empty when there's nothing
+/// to say (an empty bag and a full belly)
+pub(crate) fn satchel_strip(m: &UiModel) -> String {
+    let bag: Vec<String> = m.player_satchel.iter().map(|(g, n)| format!("{}x{}", g, n)).collect();
+    let mut s = if bag.is_empty() { String::new() } else { format!("satchel: {}", bag.join(", ")) };
+    if m.player_hunger < 40.0 {
+        if !s.is_empty() { s.push_str(" | "); }
+        s.push_str("hungry");
+    }
+    s
+}
+
 /// The panel's standing reminder of the keys - the only on-screen pointer
 /// to the help overlay once the title screen is gone
 pub(crate) const PANEL_HINT: &str = "1-8 select villager   H help";

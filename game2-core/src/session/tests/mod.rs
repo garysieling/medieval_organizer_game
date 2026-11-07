@@ -97,6 +97,7 @@ mod rep;
 mod river;
 mod roster;
 mod sanction;
+mod satchel;
 mod scenario;
 mod sfx;
 mod shroom;

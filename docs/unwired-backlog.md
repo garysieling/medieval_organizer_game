@@ -127,7 +127,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 91 | Fire risk: what's flammable near a fire | `fire::flammable`, `is_scorched` | done #619 |
 | 92 | Recruit odds shown before you ask | `player::recruit_trust` | done #620 |
 | 93 | Campaign elite shadowing / mass ties | `campaign::shadow_elite`, `tie_mass` | done #621 |
-| 94 | Campaign history: recent beats and who consented | `campaign_arc` (`recent_beats`, `record_consent`, `arc_facts`) | todo |
+| 94 | Campaign history: recent beats and who consented | `campaign_arc` (`recent_beats`, `record_consent`, `arc_facts`) | done #622 |
 | 95 | Personal facts feeding meeting dialogue | `campaign_dialogue` (`personal_facts`, `meeting_facts`) | todo |
 | 96 | Conversations picked by role | `conversation::for_roles` | todo |
 | 97 | Market prices settable (lord's fixed price) | `economics::set_base_price` | todo |

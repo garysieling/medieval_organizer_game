@@ -398,6 +398,8 @@ fn test_a_remote_chaplain_isnt_the_village_ear() {
     assert!(!priests.is_empty(), "the country keeps chaplains to exclude");
     for p in priests {
         *g.world.get_component_mut::<Pos>(p).unwrap() = Pos { x: church.x + 200.0, y: church.y };
+        // a plan where they now stand, so a later sim doesn't walk them back
+        g.plan_visit(p, g.tick);
     }
     let (oe, tick) = (g.org, g.tick);
     let (msg, named) = propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Wick", 0.0, tick);

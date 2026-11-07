@@ -742,22 +742,28 @@ impl WorkLook {
 
 
 /// Big moments announced at the top of the map: (text, shown until
-/// tick, where it happened). `push` is the plain banner; `push_at` says
-/// where it happened, so the client can jump the camera there on a click
+/// tick, where it happened, the frame it was announced on). `push` is
+/// the plain banner; `push_at` says where it happened, so the client can
+/// jump the camera there on a click. The frame stamp lets a client age
+/// each banner itself - the sim's expiry is days, the screen's is seconds
 #[derive(Debug, Default)]
-pub struct Toasts(pub Vec<(String, u64, Option<(f32, f32)>)>);
+pub struct Toasts {
+    /// The frame pushes are stamped with, kept current by the advance
+    pub now: u32,
+    list: Vec<(String, u64, Option<(f32, f32)>, u32)>,
+}
 
 impl Toasts {
-    pub fn push(&mut self, t: (String, u64)) { self.0.push((t.0, t.1, None)); }
-    pub fn push_at(&mut self, t: (String, u64), at: Option<(f32, f32)>) { self.0.push((t.0, t.1, at)); }
-    pub fn retain(&mut self, f: impl FnMut(&(String, u64, Option<(f32, f32)>)) -> bool) { self.0.retain(f) }
+    pub fn push(&mut self, t: (String, u64)) { self.list.push((t.0, t.1, None, self.now)); }
+    pub fn push_at(&mut self, t: (String, u64), at: Option<(f32, f32)>) { self.list.push((t.0, t.1, at, self.now)); }
+    pub fn retain(&mut self, f: impl FnMut(&(String, u64, Option<(f32, f32)>, u32)) -> bool) { self.list.retain(f) }
 }
 impl std::ops::Deref for Toasts {
-    type Target = [(String, u64, Option<(f32, f32)>)];
-    fn deref(&self) -> &Self::Target { &self.0 }
+    type Target = [(String, u64, Option<(f32, f32)>, u32)];
+    fn deref(&self) -> &Self::Target { &self.list }
 }
 impl std::ops::DerefMut for Toasts {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.list }
 }
 
 /// Where `e` stands this frame, for a toast the player can click to visit
@@ -1256,6 +1262,7 @@ impl Game {
         self.sfx.clear();
         // sim advance: one tick = one day, throttled by frame count
         self.frame_n += 1;
+        self.toasts.now = self.frame_n;
         let mut ticked = false;
         if !self.paused && self.frame_n % ticks_per_frame == 0 {
             self.tick += 1;
@@ -1554,7 +1561,7 @@ impl Game {
         self.last_guild_count = gc;
 
         // expire speech bubbles and toasts
-        toasts.retain(|(_, until, _)| tick < *until);
+        toasts.retain(|(_, until, _, _)| tick < *until);
         for (e, before) in people.iter().zip(stood) {
             let (Some(before), Some(now)) = (before, self.world.get_component::<Pos>(*e).copied()) else { continue };
             let blocked = |p: &Pos| self.map.is_occupied(p.x.round() as i32, p.y.round() as i32);

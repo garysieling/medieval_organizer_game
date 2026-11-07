@@ -64,10 +64,6 @@ pub struct View {
     /// sprint stride at their own pace instead of every figure
     /// moonwalking to the same beat. (last x, last y, tiles walked, frame)
     walk: std::cell::RefCell<game2_core::engine::det::HashMap<u32, (f32, f32, f32, u32)>>,
-    /// When each toast's text was first seen, a queue per text (the same
-    /// words can be two different moments): the feed's clock is the
-    /// model's frame, so ages survive skipped renders
-    toast_births: std::cell::RefCell<game2_core::engine::det::HashMap<String, std::collections::VecDeque<u32>>>,
 }
 
 impl View {
@@ -90,7 +86,6 @@ impl View {
             last_camera: std::cell::Cell::new((i32::MIN, i32::MIN)),
             winter: std::cell::Cell::new(false),
             walk: std::cell::RefCell::new(game2_core::engine::det::HashMap::default()),
-            toast_births: std::cell::RefCell::new(game2_core::engine::det::HashMap::default()),
         }
     }
 
@@ -118,49 +113,25 @@ impl View {
         (st.2 / STRIDE_TILES * 6.0 * cycle.max(1) as f32) as u32
     }
 
-    /// Each toast's age in model frames, keeping the birth ledger in
-    /// step with the model: a text the model's dropped is struck off
-    /// oldest-first, and one it carries anew is born this frame
-    fn toast_ages(&self, toasts: &[ToastV], now: u32) -> Vec<u32> {
-        let mut want: game2_core::engine::det::HashMap<&str, usize> = Default::default();
-        for t in toasts { *want.entry(t.text.as_str()).or_default() += 1; }
-        {
-            let mut births = self.toast_births.borrow_mut();
-            for (text, q) in births.iter_mut() {
-                let n = want.get(text.as_str()).copied().unwrap_or(0);
-                while q.len() > n { q.pop_front(); }
-            }
-            births.retain(|_, q| !q.is_empty());
-            for (text, &n) in &want {
-                let q = births.entry(text.to_string()).or_default();
-                while q.len() < n { q.push_back(now); }
-            }
-        }
-        let births = self.toast_births.borrow();
-        let mut cursor: game2_core::engine::det::HashMap<&str, usize> = Default::default();
-        toasts.iter().map(|t| {
-            let q = &births[t.text.as_str()];
-            let i = cursor.entry(t.text.as_str()).or_default();
-            let born = q.get(*i).copied().unwrap_or(now);
-            *i += 1;
-            now.wrapping_sub(born)
-        }).collect()
-    }
-
     /// Where each live toast draws and how faded it is: (index into
     /// `toasts`, x, y, w, fade). The feed runs top-down like a
     /// conveyor - a new toast pops in at the bottom and, as the oldest
     /// expires off the top, the rest move up a place; each also climbs
-    /// a little and fades over its last frames
+    /// a little and fades over its last frames. A toast's age is its
+    /// own stamp against the model's frame - an older server that sends
+    /// none reads as just arrived
     pub(crate) fn toast_layout(&self, toasts: &[ToastV], now: u32)
         -> Vec<(usize, i32, i32, i32, f32)> {
-        let ages = self.toast_ages(toasts, now);
-        let live: Vec<usize> = (0..toasts.len()).filter(|&i| ages[i] < TOAST_LIFE).collect();
-        live.iter().enumerate().map(|(slot, &i)| {
+        let live: Vec<(usize, u32)> = toasts.iter().enumerate()
+            .filter_map(|(i, t)| {
+                let age = t.born.map(|b| now.wrapping_sub(b)).unwrap_or(0);
+                (age < TOAST_LIFE).then_some((i, age))
+            }).collect();
+        live.iter().enumerate().map(|(slot, &(i, age))| {
             let t = &toasts[i];
             let tw = t.text.len() as i32 * 6 + 16;
-            let rise = ages[i] as f32 / TOAST_LIFE as f32 * TOAST_RISE;
-            let fade = ((TOAST_LIFE - ages[i]) as f32 / TOAST_FADE as f32).min(1.0);
+            let rise = age as f32 / TOAST_LIFE as f32 * TOAST_RISE;
+            let fade = ((TOAST_LIFE - age) as f32 / TOAST_FADE as f32).min(1.0);
             (i, MAP_W as i32 / 2 - tw / 2, TOAST_TOP + slot as i32 * TOAST_PITCH - rise as i32, tw, fade)
         }).collect()
     }

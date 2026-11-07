@@ -131,6 +131,10 @@ pub struct AgentObs {
     pub busy: Option<String>,
     /// Nearby people (villagers, the wanderers): entity, name, distance
     pub near: Vec<ObsPerson>,
+    /// Fold and yard animals within reach of a walk, including whether this
+    /// villager could tame them with a contextual action
+    #[serde(default)]
+    pub near_animals: Vec<ObsAnimal>,
     /// Nearby buildings worth knowing about: entity, name, kind
     pub near_buildings: Vec<ObsBuilding>,
     /// Your satchel's contents
@@ -182,6 +186,18 @@ pub struct ObsPerson {
     pub name: String,
     pub dist: f32,
     pub dead: bool,
+    /// The job kind they currently have going begging, if any
+    #[serde(default)]
+    pub job_offer: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObsAnimal {
+    pub e: Entity,
+    pub kind: String,
+    pub pos: (f32, f32),
+    pub dist: f32,
+    pub tameable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,6 +206,24 @@ pub struct ObsBuilding {
     pub name: String,
     pub kind: String,
     pub dist: f32,
+}
+
+/// Context actions a villager agent may request. Campaign leadership actions
+/// remain exclusive to human organizer seats.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum AgentAction {
+    TakeJob,
+    Douse,
+    Tame,
+    Recruit,
+    Matchmake,
+    Errand,
+    PairUp,
+    ShareFindings,
+    PickCaps,
+    Snowballs,
+    PetCat,
+    Pact,
 }
 
 /// What an agent can tell its villager to do. Movement and shopping are
@@ -222,4 +256,8 @@ pub enum AgentCmd {
     /// Get the raw good the bench is short of (`AgentObs.me.needs`): the
     /// villager's own errand - send a kid, or go to where it's had
     FetchInput,
+    /// Take an available contextual action. `target` is a nearby villager
+    /// for actions such as TakeJob, Recruit, Errand, or PairUp; actions that
+    /// use the agent's own position can leave it empty.
+    Context { action: AgentAction, target: Option<Entity> },
 }

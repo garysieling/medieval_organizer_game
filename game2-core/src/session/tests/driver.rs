@@ -5,7 +5,7 @@ use crate::session::driver::drive_agent;
 fn obs() -> AgentObs {
     AgentObs {
         tick: 0, you: 1, pos: (0.0, 0.0), gold: 10.0, hunger: 80.0,
-        busy: Some("Idle".into()), near: vec![], near_buildings: vec![],
+        busy: Some("Idle".into()), near: vec![], near_animals: vec![], near_buildings: vec![],
         satchel: vec![], walking: false, held: false,
         orgs: vec![], campaigns: vec![], burning: vec![], me: Default::default(),
     }

@@ -198,6 +198,75 @@ fn an_agent_fetches_what_its_bench_is_short_of() {
     assert_eq!(g.agent_command(seat, AgentCmd::FetchInput), Err("the bench wants for nothing".into()));
 }
 
+#[test]
+fn an_agent_can_take_a_nearby_job_offer() {
+    use crate::session::quests::{PendingQuest, QuestKind, QuestTarget};
+    let mut g = Game::new();
+    let who = g.villagers[0];
+    let giver = g.villagers[1];
+    g.pending_quests.push(PendingQuest {
+        giver, kind: QuestKind::Note, target: QuestTarget::Villager(g.villagers[2]),
+        pickup: None, expires: g.tick + 10,
+    });
+    let at = *g.world.get_component::<Pos>(giver).unwrap();
+    *g.world.get_component_mut::<Pos>(who).unwrap() = at;
+    let seat = g.add_agent_seat(who);
+    assert!(g.agent_obs(seat).unwrap().near.iter().any(|p| p.e == giver && p.job_offer.as_deref() == Some("Note")),
+        "the observation names the offered work");
+    g.agent_command(seat, AgentCmd::Context {
+        action: AgentAction::TakeJob, target: Some(giver),
+    }).unwrap();
+    assert!(g.seats[seat].quest.is_some(), "the agent took the offered note");
+    assert!(g.pending_quests.is_empty());
+}
+
+#[test]
+fn an_agent_can_douse_a_nearby_fire() {
+    let mut g = Game::new();
+    let who = g.villagers[0];
+    let spot = (0..g.map.height as i32).flat_map(|y| (0..g.map.width as i32).map(move |x| (x, y)))
+        .find(|&(x, y)| crate::game::fire::Fire::flammable(&g.map, x, y))
+        .expect("a flammable tile");
+    *g.world.get_component_mut::<Pos>(who).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
+    assert!(g.fire.ignite(&g.map, spot.0, spot.1, g.tick));
+    let seat = g.add_agent_seat(who);
+    g.agent_command(seat, AgentCmd::Context { action: AgentAction::Douse, target: None }).unwrap();
+    assert!(!g.fire.on_fire(spot.0, spot.1));
+    assert!(g.fire.is_doused(spot.0, spot.1, g.tick));
+}
+
+#[test]
+fn an_agent_can_tame_a_nearby_flock_animal() {
+    let mut g = Game::new();
+    let who = g.villagers[0];
+    let sheep = g.flock[0];
+    let at = *g.world.get_component::<Pos>(sheep).unwrap();
+    *g.world.get_component_mut::<Pos>(who).unwrap() = at;
+    let seat = g.add_agent_seat(who);
+    assert!(g.agent_obs(seat).unwrap().near_animals.iter().any(|a| a.e == sheep && a.tameable),
+        "the observation names the nearby tameable animal");
+    g.agent_command(seat, AgentCmd::Context { action: AgentAction::Tame, target: None }).unwrap();
+    assert!(g.world.get_component::<Pet>(sheep).is_some(), "the sheep took the agent's hand");
+}
+
+#[test]
+fn an_agent_can_swear_an_aid_pact() {
+    let mut g = Game::new();
+    let who = g.villagers[0];
+    let other = *g.villagers.iter().skip(1)
+        .find(|&&v| g.world.get_component::<Kid>(v).is_none()
+            && !villager::is_dead(&g.world, v)
+            && !crate::game::dungeon::unavailable(&g.world, v))
+        .expect("a grown neighbour");
+    g.world.get_component_mut::<Purse>(who).unwrap().gold = 20.0;
+    let seat = g.add_agent_seat(who);
+    g.agent_command(seat, AgentCmd::Context {
+        action: AgentAction::Pact, target: Some(other),
+    }).unwrap();
+    assert!(crate::game::contracts::has_pact(&g.world, who, other), "no pact sealed");
+    assert_eq!(g.world.get_component::<Purse>(who).unwrap().gold, 20.0 - crate::game::contracts::PACT_AID);
+}
+
 /// The player's Errand button: with nothing the player needs, a picked
 /// child can run paper and ink in for the print shop - the printer hires,
 /// pays and is delivered to, not the player

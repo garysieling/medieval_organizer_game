@@ -447,7 +447,7 @@ impl Game {
             // and ten gold willing
             let pe = self.seats[seat].player;
             let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-            if self.seats[seat].picked && !villager::is_dead(&self.world, v)
+            if (self.seats[seat].picked || self.seats[seat].agent) && !villager::is_dead(&self.world, v)
                 && self.world.get_component::<Kid>(v).is_none()
                 && !crate::game::dungeon::unavailable(&self.world, v)
                 && gold >= crate::game::contracts::PACT_AID
@@ -545,7 +545,8 @@ impl Game {
                 .map(|o| o.resources >= BRIGADE_COST).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::Brigade);
         }
-        if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
+        if self.seats[seat].selected_building.is_none()
+            && (self.seats[seat].picked || self.seats[seat].agent) {
             let v = self.villagers[self.seats[seat].selected_target];
             if !crate::game::villager::is_dead(&self.world, v) {
                 if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {

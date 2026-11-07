@@ -166,7 +166,7 @@ impl Game {
         // and the year has its feast days
         crate::timed!("sim.festival", self.festival_tick(tick));
         let hearths = crate::infra::perf::scope("sim.day.hearths");
-        // winter hearths burn a bundle every few days - faggots, turf,
+        // winter hearths burn a bundle every few days - bavin, turf,
         // the dry leavings, charcoal off the road; a house with nothing
         // to burn eats cold, and that's a trouble the village can hear
         if tick % 360 >= 270 && tick % 3 == 0 {
@@ -217,8 +217,8 @@ impl Game {
                             && !self.travels.iter().any(|t| t.who == o)
                             && !self.seats.iter().any(|s| s.player == o)) {
                             if let Some(op) = self.world.get_component::<Pos>(hand).copied() {
-                                if let Some(t) = self.gather_site("faggots", op) {
-                                    self.send_gather(hand, "faggots", t);
+                                if let Some(t) = self.gather_site("bavin", op) {
+                                    self.send_gather(hand, "bavin", t);
                                 }
                             }
                         }
@@ -226,6 +226,8 @@ impl Game {
                 }
             }
         }
+        // and the wise stack while the path's open
+        crate::timed!("sim.woodpile", self.woodpile_tick(tick));
         drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));
@@ -341,24 +343,46 @@ impl Game {
                 // keep's table feeds him when he gets there
                 self.travels.retain(|t| t.who != v
                     || matches!(t.goal, Goal::Exile | Goal::Remit(_)));
+                let mut fed = false;
                 if !self.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::Exile | Goal::Remit(_))) {
                     let at_store = self.world.get_component::<Pos>(self.store_of(v))
                         .zip(self.world.get_component::<Pos>(v))
                         .map(|(s, p)| (s.x - p.x).abs() + (s.y - p.y).abs() <= 1.0)
                         .unwrap_or(false);
-                    if at_store { self.arrive(v, Goal::Eat); }
-                    else if !self.send(v, Goal::Eat) && self.site_of(v).is_some() {
-                        // out on the country's roads: the nearest granary
-                        // with food in it, however far
-                        let sp = self.world.get_component::<Pos>(self.store_of(v)).copied();
-                        if let Some(d) = sp.and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) {
-                            self.send_far(v, d, Goal::Eat);
+                    if at_store { self.arrive(v, Goal::Eat); fed = true; }
+                    else {
+                        fed = self.send(v, Goal::Eat);
+                        if !fed && self.site_of(v).is_some() {
+                            // out on the country's roads: the nearest granary
+                            // with food in it, however far
+                            let sp = self.world.get_component::<Pos>(self.store_of(v)).copied();
+                            if let Some(d) = sp.and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) {
+                                fed = self.send_far(v, d, Goal::Eat);
+                            }
                         }
                     }
                 }
-                continue;
+                // the hungry get their day's walk to a meal - but a belly
+                // no road feeds gets on with the day rather than starve
+                // standing
+                if fed { continue; }
             }
             if self.travels.iter().any(|t| t.who == v) { continue; }
+            // a stray on the far grass: errands reach a day's walk, but a
+            // soul that far out gets the long walk home before any plan
+            if let Some(h) = household::home_of(&self.world, v) {
+                let far = self.world.get_component::<Pos>(h).copied()
+                    .zip(self.world.get_component::<Pos>(v).copied())
+                    .map(|(hp, p)| (hp.x - p.x).abs() + (hp.y - p.y).abs() > 120.0)
+                    .unwrap_or(false);
+                if far {
+                    let door = self.world.get_component::<Pos>(h).copied()
+                        .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+                    if let Some(d) = door {
+                        if self.send_far(v, d, Goal::HeadHome(h)) { continue; }
+                    }
+                }
+            }
             // a carter at the market, a steward on the road: the country's
             // business has them
             if self.is_away(v) { continue; }
@@ -680,7 +704,7 @@ impl Game {
     }
 
     /// The wood's day: a stand that grows, spreads, burns and regrows.
-    /// Its coverage is the fuel commons - a thin wood makes faggots dear,
+    /// Its coverage is the fuel commons - a thin wood makes bavin dear,
     /// a thick one keeps them cheap; and a fire's worth a line when it
     /// catches and when it burns out
     pub(crate) fn forest_tick(&mut self, tick: u64) {
@@ -716,7 +740,7 @@ impl Game {
             let cover = covers.iter().sum::<f32>() / covers.len() as f32;
             let nudge = if cover < 0.3 { 0.004 } else if cover > 0.6 { -0.004 } else { 0.0 };
             if nudge != 0.0 {
-                crate::game::goods::nudge(&mut self.world, "faggots", nudge);
+                crate::game::goods::nudge(&mut self.world, "bavin", nudge);
             }
         }
     }

@@ -609,9 +609,9 @@ impl Game {
                 .filter(|&(x, y)| self.map.passable(x, y)
                     && NEIGHBOURS.iter().any(|(dx, dy)| matches!(self.map.get(x + dx, y + dy), Some(Tile::Water) | Some(Tile::River))))
                 .min_by_key(|&(x, y)| dist(x, y)),
-            // faggots come off the same trees as the craft-wood - the
+            // bavin come off the same trees as the craft-wood - the
             // leavings and deadfall, not the timber
-            "faggots" => self.map.trees.iter().copied()
+            "bavin" => self.map.trees.iter().copied()
                 .min_by_key(|&(x, y)| dist(x, y)),
             // turf cuts off the wet ground by the river, same ground the
             // marsh fevers rise off

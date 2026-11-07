@@ -437,6 +437,10 @@ impl Game {
         if self.tame_animal_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::Tame);
         }
+        // the schoolhouse: raise it once, then keep a teacher in it
+        if self.school.is_none() || self.teacher.is_none() {
+            self.seats[seat].ctx_actions.push(CtxAct::School);
+        }
         // caps in the shade: standing by a flushed patch offers the
         // picking - and what the belly's learned shows up in why it won't
         if let Some(pi) = self.shroom_patch_at(seat) {
@@ -1009,6 +1013,7 @@ impl Game {
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
             CtxAct::Tame => self.tame_stroke_at(seat),
+            CtxAct::School => self.school_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
@@ -1418,6 +1423,61 @@ impl Game {
             None => "the march dissolved into the streets.".into(),
         };
         self.log.push(format!("t{}: {}", tick, msg));
+    }
+
+    /// The schoolhouse ask: raise the room the first time, send for a
+    /// teacher after - the org's treasury pays either way
+    fn school_at(&mut self, seat: usize) -> String {
+        let oe = self.seats[seat].org;
+        if self.school.is_none() {
+            let paid = self.world.get_component_mut::<Organization>(oe)
+                .map(|o| if o.resources < 30.0 { false } else { o.resources -= 30.0; true })
+                .unwrap_or(false);
+            if !paid { return "the treasury can't raise it.".into() }
+            self.found_school();
+            self.hire_teacher(90);
+            return "the treasury raises the schoolhouse - a teacher's sent for.".into();
+        }
+        if self.teacher.is_none() {
+            let paid = self.world.get_component_mut::<Organization>(oe)
+                .map(|o| if o.resources < 10.0 { false } else { o.resources -= 10.0; true })
+                .unwrap_or(false);
+            if !paid { return "the treasury can't send for anyone.".into() }
+            self.hire_teacher(90);
+            return "the treasury sends for a teacher - a schoolmistress comes for the season.".into();
+        }
+        "the school stands, and someone's at the desk.".into()
+    }
+
+    /// Raise the one-room school: a buildable plot near the market, a
+    /// door the kids can find
+    fn found_school(&mut self) {
+        let mp = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(self.village);
+        let at = self.map.nearest_buildable(mp.0 + 3, mp.1 + 3).unwrap_or((mp.0 + 3, mp.1 + 3));
+        let e = self.world.create_entity();
+        self.world.add_component(e, Pos { x: at.0 as f32, y: at.1 as f32 });
+        self.world.add_component(e, crate::game::household::Building {
+            kind: crate::game::household::BuildingKind::Schoolhouse,
+            name: "the schoolhouse".into(), occupants: vec![], worker: None,
+            overseer: None, stock: crate::engine::det::HashMap::default(), capacity: 0 });
+        self.building_entities.push(e);
+        self.school = Some(e);
+    }
+
+    /// A teacher for the season: a traveller keeps the desk till the
+    /// day the road takes them again
+    fn hire_teacher(&mut self, days: u64) {
+        let Some(s) = self.school else { return };
+        let at = self.world.get_component::<Pos>(s).map(|p| (p.x + 0.5, p.y + 0.5))
+            .unwrap_or((0.0, 0.0));
+        let e = self.world.create_entity();
+        self.world.add_component(e, Pos { x: at.0, y: at.1 });
+        self.world.add_component(e, Villager { activity: Activity::Idle, target_food: None });
+        self.world.add_component(e, TownRole::Teacher);
+        self.villagers.push(e);
+        self.teacher = Some((e, self.tick + days));
+        self.log.push(format!("t{}: a schoolmistress takes the desk for the season.", self.tick));
     }
 
     /// The organizer's answer to the founding call on the conversation

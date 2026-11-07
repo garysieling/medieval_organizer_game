@@ -39,6 +39,13 @@ pub enum Activity {
 /// food-seeking - leave them be while the column moves
 pub struct InFormation;
 
+/// Days spent at the schoolhouse desk - the marker a scholar carries,
+/// whether or not the letters take
+#[derive(Debug)]
+pub struct Scholared {
+    pub days: u32,
+}
+
 pub struct Villager {
     pub activity: Activity,
     pub target_food: Option<Entity>,

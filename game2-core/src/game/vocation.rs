@@ -87,6 +87,9 @@ pub enum TownRole {
     /// The heart-helper: keeps an eye on lonely hearts and brings them
     /// together, for a pie and a good word
     Matchmaker,
+    /// The schoolteacher: a traveller keeping the one-room school for a
+    /// season, then the road takes them again
+    Teacher,
 }
 
 /// How far up the trade someone is: journeyman, then apprentice, then master

@@ -97,6 +97,8 @@ pub enum CtxAct {
     /// Stroke the animal you're standing by - the kind hand, again and
     /// again, until it leaves the fold and follows
     Tame,
+    /// Raise the schoolhouse, or send for a teacher to keep it
+    School,
 }
 
 /// One player's hold on the game: which character they steer, what they've

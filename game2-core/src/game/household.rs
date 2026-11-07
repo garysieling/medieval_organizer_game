@@ -30,6 +30,9 @@ pub enum BuildingKind {
     Apiary,
     /// The cheese cellar by the fold: wheels age in the dark down there
     Cellar,
+    /// The one-room school: a venue, not a workplace - the teacher's a
+    /// traveller, and the kids' desks hold no stock
+    Schoolhouse,
 }
 
 /// A building on the map (entity; its Pos is where it stands)

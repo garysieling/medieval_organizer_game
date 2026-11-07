@@ -367,8 +367,11 @@ impl Game {
                 .unwrap_or(false);
             if gathered { continue; }
             if self.world.get_component::<Kid>(v).is_some() {
-                // a child off the errand list plays
-                if self.world.get_component::<OddJob>(v).is_none() { self.plan_play(v, tick, &mut rng); }
+                // a child off the errand list plays - or sits a spell
+                // at the schoolhouse, when it's open and they lean that way
+                if self.world.get_component::<OddJob>(v).is_none() {
+                    if !self.school_draw(v, &mut rng) { self.plan_play(v, tick, &mut rng); }
+                }
                 continue;
             }
             // the recluse answers to the dark, not the village's day -
@@ -434,6 +437,7 @@ impl Game {
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
         crate::timed!("sim.prison", self.cell_tick(tick));
+        crate::timed!("sim.school", self.school_tick(tick));
         crate::timed!("sim.tech", self.tech_tick(tick));
         crate::timed!("sim.cutaways", self.cutaways_tick(tick));
         // and the village's tune follows the day the village had

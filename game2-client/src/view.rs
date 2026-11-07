@@ -1162,6 +1162,7 @@ impl View {
                 country::SiteKind::Town => (170, 120, 70),
                 country::SiteKind::Farm => (110, 160, 80),
                 country::SiteKind::Monastery => (220, 220, 210),
+                country::SiteKind::Mine => (140, 115, 90),
             };
             buf.rect(x as i32 - 2, y as i32 - 2, 4, 4, r, g, b);
             // the head's style leads the name ("Earl Godric of

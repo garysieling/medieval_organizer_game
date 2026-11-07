@@ -102,6 +102,7 @@ pub fn spec(good: &str) -> Option<Spec> {
         "timber" | "wood" => s(Staple, 3.0, &[]),
         "driftwood" => s(Staple, 5.0, &[Fuel]),
         "fieldstone" | "stone" => s(Staple, 2.0, &[]),
+        "ore" => s(Staple, 3.0, &[]),
 
         // --- Tier 2: manufactured -------------------------------------------
         "bread" => s(Crafted, 5.0, &[StapleFood, Perishable]),
@@ -267,7 +268,7 @@ pub const ALL: &[&str] = &[
     "peas", "roots", "potherbs", "mushrooms", "chanterelle", "eggs", "milk",
     "butter", "cheese", "fish", "apples", "honey", "wool", "flax", "hides",
     "tallow", "wax", "hay", "straw", "rushes", "bavin", "turf", "dung",
-    "salt", "timber", "driftwood", "fieldstone",
+    "salt", "timber", "driftwood", "fieldstone", "ore",
     // manufactured
     "bread", "pottage", "sausages", "ale", "beer", "cider", "mead", "wine",
     "vinegar", "cloth", "linen", "leather", "garments", "blocks", "glass",

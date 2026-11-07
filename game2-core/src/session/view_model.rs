@@ -692,13 +692,22 @@ impl Game {
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
             // who carries the grief for them - the losses the day their
             // death's mourned left behind
-            let mourners: Vec<String> = self.villagers.iter().enumerate()
-                .filter(|&(_, m)| *m != v && self.world.get_component::<crate::sim::psychology::AttachmentHistory>(*m)
+            // villagers and the seats' wanderers alike - grief records
+            // losses for both
+            let mut folk: Vec<Entity> = self.villagers.clone();
+            for s in &self.seats {
+                if !folk.contains(&s.player) { folk.push(s.player); }
+            }
+            let mourners: Vec<String> = folk.iter().copied()
+                .filter(|&m| m != v && self.world.get_component::<crate::sim::psychology::AttachmentHistory>(m)
                     .map(|h| h.episodes.iter().any(|e|
                         matches!(e.kind, crate::sim::psychology::EpisodeKind::Loss) && e.with == v))
                     .unwrap_or(false))
                 .take(3)
-                .map(|(mi, _)| vill_name(mi).to_string()).collect();
+                .map(|m| self.villagers.iter().position(|&x| x == m)
+                    .map(|mi| vill_name(mi).to_string())
+                    .or_else(|| self.world.get_component::<PlayerCharacter>(m).map(|p| p.name.clone()))
+                    .unwrap_or_else(|| "someone".into())).collect();
             if !mourners.is_empty() {
                 lines.push(Line { x: 60, y: 372, text: format!("mourned by {}", mourners.join(", ")),
                     rgb: (170, 160, 190) });

@@ -144,6 +144,8 @@ pub struct CampaignV {
     pub dissenters: usize,
     /// "turnout: Aldric" / "notes: (empty)"
     pub seats: Vec<String>,
+    /// The member whose pull runs the room's empty seats, if one's grown
+    pub shadow: Option<String>,
     pub resolves: u32,
     /// A meeting is due on the cadence
     pub due: bool,

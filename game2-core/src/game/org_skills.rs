@@ -264,7 +264,7 @@ mod tests {
         for o in [o1, o2] {
             let vote = IssueVote { winner: "the taxes".into(), ballots: vec![] };
             let c = campaign::found_campaign(&mut w, o, &vote, Framing::CommonFoe, DecisionRule::Majority, 1);
-            w.add_component(c, CampaignMeeting { cadence_days: 7, last_held: 0, held: 0, resolves: 0 });
+            w.add_component(c, CampaignMeeting { cadence_days: 7, last_held: 0, held: 0, resolves: 0, driven_by: None });
         }
         assert_eq!(level_of(&w, p, OrgSkill::Turnout), Level::Apprentice,
             "the skills a person learns stay on the person");

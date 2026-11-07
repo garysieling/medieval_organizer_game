@@ -87,6 +87,9 @@ pub struct CampaignMeeting {
     pub held: u32,
     /// Decisions the note taker has on record
     pub resolves: u32,
+    /// The pull that last drove a drifted meeting - observably theirs
+    /// once the room's followed them
+    pub driven_by: Option<Entity>,
 }
 
 /// Relationship strength needed before a member answers a turnout call
@@ -261,6 +264,7 @@ pub fn set_cadence(world: &mut World, campaign: Entity, cadence_days: u64, tick:
     } else {
         world.add_component(campaign, CampaignMeeting {
             cadence_days, last_held: tick, held: 0, resolves: 0,
+            driven_by: None,
         });
     }
 }
@@ -400,6 +404,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     if let Some(m) = world.get_component_mut::<CampaignMeeting>(campaign) {
         m.last_held = tick;
         m.held += 1;
+        // the pull's only observably theirs when others answered - an
+        // empty room proves nothing
+        if drifted && attendees.len() >= 2 { m.driven_by = Some(driver); }
         if noted { m.resolves += 1; }
     }
     // Participation teaches: the room learns meeting craft, the seats

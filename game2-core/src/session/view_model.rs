@@ -337,8 +337,21 @@ impl Game {
                     .unwrap_or_else(|| "(empty)".to_string());
                 format!("{} {}", label, holder)
             }).collect();
+            // the shadow only pulls when no live coordinator holds the
+            // seat - and the name's only theirs to claim once the room's
+            // observably followed them
+            let o = world.get_component::<Organization>(c.org).unwrap();
+            let coordinator = crate::game::campaign::seat_holder(world, e, Role::TurnoutCoordinator)
+                .filter(|&h| !crate::game::dungeon::unavailable(world, h)
+                    && (h == o.leader || o.members.contains(&h)));
+            let shadow = if coordinator.is_none() {
+                let pulled = crate::game::campaign::shadow_elite(world, e);
+                let driven = mtg.and_then(|m| m.driven_by);
+                if pulled.is_some() && pulled == driven { pulled.map(|s| name_of(s)) } else { None }
+            } else { None };
             CampaignV {
                 issue: c.issue.clone(),
+                shadow,
                 framing: match c.framing { Framing::SharedGrievance => "shared grievance",
                     Framing::CommonFoe => "common foe", Framing::MoralDuty => "moral duty" }.to_string(),
                 dissenters: c.dissenters.len(), seats,

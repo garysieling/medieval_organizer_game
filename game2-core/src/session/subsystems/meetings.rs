@@ -132,7 +132,7 @@ impl Game {
             self.log.push(format!("t{}: the room names {}.", self.tick, tname));
         }
         self.world.add_component(c, campaign::CampaignMeeting {
-            cadence_days: 3, last_held: self.tick, held: 0, resolves: 0 });
+            cadence_days: 3, last_held: self.tick, held: 0, resolves: 0, driven_by: None });
         // a cause that takes a vote takes a hall: the room it gathers in,
         // till a storm or the roof's own mending says otherwise
         self.world.add_component(org, crate::game::organizing::MeetingHall);

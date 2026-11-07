@@ -76,8 +76,11 @@ impl Game {
         let cap = match &goal { Goal::CollectTax(_) => 24,
             Goal::SeekRemedy(_) | Goal::Herd(_) | Goal::HeadHome(_) | Goal::Eat
             | Goal::BuyFrom(..) | Goal::BuyAt(..) => 30,
-            // the bucket line reaches as far as the tax round does
-            Goal::FillBucket | Goal::DouseFire(_) => BUCKET_REACH,
+            // the bucket line reaches as far as the tax round does -
+            // a sworn hand takes the whole parish for a radius
+            Goal::FillBucket | Goal::DouseFire(_) => {
+                if self.is_brigade(who) { BUCKET_REACH * 2 } else { BUCKET_REACH }
+            }
             Goal::Exile => 80, Goal::TendGarden(_) => 16, _ => 9 };
         if legs > cap { return false; }
         if to == (from.x.round() as i32, from.y.round() as i32) {

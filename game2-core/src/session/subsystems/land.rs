@@ -356,8 +356,16 @@ impl Game {
             Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(_)))
     }
 
+    /// Sworn to answer: the brigade's own take the bell before the
+    /// neighbourhood volunteers
+    pub(in crate::session) fn is_brigade(&self, v: Entity) -> bool {
+        self.brigade.and_then(|b| self.world.get_component::<Organization>(b))
+            .map(|o| o.members.contains(&v)).unwrap_or(false)
+    }
+
     /// The able villager nearest the flames who isn't already on the
-    /// line - village index breaks ties, so the pick is stable
+    /// line - village index breaks ties, so the pick is stable. The
+    /// brigade's sworn hands answer first wherever they stand.
     fn nearest_firefighter(&self) -> Option<Entity> {
         let burning: Vec<(i32, i32)> = self.fire.burning.keys().copied().collect();
         if burning.is_empty() { return None; }
@@ -371,7 +379,9 @@ impl Game {
                 }).min().unwrap_or(i32::MAX);
                 Some((d, i, v))
             })
-            .min_by_key(|&(d, i, _)| (d, i))
+            // sworn hands first, then nearest - the village index keeps
+            // the order stable inside either rank
+            .min_by_key(|&(d, i, v)| (!self.is_brigade(v), d, i))
             .map(|(_, _, v)| v)
     }
 
@@ -463,6 +473,16 @@ impl Game {
         if !self.fire_crew.contains(&who) { return; }
         if self.fire.burning.contains_key(&t) {
             self.fire.douse(t.0, t.1, self.tick);
+            // a sworn hand - or a crew with the chest's gear - throws
+            // past the bucket: the next flame over goes too
+            let extra = (self.is_brigade(who) || self.brigade_gear >= 3) as usize;
+            for _ in 0..extra {
+                let Some(&(nx, ny)) = self.fire.burning.keys()
+                    .min_by_key(|&&(bx, by)| (bx - t.0).abs() + (by - t.1).abs()
+                        .max(if (bx, by) == t { i32::MAX } else { 0 })) else { break };
+                if (nx, ny) == t { break; }
+                self.fire.douse(nx, ny, self.tick);
+            }
             self.say(who, "Got it!", CHAT_BUBBLE_SECS);
             if self.fire.active() { self.send(who, Goal::FillBucket); }
             return;

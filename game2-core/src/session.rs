@@ -13,6 +13,7 @@ pub mod country;
 pub mod quests;
 pub mod mystery;
 pub mod roster;
+pub mod formation;
 
 pub mod journal;
 pub mod kpi;
@@ -980,6 +981,8 @@ pub struct Game {
     /// An animal needs a moment between strokes - frame it's pettable
     /// again, like the stray cat's own beat
     pub pet_cool: crate::engine::det::HashMap<Entity, u64>,
+    /// The column out on the streets, if one marches
+    pub formation: Option<formation::Formation>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,
@@ -1729,6 +1732,8 @@ impl Game {
                 else { continue };
             if let Some(p) = self.world.get_component_mut::<Pos>(e) { p.x = nx; p.y = ny; }
         }
+        // and the column keeps step while it's out
+        crate::timed!("sim.formation", self.formation_step());
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
             self.advance_approach_at(seat);

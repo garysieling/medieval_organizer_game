@@ -41,6 +41,7 @@ mod fisher;
 mod fixtures;
 mod flock;
 mod food_reach;
+mod formation;
 mod free_villager;
 mod garden;
 mod gibbet;

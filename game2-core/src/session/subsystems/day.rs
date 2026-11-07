@@ -321,7 +321,11 @@ impl Game {
         // own claims: round_back keeps the hungry, the traveling, the
         // gathered, the seat's own, the drunk, the sick and the meeting's
         // folk back - kids, officials and the rest are all fair game
-        for &v in &villagers { self.round_back(v, tick); }
+        for &v in &villagers {
+            // the marching keep step - the day can wait on them
+            if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
+            self.round_back(v, tick);
+        }
         for i in 0..villagers.len() {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }

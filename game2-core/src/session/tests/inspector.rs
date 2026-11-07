@@ -164,3 +164,22 @@ fn test_the_card_names_their_cause_craft() {
     let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
     assert!(bio.contains("brings them out"), "the cause-craft never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_says_what_they_keep() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied()
+        .find(|&v| g.world.get_component::<crate::game::vocation::Craft>(v)
+            .map(|c| c.vocation == crate::game::vocation::Vocation::Shepherd).unwrap_or(false)).unwrap();
+    // known, so the bio opens
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, crate::game::relationships::Relationship {
+        from: g.seats[0].player, other: v,
+        kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.95, interactions: 5 });
+    g.seats[0].selected_target = g.villagers.iter().position(|&x| x == v).unwrap();
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("keeps") && bio.contains("sheep"),
+        "the fold never showed: {}", bio);
+}

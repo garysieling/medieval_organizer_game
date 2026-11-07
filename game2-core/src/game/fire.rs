@@ -13,8 +13,10 @@ use super::tilemap::{noise, Tile, TileMap, NEIGHBOURS};
 pub const BURN_TICKS: u8 = 3;
 /// Days a scorched tile takes to grow back
 pub const RECOVER_DAYS: u64 = 30;
-/// Per-tick chance a burning tile lights a flammable neighbour
-pub const SPREAD_CHANCE: f32 = 0.3;
+/// Per-tick chance a burning tile lights a flammable neighbour. The three
+/// day burn lifetime keeps the expected spread below one new tile per tile,
+/// so ordinary fires can die at firebreaks instead of consuming whole maps.
+pub const SPREAD_CHANCE: f32 = 0.08;
 /// Days a doused tile stays wet enough that the fire can't take it again
 pub const DOUSE_DAYS: u64 = 2;
 
@@ -136,11 +138,16 @@ impl Fire {
             }
         }
 
-        // the ground forgets, slowly - and the wet tiles dry off
-        let healed: Vec<(i32, i32)> = self.scorched.iter()
-            .filter(|(_, &until)| tick >= until)
-            .map(|(&c, _)| c).collect();
-        for c in healed { self.scorched.remove(&c); }
+        // Let the whole blaze run out before old scars can feed it again.
+        // Otherwise a fire can loop back over ground that recovered behind
+        // its front and keep itself alive indefinitely.
+        if self.burning.is_empty() {
+            let healed: Vec<(i32, i32)> = self.scorched.iter()
+                .filter(|(_, &until)| tick >= until)
+                .map(|(&c, _)| c).collect();
+            for c in healed { self.scorched.remove(&c); }
+        }
+        // Wet tiles dry off even while the rest of the blaze is active.
         let dried: Vec<(i32, i32)> = self.doused.iter()
             .filter(|(_, &until)| tick >= until)
             .map(|(&c, _)| c).collect();
@@ -229,6 +236,25 @@ mod tests {
         for t in 1..=BURN_TICKS as u64 { f.tick_rolled(&mut m, t, |_, _, _| 1.0); }
         assert!(!f.active());
         assert!(f.is_scorched(gx, gy));
+    }
+
+    #[test]
+    fn test_scorched_ground_does_not_feed_an_active_blaze() {
+        let mut m = map();
+        let a = find(&m, Tile::Grass);
+        let b = (0..m.height as i32).flat_map(|y| (0..m.width as i32).map(move |x| (x, y)))
+            .find(|&c| c != a && Fire::flammable(&m, c.0, c.1))
+            .expect("another flammable tile");
+        let mut f = Fire::new();
+        f.scorched.insert(a, 0);
+        f.burning.insert(b, BURN_TICKS);
+
+        f.tick_rolled(&mut m, 1, |_, _, _| 1.0);
+        assert!(f.is_scorched(a.0, a.1), "an active blaze can't refuel on recovered ground");
+        f.tick_rolled(&mut m, 2, |_, _, _| 1.0);
+        f.tick_rolled(&mut m, 3, |_, _, _| 1.0);
+        assert!(!f.active());
+        assert!(!f.is_scorched(a.0, a.1), "expired ground recovers after the blaze is out");
     }
 
     #[test]

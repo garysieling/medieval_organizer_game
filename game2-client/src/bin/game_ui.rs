@@ -417,7 +417,9 @@ fn main() {
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     }
                 }
-                let ctx_specs: Vec<session::Button> = m.ctx.iter().map(|a| session::ctx_button(*a)).collect();
+                // the same layout the draw uses - one source of truth, so
+                // a click can never land on a different rect than it sees
+                let ctx_specs: Vec<session::Button> = session::ctx_buttons(&m.ctx);
                 // one click, one button: overlapping rects (a shared slot
                 // like Pet her / Snowballs!) answer only the topmost
                 if let Some(i) = ctx_specs.iter().enumerate().rev()

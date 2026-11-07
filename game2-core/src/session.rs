@@ -353,6 +353,29 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::ShareFindings => Button { label: "Tell them what you know".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
     }
 }
+
+/// Where the context buttons stack: a two-column band under the BONDS
+/// block, clear of the campaign text and the LOG. `ctx_buttons` is the
+/// only place their positions live - the draw and the click both read it
+pub const CTX_BAND_Y: i32 = 240;
+const CTX_COLS: usize = 2;
+const CTX_W: i32 = 152;
+const CTX_H: i32 = 20;
+const CTX_GAP_X: i32 = 6;
+const CTX_PITCH: i32 = 24;
+
+/// The context buttons for `acts`, parallel to the list: row-major across
+/// the band so no two rects ever meet, whatever the mix of actions
+pub fn ctx_buttons(acts: &[CtxAct]) -> Vec<Button> {
+    acts.iter().enumerate().map(|(i, a)| {
+        let mut b = ctx_button(*a);
+        b.x = UI_X as i32 + 10 + (i % CTX_COLS) as i32 * (CTX_W + CTX_GAP_X);
+        b.y = CTX_BAND_Y + (i / CTX_COLS) as i32 * CTX_PITCH;
+        b.w = CTX_W;
+        b.h = CTX_H;
+        b
+    }).collect()
+}
 #[cfg(test)] // only the tests check against it
 /// Keys that move the player
 const MOVE_KEYS: [char; 4] = ['W', 'A', 'S', 'D'];
@@ -851,6 +874,13 @@ pub struct Game {
     pub meeting: Option<Meeting>,
     /// The day a snowball fight was called (u64::MAX = never)
     pub snowball_day: u64,
+    /// The tick each rate-limited ctx verb last fired (u64::MAX = never):
+    /// the campaign's street verbs answer once a day apiece, and a
+    /// petition's letters are logged once a day however often they're sent
+    pub march_day: u64,
+    pub cadence_day: u64,
+    pub townhall_day: u64,
+    pub petition_day: u64,
     /// Whether today's fight has raised its hubbub yet
     pub snowball_cued: bool,
     /// Where today's fight is being made, for the sound's pan

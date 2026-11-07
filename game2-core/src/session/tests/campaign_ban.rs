@@ -22,12 +22,14 @@ fn test_a_rule_is_written_against_the_crowd_that_wont_stop() {
     // first crowd: the knights come out and take the loudest
     g.ctx_act_at(0, 0);
     assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
-    // second crowd: the law is written
+    // second crowd: the law is written - the street answers once a day
+    g.tick += 1;
     g.ctx_act_at(0, 0);
     let last = g.log.last().unwrap().clone();
     assert!(last.contains("no more than two assembled"), "{}", last);
     assert!(g.world.get_component::<crate::game::reactions::AssemblyBan>(g.org).is_some());
     // and under the ban even a handful is broken up on sight
+    g.tick += 1;
     g.ctx_act_at(0, 0);
     assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
 }

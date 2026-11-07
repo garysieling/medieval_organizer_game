@@ -17,9 +17,11 @@ fn test_the_card_shows_the_seats_hearts() {
     let mut game = Game::new_seeded(MAP_SEED);
     let view = View::new(Art::load_fs("../assets", 0));
     game.selected_target = 3;
+    // the card floats on the map's bottom-left; its hearts sit
+    // top-right of it, same offsets the panel slot gave them
     let count = |buf: &Buffer, rgb: (u8, u8, u8)| -> usize {
         let mut n = 0;
-        for y in 320..327 { for x in UI_X as i32 + 286..UI_X as i32 + 326 {
+        for y in 784..791 { for x in 292..332 {
             let i = (y as usize * W + x as usize) * 4;
             if (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2]) == rgb { n += 1; }
         }}

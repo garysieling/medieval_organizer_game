@@ -42,3 +42,21 @@ fn test_the_org_takes_the_harvest_in_together() {
         crate::game::campaign::DecisionRule::Majority);
     assert!(g.world.get_component::<MeetingHall>(oe).is_some(), "no hall for the cause");
 }
+
+#[test]
+fn test_the_mend_button_waits_for_the_chest() {
+    let mut g = Game::new();
+    let oe = g.seats[0].org;
+    g.world.add_component(oe, MeetingHall);
+    assert!(storm_strikes_hall(&mut g.world, oe));
+    // a broke chest can't pay the carpenter - the button stays off
+    g.world.get_component_mut::<Organization>(oe).unwrap().resources = 1.0;
+    g.update_ctx_actions_at(0);
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::MendHall),
+        "no gold, no mend: {:?}", g.seats[0].ctx_actions);
+    // funded, it's offered again
+    g.world.get_component_mut::<Organization>(oe).unwrap().resources = 20.0;
+    g.update_ctx_actions_at(0);
+    assert!(g.seats[0].ctx_actions.contains(&CtxAct::MendHall),
+        "{:?}", g.seats[0].ctx_actions);
+}

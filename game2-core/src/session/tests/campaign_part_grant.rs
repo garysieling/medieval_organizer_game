@@ -30,6 +30,8 @@ fn test_pressing_again_doesnt_stretch_a_grant() {
     g.ctx_act_at(0, 0);
     let until = g.world.get_component::<crate::game::reactions::LordGrant>(g.org).unwrap().until;
     // a part-grant can be pressed, but a second thin room gets nothing new
+    // (the Reeve answers once a day - walk one on first)
+    g.tick += 1;
     assert!(g.ctx_blocker_at(0, CtxAct::Townhall).is_none());
     g.tick += 30;
     g.ctx_act_at(0, 0);
@@ -38,6 +40,7 @@ fn test_pressing_again_doesnt_stretch_a_grant() {
     // a full grant, honoured, closes the Reeve's door to the same demands
     let issue = "the taxes";
     g.world.add_component(g.org, crate::game::reactions::LordGrant::full(issue, g.tick, g.tick + 100));
+    g.tick += 1;
     let why = g.ctx_blocker_at(0, CtxAct::Townhall).expect("he's answered");
     assert!(why.contains("grant stands"), "{}", why);
     // hollowed, it can be pressed again

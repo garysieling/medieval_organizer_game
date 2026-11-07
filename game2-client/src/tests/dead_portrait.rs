@@ -13,7 +13,9 @@ fn test_a_dead_villagers_card_shows_a_gravestone() {
     while game.tick < t + 3 { game.update(); }
     game.selected_target = 3;
     let buf = view.render(&game.ui_model(), (-1, -1));
-    let (x0, y0) = (UI_X as i32 + 6, 312);
+    // the card floats on the map's bottom-left; the grave's feet sit at
+    // the same offset inside it the panel slot gave them
+    let (x0, y0) = (12, 776);
     let mut stone = 0;
     let fig: Vec<(u8, u8, u8)> = view.art.villager_sprites[3].pixels.chunks(4).filter(|c| c[3] > 128).map(|c| (c[0], c[1], c[2])).collect();
     let mut figure = 0;

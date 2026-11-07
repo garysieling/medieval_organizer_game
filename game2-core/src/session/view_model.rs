@@ -694,7 +694,7 @@ impl Game {
                 text: format!("her tally: {} cures{}", self.cured, late),
                 rgb: (190, 210, 150) });
         }
-        Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, lines })
+        Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, hearts: None, lines })
     }
 
     /// Every live feud `v` is party to, burning ones first: who it's
@@ -767,7 +767,7 @@ impl Game {
             if !record.is_empty() {
                 lines.push(Line { x: 60, y: 386, text: format!("a life{}", record), rgb: (160, 180, 200) });
             }
-            return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), lines };
+            return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), hearts: None, lines };
         }
         let org_members = world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.clone()).unwrap_or_default();
@@ -961,7 +961,14 @@ impl Game {
         } else if let Some(t) = tale {
             lines.push(Line { x: 18, y: 454, text: format!("{}{}", t, record), rgb: (160, 180, 200) });
         }
-        InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None, lines }
+        // the seat's hearts for them: warmth read in half-heart steps,
+        // five at most - empty for a stranger, full for a true friend
+        let hearts = crate::game::relationships::find_relationship(world, self.seats[seat].player, v)
+            .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+            .map(|r| crate::game::relationships::hearts_of(r.strength))
+            .unwrap_or(0.0);
+        InspectorV { fig: Some(i), kid: world.get_component::<Kid>(v).is_some(), dead: false, died_day: None,
+            hearts: Some(hearts), lines }
     }
 
     /// The biography the seat knows of `v`: what they are and what they

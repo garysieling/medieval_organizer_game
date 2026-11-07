@@ -47,7 +47,7 @@ fn test_passing_someone_gets_a_remark_and_a_little_warmth() {
     let before = trust(&game, pe, v);
     game.chat_in_passing();
     assert!(game.bubbles.iter().any(|b| b.0 == v), "Bram should say something as you pass");
-    assert!((trust(&game, game.player, v) - before - 0.01).abs() < 1e-4, "a chat in passing is worth +0.01");
+    assert!((trust(&game, game.player, v) - before - 0.02).abs() < 1e-4, "a chat in passing is worth +0.02");
     // standing about together doesn't keep generating chatter
     game.bubbles.clear();
     for _ in 0..10 { game.chat_in_passing(); }

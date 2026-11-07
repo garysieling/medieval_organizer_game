@@ -292,6 +292,28 @@ pub(crate) fn meter_colour(frac: f32) -> (u8, u8, u8) {
     if frac >= 0.6 { (90, 200, 90) } else if frac >= 0.3 { (230, 180, 60) } else { (230, 80, 70) }
 }
 
+/// One heart, 7x6, filled left-to-right by `fill` (0..=1): the dark
+/// silhouette always shows, so an empty heart still reads as a heart
+const HEART_ROWS: [u8; 6] = [0b0110110, 0b1111111, 0b1111111, 0b0111110, 0b0011100, 0b0001000];
+
+pub(crate) fn draw_heart(buf: &mut Buffer, x: i32, y: i32, fill: f32) {
+    let lit = (fill.clamp(0.0, 1.0) * 7.0).round() as i32;
+    for (row, bits) in HEART_ROWS.iter().enumerate() {
+        for col in 0..7 {
+            if bits & (1 << (6 - col)) == 0 { continue; }
+            let (r, g, b) = if col < lit { (232, 92, 112) } else { (72, 52, 62) };
+            buf.rect(x + col, y + row as i32, 1, 1, r, g, b);
+        }
+    }
+}
+
+/// A strip of `MAX` hearts filled to `hearts` (0..=MAX, half steps)
+pub(crate) fn draw_hearts(buf: &mut Buffer, x: i32, y: i32, hearts: f32, max: usize) {
+    for i in 0..max {
+        draw_heart(buf, x + i as i32 * 8, y, hearts - i as f32);
+    }
+}
+
 /// A small labelled meter: label, bar filled to `frac`, then a note
 pub(crate) fn draw_meter(buf: &mut Buffer, x: i32, y: i32, label: &str, frac: f32, note: &str) {
     const BAR_X: i32 = 44;

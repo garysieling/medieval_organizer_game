@@ -132,6 +132,10 @@ pub struct InspectorV {
     /// Draw a grave portrait (died on `died_day`)
     pub dead: bool,
     pub died_day: Option<u64>,
+    /// The seat's friendship with this villager in hearts (0..=5, half
+    /// steps); None on a building card or a grave
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hearts: Option<f32>,
     pub lines: Vec<Line>,
 }
 

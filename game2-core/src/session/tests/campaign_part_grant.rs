@@ -11,7 +11,7 @@ fn thin_tax_campaign() -> Game {
     for _ in 0..3 {
         crate::game::relationships::record_interaction(&mut g.world, g.villagers[0],
             crate::game::relationships::Interaction {
-                other: pe, kind: crate::game::relationships::InteractionKind::Aid, intensity: 1.0 });
+                other: pe, kind: crate::game::relationships::InteractionKind::Aid, intensity: 0.3 });
     }
     g.world.get_component_mut::<Organization>(g.org).unwrap().members = g.villagers[..6].to_vec();
     g.world.get_component_mut::<desires::Organizer>(g.player).unwrap().issues.push("the taxes".into());

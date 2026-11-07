@@ -668,11 +668,41 @@ impl Game {
                 desires::satisfy(&mut self.world, v, Want::Drink, tick + 30);
             }
         }
-        // bonds grow between the co-attendees: a pair or two each
-        for (i, &v) in gathered.iter().enumerate() {
-            for &o in gathered.iter().skip(i + 1).take(2) {
-                relationships::record_interaction(&mut self.world, v, relationships::Interaction {
-                    other: o, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
+        // the feast bonds: kept company at the table warms a tie - each
+        // soul bumps into a few random others for a half heart a pair,
+        // the same slow warming a spell in the pews gives
+        let n = gathered.len();
+        if n >= 2 {
+            let mut bumps: Vec<(Entity, Entity)> = vec![];
+            for &v in &gathered {
+                for _ in 0..3 {
+                    let j = self.rng.below(n as i32) as usize;
+                    if j < n { bumps.push((v, gathered[j])); }
+                }
+            }
+            // and the players at the feast share the warmth: anyone
+            // within sight of the market cross counts as a participant
+            let mp = self.world.get_component::<Pos>(self.market_food)
+                .map(|p| (p.x, p.y))
+                .unwrap_or((self.village.0 as f32, self.village.1 as f32));
+            for seat in &self.seats {
+                let pe = seat.player;
+                let near = self.world.get_component::<Pos>(pe)
+                    .map(|p| (p.x - mp.0).powi(2) + (p.y - mp.1).powi(2) <= 18.0 * 18.0)
+                    .unwrap_or(false);
+                if !near { continue; }
+                for _ in 0..3 {
+                    let j = self.rng.below(n as i32) as usize;
+                    if j < n { bumps.push((pe, gathered[j])); }
+                }
+            }
+            let mut seen: crate::engine::det::HashSet<(Entity, Entity)> = crate::engine::det::HashSet::default();
+            for (a, b) in bumps {
+                if a == b { continue; }
+                let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+                if !seen.insert((lo, hi)) { continue; }
+                relationships::record_interaction(&mut self.world, a, relationships::Interaction {
+                    other: b, kind: relationships::InteractionKind::Conversation, intensity: 1.0 });
             }
         }
         // a few toasts surface what folk carry - the truth comes out in drink

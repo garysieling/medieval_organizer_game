@@ -242,7 +242,7 @@ mod tests {
         w.add_component(organizer, OneOnOne { with: shallow, depth: 0.2 });
         OneOnOneSystem.run(&mut w);
 
-        assert!((strength(&w, deep) - 0.05).abs() < 1e-6);
+        assert!((strength(&w, deep) - 0.10).abs() < 1e-6);
         assert!(strength(&w, shallow) < strength(&w, deep), "a deeper 1-1 builds more trust");
     }
 

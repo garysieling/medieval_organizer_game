@@ -58,6 +58,17 @@ pub struct Relationship {
     pub interactions: u32,  // how many times they've interacted
 }
 
+/// Friendship the way the player reads it: warmth shown as hearts, in
+/// half-heart steps, five at most. Cold bonds show none - a rival's
+/// bad blood isn't hearts unfilled, it's the other thing entirely.
+pub const MAX_HEARTS: f32 = 5.0;
+
+/// `strength` (-1..1) read as hearts (0..MAX_HEARTS): the warm half of
+/// the axis only, so a grudge never dips below empty
+pub fn hearts_of(strength: f32) -> f32 {
+    strength.clamp(0.0, 1.0) * MAX_HEARTS
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RelKind {
     Stranger,
@@ -183,13 +194,16 @@ pub fn find_relationship(world: &World, from: Entity, other: Entity) -> Option<E
 /// creates one), applies the interaction's effect on strength, and
 /// re-infers the relationship kind from the new state.
 pub fn record_interaction(world: &mut World, from: Entity, interaction: Interaction) -> Entity {
+    // Gains are sized in hearts (strength*MAX_HEARTS is what's shown):
+    // a talk warms a half heart, a shared table a whole one, a deed
+    // done for them two - and unkindness takes them back the same way
     let base_delta = match interaction.kind {
-        InteractionKind::Conversation => 0.05,
-        InteractionKind::SharedMeal => 0.08,
-        InteractionKind::Conflict => -0.1,
-        InteractionKind::Aid => 0.12,
-        InteractionKind::Betrayal => -0.3,
-        InteractionKind::Romance => 0.15,
+        InteractionKind::Conversation => 0.10,
+        InteractionKind::SharedMeal => 0.20,
+        InteractionKind::Conflict => -0.20,
+        InteractionKind::Aid => 0.40,
+        InteractionKind::Betrayal => -0.40,
+        InteractionKind::Romance => 0.30,
     };
     let delta = base_delta * interaction.intensity.clamp(0.0, 1.0);
     let other = interaction.other;
@@ -251,7 +265,7 @@ mod tests {
         assert_eq!(r.from, a);
         assert_eq!(r.other, b);
         assert_eq!(r.interactions, 1);
-        assert!((r.strength - 0.05).abs() < 1e-6);
+        assert!((r.strength - 0.10).abs() < 1e-6);
     }
 
     #[test]
@@ -266,7 +280,7 @@ mod tests {
         assert_eq!(e1, e2, "a second interaction with the same person should update the existing relationship, not create a new one");
         let r = world.get_component::<Relationship>(e1).unwrap();
         assert_eq!(r.interactions, 2);
-        assert!((r.strength - 0.10).abs() < 1e-5);
+        assert!((r.strength - 0.20).abs() < 1e-5);
     }
 
     #[test]
@@ -327,7 +341,7 @@ mod tests {
         let b = world.create_entity();
         let weak = record_interaction(&mut world, a, Interaction { other: b, kind: InteractionKind::Conversation, intensity: 0.1 });
         let r = world.get_component::<Relationship>(weak).unwrap();
-        assert!((r.strength - 0.005).abs() < 1e-6, "a low-intensity interaction should change strength proportionally less than a full-intensity one");
+        assert!((r.strength - 0.01).abs() < 1e-6, "a low-intensity interaction should change strength proportionally less than a full-intensity one");
     }
 
     #[test]
@@ -395,6 +409,29 @@ mod tests {
             other: d, kind: InteractionKind::Conversation, intensity: 1.0 });
         assert_eq!(e, cd, "no duplicate bond gets created for the pair");
         assert_eq!(world.get_component::<Relationship>(cd).unwrap().interactions, 10);
+    }
+
+    #[test]
+    fn hearts_read_the_warm_half_of_strength_in_halves() {
+        assert_eq!(hearts_of(0.0), 0.0);
+        assert_eq!(hearts_of(0.1), 0.5, "a strength step of a tenth is half a heart");
+        assert_eq!(hearts_of(0.5), 2.5);
+        assert_eq!(hearts_of(1.0), MAX_HEARTS);
+        assert_eq!(hearts_of(-0.4), 0.0, "bad blood shows no hearts at all");
+    }
+
+    #[test]
+    fn a_full_talk_is_half_a_heart_and_a_deed_is_two() {
+        let mut world = World::new();
+        let a = world.create_entity();
+        let b = world.create_entity();
+        let talk = record_interaction(&mut world, a, Interaction {
+            other: b, kind: InteractionKind::Conversation, intensity: 1.0 });
+        assert_eq!(hearts_of(world.get_component::<Relationship>(talk).unwrap().strength), 0.5);
+        let deed = record_interaction(&mut world, a, Interaction {
+            other: b, kind: InteractionKind::Aid, intensity: 1.0 });
+        // the talk's half heart plus the deed's two
+        assert_eq!(hearts_of(world.get_component::<Relationship>(deed).unwrap().strength), 2.5);
     }
 
     #[test]

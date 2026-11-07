@@ -413,7 +413,7 @@ mod tests {
         assert_eq!(harvest_together(&mut w, org), 3);
         for (x, y) in [(a, b), (a, c), (b, c)] {
             let r = find_relationship(&w, x, y).expect("members who harvest together bond");
-            assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.06).abs() < 1e-6);
+            assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.20).abs() < 1e-6);
         }
         assert!(w.get_component::<OrganizedPower>(org).unwrap().capacity > 0.1, "a shared effort builds people power");
     }
@@ -437,7 +437,7 @@ mod tests {
         let r = one_on_one(&mut w, organizer, c);
         assert_eq!(r.concerns, vec!["the food running short".to_string(), "safe roads".to_string()]);
         assert_eq!(r.networks, vec!["2 friends".to_string(), "1 rival".to_string(), "2 relatives".to_string()]);
-        assert!((r.trust_gained - 0.05).abs() < 1e-6, "the conversation really builds trust");
+        assert!((r.trust_gained - 0.10).abs() < 1e-6, "the conversation really builds trust");
         assert!((r.leadership_potential - 0.6).abs() < 1e-6);
     }
 
@@ -579,8 +579,8 @@ mod tests {
         };
         let (with_hall, without) = (meetings_to_win(true), meetings_to_win(false));
         assert!(with_hall < without, "hall {} vs no hall {} meetings", with_hall, without);
-        assert_eq!(without, 10);
-        assert_eq!(with_hall, 7);
+        assert_eq!(without, 5);
+        assert_eq!(with_hall, 3);
     }
 
     #[test]
@@ -594,7 +594,7 @@ mod tests {
         let v = w.create_entity();
         house_meeting(&mut w, org, &[v]);
         let r = crate::game::relationships::find_relationship(&w, leader, v).unwrap();
-        assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.05).abs() < 1e-6, "plain talk, not a shared meal");
+        assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.10).abs() < 1e-6, "plain talk, not a shared meal");
     }
 }
 

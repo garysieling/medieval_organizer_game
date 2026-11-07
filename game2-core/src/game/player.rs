@@ -233,14 +233,14 @@ mod tests {
         let trust = |w: &World| find_relationship(w, p, vs[0])
             .and_then(|r| w.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
         act_talk(&mut w, p, vs[0], 0);
-        assert!((trust(&w) - 0.05).abs() < 1e-6);
+        assert!((trust(&w) - 0.10).abs() < 1e-6);
         for i in 0..20 { act_talk(&mut w, p, vs[0], i + 1); }
         let heard_out = trust(&w);
-        // 0.05 x (1 + 0.85 + ... + 0.1), then 14 catch-ups at 0.1 each
-        assert!((heard_out - 0.2625).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
+        // 0.10 x (1 + 0.85 + ... + 0.1), then 14 catch-ups at 0.1 each
+        assert!((heard_out - 0.525).abs() < 1e-4, "talking someone through builds real but bounded trust, got {}", heard_out);
         act_talk(&mut w, p, vs[0], 21);
         let topped = trust(&w) - heard_out;
-        assert!((topped - 0.05 * TALK_MAINTENANCE).abs() < 1e-6, "once you know them, a talk only tops the relationship off, got +{}", topped);
+        assert!((topped - 0.10 * TALK_MAINTENANCE).abs() < 1e-6, "once you know them, a talk only tops the relationship off, got +{}", topped);
     }
 
     #[test]

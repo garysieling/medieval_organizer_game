@@ -241,8 +241,8 @@ fn test_the_card_names_a_weathered_one_and_a_sleeping_sickness() {
 fn test_the_card_says_the_frame_fails() {
     let mut g = Game::new();
     let v = g.villagers[7];
-    if let Some(vit) = g.world.get_component_mut::<crate::game::lifecycle::Vitality>(v) {
-        vit.health = 0.2;
+    if let Some(h) = g.world.get_component_mut::<crate::sim::illness::Health>(v) {
+        h.condition = 0.2;
     }
     g.seats[0].selected_target = 7;
     let ins = g.villager_inspector_at(0);

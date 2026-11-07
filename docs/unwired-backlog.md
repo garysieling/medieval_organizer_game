@@ -133,4 +133,4 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 97 | Market prices settable (lord's fixed price) | `economics::set_base_price` | done #625 |
 | 98 | `UiModel::debug_lines` built and never drawn | `session/model.rs` | done #626 |
 | 99 | `UiModel::reach_target` never read by the client | `session/model.rs` | done #627 |
-| 100 | Life events (births, marriages, deaths) as a family record | `lifecycle::LifeEvent` | todo |
+| 100 | Life events (births, marriages, deaths) as a family record | `lifecycle::LifeEvent` | done #628 |

@@ -71,7 +71,7 @@ impl Game {
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
                             note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
-                                crate::sim::story::EventKind::Recovery, "the bad blood is settled".into());
+                                crate::sim::story::EventKind::Peace, "the bad blood is settled".into());
                         }
                     }
                 }

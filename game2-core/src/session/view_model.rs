@@ -722,8 +722,17 @@ impl Game {
             text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
         if livelihood::has_role(&self.world, v, TownRole::Herbologist) {
             let n = herbology::remedies_on_hand(world, v);
+            // what's on the shelf: the remedies' herbs named, so a
+            // caller knows what she can brew for them
+            let on_shelf: Vec<String> = world.get_component::<herbology::Apothecary>(v)
+                .map(|a| a.remedies.iter().take(3).filter_map(|r|
+                    world.get_component::<herbology::Herb>(r.herb)
+                        .map(|h| h.name.replace('_', " "))).collect())
+                .unwrap_or_default();
+            let what = if on_shelf.is_empty() { String::new() }
+                else { format!(" \u{00b7} {}", on_shelf.join(", ")) };
             lines.push(Line { x: 60, y: 354,
-                text: format!("knows the cures \u{00b7} {} remedies", n), rgb: (150, 210, 150) });
+                text: format!("knows the cures \u{00b7} {} remedies{}", n, what), rgb: (150, 210, 150) });
         }
         if let Some(c) = world.get_component::<Craft>(v) {
             // the day's work on the same line: what the bench made today

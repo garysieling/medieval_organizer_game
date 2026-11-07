@@ -410,3 +410,50 @@ fn test_a_remote_chaplain_isnt_the_village_ear() {
     assert!(matches!(role, Some(TownRole::Matchmaker) | Some(TownRole::TaxCollector)),
         "a village role answers instead: {:?} {:?}", voc, role);
 }
+
+#[test]
+fn test_asking_someone_to_bring_friends_is_a_yes_or_a_no() {
+    use crate::game::organizing::{propose, MeetingPlan, PropKind};
+    let mut g = Game::new();
+    let (pe, bram, corvin) = (g.player, g.villagers[2], g.villagers[3]);
+    let (oe, tick) = (g.org, g.tick);
+    // the ask lands: they go on the spreaders
+    let (yes, _) = propose(&mut g.world, pe, oe, bram, PropKind::InviteFriends, "Bram", 0.0, tick);
+    assert!(yes.contains("friends"), "{}", yes);
+    assert!(g.world.get_component::<MeetingPlan>(oe).unwrap().spreaders.contains(&bram));
+    // and a refusal doesn't
+    let (no, _) = propose(&mut g.world, pe, oe, corvin, PropKind::InviteFriends, "Corvin", 0.99, tick);
+    assert!(no.contains("won't hear it"), "{}", no);
+    assert!(!g.world.get_component::<MeetingPlan>(oe).unwrap().spreaders.contains(&corvin));
+}
+
+#[test]
+fn test_spreaders_bring_their_friends_and_nobody_twice() {
+    use crate::game::organizing::MeetingPlan;
+    let mut game = Game::new();
+    let (host, spreader_a, spreader_b, friend) = (game.villagers[1], game.villagers[2], game.villagers[3], game.villagers[4]);
+    // the venue's at Eliza's; the friend waits close by, everyone else is far
+    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    for (v, x, y) in [(host, 17.0, 16.0), (friend, 18.0, 17.0)] {
+        *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x, y };
+    }
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        if i != 1 && i != 4 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32 * 0.5, y: 3.0 }; }
+    }
+    // both spreaders count the same soul their strongest bond - the
+    // overlap must still mean one invite
+    for s in [spreader_a, spreader_b] {
+        let r = game.world.create_entity();
+        game.world.add_component(r, Relationship { from: s, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+    }
+    // and the friend knows the player well enough to actually come
+    let rf = game.world.create_entity();
+    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
+    game.world.get_component_mut::<MeetingPlan>(game.org).unwrap().spreaders = vec![spreader_a, spreader_b];
+    game.call_meeting();
+    let invited = game.meeting.as_ref().expect("a meeting was called").invited.clone();
+    assert!(invited.contains(&friend), "the friend came: {:?}", invited);
+    assert_eq!(invited.iter().filter(|&&e| e == friend).count(), 1,
+        "one invite however many spreaders name them: {:?}", invited);
+}

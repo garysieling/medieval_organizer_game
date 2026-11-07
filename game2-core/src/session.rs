@@ -985,6 +985,10 @@ pub struct Game {
     pub pet_cool: crate::engine::det::HashMap<Entity, u64>,
     /// The column out on the streets, if one marches
     pub formation: Option<formation::Formation>,
+    /// The cell that organizes behind bars, one per castle holding folk
+    pub cells: Vec<crate::game::dungeon::CellOrg>,
+    /// Word on the cell road - asks out, answers back
+    pub cell_mail: Vec<crate::game::dungeon::CellLetter>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,

@@ -45,6 +45,8 @@ impl Game {
         // anyone homed past the old 33-tile map
         world.add_component(climate, villager::WorldBounds { w: MAP_TILES as f32, h: MAP_TILES as f32 });
         let market_food = villager::spawn_food_source(&mut world, vx as f32, vy as f32, 500);
+        // the street's market book: empty till a price's fixed on a good
+        world.add_component(market_food, crate::sim::economics::Market::default());
         // the fields go in with the country - the map's made by then,
         // and a spot on water or a roof would feed no one
 

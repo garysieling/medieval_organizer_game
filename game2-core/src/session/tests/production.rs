@@ -123,3 +123,31 @@ fn test_a_building_near_the_fire_says_so() {
         "the danger never showed: {:?}",
         insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_a_fixed_price_reads_on_the_offer_line() {
+    let mut g = Game::new();
+    // the lord fixes bread at 20g - the street's quote follows the word
+    g.world.get_component_mut::<crate::sim::economics::Market>(g.market_food).unwrap()
+        .set_base_price("bread", 20.0);
+    assert_eq!(goods::worth_at(&g.world, "bread"), 20.0);
+    let shop = g.building_entities.iter().copied()
+        .find(|&b| g.world.get_component::<Building>(b)
+            .map(|bb| bb.stock.get("bread").copied().unwrap_or(0) > 0).unwrap_or(false));
+    let be = shop.or_else(|| {
+        let b = g.building_entities.iter().copied()
+            .find(|&x| g.world.get_component::<Building>(x)
+                .map(|bb| matches!(bb.kind, BuildingKind::Shop(_))).unwrap_or(false)).unwrap();
+        {
+            let bb = g.world.get_component_mut::<Building>(b).unwrap();
+            bb.stock.clear();
+            bb.stock.insert("bread".into(), 3);
+        }
+        Some(b)
+    }).unwrap();
+    g.seats[0].selected_building = g.building_entities.iter().position(|&x| x == be);
+    let insp = g.building_inspector_at(0).unwrap();
+    assert!(insp.lines.iter().any(|l| l.text.contains("bread") && l.text.contains("20g")),
+        "the fixed price never showed: {:?}",
+        insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

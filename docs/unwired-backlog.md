@@ -130,7 +130,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 94 | Campaign history: recent beats and who consented | `campaign_arc` (`recent_beats`, `record_consent`, `arc_facts`) | done #622 |
 | 95 | Personal facts feeding meeting dialogue | `campaign_dialogue` (`personal_facts`, `meeting_facts`) | done #623 |
 | 96 | Conversations picked by role | `conversation::for_roles` | done #624 |
-| 97 | Market prices settable (lord's fixed price) | `economics::set_base_price` | todo |
+| 97 | Market prices settable (lord's fixed price) | `economics::set_base_price` | done #625 |
 | 98 | `UiModel::debug_lines` built and never drawn | `session/model.rs` | todo |
 | 99 | `UiModel::reach_target` never read by the client | `session/model.rs` | todo |
 | 100 | Life events (births, marriages, deaths) as a family record | `lifecycle::LifeEvent` | todo |

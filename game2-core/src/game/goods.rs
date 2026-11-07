@@ -208,8 +208,17 @@ fn worths_entity(world: &crate::engine::ecs::World) -> Option<crate::engine::ecs
     world.query::<Worths>().first().copied()
 }
 
-/// What a good's worth today: registry worth leaned by the felt scarcity
+/// What a good's worth today: the lord's price where one's been set on
+/// it, else registry worth leaned by the felt scarcity
 pub fn worth_at(world: &crate::engine::ecs::World, good: &str) -> f32 {
+    // a price the lord's fixed wins over the street's read: the
+    // market's own quote for any good it's been told a base for
+    if let Some(p) = world.query::<crate::sim::economics::Market>().first()
+        .and_then(|&e| world.get_component::<crate::sim::economics::Market>(e))
+        .filter(|m| m.base_prices.contains_key(good))
+        .and_then(|m| m.prices.get(good).copied()) {
+        return p;
+    }
     let m = worths_entity(world)
         .and_then(|e| world.get_component::<Worths>(e))
         .and_then(|w| w.mult.get(good).copied())

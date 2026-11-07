@@ -229,19 +229,24 @@ impl Game {
             facts.push(format!("{} and {} keep the lord's peace from the heights.",
                 keeps[0], keeps[1]));
         }
-        // a face worth knowing early: the living only - a card naming
-        // the dead would greet a returning seat with a grave's tenant.
-        // Their trade's plain to see about the village; their manner is
-        // theirs to find out - the card stays to what's public
+        // a face worth knowing early: the living villagers only - the
+        // dead would greet a returning seat with a grave's tenant, and
+        // the country's folk are nobody's neighbour. Their trade's plain
+        // to see about the village; their manner is theirs to find out
         let living: Vec<usize> = self.villagers.iter().enumerate()
-            .filter(|(_, &v)| !villager::is_dead(&self.world, v))
+            .filter(|(_, &v)| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<country::Outlander>(v).is_none())
             .map(|(i, _)| i).collect();
         if !living.is_empty() {
             let i = living[rng.below(living.len() as i32) as usize];
             let v = self.villagers[i];
-            match self.world.get_component::<vocation::Craft>(v)
-                .map(|c| vocation::vocation_name(c.vocation).to_lowercase()) {
-                Some(c) => facts.push(format!("{} the {} keeps a bench here - worth knowing early.", vill_name(i), c)),
+            match self.world.get_component::<vocation::Craft>(v) {
+                Some(c) if c.workplace.is_some() => facts.push(format!(
+                    "{} the {} keeps a bench here - worth knowing early.",
+                    vill_name(i), vocation::vocation_name(c.vocation).to_lowercase())),
+                Some(c) => facts.push(format!(
+                    "{} the {} lives here - worth knowing early.",
+                    vill_name(i), vocation::vocation_name(c.vocation).to_lowercase())),
                 None => facts.push(format!("{} lives here - worth knowing early.", vill_name(i))),
             }
         }

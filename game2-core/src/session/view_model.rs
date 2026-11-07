@@ -880,6 +880,14 @@ impl Game {
             if goats > 0 { keeps.push(format!("{} goats", goats)); }
             if !keeps.is_empty() { parts.push(format!("keeps {}", keeps.join(" and "))); }
         }
+        // their pet, if a companion's bonded to them - the creature's
+        // name and kind, plain to see
+        if let Some(pet) = world.query::<crate::game::pets::Pet>().iter()
+            .find_map(|&e| world.get_component::<crate::game::pets::Pet>(e)
+                .filter(|p| p.owner == Some(v) && p.bond_strength >= 0.3)) {
+            parts.push(format!("keeps {} the {}",
+                pet.name, format!("{:?}", pet.species).to_lowercase()));
+        }
         // the tie between you: friend, rival, kin - plain to you
         // whether or not the village knows them yet
         if let Some((tie, them_senior)) = crate::game::relationships::find_relationship(world, self.seats[seat].player, v)

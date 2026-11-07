@@ -422,7 +422,7 @@ impl View {
 
         // name labels are drawn after every sprite (so no sprite covers one)
         // and de-overlapped: (text, x, y, colour, hungry, selected)
-        let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool)> = vec![];
+        let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool, bool, bool)> = vec![];
         // the player's dart waits for the label pass: a displaced name
         // mustn't paint over the one mark that says "this one is you"
         let mut player_marker: Option<(i32, i32, f32, u32)> = None;
@@ -478,7 +478,7 @@ impl View {
                             None => draw_grave(&mut buf, sx, sy, zoom),
                         };
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
-                        labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected));
+                        labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected, false, false));
                     } else {
                         let look = figure_look(pv.kid, i, art.villager_sprites.len());
                         let fig = &art.villager_sprites[look];
@@ -502,19 +502,16 @@ impl View {
                         let (lx, ly) = name_label_pos(sx, anchor, &lbl);
                         // bright when close enough to talk, recruit or meet; dim otherwise
                         let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
-                        labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected));
+                        // the one an ask would land on rides the label
+                        // pass: the picked villager, or the one in
+                        // reach when nobody's picked
+                        let t = if m.sel.picked { m.sel.target } else { m.reach_target };
+                        let tgt = i == t && !pv.dead;
+                        labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected, tgt, pv.in_reach));
                         // sick: a green cross on the other side of the head
                         if pv.sick {
                             let (mk, (r, g, b), _) = MARK_SICK;
                             draw_text_outlined(&mut buf, sx - 16, head_y(sy, zoom), mk, r, g, b);
-                        }
-                        // the one an ask would land on: the picked
-                        // villager, or the one in reach when nobody's
-                        // picked - bright when they'd hear it now
-                        let t = if m.sel.picked { m.sel.target } else { m.reach_target };
-                        if i == t && !pv.dead {
-                            let rgb = if pv.in_reach { (240, 220, 130) } else { (160, 150, 120) };
-                            draw_text_outlined(&mut buf, sx - 26, head_y(sy, zoom), "\u{203a}", rgb.0, rgb.1, rgb.2);
                         }
                         // activity marker beside the head
                         if pv.act_mark > 0 {
@@ -540,7 +537,7 @@ impl View {
                         None => 0,
                     };
                     if pv.bond {
-                        labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false)); // placed with the names
+                        labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false, false, false)); // placed with the names
                     }
                 },
                 // the watch: soldiers from the humans pack at the gates
@@ -584,7 +581,7 @@ impl View {
                         _ => label_anchor(sy, zoom),
                     };
                     let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
-                    labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false));
+                    labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false, false, false));
                 },
                 // player sprite at their actual position
                 Who::P(pv) if let PKind::Player = pv.kind => {
@@ -621,7 +618,7 @@ impl View {
                     let anchor = anchor.unwrap_or_else(|| label_anchor(sy, zoom));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
                     player_marker = Some((sx, ly - 2, zoom, m.frame));
-                    labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false));
+                    labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false, false, false));
                 },
                 Who::P(_) => {},
             }
@@ -659,12 +656,18 @@ impl View {
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
-            .map(|(t, x, y, _, hungry, _)| (*x, *y, t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 }))
+            .map(|(t, x, y, _, hungry, _, _, _)| (*x, *y, t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 }))
             .collect();
         let placed = place_labels(&boxes);
         // where each name finally sits, so a speech bubble can clear it
         let label_ys: Vec<(&String, i32)> = labels.iter().zip(&placed).map(|(l, y)| (&l.0, *y)).collect();
-        for ((text, x, _, (r, g, b), hungry, selected), y) in labels.iter().zip(placed) {
+        for ((text, x, _, (r, g, b), hungry, selected, tgt, in_reach), y) in labels.iter().zip(placed) {
+            // the ask's target leads its name: bright when they'd hear it
+            // now, dim when the picked one's a walk away
+            if *tgt {
+                let (r2, g2, b2) = if *in_reach { (240, 220, 130) } else { (160, 150, 120) };
+                draw_text_outlined(&mut buf, x - GLYPH_W - 2, y, "\u{203a}", r2, g2, b2);
+            }
             draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
             // hunger indicator, right after the name
             if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, m, r, g, b); }

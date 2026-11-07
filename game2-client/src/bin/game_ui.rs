@@ -4,7 +4,7 @@
 //! (--connect ws://host:port), and blits what View draws.
 
 use std::sync::{Arc, Mutex};
-use minifb::{Key, Window, WindowOptions, MouseMode};
+use minifb::{Key, Window, WindowOptions, MouseMode, Scale, ScaleMode};
 use game2_core::engine::render::Buffer;
 use game2_client::{self as client, Art, View};
 use game2_core::session::{
@@ -29,6 +29,22 @@ fn present(window: &mut Window, buf: &Buffer) {
         px.extend(buf.pixels.chunks_exact(4).map(|c| session::rgb(c[0], c[1], c[2])));
         window.update_with_buffer(&px, W, H).unwrap();
     });
+}
+
+/// The one window every screen shares: windowed by default, F11 swaps in
+/// minifb's borderless screen-fill (0.29 has no real fullscreen API)
+fn make_window(fullscreen: bool) -> Window {
+    let options = if fullscreen {
+        WindowOptions {
+            borderless: true,
+            scale: Scale::FitScreen,
+            scale_mode: ScaleMode::AspectRatioStretch,
+            ..WindowOptions::default()
+        }
+    } else {
+        WindowOptions::default()
+    };
+    Window::new("The Wanderer - Medieval Village", W, H, options).expect("window failed")
 }
 
 /// A claim token kept on disk: relaunch and you're the same wanderer (the
@@ -178,8 +194,10 @@ fn main() {
     }
 
     let art = Art::load_fs("assets", seed);
-    let mut window = Window::new("The Wanderer - Medieval Village", W, H, WindowOptions::default())
-        .expect("window failed");
+    // F11 swaps the window for a borderless screen-fill and back; the
+    // buffer and every screen's state ride through the recreation
+    let mut fullscreen = false;
+    let mut window = make_window(fullscreen);
     let mut started = false;
     // the character picker's cards and cursor, between the title and play
     let mut picker: Option<(Vec<session::roster::RosterCard>, usize)> = None;
@@ -224,6 +242,15 @@ fn main() {
                 eprintln!("game_ui: the server turned us away: {why}");
                 std::process::exit(2);
             }
+        }
+        // F11 swaps the window for a borderless screen-fill and back on
+        // every screen - the picker, title and intro cards share this one
+        // window. It trips on release, not press: a fresh window can't
+        // tell a still-held key from a new press and would swap straight
+        // back
+        if window.is_key_released(Key::F11) {
+            fullscreen = !fullscreen;
+            window = make_window(fullscreen);
         }
         // persist the claim token as soon as it lands: a picker or the
         // prologue can sit between it and the gameplay loop for as long
@@ -444,6 +471,18 @@ fn main() {
                     if let Some(at) = m.toasts[i].at {
                         (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    }
+                }
+                // a log line that knows where it happened or who it's
+                // about: the click jumps there and selects them (#645)
+                if let Some(i) = view.log_hit(m, mx, my) {
+                    let entry = &m.log[i];
+                    cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
+                    if let Some(at) = entry.at {
+                        (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                    }
+                    if let Some(who) = entry.who {
+                        cmds.push(Command::Select(who));
                     }
                 }
                 // the same layout the draw uses - one source of truth, so

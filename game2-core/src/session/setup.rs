@@ -936,9 +936,10 @@ impl Game {
             paused: false,
             speed: 1,
             log: {
-                let mut l = vec!["Welcome to the village.".into(),
-                    format!("The village keeps {} - and the tavern on the green, where it all gets drunk.",
-                        vocation::trade_name(drink_voc))];
+                let mut l = gamelog::GameLog::default();
+                l.push("Welcome to the village.".into());
+                l.push(format!("The village keeps {} - and the tavern on the green, where it all gets drunk.",
+                    vocation::trade_name(drink_voc)));
                 if let Some(n) = &landform {
                     l.push(format!("The village makes its home in {}.", n));
                 }
@@ -994,6 +995,12 @@ impl Game {
             flock,
             graze_at,
             flock_wander: crate::engine::det::HashMap::default(),
+            pet_cool: crate::engine::det::HashMap::default(),
+            formation: None,
+            cells: vec![],
+            cell_mail: vec![],
+            school: None,
+            teacher: None,
             next_graze: 0,
             hens,
             hen_houses,

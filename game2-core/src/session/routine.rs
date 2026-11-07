@@ -633,6 +633,51 @@ impl Game {
         for (rally, folk) in rallies { self.seat_protest(rally, &folk, tick); }
     }
 
+    /// A child's lean toward the schoolhouse: the doors open while a
+    /// teacher keeps the desk, and the curious go more often than the
+    /// wild - true when the day goes to a desk instead of the snow
+    pub(super) fn school_draw(&mut self, v: Entity, rng: &mut Rng) -> bool {
+        let Some(s) = self.school else { return false };
+        if self.teacher.is_none() { return false; }
+        use crate::game::traits::Trait;
+        let mut lean = 30;
+        if has_trait(&self.world, v, Trait::Ambitious) { lean += 20; }
+        if has_trait(&self.world, v, Trait::Kind) { lean += 10; }
+        if has_trait(&self.world, v, Trait::Lazy) { lean -= 15; }
+        if rng.below(100) >= lean { return false; }
+        let Some(sp) = self.world.get_component::<Pos>(s).copied() else { return false };
+        let door = (sp.x + 0.5, sp.y + 0.5);
+        let r = Routine { mode: Mode::Playing, spot: Spot::Play, anchor: door,
+            face: None, drift: 0.6, leads: false, day: self.tick, reached: false };
+        self.go_keep(v, r, 30)
+    }
+
+    /// The schoolhouse's day: a day at the desk counts toward the
+    /// scholar's mark, and a teacher's season runs out when it runs out
+    pub(in crate::session) fn school_tick(&mut self, tick: u64) {
+        if let Some((e, until)) = self.teacher {
+            if tick >= until {
+                self.villagers.retain(|&v| v != e);
+                self.teacher = None;
+                self.log.push(format!("t{}: the schoolmistress moves on - the desk stands empty.", tick));
+            }
+        }
+        let Some(s) = self.school else { return };
+        let Some(sp) = self.world.get_component::<Pos>(s).copied() else { return };
+        for &v in &self.villagers.clone() {
+            if self.world.get_component::<Kid>(v).is_none() { continue; }
+            let at_school = self.world.get_component::<Routine>(v)
+                .map(|r| r.mode == Mode::Playing && r.day == tick
+                    && (r.anchor.0 - sp.x).abs() + (r.anchor.1 - sp.y).abs() < 3.0)
+                .unwrap_or(false);
+            if !at_school { continue; }
+            match self.world.get_component_mut::<villager::Scholared>(v) {
+                Some(sc) => sc.days += 1,
+                None => { self.world.add_component(v, villager::Scholared { days: 1 }); }
+            }
+        }
+    }
+
     /// Dawn of each day: count who kept yesterday's rite, then on a holy
     /// day call the faithful to theirs
     pub(super) fn routine_dawn(&mut self, tick: u64, rng: &mut Rng) {
@@ -685,8 +730,8 @@ impl Game {
             let leader_e = lead_v;
             let n = self.assemble(tick, Mode::Worshipping, spot, leader_e.map(|l| (l, front)), &flock, &slots, front, CALL_REACH);
             if n > 0 {
-                self.log.push(format!("t{}: the holy day - {} gather at {} for prayers.", tick, n,
-                    if church.is_some() { "the church" } else { "the market cross" }));
+                self.log.push_at_who(format!("t{}: the holy day - {} gather at {} for prayers.", tick, n,
+                    if church.is_some() { "the church" } else { "the market cross" }), Some(front), None);
                 // and it's seen and heard: somebody says the word, and
                 // the bell rings over the square - but only one who
                 // actually made it to the gathering
@@ -716,7 +761,7 @@ impl Game {
                 if slots.len() < 2 { return; }
                 let n = self.assemble(tick, Mode::Worshipping, Spot::StoneCircle, Some((leader, slots[0])), &old, &slots[1..], c, CALL_REACH + 4);
                 if n > 1 {
-                    self.log.push(format!("t{}: {} keep the old rite at the stones.", tick, n));
+                    self.log.push_at_who(format!("t{}: {} keep the old rite at the stones.", tick, n), Some(c), None);
                     // the elder speaks if they made it; else whoever did
                     let speaker = [leader].into_iter().chain(old.iter().copied())
                         .find(|&v| self.reached_worship(v, tick));
@@ -729,7 +774,7 @@ impl Game {
                 let slots = self.ring_round(c, old.len(), 1.6);
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Grove, Some((leader, c)), &old, &slots, c, CALL_REACH + 4);
                 if n > 1 {
-                    self.log.push(format!("t{}: {} keep the old rite in the grove.", tick, n));
+                    self.log.push_at_who(format!("t{}: {} keep the old rite in the grove.", tick, n), Some(c), None);
                     let speaker = [leader].into_iter().chain(old.iter().copied())
                         .find(|&v| self.reached_worship(v, tick));
                     if let Some(v) = speaker {
@@ -757,7 +802,8 @@ impl Game {
         let n = self.assemble(tick, Mode::Worshipping, Spot::Church, lead.map(|l| (l, front)),
             &brothers, &slots, front, CALL_REACH);
         if n > 0 {
-            self.log.push(format!("t{}: the holy day - {} keep the office at {}.", tick, n, self.sites[si].name));
+            self.log.push_at_who(format!("t{}: the holy day - {} keep the office at {}.", tick, n, self.sites[si].name),
+                Some(front), None);
             let voice = lead.filter(|&l| self.reached_worship(l, tick))
                 .or_else(|| brothers.iter().copied().find(|&v| self.reached_worship(v, tick)));
             if let Some(v) = voice {
@@ -800,7 +846,8 @@ impl Game {
         let going = self.assemble(tick, Mode::Feasting, Spot::Home,
             leader.map(|l| (l, at)), &folk, &slots, at, 15);
         if going == 0 { return; }
-        self.log.push(format!("t{}: a small celebration - {}.", tick, why));
+        let honouree = leader.and_then(|l| self.villagers.iter().position(|&v| v == l));
+        self.log.push_at_who(format!("t{}: a small celebration - {}.", tick, why), Some(at), honouree);
         for v in leader.into_iter().chain(folk.iter().copied()) {
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 30);
             desires::satisfy(&mut self.world, v, Want::Music, tick + 30);
@@ -906,6 +953,8 @@ impl Game {
         for i in 0..self.villagers.len() {
             let v = self.villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
+            // the marching keep step - no drift while the column moves
+            if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
             if self.world.get_component::<Villager>(v).map(|x| x.activity != Activity::Idle).unwrap_or(true) { continue; }
             if self.travels.iter().any(|tr| tr.who == v) { continue; }
             if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }

@@ -160,7 +160,7 @@ impl Game {
             self.pending_quests.push(PendingQuest {
                 giver: v, kind, target, pickup, expires: tick + OFFER_DAYS });
             self.say(v, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
-            self.log.push(format!("t{}: {} has a small job going - pick them to hear it.", tick, self.name_of(v)));
+            self.log_entity(v, format!("t{}: {} has a small job going - pick them to hear it.", tick, self.name_of(v)));
         }
     }
 

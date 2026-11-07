@@ -77,7 +77,8 @@ impl Game {
                 if !was_derelict.contains(&i) {
                     let name = self.world.get_component::<Building>(*e)
                         .map(|b| b.name.clone()).unwrap_or_else(|| "a house".into());
-                    self.log.push(format!("t{}: {} stands derelict - nobody works it.", tick, name));
+                    self.log.push_at_who(format!("t{}: {} stands derelict - nobody works it.", tick, name),
+                        toast_spot(&self.world, *e), None);
                 }
             }
         }
@@ -323,7 +324,11 @@ impl Game {
         // own claims: round_back keeps the hungry, the traveling, the
         // gathered, the seat's own, the drunk, the sick and the meeting's
         // folk back - kids, officials and the rest are all fair game
-        for &v in &villagers { self.round_back(v, tick); }
+        for &v in &villagers {
+            // the marching keep step - the day can wait on them
+            if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
+            self.round_back(v, tick);
+        }
         for i in 0..villagers.len() {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
@@ -365,8 +370,11 @@ impl Game {
                 .unwrap_or(false);
             if gathered { continue; }
             if self.world.get_component::<Kid>(v).is_some() {
-                // a child off the errand list plays
-                if self.world.get_component::<OddJob>(v).is_none() { self.plan_play(v, tick, &mut rng); }
+                // a child off the errand list plays - or sits a spell
+                // at the schoolhouse, when it's open and they lean that way
+                if self.world.get_component::<OddJob>(v).is_none() {
+                    if !self.school_draw(v, &mut rng) { self.plan_play(v, tick, &mut rng); }
+                }
                 continue;
             }
             // the recluse answers to the dark, not the village's day -
@@ -425,12 +433,14 @@ impl Game {
                     .unwrap_or_else(|| lvl.to_string());
                 self.toasts.push_at((format!("{} is now {} {}!", vill_name(i), vocation::article(&title), title), tick + 30),
                     toast_spot(&self.world, v));
-                self.log.push(format!("t{}: {} is now {} {}.", tick, vill_name(i), vocation::article(&title), title));
+                self.log_villager(i, format!("t{}: {} is now {} {}.", tick, vill_name(i), vocation::article(&title), title));
             }
         }
         drop(folk);
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
+        crate::timed!("sim.prison", self.cell_tick(tick));
+        crate::timed!("sim.school", self.school_tick(tick));
         crate::timed!("sim.tech", self.tech_tick(tick));
         crate::timed!("sim.cutaways", self.cutaways_tick(tick));
         // and the village's tune follows the day the village had
@@ -607,7 +617,9 @@ impl Game {
                     if crate::game::organizing::storm_strikes_hall(&mut self.world, oe) {
                         let oname = self.world.get_component::<Organization>(oe)
                             .map(|o| o.name.clone()).unwrap_or_default();
-                        self.log.push(format!("t{}: the storm takes {}'s roof - the hall's unfit to meet in.", tick, oname));
+                        let hall = household::home_of(&self.world, self.player)
+                            .and_then(|h| toast_spot(&self.world, h));
+                        self.log.push_at_who(format!("t{}: the storm takes {}'s roof - the hall's unfit to meet in.", tick, oname), hall, None);
                     }
                 }
             }
@@ -647,8 +659,12 @@ impl Game {
             let (src, domain, strength) = sources[self.grimoire.discoveries.len()];
             let d = magic::ingest_text(&mut self.grimoire, src, domain, strength);
             let use_ = magic::magic_effects(domain).first().copied().unwrap_or("useful lore");
-            self.log.push(format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
-                tick, d.name, use_));
+            match priest {
+                Some(p) => self.log_entity(p, format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
+                    tick, d.name, use_)),
+                None => self.log.push(format!("t{}: the priest's reading turns up {} - the parish learns to {}.",
+                    tick, d.name, use_)),
+            }
         }
         // the parish physick: each healing practice the books taught
         // sees the sick mend a little faster

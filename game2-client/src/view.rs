@@ -31,6 +31,13 @@ const TOAST_RISE: f32 = 10.0;
 /// The feed's first banner top; each older one sits a pitch higher
 const TOAST_TOP: i32 = 44;
 const TOAST_PITCH: i32 = 30;
+/// The LOG panel's wrap width in glyphs ((box width - padding) / glyph
+/// width) and its row count - shared by the draw pass and log_hit's
+/// row math so a click lands on the line that's drawn there (#645)
+const LOG_CHARS: usize = 52;
+const LOG_ROWS: usize = 8;
+/// The LOG box's screen rect: x, y, w, h - hit-testing reads the same
+const LOG_BOX: (i32, i32, i32, i32) = (UI_X as i32 + 10, 512, 320, 110);
 
 /// Everything a frame needs that isn't the game itself: the sprite pack,
 /// the camera and UI toggles, and the caches repainting costs too much to
@@ -146,6 +153,31 @@ impl View {
         self.toast_layout(&m.toasts, m.frame).iter()
             .find(|&&(_, x, y, w, _)| mx >= x && mx < x + w && my >= y && my < y + 20)
             .map(|&(i, ..)| i)
+    }
+
+    /// Which LOG-panel entry the mouse is over, as an index into `m.log` -
+    /// only entries that carry a position or a villager answer; plain
+    /// lines and the "earlier lines" marker are inert. The row math
+    /// mirrors the draw pass: word-wrapped to LOG_CHARS, capped at
+    /// log_rows, a click on any wrapped row of an entry counting (#645)
+    pub fn log_hit(&self, m: &UiModel, mx: i32, my: i32) -> Option<usize> {
+        let (lx, ly, lw, lh) = LOG_BOX;
+        if mx < lx || mx >= lx + lw || my < ly + 18 || my >= ly + lh { return None; }
+        let log_rows = if m.log_dropped > 0 { LOG_ROWS - 1 } else { LOG_ROWS };
+        let mut row = 0usize;
+        for (i, entry) in m.log.iter().enumerate() {
+            let (day, msg) = log_parts(&entry.text);
+            let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
+            for _ in wrap_text(&text, LOG_CHARS) {
+                if row == log_rows { return None; }
+                let y = 530 + row as i32 * 12;
+                if my >= y && my < y + 12 {
+                    return (entry.at.is_some() || entry.who.is_some()).then_some(i);
+                }
+                row += 1;
+            }
+        }
+        None
     }
 
     /// The sprite a building draws with
@@ -953,28 +985,35 @@ impl View {
         }
 
         // event log
-        draw_rect(&mut buf, UI_X as i32 + 10, 512, 320, 110, 25, 25, 40);
-        draw_text(&mut buf, UI_X as i32 + 14, 516, "LOG", 150, 150, 180);
-        // newest first, word-wrapped to the box instead of cut off mid-word
-        const LOG_CHARS: usize = 52;      // (box width - padding) / glyph width
-        const LOG_ROWS: usize = 8;
+        let (lx, ly, lw, lh) = LOG_BOX;
+        draw_rect(&mut buf, lx, ly, lw, lh, 25, 25, 40);
+        draw_text(&mut buf, lx + 4, ly + 4, "LOG", 150, 150, 180);
+        // newest first, word-wrapped to the box instead of cut off mid-word;
+        // an entry that knows where it happened or who it's about brightens
+        // under the mouse - it's a button (log_hit knows the same rows)
         // the last row marks what rolled off the top, when it did
         let log_rows = if m.log_dropped > 0 { LOG_ROWS - 1 } else { LOG_ROWS };
         let mut row = 0;
         'log: for entry in &m.log {
-            let (r, g, b) = log_colour(entry);
+            let clickable = entry.at.is_some() || entry.who.is_some();
+            let (r, g, b) = log_colour(&entry.text);
             // "day 120" in dim grey, then the message in its colour
-            let (day, msg) = log_parts(entry);
+            let (day, msg) = log_parts(&entry.text);
             let text = match &day { Some(d) => format!("{} {}", d, msg), None => msg.to_string() };
             for (n, line) in wrap_text(&text, LOG_CHARS).iter().enumerate() {
                 if row == log_rows { break 'log; }
                 let y = 530 + row as i32 * 12;
+                let hovered = clickable && mx >= lx && mx < lx + lw && my >= y && my < y + 12;
+                let (r, g, b) = if hovered {
+                    let lift = |c: u8| (c as u16 + (255 - c as u16) / 2) as u8;
+                    (lift(r), lift(g), lift(b))
+                } else { (r, g, b) };
                 match &day {
                     Some(d) if n == 0 && line.starts_with(d.as_str()) => {
-                        draw_text(&mut buf, UI_X as i32 + 14, y, d, 120, 120, 145);
-                        draw_text(&mut buf, UI_X as i32 + 14 + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
+                        draw_text(&mut buf, lx + 4, y, d, 120, 120, 145);
+                        draw_text(&mut buf, lx + 4 + (d.len() as i32 + 1) * GLYPH_W, y, line[d.len()..].trim_start(), r, g, b);
                     }
-                    _ => { draw_text(&mut buf, UI_X as i32 + 14, y, line, r, g, b); }
+                    _ => { draw_text(&mut buf, lx + 4, y, line, r, g, b); }
                 }
                 row += 1;
             }

@@ -13,8 +13,10 @@ pub mod country;
 pub mod quests;
 pub mod mystery;
 pub mod roster;
+pub mod formation;
 
 pub mod journal;
+pub mod gamelog;
 pub mod kpi;
 pub mod layout;
 pub mod seat;
@@ -103,10 +105,12 @@ const LOG_TRIM_TO: usize = 12288;
 
 
 /// Whether the crowd-separation pass may push this villager aside: not the
-/// dead, and not someone on their way to food
+/// dead, not someone on their way to food, and not the marching - a
+/// column keeps step, it doesn't make room
 fn makes_room(world: &World, v: Entity) -> bool {
     !villager::is_dead(world, v)
         && world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none()
+        && world.get_component::<villager::InFormation>(v).is_none()
         && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
         && !routine::holds_slot(world, v)
 }
@@ -134,7 +138,7 @@ fn sickness_name(world: &World, who: Entity) -> Option<String> {
 fn note_story(
     tales: &mut crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
     told: &mut crate::engine::det::HashSet<usize>,
-    log: &mut Vec<String>,
+    log: &mut gamelog::GameLog,
     i: usize, tick: u64, kind: crate::sim::story::EventKind, desc: String,
 ) {
     let ev = crate::sim::story::StoryEvent { tick, kind, description: desc };
@@ -153,7 +157,7 @@ fn note_story(
             crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
             crate::sim::story::StoryTheme::Community => "a tale of the commons",
         };
-        log.push(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word));
+        log.push_who(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word), i);
     }
 }
 
@@ -355,6 +359,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
         // the sale shares the big row's left half with Gather's
         CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
+        // the kind hand shares Pet her's slot on the big row's right half
+        CtxAct::Tame => Button { label: "Stroke it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
+        CtxAct::School => Button { label: "The school".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (90, 110, 70) },
     }
 }
 
@@ -769,6 +776,7 @@ impl WorkLook {
             BuildingKind::Shop(Vocation::Taverner | Vocation::Alewife | Vocation::Brewer) => WorkLook::Tavern,
             BuildingKind::Shop(Vocation::Baker) => WorkLook::Bakery,
             BuildingKind::Shop(Vocation::Farmer | Vocation::Toolmaker) => return None,
+            BuildingKind::Schoolhouse => return None,
             BuildingKind::Shop(_) => WorkLook::Workshop,
             BuildingKind::Granary => WorkLook::Granary,
             BuildingKind::WatchPost => WorkLook::WatchHouse,
@@ -868,7 +876,7 @@ pub struct Game {
     pub tick: u64,
     pub paused: bool,
     pub speed: u32,   // 1=normal 2=fast 4=turbo
-    pub log: Vec<String>,
+    pub log: gamelog::GameLog,
     /// Lines trimmed off the log's front so far - a cursor into "every
     /// line ever pushed" is `log_dropped + index into log`, so readers
     /// that pace the log (the balance harness) survive a trim
@@ -975,6 +983,19 @@ pub struct Game {
     /// Each animal's own spot of grass and the frame it picks the next
     /// one: the flock grazes as individuals, not in lockstep
     pub flock_wander: crate::engine::det::HashMap<Entity, (f32, f32, u32)>,
+    /// An animal needs a moment between strokes - frame it's pettable
+    /// again, like the stray cat's own beat
+    pub pet_cool: crate::engine::det::HashMap<Entity, u64>,
+    /// The column out on the streets, if one marches
+    pub formation: Option<formation::Formation>,
+    /// The cell that organizes behind bars, one per castle holding folk
+    pub cells: Vec<crate::game::dungeon::CellOrg>,
+    /// Word on the cell road - asks out, answers back
+    pub cell_mail: Vec<crate::game::dungeon::CellLetter>,
+    /// The schoolhouse, if the village raised one
+    pub school: Option<Entity>,
+    /// The teacher in residence, and the day they move on
+    pub teacher: Option<(Entity, u64)>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,
@@ -1222,6 +1243,22 @@ impl std::ops::DerefMut for Game {
 }
 
 impl Game {
+    /// A log line about villager `i`: click selects them and jumps to
+    /// where they stood when it happened (#645)
+    pub(in crate::session) fn log_villager(&mut self, i: usize, line: String) {
+        let at = self.villagers.get(i)
+            .and_then(|&v| self.world.get_component::<Pos>(v)).map(|p| (p.x, p.y));
+        self.log.push_at_who(line, at, Some(i));
+    }
+
+    /// A log line about the villager entity `e`: resolves their index
+    /// for `who` the way `name_of` does, and snapshots where they stood
+    pub(in crate::session) fn log_entity(&mut self, e: Entity, line: String) {
+        let i = self.villagers.iter().position(|&v| v == e);
+        let at = self.world.get_component::<Pos>(e).map(|p| (p.x, p.y));
+        self.log.push_at_who(line, at, i);
+    }
+
     pub fn ticks_per_frame(&self) -> u32 {
         // frames per day: ~21s/day normal, ~3.8s turbo; a house meeting (or
         // the call it leaves the organizer) slows the calendar so the
@@ -1558,7 +1595,7 @@ impl Game {
             if let Some(h) = world.get_component::<Health>(*v) {
                 if h.condition <= 0.0 {
                     toasts.push_at((format!("{} has died.", vill_name(i)), tick + 60), toast_spot(world, *v));
-                    log.push(format!("t{}: {} died.", tick, vill_name(i)));
+                    log.push_at_who(format!("t{}: {} died.", tick, vill_name(i)), toast_spot(world, *v), Some(i));
                     world.remove_component::<Health>(*v);
                     world.add_component(*v, villager::Dead);
                     died_on[i] = Some(tick);
@@ -1596,14 +1633,16 @@ impl Game {
         for (i, (now, was)) in sick_now.iter().zip(self.was_sick.iter_mut()).enumerate() {
             match (now, was.as_ref()) {
                 (Some(name), None) => {
-                    log.push(format!("t{}: {} is taken with {}", tick, vill_name(i), name));
+                    log.push_at_who(format!("t{}: {} is taken with {}", tick, vill_name(i), name),
+                        world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)), Some(i));
                     note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
                         crate::sim::story::EventKind::Illness, format!("{} is taken with {}", vill_name(i), name));
                 }
                 (None, Some(old)) => {
                     // a disease gone because it took them isn't a recovery
                     if self.died_on.get(i).and_then(|d| *d).is_none() {
-                        log.push(format!("t{}: {} recovered from {}", tick, vill_name(i), old));
+                        log.push_at_who(format!("t{}: {} recovered from {}", tick, vill_name(i), old),
+                            world.get_component::<Pos>(villagers[i]).map(|p| (p.x, p.y)), Some(i));
                         note_story(&mut self.tales, &mut self.tales_told, log, i, tick,
                             crate::sim::story::EventKind::Recovery, format!("{} recovered from {}", vill_name(i), old));
                     }
@@ -1708,6 +1747,26 @@ impl Game {
             }
             drop(_tail);
         }
+        // a tamed animal's feet are its own now: it trails the seat that
+        // won it - close, but never underfoot
+        for &(e, _, _) in &self.pets.clone() {
+            let Some(owner) = self.world.get_component::<Pet>(e).and_then(|p| p.owner) else { continue };
+            let (Some(op), Some(ap)) = (self.world.get_component::<Pos>(owner).copied(),
+                                        self.world.get_component::<Pos>(e).copied()) else { continue };
+            let (dx, dy) = (op.x - ap.x, op.y - ap.y);
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= 2.5 { continue; }
+            let step = (0.03 + (e % 5) as f32 * 0.004 + self.rng.below(4) as f32 * 0.002).min(d - 1.2).max(0.0);
+            let (sx, sy) = (dx / d * step, dy / d * step);
+            // a wall in the way slides her along it rather than stands her
+            let (nx, ny) = if self.walkable(ap.x + sx, ap.y + sy) { (ap.x + sx, ap.y + sy) }
+                else if self.walkable(ap.x + sx, ap.y) { (ap.x + sx, ap.y) }
+                else if self.walkable(ap.x, ap.y + sy) { (ap.x, ap.y + sy) }
+                else { continue };
+            if let Some(p) = self.world.get_component_mut::<Pos>(e) { p.x = nx; p.y = ny; }
+        }
+        // and the column keeps step while it's out
+        crate::timed!("sim.formation", self.formation_step());
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
             self.advance_approach_at(seat);
@@ -1717,7 +1776,7 @@ impl Game {
         // the log is a rolling window - the oldest lines drop in blocks
         if self.log.len() > LOG_MAX {
             let dropped = self.log.len() - LOG_TRIM_TO;
-            self.log.drain(..dropped);
+            self.log.drop_front(dropped);
             self.log_dropped += dropped;
         }
         // movement is still processed while paused, but relationships and

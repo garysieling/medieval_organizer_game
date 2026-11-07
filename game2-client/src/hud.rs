@@ -34,7 +34,7 @@ pub(crate) fn satchel_strip(m: &UiModel) -> String {
 /// to the help overlay once the title screen is gone
 pub(crate) const PANEL_HINT: &str = "1-8 select villager   H help";
 
-pub(crate) const HELP_LINES: [&str; 9] = [
+pub(crate) const HELP_LINES: [&str; 10] = [
     "click button / key: take action",
     "click villager: select + inspect",
     "bright name: close enough to talk",
@@ -44,6 +44,7 @@ pub(crate) const HELP_LINES: [&str; 9] = [
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
     "F12: screenshot   Esc: quit",
+    "F11: fullscreen",
 ];
 
 pub(crate) const HELP_W: i32 = 420;

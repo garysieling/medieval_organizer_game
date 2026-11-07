@@ -373,7 +373,8 @@ impl Game {
                 let at = self.event_pitch(id);
                 let path = self.trail_path(start, at).unwrap_or_default();
                 self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });
-                self.log.push(format!("t{}: {} has come to town.", self.tick, s.name));
+                self.log.push_at_who(format!("t{}: {} has come to town.", self.tick, s.name),
+                    Some((at.0 as f32 + 0.5, at.1 as f32 + 0.5)), None);
             }
             EventKind::Spell => {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
@@ -467,7 +468,8 @@ impl Game {
             .and_then(|p| self.trail_path((p.x.round() as i32, p.y.round() as i32), back))
             .unwrap_or_default();
         r.leaving = true;
-        self.log.push(format!("t{}: {} moves on.", self.tick, spec(r.id).name));
+        let at = r.e.and_then(|e| toast_spot(&self.world, e));
+        self.log.push_at_who(format!("t{}: {} moves on.", self.tick, spec(r.id).name), at, None);
         self.rare[idx] = r;
     }
 
@@ -475,16 +477,18 @@ impl Game {
     fn event_arrived(&mut self, id: EventId) {
         let s = spec(id);
         let e = self.rare.iter().find(|r| r.id == id).and_then(|r| r.e);
+        let pitch = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at)
+            .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
         match id {
             EventId::Tinker => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
-                self.log.push(format!("t{}: {} sets up by the market - out come the cracked pots.", self.tick, s.name));
+                self.log.push_at_who(format!("t{}: {} sets up by the market - out come the cracked pots.", self.tick, s.name), pitch, None);
             }
             EventId::StrayDog => {
-                self.log.push(format!("t{}: a stray dog hangs about the market, ribs showing.", self.tick));
+                self.log.push_at_who(format!("t{}: a stray dog hangs about the market, ribs showing.", self.tick), pitch, None);
             }
             EventId::StrayCat => {
-                self.log.push(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick));
+                self.log.push_at_who(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick), pitch, None);
                 // she's a pet to begin with - ownerless and bondless, but
                 // pettable: a player who's kind to her keeps her. Hunting
                 // like any village cat: vermin watch and a warm lap once
@@ -515,13 +519,13 @@ impl Game {
                         desires::satisfy(&mut self.world, o, Want::Joy, self.tick + 30);
                     }
                 }
-                self.log.push(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick));
-                self.toasts.push_at(("A prodigal returns".into(), self.tick + 40),
-                    home.and_then(|h| toast_spot(&self.world, h)));
+                let home_at = home.and_then(|h| toast_spot(&self.world, h));
+                self.log.push_at_who(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick), home_at, None);
+                self.toasts.push_at(("A prodigal returns".into(), self.tick + 40), home_at);
             }
             EventId::KnifeGrinder => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
-                self.log.push(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name));
+                self.log.push_at_who(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name), pitch, None);
             }
             _ => {
                 // the baseline: a figure stands his pitch and cries his trade

@@ -7,16 +7,16 @@
 # the commits. The same notes ship inside every package as RELEASE-NOTES.md;
 # the release page adds a table of the downloads above them.
 #
-# It also runs weekly on its own: if main has commits since the newest v* tag,
+# It also runs daily on its own: if main has commits since the newest v* tag,
 # it releases them as the next minor version (v0.3.0 after v0.2.x; v0.1.0
-# when there's no tag yet). A week with no new commits makes no release.
+# when there's no tag yet). A day with no new commits makes no release.
 name: Release
 
 on:
   push:
     tags: ["v*"]
   schedule:
-    - cron: "0 14 * * 1"   # Mondays, 14:00 UTC
+    - cron: "0 14 * * *"   # Daily, 14:00 UTC
   workflow_dispatch:
     inputs:
       tag:
@@ -63,11 +63,11 @@ jobs:
         run: |
           tag="$REQUESTED_TAG"; skip=false
           if [ -z "$tag" ]; then
-            # The weekly run: nothing to do if main hasn't moved since the
+            # The scheduled run: nothing to do if main hasn't moved since the
             # newest release tag of any kind.
             last=$(git tag --list 'v*' --sort=-v:refname --merged HEAD | head -n1 || true)
             if [ -n "$last" ] && [ "$(git rev-list --count "$last..HEAD")" = 0 ]; then
-              echo "No commits since $last - no release this week."
+              echo "No commits since $last - no release today."
               skip=true
             fi
             # The next minor after the newest plain vX.Y.Z (pre-releases

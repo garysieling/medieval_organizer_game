@@ -94,6 +94,11 @@ pub enum CtxAct {
     /// Buy from a shop you're standing by - one of what it makes, at
     /// the street's price, out of your walking purse
     Buy,
+    /// Stroke the animal you're standing by - the kind hand, again and
+    /// again, until it leaves the fold and follows
+    Tame,
+    /// Raise the schoolhouse, or send for a teacher to keep it
+    School,
 }
 
 /// One player's hold on the game: which character they steer, what they've

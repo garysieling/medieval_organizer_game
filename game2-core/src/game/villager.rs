@@ -35,6 +35,17 @@ pub enum Activity {
 
 /// Villager marker + state
 #[derive(Debug)]
+/// Marching in a formation: the day's other drivers - routines, drift,
+/// food-seeking - leave them be while the column moves
+pub struct InFormation;
+
+/// Days spent at the schoolhouse desk - the marker a scholar carries,
+/// whether or not the letters take
+#[derive(Debug)]
+pub struct Scholared {
+    pub days: u32,
+}
+
 pub struct Villager {
     pub activity: Activity,
     pub target_food: Option<Entity>,
@@ -135,8 +146,9 @@ impl System for SeekFoodSystem {
             .map(|b| (b.w - 2.0, b.h - 2.0))
             .unwrap_or((31.0, 31.0));
 
-        // Find villagers and their state
-        let villagers: Vec<Entity> = world.query::<Villager>();
+        // Find villagers and their state - the marching are already walking
+        let villagers: Vec<Entity> = world.query::<Villager>().into_iter()
+            .filter(|&v| world.get_component::<InFormation>(v).is_none()).collect();
         let snapshot: Vec<(Entity, Pos)> = villagers.iter()
             .filter_map(|&v| world.get_component::<Pos>(v).map(|p| (v, *p)))
             .collect();

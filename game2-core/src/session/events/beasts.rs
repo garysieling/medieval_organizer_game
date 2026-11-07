@@ -147,7 +147,8 @@ impl Game {
                     if let Some(&a) = crate::game::livestock::flock(&self.world, h).first() {
                         self.world.destroy_entity(a);
                         self.hens.retain(|&e| e != a);
-                        self.log.push(format!("t{}: a hawk stoops - a shadow falls on the green, and a hen's gone with it.", self.tick));
+                        self.log.push_at_who(format!("t{}: a hawk stoops - a shadow falls on the green, and a hen's gone with it.", self.tick),
+                            toast_spot(&self.world, h), None);
                         // the folk see the shadow fall - the house grieves
                         // her the same as the night's take; the dead
                         // and the held see nothing
@@ -159,7 +160,8 @@ impl Game {
                         }
                     }
                 } else {
-                    self.log.push(format!("t{}: a hawk stoops on the green - and finds the yard empty.", self.tick));
+                    self.log.push_at_who(format!("t{}: a hawk stoops on the green - and finds the yard empty.", self.tick),
+                        toast_spot(&self.world, self.market_food), None);
                 }
                 self.toasts.push(("A hawk stoops!".into(), self.tick + 40));
             }
@@ -214,7 +216,9 @@ impl Game {
                         }
                         self.say(o, "Worth every sting!", CHAT_BUBBLE_SECS);
                     }
-                    self.log.push(format!("t{}: a bee tree found - the combs come back dripping, stings and all.", self.tick));
+                    self.log.push_at_who(format!("t{}: a bee tree found - the combs come back dripping, stings and all.", self.tick),
+                        toast_spot(&self.world, h),
+                        occ.and_then(|o| self.villagers.iter().position(|&v| v == o)));
                 } else {
                     self.log.push(format!("t{}: a bee tree's humming in the wood - nobody ventures the combs.", self.tick));
                 }
@@ -225,15 +229,17 @@ impl Game {
                 // and the folk stand at the hedge to watch her all the
                 // same - the lord's deer, best left alone
                 let roll = self.rare_roll(id);
-                if !self.gardens.is_empty() {
+                let deer_at = if !self.gardens.is_empty() {
                     let gi = (roll as usize / 5) % self.gardens.len();
                     self.gardens[gi].2 *= 0.5;
-                }
+                    Some((self.gardens[gi].1.0 as f32 + 0.5, self.gardens[gi].1.1 as f32 + 0.5))
+                } else { None };
                 for &v in &self.villagers.clone() {
                     if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
                     desires::satisfy(&mut self.world, v, Want::Joy, self.tick + 10);
                 }
-                self.log.push(format!("t{}: a deer in the fields - a doe at dawn, grazing the beds slow, and the folk watch from the hedge.", self.tick));
+                self.log.push_at_who(format!("t{}: a deer in the fields - a doe at dawn, grazing the beds slow, and the folk watch from the hedge.", self.tick),
+                    deer_at, None);
                 self.toasts.push(("A deer in the fields".into(), self.tick + 40));
             }
             EventId::CrowsMob => {
@@ -254,14 +260,17 @@ impl Game {
                             household::take_stock(&mut b, &g.clone(), 2);
                         }
                     }
-                    self.log.push(format!("t{}: a mob of crows - they drop on the village in a black storm, and rise laughing.", self.tick));
+                    self.log.push_at_who(format!("t{}: a mob of crows - they drop on the village in a black storm, and rise laughing.", self.tick),
+                        toast_spot(&self.world, h), None);
                 } else {
                     // nothing stocked: they strip a bed instead
-                    if !self.gardens.is_empty() {
+                    let beds_at = if !self.gardens.is_empty() {
                         let gi = (roll as usize / 3) % self.gardens.len();
                         self.gardens[gi].2 *= 0.6;
-                    }
-                    self.log.push(format!("t{}: a mob of crows - they drop on the beds and strip what they find.", self.tick));
+                        Some((self.gardens[gi].1.0 as f32 + 0.5, self.gardens[gi].1.1 as f32 + 0.5))
+                    } else { None };
+                    self.log.push_at_who(format!("t{}: a mob of crows - they drop on the beds and strip what they find.", self.tick),
+                        beds_at, None);
                 }
                 self.toasts.push(("A mob of crows".into(), self.tick + 40));
             }
@@ -289,7 +298,7 @@ impl Game {
                     pets::adopt(&mut self.world, pet, m);
                     self.pets.push((pet, Species::Dog, (0.7, 0.4)));
                     desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
-                    self.log.push(format!("t{}: the stray won't go - {} has a dog now.", tick, name));
+                    self.log_entity(m, format!("t{}: the stray won't go - {} has a dog now.", tick, name));
                 } else {
                     self.log.push(format!("t{}: the stray drifts on down the road.", tick));
                 }
@@ -318,7 +327,8 @@ impl Game {
                     // she's yours now - the event lets its figure go, so
                     // the road doesn't walk her off and destroy her
                     if let Some(r) = self.rare.iter_mut().find(|r| r.id == EventId::StrayCat) { r.e = None; }
-                    self.log.push(format!("t{}: the cat's made her choice - she's yours now.", tick));
+                    self.log.push_at_who(format!("t{}: the cat's made her choice - she's yours now.", tick),
+                        toast_spot(&self.world, e), None);
                 } else {
                     // the loneliest hearth takes her in - cats decide too;
                     // a hearth behind bars is no hearth to her
@@ -338,7 +348,7 @@ impl Game {
                         pets::adopt(&mut self.world, pet, m);
                         self.pets.push((pet, Species::Cat, (0.7, 0.4)));
                         desires::satisfy(&mut self.world, m, Want::Love, tick + 60);
-                        self.log.push(format!("t{}: the cat's made her choice - {} has a cat now.", tick, name));
+                        self.log_entity(m, format!("t{}: the cat's made her choice - {} has a cat now.", tick, name));
                     } else {
                         self.log.push(format!("t{}: the cat slips off the way she came.", tick));
                     }

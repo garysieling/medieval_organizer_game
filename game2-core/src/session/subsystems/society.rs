@@ -50,7 +50,7 @@ impl Game {
                 crate::game::feuds::FeudStatus::Burning if last != Some(crate::game::feuds::FeudStatus::Burning) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Burning);
                     let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
-                    self.log.push(format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, offense));
+                    self.log_entity(offender, format!("t{}: bad blood runs hot between {} and {} - {}.", tick, an, bn, offense));
                     self.rep_apply(offender, RepAction::BadDeed);
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
@@ -61,13 +61,13 @@ impl Game {
                     // open conflict breaks the offender's sworn word:
                     // you can't aid a neighbour with one fist raised
                     for other in crate::game::contracts::break_all_pacts(&mut self.world, offender) {
-                        self.log.push(format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(other)));
+                        self.log_entity(other, format!("t{}: the pact between {} and {} is torn.", tick, bn, self.name_of(other)));
                     }
                 }
                 crate::game::feuds::FeudStatus::Resolved if last != Some(crate::game::feuds::FeudStatus::Resolved) => {
                     self.feud_told.insert(e, crate::game::feuds::FeudStatus::Resolved);
                     let (an, bn) = (self.name_of(aggrieved), self.name_of(offender));
-                    self.log.push(format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
+                    self.log_entity(offender, format!("t{}: the feud between {} and {} is put to rest.", tick, an, bn));
                     for who in [offender, aggrieved] {
                         if let Some(i) = self.villagers.iter().position(|v| *v == who) {
                             note_story(&mut self.tales, &mut self.tales_told, &mut self.log, i, tick,
@@ -126,18 +126,18 @@ impl Game {
         self.sanctioned.push((v, s, tick + 60));
         match s {
             Sanction::Gossip => {
-                self.log.push(format!("t{}: the talk turns on {}.", tick, name));
+                self.log_entity(v, format!("t{}: the talk turns on {}.", tick, name));
                 // the words they reach for, flourished
                 self.say(v, &format!("They call me {}.", gossip_insult(v as usize)), TALK_BUBBLE_SECS);
             }
             Sanction::Shun => {
-                self.log.push(format!("t{}: {} gets the cold shoulder - no one sits with them.", tick, name));
+                self.log_entity(v, format!("t{}: {} gets the cold shoulder - no one sits with them.", tick, name));
             }
             Sanction::Boycott => {
-                self.log.push(format!("t{}: nobody buys from {} - the boycott bites.", tick, name));
+                self.log_entity(v, format!("t{}: nobody buys from {} - the boycott bites.", tick, name));
             }
             Sanction::Picket => {
-                self.log.push(format!("t{}: a crowd at {}'s door - they can't work for the press.", tick, name));
+                self.log_entity(v, format!("t{}: a crowd at {}'s door - they can't work for the press.", tick, name));
                 self.say(v, "Let me through - I've work to do!", TALK_BUBBLE_SECS);
                 // the log line made good: the neighbours come, signs in hand
                 self.call_picket(v, tick);
@@ -150,17 +150,17 @@ impl Game {
                     // the rung was recorded before the crowd answered -
                     // a sentence never served is no rung at all
                     self.sanctioned.retain(|(e, s, _)| !(*e == v && *s == Sanction::Stocks));
-                    self.log.push(format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
+                    self.log_entity(v, format!("t{}: the crowd would have none of it - {} walks free of the stocks, and the shame lands on the accusers.", tick, name));
                     self.say(v, "They wronged me, and you all saw it.", TALK_BUBBLE_SECS);
                 } else {
                     self.rep_apply(v, RepAction::Betrayal);
-                    self.log.push(format!("t{}: {} sits in the stocks by the store.", tick, name));
+                    self.log_entity(v, format!("t{}: {} sits in the stocks by the store.", tick, name));
                     if let Some(store) = Some(self.market_food) { self.send(v, Goal::HeadHome(store)); }
                     self.say(v, "...all right. All right.", TALK_BUBBLE_SECS);
                 }
             }
             Sanction::Exile => {
-                self.log.push(format!("t{}: the village turns {} out - nothing left for them here.", tick, name));
+                self.log_entity(v, format!("t{}: the village turns {} out - nothing left for them here.", tick, name));
                 self.send(v, Goal::Exile);
             }
         }
@@ -233,10 +233,11 @@ impl Game {
                 if let Some(b) = self.world.get_component_mut::<Building>(self.market_food) {
                     let _ = household::take_stock(b, "grain", take);
                 }
-                self.log.push(format!("t{}: a bailiff's writ - the castle levies {} grain{}.{}",
+                self.log.push_at_who(format!("t{}: a bailiff's writ - the castle levies {} grain{}.{}",
                     tick, take,
                     if bargained { " - the org talks him down" } else { "" },
-                    if mult > 1 { " Double, for the last defiance." } else { "" }));
+                    if mult > 1 { " Double, for the last defiance." } else { "" }),
+                    toast_spot(&self.world, self.market_food), None);
             }
             1 => {
                 // a fee: gold off every purse that has it
@@ -300,7 +301,7 @@ impl Game {
                             self.martyr_grave = Some((p.x.round() as i32, p.y.round() as i32));
                         }
                         self.repression_debt = 0;
-                        self.log.push(format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
+                        self.log_entity(m, format!("t{}: the bailiff returns with knights - {} is hanged for the defiance.", tick, name));
                         // mass grief: everyone saw it
                         for v in self.villagers.iter().take(8).copied().collect::<Vec<_>>() {
                             if !villager::is_dead(&self.world, v) {
@@ -309,9 +310,9 @@ impl Game {
                         }
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
-                        self.log.push(format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
+                        self.log_entity(m, format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
                     } else {
-                        self.log.push(format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
+                        self.log_entity(m, format!("t{}: a summons - {} is taken for questioning.", tick, self.name_of(m)));
                         for _ in 0..2 { desires::add_grievance(&mut self.world, m, desires::Problem::WritBorne, tick + 60); }
                         // taken to the castle - held, not gone: the org
                         // ransoms them or the ladder climbs. The march
@@ -363,7 +364,7 @@ impl Game {
                 // the walk out is spent with the ransom - else the exile
                 // leg outruns the pardon and arrives a driving-out
                 self.travels.retain(|t| t.who != who);
-                self.log.push(format!("t{}: the org pays the ransom - {} walks home.", tick, name));
+                self.log_entity(who, format!("t{}: the org pays the ransom - {} walks home.", tick, name));
                 if let Some(home) = household::home_of(&self.world, who).or(Some(self.market_food)) {
                     self.send(who, Goal::HeadHome(home));
                 }
@@ -373,7 +374,7 @@ impl Game {
                 if let Some(i) = self.villagers.iter().position(|&x| x == who) {
                     self.died_on[i] = Some(tick);
                 }
-                self.log.push(format!("t{}: no ransom came - {} is hanged at the castle.", tick, name));
+                self.log_entity(who, format!("t{}: no ransom came - {} is hanged at the castle.", tick, name));
             }
         }
     }
@@ -391,7 +392,7 @@ impl Game {
             self.world.remove_component::<crate::game::campaign::CampaignMeeting>(rc);
             self.world.remove_component::<crate::game::dungeon::ReleaseOf>(m);
         }
-        self.log.push(format!("t{}: the cell stands open - {} walks home.", tick, self.name_of(m)));
+        self.log_entity(m, format!("t{}: the cell stands open - {} walks home.", tick, self.name_of(m)));
     }
 
     pub fn guards_tick(&mut self, tick: u64) {
@@ -451,7 +452,7 @@ impl Game {
                 crate::game::dungeon::press(&mut self.world, v, 0.02);
                 if crate::game::dungeon::release_check(&mut self.world, v, 1.0) {
                     let name = self.name_of(v);
-                    self.log.push(format!("t{}: the village never stopped asking - {} walks free.", tick, name));
+                    self.log_entity(v, format!("t{}: the village never stopped asking - {} walks free.", tick, name));
                     if let Some(home) = household::home_of(&self.world, v).or(Some(self.market_food)) {
                         self.send(v, Goal::HeadHome(home));
                     }
@@ -483,7 +484,8 @@ impl Game {
         }
         self.record_power(crate::sim::organized_power::ActionQuality::Transactional);
         if tick % 90 == 20 {
-            self.log.push(format!("t{}: they keep a vigil at the martyr's grave.", tick));
+            self.log.push_at_who(format!("t{}: they keep a vigil at the martyr's grave.", tick),
+                self.martyr_grave.map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5)), None);
         }
     }
 
@@ -521,7 +523,7 @@ impl Game {
         });
         let name = self.name_of(succ);
         self.player = succ;
-        self.log.push(format!("t{}: the work goes on - {} takes up the organizing.", tick, name));
+        self.log_entity(succ, format!("t{}: the work goes on - {} takes up the organizing.", tick, name));
         self.say(succ, "The work goes on. Someone has to.", CHAT_BUBBLE_SECS * 2);
     }
 
@@ -536,10 +538,10 @@ impl Game {
                 self.pending_discovery = None;
                 self.disclosure_made = true;
                 let name = self.name_of(who);
-                self.log.push(format!("t{}: {} whispers it about - {}. The word's out now.", tick, name, found));
+                self.log_entity(who, format!("t{}: {} whispers it about - {}. The word's out now.", tick, name, found));
                 if self.lord_esteem > 0.4 {
                     // an org worth the name stands with its own
-                    self.log.push(format!("t{}: the village stands with {} - the truth was theirs to say.", tick, name));
+                    self.log_entity(who, format!("t{}: the village stands with {} - the truth was theirs to say.", tick, name));
                     self.say(who, "I said what I saw. That's all I did.", CHAT_BUBBLE_SECS * 2);
                 } else {
                     // no one to stand with him: the threatened move - and
@@ -581,7 +583,7 @@ impl Game {
             }
             if self.numeracy != Numeracy::Positional && self.translator_days >= 90 {
                 self.numeracy = Numeracy::Positional;
-                self.log.push(format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
+                self.log_entity(c, format!("t{}: the village counts the clerk's way now - the foreign reckonings are done.", tick));
             }
         }
         // the lord's estimate creeps toward what's shown - perceived, not raw
@@ -621,7 +623,8 @@ impl Game {
         // one feast mid-season, named for the season it's in
         const FEASTS: [&str; 4] = ["May Day", "Midsummer", "the Harvest Home", "Yule"];
         let feast = FEASTS[(tick / 90 % 4) as usize];
-        self.log.push(format!("t{}: {} - the village gathers at the market.", tick, feast));
+        self.log.push_at_who(format!("t{}: {} - the village gathers at the market.", tick, feast),
+            toast_spot(&self.world, self.market_food), None);
         // the good stock comes out: bread, honey, whatever the stalls held
         let mut loaves = 0u32;
         for &be in &self.building_entities.clone() {
@@ -646,10 +649,37 @@ impl Game {
                 && self.site_of(v).is_none()
                 && !self.shunned(v))
             .collect();
+        // the village walks it in first: the column takes the streets
+        // and the feast waits for it at the cross - unless something
+        // else already has the streets
+        let mut folk: Vec<Entity> = gathered.iter().copied()
+            // a player walks themselves - the column doesn't take them
+            .filter(|&v| !self.seats.iter().any(|s| s.player == v)).collect();
+        folk.sort();
+        let head = folk.first().and_then(|&v| self.world.get_component::<Pos>(v).copied())
+            .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
+        let route = self.street_route(head, 30);
+        if self.formation.is_none() && route.len() >= 4 {
+            self.start_parade(folk, route, Some((feast, loaves, poured, tick)));
+            return;
+        }
+        // something else has the streets today: feast anyway, but
+        // whoever's marching keeps step - the feast doesn't pin them
+        let free: Vec<Entity> = gathered.iter().copied()
+            .filter(|&v| self.world.get_component::<villager::InFormation>(v).is_none())
+            .collect();
+        self.feast_day(tick, feast, &free, loaves, poured);
+    }
+
+    /// The feast itself: the column home, the ring forms round the
+    /// cross, the good stock and the warmth go round - called the moment
+    /// a feast parade finishes (or straight off, when it never marched)
+    pub(in crate::session) fn feast_day(&mut self, tick: u64, feast: &str,
+            gathered: &[Entity], loaves: u32, poured: u32) {
         // everyone comes to market for the day, in a ring round the cross
         let store = self.market_food;
-        for &v in &gathered { self.travels.retain(|t| t.who != v); }
-        self.gather_feast(tick, &gathered);
+        for &v in gathered { self.travels.retain(|t| t.who != v); }
+        self.gather_feast(tick, gathered);
         // and somebody says so out loud for whoever's within earshot
         let voice = self.tavern.and_then(|t| self.world.get_component::<Building>(t))
             .and_then(|b| b.worker)
@@ -658,7 +688,7 @@ impl Game {
         if let Some(v) = voice {
             self.say(v, &format!("{} - the good stock's out!", feast), TALK_BUBBLE_SECS * 2);
         }
-        for &v in &gathered {
+        for &v in gathered {
             // the day feeds the wants that never quite get fed
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 90);
             desires::satisfy(&mut self.world, v, Want::Music, tick + 90);
@@ -676,7 +706,7 @@ impl Game {
         let n = gathered.len();
         if n >= 2 {
             let mut bumps: Vec<(Entity, Entity)> = vec![];
-            for &v in &gathered {
+            for &v in gathered {
                 for _ in 0..3 {
                     let j = self.rng.below(n as i32) as usize;
                     if j < n { bumps.push((v, gathered[j])); }
@@ -734,6 +764,40 @@ impl Game {
                 self.say(c, "Uninvited. As ever.", CHAT_BUBBLE_SECS * 2);
             }
         }
+    }
+
+    /// The parade's done: a feast column hands its stock and its people
+    /// to the ring; a victory column just breaks up at the cross
+    pub(in crate::session) fn parade_resolved(&mut self,
+            feast: Option<(&'static str, u32, u32, u64)>, members: &[Entity]) {
+        if let Some((name, loaves, poured, day)) = feast {
+            self.feast_day(day, name, members, loaves, poured);
+        }
+    }
+
+    /// A carried demand sends the village out in the open: the column
+    /// walks the streets and breaks up at the cross. Nothing else it
+    /// could be doing is more worth the day
+    pub(in crate::session) fn victory_parade(&mut self) {
+        if self.formation.is_some() { return; }
+        let mut folk: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v)
+                && self.world.get_component::<TownRole>(v).is_none()
+                // the village's day: the country keeps its own
+                && self.site_of(v).is_none()
+                && !self.shunned(v)
+                // a player walks themselves - the column doesn't take them
+                && !self.seats.iter().any(|s| s.player == v)
+                && self.world.get_component::<Pos>(v).is_some())
+            .collect();
+        if folk.is_empty() { return; }
+        folk.sort();
+        let head = self.world.get_component::<Pos>(folk[0]).copied()
+            .map(|p| (p.x, p.y)).unwrap_or((self.village.0 as f32, self.village.1 as f32));
+        let route = self.street_route(head, 30);
+        if route.len() < 4 { return; }
+        self.start_parade(folk, route, None);
+        self.log.push(format!("t{}: the cause carries it - the village walks the win in.", self.tick));
     }
 }
 

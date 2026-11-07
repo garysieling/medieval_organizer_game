@@ -21,15 +21,19 @@ fn test_a_rule_is_written_against_the_crowd_that_wont_stop() {
 
     // first crowd: the knights come out and take the loudest
     g.ctx_act_at(0, 0);
-    assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
+    for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
+    assert!(g.log.iter().any(|l| l.contains("knights come out")), "{:?}", g.log);
     // second crowd: the law is written - the street answers once a day
     g.tick += 1;
+    g.seats[0].ctx_actions = vec![CtxAct::March];
     g.ctx_act_at(0, 0);
-    let last = g.log.last().unwrap().clone();
-    assert!(last.contains("no more than two assembled"), "{}", last);
+    for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
+    assert!(g.log.iter().any(|l| l.contains("no more than two assembled")), "{:?}", g.log);
     assert!(g.world.get_component::<crate::game::reactions::AssemblyBan>(g.org).is_some());
     // and under the ban even a handful is broken up on sight
     g.tick += 1;
+    g.seats[0].ctx_actions = vec![CtxAct::March];
     g.ctx_act_at(0, 0);
-    assert!(g.log.last().unwrap().contains("knights come out"), "{:?}", g.log.last());
+    for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
+    assert!(g.log.iter().any(|l| l.contains("knights come out")), "{:?}", g.log);
 }

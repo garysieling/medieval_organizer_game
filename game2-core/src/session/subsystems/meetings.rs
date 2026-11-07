@@ -51,7 +51,7 @@ impl Game {
             if vs.len() >= 3 {
                 if let Some(issue) = desires::found_issue(&mut self.world, pe, tag.clone()) {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                    self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                    self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                     found = format!(" Organizer discovers issue {}.", issue);
                 }
             }
@@ -65,7 +65,7 @@ impl Game {
                 bases.entry(base.to_string()).or_default().extend(voices.iter().copied());
             }
             if bases.values().any(|vs| vs.len() >= 3) {
-                self.log.push(format!("t{}: the talk splinters by trade.", self.tick));
+                self.log_entity(pe, format!("t{}: the talk splinters by trade.", self.tick));
                 found = " The talk splinters by trade.".into();
             }
         }
@@ -129,7 +129,7 @@ impl Game {
         if let Some(t) = crate::game::organizing::target_for(&self.world, &vote.winner, self.collector) {
             if let Some(cc) = self.world.get_component_mut::<campaign::Campaign>(c) { cc.target = Some(t); }
             let tname = self.villagers.iter().position(|&v| v == t).map(|i| vill_name(i)).unwrap_or("the Reeve");
-            self.log.push(format!("t{}: the room names {}.", self.tick, tname));
+            self.log_entity(t, format!("t{}: the room names {}.", self.tick, tname));
         }
         self.world.add_component(c, campaign::CampaignMeeting {
             cadence_days: 3, last_held: self.tick, held: 0, resolves: 0, driven_by: None });
@@ -340,7 +340,7 @@ impl Game {
                         let pe = host_e;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                             self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                            self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                            self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                         }
                         lines.push((v, said));
                         shared = true;
@@ -425,7 +425,8 @@ impl Game {
                 if k < m.lines.len() { self.meeting = Some(m); return; }
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
                     else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.roles) };
-                self.log.push(format!("t{}: {}", self.tick, msg));
+                let at = toast_spot(&self.world, self.seats[m.seat].player);
+                self.log.push_at_who(format!("t{}: {}", self.tick, msg), at, None);
             }
         }
     }
@@ -457,7 +458,14 @@ impl Game {
             // Only some meetings get a bubble - every pair passing a remark was
             // a constant stream of chatter (the chat still counts either way)
             let n = self.last_chat.len() + (a as usize) + tick as usize;
-            if n % 3 == 0 {
+            // a friendly animal at heel gets you greeted more: folk warm
+            // to the one the village's own beasts trust
+            let pet_charmed = self.pets.iter().any(|(e, _, _)| {
+                self.world.get_component::<Pet>(*e)
+                    .map(|p| p.owner == Some(self.player) && p.bond_strength >= pets::COMFORT_BOND)
+                    .unwrap_or(false)
+            });
+            if n % if pet_charmed { 2 } else { 3 } == 0 {
                 // two villagers hold a whole conversation - on the record
                 // for the TALK panel, not floated over the street
                 // (session::dialogue); the player gets a word in passing -

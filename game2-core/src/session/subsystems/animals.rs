@@ -29,7 +29,8 @@ impl Game {
         // a fox in the yard, now and then - the hens give its coming away
         if tick % 90 == 65 && !self.hens.is_empty() && self.rng.below(100) < 8 {
             self.fox_coming = true;
-            self.log.push(format!("t{}: the hens won't settle at dusk - something prowls the hedges.", tick));
+            self.log.push_at_who(format!("t{}: the hens won't settle at dusk - something prowls the hedges.", tick),
+                self.fold.and_then(|f| toast_spot(&self.world, f)), None);
         }
         if tick % 90 == 75 && self.fox_coming { self.fox_coming = false; self.fox_night(tick); }
         let Some(fold) = self.fold else { return };
@@ -67,7 +68,8 @@ impl Game {
             if sheep > 0 {
                 if let Some(b) = self.world.get_component_mut::<Building>(fold) {
                     let got = household::add_stock(b, "wool", (sheep * 2) as u32);
-                    if got > 0 { self.log.push(format!("t{}: shearing day at the fold - {} wool.", tick, got)); }
+                    if got > 0 { self.log.push_at_who(format!("t{}: shearing day at the fold - {} wool.", tick, got),
+                        toast_spot(&self.world, fold), None); }
                 }
             }
         }
@@ -75,7 +77,8 @@ impl Game {
         // the mud tells on it a few days out
         if tick % 90 == 50 && self.rng.below(100) < 10 {
             self.wolf_coming = true;
-            self.log.push(format!("t{}: wolf tracks in the mud by the fold - the dogs won't settle.", tick));
+            self.log.push_at_who(format!("t{}: wolf tracks in the mud by the fold - the dogs won't settle.", tick),
+                toast_spot(&self.world, fold), None);
         }
         if tick % 90 == 60 && self.wolf_coming { self.wolf_coming = false; self.wolf_night(tick); }
         // the shepherd walks out to the flock most days, but not hungry
@@ -104,7 +107,8 @@ impl Game {
                 p.y = (p.y + self.rng.around(6) as f32).clamp(1.0, self.map.height as f32 - 2.0);
             }
         }
-        self.log.push(format!("t{}: a wolf got into the fold in the night - {} lost.", tick, losses));
+        self.log.push_at_who(format!("t{}: a wolf got into the fold in the night - {} lost.", tick, losses),
+            toast_spot(&self.world, fold), None);
         if let Some(sh) = self.shepherd {
             desires::add_grievance(&mut self.world, sh, desires::Problem::Loss, tick + 90);
             self.say(sh, "The wolf came in the night.", CHAT_BUBBLE_SECS);
@@ -120,7 +124,8 @@ impl Game {
         self.world.destroy_entity(a);
         self.hens.retain(|&e| e != a);
         let name = self.world.get_component::<Building>(h).map(|b| b.name.clone()).unwrap_or_else(|| "the yard".into());
-        self.log.push(format!("t{}: a fox got into {} - a hen gone in the night.", tick, name));
+        self.log.push_at_who(format!("t{}: a fox got into {} - a hen gone in the night.", tick, name),
+            toast_spot(&self.world, h), None);
         // the house grieves her through whoever can feel it - the
         // held and the dead take no grief
         if let Some(&occ) = self.world.get_component::<Building>(h)
@@ -144,7 +149,8 @@ impl Game {
                 household::add_stock(b, "honey", n * 2);
                 household::add_stock(b, "wax", n);
             }
-            if n > 0 { self.log.push(format!("t{}: the skeps yield - {} honey, {} wax.", tick, n * 2, n)); }
+            if n > 0 { self.log.push_at_who(format!("t{}: the skeps yield - {} honey, {} wax.", tick, n * 2, n),
+                toast_spot(&self.world, ay), None); }
             // a season's candles for the church, from the season's wax
             if let (Some(church), Some(b)) = (self.church, self.world.get_component_mut::<Building>(ay)) {
                 let wax = household::take_stock(b, "wax", n);
@@ -177,7 +183,7 @@ impl Game {
             else { return };
             self.swarm = Some((who, tick + 1));
             let name = self.villagers.iter().position(|x| *x == who).map(|x| vill_name(x)).unwrap_or("someone");
-            self.log.push(format!("t{}: a swarm took a liking to {} - it follows them about.", tick, name));
+            self.log_entity(who, format!("t{}: a swarm took a liking to {} - it follows them about.", tick, name));
             // memorable to the one it keeps: their little moment of fame,
             // for they can't help being talked about
             desires::satisfy(&mut self.world, who, desires::Want::Joy, tick + 5);

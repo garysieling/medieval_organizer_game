@@ -200,7 +200,7 @@ impl Game {
                 let pe = self.seats[seat].player;
                 if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
                     self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                    self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                    self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
                 }
                 (d, s)
             }
@@ -432,6 +432,15 @@ impl Game {
         if self.stray_cat_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::PetCat);
         }
+        // and a fold beast or yard hen in reach takes the kind hand too -
+        // it shares her slot, and wins it when they're both about
+        if self.tame_animal_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::Tame);
+        }
+        // the schoolhouse: raise it once, then keep a teacher in it
+        if self.school.is_none() || self.teacher.is_none() {
+            self.seats[seat].ctx_actions.push(CtxAct::School);
+        }
         // caps in the shade: standing by a flushed patch offers the
         // picking - and what the belly's learned shows up in why it won't
         if let Some(pi) = self.shroom_patch_at(seat) {
@@ -464,7 +473,10 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Meet);
             }
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
-            self.seats[seat].ctx_actions.push(CtxAct::March);
+            // no second column while one's already marching
+            if self.formation.is_none() {
+                self.seats[seat].ctx_actions.push(CtxAct::March);
+            }
             let asked = self.world.get_component::<Organization>(self.seats[seat].org)
                 .map(|o| o.members.iter().filter(|&&m| {
                     !villager::is_dead(&self.world, m)
@@ -810,7 +822,6 @@ impl Game {
                 }
             }
             CtxAct::March => {
-                self.march_day = self.tick;
                 let m = self.march_at(seat);
                 self.log.push(format!("t{}: {}", tick, m));
                 return;
@@ -867,6 +878,9 @@ impl Game {
                                     }
                                 }
                             }
+                            // a carried demand walks the streets: the
+                            // village takes the win out in the open
+                            self.victory_parade();
                             format!("{} face the Reeve - and he says the king will hear of this.", out.turnout.len())
                         }
                         TargetResponse::Concedes => {
@@ -998,6 +1012,8 @@ impl Game {
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
+            CtxAct::Tame => self.tame_stroke_at(seat),
+            CtxAct::School => self.school_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
@@ -1177,15 +1193,142 @@ impl Game {
         String::new()
     }
 
+    /// The animal the Stroke button reaches for: the nearest tameable
+    /// beast within reach - a sheep or goat of the fold, a yard hen, or
+    /// a straying pet nobody owns - that's not already yours. The stray
+    /// cat keeps her own event's button. None when the seat already
+    /// trails three
+    fn tame_animal_at(&self, seat: usize) -> Option<(Entity, Species)> {
+        let pe = self.seats[seat].player;
+        let (px, py) = self.player_pos_at(seat);
+        let mine = self.pets.iter().filter(|(e, _, _)| {
+            self.world.get_component::<Pet>(*e)
+                .map(|p| p.owner == Some(pe)).unwrap_or(false)
+        }).count();
+        if mine >= 3 { return None; }
+        let stray = self.rare.iter().find(|r| r.id == events::EventId::StrayCat)
+            .and_then(|r| r.e);
+        let near = |e: Entity| {
+            if Some(e) == stray { return false; }
+            let owned = self.world.get_component::<Pet>(e)
+                .map(|p| p.owner.is_some()).unwrap_or(false);
+            if owned { return false; }
+            self.world.get_component::<Pos>(e)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= 4.0)
+                .unwrap_or(false)
+        };
+        self.flock.iter().copied().filter(|&a| near(a))
+            .filter_map(|a| self.world.get_component::<crate::game::livestock::Livestock>(a)
+                .map(|l| (a, if l.kind == crate::game::livestock::LivestockKind::Sheep { Species::Sheep } else { Species::Goat })))
+            .chain(self.hens.iter().copied().filter(|&a| near(a)).map(|a| (a, Species::Chicken)))
+            .chain(self.pets.iter()
+                .filter(|&&(e, _, _)| near(e))
+                .filter_map(|&(e, _, _)| self.world.get_component::<Pet>(e).map(|p| (e, p.species))))
+            .min_by(|a, b| {
+                let d = |e: Entity| self.world.get_component::<Pos>(e)
+                    .map(|p| (p.x - px).powi(2) + (p.y - py).powi(2)).unwrap_or(f32::MAX);
+                d(a.0).partial_cmp(&d(b.0)).unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
+    /// Stroke the animal till it leaves the fold: the stray cat's own
+    /// rhythm - a little warmth a stroke, a moment between, and at the
+    /// threshold it's yours and follows. The log line is the caller's;
+    /// "" stays quiet
+    fn tame_stroke_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some((e, species)) = self.tame_animal_at(seat) else { return String::new() };
+        let cooling = self.pet_cool.get(&e).copied().unwrap_or(0) > self.frame_n as u64;
+        if cooling { return String::new() }
+        // a fold beast or a yard hen isn't a Pet yet - the first stroke
+        // makes it one
+        if self.world.get_component::<Pet>(e).is_none() {
+            let name = match species {
+                Species::Sheep => "the sheep",
+                Species::Goat => "the goat",
+                Species::Chicken => "the hen",
+                _ => "the stray",
+            };
+            self.world.add_component(e, Pet {
+                name: name.into(), species, owner: None,
+                bond_strength: 0.0, mood_effect: 0.3 });
+        }
+        let (was, now) = self.world.get_component::<Pet>(e)
+            .map(|p| (p.bond_strength, (p.bond_strength + events::STRAY_CAT_PET_BOND).min(1.0)))
+            .unwrap_or((0.0, 0.0));
+        if let Some(p) = self.world.get_component_mut::<Pet>(e) { p.bond_strength = now; }
+        self.pet_cool.insert(e, self.frame_n as u64 + events::STRAY_CAT_PET_COOLDOWN);
+        self.say(e, "*noses your hand*", 2);
+        if was <= 0.0 {
+            self.log.push(format!("t{}: {} lets you near.", tick, match species {
+                Species::Sheep => "the sheep", Species::Goat => "the goat",
+                Species::Chicken => "the hen", _ => "the stray" }));
+        }
+        if now >= events::STRAY_CAT_TAME_BOND {
+            let pe = self.seats[seat].player;
+            pets::adopt(&mut self.world, e, pe);
+            self.flock.retain(|&a| a != e);
+            self.hens.retain(|&a| a != e);
+            self.flock_wander.remove(&e);
+            // she stops being a beast of the fold: the shepherd leaves
+            // her be, the wool count forgets her
+            self.world.remove_component::<crate::game::livestock::Livestock>(e);
+            self.pets.push((e, species, (0.6, 0.4)));
+            let name = self.world.get_component::<Pet>(e).map(|p| p.name.clone()).unwrap_or_else(|| "it".into());
+            self.log.push(format!("t{}: {} leaves the fold and follows you.", tick, name));
+            self.toasts.push((format!("{} is yours", name), self.tick));
+            return format!("{} warms to you - it follows now.", name);
+        }
+        String::new()
+    }
+
     /// The street: the cause marches. Returns the log line - turnout, the
     /// lord's reaction, and whatever the day brings back to the room
     /// (a crackdown, a taking, the ban proclaimed).
+    /// Call the cause to the streets: the column forms and marches the
+    /// town's ways - what the street makes of it lands when the march
+    /// comes home. Returns the log line
     fn march_at(&mut self, seat: usize) -> String {
+        if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_none() {
+            return "There's no cause to march for.".into() }
+        if self.formation.is_some() { return "the column's already out.".into() }
+        // the column: the cause's own, file by file
+        let mut members: Vec<Entity> = self.world.get_component::<Organization>(self.seats[seat].org)
+            .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
+        members.retain(|&v| !villager::is_dead(&self.world, v)
+            && !crate::game::dungeon::unavailable(&self.world, v)
+            && self.world.get_component::<Pos>(v).is_some());
+        members.sort();
+        if members.is_empty() { return "there's nobody to march with you.".into() }
+        // the route: the town's paved ways rung round the market cross,
+        // started nearest the head - a show of strength, one turn of
+        // the town, not a pilgrimage
+        let hp = self.world.get_component::<Pos>(members[0]).copied().unwrap();
+        let route = self.street_route((hp.x, hp.y), 24);
+        if route.is_empty() { return "the streets won't hold a march.".into() }
+        // whoever was walking somewhere, they march now instead
+        for &m in &members {
+            self.travels.retain(|t| t.who != m);
+            self.world.remove_component::<routine::Routine>(m);
+            self.world.add_component(m, villager::InFormation);
+        }
+        self.formation = Some(formation::Formation {
+            kind: formation::FormationKind::March, seat,
+            members: members.clone(), route, at: 0, stuck: 0,
+            cheered: Default::default() });
+        format!("the cause marches: {} take to the streets.", members.len())
+    }
+
+    /// The march comes home: the street answers it - the turnout, the
+    /// knights or the names taken, who watched and woke. Runs when the
+    /// column's walked its route out
+    pub(crate) fn march_resolved(&mut self, seat: usize) {
         let tick = self.tick;
-        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-            return "There's no cause to march for.".into() };
+        // the street answers once a day - the cooldown runs from home
+        self.march_day = tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
         let pe = self.seats[seat].player;
-        match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
+        let msg = match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
             Some(out) => {
                 let n = out.turnout.len();
                 // the turnout doesn't just count - they gather in the
@@ -1283,8 +1426,64 @@ impl Game {
                 }
                 msg
             }
-            None => "You call a march - and nobody comes. The street stays empty.".into(),
+            None => "the march dissolved into the streets.".into(),
+        };
+        self.log.push(format!("t{}: {}", tick, msg));
+    }
+
+    /// The schoolhouse ask: raise the room the first time, send for a
+    /// teacher after - the org's treasury pays either way
+    fn school_at(&mut self, seat: usize) -> String {
+        let oe = self.seats[seat].org;
+        if self.school.is_none() {
+            let paid = self.world.get_component_mut::<Organization>(oe)
+                .map(|o| if o.resources < 30.0 { false } else { o.resources -= 30.0; true })
+                .unwrap_or(false);
+            if !paid { return "the treasury can't raise it.".into() }
+            self.found_school();
+            self.hire_teacher(90);
+            return "the treasury raises the schoolhouse - a teacher's sent for.".into();
         }
+        if self.teacher.is_none() {
+            let paid = self.world.get_component_mut::<Organization>(oe)
+                .map(|o| if o.resources < 10.0 { false } else { o.resources -= 10.0; true })
+                .unwrap_or(false);
+            if !paid { return "the treasury can't send for anyone.".into() }
+            self.hire_teacher(90);
+            return "the treasury sends for a teacher - a schoolmistress comes for the season.".into();
+        }
+        "the school stands, and someone's at the desk.".into()
+    }
+
+    /// Raise the one-room school: a buildable plot near the market, a
+    /// door the kids can find
+    fn found_school(&mut self) {
+        let mp = self.world.get_component::<Pos>(self.market_food)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or(self.village);
+        let at = self.map.nearest_buildable(mp.0 + 3, mp.1 + 3).unwrap_or((mp.0 + 3, mp.1 + 3));
+        let e = self.world.create_entity();
+        self.world.add_component(e, Pos { x: at.0 as f32, y: at.1 as f32 });
+        self.world.add_component(e, crate::game::household::Building {
+            kind: crate::game::household::BuildingKind::Schoolhouse,
+            name: "the schoolhouse".into(), occupants: vec![], worker: None,
+            overseer: None, stock: crate::engine::det::HashMap::default(), capacity: 0 });
+        self.building_entities.push(e);
+        self.school = Some(e);
+    }
+
+    /// A teacher for the season: a traveller keeps the desk till the
+    /// day the road takes them again
+    fn hire_teacher(&mut self, days: u64) {
+        let Some(s) = self.school else { return };
+        let at = self.world.get_component::<Pos>(s).map(|p| (p.x + 0.5, p.y + 0.5))
+            .unwrap_or((0.0, 0.0));
+        let e = self.world.create_entity();
+        self.world.add_component(e, Pos { x: at.0, y: at.1 });
+        self.world.add_component(e, Villager { activity: Activity::Idle, target_food: None });
+        self.world.add_component(e, TownRole::Teacher);
+        self.villagers.push(e);
+        self.teacher = Some((e, self.tick + days));
+        self.log.push(format!("t{}: a schoolmistress takes the desk for the season.", self.tick));
     }
 
     /// The organizer's answer to the founding call on the conversation

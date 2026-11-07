@@ -840,6 +840,14 @@ impl Game {
         let mut parts: Vec<String> = vec![];
         if world.get_component::<Kid>(v).is_some() {
             parts.push("a child".into());
+            // the errand they're on, if one's live - what they're
+            // carrying, and for whom
+            if let Some(j) = world.get_component::<crate::game::livelihood::OddJob>(v) {
+                let who = world.get_component::<Craft>(j.hirer)
+                    .map(|c| vocation::vocation_name(c.vocation).to_lowercase())
+                    .unwrap_or_else(|| "someone".into());
+                parts.push(format!("running {} for the {}", j.good, who));
+            }
             // their leaning, if one hirer keeps them busiest - the
             // errands they run most pick their trade at coming of age
             if let Some(g) = world.get_component::<vocation::KidGrowth>(v) {

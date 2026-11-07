@@ -230,6 +230,7 @@ impl Game {
         crate::timed!("sim.woodpile", self.woodpile_tick(tick));
         crate::timed!("sim.cairns", self.cairn_tick(tick));
         crate::timed!("sim.monuments", self.monument_tick(tick));
+        crate::timed!("sim.levy", self.imperial_tick(tick));
         drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));

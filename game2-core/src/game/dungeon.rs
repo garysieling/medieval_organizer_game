@@ -213,3 +213,47 @@ mod tests {
         assert!(!release_check(&mut w, prisoner, 0.1), "and it's spent");
     }
 }
+
+/// What the cell puts to the keep: their one ask this round
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Demand {
+    /// Let our people go
+    Release,
+    /// The slop is killing us slower than the sentence
+    Rations,
+    /// The sick get seen to
+    Care,
+}
+
+/// The keep's answer to the cell's ask
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Grant { Full, Part, Refused }
+
+/// The cell organizes: the held folk of a castle site run their own
+/// meetings behind bars - no errands, no outside callers, just their
+/// own business: what to ask of the keep this week
+pub struct CellOrg {
+    /// The org entity they deliberate under
+    pub org: Entity,
+    /// The castle site they're held under
+    pub site: usize,
+    /// The ask still on the road or unanswered
+    pub outstanding: Option<Demand>,
+    /// The kitchen's measure: 0.0 is slop, 1.0 is decent
+    pub rations: f32,
+}
+
+/// Word on the cell road: the ask going out, or the answer coming back
+#[derive(Debug, Clone, Copy)]
+pub struct CellLetter {
+    /// The castle site the letter belongs to
+    pub site: usize,
+    /// What the cell asked (or the answer's about)
+    pub demand: Demand,
+    /// The keep's answer - only set on the road back
+    pub grant: Option<Grant>,
+    /// Who in the keep answers - the site's knight-lord
+    pub warden: Entity,
+    /// The day it lands
+    pub arrive: u64,
+}

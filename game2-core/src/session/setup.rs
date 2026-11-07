@@ -996,6 +996,8 @@ impl Game {
             flock_wander: crate::engine::det::HashMap::default(),
             pet_cool: crate::engine::det::HashMap::default(),
             formation: None,
+            cells: vec![],
+            cell_mail: vec![],
             next_graze: 0,
             hens,
             hen_houses,

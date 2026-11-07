@@ -433,6 +433,7 @@ impl Game {
         drop(folk);
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
+        crate::timed!("sim.prison", self.cell_tick(tick));
         crate::timed!("sim.tech", self.tech_tick(tick));
         crate::timed!("sim.cutaways", self.cutaways_tick(tick));
         // and the village's tune follows the day the village had

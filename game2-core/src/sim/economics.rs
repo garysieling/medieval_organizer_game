@@ -37,10 +37,11 @@ impl Market {
         self.base_prices.get(good).copied().unwrap_or(DEFAULT_BASE_PRICE)
     }
 
-    /// Register a good's base value; seeds its price if it has none yet
+    /// The lord's word on a good's worth: the base the quote rests at -
+    /// a revision moves the street's price with it
     pub fn set_base_price(&mut self, good: &str, base: f32) {
         self.base_prices.insert(good.to_string(), base);
-        self.prices.entry(good.to_string()).or_insert(base);
+        self.prices.insert(good.to_string(), base);
     }
 
     /// Update price based on supply vs demand pressure

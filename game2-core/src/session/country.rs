@@ -374,6 +374,26 @@ impl Game {
             }
         }
         self.sites = sites;
+        // the post: an office at each town and castle, and a rider to
+        // keep it - the village hands its letters off at the market
+        for si in 0..self.sites.len() {
+            if !matches!(self.sites[si].kind, SiteKind::Town | SiteKind::Castle) { continue; }
+            let (cx, cy) = self.sites[si].centre;
+            let Some((bx, by)) = self.map.nearest_buildable(cx + 1, cy - 1) else { continue };
+            let name = self.sites[si].name;
+            let office = self.country_building(BuildingKind::PostOffice,
+                format!("the post at {}", name), bx, by);
+            self.sites[si].homes.push(office);
+            self.post_offices.push((si, office));
+            // and a rider to keep the round: he stands at the office till
+            // his day comes, then the road takes him
+            let e = self.world.create_entity();
+            self.world.add_component(e, Pos { x: bx as f32, y: by as f32 });
+            self.world.add_component(e, Outlander { site: si });
+            self.world.add_component(e, Purse { gold: 0.0 });
+            self.couriers.push(Courier { e, office: si, leg: 0,
+                depart: 3 + (si as u64 * 3) % 5, on_road: false });
+        }
         // the village's fields stand at its edge: the map's made now, so
         // each goes on open ground - a spot on water or a roof would feed
         // no one

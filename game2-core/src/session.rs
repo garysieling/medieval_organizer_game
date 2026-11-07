@@ -104,6 +104,20 @@ const LOG_MAX: usize = 16384;
 const LOG_TRIM_TO: usize = 12288;
 
 
+/// A rider and his round: the office he rides out of, the day he sets
+/// off again, and whether he's out on the road
+pub struct Courier {
+    pub e: Entity,
+    /// The site his office stands at
+    pub office: usize,
+    /// Where his round has got to
+    pub leg: usize,
+    /// The next day he sets off
+    pub depart: u64,
+    /// Out on the road just now
+    pub on_road: bool,
+}
+
 /// Whether the crowd-separation pass may push this villager aside: not the
 /// dead, not someone on their way to food, and not the marching - a
 /// column keeps step, it doesn't make room
@@ -570,6 +584,9 @@ pub enum Goal {
     ForageShroom(usize),
     /// Walk home at the end of the day (target: the building entity)
     HeadHome(Entity),
+    /// The courier's ride to a settlement on his round (site index, or
+    /// usize::MAX for the village market stop)
+    Post(usize),
     /// Driven out: walk to the map's edge and don't come back
     Exile,
     /// Weed and pick a garden bed (index into gardens)
@@ -776,7 +793,7 @@ impl WorkLook {
             BuildingKind::Shop(Vocation::Taverner | Vocation::Alewife | Vocation::Brewer) => WorkLook::Tavern,
             BuildingKind::Shop(Vocation::Baker) => WorkLook::Bakery,
             BuildingKind::Shop(Vocation::Farmer | Vocation::Toolmaker) => return None,
-            BuildingKind::Schoolhouse => return None,
+            BuildingKind::Schoolhouse | BuildingKind::PostOffice => return None,
             BuildingKind::Shop(_) => WorkLook::Workshop,
             BuildingKind::Granary => WorkLook::Granary,
             BuildingKind::WatchPost => WorkLook::WatchHouse,
@@ -1095,7 +1112,14 @@ pub struct Game {
     /// The things made to outlast their makers - item entities
     pub heirlooms: Vec<Entity>,
     /// Letters in transit: (from, to, the day they arrive)
-    pub letters: Vec<(Entity, Entity, u64)>,
+    /// A letter: who wrote it, who reads it, the post it left from,
+    /// the courier's hand when it's on the road, and when it lands
+    /// under the abstract village post
+    pub letters: Vec<Letter>,
+    /// Each country settlement's post office (site index, building)
+    pub post_offices: Vec<(usize, Entity)>,
+    /// The riders on their rounds, one to an office
+    pub couriers: Vec< Courier>,
     /// The cave mouth at the map's edge - the monochrome under
     pub cave_pos: Option<(i32, i32)>,
     /// The martyr's plot, when the gibbet made one
@@ -1198,11 +1222,17 @@ pub enum Scenario {
     WidowsShop,
 }
 
-/// A letter, traveling - durable word that crosses distance
-#[derive(Debug)]
+/// A letter, traveling - durable word that crosses distance. The post
+/// carries it: the office it left from, the courier's hand on the road
+/// when a rider has it, and the day the abstract village post lands it
+#[derive(Debug, Clone, Copy)]
 pub struct Letter {
     pub from: Entity,
     pub to: Entity,
+    /// The settlement post it goes through - None for a village letter
+    pub office: Option<usize>,
+    /// The rider carrying it on the road
+    pub courier: Option<Entity>,
     pub due: u64,
 }
 

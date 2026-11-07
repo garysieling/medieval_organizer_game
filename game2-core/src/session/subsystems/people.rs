@@ -199,38 +199,12 @@ impl Game {
     /// penny to hear it. The pedlar carries the post.
     pub fn letter_tick(&mut self, tick: u64) {
         // arriving: a letter lands after a week on the road
-        let due: Vec<(Entity, Entity, u64)> = self.letters.iter().copied()
-            .filter(|(_, _, d)| tick >= *d).collect();
-        self.letters.retain(|(_, _, d)| tick < *d);
-        for (from, to, _) in due {
-            if villager::is_dead(&self.world, to) { continue; }
-            // the illiterate pay the priest a penny to hear it read out
-            let literate = self.literate(to);
-            if !literate {
-                // their own priest: a castle's chaplain reads for the castle
-                let home = self.site_of(to);
-                if let Some(priest) = self.villagers.iter().copied().find(|&v|
-                    self.world.get_component::<Craft>(v)
-                        .map(|c| c.vocation == Vocation::Priest).unwrap_or(false)
-                        && self.site_of(v) == home
-                        && !crate::game::dungeon::unavailable(&self.world, v)) {
-                    if let Some(p) = self.world.get_component_mut::<Purse>(to) {
-                        if p.gold > 1.0 {
-                            p.gold -= 1.0;
-                            if let Some(pp) = self.world.get_component_mut::<Purse>(priest) { pp.gold += 1.0; }
-                        }
-                    }
-                    self.say(to, "The Father read it out - word from home.", CHAT_BUBBLE_SECS);
-                }
-            }
-            // a letter is a bond kept warm across distance - but the
-            // grave writes nothing; the bond only warms for the living
-            if !villager::is_dead(&self.world, from) {
-                relationships::record_interaction(&mut self.world, from, relationships::Interaction {
-                    other: to, kind: relationships::InteractionKind::Conversation, intensity: 1.5 });
-            }
-            desires::satisfy(&mut self.world, to, Want::Joy, tick + 15);
-            self.log_entity(to, format!("t{}: a letter comes for {}.", tick, self.name_of(to)));
+        let due: Vec<Letter> = self.letters.iter().copied()
+            .filter(|l| tick >= l.due).collect();
+        self.letters.retain(|l| tick < l.due);
+        for l in due {
+            if villager::is_dead(&self.world, l.to) { continue; }
+            self.deliver_letter(l, tick);
         }
         // writing: the literate put word to someone they think of
         if tick % 30 != 15 { return; }
@@ -246,7 +220,7 @@ impl Game {
             .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
             .map(|r| r.other);
         if let Some(to) = to {
-            self.letters.push((writer, to, tick + 7));
+            self.letters.push(Letter { from: writer, to, office: None, courier: None, due: tick + 7 });
             self.say(writer, "Put it in a letter - they'll read it when the pedlar comes.", CHAT_BUBBLE_SECS);
         }
     }

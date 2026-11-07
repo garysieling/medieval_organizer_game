@@ -4,7 +4,7 @@ use crate::session::*;
 fn test_a_letter_lands_and_warms_the_bond() {
     let mut g = Game::new();
     let (from, to) = (g.villagers[0], g.villagers[1]);
-    g.letters.push((from, to, 7));
+    g.letters.push(Letter { from: from, to: to, office: None, courier: None, due: 7 });
     g.letter_tick(7);
     assert!(g.letters.is_empty(), "the letter's still on the road");
     assert!(g.log.iter().any(|l| l.contains("a letter comes")),
@@ -38,7 +38,7 @@ fn test_the_scribe_pockets_his_penny() {
     if let Some(p) = g.world.get_component_mut::<Purse>(a) { p.gold = 5.0; }
     let cust = g.world.get_component::<Purse>(a).map(|p| p.gold).unwrap();
     for dt in 0..10 { g.events_tick(t + dt); }
-    assert!(g.letters.iter().any(|&(f, _, _)| f == a), "he never wrote the page");
+    assert!(g.letters.iter().any(|l| l.from == a), "he never wrote the page");
     assert_eq!(g.world.get_component::<Purse>(a).map(|p| p.gold).unwrap(), cust - 1.0,
         "the penny was never charged");
     assert!(g.world.get_component::<Purse>(se).map(|p| p.gold).unwrap_or(0.0) >= 1.0,

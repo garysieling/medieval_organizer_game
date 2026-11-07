@@ -84,6 +84,7 @@ mod panel;
 mod pedlar;
 mod perf;
 mod perfume;
+mod pet;
 mod power;
 mod production;
 mod progression;

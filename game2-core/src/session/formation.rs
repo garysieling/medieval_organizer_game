@@ -47,8 +47,18 @@ impl Game {
         let Some(mut f) = self.formation.take() else { return };
         // whoever fell out for good - died, got taken - leaves the file;
         // an empty column is no column
-        f.members.retain(|&m| self.world.get_component::<Pos>(m).is_some()
-            && !villager::is_dead(&self.world, m));
+        let mut fallen: Vec<Entity> = vec![];
+        f.members.retain(|&m| {
+            let keep = self.world.get_component::<Pos>(m).is_some()
+                && !villager::is_dead(&self.world, m);
+            if !keep { fallen.push(m); }
+            keep
+        });
+        for m in fallen {
+            // a fallen marcher isn't marching: the marker has to leave
+            // with them, or the day's drivers ignore them for good
+            self.world.remove_component::<villager::InFormation>(m);
+        }
         if f.members.is_empty() { self.formation = None; return; }
         // the head steps toward its waypoint, then takes the next - but
         // it waits for the column to form first: a march that leaves

@@ -347,7 +347,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Tempted) => (format!("{}'s feet itch", name), "The road looks shorter from the gate than the days look here.".into()),
         Reveal::Problem(Problem::WritBorne) => (format!("{} bore the writ", name), "Sealed by the castle. No arguing with wax.".into()),
         Reveal::Problem(Problem::LongWinter) => (format!("{}'s stores are thin", name), "Second winter running. The barrel knows it.".into()),
-        Reveal::Problem(Problem::ColdHearth) => (format!("{} eats cold", name), "No faggots, no turf, not even the dry leavings. The pot's cold and the bed's colder.".into()),
+        Reveal::Problem(Problem::ColdHearth) => (format!("{} eats cold", name), "No bavin, no turf, not even the dry leavings. The pot's cold and the bed's colder.".into()),
         Reveal::Problem(Problem::TheDark) => (format!("{} keeps to the dark", name), "The village is loud with light. Down here it's honest.".into()),
         Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
         Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),

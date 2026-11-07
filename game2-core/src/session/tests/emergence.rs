@@ -24,10 +24,10 @@ fn test_the_wood_grows_burns_and_leans_the_fuel_price() {
         for i in 0..8 { g.land.tree_cover.insert((i, 0), 0.0); }
     }
     for v in g.land.tree_cover.values_mut() { *v = 0.0; }
-    let w0 = crate::game::goods::worth_at(&g.world, "faggots");
+    let w0 = crate::game::goods::worth_at(&g.world, "bavin");
     for t in 240..260 { g.forest_tick(t); }
     // a bare canopy leans the felt worth up
-    assert!(crate::game::goods::worth_at(&g.world, "faggots") > w0 + 0.04,
+    assert!(crate::game::goods::worth_at(&g.world, "bavin") > w0 + 0.04,
         "a thin wood didn't lean fuel dear: {} -> {}", w0,
-        crate::game::goods::worth_at(&g.world, "faggots"));
+        crate::game::goods::worth_at(&g.world, "bavin"));
 }

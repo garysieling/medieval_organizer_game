@@ -95,7 +95,7 @@ pub fn spec(good: &str) -> Option<Spec> {
         "tallow" => s(Staple, 5.0, &[]),
         "wax" => s(Staple, 5.0, &[]),
         "hay" | "straw" | "rushes" => s(Staple, 1.0, &[]),
-        "faggots" => s(Staple, 1.0, &[Fuel]),
+        "bavin" => s(Staple, 1.0, &[Fuel]),
         "turf" => s(Staple, 1.0, &[Fuel]),
         "dung" => s(Staple, 1.0, &[Fuel]),
         "salt" => s(Staple, 3.0, &[]),
@@ -266,7 +266,7 @@ pub const ALL: &[&str] = &[
     "sand", "marigold", "lavender", "feverfew", "wheat", "rye", "barley",
     "peas", "roots", "potherbs", "mushrooms", "chanterelle", "eggs", "milk",
     "butter", "cheese", "fish", "apples", "honey", "wool", "flax", "hides",
-    "tallow", "wax", "hay", "straw", "rushes", "faggots", "turf", "dung",
+    "tallow", "wax", "hay", "straw", "rushes", "bavin", "turf", "dung",
     "salt", "timber", "driftwood", "fieldstone",
     // manufactured
     "bread", "pottage", "sausages", "ale", "beer", "cider", "mead", "wine",
@@ -329,7 +329,7 @@ mod tests {
         assert!(fills("wheat", Tag::Grain));
         assert!(!fills("peas", Tag::Grain));
         // the hearth burns what's to hand
-        assert!(fills("faggots", Tag::Fuel));
+        assert!(fills("bavin", Tag::Fuel));
         assert!(fills("turf", Tag::Fuel));
         assert!(fills("dung", Tag::Fuel));
         assert!(fills("charcoal", Tag::Fuel));

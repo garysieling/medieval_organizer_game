@@ -405,6 +405,14 @@ impl Game {
                     if let Some(s) = self.world.get_component_mut::<Satchel>(who) {
                         *s.goods.entry(good.to_string()).or_insert(0) += qty;
                     }
+                    // and a full bag walks home: nobody camps at the
+                    // woods with the day's gather on their back
+                    let home = household::home_of(&self.world, who);
+                    let door = home.and_then(|h| self.world.get_component::<Pos>(h).copied())
+                        .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32));
+                    if let (Some(h), Some(d)) = (home, door) {
+                        self.send_far(who, d, Goal::HeadHome(h));
+                    }
                 }
             }
             Goal::CollectTax(target) => {

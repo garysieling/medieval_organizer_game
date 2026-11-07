@@ -893,11 +893,13 @@ impl View {
             let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
             draw_button(&mut buf, b, hover, reason.is_some());
         }
-        for (b, reason) in &ctx_btns {
-            let hover = mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
-            if let Some(r) = reason.filter(|_| hover) {
-                draw_text(&mut buf, b.x + b.w + 6, b.y + 4, r, 255, 180, 140);
-            }
+        // a greyed reason reads on one line under the band - beside its
+        // button it would land on the neighbouring column
+        if let Some(r) = ctx_btns.iter()
+            .find(|(b, _)| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
+            .and_then(|(_, r)| r.as_deref()) {
+            let bottom = ctx_btns.iter().map(|(b, _)| b.y + b.h).max().unwrap_or(CTX_BAND_Y);
+            draw_text(&mut buf, UI_X as i32 + 18, bottom + 4, r, 255, 180, 140);
         }
 
         // the bond ledger: the reward for keeping company - who the

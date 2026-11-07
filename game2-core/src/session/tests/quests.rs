@@ -138,19 +138,17 @@ fn test_only_one_job_at_a_time() {
     assert_eq!(g.pending_quests.len(), 1, "the second ask still waits");
 }
 
-/// Doing a job for someone bumps them to known: the deed's a bond, and
-/// they open up enough that the card reads "known"
+/// Doing a job for someone bumps them to known: the deed itself is a
+/// piece of what you know of them, so even a giver with little to tell
+/// reads as known once it's handed over
 #[test]
 fn test_a_finished_job_makes_them_known() {
     let mut g = Game::new();
     let folk = askers(&g);
     let (giver, other) = (folk[0], folk[1]);
-    // enough self-interest in the pool to climb the whole ladder
-    if let Some(life) = g.world.get_component_mut::<InnerLife>(giver) {
-        for w in [Want::GoodFood, Want::Love, Want::Music, Want::Faith] {
-            if !life.wants.contains(&w) { life.wants.push(w); }
-        }
-    }
+    // a stranger to the seat before the job: no bond, nothing heard
+    assert_eq!(crate::game::organizing::stage_of(&g.world, g.player, giver),
+        crate::game::organizing::RelStage::Stranger);
     g.seats[0].quest = Some(PlayerQuest {
         giver, kind: QuestKind::Note, target: QuestTarget::Villager(other),
         stage: QuestStage::ToCarry, pickup: None, expires: g.tick + 10 });

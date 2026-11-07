@@ -599,16 +599,22 @@ pub const FOLLOWER_TIE: f32 = crate::sim::community::RECRUIT_MIN_TRUST;
 /// Pieces of a person's self-interest that make them "known" to you
 pub const KNOWN_PIECES: usize = 3;
 
+/// Errands run for a person, kept on the bond with you: a job carried
+/// through tells you who they are as surely as their secrets do - one
+/// deed seen to reads as knowing them
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Deeds { pub n: u32 }
+
 /// Where `organizer` stands with `who`, read off the world. A stage is
 /// derived, not stored: bonds decay, so a follower who drifts is only a
 /// follower while the tie holds.
 pub fn stage_of(world: &World, organizer: Entity, who: Entity) -> RelStage {
     use crate::game::relationships::{find_relationship, Relationship};
-    let Some(rel) = find_relationship(world, organizer, who)
-        .and_then(|r| world.get_component::<Relationship>(r))
+    let Some(bond) = find_relationship(world, organizer, who) else { return RelStage::Stranger };
+    let Some((strength, interactions)) = world.get_component::<Relationship>(bond)
         .map(|r| (r.strength, r.interactions)) else { return RelStage::Stranger };
-    if rel.1 == 0 { return RelStage::Stranger; }
-    if rel.0 >= FOLLOWER_TIE {
+    if interactions == 0 { return RelStage::Stranger; }
+    if strength >= FOLLOWER_TIE {
         // a follower who's taken on work - an org membership, a campaign
         // seat, or a promise kept - has stepped up to co-lead
         let committed = world.query::<Organization>().iter().any(|&o|
@@ -623,7 +629,9 @@ pub fn stage_of(world: &World, organizer: Entity, who: Entity) -> RelStage {
     }
     let pieces = world.get_component::<crate::game::desires::Known>(who)
         .map(|k| k.revealed.len()).unwrap_or(0);
-    if pieces >= KNOWN_PIECES { RelStage::Known } else { RelStage::Acquaintance }
+    // secrets heard, or deeds done for them - either makes them known
+    let deeds = world.get_component::<Deeds>(bond).map(|d| d.n).unwrap_or(0);
+    if pieces >= KNOWN_PIECES || deeds > 0 { RelStage::Known } else { RelStage::Acquaintance }
 }
 
 /// The stage word, for the inspector and the tone of a talk

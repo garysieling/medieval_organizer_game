@@ -292,21 +292,25 @@ impl Game {
         Some(line)
     }
 
-    /// A job done for someone opens them up: the deed's recorded as aid,
-    /// and enough of their self-interest comes out with the thanks that
-    /// they read as known, not an acquaintance. Returns whether they
-    /// climbed to known.
+    /// A job done for someone opens them up: the deed's recorded on the
+    /// bond (which alone reads as knowing them), and they tell you a
+    /// thing about why they asked. Returns whether they read as known.
     fn quest_bond(&mut self, seat: usize, giver: Entity) -> bool {
-        use crate::game::organizing::{stage_of, RelStage, KNOWN_PIECES};
+        crate::timed!("sim.quest_bond", self.quest_bond_inner(seat, giver))
+    }
+
+    fn quest_bond_inner(&mut self, seat: usize, giver: Entity) -> bool {
+        use crate::game::organizing::{stage_of, Deeds, RelStage};
         use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
         if crate::game::villager::is_dead(&self.world, giver) { return false; }
         let pe = self.seats[seat].player;
-        record_interaction(&mut self.world, pe, Interaction {
+        let bond = record_interaction(&mut self.world, pe, Interaction {
             other: giver, kind: InteractionKind::Aid, intensity: 0.8 });
-        for i in 0..KNOWN_PIECES {
-            if stage_of(&self.world, pe, giver) >= RelStage::Known { break; }
-            let Some(r) = desires::next_reveal(&self.world, giver, self.tick,
-                self.tick.wrapping_add(i as u64)) else { break };
+        let mut deeds = self.world.get_component::<Deeds>(bond).copied().unwrap_or_default();
+        deeds.n += 1;
+        self.world.add_component(bond, deeds);
+        // they open up about why they needed the job
+        if let Some(r) = desires::next_reveal(&self.world, giver, self.tick, self.tick) {
             if let Some(issue) = desires::hear(&mut self.world, pe, giver, r, self.tick) {
                 self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
                 self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));

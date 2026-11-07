@@ -602,10 +602,12 @@ impl Game {
     }
 
     /// A picket's crowd: the sanctioned one's nearest neighbours who can come
+    /// and aren't already holding a sign at another rally
     pub(in crate::session) fn picket_crowd(&self, v: Entity, n: usize) -> Vec<Entity> {
         let Some(p) = self.world.get_component::<Pos>(v).copied() else { return vec![] };
         let mut near: Vec<(u64, Entity)> = self.villagers.iter().copied()
-            .filter(|&u| u != v && self.free_to_gather(u))
+            .filter(|&u| u != v && self.free_to_gather(u)
+                && !self.protests.iter().any(|pr| self.tick < pr.until && pr.folk.contains(&u)))
             .filter_map(|u| self.world.get_component::<Pos>(u).map(|q| {
                 let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)) * 1000.0;
                 (d as u64, u)

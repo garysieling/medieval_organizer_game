@@ -33,7 +33,7 @@ fn test_a_worthy_tale_rises_a_monument() {
     assert!(g.monuments[0].stood_on.is_some(), "it never stood");
     // the model names it
     let v = g.ui_model();
-    assert!(v.monuments.iter().any(|(_, _, w)| !w.is_empty()), "the stone's words are missing");
+    assert!(v.monuments.iter().any(|(_, _, _, w)| !w.is_empty()), "the stone's words are missing");
 }
 
 #[test]

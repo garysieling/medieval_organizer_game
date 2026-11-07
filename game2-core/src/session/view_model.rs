@@ -577,7 +577,9 @@ impl Game {
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
             monuments: self.monuments.iter().filter(|m| m.stood_on.is_some())
                 .map(|m| (m.pos.0, m.pos.1,
-                    format!("{} - {}", vill_name(m.honoree), m.title))).collect(),
+                    if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },
+                    if m.kind == MonumentKind::Circle { m.title.clone() }
+                    else { format!("{} - {}", vill_name(m.honoree), m.title) })).collect(),
             sites: self.sites.iter().map(|s| {
                 // the keeper: who holds the keep's first bed, when the
                 // site has one - the castle's lord, a town's first house

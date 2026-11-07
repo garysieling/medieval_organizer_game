@@ -417,9 +417,9 @@ pub struct UiModel {
     /// Sim speed when local control is allowed (always 1 when networked)
     pub speed: u32,
     pub stones: Vec<(i32, i32)>,
-    /// The standing monuments: where each stands and the words it carries
-    /// ("Aldric - the fire at Ravensholt")
-    pub monuments: Vec<(i32, i32, String)>,
+    /// The standing monuments: where each stands, its kind (0 column,
+    /// 1 the org's ring), and the words it carries
+    pub monuments: Vec<(i32, i32, u8, String)>,
     pub buildings: Vec<BldgV>,
     /// Keep sprites at the centers of remote castle enclosures.
     pub castle_keeps: Vec<(f32, f32)>,

@@ -196,7 +196,7 @@ impl Game {
                 if c.workplace == Some(e) { c.workplace = None; }
             }
         }
-        self.log.push(format!("t{}: the {} is {} - the street will miss it.", self.tick, name, how));
+        self.log.push_at_who(format!("t{}: the {} is {} - the street will miss it.", self.tick, name, how), at, None);
         self.toasts.push_at((format!("The {} is {}!", name, how), self.tick + 40), at);
     }
 
@@ -278,7 +278,8 @@ impl Game {
             }
         }
         if !lit.is_empty() || !out.is_empty() {
-            self.log.push(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()));
+            let at = self.fire.burning.keys().next().map(|&(bx, by)| (bx as f32 + 0.5, by as f32 + 0.5));
+            self.log.push_at_who(format!("t{}: fire on the meadow - {} tiles alight, {} burnt out.", tick, lit.len(), out.len()), at, None);
         }
     }
 

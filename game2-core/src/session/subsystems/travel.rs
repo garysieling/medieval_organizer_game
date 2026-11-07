@@ -281,7 +281,7 @@ impl Game {
                             let an = self.villagers.iter().position(|v| *v == who).map(vill_name);
                             let bn = self.villagers.iter().position(|v| *v == seller).map(vill_name);
                             if let (Some(a), Some(b)) = (an, bn) {
-                                self.log.push(format!("t{}: {} swaps {} with {}.", tick, a,
+                                self.log_entity(who, format!("t{}: {} swaps {} with {}.", tick, a,
                                     livelihood::barter_terms(&offer, &[(good.into(), qty)], deal.boot), b));
                             }
                             // the deal lands on the bond: fair swaps warm a
@@ -315,7 +315,7 @@ impl Game {
                     if self.reckonings % 3 == 0 {
                         desires::add_grievance(&mut self.world, who, desires::Problem::ShortChanged, tick + 40);
                         if self.reckonings == 3 {
-                            self.log.push(format!("t{}: the reckoning didn't add up - he counted it his way.", tick));
+                            self.log_entity(who, format!("t{}: the reckoning didn't add up - he counted it his way.", tick));
                         }
                     }
                     // enough of these and a clerk steps up to keep the
@@ -330,7 +330,7 @@ impl Game {
                             self.translator = Some(c);
                             self.translator_days = 0;
                             let name = self.name_of(c);
-                            self.log.push(format!("t{}: {} keeps the tallies straight now - no more foreign reckonings.", tick, name));
+                            self.log_entity(c, format!("t{}: {} keeps the tallies straight now - no more foreign reckonings.", tick, name));
                         }
                     }
                 }
@@ -392,7 +392,8 @@ impl Game {
                         let y = crate::sim::environment::stone_yield(self.land.pit_water);
                         self.land.pit_water = (self.land.pit_water + 0.03).min(1.0);
                         if self.land.pit_water >= 1.0 && self.pit == Some(tile) {
-                            self.log.push(format!("t{}: the pit's drowned - no stone comes out of a pond.", tick));
+                            self.log.push_at_who(format!("t{}: the pit's drowned - no stone comes out of a pond.", tick),
+                                Some((tile.0 as f32, tile.1 as f32)), None);
                         }
                         y
                     }
@@ -411,7 +412,7 @@ impl Game {
                 // a stranger he squeezes, a power he negotiates, a force
                 // he passes by
                 if target == self.player && self.lord_esteem > 0.6 {
-                    self.log.push(format!("t{}: the collector passes you by - the lord knows an organized man when he sees one.", tick));
+                    self.log_entity(target, format!("t{}: the collector passes you by - the lord knows an organized man when he sees one.", tick));
                     return;
                 }
                 let cut = livelihood::collect_tax(&mut self.world, c, target, tick);
@@ -419,7 +420,7 @@ impl Game {
                 self.takings += cut;
                 let taken = cut
                     * if target == self.player && self.lord_esteem > 0.3 {
-                        self.log.push(format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
+                        self.log_entity(target, format!("t{}: the lord learns to tread lightly - the cut is halved.", tick));
                         0.5
                     } else { 1.0 };
                 // the assize's share on the barrel: a shop stocked with
@@ -443,7 +444,7 @@ impl Game {
                     self.takings += paid;
                     let name = self.villagers.iter().position(|v| *v == target)
                         .map(|i| vill_name(i)).unwrap_or("you");
-                    self.log.push(format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));
+                    self.log_entity(target, format!("t{}: the collector counts {}'s barrels - the ale excise comes to {:.0} gold.", tick, name, excise));
                 }
                 // a grant nobody kept watch over is clawed back: if the
                 // campaign that won it has lapsed, the collector takes the
@@ -478,14 +479,14 @@ impl Game {
                 }
                 self.say(target, "The lord's share, if you please.", CHAT_BUBBLE_SECS);
                 if target == self.player {
-                    self.log.push(format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
+                    self.log_entity(target, format!("t{}: the tax collector takes his cut from you ({:.0} gold).", tick, taken));
                 }
                 if granted {
                     let name = self.villagers.iter().position(|v| *v == target).map(|i| vill_name(i)).unwrap_or("them");
                     if relief >= crate::game::reactions::FULL_RELIEF {
-                        self.log.push(format!("t{}: the lord's grant covers {} - half the cut comes back.", tick, name));
+                        self.log_entity(target, format!("t{}: the lord's grant covers {} - half the cut comes back.", tick, name));
                     } else {
-                        self.log.push(format!("t{}: the lord's part-grant covers {} - a quarter of the cut comes back.", tick, name));
+                        self.log_entity(target, format!("t{}: the lord's part-grant covers {} - a quarter of the cut comes back.", tick, name));
                     }
                 }
             }
@@ -524,7 +525,7 @@ impl Game {
                                 self.world.remove_component::<crate::game::organizing::RoundBack>(who);
                                 let name = self.villagers.iter().position(|v| *v == who)
                                     .map(|i| vill_name(i)).unwrap_or("someone");
-                                self.log.push(format!("t{}: {} stops looking for you - the road's run out.", tick, name));
+                                self.log_entity(who, format!("t{}: {} stops looking for you - the road's run out.", tick, name));
                             } else if let Some(rb) = self.world.get_component_mut::<crate::game::organizing::RoundBack>(who) {
                                 rb.misses += 1;
                                 rb.after = tick + 1;
@@ -600,10 +601,10 @@ impl Game {
                 // the org may yet ransom them home
                 let name = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
                 if self.dungeon.iter().any(|(e, _)| *e == who) {
-                    self.log.push(format!("t{}: {} is held at the castle - the org may yet ransom them.", tick, name));
+                    self.log_entity(who, format!("t{}: {} is held at the castle - the org may yet ransom them.", tick, name));
                 } else {
                     self.world.add_component(who, villager::Dead);
-                    self.log.push(format!("t{}: {} is driven out - the road takes them.", tick, name));
+                    self.log_entity(who, format!("t{}: {} is driven out - the road takes them.", tick, name));
                 }
             }
             Goal::ForageShroom(pi) => {
@@ -641,7 +642,7 @@ impl Game {
                         let patient = self.villagers.iter().position(|v| *v == who).map(|i| vill_name(i)).unwrap_or("someone");
                         self.say(her, "Steep it and rest - it'll turn.", CHAT_BUBBLE_SECS);
                         self.cured += 1;
-                        self.log.push(format!("t{}: {} treats {}'s {}.", tick, vill_name(HERB_IDX), patient, illness.unwrap_or_else(|| "illness".into())));
+                        self.log_entity(who, format!("t{}: {} treats {}'s {}.", tick, vill_name(HERB_IDX), patient, illness.unwrap_or_else(|| "illness".into())));
                     }
                     None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
                 }

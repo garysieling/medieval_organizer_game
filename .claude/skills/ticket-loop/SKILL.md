@@ -217,8 +217,8 @@ Shell variables don't survive between agent shells - restore both from
 the Ticket Form before running this (or re-derive `MAIN` the same way):
 
 ```bash
-MAIN=<main checkout abs path from the Ticket Form>
-WT=<worktree abs path from the Ticket Form>
+MAIN="<main checkout abs path from the Ticket Form>"
+WT="<worktree abs path from the Ticket Form>"
 cd "$MAIN"        # the main checkout recorded in Stage 4
 gh pr merge <PR> -R garysieling/game2 --merge        # repo convention: merge commits
 git fetch origin --prune

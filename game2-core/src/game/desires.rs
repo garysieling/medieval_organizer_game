@@ -535,6 +535,7 @@ pub fn town_role_name(role: TownRole) -> &'static str {
         TownRole::Trader => "Trader",
         TownRole::Herbologist => "Herb-wife",
         TownRole::Matchmaker => "Heart-helper",
+        TownRole::Teacher => "Schoolmistress",
         TownRole::Hermit => "Hermit",
     }
 }

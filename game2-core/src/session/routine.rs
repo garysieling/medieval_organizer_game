@@ -554,6 +554,51 @@ impl Game {
         going
     }
 
+    /// A child's lean toward the schoolhouse: the doors open while a
+    /// teacher keeps the desk, and the curious go more often than the
+    /// wild - true when the day goes to a desk instead of the snow
+    pub(super) fn school_draw(&mut self, v: Entity, rng: &mut Rng) -> bool {
+        let Some(s) = self.school else { return false };
+        if self.teacher.is_none() { return false; }
+        use crate::game::traits::Trait;
+        let mut lean = 30;
+        if has_trait(&self.world, v, Trait::Ambitious) { lean += 20; }
+        if has_trait(&self.world, v, Trait::Kind) { lean += 10; }
+        if has_trait(&self.world, v, Trait::Lazy) { lean -= 15; }
+        if rng.below(100) >= lean { return false; }
+        let Some(sp) = self.world.get_component::<Pos>(s).copied() else { return false };
+        let door = (sp.x + 0.5, sp.y + 0.5);
+        let r = Routine { mode: Mode::Playing, spot: Spot::Play, anchor: door,
+            face: None, drift: 0.6, leads: false, day: self.tick, reached: false };
+        self.go_keep(v, r, 30)
+    }
+
+    /// The schoolhouse's day: a day at the desk counts toward the
+    /// scholar's mark, and a teacher's season runs out when it runs out
+    pub(in crate::session) fn school_tick(&mut self, tick: u64) {
+        if let Some((e, until)) = self.teacher {
+            if tick >= until {
+                self.villagers.retain(|&v| v != e);
+                self.teacher = None;
+                self.log.push(format!("t{}: the schoolmistress moves on - the desk stands empty.", tick));
+            }
+        }
+        let Some(s) = self.school else { return };
+        let Some(sp) = self.world.get_component::<Pos>(s).copied() else { return };
+        for &v in &self.villagers.clone() {
+            if self.world.get_component::<Kid>(v).is_none() { continue; }
+            let at_school = self.world.get_component::<Routine>(v)
+                .map(|r| r.mode == Mode::Playing && r.day == tick
+                    && (r.anchor.0 - sp.x).abs() + (r.anchor.1 - sp.y).abs() < 3.0)
+                .unwrap_or(false);
+            if !at_school { continue; }
+            match self.world.get_component_mut::<villager::Scholared>(v) {
+                Some(sc) => sc.days += 1,
+                None => { self.world.add_component(v, villager::Scholared { days: 1 }); }
+            }
+        }
+    }
+
     /// Dawn of each day: count who kept yesterday's rite, then on a holy
     /// day call the faithful to theirs
     pub(super) fn routine_dawn(&mut self, tick: u64, rng: &mut Rng) {

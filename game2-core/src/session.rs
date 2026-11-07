@@ -360,6 +360,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
         // the kind hand shares Pet her's slot on the big row's right half
         CtxAct::Tame => Button { label: "Stroke it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
+        CtxAct::School => Button { label: "The school".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (90, 110, 70) },
     }
 }
 
@@ -774,6 +775,7 @@ impl WorkLook {
             BuildingKind::Shop(Vocation::Taverner | Vocation::Alewife | Vocation::Brewer) => WorkLook::Tavern,
             BuildingKind::Shop(Vocation::Baker) => WorkLook::Bakery,
             BuildingKind::Shop(Vocation::Farmer | Vocation::Toolmaker) => return None,
+            BuildingKind::Schoolhouse => return None,
             BuildingKind::Shop(_) => WorkLook::Workshop,
             BuildingKind::Granary => WorkLook::Granary,
             BuildingKind::WatchPost => WorkLook::WatchHouse,
@@ -989,6 +991,10 @@ pub struct Game {
     pub cells: Vec<crate::game::dungeon::CellOrg>,
     /// Word on the cell road - asks out, answers back
     pub cell_mail: Vec<crate::game::dungeon::CellLetter>,
+    /// The schoolhouse, if the village raised one
+    pub school: Option<Entity>,
+    /// The teacher in residence, and the day they move on
+    pub teacher: Option<(Entity, u64)>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,

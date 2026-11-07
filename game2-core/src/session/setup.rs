@@ -998,6 +998,8 @@ impl Game {
             formation: None,
             cells: vec![],
             cell_mail: vec![],
+            school: None,
+            teacher: None,
             next_graze: 0,
             hens,
             hen_houses,

@@ -1,0 +1,28 @@
+{
+ "created_at": 1794072982,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 37.47,
+ "request_id": "bdf3682c-7d85-49e7-a5cd-5579c989b96a",
+ "outputs_retained_until": 1794159329,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 37.47
+ },
+ "id": "castle-grand-postern-85554de5",
+ "prompt": "single isometric medieval village asset: one low block of grey stone castle curtain wall, wall-height only, no tower, a small wooden door set low in its face, battlements along the top",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 128,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "assets/rd/buildings/cottage1.png"
+ },
+ "generated_at": "2026-11-07T12:36:23",
+ "seconds": 53.6
+}

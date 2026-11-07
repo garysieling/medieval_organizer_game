@@ -295,6 +295,26 @@ for slug, subj, n in [
 ]:
     add("props", slug, f"{ISO}: {subj}", w=64, h=64, n=n, ref=PROP_REF,
         notes="round 3 props: trees, castle pieces and church in the cottages' look")
+# Round 6 (#643): the castles' own set at true proportions - the grand
+# dress used to be anisotropic stretch of the cottage-scale pieces.
+# Portrait canvases so the pieces come out tall; same tile footprint.
+for slug, subj, w, h, n in [
+    ("castle-keep", "one tall stone castle keep with crenellated battlements and small "
+                    "corner turrets, the grandest tower of a fortress, sheer stone walls", 128, 224, 2),
+    ("castle-grand-wall-run", "one tall block of crenellated grey stone castle curtain wall, "
+                              "a grand fortress wall taller than a cottage, battlements along "
+                              "the top, a straight wall section", 64, 160, 1),
+    ("castle-grand-gatehouse", "one tall block of grey stone castle wall with an open arched "
+                               "gateway through it, a grand fortress gatehouse, battlements "
+                               "along the top", 96, 160, 1),
+    ("castle-grand-postern", "one low block of grey stone castle curtain wall, wall-height "
+                             "only, no tower, a small wooden door set low in its face, "
+                             "battlements along the top", 64, 128, 1),
+    ("castle-grand-tower", "one tall square grey stone castle corner tower, a grand fortress "
+                           "tower taller than the curtain wall, battlements on top", 96, 176, 2),
+]:
+    add("props", slug, f"{ISO}: {subj}", w=w, h=h, n=n, ref=PROP_REF,
+        notes="round 6 (#643): grand castle set at true proportions, portrait canvases")
 add("props", "sheet-stones",
     "sprite sheet of grey field boulders, mossy rocks, rock piles and flat scatters of small stones "
     "lying on grass, isometric view, many variations",

@@ -445,17 +445,6 @@ pub(crate) fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom
     draw_zoomed(buf, s, sx - w / 2, bottom - h, zoom);
 }
 
-/// draw_standing stretched `wk` wide and `hk` tall, the bottom still on the
-/// tile's front corner: the castle set's grander pieces. The curtains only
-/// ever stretch up (a wider run-piece would swallow its neighbours); the
-/// towers and keep, lone pieces, take both dimensions
-pub(crate) fn draw_standing_wh(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, wk: f32, hk: f32) {
-    let w = (s.width as f32 * zoom * wk).round().max(1.0) as i32;
-    let h = (s.height as f32 * zoom * hk).round().max(1.0) as i32;
-    let bottom = sy + ((s.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
-    s.blit_resized(buf, sx - w / 2, bottom - h, w as usize, h as usize);
-}
-
 /// Draw a piece of the town wall standing on the tile centred on (sx, sy):
 /// scaled like the ground blocks (the pack draws its castle pieces for the
 /// same 91x50 block face), so the piece's footprint is exactly the tile face
@@ -476,9 +465,10 @@ pub(crate) fn draw_castle_wh(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoo
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }
 
-/// The castle dress against the village wall's fence-height pieces: the
-/// curtains and gatehouses stand twice as tall (their width stays the
-/// tile's, so a run still joins up)
+/// The castle dress against the village wall's fence-height pieces, on
+/// the pack fallback path only (the generated set has fortress-scale
+/// pieces of its own): the curtains and gatehouses stand twice as tall
+/// (their width stays the tile's, so a run still joins up)
 pub(crate) const GRAND_WALL_K: f32 = 1.9;
 /// The corner towers take both dimensions - lone pieces, free to spread -
 /// and the odd one stands loftier still (view.rs picks by tile)

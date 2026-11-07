@@ -61,6 +61,17 @@ fn test_generated_props_and_castle_load_at_1x() {
     // the town wall is generated as a set, the church too
     assert!(art.castle_rd);
     assert!(art.walls.iter().chain(&art.wall_posts).all(|s| s.is_some()) && art.tower_s.is_some());
+    // and the castles' grand set: fortress-scale pieces at true
+    // proportions - taller than the wall's, the keep the tallest of all
+    let g = art.castle_grand.as_ref().expect("the grand castle set");
+    assert!(g.walls.iter().chain(&g.posts).all(|s| s.is_some()) && g.tower.is_some());
+    let keep = art.keep_s.as_ref().expect("the keep");
+    assert!(keep.height > g.tower.as_ref().unwrap().height
+        && g.tower.as_ref().unwrap().height > g.walls[0].as_ref().unwrap().height,
+        "keep {}x{} over tower {}x{} over wall {}x{}",
+        keep.width, keep.height,
+        g.tower.as_ref().unwrap().width, g.tower.as_ref().unwrap().height,
+        g.walls[0].as_ref().unwrap().width, g.walls[0].as_ref().unwrap().height);
     assert!(art.church_s.as_ref().is_some_and(|c| c.width < 70), "the generated church, not the pack's keep");
     // the wall pieces stand on the map's own ground: no grass slab left
     // on their bottom rows to show green on snow or rock

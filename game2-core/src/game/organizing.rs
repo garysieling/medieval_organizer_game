@@ -906,8 +906,39 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
                 other: friend, kind: InteractionKind::Conversation, intensity: 0.6 });
             (format!("{} names a friend - someone you should know. A word from {} opens the door.", name, name), Some(friend))
         }
-        None => (format!("{} can't think of anyone to send you to.", name), None),
+        None => match someone_to_send_to(world, organizer, person) {
+            // no friend comes to mind, but folk know where the village's
+            // ear is - and they'd send you there
+            Some((p, office)) => {
+                record_interaction(world, organizer, Interaction {
+                    other: p, kind: InteractionKind::Conversation, intensity: 0.6 });
+                (format!("{} can't think of anyone - but \"go and tell the {} your piece, {}.\"", name, office, name), Some(p))
+            }
+            None => (format!("{} can't think of anyone to send you to.", name), None),
+        },
     }
+}
+
+/// The village's open ears, for when a friend can't be named: the priest
+/// first - he hears everything - then the heart-helper, who knows every
+/// heart, then the collector, who counts every soul
+fn someone_to_send_to(world: &World, organizer: Entity, person: Entity) -> Option<(Entity, &'static str)> {
+    let open = |e: Entity| e != organizer && e != person
+        && !crate::game::villager::is_dead(world, e)
+        && !crate::game::dungeon::unavailable(world, e);
+    let priest = world.query::<crate::game::vocation::Craft>().iter().copied()
+        .filter(|&e| open(e) && world.get_component::<crate::game::vocation::Craft>(e)
+            .map(|c| c.vocation == crate::game::vocation::Vocation::Priest).unwrap_or(false))
+        .min();
+    if let Some(p) = priest { return Some((p, "priest")); }
+    let role = |e: Entity, r: crate::game::vocation::TownRole| open(e)
+        && world.get_component::<crate::game::vocation::TownRole>(e) == Some(&r);
+    let helper = world.query::<crate::game::vocation::TownRole>().iter().copied()
+        .filter(|&e| role(e, crate::game::vocation::TownRole::Matchmaker)).min();
+    if let Some(p) = helper { return Some((p, "heart-helper")); }
+    world.query::<crate::game::vocation::TownRole>().iter().copied()
+        .filter(|&e| role(e, crate::game::vocation::TownRole::TaxCollector)).min()
+        .map(|p| (p, "collector"))
 }
 
 /// Sick guests stay home

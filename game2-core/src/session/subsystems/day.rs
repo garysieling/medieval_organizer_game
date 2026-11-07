@@ -352,6 +352,9 @@ impl Game {
                     if !villager::is_dead(&self.world, her) && tick >= seen + 15 && self.send(v, Goal::SeekRemedy(hut)) { continue; }
                 }
             }
+            // a word well spent comes back around: the day after an
+            // introduction they walk over and say hello
+            if self.round_back(v, tick) { continue; }
             // a shopping day, now and then: something they want is for sale
             if rng.below(100) < 12 {
                 if let Some(g) = self.want_shopping(v, tick) {

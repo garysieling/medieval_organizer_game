@@ -264,6 +264,27 @@ impl Game {
         self.at_the_door(p.x.round() as i32, p.y.round() as i32)
     }
 
+    /// "I'll come find you": the day after an introduction goes down
+    /// well they walk over and say hello - once, then the note's spent.
+    /// False while the call isn't due, or when no way reaches you today
+    /// (the note stands and they try again tomorrow)
+    pub(super) fn round_back(&mut self, v: Entity, tick: u64) -> bool {
+        let Some(rb) = self.world.get_component::<crate::game::organizing::RoundBack>(v).copied() else { return false };
+        if tick < rb.after || villager::is_dead(&self.world, rb.to) { return false; }
+        let Some(t) = self.world.get_component::<Pos>(rb.to)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
+            self.world.remove_component::<crate::game::organizing::RoundBack>(v);
+            return true;
+        };
+        // no cap on the walk: they said they'd come, and the village is
+        // small enough that the road home is always worth the steps
+        if self.send_far(v, t, Goal::TalkTo(rb.to)) {
+            self.world.remove_component::<crate::game::organizing::RoundBack>(v);
+            return true;
+        }
+        false
+    }
+
     /// The day's free choice for an adult the day loop reached: work,
     /// a stall on market day, a stroll somewhere, or a day at home
     /// The recluse's day: the dark keeps them, and the cave's their

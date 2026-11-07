@@ -99,3 +99,29 @@ fn test_the_card_counts_hearts_in_halves() {
         other: g.villagers[3], kind: InteractionKind::Aid, intensity: 1.0 });
     assert_eq!(g.villager_inspector_at(0).hearts, Some(2.5));
 }
+
+#[test]
+fn test_warmth_reaches_the_model_as_bonds() {
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    // a stranger's warmth isn't on the model at all
+    assert!(!g.ui_model().bonds.iter().any(|b| b.0 == v), "a stranger's name carried hearts");
+    // a kindness warms the tie; the model carries it as hearts over
+    // their head, the same number the inspector's meter reads
+    let pe = g.player;
+    record_interaction(&mut g.world, pe, Interaction {
+        other: v, kind: InteractionKind::Aid, intensity: 1.0 });
+    let m = g.ui_model();
+    let h = m.bonds.iter().find(|b| b.0 == v).map(|b| b.1)
+        .expect("the kindness isn't on the model");
+    // the same number the inspector's meter reads for them
+    g.seats[0].selected_target = 0;
+    assert_eq!(h, g.villager_inspector_at(0).hearts.unwrap());
+    assert!(h > 0.0 && h <= crate::game::relationships::MAX_HEARTS, "hearts out of range: {}", h);
+    // bad blood shows no hearts - a grudge isn't hearts unfilled
+    let w = g.villagers[1];
+    record_interaction(&mut g.world, pe, Interaction {
+        other: w, kind: InteractionKind::Conflict, intensity: 1.0 });
+    assert!(!g.ui_model().bonds.iter().any(|b| b.0 == w && b.1 > 0.0),
+        "a quarrel showed hearts over their head");
+}

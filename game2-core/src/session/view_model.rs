@@ -448,6 +448,17 @@ impl Game {
                 else if p.idle_ticks < 7 { "settled" } else { "going soft" };
             format!("{} \u{b7} {} \u{b7} {}", muscle, craft, temper)
         });
+        // each figure's warmth for the seat, read as hearts - the map
+        // floats them over heads, the inspector reads the same number
+        // off the bond; only warmth worth showing makes the list
+        let seat_player = self.seats[seat].player;
+        let bonds: Vec<(Entity, f32)> = self.villagers.iter().chain(self.rivals.iter())
+            .filter_map(|&v| {
+                crate::game::relationships::find_relationship(world, seat_player, v)
+                    .and_then(|r| world.get_component::<crate::game::relationships::Relationship>(r))
+                    .map(|r| (v, crate::game::relationships::hearts_of(r.strength)))
+                    .filter(|&(_, h)| h > 0.0)
+            }).collect();
         UiModel {
             player_pose: (self.seats[seat].facing, self.seats[seat].walking),
             // the courier (entity 0 in people) faces the way it rides
@@ -461,7 +472,7 @@ impl Game {
                 .map(|c| climate::climate_multiplier(c, "food")).unwrap_or(1.0),
             harsh_winter: self.harsh_winter,
             paused: self.paused, speed: self.speed,
-            stones: self.stones.clone(), buildings, people, bubbles,
+            stones: self.stones.clone(), buildings, people, bonds, bubbles,
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
             settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
                 (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),

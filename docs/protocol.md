@@ -170,6 +170,12 @@ The figure whose `e` is your `you` is you. Only what the seat can see is
 here: no one's secret wants, no hidden sickness, no true strength of the
 org (see `docs/architecture.md`, public vs secret).
 
+`bonds` lists the seat's warmth for each figure it knows, as
+`[entity, hearts]` pairs - hearts run 0 to 5 in half-heart steps, the
+same number the inspector's meter shows, and the client floats them over
+each figure's head. Only bonds with warmth worth showing are listed;
+the field is absent from older servers.
+
 `inspector` is the card for the current selection: `fig` (the portrait's
 villager index, or `null` for a building or a grave), `kid` (draw the
 portrait with a child's look, not the grown-up one `fig`'s bare index

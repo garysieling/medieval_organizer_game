@@ -116,7 +116,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 85 | Backstory | `dialogue_trees::backstory` | done #613 |
 | 86 | Personality (attachment) | `psychology::Personality` | done #614 |
 | 87 | Whether a home is also a workplace / up for sale | `household::is_workplace`, `on_offer` | done #615 |
-| 88 | Who's mourning whom | `psychology::Mourned` | todo |
+| 88 | Who's mourning whom | `psychology::Mourned` | done #616 |
 
 ## D. Helpers and smaller pieces never called
 

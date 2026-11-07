@@ -562,7 +562,9 @@ impl Game {
             let base = goods::worth(g);
             let lean = if *pr > base * 1.1 { " \u{00b7} dear" }
                 else if *pr < base * 0.9 { " \u{00b7} cheap" } else { "" };
-            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g{}", q, g, pr, lean), rgb: (150, 210, 150) });
+            // a luxury reads so - the street knows silk from salt
+            let kind = if goods::tier(g) == goods::Tier::Luxury { " \u{00b7} a luxury" } else { "" };
+            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g{}{}", q, g, pr, lean, kind), rgb: (150, 210, 150) });
         }
         // the chain the shop worked today: what went in and what came out
         if let Some((_, flow)) = self.shop_flow.get(&be).filter(|(d, _)| *d == self.tick) {

@@ -548,9 +548,15 @@ impl Game {
                 .collect();
             // a home's other faces: rooms to let when it stands empty,
             // or the bench someone's laid up in it
-            let empty = names.is_empty();
-            let works_here = self.villagers.iter().any(|&v|
-                world.get_component::<Craft>(v).and_then(|c| c.workplace) == Some(be));
+            let empty = b.occupants.is_empty() && !self.ruined.contains(&bi);
+            let works_here = self.villagers.iter().any(|&v| {
+                match world.get_component::<Craft>(v).and_then(|c| c.workplace) {
+                    Some(w) => w == be,
+                    // no bench of their own - a cottage trade works its
+                    // own door, like plan_bench falls back to home
+                    None => household::home_of(&self.world, v) == Some(be),
+                }
+            });
             let also = match (empty, works_here) {
                 (true, _) => " \u{00b7} to let",
                 (false, true) => " \u{00b7} a workshop too",

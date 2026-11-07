@@ -980,6 +980,11 @@ impl Game {
                     format!("{} - {}", trait_word(t), trait_hint(t))).collect();
                 if !ts.is_empty() { parts.push(ts.join(", ")); }
             }
+            // their temperament under it all: the Big5's dominant pole,
+            // a word the village would use
+            if let Some(p) = world.get_component::<crate::sim::psychology::Personality>(v) {
+                parts.push(crate::sim::psychology::disposition_word(p).into());
+            }
             let kin: Vec<String> = self.villagers.iter().copied()
                 .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
                 .take(3)

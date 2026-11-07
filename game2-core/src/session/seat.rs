@@ -169,6 +169,7 @@ impl Game {
         self.world.add_component(player, Purse { gold });
         self.world.add_component(player, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
+            self.world.add_component(player, crate::sim::psychology::personality_from_seed(0xBEEF));
         self.world.add_component(player, Organizer::default());
         let org = self.world.create_entity();
         self.world.add_component(org, Organization {

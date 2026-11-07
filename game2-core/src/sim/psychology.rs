@@ -52,6 +52,32 @@ pub struct Personality {
     pub conscientiousness: f32,
 }
 
+/// A seeded Big5 profile: five draws off the entity's index so the
+/// same villager reads the same temperament every run
+pub fn personality_from_seed(seed: u64) -> Personality {
+    let draw = |n: u64| {
+        let mut x = seed ^ n.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        x ^= x >> 30; x = x.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        x ^= x >> 27; x = x.wrapping_mul(0x94D0_49BB_1331_11EB);
+        x ^= x >> 31;
+        (x % 1000) as f32 / 1000.0
+    };
+    Personality { openness: draw(1), neuroticism: draw(2),
+        extraversion: draw(3), agreeableness: draw(4), conscientiousness: draw(5) }
+}
+
+/// The strongest read a Big5 profile gives: its dominant pole, in a
+/// word the village would use
+pub fn disposition_word(p: &Personality) -> &'static str {
+    let (mut best, mut word) = (0.0f32, "even-tempered");
+    for (v, w) in [(p.openness, "of a curious bent"), (p.neuroticism, "easily ruffled"),
+        (p.extraversion, "full of talk"), (p.agreeableness, "soft-hearted"),
+        (p.conscientiousness, "keeps good order")] {
+        if v > best { best = v; word = w; }
+    }
+    word
+}
+
 /// Emergent attachment style from history
 pub fn infer_style(hist: &AttachmentHistory) -> AttachmentStyle {
     let anxious = hist.anxiety_episodes as f32;

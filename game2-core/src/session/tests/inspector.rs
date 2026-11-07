@@ -267,3 +267,21 @@ fn test_a_child_s_card_names_the_errand_they_re_on() {
     let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
     assert!(bio.contains("running ale"), "the errand never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_their_temperament() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, crate::game::relationships::Relationship {
+        from: g.seats[0].player, other: v,
+        kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.95, interactions: 5 });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    for w in ["curious bent", "easily ruffled", "full of talk", "soft-hearted", "keeps good order", "even-tempered"] {
+        if bio.contains(w) { return; }
+    }
+    panic!("no temperament word showed: {}", bio);
+}

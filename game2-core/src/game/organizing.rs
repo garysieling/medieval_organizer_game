@@ -303,6 +303,24 @@ pub fn passing_remark(n: usize) -> &'static str {
     if n % 4 == 3 { REGISTERS[n % REGISTERS.len()] } else { SMALL_TALK[n % SMALL_TALK.len()].1 }
 }
 
+/// What someone who knows you says as you pass: a hello in their own
+/// voice, `{name}` being who they greet - picked by `n`
+const GREETINGS: [&str; 8] = [
+    "Well met, {name} - good to see thee.",
+    "{name}! Small world, isn't it?",
+    "Ah, {name} - out and about?",
+    "{name}, there's a fine day for walking.",
+    "There's {name} - I was saying only this morning...",
+    "Hello, {name} - the village feels warmer for it.",
+    "{name}! We haven't crossed paths in an age.",
+    "God save thee, {name} - and thy purse.",
+];
+
+/// The hello a friend gives in passing
+pub fn passing_greeting(n: usize, name: &str) -> String {
+    GREETINGS[n % GREETINGS.len()].replace("{name}", name)
+}
+
 /// What `name` says when the player talks with them (`talks_before` is how
 /// many times they've talked already). First the concerns actually on
 /// their mind (village_concerns), one per talk; once they've said those,

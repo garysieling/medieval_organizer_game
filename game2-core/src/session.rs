@@ -45,7 +45,7 @@ use crate::sim::illness::{self, Health, Disease, DiseaseKind, Stage, IllnessSyst
 #[allow(unused_imports)] // only the tests name attachment styles now
 use crate::sim::psychology::{AttachmentHistory, AttachmentStyle};
 use crate::sim::community::{Citizen, Organization};
-use crate::game::organizing::{gossip_insult, meeting_remark, passing_remark, talk_response};
+use crate::game::organizing::{gossip_insult, meeting_remark, passing_greeting, passing_remark, talk_response};
 use crate::game::traits::personality_from_seed;
 use crate::game::relationships;
 use crate::game::vocation::{self, Craft, Kid, KidGrowth, Level, SocialClass, TownRole, Vocation};

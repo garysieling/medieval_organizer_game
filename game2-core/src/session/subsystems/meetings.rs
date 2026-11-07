@@ -460,8 +460,20 @@ impl Game {
             if n % 3 == 0 {
                 // two villagers hold a whole conversation - on the record
                 // for the TALK panel, not floated over the street
-                // (session::dialogue); the player gets a word in passing
-                if b == self.player { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
+                // (session::dialogue); the player gets a word in passing -
+                // but only people who know you say hi: a friend greets,
+                // an acquaintance nods, a stranger walks past quiet
+                if b == self.player {
+                    use crate::game::organizing::RelStage;
+                    match crate::game::organizing::stage_of(&self.world, self.player, a) {
+                        RelStage::Known | RelStage::Follower | RelStage::CoLeader => {
+                            let name = self.speaker_name(self.player);
+                            self.say_in_passing(a, &passing_greeting(n, &name), CHAT_BUBBLE_SECS);
+                        }
+                        RelStage::Acquaintance => { self.say_in_passing(a, passing_remark(n), CHAT_BUBBLE_SECS); }
+                        RelStage::Stranger => {}
+                    }
+                }
                 else { self.villagers_chat(a, b); }
             }
             let (pe, other) = (self.player, if b == self.player { a } else { b });

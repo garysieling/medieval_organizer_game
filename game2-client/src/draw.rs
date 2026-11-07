@@ -439,13 +439,15 @@ pub(crate) fn draw_standing(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom
     draw_zoomed(buf, s, sx - w / 2, bottom - h, zoom);
 }
 
-/// draw_standing with the sprite `hk` times taller (its width still its
-/// own): the generated castle set's grander towers
-pub(crate) fn draw_standing_h(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, hk: f32) {
-    let w = (s.width as f32 * zoom).round() as i32;
-    let h = (s.height as f32 * zoom * hk).round() as i32;
+/// draw_standing stretched `wk` wide and `hk` tall, the bottom still on the
+/// tile's front corner: the castle set's grander pieces. The curtains only
+/// ever stretch up (a wider run-piece would swallow its neighbours); the
+/// towers and keep, lone pieces, take both dimensions
+pub(crate) fn draw_standing_wh(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, wk: f32, hk: f32) {
+    let w = (s.width as f32 * zoom * wk).round().max(1.0) as i32;
+    let h = (s.height as f32 * zoom * hk).round().max(1.0) as i32;
     let bottom = sy + ((s.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32;
-    s.blit_resized(buf, sx - w / 2, bottom - h, w.max(1) as usize, h.max(1) as usize);
+    s.blit_resized(buf, sx - w / 2, bottom - h, w as usize, h as usize);
 }
 
 /// Draw a piece of the town wall standing on the tile centred on (sx, sy):
@@ -459,19 +461,27 @@ pub(crate) fn draw_castle(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: 
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }
 
-/// draw_castle with the piece `hk` times taller (its footprint still the
-/// tile's): the pack castle set's grander curtains
-pub(crate) fn draw_castle_h(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, hk: f32) {
-    let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0;
+/// draw_castle stretched `wk` wide and `hk` tall: the pack castle set's
+/// grander pieces (a wider one reaches past its tile's face)
+pub(crate) fn draw_castle_wh(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f32, wk: f32, hk: f32) {
+    let kx = 2.0 * TILE_W as f32 * zoom / BLOCK_FACE.0 * wk;
     let ky = 2.0 * TILE_H as f32 * zoom / BLOCK_FACE.1 * hk;
     let (w, h) = ((s.width as f32 * kx).round() as usize, (s.height as f32 * ky).round().max(1.0) as usize);
     s.blit_resized(buf, sx - w as i32 / 2, sy + (TILE_H as f32 * zoom).round() as i32 - h as i32, w, h);
 }
 
-/// How much taller a castle's towers draw than the village wall's
-pub(crate) const GRAND_TOWER_K: f32 = 1.45;
-/// How much taller a castle's curtains and gatehouses draw
-pub(crate) const GRAND_WALL_K: f32 = 1.18;
+/// The castle dress against the village wall's fence-height pieces: the
+/// curtains and gatehouses stand twice as tall (their width stays the
+/// tile's, so a run still joins up)
+pub(crate) const GRAND_WALL_K: f32 = 1.9;
+/// The corner towers take both dimensions - lone pieces, free to spread -
+/// and the odd one stands loftier still (view.rs picks by tile)
+pub(crate) const GRAND_TOWER_WK: f32 = 1.5;
+pub(crate) const GRAND_TOWER_K: f32 = 2.2;
+/// The keep over the walls: the tallest thing the country raises - kept
+/// above the loftiest corner tower's GRAND_TOWER_K * 1.3 lift
+pub(crate) const KEEP_WK: f32 = 1.8;
+pub(crate) const KEEP_K: f32 = 3.1;
 
 /// Where a windmill's sails turn: on the front of its tower, just below the
 /// roof (MILL_HUB, in the tower sprite's pixels), for a tower drawn with

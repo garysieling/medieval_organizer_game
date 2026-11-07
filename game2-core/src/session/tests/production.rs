@@ -77,3 +77,19 @@ fn test_the_offer_says_dear_and_cheap_against_the_ordinary() {
         "bare shelves should read dear: {:?}",
         insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_a_luxury_s_offer_line_says_so() {
+    let mut g = Game::new();
+    let shop = g.building_entities.iter().copied()
+        .find(|&b| g.world.get_component::<Building>(b)
+            .map(|bb| matches!(bb.kind, BuildingKind::Shop(_))).unwrap_or(false)).unwrap();
+    if let Some(bb) = g.world.get_component_mut::<Building>(shop) {
+        bb.stock.clear();
+        bb.stock.insert("perfume".into(), 2);
+    }
+    g.seats[0].selected_building = g.building_entities.iter().position(|&x| x == shop);
+    let insp = g.building_inspector_at(0).unwrap();
+    let offer = insp.lines.iter().find(|l| l.y == 404).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(offer.contains("a luxury"), "the tier never showed: {}", offer);
+}

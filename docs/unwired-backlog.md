@@ -112,7 +112,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 81 | Immunity after recovery, relapses | `illness::immunity_gain`, `relapse` | done #609 |
 | 82 | Life stage and vitality | `lifecycle::Vitality` | done #610 |
 | 83 | Odd jobs and deals in their purse | `livelihood::OddJob`, `Deal` | done #611 |
-| 84 | Quality tier of goods in a satchel | `goods::tier` | todo |
+| 84 | Quality tier of goods in a satchel | `goods::tier` | done #612 |
 | 85 | Backstory | `dialogue_trees::backstory` | todo |
 | 86 | Personality (attachment) | `psychology::Personality` | todo |
 | 87 | Whether a home is also a workplace / up for sale | `household::is_workplace`, `on_offer` | todo |

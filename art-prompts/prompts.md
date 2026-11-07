@@ -1022,3 +1022,11 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | scale-player-walk-32-d95d2983 | young villager in a green tunic and brown trousers, medieval | rd_animation__four_angle_walking | 32x32 | 1 | 0.07 | player still + walk cycle; figure should end up ~24px tall |
+
+## CIRCUS CAMP - the meadow camp props (#699)
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| prop-circus-tent-8e2f1a04 | striped canvas round tent, medieval traveling circus, red and cream stripes | rd_pro__isometric | 64x64 | 1 | 0.06 | camp prop; sits on any ground - strip base |
+| prop-circus-ring-4b9d30c7 | small round performing ring of posts and rope, medieval fair | rd_pro__isometric | 64x64 | 1 | 0.06 | camp prop; flat ring, performers stand inside |
+| prop-campfire-pot-6a3e8b12 | iron cauldron over a campfire, medieval | rd_pro__isometric | 64x64 | 1 | 0.06 | ink-boiler's pot; also sells the meadow camp |

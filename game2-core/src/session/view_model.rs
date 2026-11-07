@@ -229,13 +229,13 @@ impl Game {
         if let Some(m) = &self.minstrel {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { sign: None, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
+                    label: Some("the minstrel".into()), find: find_key("the minstrel"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         if let Some(m) = &self.pedlar {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { sign: None, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
-                    label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
+                    label: Some("the pedlar".into()), find: find_key("the pedlar"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
             }
         }
         for c in &self.couriers {
@@ -248,6 +248,14 @@ impl Game {
             if let Some(p) = world.get_component::<Pos>(c.e) {
                 people.push(PersonV { sign: None, e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
                     label: Some("the circus".into()), find: find_key("the circus"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
+            }
+            // the troupe around him: no labels - they're the camp's
+            // background, not its news
+            for &m in &c.members {
+                if let Some(p) = world.get_component::<Pos>(m) {
+                    people.push(PersonV { sign: None, e: m, kind: PKind::Traveller, pos: (p.x, p.y),
+                        label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
+                }
             }
         }
         if let Some(b) = &self.ink_boiler {

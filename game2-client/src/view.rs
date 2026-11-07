@@ -258,9 +258,8 @@ impl View {
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|
             (x, y, Piece::Building(self.sprite_of(sprite).as_ref(), 1.0))));
         // (a generated keep stands over the wall's towers, the tallest in the country)
-        standing.extend(m.castle_keeps.iter().map(|&(x, y)| (x, y, if art.castle_rd {
-            Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref(), KEEP_WK, KEEP_K)
-        } else { Piece::Building(self.sprite_of(BSprite::CastleKeep).as_ref(), 1.0) })));
+        standing.extend(m.castle_keeps.iter().map(|&(x, y)|
+            (x, y, Piece::Castle(self.sprite_of(BSprite::CastleKeep).as_ref(), KEEP_WK, KEEP_K))));
         // a wood is a mix of the pack's trees, stable per tile
         standing.extend(m.map.trees.iter().map(|&(x, y)| (x as f32, y as f32, Piece::Prop(pick(&art.tiles[season_tiles(season)].trees, x, y, 4), art.tiles[season_tiles(season)].trees_k))));
         // boulders and flat rocks, a different one each time

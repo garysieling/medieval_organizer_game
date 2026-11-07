@@ -478,9 +478,10 @@ pub(crate) const GRAND_WALL_K: f32 = 1.9;
 /// and the odd one stands loftier still (view.rs picks by tile)
 pub(crate) const GRAND_TOWER_WK: f32 = 1.5;
 pub(crate) const GRAND_TOWER_K: f32 = 2.2;
-/// The keep over the walls: the tallest thing the country raises
+/// The keep over the walls: the tallest thing the country raises - kept
+/// above the loftiest corner tower's GRAND_TOWER_K * 1.3 lift
 pub(crate) const KEEP_WK: f32 = 1.8;
-pub(crate) const KEEP_K: f32 = 2.6;
+pub(crate) const KEEP_K: f32 = 3.1;
 
 /// Where a windmill's sails turn: on the front of its tower, just below the
 /// roof (MILL_HUB, in the tower sprite's pixels), for a tower drawn with

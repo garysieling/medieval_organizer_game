@@ -33,6 +33,9 @@ pub enum BuildingKind {
     /// The one-room school: a venue, not a workplace - the teacher's a
     /// traveller, and the kids' desks hold no stock
     Schoolhouse,
+    /// The settlement post: letters for the road gathered under one
+    /// roof - a venue, not a workplace
+    PostOffice,
 }
 
 /// A building on the map (entity; its Pos is where it stands)

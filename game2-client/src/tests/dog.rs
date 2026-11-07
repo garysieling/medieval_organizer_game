@@ -33,6 +33,15 @@ fn test_dog_goes_with_its_new_owner_when_aldric_dies() {
             && x > 12 && x < 30 && y > 12 && y < 28)
         .expect("a clear tile");
     *game.world.get_component_mut::<Pos>(owner).unwrap() = Pos { x: clear.0 as f32, y: clear.1 as f32 };
+    // and stand Aldric's grave somewhere nobody else walks - a traveller
+    // beside the stone shares enough palette to read as a dog
+    let folk: Vec<(f32, f32)> = game.ui_model().people.iter().map(|p| p.pos).collect();
+    let lonely = (2..game.map.width as i32 - 2).flat_map(|x| (2..game.map.height as i32 - 2).map(move |y| (x, y)))
+        .find(|&(x, y)| game.map.passable(x, y)
+            && (x - clear.0).abs() + (y - clear.1).abs() > 6
+            && !folk.iter().any(|&(fx, fy)| (fx - x as f32).abs() + (fy - y as f32).abs() < 5.0))
+        .expect("a lonely tile");
+    *game.world.get_component_mut::<Pos>(aldric).unwrap() = Pos { x: lonely.0 as f32, y: lonely.1 as f32 };
     let buf = view.render(&game.ui_model(), (-1, -1));
     // the dog's coat: its sprite's commonest colour (whichever art loaded)
     let dog_s = view.art.dog.as_ref().unwrap();

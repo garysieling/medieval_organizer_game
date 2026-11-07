@@ -20,5 +20,10 @@ fn test_the_dead_show_as_graves_on_the_minimap() {
         (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2])
     };
     assert_eq!(px(corvin), MM_GRAVE, "dead Corvin still shows as a living villager on the minimap");
-    assert_eq!(px(game.villagers[0]), MM_VILLAGER);
+    // and the living still show red - graves draw last, so check a
+    // living soul whose pixel no neighbour's stone has covered
+    assert!(game.villagers.iter().copied()
+        .filter(|&v| !game2_core::game::villager::is_dead(&game.world, v))
+        .any(|v| px(v) == MM_VILLAGER),
+        "no living villager shows as a red dot");
 }

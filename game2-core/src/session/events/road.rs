@@ -113,7 +113,7 @@ impl Game {
                     let near = self.world.get_component::<Pos>(v)
                         .map(|p| (p.x.round() as i32 - at.0).abs() + (p.y.round() as i32 - at.1).abs() < 8)
                         .unwrap_or(false);
-                    if !near || self.letters.iter().any(|&(f, _, _)| f == v) { continue; }
+                    if !near || self.letters.iter().any(|l| l.from == v) { continue; }
                     // he writes for the illiterate - the lettered write their own
                     if self.literate(v) { continue; }
                     // and only to the living - the dead can't be written to
@@ -132,7 +132,7 @@ impl Game {
                     if let Some(se) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.e) {
                         if let Some(sp) = self.world.get_component_mut::<Purse>(se) { sp.gold += 1.0; }
                     }
-                    self.letters.push((v, to, tick + 30));
+                    self.letters.push(crate::session::Letter { from: v, to, office: None, courier: None, due: tick + 30 });
                     wrote += 1;
                 }
             }

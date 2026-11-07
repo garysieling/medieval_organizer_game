@@ -1000,6 +1000,8 @@ impl Game {
             cell_mail: vec![],
             school: None,
             teacher: None,
+            post_offices: vec![],
+            couriers: vec![],
             next_graze: 0,
             hens,
             hen_houses,

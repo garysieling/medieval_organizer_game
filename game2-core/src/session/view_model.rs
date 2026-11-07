@@ -228,6 +228,12 @@ impl Game {
                     label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
             }
         }
+        for c in &self.couriers {
+            if let Some(p) = world.get_component::<Pos>(c.e) {
+                people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the courier".into()), find: find_key("the courier"), dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0 });
+            }
+        }
         if let Some(c) = &self.circus {
             if let Some(p) = world.get_component::<Pos>(c.e) {
                 people.push(PersonV { e: c.e, kind: PKind::Traveller, pos: (p.x, p.y),
@@ -579,6 +585,7 @@ impl Game {
             BuildingKind::Shop(_) => "Workshop",
             BuildingKind::Church => "Church",
             BuildingKind::Schoolhouse => "School",
+            BuildingKind::PostOffice => "Post",
             BuildingKind::WatchPost => "Watch",
             BuildingKind::Mill => "Mill",
             BuildingKind::Granary => "Granary",
@@ -1224,6 +1231,7 @@ impl Game {
                 BuildingKind::Church => "church", BuildingKind::WatchPost => "watch",
                 BuildingKind::Mill => "mill", BuildingKind::Granary => "granary",
                 BuildingKind::Schoolhouse => "school",
+                BuildingKind::PostOffice => "post",
                 BuildingKind::TraderStall => "stall", BuildingKind::Pasture => "pasture",
             BuildingKind::Apiary => "apiary",
             BuildingKind::Cellar => "cellar",

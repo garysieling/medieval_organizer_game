@@ -265,7 +265,7 @@ fn test_the_scribes_fair_hand() {
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the scribe")),
             "the frame shows the scribe on {:?}", st);
         stage::run_days(&mut g, 2);
-        assert!(g.letters.iter().any(|&(f, t, _)| f == a && t == b),
+        assert!(g.letters.iter().any(|l| l.from == a && l.to == b),
             "a letter went out for her on {:?}", st);
         stage::run_days(&mut g, 4);
         assert!(g.rare.iter().all(|r| r.id != EventId::Scribe), "he moved on from {:?}", st);

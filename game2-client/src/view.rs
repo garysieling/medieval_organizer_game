@@ -709,35 +709,50 @@ impl View {
         }
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
-        let boxes: Vec<(i32, i32, i32)> = labels.iter()
+        // a name's tag is its text plus, for a friend, the heart strip
+        // floated over it: the collision box covers the whole tag - strip
+        // width included - so a neighbour can't ride over either half
+        let heart_zone = |hearts: f32| if hearts > 0.0 { HEART_H + 1 } else { 0 };
+        let strip_w = 5 * HEART_PITCH - (HEART_PITCH - HEART_W);
+        let boxes: Vec<(i32, i32, i32, i32)> = labels.iter()
             // the ask's target mark sits a glyph left of the name - count
             // it in the collision box so a neighbour can't ride over it
-            .map(|(t, x, y, _, hungry, _, tgt, _, _)| (
-                if *tgt { *x - GLYPH_W - 2 } else { *x },
-                *y,
-                t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 } + if *tgt { GLYPH_W + 2 } else { 0 }))
+            .map(|(t, x, y, _, hungry, _, tgt, _, hearts)| {
+                let zone = heart_zone(*hearts);
+                let text_w = t.len() as i32 * GLYPH_W
+                    + if *hungry { GLYPH_W + 2 } else { 0 }
+                    + if *tgt { GLYPH_W + 2 } else { 0 };
+                let x0 = if *tgt { *x - GLYPH_W - 2 } else { *x };
+                let (bx, bw) = if zone > 0 {
+                    // the strip centres on the name; widen the box to it
+                    let hx = *x + (t.len() as i32 * GLYPH_W - strip_w) / 2;
+                    (x0.min(hx), (x0 + text_w).max(hx + strip_w) - x0.min(hx))
+                } else { (x0, text_w) };
+                (bx, *y - zone, bw, GLYPH_H + 3 + zone)
+            })
             .collect();
         let placed = place_labels(&boxes);
         // where each name finally sits, so a speech bubble can clear it
-        let label_ys: Vec<(&String, i32)> = labels.iter().zip(&placed).map(|(l, y)| (&l.0, *y)).collect();
+        let label_ys: Vec<(&String, i32)> = labels.iter().zip(&placed)
+            .map(|(l, y)| (&l.0, *y + heart_zone(l.8))).collect();
         for ((text, x, _, (r, g, b), hungry, selected, tgt, in_reach, hearts), y) in labels.iter().zip(placed) {
+            let ty = y + heart_zone(*hearts);
             // warmth floats over the name: the five-heart strip, centred
             // on it - a stranger's name carries none
             if *hearts > 0.0 {
-                let strip = 5 * HEART_PITCH - (HEART_PITCH - HEART_W);
-                draw_hearts(&mut buf, x + (text.len() as i32 * GLYPH_W - strip) / 2, y - HEART_H - 1, *hearts, 5);
+                draw_hearts(&mut buf, x + (text.len() as i32 * GLYPH_W - strip_w) / 2, y, *hearts, 5);
             }
             // the ask's target leads its name: bright when they'd hear it
             // now, dim when the picked one's a walk away
             if *tgt {
                 let (r2, g2, b2) = if *in_reach { (240, 220, 130) } else { (160, 150, 120) };
-                draw_text_outlined(&mut buf, x - GLYPH_W - 2, y, "\u{203a}", r2, g2, b2);
+                draw_text_outlined(&mut buf, x - GLYPH_W - 2, ty, "\u{203a}", r2, g2, b2);
             }
-            draw_text_outlined(&mut buf, *x, y, text, *r, *g, *b);
+            draw_text_outlined(&mut buf, *x, ty, text, *r, *g, *b);
             // hunger indicator, right after the name
-            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, y, m, r, g, b); }
+            if *hungry { let (m, (r, g, b), _) = MARK_HUNGRY; draw_text_outlined(&mut buf, x + text.len() as i32 * GLYPH_W + 2, ty, m, r, g, b); }
             // selection: underline the selected villager's name
-            if *selected { draw_rect(&mut buf, x - 1, y + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
+            if *selected { draw_rect(&mut buf, x - 1, ty + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
         }
         if let Some((cx, top, z, f)) = player_marker {
             draw_player_marker(&mut buf, cx, top, z, f);

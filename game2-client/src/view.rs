@@ -656,7 +656,12 @@ impl View {
 
         // all name labels, on top of every sprite, nudged apart where they'd overlap
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
-            .map(|(t, x, y, _, hungry, _, _, _)| (*x, *y, t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 }))
+            // the ask's target mark sits a glyph left of the name - count
+            // it in the collision box so a neighbour can't ride over it
+            .map(|(t, x, y, _, hungry, _, tgt, _)| (
+                if *tgt { *x - GLYPH_W - 2 } else { *x },
+                *y,
+                t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 } + if *tgt { GLYPH_W + 2 } else { 0 }))
             .collect();
         let placed = place_labels(&boxes);
         // where each name finally sits, so a speech bubble can clear it

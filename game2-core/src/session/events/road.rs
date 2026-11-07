@@ -1306,6 +1306,15 @@ impl Game {
                         self.villagers.remove(idx);
                         self.was_sick.remove(idx);
                         self.died_on.remove(idx);
+                        // the tale keeps belong to the folk, not the
+                        // places - everyone after him moves a key home
+                        self.tales = std::mem::take(&mut self.tales).into_iter()
+                            .filter(|(i, _)| *i != idx)
+                            .map(|(i, v)| (if i > idx { i - 1 } else { i }, v))
+                            .collect();
+                        self.tales_told = std::mem::take(&mut self.tales_told).into_iter()
+                            .map(|i| if i > idx { i - 1 } else { i })
+                            .collect();
                         for seat in self.seats.iter_mut() {
                             if seat.selected_target > idx { seat.selected_target -= 1; }
                             else if seat.selected_target == idx {

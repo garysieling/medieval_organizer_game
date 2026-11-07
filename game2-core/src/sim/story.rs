@@ -26,6 +26,8 @@ pub enum EventKind {
     Death,
     Illness,
     Recovery,
+    /// a feud put to rest - not a sickness healed
+    Peace,
     Bonding,
     Betrayal,
     Recruitment,

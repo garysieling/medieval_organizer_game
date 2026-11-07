@@ -719,6 +719,24 @@ impl Game {
         let v = self.villagers[i];
         let mut lines: Vec<Line> = vec![];
         lines.push(Line { x: 60, y: 330, text: vill_name(i).into(), rgb: (255, 255, 255) });
+        // the family's record: the last beats of a life in a word each
+        // - built before the dead's branch so a grave keeps it too
+        let beats: Vec<&'static str> = self.tales.get(&i).map(|t| t.iter().rev().take(2).map(|e| match e.kind {
+            crate::sim::story::EventKind::Birth => "born",
+            crate::sim::story::EventKind::Death => "died",
+            crate::sim::story::EventKind::Illness => "took ill",
+            crate::sim::story::EventKind::Recovery => "healed",
+            crate::sim::story::EventKind::Peace => "made peace",
+            crate::sim::story::EventKind::Bonding => "grew close",
+            crate::sim::story::EventKind::Betrayal => "betrayed",
+            crate::sim::story::EventKind::Recruitment => "joined the cause",
+            crate::sim::story::EventKind::Rejection => "turned away",
+            crate::sim::story::EventKind::Alliance => "swore in",
+            crate::sim::story::EventKind::Conflict => "bad blood",
+            crate::sim::story::EventKind::Discovery => "found out",
+            crate::sim::story::EventKind::Achievement => "made their name",
+        }).collect()).unwrap_or_default();
+        let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
         if let Some(day) = self.died_on[i] {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
@@ -744,6 +762,9 @@ impl Game {
             if !mourners.is_empty() {
                 lines.push(Line { x: 60, y: 372, text: format!("mourned by {}", mourners.join(", ")),
                     rgb: (170, 160, 190) });
+            }
+            if !record.is_empty() {
+                lines.push(Line { x: 60, y: 386, text: format!("a life{}", record), rgb: (160, 180, 200) });
             }
             return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), lines };
         }
@@ -933,23 +954,6 @@ impl Game {
                 crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
                 crate::sim::story::StoryTheme::Community => "a tale of the commons",
             });
-        // the family's record follows the tale: the last beats of a
-        // life - born, took ill, lost one - in a word each
-        let beats: Vec<&'static str> = self.tales.get(&i).map(|t| t.iter().rev().take(2).map(|e| match e.kind {
-            crate::sim::story::EventKind::Birth => "born",
-            crate::sim::story::EventKind::Death => "died",
-            crate::sim::story::EventKind::Illness => "took ill",
-            crate::sim::story::EventKind::Recovery => "healed",
-            crate::sim::story::EventKind::Bonding => "grew close",
-            crate::sim::story::EventKind::Betrayal => "betrayed",
-            crate::sim::story::EventKind::Recruitment => "joined the cause",
-            crate::sim::story::EventKind::Rejection => "turned away",
-            crate::sim::story::EventKind::Alliance => "swore in",
-            crate::sim::story::EventKind::Conflict => "bad blood",
-            crate::sim::story::EventKind::Discovery => "found out",
-            crate::sim::story::EventKind::Achievement => "made their name",
-        }).collect()).unwrap_or_default();
-        let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
         if let Some(bio) = self.bio_line_at(seat, v) {
             let suffix = tale.map(|t| format!(" - {}", t)).unwrap_or_default();
             lines.push(Line { x: 18, y: 454, text: format!("{}{}{}", bio, suffix, record), rgb: (160, 180, 200) });

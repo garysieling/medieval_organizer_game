@@ -136,7 +136,9 @@ fn test_the_organizer_names_a_seat_and_takes_the_street() {
     }
     g.seats[0].ctx_actions.push(CtxAct::March);
     g.ctx_act_at(0, 1);
-    assert!(g.log.last().unwrap().contains("march in the street"), "{:?}", g.log.last());
+    // the march walks its route out before the street answers
+    for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
+    assert!(g.log.iter().rev().take(8).any(|l| l.contains("march in the street")), "{:?}", g.log.last());
 }
 
 /// The cause's flyers: the hat comes round the members, the treasury
@@ -341,6 +343,8 @@ fn test_the_panel_only_offers_what_can_fire() {
     g.update_ctx_actions_at(0);
     let mi = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::March).unwrap();
     g.ctx_act_at(0, mi);
+    // the march walks its route out before the street answers
+    for _ in 0..12000 { g.update(); if g.formation.is_none() { break; } }
     assert!(g.ctx_blocker_at(0, CtxAct::March).is_some(), "same-day march refused");
     g.tick += 1;
     assert!(g.ctx_blocker_at(0, CtxAct::March).is_none(), "tomorrow's march answers");

@@ -469,7 +469,10 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Meet);
             }
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
-            self.seats[seat].ctx_actions.push(CtxAct::March);
+            // no second column while one's already marching
+            if self.formation.is_none() {
+                self.seats[seat].ctx_actions.push(CtxAct::March);
+            }
             let asked = self.world.get_component::<Organization>(self.seats[seat].org)
                 .map(|o| o.members.iter().filter(|&&m| {
                     !villager::is_dead(&self.world, m)
@@ -815,7 +818,6 @@ impl Game {
                 }
             }
             CtxAct::March => {
-                self.march_day = self.tick;
                 let m = self.march_at(seat);
                 self.log.push(format!("t{}: {}", tick, m));
                 return;
@@ -1275,12 +1277,70 @@ impl Game {
     /// The street: the cause marches. Returns the log line - turnout, the
     /// lord's reaction, and whatever the day brings back to the room
     /// (a crackdown, a taking, the ban proclaimed).
+    /// Call the cause to the streets: the column forms and marches the
+    /// town's ways - what the street makes of it lands when the march
+    /// comes home. Returns the log line
     fn march_at(&mut self, seat: usize) -> String {
+        if crate::game::campaign::campaign_of(&self.world, self.seats[seat].org).is_none() {
+            return "There's no cause to march for.".into() }
+        if self.formation.is_some() { return "the column's already out.".into() }
+        // the column: the cause's own, file by file
+        let mut members: Vec<Entity> = self.world.get_component::<Organization>(self.seats[seat].org)
+            .map(|o| o.members.iter().copied().collect()).unwrap_or_default();
+        members.retain(|&v| !villager::is_dead(&self.world, v)
+            && !crate::game::dungeon::unavailable(&self.world, v)
+            && self.world.get_component::<Pos>(v).is_some());
+        members.sort();
+        if members.is_empty() { return "there's nobody to march with you.".into() }
+        // the route: the town's paved ways in a ring round the market
+        // cross, started nearest the head's own spot
+        let (wx0, wy0, wx1, wy1) = self.town_wall;
+        let mut ring: Vec<(i32, i32)> = vec![];
+        for y in wy0..=wy1 {
+            for x in wx0..=wx1 {
+                if self.map.get(x, y) == Some(Tile::Road) { ring.push((x, y)); }
+            }
+        }
+        if ring.is_empty() { return "the streets won't hold a march.".into() }
+        let (cx, cy) = {
+            let n = ring.len() as f32;
+            (ring.iter().map(|t| t.0 as f32).sum::<f32>() / n,
+             ring.iter().map(|t| t.1 as f32).sum::<f32>() / n)
+        };
+        ring.sort_by(|a, b| (a.1 as f32 - cy).atan2(a.0 as f32 - cx)
+            .partial_cmp(&(b.1 as f32 - cy).atan2(b.0 as f32 - cx)).unwrap());
+        let mut route: Vec<(f32, f32)> = ring.iter().step_by(3)
+            .map(|t| (t.0 as f32 + 0.5, t.1 as f32 + 0.5)).collect();
+        let hp = self.world.get_component::<Pos>(members[0]).copied().unwrap();
+        let nearest = route.iter().enumerate()
+            .min_by(|(_, a), (_, b)| ((a.0 - hp.x).powi(2) + (a.1 - hp.y).powi(2))
+                .partial_cmp(&((b.0 - hp.x).powi(2) + (b.1 - hp.y).powi(2))).unwrap())
+            .map(|(i, _)| i).unwrap_or(0);
+        route.rotate_left(nearest);
+        // a march is a show of strength, not a pilgrimage: one turn
+        // about the town, then home
+        route.truncate(24);
+        // whoever was walking somewhere, they march now instead
+        for &m in &members {
+            self.travels.retain(|t| t.who != m);
+            self.world.add_component(m, villager::InFormation);
+        }
+        self.formation = Some(formation::Formation {
+            kind: formation::FormationKind::March, seat,
+            members: members.clone(), route, at: 0, stuck: 0 });
+        format!("the cause marches: {} take to the streets.", members.len())
+    }
+
+    /// The march comes home: the street answers it - the turnout, the
+    /// knights or the names taken, who watched and woke. Runs when the
+    /// column's walked its route out
+    pub(crate) fn march_resolved(&mut self, seat: usize) {
         let tick = self.tick;
-        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
-            return "There's no cause to march for.".into() };
+        // the street answers once a day - the cooldown runs from home
+        self.march_day = tick;
+        let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
         let pe = self.seats[seat].player;
-        match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
+        let msg = match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
             Some(out) => {
                 let n = out.turnout.len();
                 // guards already posted stay posted - a second
@@ -1372,8 +1432,9 @@ impl Game {
                 }
                 msg
             }
-            None => "You call a march - and nobody comes. The street stays empty.".into(),
-        }
+            None => "the march dissolved into the streets.".into(),
+        };
+        self.log.push(format!("t{}: {}", tick, msg));
     }
 
     /// The organizer's answer to the founding call on the conversation

@@ -827,6 +827,8 @@ impl Game {
         for i in 0..self.villagers.len() {
             let v = self.villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
+            // the marching keep step - no drift while the column moves
+            if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
             if self.world.get_component::<Villager>(v).map(|x| x.activity != Activity::Idle).unwrap_or(true) { continue; }
             if self.travels.iter().any(|tr| tr.who == v) { continue; }
             if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { continue; }

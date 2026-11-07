@@ -155,6 +155,9 @@ impl Game {
         crate::timed!("sim.succession", self.succession_tick(tick));
         // and the young grow into their trades
         crate::timed!("sim.lifecycle", self.lifecycle_tick(tick));
+        // and the rites of passage: initiations at the church or the
+        // stones, weddings for the heart-helper's couples
+        crate::timed!("sim.rites", self.rites_tick(tick));
         // the worn paths fade toward green where no one walks
         crate::timed!("sim.trail", self.trail_tick());
         // the land keeps score: canopy, pit water, the reach

@@ -105,6 +105,7 @@ mod tech;
 mod reckoning;
 mod rels;
 mod rep;
+mod rites;
 mod river;
 mod roster;
 mod sanction;

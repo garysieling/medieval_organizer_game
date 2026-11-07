@@ -1015,6 +1015,7 @@ impl Game {
             hen_houses,
             matchmaker,
             match_tried: vec![],
+            courtships: vec![],
             mush_patches,
             shroom_breaks: vec![],
             shroom_lore: vec![],

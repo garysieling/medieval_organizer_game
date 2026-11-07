@@ -405,7 +405,15 @@ impl Game {
             self.log_entity(v, format!("t{}: {} takes up the {}.", tick, name, trade));
             self.toasts.push_at((format!("{} comes of age - a {}!", name, trade), tick + 30),
                 toast_spot(&self.world, v));
-            self.celebrate_person(tick, v, &format!("{} comes of age", name));
+            // the parish makes a Christian of them first - the rite at
+            // the church or the stones; the household party is owed after
+            let rites = self.site_of(v).is_none()
+                && self.world.get_component::<villager::Initiated>(v).is_none()
+                && self.begin_rite(tick, v);
+            if !rites {
+                self.world.add_component(v, villager::Initiated);
+                self.celebrate_person(tick, v, &format!("{} comes of age", name));
+            }
         }
         // and the years keep count: a day of the village is about a week
         // of life (a youngster's 730 days is their fourteenth year);
@@ -661,6 +669,8 @@ impl Game {
             }
             desires::satisfy(&mut self.world, a, desires::Want::Love, tick + 365);
             desires::satisfy(&mut self.world, b, desires::Want::Love, tick + 365);
+            // and the spark keeps a date: the wedding countdown starts today
+            self.courtships.push((a, b, tick));
             if let Some(pe) = broker {
                 if let Some(p) = self.world.get_component_mut::<Purse>(pe) { p.gold += 2.0; }
             }

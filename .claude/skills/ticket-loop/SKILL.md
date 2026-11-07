@@ -211,6 +211,15 @@ Loop until clean:
 3. The next round re-reviews. Repeat.
 4. **Done = a round with no new unresolved findings** and checks green.
 
+**If the review never fires** (e.g. the GitHub app is detached - it
+stopped reviewing after the repo was renamed to
+`medieval_organizer_game`): don't block. Do the review yourself:
+re-read the full diff (`git diff origin/main...HEAD`) as a reviewer
+would - correctness, wire/serde compatibility, determinism, driver
+conflicts, per-frame cost, missing test coverage - fix what you find,
+push, then merge with a PR comment noting the self-review and why the
+AI review was absent.
+
 ## Stage 8 - Merge, then next ticket
 
 Shell variables don't survive between agent shells - restore both from

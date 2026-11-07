@@ -195,3 +195,12 @@ Completed task task_16: Add a comment to main.rs
 **Files Changed:** `wiki/agents/implementation-engineer.md`, `wiki/agents/pr-agent.md`
 **Outcome:** Both contributor workflow and PR review checklist now request representative media for visible changes.
 **Notes:** Prefer one focused screenshot or a short playthrough; explain when a change has no player-visible effect.
+
+---
+
+### Task: Add playthrough clips to the README (issue #724)
+**Date:** 2026-11-07
+**Type:** documentation and media
+**Files Changed:** `README.md`, `evidence/videos/walkabout.gif`, `evidence/videos/village-day.gif`
+**Outcome:** README now embeds two generated, deterministic village playthrough clips.
+**Notes:** Use the built-in headless recorder with a fixed seed, a brief player script for one clip, and a separate winter seed for the other.

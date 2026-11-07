@@ -1134,6 +1134,12 @@ impl View {
         // on a dark strip so it reads over any terrain the camera shows
         buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
         draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);
+        // the seat's own bag and belly ride under it
+        let strip = satchel_strip(m);
+        if !strip.is_empty() {
+            buf.rect(4, 20, text_width(&strip, 1) + 12, GLYPH_H + 8, 20, 20, 32);
+            draw_text_outlined(&mut buf, 10, 24, &strip, 200, 190, 170);
+        }
 
         // help overlay
         if self.help_open { draw_help(&mut buf); }

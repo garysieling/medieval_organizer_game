@@ -65,3 +65,15 @@ fn test_meeting_lines_name_the_yeses() {
     assert_eq!(lines[2], "house: Hob");
     for l in &lines { assert!(l.len() <= 40, "one row: {}", l); }
 }
+
+#[test]
+fn test_the_satchel_strip_names_the_bag_and_the_belly() {
+    let mut m = Game::new_seeded(MAP_SEED).ui_model();
+    m.player_satchel = vec![("bread".into(), 2), ("cheese".into(), 1)];
+    m.player_hunger = 25.0;
+    assert_eq!(satchel_strip(&m), "satchel: breadx2, cheesex1 | hungry");
+    m.player_hunger = 80.0;
+    assert_eq!(satchel_strip(&m), "satchel: breadx2, cheesex1");
+    m.player_satchel.clear();
+    assert_eq!(satchel_strip(&m), "");
+}

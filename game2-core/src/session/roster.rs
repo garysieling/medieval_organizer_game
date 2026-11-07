@@ -185,6 +185,15 @@ impl Game {
         } else if let Some(voc) = sheet.vocation {
             self.world.add_component(player, vocation::craft(voc, sheet.skill));
         }
+        // a kid still carries a satchel and hungers like anyone - a
+        // wanderer's parts mostly carry over, but a seat that somehow
+        // lacked them gets the same kit here
+        if self.world.get_component::<livelihood::Satchel>(player).is_none() {
+            self.world.add_component(player, livelihood::Satchel::default());
+        }
+        if self.world.get_component::<villager::Hunger>(player).is_none() {
+            self.world.add_component(player, villager::Hunger { value: 100.0 });
+        }
         self.world.add_component(player, livelihood::Purse { gold: sheet.gold });
         if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(player) {
             p.resources = sheet.gold;

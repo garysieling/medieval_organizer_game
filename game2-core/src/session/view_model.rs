@@ -478,7 +478,14 @@ impl Game {
                 .map(|c| climate::climate_multiplier(c, "food")).unwrap_or(1.0),
             harsh_winter: self.harsh_winter,
             paused: self.paused, speed: self.speed,
-            stones: self.stones.clone(), buildings, people, bonds, org_members, bubbles,
+            stones: self.stones.clone(), buildings, people, bonds, org_members,
+            player_satchel: self.world.get_component::<Satchel>(seat_player)
+                .map(|s| { let mut g: Vec<_> = s.goods.iter().filter(|(_, &n)| n > 0)
+                    .map(|(k, &v)| (k.clone(), v)).collect(); g.sort(); g })
+                .unwrap_or_default(),
+            player_hunger: self.world.get_component::<Hunger>(seat_player)
+                .map(|h| h.value).unwrap_or(100.0),
+            bubbles,
             castle_keeps: self.map.castle_keeps.iter().map(|&(x, y)| (x as f32, y as f32)).collect(),
             settlement_houses: self.map.settlement_houses.iter().map(|&(x, y)|
                 (x as f32, y as f32, BSprite::House((noise(x, y, 41) * 97.0) as usize))).collect(),

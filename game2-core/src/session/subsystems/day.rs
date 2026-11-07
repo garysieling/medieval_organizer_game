@@ -7,6 +7,36 @@ impl Game {
     /// trader's restock, the odd minstrel, a tune in the street
     pub fn livelihood_tick(&mut self, tick: u64) {
         let prelude = crate::infra::perf::scope("sim.day.prelude");
+        // a seat's own belly sees to itself with the morning: below a
+        // growl the satchel's cheapest bite goes down on its own -
+        // staples fill, a sweet's a taste, drink's no meal
+        for seat in 0..self.seats.len() {
+            let pe = self.seats[seat].player;
+            let hungry = self.world.get_component::<Hunger>(pe).map(|h| h.value < 40.0).unwrap_or(false);
+            if !hungry { continue; }
+            let Some(s) = self.world.get_component::<Satchel>(pe) else { continue };
+            let bite = s.goods.iter().filter(|(g, &n)| n > 0
+                    && goods::spec(g).map(|sp| {
+                        if sp.tags.contains(&goods::Tag::StapleFood) { Some(60.0) }
+                        else if sp.tags.contains(&goods::Tag::Fruit) { Some(30.0) }
+                        else if sp.tags.contains(&goods::Tag::Sweet) { Some(15.0) }
+                        else { None }
+                    }).flatten().is_some())
+                .min_by(|a, b| goods::worth_at(&self.world, a.0)
+                    .partial_cmp(&goods::worth_at(&self.world, b.0)).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(g, _)| g.clone());
+            let Some(good) = bite else { continue };
+            let fill = goods::spec(&good).map(|sp| {
+                if sp.tags.contains(&goods::Tag::StapleFood) { 60.0 }
+                else if sp.tags.contains(&goods::Tag::Fruit) { 30.0 }
+                else { 15.0 }
+            }).unwrap_or(0.0);
+            if let Some(s) = self.world.get_component_mut::<Satchel>(pe) {
+                if let Some(n) = s.goods.get_mut(&good) { *n -= 1; if *n == 0 { s.goods.remove(&good); } }
+            }
+            if let Some(h) = self.world.get_component_mut::<Hunger>(pe) { h.value = (h.value + fill).min(100.0); }
+            self.log.push(format!("t{}: you eat the {} from your satchel.", tick, good));
+        }
         // an organizer's founding call that goes unanswered too long lapses
         // on its own, same as "let it rest" - otherwise a seat with no
         // control wired to Command::Decide (the browser canvas shim has

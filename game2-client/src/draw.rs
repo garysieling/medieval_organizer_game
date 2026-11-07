@@ -296,6 +296,11 @@ pub(crate) fn meter_colour(frac: f32) -> (u8, u8, u8) {
 /// silhouette always shows, so an empty heart still reads as a heart
 const HEART_ROWS: [u8; 6] = [0b0110110, 0b1111111, 0b1111111, 0b0111110, 0b0011100, 0b0001000];
 
+/// A heart strip's metrics: each heart is HEART_W wide on an 8px pitch
+pub(crate) const HEART_W: i32 = 7;
+pub(crate) const HEART_H: i32 = HEART_ROWS.len() as i32;
+pub(crate) const HEART_PITCH: i32 = 8;
+
 pub(crate) fn draw_heart(buf: &mut Buffer, x: i32, y: i32, fill: f32) {
     let lit = (fill.clamp(0.0, 1.0) * 7.0).round() as i32;
     for (row, bits) in HEART_ROWS.iter().enumerate() {
@@ -310,7 +315,7 @@ pub(crate) fn draw_heart(buf: &mut Buffer, x: i32, y: i32, fill: f32) {
 /// A strip of `MAX` hearts filled to `hearts` (0..=MAX, half steps)
 pub(crate) fn draw_hearts(buf: &mut Buffer, x: i32, y: i32, hearts: f32, max: usize) {
     for i in 0..max {
-        draw_heart(buf, x + i as i32 * 8, y, hearts - i as f32);
+        draw_heart(buf, x + i as i32 * HEART_PITCH, y, hearts - i as f32);
     }
 }
 

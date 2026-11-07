@@ -471,8 +471,12 @@ impl View {
 
 
         // name labels are drawn after every sprite (so no sprite covers one)
-        // and de-overlapped: (text, x, y, colour, hungry, selected)
-        let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool, bool, bool)> = vec![];
+        // and de-overlapped: (text, x, y, colour, hungry, selected, tgt,
+        // in_reach, hearts - the seat's warmth, floated over the name)
+        let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool, bool, bool, f32)> = vec![];
+        // a figure's bond hearts, 0 for a stranger - the map only sends
+        // bonds with warmth worth showing
+        let bond_hearts = |e: Entity| m.bonds.iter().find(|b| b.0 == e).map(|b| b.1).unwrap_or(0.0);
         // the player's dart waits for the label pass: a displaced name
         // mustn't paint over the one mark that says "this one is you"
         let mut player_marker: Option<(i32, i32, f32, u32)> = None;
@@ -528,7 +532,7 @@ impl View {
                             None => draw_grave(&mut buf, sx, sy, zoom),
                         };
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
-                        labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected, false, false));
+                        labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected, false, false, 0.0));
                     } else {
                         let look = figure_look(pv.kid, i, art.villager_sprites.len());
                         let fig = &art.villager_sprites[look];
@@ -557,7 +561,7 @@ impl View {
                         // reach when nobody's picked
                         let t = if m.sel.picked { m.sel.target } else { m.reach_target };
                         let tgt = i == t && !pv.dead;
-                        labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected, tgt, pv.in_reach));
+                        labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected, tgt, pv.in_reach, bond_hearts(pv.e)));
                         // sick: a green cross on the other side of the head
                         if pv.sick {
                             let (mk, (r, g, b), _) = MARK_SICK;
@@ -587,7 +591,7 @@ impl View {
                         None => 0,
                     };
                     if pv.bond {
-                        labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false, false, false)); // placed with the names
+                        labels.push(("<3".into(), dx - 6, dy - h - GLYPH_H - LABEL_GAP, (255, 120, 120), false, false, false, false, 0.0)); // placed with the names
                     }
                 },
                 // the watch: soldiers from the humans pack at the gates
@@ -631,7 +635,7 @@ impl View {
                         _ => label_anchor(sy, zoom),
                     };
                     let (lx, ly) = name_label_pos(sx, anchor, RIVAL_NAMES[i]);
-                    labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false, false, false));
+                    labels.push((RIVAL_NAMES[i].into(), lx, ly, (255, 140, 140), false, false, false, false, bond_hearts(pv.e)));
                 },
                 // player sprite at their actual position
                 Who::P(pv) if let PKind::Player = pv.kind => {
@@ -668,7 +672,7 @@ impl View {
                     let anchor = anchor.unwrap_or_else(|| label_anchor(sy, zoom));
                     let (lx, ly) = name_label_pos(sx, anchor, "YOU");
                     player_marker = Some((sx, ly - 2, zoom, m.frame));
-                    labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false, false, false));
+                    labels.push(("YOU".into(), lx, ly, (255, 255, 0), false, false, false, false, 0.0));
                 },
                 Who::P(_) => {},
             }
@@ -708,7 +712,7 @@ impl View {
         let boxes: Vec<(i32, i32, i32)> = labels.iter()
             // the ask's target mark sits a glyph left of the name - count
             // it in the collision box so a neighbour can't ride over it
-            .map(|(t, x, y, _, hungry, _, tgt, _)| (
+            .map(|(t, x, y, _, hungry, _, tgt, _, _)| (
                 if *tgt { *x - GLYPH_W - 2 } else { *x },
                 *y,
                 t.len() as i32 * GLYPH_W + if *hungry { GLYPH_W + 2 } else { 0 } + if *tgt { GLYPH_W + 2 } else { 0 }))
@@ -716,7 +720,13 @@ impl View {
         let placed = place_labels(&boxes);
         // where each name finally sits, so a speech bubble can clear it
         let label_ys: Vec<(&String, i32)> = labels.iter().zip(&placed).map(|(l, y)| (&l.0, *y)).collect();
-        for ((text, x, _, (r, g, b), hungry, selected, tgt, in_reach), y) in labels.iter().zip(placed) {
+        for ((text, x, _, (r, g, b), hungry, selected, tgt, in_reach, hearts), y) in labels.iter().zip(placed) {
+            // warmth floats over the name: the five-heart strip, centred
+            // on it - a stranger's name carries none
+            if *hearts > 0.0 {
+                let strip = 5 * HEART_PITCH - (HEART_PITCH - HEART_W);
+                draw_hearts(&mut buf, x + (text.len() as i32 * GLYPH_W - strip) / 2, y - HEART_H - 1, *hearts, 5);
+            }
             // the ask's target leads its name: bright when they'd hear it
             // now, dim when the picked one's a walk away
             if *tgt {

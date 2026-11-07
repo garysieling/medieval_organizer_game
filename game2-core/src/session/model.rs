@@ -330,6 +330,11 @@ pub struct UiModel {
     /// not selectable/simulated buildings in the main village.
     pub settlement_houses: Vec<(f32, f32, BSprite)>,
     pub people: Vec<PersonV>,
+    /// The seat's warmth for each figure it knows, as hearts - the map
+    /// floats them over heads; (entity, hearts), only bonds with hearts
+    /// to show, and absent from older servers
+    #[serde(default)]
+    pub bonds: Vec<(Entity, f32)>,
     pub bubbles: Vec<BubbleV>,
     pub toasts: Vec<ToastV>,
     pub log: Vec<String>,

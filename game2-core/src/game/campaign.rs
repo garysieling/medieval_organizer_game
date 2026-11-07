@@ -404,7 +404,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     if let Some(m) = world.get_component_mut::<CampaignMeeting>(campaign) {
         m.last_held = tick;
         m.held += 1;
-        if drifted { m.driven_by = Some(driver); }
+        // the pull's only observably theirs when others answered - an
+        // empty room proves nothing
+        if drifted && attendees.len() >= 2 { m.driven_by = Some(driver); }
         if noted { m.resolves += 1; }
     }
     // Participation teaches: the room learns meeting craft, the seats

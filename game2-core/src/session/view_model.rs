@@ -890,6 +890,14 @@ impl Game {
             else if warmth >= 0.3 { parts.push("warm to you".into()); }
             else if warmth > 0.0 { parts.push("has your ear".into()); }
         }
+        // what the body's learned, or still hides: a survivor's
+        // hardiness, and the seed a sickness leaves to wake again
+        if let Some(h) = world.get_component::<crate::sim::illness::Health>(v) {
+            if h.immunity >= 0.5 { parts.push("weathered".into()); }
+        }
+        if world.get_component::<crate::sim::illness::Relapse>(v).is_some() {
+            parts.push("it sleeps in them".into());
+        }
         // the fold they keep, if the bench behind their day's a
         // pasture - its live count named, ahead of the wordy parts
         // a stranger's line can still read

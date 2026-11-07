@@ -99,6 +99,9 @@ pub enum CtxAct {
     Tame,
     /// Raise the schoolhouse, or send for a teacher to keep it
     School,
+    /// Charter the fire brigade: a hall to gather in, the chest's gold
+    /// for buckets, and a crew sworn to answer every bell
+    Brigade,
 }
 
 /// One player's hold on the game: which character they steer, what they've

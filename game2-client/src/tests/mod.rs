@@ -18,6 +18,7 @@ mod hearts;
 mod help;
 mod hud;
 mod inspector;
+mod intro;
 mod label;
 mod legend;
 mod log_day;

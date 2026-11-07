@@ -205,3 +205,22 @@ pub fn render_title() -> Buffer {
     draw_centered(&mut tbuf, 400, "press ENTER to begin", 2, (255, 220, 130));
     tbuf
 }
+
+/// The prologue card after the picker: what this seed's world holds,
+/// until any key lets the game begin
+pub fn render_intro(facts: &[String]) -> Buffer {
+    let mut buf = Buffer::new(W, H);
+    buf.rect(0, 0, W as i32, H as i32, 15, 15, 25);
+    draw_centered(&mut buf, 90, "THE WANDERER", 4, (255, 220, 130));
+    draw_centered(&mut buf, 160, "the village you're come to", 2, (200, 200, 200));
+    let mut y = 240;
+    for f in facts {
+        for line in wrap_text(f, 80) {
+            draw_centered(&mut buf, y, &line, 1, (190, 190, 205));
+            y += 16;
+        }
+        y += 10;
+    }
+    draw_centered(&mut buf, H as i32 - 60, "press ENTER", 2, (255, 220, 130));
+    buf
+}

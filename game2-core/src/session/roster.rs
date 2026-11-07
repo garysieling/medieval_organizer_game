@@ -8,7 +8,7 @@ use crate::game::desires::{self, Want};
 use crate::game::livelihood;
 use crate::game::vocation::{self, SocialClass, Vocation};
 
-use super::{roll_vocation, Game, Rng, NEW_NAMES};
+use super::{country, roll_vocation, view_model, vill_name, Game, Rng, NEW_NAMES};
 
 /// How many wanderers a seed deals
 const ROSTER_SIZE: usize = 7;
@@ -207,5 +207,50 @@ impl Game {
             self.world.add_component(player, Settled);
         }
         true
+    }
+
+    /// The stage-setting card after the picker: a few true things about
+    /// this seed's world and the mood it walks in with. Rolled off the
+    /// seed on its own stream, so the card can't shift the village.
+    pub fn intro_facts(&self) -> Vec<String> {
+        let mut rng = Rng(self.seed ^ 0x1A7C_EF11_5EED_u64);
+        let mut facts: Vec<String> = vec![];
+        // the country's own roll: its market towns, and the keeps over it
+        let towns: Vec<&str> = self.sites.iter()
+            .filter(|s| s.kind == country::SiteKind::Town).map(|s| s.name).collect();
+        if towns.len() >= 2 {
+            facts.push(format!("The market towns of {} and {} send their carts up the road.",
+                towns[0], towns[1]));
+        }
+        let keeps: Vec<&str> = self.sites.iter()
+            .filter(|s| s.kind == country::SiteKind::Castle).map(|s| s.name).collect();
+        if keeps.len() >= 2 {
+            facts.push(format!("{} and {} keep the lord's peace from the heights.",
+                keeps[0], keeps[1]));
+        }
+        // a face worth knowing early
+        if !self.villagers.is_empty() {
+            let i = rng.below(self.villagers.len() as i32) as usize;
+            let v = self.villagers[i];
+            let craft = self.world.get_component::<vocation::Craft>(v)
+                .map(|c| vocation::vocation_name(c.vocation).to_lowercase());
+            let manner = self.world.get_component::<crate::game::traits::Personality>(v)
+                .and_then(|p| p.traits.first().copied()).map(view_model::trait_word);
+            match (craft, manner) {
+                (Some(c), Some(t)) => facts.push(format!("{} the {} is {} - worth knowing early.", vill_name(i), c, t)),
+                (Some(c), None) => facts.push(format!("{} the {} keeps a bench here.", vill_name(i), c)),
+                _ => facts.push(format!("{} lives here - worth knowing early.", vill_name(i))),
+            }
+        }
+        // and the mood the world walks in with
+        const MOOD: &[&str] = &[
+            "Mysteries hide in the gossip - ask, and listen.",
+            "Injustices are everywhere - organize, and the village can act.",
+            "The season turns whether the village is ready or not.",
+            "Every grievance is a cause waiting for a name.",
+            "The lord's law reaches further than his castles.",
+        ];
+        facts.push(MOOD[rng.below(MOOD.len() as i32) as usize].to_string());
+        facts
     }
 }

@@ -47,6 +47,8 @@ struct Remote {
     denied: Mutex<Option<String>>,
     /// The roster the Welcome dealt, for the character picker
     roster: Mutex<Option<Vec<session::roster::RosterCard>>>,
+    /// The seed's stage-setting facts, for the prologue card after the picker
+    intro: Mutex<Option<Vec<String>>>,
 }
 
 fn connect_remote(url: &str) -> Arc<Remote> {
@@ -57,7 +59,7 @@ fn connect_remote(url: &str) -> Arc<Remote> {
     )).ok();
     let remote = Arc::new(Remote {
         ws: Mutex::new(ws), latest: Mutex::new(None), token_seen: Mutex::new(None),
-        denied: Mutex::new(None), roster: Mutex::new(None),
+        denied: Mutex::new(None), roster: Mutex::new(None), intro: Mutex::new(None),
     });
     {
         let remote = remote.clone();
@@ -71,9 +73,10 @@ fn connect_remote(url: &str) -> Arc<Remote> {
                 match msg {
                     Ok(tungstenite::Message::Text(t)) => match serde_json::from_str::<ServerMsg>(&t) {
                         Ok(msg) => {
-                            if let ServerMsg::Welcome { token, roster, .. } = &msg {
+                            if let ServerMsg::Welcome { token, roster, intro, .. } = &msg {
                                 *remote.token_seen.lock().unwrap() = Some(token.clone());
                                 *remote.roster.lock().unwrap() = Some(roster.clone());
+                                *remote.intro.lock().unwrap() = Some(intro.clone());
                             }
                             // a Denied before the Welcome is a refusal (we're not
                             // in); after it, it's a warning ("slow down") and play goes on
@@ -191,6 +194,11 @@ fn main() {
     // means a returning claim (or an older server) - no picker
     let mut want_remote_pick = remote.is_some();
     let mut game = if remote.is_none() { Some(Game::new_seeded(seed)) } else { None };
+    // the prologue card stands between the picker and the game: the
+    // seed's own facts, till any key lets the day begin. A remote seat's
+    // facts ride the Welcome - the card shows once it lands
+    let mut intro: Option<Vec<String>> = game.as_ref().map(|g| g.intro_facts()).filter(|f| !f.is_empty());
+    let mut intro_wanted = remote.is_some();
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
     let mut cam_centered = false;
@@ -280,6 +288,26 @@ fn main() {
                     picker = Some((cards, 0));
                 }
             }
+            continue;
+        }
+        // the prologue card, once the Welcome's dealt it (a remote seat
+        // may still be waiting on it when the picker's done)
+        if intro.is_none() && intro_wanted {
+            if let Some(r) = &remote {
+                if let Some(f) = r.intro.lock().unwrap().take() {
+                    if !f.is_empty() { intro = Some(f); }
+                    intro_wanted = false;
+                }
+            } else { intro_wanted = false; }
+        }
+        if let Some(facts) = &intro {
+            present(&mut window, &client::render_intro(facts));
+            let down = window.get_mouse_down(minifb::MouseButton::Left);
+            if !window.get_keys_pressed(minifb::KeyRepeat::No).is_empty()
+                || (down && !mouse_was_down) {
+                intro = None;
+            }
+            mouse_was_down = down;
             continue;
         }
 

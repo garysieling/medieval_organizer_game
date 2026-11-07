@@ -61,6 +61,11 @@ pub enum ServerMsg {
         /// Older servers omit it - read it as empty (no picker).
         #[serde(default)]
         roster: Vec<crate::session::roster::RosterCard>,
+        /// Stage-setting facts about this seed's world, for the prologue
+        /// card after the picker. Older servers omit it - read it as
+        /// empty (no card).
+        #[serde(default)]
+        intro: Vec<String>,
     },
     /// A frame for your seat (sent at the broadcast cadence). Its `map` is
     /// empty: the map comes as `Map` (see `SceneCache`)

@@ -31,7 +31,8 @@ impl Game {
                 self.world.get_component::<Pos>(*e).copied().map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::Wander => Some((from.x.round() as i32, from.y.round() as i32)),
             Goal::Gather(..) => return false, // gathers go through send_gather
-            Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(_) | Goal::Post(_) => return false, // country walks go through send_far
+            Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(..) | Goal::Post(_)
+            | Goal::Owe(..) | Goal::Gift(..) | Goal::Escort(..) => return false, // country walks go through send_far
             Goal::Forage(_) | Goal::ForageShroom(_) => return false, // forages go through send_forage/send_shroom
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
@@ -251,7 +252,7 @@ impl Game {
         for (who, goal) in arrived { self.arrive(who, goal); }
         // no ride, no flag: whoever's off the road seeks food again
         let stray: Vec<Entity> = self.world.query::<villager::OnTheRoad>().iter().copied()
-            .filter(|&w| !self.travels.iter().any(|t| t.who == w && matches!(t.goal, Goal::Remit(_))))
+            .filter(|&w| !self.travels.iter().any(|t| t.who == w && matches!(t.goal, Goal::Remit(..))))
             .collect();
         for w in stray { self.world.remove_component::<villager::OnTheRoad>(w); }
     }
@@ -581,8 +582,11 @@ impl Game {
             Goal::Cart(si) => self.arrive_cart(who, si),
             Goal::Levy(castle, town) => self.arrive_levy(who, castle, town),
             Goal::Deliver(castle) => self.arrive_deliver(who, castle),
-            Goal::Remit(castle) => self.arrive_remit(who, castle),
+            Goal::Remit(castle, gold) => self.arrive_remit(who, castle, gold),
             Goal::Post(stop) => self.arrive_post(who, stop),
+            Goal::Owe(from, to, gold) => self.arrive_owe(who, from, to, gold),
+            Goal::Gift(from, to) => self.arrive_gift(who, from, to),
+            Goal::Escort(from, to) => self.arrive_escort(who, from, to),
             Goal::TendGarden(gi) => {
                 // weeding and picking: the bed yields into the house's
                 // stock, and the tending itself is a small joy

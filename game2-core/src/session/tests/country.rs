@@ -1,6 +1,7 @@
 use crate::session::*;
 use crate::session::country::SiteKind;
 use crate::session::routine::{Mode, Routine};
+use crate::game::livelihood::Purse;
 use crate::game::vocation::Kid;
 use crate::game::villager::Pos;
 use crate::game::tilemap::Tile;
@@ -108,4 +109,128 @@ fn test_the_sites_reach_the_minimap() {
     if let Some(c) = castle {
         assert!(c.keeper.is_some(), "a keep with no keeper's name");
     }
+}
+
+#[test]
+fn test_every_site_has_a_head_and_a_liege() {
+    for seed in [0u64, 1, 2, 3, 7, 42, 99] {
+        let g = Game::new_seeded(seed);
+        let castles: Vec<usize> = g.sites.iter().enumerate()
+            .filter(|(_, s)| s.kind == SiteKind::Castle).map(|(i, _)| i).collect();
+        assert_eq!(castles.len(), 2, "seed {} drew its castles", seed);
+        for s in g.sites.iter() {
+            assert!(s.lord.is_some(), "seed {} {} has no head", seed, s.name);
+            assert!(s.title.is_some(), "seed {} {} has no style", seed, s.name);
+            match s.kind {
+                // castles answer to the crown, which is off the map
+                SiteKind::Castle => assert!(s.liege.is_none(), "{} claims a liege", s.name),
+                _ => {
+                    let liege = s.liege.expect("a holding with no liege");
+                    assert!(matches!(g.sites[liege].kind, SiteKind::Castle),
+                        "{} answers to a {:?}, not a castle", s.name, g.sites[liege].kind);
+                }
+            }
+        }
+        // and the same seed draws the same peerage
+        let again = Game::new_seeded(seed);
+        assert_eq!(g.sites.iter().map(|s| (s.title, s.liege)).collect::<Vec<_>>(),
+            again.sites.iter().map(|s| (s.title, s.liege)).collect::<Vec<_>>(),
+            "seed {}'s peerage moved", seed);
+    }
+}
+
+#[test]
+fn test_the_minimap_names_the_heads_and_the_treasuries() {
+    let mut g = Game::new_seeded(3);
+    // fill one treasury so the gold shows
+    let ci = g.sites.iter().position(|s| s.kind == SiteKind::Castle).unwrap();
+    g.sites[ci].treasury = 87.0;
+    let m = g.ui_model_at(0);
+    let castle = m.sites.iter().find(|s| s.kind == country::SiteKind::Castle).unwrap();
+    let head = castle.head.as_ref().expect("the keep's head unnamed");
+    assert!(head.contains(' '), "a style and a name: {}", head);
+    assert!((castle.treasury - 87.0).abs() < 0.01, "the treasury didn't reach the wire");
+}
+
+#[test]
+fn test_a_sites_tribute_reaches_the_lieges_treasury() {
+    let mut g = Game::new_seeded(5);
+    let si = g.sites.iter().position(|s| s.liege.is_some()
+        && matches!(s.kind, SiteKind::Town)).expect("no tributary town");
+    let liege = g.sites[si].liege.unwrap();
+    let runner = g.sites[si].lord.expect("the town has no head");
+    if let Some(p) = g.world.get_component_mut::<Purse>(runner) { p.gold = 200.0; }
+    // the tribute's own day for this site (a zero residue means the
+    // period's end, not its start)
+    let r = (si as u64 * 7) % 60;
+    g.country_tick(if r == 0 { 60 } else { r });
+    let t = g.travels.iter().find(|t| t.who == runner && matches!(t.goal, Goal::Owe(..)))
+        .expect("no tribute rode out");
+    let Goal::Owe(_, to, gold) = t.goal.clone() else { unreachable!() };
+    assert_eq!(to, liege);
+    let purse = g.world.get_component::<Purse>(runner).map(|p| p.gold).unwrap();
+    assert!(purse < 200.0, "the purse never paid: {:.0}", purse);
+    // and on arrival the keep's books take it
+    let before = g.sites[liege].treasury;
+    g.arrive(runner, Goal::Owe(si, liege, gold));
+    assert!((g.sites[liege].treasury - before - gold).abs() < 0.01,
+        "the treasury took {:.0}, not {:.0}", g.sites[liege].treasury - before, gold);
+}
+
+#[test]
+fn test_the_village_remit_fills_the_keeps_books() {
+    let mut g = Game::new_seeded(2);
+    let c = g.collector.expect("no collector");
+    g.takings = 30.0;
+    g.livelihood_tick(45);
+    // the remit rides to the NEAREST keep - the same pick the day's
+    // bookkeeping makes
+    let cp = g.world.get_component::<Pos>(c).map(|p| (p.x, p.y)).unwrap_or((0.0, 0.0));
+    let castle = g.sites.iter().enumerate()
+        .filter(|(_, s)| s.kind == SiteKind::Castle)
+        .min_by_key(|(_, s)| ((s.centre.0 as f32 - cp.0).powi(2)
+            + (s.centre.1 as f32 - cp.1).powi(2)) as i64)
+        .map(|(i, _)| i).expect("no castle");
+    // the ride's a long one: walk it the way the takings test does
+    for _ in 0..6000 {
+        g.advance_travels();
+        if !g.travels.iter().any(|t| t.who == c) { break; }
+    }
+    assert!(g.sites[castle].treasury >= 30.0,
+        "the lord's cut never reached the books: {:.0}", g.sites[castle].treasury);
+}
+
+#[test]
+fn test_a_gift_train_goes_down_with_escorts() {
+    let mut g = Game::new_seeded(7);
+    let ci = g.sites.iter().position(|s| s.kind == SiteKind::Castle).unwrap();
+    let ti = (0..g.sites.len()).find(|&t| g.sites[t].liege == Some(ci)).expect("no tributary");
+    g.sites[ci].treasury = 200.0;
+    // this (castle, tributary) pair's own day
+    let r = (ci * 31 + ti * 7) as u64 % 45;
+    g.country_tick(if r == 0 { 45 } else { r });
+    let runner = g.sites[ci].lord.or(g.sites[ci].carrier).unwrap();
+    let t = g.travels.iter().find(|t| t.who == runner && matches!(t.goal, Goal::Gift(..)))
+        .expect("no gift train rode out");
+    assert!(matches!(t.goal, Goal::Gift(c, tt) if c == ci && tt == ti), "wrong train: {:?}", t.goal);
+    // the guard rides too: castle blades on the same road
+    let escorts = g.travels.iter().filter(|t| matches!(t.goal, Goal::Escort(..))).count();
+    assert!(escorts >= 1, "the train rode unguarded");
+    // and on arrival the tributary's books take the cargo's worth
+    let before = g.sites[ti].treasury;
+    g.arrive(runner, Goal::Gift(ci, ti));
+    assert!(g.sites[ti].treasury > before, "the gift sold for nothing");
+}
+
+#[test]
+fn test_a_rich_castle_remits_to_the_crown() {
+    let mut g = Game::new_seeded(11);
+    let ci = g.sites.iter().position(|s| s.kind == SiteKind::Castle).unwrap();
+    g.sites[ci].treasury = 200.0;
+    let r = (ci as u64 * 11) % 90;
+    g.country_tick(if r == 0 { 90 } else { r });
+    let kept = g.sites[ci].treasury;
+    assert!(kept < 200.0, "the crown's cut never left: {:.0}", kept);
+    assert!(kept >= 40.0 - 0.01, "the reserve went with it: {:.0}", kept);
+    assert!(g.log.iter().any(|l| l.contains("crown")), "the remittance went unsaid");
 }

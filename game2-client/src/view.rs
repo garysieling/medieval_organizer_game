@@ -784,6 +784,21 @@ impl View {
             buf.rect(sx - s / 2, sy - s / 2 - (4.0 * zoom) as i32, s, s, 240, 245, 255);
         }
 
+        // freight on the roads: a wagon at the feet of whoever's driving
+        // - the cart, the levy, the tribute and the gift trains all pull
+        // one; drawn after the sprites so it sits on the lane, underfoot
+        for &(tx, ty) in &m.trains {
+            let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);
+            if off_view(sx, sy, zoom) { continue; }
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            let wy = sy + k(3.0);
+            // the bed, its load, and the two wheels
+            buf.rect(sx - k(4.0), wy - k(3.0), k(8.0), k(2.0), 122, 84, 48);
+            buf.rect(sx - k(2.5), wy - k(4.0), k(5.0), k(1.0), 150, 110, 60);
+            buf.rect(sx - k(4.5), wy - k(1.0), k(1.0), k(1.0), 52, 40, 30);
+            buf.rect(sx + k(3.5), wy - k(1.0), k(1.0), k(1.0), 52, 40, 30);
+        }
+
         // the cause's flyers, nailed up on doors and the market cross
         for &(fx, fy) in &m.flyers {
             let (sx, sy) = iso_to_screen_cam(fx, fy, cam_x, cam_y, zoom);
@@ -1149,9 +1164,20 @@ impl View {
                 country::SiteKind::Monastery => (220, 220, 210),
             };
             buf.rect(x as i32 - 2, y as i32 - 2, 4, 4, r, g, b);
-            let label = match &sv.keeper {
-                Some(k) => format!("{} ({})", sv.name, k),
-                None => sv.name.clone(),
+            // the head's style leads the name ("Earl Godric of
+            // Ravensholt"), the treasury's gold behind it
+            let label = match &sv.head {
+                Some(h) => {
+                    let gold = if sv.treasury >= 1.0 { format!(" ({:.0}g)", sv.treasury) } else { String::new() };
+                    match &sv.keeper {
+                        Some(k) if !h.contains(k.as_str()) => format!("{} of {} ({}){}", h, sv.name, k, gold),
+                        _ => format!("{} of {}{}", h, sv.name, gold),
+                    }
+                }
+                None => match &sv.keeper {
+                    Some(k) => format!("{} ({})", sv.name, k),
+                    None => sv.name.clone(),
+                },
             };
             draw_text(&mut buf, x as i32 + 4, y as i32 - 3, &label, r, g, b);
         }

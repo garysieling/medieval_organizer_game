@@ -187,6 +187,11 @@ visit (hail, drought, aurora...).
 {"text":"A hailstorm batters the thatch","at":null}
 ```
 
+`focus` is the sim's camera ask, or absent: `[x, y, frame]` - where to
+look and the frame it was asked on, so a client can answer each ask
+once (an introduction's name, say). Older servers omit it; read it as
+no ask pending.
+
 `buildings` lists the village's built structures this frame, each a
 `BldgV` - `{"x":12.0,"y":9.0,"sprite":...,"risen":1.0,"derelict":false,
 "smoke":true}`: `risen` runs 0..1 while a building goes up, and `smoke`

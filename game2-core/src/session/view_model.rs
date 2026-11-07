@@ -454,7 +454,7 @@ impl Game {
             poses: self.villager_poses.iter().map(|(&e, &(_, f, w))| (e, f, w))
                 .chain(self.traveller_pos().zip(self.traveller_pos_at(self.frame_n.wrapping_sub(1)))
                     .map(|(now, was)| (0, facing_on_screen(now.0 - was.0, now.1 - was.1), true))).collect(),
-            tick: self.tick, frame: self.frame_n,
+            tick: self.tick, frame: self.frame_n, focus: self.seats[seat].focus,
             map: if with_map { self.map.clone() } else { crate::game::tilemap::TileMap::default() }, town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
             food_yield: world.get_component::<climate::Climate>(self.climate)

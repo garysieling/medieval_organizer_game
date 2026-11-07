@@ -295,6 +295,17 @@ fn main() {
             (None, None) => None,
         };
 
+        // the sim asked the camera somewhere - an introduction's name:
+        // centre on them and lean in, once per ask
+        if let Some(m) = &cur_model {
+            if let Some((fx, fy, ff)) = m.focus {
+                if view.focus_seen.replace(Some(ff)) != Some(ff) {
+                    (view.cam_x, view.cam_y) = session::camera_on(fx, fy);
+                    view.zoom = view.zoom.max(1.5);
+                }
+            }
+        }
+
         if !cam_centered {
             if let Some(m) = &cur_model {
                 if let Some(p) = m.people.iter().find(|p| p.kind == session::PKind::Player) {

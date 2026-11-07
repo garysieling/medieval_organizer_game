@@ -463,7 +463,18 @@ impl Game {
             let p = t.asks[i - n];
             let (pe, oe, name) = (self.seats[seat].player, self.seats[seat].org, t.villager.name.clone());
             let roll = (self.rng.next() % 1000) as f32 / 1000.0;
-            let msg = crate::game::organizing::propose(&mut self.world, pe, oe, who, p, &name, roll, self.tick);
+            let (msg, named) = crate::game::organizing::propose(&mut self.world, pe, oe, who, p, &name, roll, self.tick);
+            // an introduction's name is the one to look at: select them
+            // and ask the camera over
+            if let Some(f) = named {
+                if let Some(i) = self.villagers.iter().position(|&v| v == f) {
+                    self.seats[seat].selected_target = i;
+                    self.seats[seat].picked = true;
+                }
+                if let Some(pos) = self.world.get_component::<villager::Pos>(f) {
+                    self.seats[seat].focus = Some((pos.x, pos.y, self.frame_n));
+                }
+            }
             self.say(who, &msg, 5);
             self.narrate_talk(seat, &msg);
             self.seats[seat].talk.as_mut().unwrap().asks.retain(|a| *a != p);

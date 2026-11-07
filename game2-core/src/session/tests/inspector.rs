@@ -249,3 +249,21 @@ fn test_the_card_says_the_frame_fails() {
     let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
     assert!(bio.contains("failing"), "the frailty never showed: {}", bio);
 }
+
+#[test]
+fn test_a_child_s_card_names_the_errand_they_re_on() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied()
+        .find(|&v| g.world.get_component::<Kid>(v).is_some()).unwrap();
+    let smith = g.villagers.iter().copied()
+        .find(|&v| g.world.get_component::<crate::game::vocation::Craft>(v)
+            .map(|c| c.vocation == crate::game::vocation::Vocation::Toolmaker).unwrap_or(false)).unwrap();
+    let from = g.building_entities[0];
+    g.world.add_component(v, crate::game::livelihood::OddJob {
+        hirer: smith, good: "ale".into(), qty: 2,
+        from, to: from, pay: 1.5, loaded: false });
+    g.seats[0].selected_target = g.villagers.iter().position(|&x| x == v).unwrap();
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("running ale"), "the errand never showed: {}", bio);
+}

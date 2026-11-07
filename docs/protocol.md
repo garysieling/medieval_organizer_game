@@ -176,6 +176,10 @@ same number the inspector's meter shows, and the client floats them over
 each figure's head. Only bonds with warmth worth showing are listed;
 the field is absent from older servers.
 
+`org_members` lists the entities on the viewing seat's org roster (the
+seat's own character excluded) - the client marks a member's name tag
+where their hearts show. The field is absent from older servers.
+
 `inspector` is the card for the current selection: `fig` (the portrait's
 villager index, or `null` for a building or a grave), `kid` (draw the
 portrait with a child's look, not the grown-up one `fig`'s bare index

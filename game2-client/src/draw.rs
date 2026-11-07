@@ -24,6 +24,10 @@ pub(crate) const NAME_IN_REACH: (u8, u8, u8) = (255, 255, 255);
 
 pub(crate) const NAME_OUT_OF_REACH: (u8, u8, u8) = (150, 150, 165);
 
+/// The org mate's pip: a gold that keeps clear of the heart red, the
+/// in-reach white and the ask mark's yellow
+pub(crate) const ORG_GOLD: (u8, u8, u8) = (212, 175, 55);
+
 /// Gravestone colours
 pub(crate) const GRAVE_STONE: (u8, u8, u8) = (135, 135, 145);
 

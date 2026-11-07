@@ -1383,6 +1383,7 @@ impl Game {
                         self.world.add_component(v, crate::sim::community::Citizen {
                             influence: 0.1, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
                         self.world.add_component(v, crate::game::traits::personality_from_seed(trng.next()));
+                        self.world.add_component(v, crate::sim::psychology::personality_from_seed(trng.next()));
                         self.world.add_component(v, crate::game::livelihood::Satchel::default());
                         self.world.add_component(v, desires::Known::default());
                         let voc = crate::session::roll_vocation(&mut trng);

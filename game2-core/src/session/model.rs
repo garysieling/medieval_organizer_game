@@ -296,6 +296,11 @@ pub struct UiModel {
     pub tick: u64,
     /// Animation frame count (mill sails, smoke, the courier's ride)
     pub frame: u32,
+    /// Where the sim last asked the camera to look - (x, y, the frame it
+    /// was asked on): an introduction's name, say. Older servers omit
+    /// it; a client should ignore an absent field.
+    #[serde(default)]
+    pub focus: Option<(f32, f32, u32)>,
     pub map: TileMap,
     pub town_wall: (i32, i32, i32, i32),
     pub season: Season,

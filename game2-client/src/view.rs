@@ -48,6 +48,9 @@ pub struct View {
     /// the keys - widget state like the toggles above
     pub search_q: String,
     pub search_focus: bool,
+    /// The frame stamp of the last sim camera-ask answered, so the same
+    /// ask isn't answered twice
+    pub focus_seen: std::cell::Cell<Option<u32>>,
     /// The ground layer repainted only when stale
     pub(crate) ground: std::cell::RefCell<Option<GroundCache>>,
     /// Ground blocks at the current zoom, as opaque runs (draw_ground):
@@ -79,6 +82,7 @@ impl View {
             ledger_open: false,
             search_q: String::new(),
             search_focus: false,
+            focus_seen: std::cell::Cell::new(None),
             ground: std::cell::RefCell::new(None),
             blocks: std::cell::RefCell::new(BlockCache::default()),
             spare: std::cell::RefCell::new(None),

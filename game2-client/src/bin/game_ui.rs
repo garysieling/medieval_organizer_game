@@ -194,6 +194,10 @@ fn main() {
     let mut view = View::new(art);
     // the camera opens on the player, wherever this seed's village stands
     let mut cam_centered = false;
+    // whether the first model's camera ask has been taken as the baseline:
+    // whatever the world already held was asked before we were watching,
+    // so a reconnect mustn't replay its zoom
+    let mut focus_seeded = false;
     // which match Enter visits next in the find box
     let mut search_at = 0usize;
     // leftover edge-scroll drift too small for the whole-px camera
@@ -294,6 +298,21 @@ fn main() {
             (None, Some(g)) => { g.update(); Some(g.ui_model()) }
             (None, None) => None,
         };
+
+        // the sim asked the camera somewhere - an introduction's name:
+        // centre on them and lean in, once per ask
+        if let Some(m) = &cur_model {
+            if !focus_seeded {
+                view.focus_seen.set(m.focus.map(|f| f.2));
+                focus_seeded = true;
+            }
+            if let Some((fx, fy, ff)) = m.focus {
+                if view.focus_seen.replace(Some(ff)) != Some(ff) {
+                    (view.cam_x, view.cam_y) = session::camera_on(fx, fy);
+                    view.zoom = view.zoom.max(1.5);
+                }
+            }
+        }
 
         if !cam_centered {
             if let Some(m) = &cur_model {

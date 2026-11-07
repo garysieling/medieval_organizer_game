@@ -83,7 +83,7 @@ fn call_meeting_if_earned(game: &mut Game, seat: usize, ready: &[usize], last_as
     let (pe, tick) = (game.seats[seat].player, game.tick);
     let roll = driver_roll(tick.wrapping_mul(0x1000_0001) ^ v as u64);
     let name = game2_core::session::vill_name(i);
-    let msg = propose(&mut game.world, pe, oe, v, p, name, roll, tick);
+    let (msg, _) = propose(&mut game.world, pe, oe, v, p, name, roll, tick);
     game.log.push(format!("t{}: {}", tick, msg));
     true
 }

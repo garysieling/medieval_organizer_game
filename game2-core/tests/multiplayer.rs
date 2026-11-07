@@ -6,7 +6,7 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use game2_core::server::{serve, ServerConfig, ServerHandle};
-use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, SceneCache, ServerMsg, MAP_SEED};
+use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, PKind, SceneCache, ServerMsg, UiModel, MAP_SEED};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
@@ -532,5 +532,137 @@ fn a_scene_carries_each_toasts_announcement_frame() {
     assert_eq!(again, first.born, "the stamp moved between scenes");
     // and the JSON itself carries the field, not just the parsed model
     assert!(raw.contains("\"born\":"), "the stamp's not on the wire");
+    server.stop();
+}
+
+/// Who `i` is on the scene, when it's one of the villagers
+fn villager(s: &UiModel, i: usize) -> Option<&game2_core::session::PersonV> {
+    s.people.iter().find(|p| p.kind == PKind::Villager(i))
+}
+
+/// A grown villager the seat can still press: alive, not a child, not
+/// already shown to have nobody to name
+fn pressable(s: &UiModel, i: usize, gave_up: &[usize]) -> bool {
+    !gave_up.contains(&i)
+        && villager(s, i).map(|p| !p.dead && !p.kid).unwrap_or(false)
+}
+
+/// The next ear to bend: someone already in reach if there's one, else
+/// the nearest grown villager the approach can walk to
+fn next_ear(s: &UiModel, gave_up: &[usize]) -> Option<usize> {
+    if let Some(&i) = s.reach.iter().find(|&&i| pressable(s, i, gave_up)) { return Some(i); }
+    let pp = s.people.iter().find(|p| p.kind == PKind::Player).map(|p| p.pos)?;
+    s.people.iter().filter_map(|p| match p.kind {
+        PKind::Villager(i) if pressable(s, i, gave_up) => {
+            Some((i, (p.pos.0 - pp.0).powi(2) + (p.pos.1 - pp.1).powi(2)))
+        }
+        _ => None,
+    }).min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)).map(|(i, _)| i)
+}
+
+#[test]
+fn an_introduction_over_the_wire_asks_the_camera_over() {
+    let server = start(None);
+    let mut me = connect(server.addr);
+    hello(&mut me, None, ClientKind::Human);
+    // a second seat: the ask is delivered to its own seat alone
+    let mut other = connect(server.addr);
+    hello(&mut other, None, ClientKind::Human);
+    // turbo: days fly by, and the bond still only deepens one talk a day
+    send(&mut me, &ClientMsg::Command(Command::ToggleSpeed));
+
+    // play the organizer: bend ears until somebody names a friend. The
+    // asks only surface once they've told you a thing about themself, so
+    // a target gets a real stretch of one-on-ones before it's given up on
+    let mut target: Option<usize> = None;
+    let mut gave_up: Vec<usize> = vec![];
+    let mut talks = 0u32;
+    let mut picks = 0u32;
+    let mut asks = 0u32;
+    let mut in_talk = false;
+    let mut acted_at = Instant::now() - Duration::from_secs(60);
+    let mut asked_at = Instant::now() - Duration::from_secs(60);
+    let mut asked_for: Option<usize> = None;
+    let deadline = Instant::now() + Duration::from_secs(240);
+    let mut focus = None;
+
+    while Instant::now() < deadline {
+        let scene = match read_text(&mut me) {
+            Got::Msg(t) if t.starts_with("{\"Scene\"") =>
+                serde_json::from_str::<ServerMsg>(&t).ok().and_then(|m| match m {
+                    ServerMsg::Scene(s) => Some(*s), _ => None,
+                }),
+            Got::Closed => panic!("the server let go mid-test"),
+            _ => None,
+        };
+        let Some(s) = scene else { continue };
+        if s.focus.is_some() { focus = s.focus; break; }
+        // scenes stream a hundred times a second: act on a heartbeat
+        if acted_at.elapsed() < Duration::from_millis(350) { continue; }
+        acted_at = Instant::now();
+
+        match s.convo.as_ref().filter(|c| c.leave) {
+            Some(c) => {
+                if !in_talk { in_talk = true; picks = 0; talks += 1; }
+                // they opened up but hadn't a friend to name: this ear's
+                // dry, so move on to the next one
+                if c.rows.iter().any(|r| r.text.contains("can't think of anyone")) {
+                    if let Some(t) = target { gave_up.push(t); }
+                    target = None;
+                    send(&mut me, &ClientMsg::Command(Command::TalkPick(None)));
+                    in_talk = false;
+                    continue;
+                }
+                let pos = |needle: &str| c.options.iter().position(|o| o.contains(needle));
+                // the introduction itself, else spend the come-along so the
+                // introduction leads the asks, else press on a reply
+                let pick = pos("who you should talk to next")
+                    .or_else(|| pos("come to a meeting"))
+                    .or_else(|| (!c.options.is_empty() && picks < 14).then_some(0));
+                match pick {
+                    Some(i) => { picks += 1; send(&mut me, &ClientMsg::Command(Command::TalkPick(Some(i)))); }
+                    None => { in_talk = false; send(&mut me, &ClientMsg::Command(Command::TalkPick(None))); }
+                }
+            }
+            None => {
+                in_talk = false;
+                // a target that never gave up the secret or the name gets
+                // a real stretch before the next ear is tried
+                if target.is_some() && talks > 30 { gave_up.push(target.unwrap()); target = None; talks = 0; asks = 0; }
+                if target.is_none() {
+                    target = next_ear(&s, &gave_up);
+                    talks = 0;
+                    asks = 0;
+                    asked_for = None;
+                }
+                let Some(t) = target else { continue };
+                // in reach it's a fresh talk at once; further off it walks
+                // over first - ask again only if the approach has had its
+                // time to arrive or fail, and give up on one that never
+                // comes to the door
+                if asked_for != Some(t) || asked_at.elapsed() > Duration::from_secs(12) {
+                    asked_for = Some(t);
+                    asked_at = Instant::now();
+                    asks += 1;
+                    if asks > 4 {
+                        gave_up.push(t);
+                        target = None;
+                        talks = 0;
+                        asks = 0;
+                        asked_for = None;
+                        continue;
+                    }
+                    send(&mut me, &ClientMsg::Command(Command::Select(t)));
+                    send(&mut me, &ClientMsg::Command(Command::Act(0)));
+                }
+            }
+        }
+    }
+    assert!(focus.is_some(), "no introduction landed in the test's time");
+    // and the ask went to this seat alone
+    let theirs = until("the other seat's scene", &mut other, 10, |m, _| match m {
+        ServerMsg::Scene(s) => Some(s.focus), _ => None,
+    });
+    assert!(theirs.is_none(), "the camera ask leaked to another seat");
     server.stop();
 }

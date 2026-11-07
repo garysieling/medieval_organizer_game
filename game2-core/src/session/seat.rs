@@ -125,6 +125,9 @@ pub struct Seat {
     pub mystery_wait: u64,
     /// The last mystery dealt, so the same one doesn't come round twice
     pub mystery_last: usize,
+    /// Where the sim last asked the camera to look - (x, y, the frame it
+    /// was asked on), so a client can tell a new ask from a repeated one
+    pub focus: Option<(f32, f32, u32)>,
     /// Where the character stood last frame, which way they face (0 up,
     /// 1 right, 2 down, 3 left on screen) and whether they moved: drives
     /// the walk cycle
@@ -138,7 +141,7 @@ impl Default for Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
-               mystery_last: usize::MAX, last_pos: None, facing: 2, walking: false }
+               mystery_last: usize::MAX, focus: None, last_pos: None, facing: 2, walking: false }
     }
 }
 

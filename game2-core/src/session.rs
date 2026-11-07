@@ -355,6 +355,8 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Give => Button { label: "Give".into(), key: ' ', x: UI_X as i32 + 76, y: 438, w: 62, h: 16, color: (100, 140, 90) },
         // the sale shares the big row's left half with Gather's
         CtxAct::Buy => Button { label: "Buy".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (140, 120, 60) },
+        // the kind hand shares Pet her's slot on the big row's right half
+        CtxAct::Tame => Button { label: "Stroke it".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 130, h: 30, color: (110, 90, 120) },
     }
 }
 
@@ -975,6 +977,9 @@ pub struct Game {
     /// Each animal's own spot of grass and the frame it picks the next
     /// one: the flock grazes as individuals, not in lockstep
     pub flock_wander: crate::engine::det::HashMap<Entity, (f32, f32, u32)>,
+    /// An animal needs a moment between strokes - frame it's pettable
+    /// again, like the stray cat's own beat
+    pub pet_cool: crate::engine::det::HashMap<Entity, u64>,
     pub next_graze: u64,
     /// Yard hens and the homes they scratch about
     pub hens: Vec<Entity>,
@@ -1705,6 +1710,24 @@ impl Game {
                 }
             }
             drop(_tail);
+        }
+        // a tamed animal's feet are its own now: it trails the seat that
+        // won it - close, but never underfoot
+        for &(e, _, _) in &self.pets.clone() {
+            let Some(owner) = self.world.get_component::<Pet>(e).and_then(|p| p.owner) else { continue };
+            let (Some(op), Some(ap)) = (self.world.get_component::<Pos>(owner).copied(),
+                                        self.world.get_component::<Pos>(e).copied()) else { continue };
+            let (dx, dy) = (op.x - ap.x, op.y - ap.y);
+            let d = (dx * dx + dy * dy).sqrt();
+            if d <= 2.5 { continue; }
+            let step = (0.03 + (e % 5) as f32 * 0.004 + self.rng.below(4) as f32 * 0.002).min(d - 1.2).max(0.0);
+            let (sx, sy) = (dx / d * step, dy / d * step);
+            // a wall in the way slides her along it rather than stands her
+            let (nx, ny) = if self.walkable(ap.x + sx, ap.y + sy) { (ap.x + sx, ap.y + sy) }
+                else if self.walkable(ap.x + sx, ap.y) { (ap.x + sx, ap.y) }
+                else if self.walkable(ap.x, ap.y + sy) { (ap.x, ap.y + sy) }
+                else { continue };
+            if let Some(p) = self.world.get_component_mut::<Pos>(e) { p.x = nx; p.y = ny; }
         }
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);

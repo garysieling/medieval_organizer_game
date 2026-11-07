@@ -432,6 +432,11 @@ impl Game {
         if self.stray_cat_at(seat).is_some() {
             self.seats[seat].ctx_actions.push(CtxAct::PetCat);
         }
+        // and a fold beast or yard hen in reach takes the kind hand too -
+        // it shares her slot, and wins it when they're both about
+        if self.tame_animal_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::Tame);
+        }
         // caps in the shade: standing by a flushed patch offers the
         // picking - and what the belly's learned shows up in why it won't
         if let Some(pi) = self.shroom_patch_at(seat) {
@@ -998,6 +1003,7 @@ impl Game {
             CtxAct::TakeJob => self.accept_quest_at(seat),
             CtxAct::ShareFindings => self.mystery_deliver_at(seat),
             CtxAct::PetCat => self.pet_stray_cat_at(seat),
+            CtxAct::Tame => self.tame_stroke_at(seat),
             CtxAct::Snowballs => self.snowball_fight_at(seat),
             CtxAct::Flyers => self.flyers_at(seat),
             CtxAct::Douse => self.player_douse_at(seat),
@@ -1173,6 +1179,95 @@ impl Game {
             self.log.push(format!("t{}: the stray cat winds round your ankles.", tick));
         } else if was < 0.5 && now >= 0.5 {
             self.log.push(format!("t{}: she purrs under your hand - she's warming to you.", tick));
+        }
+        String::new()
+    }
+
+    /// The animal the Stroke button reaches for: the nearest tameable
+    /// beast within reach - a sheep or goat of the fold, a yard hen, or
+    /// a straying pet nobody owns - that's not already yours. The stray
+    /// cat keeps her own event's button. None when the seat already
+    /// trails three
+    fn tame_animal_at(&self, seat: usize) -> Option<(Entity, Species)> {
+        let pe = self.seats[seat].player;
+        let (px, py) = self.player_pos_at(seat);
+        let mine = self.pets.iter().filter(|(e, _, _)| {
+            self.world.get_component::<Pet>(*e)
+                .map(|p| p.owner == Some(pe)).unwrap_or(false)
+        }).count();
+        if mine >= 3 { return None; }
+        let stray = self.rare.iter().find(|r| r.id == events::EventId::StrayCat)
+            .and_then(|r| r.e);
+        let near = |e: Entity| {
+            if Some(e) == stray { return false; }
+            let owned = self.world.get_component::<Pet>(e)
+                .map(|p| p.owner.is_some()).unwrap_or(false);
+            if owned { return false; }
+            self.world.get_component::<Pos>(e)
+                .map(|p| ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt() <= 4.0)
+                .unwrap_or(false)
+        };
+        self.flock.iter().copied().filter(|&a| near(a))
+            .filter_map(|a| self.world.get_component::<crate::game::livestock::Livestock>(a)
+                .map(|l| (a, if l.kind == crate::game::livestock::LivestockKind::Sheep { Species::Sheep } else { Species::Goat })))
+            .chain(self.hens.iter().copied().filter(|&a| near(a)).map(|a| (a, Species::Chicken)))
+            .chain(self.pets.iter()
+                .filter(|&&(e, _, _)| near(e))
+                .filter_map(|&(e, _, _)| self.world.get_component::<Pet>(e).map(|p| (e, p.species))))
+            .min_by(|a, b| {
+                let d = |e: Entity| self.world.get_component::<Pos>(e)
+                    .map(|p| (p.x - px).powi(2) + (p.y - py).powi(2)).unwrap_or(f32::MAX);
+                d(a.0).partial_cmp(&d(b.0)).unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
+
+    /// Stroke the animal till it leaves the fold: the stray cat's own
+    /// rhythm - a little warmth a stroke, a moment between, and at the
+    /// threshold it's yours and follows. The log line is the caller's;
+    /// "" stays quiet
+    fn tame_stroke_at(&mut self, seat: usize) -> String {
+        let tick = self.tick;
+        let Some((e, species)) = self.tame_animal_at(seat) else { return String::new() };
+        let cooling = self.pet_cool.get(&e).copied().unwrap_or(0) > self.frame_n as u64;
+        if cooling { return String::new() }
+        // a fold beast or a yard hen isn't a Pet yet - the first stroke
+        // makes it one
+        if self.world.get_component::<Pet>(e).is_none() {
+            let name = match species {
+                Species::Sheep => "the sheep",
+                Species::Goat => "the goat",
+                Species::Chicken => "the hen",
+                _ => "the stray",
+            };
+            self.world.add_component(e, Pet {
+                name: name.into(), species, owner: None,
+                bond_strength: 0.0, mood_effect: 0.3 });
+        }
+        let (was, now) = self.world.get_component::<Pet>(e)
+            .map(|p| (p.bond_strength, (p.bond_strength + events::STRAY_CAT_PET_BOND).min(1.0)))
+            .unwrap_or((0.0, 0.0));
+        if let Some(p) = self.world.get_component_mut::<Pet>(e) { p.bond_strength = now; }
+        self.pet_cool.insert(e, self.frame_n as u64 + events::STRAY_CAT_PET_COOLDOWN);
+        self.say(e, "*noses your hand*", 2);
+        if was <= 0.0 {
+            self.log.push(format!("t{}: {} lets you near.", tick, match species {
+                Species::Sheep => "the sheep", Species::Goat => "the goat",
+                Species::Chicken => "the hen", _ => "the stray" }));
+        }
+        if now >= events::STRAY_CAT_TAME_BOND {
+            let pe = self.seats[seat].player;
+            pets::adopt(&mut self.world, e, pe);
+            self.flock.retain(|&a| a != e);
+            self.hens.retain(|&a| a != e);
+            self.flock_wander.remove(&e);
+            // she stops being a beast of the fold: the shepherd leaves
+            // her be, the wool count forgets her
+            self.world.remove_component::<crate::game::livestock::Livestock>(e);
+            self.pets.push((e, species, (0.6, 0.4)));
+            let name = self.world.get_component::<Pet>(e).map(|p| p.name.clone()).unwrap_or_else(|| "it".into());
+            self.log.push(format!("t{}: {} leaves the fold and follows you.", tick, name));
+            self.toasts.push((format!("{} is yours", name), self.tick));
+            return format!("{} warms to you - it follows now.", name);
         }
         String::new()
     }

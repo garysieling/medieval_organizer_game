@@ -265,9 +265,14 @@ impl Game {
             label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         for (pet_e, species, (ox, oy)) in &self.pets {
             if let Some(pet) = world.get_component::<Pet>(*pet_e) {
-                if let Some(p) = world.get_component::<Pos>(pet.owner.unwrap_or(self.villagers[0])) {
+                // a tamed animal has feet of its own - it draws where it
+                // stands; a hearth pet stays tucked by its owner's side
+                let at = world.get_component::<Pos>(*pet_e).map(|p| (p.x, p.y))
+                    .or_else(|| world.get_component::<Pos>(pet.owner.unwrap_or(self.villagers[0]))
+                        .map(|p| (p.x + ox, p.y + oy)));
+                if let Some((x, y)) = at {
                     people.push(PersonV { e: *pet_e, kind: PKind::Pet(*species),
-                        pos: (p.x + ox, p.y + oy), label: None, dead: false, kid: false,
+                        pos: (x, y), label: None, dead: false, kid: false,
                         selected: false, in_reach: false, hungry: false, sick: false,
                         act_mark: 0, bond: pet.bond_strength > 0.5, look: 0, find: String::new() });
                 }

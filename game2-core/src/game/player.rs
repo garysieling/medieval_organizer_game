@@ -74,7 +74,15 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity, day: u64) -> 
     }
     let mut rap = world.get_component::<Rapport>(target).cloned().unwrap_or_default();
     let rapport = rap.by_player.get(&player).copied().unwrap_or(0.0);
-    rap.by_player.insert(player, (rapport + TALK_RAPPORT_STEP).min(1.0));
+    // a bonded pet at heel softens the talk - what a word earns warms a
+    // little when the village's beasts trust you
+    let pet_charmed = world.query::<crate::game::pets::Pet>().iter().any(|&e| {
+        world.get_component::<crate::game::pets::Pet>(e)
+            .map(|p| p.owner == Some(player) && p.bond_strength >= crate::game::pets::COMFORT_BOND)
+            .unwrap_or(false)
+    });
+    let charm = if pet_charmed { 1.2 } else { 1.0 };
+    rap.by_player.insert(player, (rapport + TALK_RAPPORT_STEP * charm).min(1.0));
     world.add_component(target, rap);
     let mut count = world.get_component::<TalkCount>(target).cloned().unwrap_or_default();
     let last_day = count.last_day_by.get(&player).copied().unwrap_or(u64::MAX);
@@ -85,7 +93,8 @@ pub fn act_talk(world: &mut World, player: Entity, target: Entity, day: u64) -> 
     // player's first real talk that day deepens the bond
     if last_day != day {
         record_interaction(world, player, Interaction {
-            other: target, kind: InteractionKind::Conversation, intensity: (1.0 - rapport).max(TALK_MAINTENANCE),
+            other: target, kind: InteractionKind::Conversation,
+            intensity: ((1.0 - rapport).max(TALK_MAINTENANCE)) * charm,
         });
     }
     ActionResult {

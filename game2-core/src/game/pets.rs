@@ -21,6 +21,7 @@ pub enum Species {
     Horse,
     Chicken,
     Goat,
+    Sheep,
 }
 
 /// Pet utility: what they help with

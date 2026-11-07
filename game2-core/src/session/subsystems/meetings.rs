@@ -457,7 +457,14 @@ impl Game {
             // Only some meetings get a bubble - every pair passing a remark was
             // a constant stream of chatter (the chat still counts either way)
             let n = self.last_chat.len() + (a as usize) + tick as usize;
-            if n % 3 == 0 {
+            // a friendly animal at heel gets you greeted more: folk warm
+            // to the one the village's own beasts trust
+            let pet_charmed = self.pets.iter().any(|(e, _, _)| {
+                self.world.get_component::<Pet>(*e)
+                    .map(|p| p.owner == Some(self.player) && p.bond_strength >= pets::COMFORT_BOND)
+                    .unwrap_or(false)
+            });
+            if n % if pet_charmed { 2 } else { 3 } == 0 {
                 // two villagers hold a whole conversation - on the record
                 // for the TALK panel, not floated over the street
                 // (session::dialogue); the player gets a word in passing -

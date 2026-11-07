@@ -89,7 +89,7 @@ mod tests {
     fn obs() -> AgentObs {
         AgentObs {
             tick: 0, you: 1, pos: (0.0, 0.0), gold: 10.0, hunger: 80.0,
-            busy: Some("Idle".into()), near: vec![], near_buildings: vec![],
+            busy: Some("Idle".into()), near: vec![], near_animals: vec![], near_buildings: vec![],
             satchel: vec![], walking: false, held: false,
             orgs: vec![], campaigns: vec![], burning: vec![], me: Default::default(),
         }
@@ -99,7 +99,7 @@ mod tests {
     fn test_the_driver_talks_to_whos_near_and_stands_down_when_held() {
         let mut o = obs();
         // company nearby and idle on a talk day: a word before the work
-        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 3.0, dead: false });
+        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 3.0, dead: false, job_offer: None });
         assert!(matches!(drive_agent(&o), AgentCmd::TalkTo { e: 9 }));
         // but not every day - the bench gets its days too
         o.tick = 1;
@@ -109,7 +109,7 @@ mod tests {
         o.near.clear();
         assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
         // too far to talk across: the bench still gets the day
-        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 10.0, dead: false });
+        o.near.push(ObsPerson { e: 9, name: "Watt".into(), dist: 10.0, dead: false, job_offer: None });
         assert!(matches!(drive_agent(&o), AgentCmd::WorkDay));
         // the dead don't make company
         o.near[0].dead = true;

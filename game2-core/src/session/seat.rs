@@ -236,6 +236,60 @@ impl Game {
                 .map(|c| vocation::is_pmc(c.vocation)).unwrap_or(false))
     }
 
+    /// Run a villager agent's contextual action through the same availability
+    /// and blocker checks used by the player context menu.
+    fn agent_context_action(
+        &mut self,
+        seat: usize,
+        action: AgentAction,
+        target: Option<Entity>,
+    ) -> Result<(), String> {
+        let who = self.seats.get(seat).map(|s| s.player)
+            .ok_or_else(|| "no such seat".to_string())?;
+        if target.is_none() && matches!(action,
+            AgentAction::TakeJob | AgentAction::Recruit | AgentAction::Matchmake
+                | AgentAction::Errand | AgentAction::PairUp | AgentAction::ShareFindings | AgentAction::Pact) {
+            return Err("that action needs a target".into());
+        }
+        let target = target.unwrap_or(who);
+        let target_index = self.villagers.iter().position(|&v| v == target)
+            .ok_or_else(|| "target isn't a villager".to_string())?;
+        let ctx = match action {
+            AgentAction::TakeJob => CtxAct::TakeJob,
+            AgentAction::Douse => CtxAct::Douse,
+            AgentAction::Tame => CtxAct::Tame,
+            AgentAction::Recruit => CtxAct::Recruit,
+            AgentAction::Matchmake => CtxAct::Matchmake,
+            AgentAction::Errand => CtxAct::Errand,
+            AgentAction::PairUp => CtxAct::PairUp,
+            AgentAction::ShareFindings => CtxAct::ShareFindings,
+            AgentAction::PickCaps => CtxAct::PickCaps,
+            AgentAction::Snowballs => CtxAct::Snowballs,
+            AgentAction::PetCat => CtxAct::PetCat,
+            AgentAction::Pact => CtxAct::Pact,
+        };
+        let old_target = self.seats[seat].selected_target;
+        let old_building = self.seats[seat].selected_building;
+        let old_actions = self.seats[seat].ctx_actions.clone();
+        self.seats[seat].selected_target = target_index;
+        self.seats[seat].selected_building = None;
+        self.update_ctx_actions_at(seat);
+        let result = if let Some(i) = self.seats[seat].ctx_actions.iter().position(|&a| a == ctx) {
+            if let Some(reason) = self.ctx_blocker_at(seat, ctx) {
+                Err(reason)
+            } else {
+                self.ctx_act_at(seat, i);
+                Ok(())
+            }
+        } else {
+            Err("that action isn't available here".to_string())
+        };
+        self.seats[seat].selected_target = old_target;
+        self.seats[seat].selected_building = old_building;
+        self.seats[seat].ctx_actions = old_actions;
+        result
+    }
+
     /// What an agent asks its villager to do. Maps to the same travel/goal
     /// machinery the village's own errands use, so nothing happens until the
     /// walking is done - arrival triggers the trade, the chat, the gather.
@@ -341,6 +395,7 @@ impl Game {
                 crate::game::dungeon::press(&mut self.world, prisoner, 0.1);
                 Ok(())
             }
+            AgentCmd::Context { action, target } => self.agent_context_action(seat, action, target),
         }
     }
 

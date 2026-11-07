@@ -103,6 +103,20 @@ Walks and errands for the agent's villager; each gets a `CmdDone`.
 `FetchInput` gets the raw good the bench is short of (`me.needs` in `Obs`):
 the villager's own errand, which sends a kid or walks to where it's had.
 
+Use `Context` for a villager-scale contextual action. The optional target is
+one of the nearby villager entity IDs from `Obs.near`; actions such as Douse
+and Tame use the agent's position and don't need a target.
+
+```json client
+{"AgentCmd":{"Context":{"action":"Douse","target":null}}}
+```
+
+Available actions are `TakeJob`, `Douse`, `Tame`, `Recruit`, `Matchmake`,
+`Errand`, `PairUp`, `ShareFindings`, `PickCaps`, `Snowballs`, `PetCat`, and
+`Pact`. The server checks the same context availability and blockers as the
+player menu. Campaign leadership actions remain player-only; the agent
+surface does not include meeting, march, delegation, strike, or hall controls.
+
 Also: `"Idle"`, `"WorkDay"`, `"JoinOrg"`, `{"TalkTo":{"e":51}}`,
 `{"BuyAt":{"shop":37,"good":"bread"}}`,
 `{"Gather":{"good":"wood","x":40,"y":12}}`, `{"Press":{"prisoner":61}}`.
@@ -357,7 +371,8 @@ and (in `me`) its own trade, home, bench and wants.
 
 ```json obs
 {"tick":0,"you":49,"pos":[15.38,11.0],"gold":19.4,"hunger":100.0,"busy":"Idle",
- "near":[{"e":74,"name":"Greta","dist":0.7,"dead":false}],
+ "near":[{"e":74,"name":"Greta","dist":0.7,"dead":false,"job_offer":null}],
+ "near_animals":[],
  "near_buildings":[{"e":37,"name":"the bakery","kind":"shop","dist":2.0}],
  "satchel":[["bread",2]],"walking":false,"held":false,"orgs":[],"campaigns":[],"burning":[],
  "me":{"trade":"baker","level":"Journeyman","home":15,"bench":37,"bench_stock":[["bread",4]],
@@ -369,6 +384,10 @@ home and bench (entities, as `near_buildings` and `AgentCmd` use them), the
 bench's shelf, the raw good the trade is short of (`needs`: go and get it),
 and the wants they haven't met. It's only their own; nobody else's wants
 appear.
+
+People in `near` include `job_offer` when they have a current odd job to take.
+`near_animals` lists nearby flock and yard animals with their position and
+whether the agent can tame them.
 
 ### CmdDone, Denied, Pong
 

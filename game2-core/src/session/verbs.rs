@@ -524,7 +524,8 @@ impl Game {
                 .map(|o| o.resources >= crate::game::organizing::HALL_REPAIR_COST).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::MendHall);
         }
-        if self.seats[seat].selected_building.is_none() && self.seats[seat].picked {
+        if self.seats[seat].selected_building.is_none()
+            && (self.seats[seat].picked || self.seats[seat].agent) {
             let v = self.villagers[self.seats[seat].selected_target];
             if !crate::game::villager::is_dead(&self.world, v) {
                 if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {

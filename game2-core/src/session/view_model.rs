@@ -1248,15 +1248,36 @@ impl Game {
                 let q = self.world.get_component::<Pos>(*v)?;
                 let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
                 (d < 8.0).then(|| ObsPerson { e: *v, name: vill_name(i).to_string(), dist: d,
-                    dead: villager::is_dead(&self.world, *v) })
+                    dead: villager::is_dead(&self.world, *v),
+                    job_offer: self.quest_offer_at(*v).map(|q| format!("{:?}", q.kind)) })
             }).collect();
         for s in self.seats.iter().filter(|s| !s.agent) {
             if s.player == who { continue; }
             if let Some(q) = self.world.get_component::<Pos>(s.player) {
                 let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
-                if d < 8.0 { near.push(ObsPerson { e: s.player, name: "a wanderer".into(), dist: d, dead: false }); }
+                if d < 8.0 { near.push(ObsPerson { e: s.player, name: "a wanderer".into(), dist: d,
+                    dead: false, job_offer: None }); }
             }
         }
+        let owned_pets = self.world.query::<crate::game::pets::Pet>().iter()
+            .filter(|&&e| self.world.get_component::<crate::game::pets::Pet>(e).map(|p| p.owner == Some(who)).unwrap_or(false))
+            .count();
+        let mut animals: Vec<Entity> = self.flock.iter().chain(self.hens.iter()).copied().collect();
+        animals.extend(self.pets.iter().map(|(e, _, _)| *e));
+        animals.sort_unstable();
+        animals.dedup();
+        let near_animals = animals.into_iter().filter_map(|e| {
+            let q = self.world.get_component::<Pos>(e)?;
+            let dist = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
+            if dist >= 8.0 { return None; }
+            let pet = self.world.get_component::<crate::game::pets::Pet>(e);
+            let kind = self.world.get_component::<crate::game::livestock::Livestock>(e)
+                .map(|l| format!("{:?}", l.kind))
+                .or_else(|| self.hens.contains(&e).then(|| "Chicken".into()))
+                .or_else(|| pet.map(|p| format!("{:?}", p.species)))?;
+            Some(ObsAnimal { e, kind, pos: (q.x, q.y), dist,
+                tameable: owned_pets < 3 && pet.map(|p| p.owner.is_none()).unwrap_or(true) })
+        }).collect();
         let near_buildings: Vec<ObsBuilding> = self.building_entities.iter().filter_map(|be| {
             let q = self.world.get_component::<Pos>(*be)?;
             let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)).sqrt();
@@ -1318,7 +1339,7 @@ impl Game {
         };
         Some(AgentObs {
             tick: self.tick, you: who, pos: (p.x, p.y), gold, hunger, busy,
-            near, near_buildings, satchel,
+            near, near_animals, near_buildings, satchel,
             walking: self.travels.iter().any(|t| t.who == who),
             held, orgs, campaigns, burning, me,
         })

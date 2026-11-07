@@ -196,8 +196,9 @@ fn test_a_bucket_on_the_flames_puts_it_out() {
     g.fire.ignite(&g.map, fx, fy, g.tick);
     let v = g.villagers.iter().copied().find(|&v|
         !villager::is_dead(&g.world, v) && g.world.get_component::<Kid>(v).is_none()).unwrap();
-    // she stands a pace from the flames with a full pail
+    // she stands a pace from the flames with a full pail, on the line
     *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: (fx + 1) as f32, y: fy as f32 };
+    g.fire_crew.push(v);
     g.arrive(v, Goal::DouseFire((fx, fy)));
     assert!(!g.fire.on_fire(fx, fy), "one bucket, one tile out");
     assert!(g.fire.is_doused(fx, fy, g.tick), "and the ground stays wet");

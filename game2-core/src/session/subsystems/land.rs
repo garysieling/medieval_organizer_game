@@ -292,10 +292,21 @@ impl Game {
             }
             return;
         }
-        // the dead and the held fall off the line
-        self.fire_crew.retain(|&v| !villager::is_dead(&self.world, v)
-            && !crate::game::dungeon::unavailable(&self.world, v)
-            && !self.fire_spent.contains(&v));
+        // the dead, the held and the claimed fall off the line - buckets
+        // and all, so a seat's own villager walks where its master says
+        let mut dropped = vec![];
+        self.fire_crew.retain(|&v| {
+            let keep = !villager::is_dead(&self.world, v)
+                && !crate::game::dungeon::unavailable(&self.world, v)
+                && !self.seats.iter().any(|s| s.player == v)
+                && !self.fire_spent.contains(&v);
+            if !keep { dropped.push(v); }
+            keep
+        });
+        for v in dropped {
+            self.travels.retain(|t| t.who != v
+                || !matches!(t.goal, Goal::FillBucket | Goal::DouseFire(_)));
+        }
         // hands with nothing under way take up the bucket again
         let idle: Vec<Entity> = self.fire_crew.iter().copied()
             .filter(|&v| !self.travels.iter().any(|t| t.who == v)).collect();
@@ -334,6 +345,9 @@ impl Game {
         if self.world.get_component::<Kid>(v).is_some() { return false; }
         if self.world.get_component::<country::Outlander>(v).is_some() { return false; }
         if self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false) { return false; }
+        // a seat's own villager walks where its master says - the line
+        // doesn't commandeer them
+        if self.seats.iter().any(|s| s.player == v) { return false; }
         !self.travels.iter().any(|t| t.who == v && matches!(t.goal,
             Goal::CollectTax(_) | Goal::Cart(_) | Goal::Levy(..) | Goal::Deliver(_) | Goal::Remit(_)))
     }
@@ -362,10 +376,10 @@ impl Game {
         self.send(v, Goal::FillBucket)
     }
 
-    /// The bank tile nearest `from`: dry ground beside the water - where
-    /// a bucket gets filled. The banks are scanned once and kept; the
+    /// The bank tiles beside the water, nearest `from` first - where a
+    /// bucket gets filled. The banks are scanned once and kept; the
     /// river doesn't move
-    pub(in crate::session) fn fire_bank_near(&mut self, from: (i32, i32)) -> Option<(i32, i32)> {
+    fn fire_banks_near(&mut self, from: (i32, i32)) -> Vec<(i32, i32)> {
         if self.fire_banks.is_none() {
             let mut banks = vec![];
             for y in 0..self.map.height as i32 {
@@ -381,20 +395,36 @@ impl Game {
             banks.dedup();
             self.fire_banks = Some(banks);
         }
-        self.fire_banks.as_ref()?.iter().copied()
-            .filter(|&(x, y)| self.map.passable(x, y))
-            .min_by_key(|&(x, y)| ((x - from.0).abs() + (y - from.1).abs(), x, y))
+        let mut banks: Vec<(i32, i32)> = self.fire_banks.as_ref().unwrap().iter().copied()
+            .filter(|&(x, y)| self.map.passable(x, y)).collect();
+        banks.sort_by_key(|&(x, y)| ((x - from.0).abs() + (y - from.1).abs(), x, y));
+        banks
+    }
+
+    /// The nearest bank `from` can actually walk to within the line's
+    /// reach - a bank across the river isn't close for being near. The
+    /// candidates are tried in distance order and the first with a path
+    /// wins; `send` finds the same answer in its memo
+    pub(in crate::session) fn fire_bank_walkable(&mut self, from: (i32, i32)) -> Option<(i32, i32)> {
+        self.fire_banks_near(from).into_iter()
+            .filter(|&(x, y)| (x - from.0).abs() + (y - from.1).abs() <= BUCKET_REACH)
+            .find(|&b| self.walk_memo(from, b).is_some())
     }
 
     /// Where `who` stands to throw water on burning tile `t`: the
-    /// nearest dry neighbour - they don't stand in the flames. The tile
+    /// nearest dry neighbour `from` can walk to - they don't stand in
+    /// the flames, and a side they can't reach doesn't count. The tile
     /// itself only when nothing beside it will do
-    pub(in crate::session) fn douse_spot(&self, t: (i32, i32), from: (i32, i32)) -> Option<(i32, i32)> {
-        [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)].iter()
+    pub(in crate::session) fn douse_spot_walkable(&mut self, t: (i32, i32), from: (i32, i32)) -> Option<(i32, i32)> {
+        let mut spots: Vec<(i32, i32)> = [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(-1,1),(1,-1),(1,1)].iter()
             .map(|&(dx, dy)| (t.0 + dx, t.1 + dy))
             .filter(|&(x, y)| self.map.passable(x, y))
-            .min_by_key(|&(x, y)| ((x - from.0).abs() + (y - from.1).abs(), x, y))
-            .or_else(|| self.map.passable(t.0, t.1).then_some(t))
+            .collect();
+        spots.sort_by_key(|&(x, y)| ((x - from.0).abs() + (y - from.1).abs(), x, y));
+        if self.map.passable(t.0, t.1) { spots.push(t); }
+        spots.into_iter()
+            .filter(|&(x, y)| (x - from.0).abs() + (y - from.1).abs() <= BUCKET_REACH)
+            .find(|&s| self.walk_memo(from, s).is_some())
     }
 
     /// Send `who` (bucket in hand) to the nearest burning tile they can
@@ -412,7 +442,7 @@ impl Game {
     /// The bucket line's first leg done: at the water with an empty
     /// pail - on to the nearest flame they can still reach
     pub(in crate::session) fn fire_bucket_fill(&mut self, who: Entity) {
-        if !self.fire.active() { return; }
+        if !self.fire.active() || !self.fire_crew.contains(&who) { return; }
         let Some(from) = self.world.get_component::<Pos>(who)
             .map(|p| (p.x.round() as i32, p.y.round() as i32)) else { return };
         if !self.send_fire_to(who, from) {
@@ -426,6 +456,7 @@ impl Game {
     /// water while the fire lives; a tile someone else already saved
     /// just moves the pail to the next flame
     pub(in crate::session) fn fire_bucket_douse(&mut self, who: Entity, t: (i32, i32)) {
+        if !self.fire_crew.contains(&who) { return; }
         if self.fire.burning.contains_key(&t) {
             self.fire.douse(t.0, t.1, self.tick);
             self.say(who, "Got it!", CHAT_BUBBLE_SECS);

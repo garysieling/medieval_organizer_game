@@ -145,7 +145,9 @@ before it leaves (a fast Escape-then-reconnect) waits for it.
 first frame (as in `Scene`, with no map), and `roster` the seed's premade
 wanderers - `[{"name":"Sabyn","backstory":"...","work":"baker","kid":false,"look":3}, ...]` -
 for a fresh seat's character picker. Older servers omit it; read it as
-empty (no picker).
+empty (no picker). `intro` is the seed's stage-setting facts -
+`["The market towns of ...", ...]` - for the prologue card after the
+picker. Older servers omit it; read it as empty (no card).
 
 ### Map (humans)
 

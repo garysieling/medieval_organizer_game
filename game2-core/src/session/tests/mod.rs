@@ -58,6 +58,7 @@ mod illness;
 mod influence;
 mod ink_boiler;
 mod inspector;
+mod intro;
 mod journal;
 mod key;
 mod kpi;

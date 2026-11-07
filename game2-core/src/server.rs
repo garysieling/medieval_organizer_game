@@ -592,7 +592,8 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                     && !s.game.seats[seat].agent && undecided {
                     roster::roster(s.game.seed).iter().map(roster::RosterCard::from).collect()
                 } else { vec![] };
-                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)), roster };
+                let intro = if kind == ClientKind::Human { s.game.intro_facts() } else { vec![] };
+                let first = ServerMsg::Welcome { you, token: tok, model: Box::new(s.game.ui_model_lean_at(seat)), roster, intro };
                 let conn = Arc::new(Mutex::new(Conn::new(seat, kind)));
                 {
                     // the Welcome, then (for a player, who draws scenes) the

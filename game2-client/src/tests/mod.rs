@@ -28,6 +28,7 @@ mod marker;
 mod member_line;
 mod minimap;
 mod minimap_dead;
+mod mounted;
 mod mystery_click;
 mod nature;
 mod panel;

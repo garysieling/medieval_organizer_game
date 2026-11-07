@@ -67,6 +67,10 @@ pub struct PersonV {
     /// the figure
     #[serde(default)]
     pub sign: Option<u8>,
+    /// Riding a horse (a knight on a country journey): the client draws
+    /// the mounted figure instead of the walker
+    #[serde(default)]
+    pub mounted: bool,
 }
 
 /// Fold a name or epithet to what the find box compares: lowercase words,

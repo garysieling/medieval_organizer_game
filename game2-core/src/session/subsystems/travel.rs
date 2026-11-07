@@ -204,8 +204,10 @@ impl Game {
     pub fn advance_travels(&mut self) {
         let mut arrived: Vec<(Entity, Goal)> = vec![];
         let pace = self.walk_pace();
-        // the country's carters and stewards go by cart and horse
+        // the country's carters and stewards go by cart and horse, and a
+        // knight takes his mount for the long roads
         let riders: Vec<Entity> = self.sites.iter().filter_map(|s| s.carrier).collect();
+        let mounted: Vec<Entity> = self.world.query::<villager::Mounted>().iter().copied().collect();
         for t in self.travels.iter_mut() {
             if t.path.is_empty() { continue; }
             // the dead finish no errands - the errand ends where they fell
@@ -217,7 +219,7 @@ impl Game {
             let slow = self.world.get_component::<villager::Condition>(t.who)
                 .filter(|c| self.tick < c.until)
                 .map(|c| if c.kind == "a lame leg" { 0.6 } else { 0.7 }).unwrap_or(1.0);
-            let ride = if riders.contains(&t.who) { country::RIDE_PACE } else { 1.0 };
+            let ride = if riders.contains(&t.who) || mounted.contains(&t.who) { country::RIDE_PACE } else { 1.0 };
             let stride = MEETING_WALK * pace / trails::movement_cost(1.0, worn, TRAIL_K) * slow * ride;
             let Some(p) = self.world.get_component_mut::<Pos>(t.who) else { t.path.clear(); continue };
             // spend the frame's stride on every waypoint it reaches: a fast
@@ -253,6 +255,13 @@ impl Game {
         }
         self.travels.retain(|t| !t.path.is_empty());
         for (who, goal) in arrived { self.arrive(who, goal); }
+        // the mount goes when the ride does: arrived, cancelled, or
+        // otherwise no longer under way
+        for &m in &mounted {
+            if !self.travels.iter().any(|t| t.who == m) {
+                self.world.remove_component::<villager::Mounted>(m);
+            }
+        }
         // no ride, no flag: whoever's off the road seeks food again
         let stray: Vec<Entity> = self.world.query::<villager::OnTheRoad>().iter().copied()
             .filter(|&w| !self.travels.iter().any(|t| t.who == w && matches!(t.goal, Goal::Remit(..))))

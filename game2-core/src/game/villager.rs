@@ -60,6 +60,11 @@ pub struct Steered;
 /// the homeward pull leave him to it - the road's his errand now
 pub struct OnTheRoad;
 
+/// Riding a horse: a knight on a country journey (levy, tribute,
+/// escort). Set when the long ride starts, cleared when it ends - the
+/// mount is for the road, not the doorstep
+pub struct Mounted;
+
 /// Marks an entity as permanently dead. The windowed game removes `Health`
 /// on death (for its grave/alive checks) rather than leaving it at 0, so
 /// this marker is the durable record `is_dead` can still see afterward.

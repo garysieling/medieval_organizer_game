@@ -80,6 +80,7 @@ mod member_line;
 mod minimap;
 mod music;
 mod mystery;
+mod mounted;
 mod nourish;
 mod organize;
 mod orgskills;

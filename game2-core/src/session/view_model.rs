@@ -690,6 +690,29 @@ impl Game {
         if let Some(day) = self.died_on[i] {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
+            // who carries the grief for them - the losses the day their
+            // death's mourned left behind
+            // villagers and the seats' wanderers alike - grief records
+            // losses for both
+            // the seats' wanderers lead - a player's own grief shouldn't
+            // trail the whole village and fall off the card's three
+            let seats: Vec<Entity> = self.seats.iter().map(|s| s.player).collect();
+            let mut folk: Vec<Entity> = seats.clone();
+            folk.extend(self.villagers.iter().copied().filter(|v| !seats.contains(v)));
+            let mourners: Vec<String> = folk.iter().copied()
+                .filter(|&m| m != v && self.world.get_component::<crate::sim::psychology::AttachmentHistory>(m)
+                    .map(|h| h.episodes.iter().any(|e|
+                        matches!(e.kind, crate::sim::psychology::EpisodeKind::Loss) && e.with == v))
+                    .unwrap_or(false))
+                .take(3)
+                .map(|m| self.villagers.iter().position(|&x| x == m)
+                    .map(|mi| vill_name(mi).to_string())
+                    .or_else(|| self.world.get_component::<PlayerCharacter>(m).map(|p| p.name.clone()))
+                    .unwrap_or_else(|| "someone".into())).collect();
+            if !mourners.is_empty() {
+                lines.push(Line { x: 60, y: 372, text: format!("mourned by {}", mourners.join(", ")),
+                    rgb: (170, 160, 190) });
+            }
             return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), lines };
         }
         let org_members = world.get_component::<Organization>(self.seats[seat].org)

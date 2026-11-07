@@ -6,9 +6,10 @@
 
 use crate::game::desires::{self, Want};
 use crate::game::livelihood;
+use crate::game::villager;
 use crate::game::vocation::{self, SocialClass, Vocation};
 
-use super::{country, roll_vocation, view_model, vill_name, Game, Rng, NEW_NAMES};
+use super::{country, roll_vocation, vill_name, Game, Rng, NEW_NAMES};
 
 /// How many wanderers a seed deals
 const ROSTER_SIZE: usize = 7;
@@ -228,18 +229,20 @@ impl Game {
             facts.push(format!("{} and {} keep the lord's peace from the heights.",
                 keeps[0], keeps[1]));
         }
-        // a face worth knowing early
-        if !self.villagers.is_empty() {
-            let i = rng.below(self.villagers.len() as i32) as usize;
+        // a face worth knowing early: the living only - a card naming
+        // the dead would greet a returning seat with a grave's tenant.
+        // Their trade's plain to see about the village; their manner is
+        // theirs to find out - the card stays to what's public
+        let living: Vec<usize> = self.villagers.iter().enumerate()
+            .filter(|(_, &v)| !villager::is_dead(&self.world, v))
+            .map(|(i, _)| i).collect();
+        if !living.is_empty() {
+            let i = living[rng.below(living.len() as i32) as usize];
             let v = self.villagers[i];
-            let craft = self.world.get_component::<vocation::Craft>(v)
-                .map(|c| vocation::vocation_name(c.vocation).to_lowercase());
-            let manner = self.world.get_component::<crate::game::traits::Personality>(v)
-                .and_then(|p| p.traits.first().copied()).map(view_model::trait_word);
-            match (craft, manner) {
-                (Some(c), Some(t)) => facts.push(format!("{} the {} is {} - worth knowing early.", vill_name(i), c, t)),
-                (Some(c), None) => facts.push(format!("{} the {} keeps a bench here.", vill_name(i), c)),
-                _ => facts.push(format!("{} lives here - worth knowing early.", vill_name(i))),
+            match self.world.get_component::<vocation::Craft>(v)
+                .map(|c| vocation::vocation_name(c.vocation).to_lowercase()) {
+                Some(c) => facts.push(format!("{} the {} keeps a bench here - worth knowing early.", vill_name(i), c)),
+                None => facts.push(format!("{} lives here - worth knowing early.", vill_name(i))),
             }
         }
         // and the mood the world walks in with

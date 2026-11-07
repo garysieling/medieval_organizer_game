@@ -215,7 +215,7 @@ fn main() {
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
-    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none()) {
+    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none() && intro.is_none()) {
         let frame_at = std::time::Instant::now();
         // a refusal (a wrong join secret, a full village) ends the session
         // with the server's reason, not a silent title card
@@ -224,6 +224,12 @@ fn main() {
                 eprintln!("game_ui: the server turned us away: {why}");
                 std::process::exit(2);
             }
+        }
+        // persist the claim token as soon as it lands: a picker or the
+        // prologue can sit between it and the gameplay loop for as long
+        // as the player reads - closing there shouldn't lose the seat
+        if let Some(r) = &remote {
+            if let Some(t) = r.token_seen.lock().unwrap().take() { save_token(&t); }
         }
         // the character picker stands between the title and the game
         if picker.as_ref().is_some_and(|(c, _)| c.is_empty()) { picker = None; }
@@ -309,11 +315,6 @@ fn main() {
             }
             mouse_was_down = down;
             continue;
-        }
-
-        // persist the claim token once the server hands it over
-        if let Some(r) = &remote {
-            if let Some(t) = r.token_seen.lock().unwrap().take() { save_token(&t); }
         }
 
         let (mxf, myf) = window.get_mouse_pos(MouseMode::Clamp).unwrap_or((0.0, 0.0));

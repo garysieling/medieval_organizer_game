@@ -1268,7 +1268,7 @@ impl Game {
 }
 
 /// A trait in plain words, for the biography line
-pub(in crate::session) fn trait_word(t: crate::game::traits::Trait) -> &'static str {
+fn trait_word(t: crate::game::traits::Trait) -> &'static str {
     use crate::game::traits::Trait::*;
     match t {
         Lazy => "lazy", Ambitious => "ambitious", Kind => "kind", Stingy => "stingy",

@@ -498,7 +498,12 @@ impl View {
                             }
                             sprite_label_anchor(fig, sy, zoom)
                         };
-                        let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
+                        // the one an ask would land on leads its name
+                        let lbl = if i == m.reach_target && pv.in_reach {
+                            format!("\u{203a} {}", pv.label.clone().unwrap_or_else(|| vill_name(i).into()))
+                        } else {
+                            pv.label.clone().unwrap_or_else(|| vill_name(i).into())
+                        };
                         let (lx, ly) = name_label_pos(sx, anchor, &lbl);
                         // bright when close enough to talk, recruit or meet; dim otherwise
                         let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };

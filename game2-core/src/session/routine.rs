@@ -264,6 +264,36 @@ impl Game {
         self.at_the_door(p.x.round() as i32, p.y.round() as i32)
     }
 
+    /// "I'll come find you": the day after an introduction goes down
+    /// well they walk over and say hello. The note stands until the
+    /// greeting lands, so a walk lost to hunger or a blocked road is
+    /// simply tried again. False while the call isn't due, or when the
+    /// day's own claims - hunger, an errand, a gathering, the seat's
+    /// own hands, the drunk, the sick, the meeting's folk - come first
+    pub(super) fn round_back(&mut self, v: Entity, tick: u64) -> bool {
+        let Some(rb) = self.world.get_component::<crate::game::organizing::RoundBack>(v).copied() else { return false };
+        if tick < rb.after || villager::is_dead(&self.world, rb.to) { return false; }
+        let gathered = self.world.get_component::<Routine>(v)
+            .map(|r| r.day == tick && matches!(r.mode, Mode::Worshipping | Mode::Feasting))
+            .unwrap_or(false);
+        if self.seats.iter().any(|s| s.player == v)
+            || self.travels.iter().any(|t| t.who == v)
+            || self.is_away(v)
+            || gathered
+            || self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false)
+            || self.world.get_component::<villager::Drunk>(v).map(|d| tick < d.until).unwrap_or(false)
+            || self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false)
+            || is_sick(&self.world, v) { return false; }
+        let Some(t) = self.world.get_component::<Pos>(rb.to)
+            .map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
+            self.world.remove_component::<crate::game::organizing::RoundBack>(v);
+            return true;
+        };
+        // no cap on the walk: they said they'd come, and the village is
+        // small enough that the road over is always worth the steps
+        self.send_far(v, t, Goal::TalkTo(rb.to))
+    }
+
     /// The day's free choice for an adult the day loop reached: work,
     /// a stall on market day, a stroll somewhere, or a day at home
     /// The recluse's day: the dark keeps them, and the cave's their

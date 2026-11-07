@@ -299,3 +299,62 @@ fn test_an_introduction_names_someone_to_look_at() {
     // and the model carries the ask for the client to answer
     assert_eq!(g.ui_model_at(0).focus, Some((fx, fy, ff)));
 }
+
+#[test]
+fn test_the_person_you_asked_comes_back_around() {
+    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::organizing::{propose, PropKind, RoundBack};
+    use crate::game::vocation::{craft, Vocation};
+    let mut g = Game::new();
+    let (pe, asker, friend) = (g.player, g.villagers[1], g.villagers[2]);
+    // the asker is a follower who knows you, with a friend in the same
+    // trade to name - the introduction lands (roll 0 is a yes)
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, pe, asker)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    g.world.add_component(asker, Known { revealed: vec![
+        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] });
+    g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
+    g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
+    relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
+        other: friend, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    let (oe, tick) = (g.org, g.tick);
+    let (msg, named) = propose(&mut g.world, pe, oe, asker, PropKind::Introduce, "Eliza", 0.0, tick);
+    assert!(named.is_some(), "{}", msg);
+    // they said they'd come find you - tomorrow, not this minute
+    let rb = *g.world.get_component::<RoundBack>(asker).expect("the return call is noted");
+    assert_eq!(rb.to, pe);
+    assert_eq!(rb.misses, 0);
+    assert!(!g.round_back(asker, tick), "the call isn't due the same day");
+    // the next day's round: the day loop sends them over - and the note
+    // stands until the greeting lands, so a lost walk is simply retried
+    g.livelihood_tick(tick + 1);
+    assert!(g.travels.iter().any(|t| t.who == asker && matches!(t.goal, Goal::TalkTo(e) if e == pe)),
+        "they set out to find you");
+    assert!(g.world.get_component::<RoundBack>(asker).is_some(), "the note stands for the walk");
+    // an empty doorstep doesn't count: you've moved on, so they note the
+    // miss and try again another day
+    let ap = *g.world.get_component::<Pos>(asker).unwrap();
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: ap.x + 40.0, y: ap.y };
+    g.arrive(asker, Goal::TalkTo(pe));
+    assert!(!g.bubbles.iter().any(|b| b.0 == asker && b.1.contains("Good day")),
+        "no hello for an empty doorstep");
+    let rb = g.world.get_component::<RoundBack>(asker).expect("the miss is noted, not forgotten");
+    assert_eq!(rb.misses, 1);
+    // back beside them, the next day's round brings the hello
+    g.travels.retain(|t| t.who != asker);
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: ap.x + 0.5, y: ap.y };
+    g.livelihood_tick(tick + 2);
+    assert!(g.travels.iter().any(|t| t.who == asker && matches!(t.goal, Goal::TalkTo(e) if e == pe)),
+        "they come back another day");
+    let before = relationships::find_relationship(&g.world, asker, pe)
+        .and_then(|r| g.world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+    g.arrive(asker, Goal::TalkTo(pe));
+    assert!(g.bubbles.iter().any(|b| b.0 == asker && b.1.contains("Good day to you.")),
+        "they greet you on arrival");
+    let after = relationships::find_relationship(&g.world, asker, pe)
+        .and_then(|r| g.world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
+    assert!(after > before, "the visit warms the bond");
+    assert!(g.world.get_component::<RoundBack>(asker).is_none(), "the note's spent on the hello");
+}

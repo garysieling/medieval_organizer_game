@@ -287,6 +287,11 @@ impl Game {
         crate::timed!("sim.mystery", self.mystery_dawn(tick, &mut rng));
         let folk = crate::infra::perf::scope("sim.day.villagers");
         let villagers = self.villagers.clone();
+        // a promised visit outranks the day's routine but not the day's
+        // own claims: round_back keeps the hungry, the traveling, the
+        // gathered, the seat's own, the drunk, the sick and the meeting's
+        // folk back - kids, officials and the rest are all fair game
+        for &v in &villagers { self.round_back(v, tick); }
         for i in 0..villagers.len() {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }

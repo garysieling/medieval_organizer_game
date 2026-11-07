@@ -103,7 +103,7 @@ fn test_the_meadow_can_burn() {
         g.advance_ink_boiler();
     }
     let camp = g.ink_boiler.as_ref().unwrap().camp;
-    assert!(g.fire.ignite(&g.map, camp.0, camp.1), "the cauldron's tile can take fire");
+    assert!(g.fire.ignite(&g.map, camp.0, camp.1, g.tick), "the cauldron's tile can take fire");
     // it runs its course and leaves scorched ground behind
     let mut scorched_any = false;
     for t in 1..40 {
@@ -144,7 +144,7 @@ fn test_folk_beside_the_flames_run_for_home() {
     let v = g.villagers.iter().copied().find(|&v|
         g.world.get_component::<TownRole>(v).is_none()).unwrap();
     *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: camp.0 as f32, y: (camp.1 + 1) as f32 };
-    g.fire.ignite(&g.map, camp.0, camp.1);
+    g.fire.ignite(&g.map, camp.0, camp.1, g.tick);
     g.fire_tick(1);
     assert!(g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::HeadHome(_))),
         "she runs for home");

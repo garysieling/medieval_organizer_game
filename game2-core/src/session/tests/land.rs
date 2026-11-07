@@ -145,6 +145,87 @@ fn test_a_thin_wood_troubles_the_toolmaker() {
     }
 }
 
+/// A spark's worth of fuel not far from the village: a flammable tile
+/// whose neighbours mostly won't carry the fire far
+fn fire_spot(g: &Game) -> (i32, i32) {
+    (0..g.map.height as i32).flat_map(|y| (0..g.map.width as i32).map(move |x| (x, y)))
+        .filter(|&(x, y)| crate::game::fire::Fire::flammable(&g.map, x, y))
+        .filter(|&(x, y)| [(-1, 0), (0, -1), (1, 0), (0, 1)].iter()
+            .filter(|&&(dx, dy)| crate::game::fire::Fire::flammable(&g.map, x + dx, y + dy))
+            .count() <= 2)
+        .min_by_key(|&(x, y)| ((x - g.village.0).abs() + (y - g.village.1).abs(), x, y))
+        .expect("the map has a burnable spot")
+}
+
+#[test]
+fn test_the_bucket_line_answers_the_fire() {
+    let mut g = Game::new();
+    g.speed = 4;
+    let (fx, fy) = fire_spot(&g);
+    g.fire.ignite(&g.map, fx, fy, g.tick);
+    // a few frames and the line's formed - four at most, all walking
+    // the bucket's legs
+    for _ in 0..8 { g.update(); }
+    assert!(!g.fire_crew.is_empty(), "the bucket line forms");
+    assert!(g.fire_crew.len() <= 4, "four is the whole line");
+    assert!(g.travels.iter().any(|t| g.fire_crew.contains(&t.who)
+        && matches!(t.goal, Goal::FillBucket | Goal::DouseFire(_))),
+        "they're walking the line, not running");
+    // the day turns and the crew holds its ground where the rest run
+    g.fire_tick(g.tick);
+    let crew = g.fire_crew.clone();
+    for &v in &crew {
+        assert!(!g.travels.iter().any(|t| t.who == v && matches!(t.goal, Goal::HeadHome(_))),
+            "the bucket line doesn't run for home");
+    }
+    // and a bucket finds the flames before the little fire's burnt out
+    let mut saw_douse = false;
+    for _ in 0..3000 {
+        g.update();
+        if !g.fire.doused.is_empty() { saw_douse = true; }
+        if !g.fire.active() { break; }
+    }
+    assert!(saw_douse, "a bucket found the flames");
+    assert!(!g.fire.active(), "the line saw the little fire out");
+}
+
+#[test]
+fn test_a_bucket_on_the_flames_puts_it_out() {
+    let mut g = Game::new();
+    let (fx, fy) = fire_spot(&g);
+    g.fire.ignite(&g.map, fx, fy, g.tick);
+    let v = g.villagers.iter().copied().find(|&v|
+        !villager::is_dead(&g.world, v) && g.world.get_component::<Kid>(v).is_none()).unwrap();
+    // she stands a pace from the flames with a full pail
+    *g.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: (fx + 1) as f32, y: fy as f32 };
+    g.arrive(v, Goal::DouseFire((fx, fy)));
+    assert!(!g.fire.on_fire(fx, fy), "one bucket, one tile out");
+    assert!(g.fire.is_doused(fx, fy, g.tick), "and the ground stays wet");
+    // the pail's still full but nothing's alight: she doesn't walk the line
+    assert!(!g.travels.iter().any(|t| t.who == v), "nothing left to fetch");
+}
+
+#[test]
+fn test_the_player_can_pitch_in() {
+    let mut g = Game::new();
+    let (fx, fy) = fire_spot(&g);
+    g.fire.ignite(&g.map, fx, fy, g.tick);
+    // stand the Wanderer a pace from the flames
+    let pe = g.seats[0].player;
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: (fx + 1) as f32, y: fy as f32 };
+    g.update_ctx_actions_at(0);
+    let Some(i) = g.seats[0].ctx_actions.iter().position(|&a| a == CtxAct::Douse) else {
+        panic!("Throw water shows by the flames");
+    };
+    g.ctx_act_at(0, i);
+    assert!(!g.fire.on_fire(fx, fy), "the player's bucket found the flames");
+    assert!(g.fire.is_doused(fx, fy, g.tick));
+    // out of reach the button's gone
+    *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: 2.0, y: 2.0 };
+    g.update_ctx_actions_at(0);
+    assert!(!g.seats[0].ctx_actions.contains(&CtxAct::Douse), "no flames near, no bucket");
+}
+
 #[test]
 fn test_the_village_names_the_ground_it_stands_on() {
     let g = Game::new();

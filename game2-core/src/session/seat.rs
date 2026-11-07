@@ -86,6 +86,8 @@ pub enum CtxAct {
     /// Tell the picked villager what the gossip added up to - the
     /// mystery's asker, once it's whole
     ShareFindings,
+    /// Throw water on the flames - offered standing by a fire
+    Douse,
 }
 
 /// One player's hold on the game: which character they steer, what they've

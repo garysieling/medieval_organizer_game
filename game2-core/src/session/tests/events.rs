@@ -2802,7 +2802,10 @@ fn test_the_fire_takes_a_house() {
     }).expect("a housed home");
     let (hx, hy) = g.world.get_component::<Pos>(home)
         .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap();
-    assert!(g.fire.ignite(&g.map, hx, hy), "the home's tile can catch");
+    assert!(g.fire.ignite(&g.map, hx, hy, g.tick), "the home's tile can catch");
+    // the bucket line would answer a real blaze - this test is about the
+    // burn itself, so nobody's sent
+    for &v in &g.villagers { g.fire_spent.insert(v); }
     stage::run_days(&mut g, 10);
     assert!(g.ruined.iter().any(|&i| g.building_entities[i] == home),
         "the fire finished the house");

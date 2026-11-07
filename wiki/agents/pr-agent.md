@@ -27,6 +27,7 @@ Creates pull requests for agent work, reviews PRs from other agents, merges when
 - [ ] No secrets/credentials/keys
 - [ ] Commit message follows style (imperative, explains why)
 - [ ] Diff is reviewable (< ~500 lines or justified)
+- [ ] PR body includes a representative screenshot or short playthrough video for player-visible changes; non-visual changes say visual evidence is not applicable
 
 ### Rules
 - Squash-merge by default for worktree branches

@@ -156,3 +156,17 @@ Completed task task_16: Add a comment to main.rs
 **Patterns Used:** Domain-specific exchange structures, topological static declarations, Ollama gemma3:4b prompt augmentation with safety filter.
 
 ---
+
+### Task: Castle walls, towers and keeps take their grand dress up a size
+**Date:** 2026-11-07
+**Type:** feature
+**Files Changed:**
+- game2-client/src/draw.rs (draw_standing_h/draw_castle_h -> _wh width+height variants; GRAND_WALL_K 1.18->1.9, GRAND_TOWER_K 1.45->2.2 + GRAND_TOWER_WK 1.5, new KEEP_WK 1.8 / KEEP_K 2.6)
+- game2-client/src/view.rs (Piece::Castle carries (wk, hk); keep gets KEEP_*; corner towers get per-tile loftier lift via noise(x,y,37)<0.35 -> x1.3)
+- evidence/castle-grand-{before,after}.bmp
+
+**Outcome:** Success - 85 client tests pass, frames dumped for review
+**Notes:** Houses went to BUILDING_SCALE=2 (draw_on_tile) but wall pieces still drew at 1x, so castle curtains read as farm fences. Walls can only stretch vertically - a wider run-piece would swallow its neighbours in the painter's-order join - so curtains/gatehouses got hk~1.9 at wk=1.0; lone pieces (corner towers, keep) take both dimensions. Village wall stays at (1,1): the fence look stays by design. Pack-art fallback path got the same treatment via draw_castle_wh.
+**Patterns Used:** existing grand_walls marker + per-piece scale constants; deterministic per-tile noise() for organic variety without sim state
+
+---

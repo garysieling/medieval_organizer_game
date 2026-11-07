@@ -1,5 +1,8 @@
 # AGENTS.md - Game2 Project Instructions & Learned Information
 
+## Ticket Loop
+- When asked to take/work a ticket or issue: follow `.claude/skills/ticket-loop/SKILL.md` (claim an `agent-ready` issue, plan + test plan, grill the user, worktree, verify with the repo's dump-frame/bench/test tooling, survive Devin Review, merge, then next). Only `agent-ready`-labeled issues are safe to take; `in-progress` means claimed.
+
 ## Layout
 - Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs the client (the `game2-client` crate: draws a `UiModel`, owns the window bins, and depends on `game2-core`, never the reverse). The split of `session.rs` is in progress there; put new code in its target layer.
 - The sim is deterministic per seed: in `game/`, `sim/`, `session/`, `engine/` use `crate::engine::det::{HashMap, HashSet}` (build with `::default()`), never std's randomly-seeded ones, and don't let iteration order depend on anything but the seed. `tests/layering.rs` and `tests/determinism.rs` enforce it.

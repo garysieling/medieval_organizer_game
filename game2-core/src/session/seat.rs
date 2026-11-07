@@ -219,6 +219,9 @@ impl Game {
             name: "-".into(), members: vec![], leader: villager,
             influence_pool: 0.0, resources: 0.0, charter: "-".into() });
         self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
+        // their own ledger of what they've heard: it lets a villager agent
+        // gather the grievances folk tell them, as a wanderer does
+        self.world.add_component(villager, Organizer::default());
         self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
         self.seats.len() - 1
     }

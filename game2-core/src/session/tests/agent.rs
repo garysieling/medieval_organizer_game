@@ -249,6 +249,24 @@ fn an_agent_can_tame_a_nearby_flock_animal() {
     assert!(g.world.get_component::<Pet>(sheep).is_some(), "the sheep took the agent's hand");
 }
 
+#[test]
+fn an_agent_can_swear_an_aid_pact() {
+    let mut g = Game::new();
+    let who = g.villagers[0];
+    let other = *g.villagers.iter().skip(1)
+        .find(|&&v| g.world.get_component::<Kid>(v).is_none()
+            && !villager::is_dead(&g.world, v)
+            && !crate::game::dungeon::unavailable(&g.world, v))
+        .expect("a grown neighbour");
+    g.world.get_component_mut::<Purse>(who).unwrap().gold = 20.0;
+    let seat = g.add_agent_seat(who);
+    g.agent_command(seat, AgentCmd::Context {
+        action: AgentAction::Pact, target: Some(other),
+    }).unwrap();
+    assert!(crate::game::contracts::has_pact(&g.world, who, other), "no pact sealed");
+    assert_eq!(g.world.get_component::<Purse>(who).unwrap().gold, 20.0 - crate::game::contracts::PACT_AID);
+}
+
 /// The player's Errand button: with nothing the player needs, a picked
 /// child can run paper and ink in for the print shop - the printer hires,
 /// pays and is delivered to, not the player

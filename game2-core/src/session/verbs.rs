@@ -447,7 +447,7 @@ impl Game {
             // and ten gold willing
             let pe = self.seats[seat].player;
             let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
-            if self.seats[seat].picked && !villager::is_dead(&self.world, v)
+            if (self.seats[seat].picked || self.seats[seat].agent) && !villager::is_dead(&self.world, v)
                 && self.world.get_component::<Kid>(v).is_none()
                 && !crate::game::dungeon::unavailable(&self.world, v)
                 && gold >= crate::game::contracts::PACT_AID

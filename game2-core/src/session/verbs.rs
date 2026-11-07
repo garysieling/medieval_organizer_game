@@ -536,7 +536,13 @@ impl Game {
                     let gold_before = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
                     let (made, up) = self.bench_work(pe, tick);
                     match up {
-                        Some(l) => format!("You work - and reach {}!", vocation::level_name(l)),
+                        Some(l) => {
+                            let lvl = vocation::level_name(l);
+                            let title = self.world.get_component::<Craft>(pe)
+                                .map(|c| format!("{} {}", lvl, vocation::vocation_name(c.vocation)))
+                                .unwrap_or_else(|| lvl.to_string());
+                            format!("You work - and reach {}!", title)
+                        }
                         None if made > 0.0 => {
                             let held = self.world.get_component::<Satchel>(pe)
                                 .map(|s| s.goods.get(what).copied().unwrap_or(0)).unwrap_or(0) as i32 - held_before as i32;

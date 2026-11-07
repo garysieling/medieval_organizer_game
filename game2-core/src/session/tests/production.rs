@@ -151,3 +151,29 @@ fn test_a_fixed_price_reads_on_the_offer_line() {
         "the fixed price never showed: {:?}",
         insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_a_promotion_names_the_craft() {
+    let mut g = Game::new();
+    // every crafted villager one bench-day short of Apprentice: whoever
+    // the day's plan seats at a bench crosses over
+    for &v in g.villagers.clone().iter() {
+        if let Some(c) = g.world.get_component_mut::<Craft>(v) {
+            c.skill = 0.396;
+        }
+    }
+    g.livelihood_tick(g.tick);
+    let promos: Vec<String> = g.log.iter()
+        .filter(|l| l.contains(" is now "))
+        .cloned().collect();
+    assert!(!promos.is_empty(), "nobody's bench day crossed the threshold");
+    for l in &promos {
+        assert!(l.contains(" is now a Journeyman ") || l.contains(" is now an Apprentice ")
+            || l.contains(" is now a Master "),
+            "a promotion didn't name level and craft: {}", l);
+    }
+    // the toast over their heads says it the same way
+    assert!(g.toasts.iter().any(|t| t.0.contains(" is now an Apprentice ")),
+        "the toast never named the craft: {:?}",
+        g.toasts.iter().map(|t| t.0.clone()).collect::<Vec<_>>());
+}

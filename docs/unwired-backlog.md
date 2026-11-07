@@ -122,7 +122,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 
 | # | Item | Where | Status |
 |---|------|-------|--------|
-| 89 | Herb-wife's remedies: which herb treats what, preparing them | `herbology` (`knows_cure`, `prepare_remedy`, `treats_illness`, `herb_tree`) | todo |
+| 89 | Herb-wife's remedies: which herb treats what, preparing them | `herbology` (`knows_cure`, `prepare_remedy`, `treats_illness`, `herb_tree`) | done #617 |
 | 90 | Wild herbs spawning | `herbology::spawn_herb` | todo |
 | 91 | Fire risk: what's flammable near a fire | `fire::flammable`, `is_scorched` | todo |
 | 92 | Recruit odds shown before you ask | `player::recruit_trust` | todo |

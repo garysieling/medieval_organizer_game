@@ -214,3 +214,25 @@ fn test_the_card_says_how_the_sickness_runs() {
     assert!(bio.contains("laid low") || bio.contains("taken ill") || bio.contains("near death"),
         "the stage never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_a_weathered_one_and_a_sleeping_sickness() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    if let Some(h) = g.world.get_component_mut::<crate::sim::illness::Health>(v) {
+        h.immunity = 0.7;
+    }
+    g.world.add_component(v, crate::sim::illness::Relapse {
+        kind: crate::sim::illness::DiseaseKind::Ague, due_in: 200 });
+    // the seed shows only once they've earned the villager's confidence
+    let rel = g.world.create_entity();
+    g.world.add_component(rel, crate::game::relationships::Relationship {
+        from: g.seats[0].player, other: v,
+        kind: crate::game::relationships::RelKind::Friend,
+        strength: 0.95, interactions: 5 });
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("weathered"), "the hardiness never showed: {}", bio);
+    assert!(bio.contains("sleeps in them"), "the seed never showed: {}", bio);
+}

@@ -139,6 +139,8 @@ impl Game {
             Sanction::Picket => {
                 self.log_entity(v, format!("t{}: a crowd at {}'s door - they can't work for the press.", tick, name));
                 self.say(v, "Let me through - I've work to do!", TALK_BUBBLE_SECS);
+                // the log line made good: the neighbours come, signs in hand
+                self.call_picket(v, tick);
             }
             Sanction::Stocks => {
                 // the crowd's answer decides: a respected soul shamed is a

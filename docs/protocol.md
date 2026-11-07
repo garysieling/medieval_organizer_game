@@ -165,8 +165,11 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 ```
 {"e":57,"kind":{"Villager":8},"pos":[11.4,6.9],"label":"Wystan","dead":false,"kid":false,
  "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false,
- "find":"wystan heart helper","look":0}
+ "find":"wystan heart helper","look":0,"sign":null}
 ```
+
+`sign` is the picket-board design (0 wooden hand-lettered, 1 printed
+placard) while they gather for a protest or march, else null.
 
 The figure whose `e` is your `you` is you. Only what the seat can see is
 here: no one's secret wants, no hidden sickness, no true strength of the

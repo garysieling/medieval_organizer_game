@@ -1331,6 +1331,12 @@ impl Game {
         let msg = match crate::game::actions::demonstrate(&mut self.world, c, pe, tick) {
             Some(out) => {
                 let n = out.turnout.len();
+                // the turnout doesn't just count - they gather in the
+                // street with signs for the day of the march
+                let (mx, my) = self.player_pos_at(seat);
+                let crowd: Vec<Entity> = out.turnout.iter().copied()
+                    .filter(|e| self.villagers.contains(e)).collect();
+                self.call_protest((mx, my), crowd, (routine::mix(c, 29) % 2) as u8, tick + 1, tick);
                 // guards already posted stay posted - a second
                 // crackdown doesn't pile more knights into the frame
                 let posted_before = self.world

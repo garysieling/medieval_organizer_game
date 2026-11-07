@@ -55,6 +55,11 @@ pub struct PersonV {
     /// everyone else, whose look comes from their roster slot
     #[serde(default)]
     pub look: u8,
+    /// Picket-sign board while gathered for a protest (0 wooden
+    /// hand-lettered, 1 printed placard); the client draws it beside
+    /// the figure
+    #[serde(default)]
+    pub sign: Option<u8>,
 }
 
 /// Fold a name or epithet to what the find box compares: lowercase words,

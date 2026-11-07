@@ -308,6 +308,8 @@ impl Game {
         // the wood grows, spreads, burns and regrows - the fuel commons
         crate::timed!("sim.forest", self.forest_tick(tick));
         crate::timed!("sim.routine_dawn", self.routine_dawn(tick, &mut rng));
+        // pickets and marches call their crowds back each dawn
+        crate::timed!("sim.protest_dawn", self.protest_dawn(tick));
         // the office gathers whoever's keeping the holy day - church
         // rows or the stones, priest or no priest
         crate::timed!("sim.faith", self.service_tick(tick));

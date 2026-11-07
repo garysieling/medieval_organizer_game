@@ -38,6 +38,7 @@ mod real_frame;
 mod rival;
 mod season;
 mod search;
+mod sign;
 mod status_line;
 mod title;
 mod toast;

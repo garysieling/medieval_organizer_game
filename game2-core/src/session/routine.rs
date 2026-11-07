@@ -42,7 +42,7 @@ pub fn is_holy(tick: u64) -> bool { tick > 0 && tick % HOLY_EVERY == 0 }
 pub fn is_market_day(tick: u64) -> bool { tick % 30 == MARKET_DAY }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Mode { Working, Selling, Wandering, Resting, Worshipping, Feasting, Playing }
+pub enum Mode { Working, Selling, Wandering, Resting, Worshipping, Feasting, Playing, Protesting }
 
 /// Where the mode puts them
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +70,8 @@ pub enum Spot {
     Here,
     /// Children's games about the green
     Play,
+    /// A picket or march gathering: a ring of signs facing the middle
+    Rally,
     Church,
     StoneCircle,
     Grove,
@@ -94,6 +96,26 @@ pub struct Routine {
     /// Got to the anchor at some point today (a rite counts on arrival)
     pub reached: bool,
 }
+
+/// A picket or march in progress: who's gathered, where, which board they
+/// carry, and the last day they mean to stay
+#[derive(Clone, Debug)]
+pub struct Protest {
+    /// Where the crowd rings
+    pub rally: (f32, f32),
+    /// Who carries a sign (villager entities)
+    pub folk: Vec<Entity>,
+    /// Sign board design: 0 wooden hand-lettered, 1 printed placard
+    pub sign: u8,
+    /// Gather while `tick < until`
+    pub until: u64,
+}
+
+/// How many neighbours a picket calls, and how many days they keep the door
+const PICKET_CROWD: usize = 6;
+const PICKET_DAYS: u64 = 3;
+/// A day's walk to the rally, like the feast's call
+const PROTEST_REACH: i32 = 30;
 
 /// A snowball in the air: from hand to mark, `t0`/`dur` in frames
 #[derive(Clone, Copy)]
@@ -121,7 +143,7 @@ pub enum DayPlan { Work, Sell, Free }
 
 /// A small, stable hash of an entity: who keeps the old faith, which way
 /// a stroller's amble turns
-fn mix(v: Entity, salt: u64) -> u64 {
+pub(in crate::session) fn mix(v: Entity, salt: u64) -> u64 {
     let mut z = (v as u64).wrapping_add(salt).wrapping_mul(0x9E3779B97F4A7C15);
     z = (z ^ (z >> 29)).wrapping_mul(0xBF58476D1CE4E5B9);
     z ^ (z >> 32)
@@ -163,6 +185,7 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
         (Mode::Worshipping, Spot::Grove) => if lead { "leading the old rite".into() } else { "at the grove".into() },
         (Mode::Worshipping, _) => "at prayer".into(),
         (Mode::Feasting, _) => "at the feast".into(),
+        (Mode::Protesting, _) => "at the protest".into(),
         _ => "about the village".into(),
     })
 }
@@ -171,7 +194,7 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
 /// passers-by - a congregation shoved three tiles apart is no congregation
 pub fn holds_slot(world: &World, v: Entity) -> bool {
     world.get_component::<Routine>(v).map(|r| {
-        matches!(r.mode, Mode::Worshipping | Mode::Feasting | Mode::Selling) && r.drift == 0.0
+        matches!(r.mode, Mode::Worshipping | Mode::Feasting | Mode::Selling | Mode::Protesting) && r.drift == 0.0
             && world.get_component::<Pos>(v)
                 .map(|p| (p.x - r.anchor.0).abs() + (p.y - r.anchor.1).abs() < 0.6).unwrap_or(false)
     }).unwrap_or(false)
@@ -310,6 +333,11 @@ impl Game {
         use crate::game::traits::Trait;
         // the hermit wants no part of the village's day - the cave's theirs
         if Some(v) == self.hermit { self.plan_cave(v, tick); return DayPlan::Free; }
+        // already called to a rally today: the protest owns their day
+        if self.world.get_component::<Routine>(v)
+            .map(|r| r.mode == Mode::Protesting && r.day == tick).unwrap_or(false) {
+            return DayPlan::Free;
+        }
         let holy = is_holy(tick);
         let trade = self.world.get_component::<Craft>(v)
             .map(|c| vocation::output(c.vocation).is_some()).unwrap_or(false);
@@ -552,6 +580,55 @@ impl Game {
             if self.go_keep_within(v, r, reach as usize) { going += 1; } else { self.plan_rest(v, tick); }
         }
         going
+    }
+
+    /// Seat a crowd at a rally for the day: a ring of slots round the
+    /// middle, everyone facing in, signs in hand. Whoever can't make it
+    /// keeps a normal day.
+    fn seat_protest(&mut self, rally: (f32, f32), folk: &[Entity], tick: u64) {
+        let folk: Vec<Entity> = folk.iter().copied().filter(|&v| self.free_to_gather(v)).collect();
+        if folk.is_empty() { return; }
+        let slots = self.ring_round(rally, folk.len(), 1.6);
+        self.assemble(tick, Mode::Protesting, Spot::Rally, None, &folk, &slots, rally, PROTEST_REACH);
+    }
+
+    /// Call folk to a rally with signs: record the gathering, then seat
+    /// today's routines so they move now, not at dawn.
+    pub(in crate::session) fn call_protest(&mut self, rally: (f32, f32), folk: Vec<Entity>,
+                                           sign: u8, until: u64, tick: u64) {
+        if folk.is_empty() { return; }
+        self.protests.push(Protest { rally, folk: folk.clone(), sign, until });
+        self.seat_protest(rally, &folk, tick);
+    }
+
+    /// A picket's crowd: the sanctioned one's nearest neighbours who can come
+    pub(in crate::session) fn picket_crowd(&self, v: Entity, n: usize) -> Vec<Entity> {
+        let Some(p) = self.world.get_component::<Pos>(v).copied() else { return vec![] };
+        let mut near: Vec<(u64, Entity)> = self.villagers.iter().copied()
+            .filter(|&u| u != v && self.free_to_gather(u))
+            .filter_map(|u| self.world.get_component::<Pos>(u).map(|q| {
+                let d = ((q.x - p.x).powi(2) + (q.y - p.y).powi(2)) * 1000.0;
+                (d as u64, u)
+            }))
+            .collect();
+        near.sort();
+        near.into_iter().take(n).map(|(_, u)| u).collect()
+    }
+
+    /// Neighbours answer the picket call: a signed crowd at the door
+    pub(in crate::session) fn call_picket(&mut self, v: Entity, tick: u64) {
+        let Some(p) = self.world.get_component::<Pos>(v).copied() else { return };
+        let crowd = self.picket_crowd(v, PICKET_CROWD);
+        if crowd.is_empty() { return; }
+        self.call_protest((p.x, p.y), crowd, (mix(v, 23) % 2) as u8, tick + PICKET_DAYS, tick);
+    }
+
+    /// Dawn of each day: drop spent protests, re-seat the crowds still out
+    pub(super) fn protest_dawn(&mut self, tick: u64) {
+        self.protests.retain(|p| tick < p.until);
+        let rallies: Vec<((f32, f32), Vec<Entity>)> = self.protests.iter()
+            .map(|p| (p.rally, p.folk.clone())).collect();
+        for (rally, folk) in rallies { self.seat_protest(rally, &folk, tick); }
     }
 
     /// Dawn of each day: count who kept yesterday's rite, then on a holy

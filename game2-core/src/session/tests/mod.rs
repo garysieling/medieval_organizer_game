@@ -87,6 +87,7 @@ mod perfume;
 mod power;
 mod production;
 mod progression;
+mod protest;
 mod recipes;
 mod quests;
 mod story;

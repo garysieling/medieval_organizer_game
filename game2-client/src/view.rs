@@ -573,6 +573,8 @@ impl View {
                             }
                             sprite_label_anchor(fig, sy, zoom)
                         };
+                        // a protester carries their board
+                        if let Some(d) = pv.sign { draw_picket_sign(&mut buf, sx, sy, zoom, d); }
                         let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
                         let (lx, ly) = name_label_pos(sx, anchor, &lbl);
                         // bright when close enough to talk, recruit or meet; dim otherwise

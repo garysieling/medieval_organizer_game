@@ -114,6 +114,25 @@ pub(crate) fn draw_character(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32
 /// Screen y of a character's head at the current zoom
 pub(crate) fn head_y(sy: i32, zoom: f32) -> i32 { sy + (SPRITE_HEAD as f32 * zoom).round() as i32 }
 
+/// A picket sign held beside the figure: the flat-rect stand-in for sign
+/// art until generated boards land. `design` 0 = wooden hand-lettered,
+/// 1 = printed placard. (sx, sy) is the figure's feet anchor.
+pub(crate) fn draw_picket_sign(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32, design: u8) {
+    let z = |v: f32| (v * zoom).round() as i32;
+    let bx = sx + z(11.0);
+    let by = sy - z(34.0);
+    let (bw, bh) = (z(11.0).max(4), z(9.0).max(3));
+    // the stick in the fist, then the board: rim, face, a mark of writing
+    buf.rect(bx + bw / 2 - 1, by + bh - 1, 2, z(13.0).max(4), 105, 70, 40);
+    let (edge, face) = if design == 1 { ((70, 70, 95), (228, 218, 196)) }
+        else { ((95, 60, 30), (165, 115, 65)) };
+    buf.rect(bx - 1, by - 1, bw + 2, bh + 2, edge.0, edge.1, edge.2);
+    buf.rect(bx, by, bw, bh, face.0, face.1, face.2);
+    let ink = if design == 1 { (80, 100, 150) } else { (60, 35, 15) };
+    buf.rect(bx + 2, by + 2, (bw - 4).max(2), 1, ink.0, ink.1, ink.2);
+    buf.rect(bx + 2, by + 4, (bw - 6).max(1), 1, ink.0, ink.1, ink.2);
+}
+
 /// The point to hand name_label_pos so a label sits just above a zoomed head
 pub(crate) fn label_anchor(sy: i32, zoom: f32) -> i32 { head_y(sy, zoom) - SPRITE_HEAD }
 

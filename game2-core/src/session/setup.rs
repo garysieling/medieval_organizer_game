@@ -1019,6 +1019,7 @@ impl Game {
             pit,
             reach,
             sanctioned: vec![],
+            protests: vec![],
             feud_told: Default::default(),
             produced: Default::default(),
             tales: Default::default(),

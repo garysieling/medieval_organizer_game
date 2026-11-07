@@ -381,7 +381,7 @@ fn main() {
         if clicked && !on_minimap && !swallow_click {
             if let Some(m) = &cur_model {
                 // a toast that happened somewhere: the click jumps there
-                if let Some(i) = client::toast_hit(&m.toasts, mx, my) {
+                if let Some(i) = view.toast_hit(m, mx, my) {
                     if let Some(at) = m.toasts[i].at {
                         (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));

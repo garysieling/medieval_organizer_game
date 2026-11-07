@@ -42,6 +42,7 @@ Primary coding agent for implementing features. Takes design specs and writes pr
 3. **Follow Existing Patterns** - Look at similar code in the codebase before implementing. Match the style and structure.
 4. **Incremental Implementation** - Break complex features into small, testable commits. Each commit should be working and tested.
 5. **Document Intent** - Comments should explain WHY, not WHAT. The code shows what; comments show the reasoning.
+6. **Visual Evidence** - If a change affects the game's appearance or a player's visible experience, include a screenshot or short playthrough video in the PR body. Use a representative seed and state; if the change has no visible effect, say so in the PR body.
 
 ### Rust-Specific Rules
 1. **Ownership & Borrowing** - Always be conscious of ownership. Prefer borrowing over cloning when possible.
@@ -159,6 +160,6 @@ Provide weekly (or after each sprint) feedback to Manager Bot:
 5. Implement feature in small commits
 6. Run tests, fix issues
 7. Self-review changes
-8. Submit PR to PR Agent
+8. Submit PR to PR Agent with visual evidence in its body when the change is visible to a player
 9. Update knowledge base with learnings
 10. Report completion to Manager Bot

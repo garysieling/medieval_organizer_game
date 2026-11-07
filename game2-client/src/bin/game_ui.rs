@@ -202,8 +202,8 @@ fn main() {
     let mut search_at = 0usize;
     // leftover edge-scroll drift too small for the whole-px camera
     let mut edge_cam = (0.0f32, 0.0f32);
-    // where the player stood last frame, for the camera's follow
-    let mut player_seen: Option<(f32, f32)> = None;
+    // where the player stood and the zoom last frame, for the camera's follow
+    let mut player_seen: Option<((f32, f32), f32)> = None;
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting

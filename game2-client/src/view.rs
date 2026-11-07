@@ -1188,15 +1188,16 @@ pub fn search_people(people: &[PersonV], query: &str) -> Vec<usize> {
 const LOST_MARGIN: i32 = 48;
 
 /// The camera follows a character who walks clean off the map view:
-/// while they move and their feet are out of sight, look back to have
-/// them in the middle again. `seen` is where they stood last frame -
-/// a deliberate pan or jump with them standing still isn't fought.
-/// Returns the camera to use, when it should move.
-pub fn camera_follow(m: &UiModel, cam: (i32, i32), zoom: f32, seen: &mut Option<(f32, f32)>) -> Option<(i32, i32)> {
+/// while they move - or the zoom shifts them out of sight - and their
+/// feet are out of sight, look back to have them in the middle again.
+/// `seen` is where they stood and the zoom last frame: a deliberate
+/// pan or jump with them standing still isn't fought. Returns the
+/// camera to use, when it should move.
+pub fn camera_follow(m: &UiModel, cam: (i32, i32), zoom: f32, seen: &mut Option<((f32, f32), f32)>) -> Option<(i32, i32)> {
     let p = m.people.iter().find(|p| p.kind == PKind::Player)?;
     let pos = p.pos;
-    let moved = seen.is_some_and(|q| (q.0 - pos.0).abs() > 0.01 || (q.1 - pos.1).abs() > 0.01);
-    *seen = Some(pos);
+    let moved = seen.is_some_and(|(q, z)| (q.0 - pos.0).abs() > 0.01 || (q.1 - pos.1).abs() > 0.01 || (z - zoom).abs() > 0.001);
+    *seen = Some((pos, zoom));
     let (sx, sy) = iso_to_screen_cam(pos.0, pos.1, cam.0, cam.1, zoom);
     let lost = sx < -LOST_MARGIN || sx > MAP_W as i32 + LOST_MARGIN
         || sy < -LOST_MARGIN || sy > H as i32 + LOST_MARGIN;

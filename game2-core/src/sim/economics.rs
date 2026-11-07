@@ -78,7 +78,7 @@ impl Market {
     }
 }
 
-/// System: producers add goods to market supply each tick
+/// Demo-only system: producers add goods to market supply each tick
 pub struct ProductionSystem;
 impl crate::engine::ecs::System for ProductionSystem {
     fn run(&mut self, world: &mut World) {

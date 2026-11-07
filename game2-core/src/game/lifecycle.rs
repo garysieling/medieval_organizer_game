@@ -28,28 +28,7 @@ pub struct Vitality {
     pub cause_of_death: Option<String>,
 }
 
-/// Major life events
-#[derive(Debug)]
-pub struct LifeEvent {
-    pub year: u32,
-    pub kind: EventKind,
-    pub description: String,
-}
-
-#[derive(Debug)]
-pub enum EventKind {
-    Birth,
-    FirstJob,
-    Apprenticeship,
-    Marriage,
-    ChildBorn,
-    Loss,
-    Achievement,
-    Retirement,
-    Death,
-}
-
-/// System: ages advance each tick (1 tick = 1 month = 0.083 years).
+/// Demo-only system: ages advance each tick (1 tick = 1 month = 0.083 years).
 /// A person dies once they outlive their `max_age` or their health gives
 /// out; the dead stop aging and stay Dead.
 pub struct AgingSystem;

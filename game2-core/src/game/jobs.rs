@@ -1,11 +1,11 @@
-//! Jobs: villagers specialize and produce goods.
+//! Demo-only job economy: villagers specialize and produce goods.
 //! Farmer produces wheat, Miller makes flour, Baker makes bread, etc.
 //! Work drives the economy visibly.
 
 use crate::engine::ecs::{Entity, World};
 use crate::sim::economics::Market;
 
-/// A job a villager can hold
+/// A demo job a villager can hold
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Job {
     Farmer,     // produces wheat
@@ -66,7 +66,7 @@ pub fn work_tick(holder: &mut JobHolder) -> (&'static str, f32) {
     (produces(holder.job), holder.output_rate * holder.skill)
 }
 
-/// System: villagers with jobs work each tick. Goods-producing jobs put
+/// Demo-only system: villagers with jobs work each tick. Goods-producing jobs put
 /// each whole unit they make onto the market, drawing their raw material
 /// (wheat for millers, flour for bakers) from it; with no input in stock
 /// they can't make more. Idle villagers neither produce nor gain skill.

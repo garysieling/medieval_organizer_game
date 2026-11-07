@@ -277,7 +277,7 @@ pub const WELL_FED: f32 = 50.0;
 /// Health a well-fed body mends back up to on its own
 pub const NOURISHED_HEALTH: f32 = 0.9;
 
-/// System: going without food wears down health; a well-fed villager who
+/// Demo-only ECS system: going without food wears down health; a well-fed villager who
 /// isn't sick slowly mends back to normal health. The dead (health 0) are
 /// left alone.
 pub struct NourishmentSystem;
@@ -426,7 +426,7 @@ pub fn spawn_stall(world: &mut World, x: f32, y: f32, market: Entity, good: &str
     e
 }
 
-/// System: stalls take their good off the market and serve it
+/// Demo-only system: stalls take their good off the market and serve it
 pub struct StallSystem;
 impl System for StallSystem {
     fn run(&mut self, world: &mut World) {

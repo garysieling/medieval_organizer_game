@@ -1030,10 +1030,11 @@ pub struct Game {
     pub player_passed: bool,
     /// The martyr's grave - where they hanged the one who said no
     pub martyr_grave: Option<(i32, i32)>,
-    /// Path memo: (from,to) -> the walk, cleared each day - the map
-    /// barely changes mid-day, and the BFS is the game's hot line
+    /// Path memo: (from,to) -> the walk, cleared each frame - the map
+    /// barely changes mid-frame, trails shift underfoot, and the
+    /// search is the game's hot line
     pub path_cache: crate::engine::det::HashMap<((i32, i32), (i32, i32)), Option<Vec<(i32, i32)>>>,
-    /// The tick the cache was born on - a day older and it's stale
+    /// The frame the cache was born on - a frame older and it's stale
     pub path_tick: u64,
     /// The audio cue queue: drained per frame into the UiModel
     pub sfx: Vec<SfxCue>,

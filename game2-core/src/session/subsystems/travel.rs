@@ -90,15 +90,17 @@ impl Game {
         self.sfx.push(SfxCue { kind, x, y, intensity });
     }
 
-    /// The BFS is the game's hot line - a path's the same all day, so
-    /// remember it until the map might have moved
+    /// The search is the game's hot line - a path's the same all frame,
+    /// so remember it until the next one. Frame-scoped, not day-scoped:
+    /// trail strength shifts underfoot as folk walk, and a path priced
+    /// on this morning's wear shouldn't stand in for the evening's
     pub(in crate::session) fn walk_memo(&mut self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
-        if self.path_tick != self.tick {
+        if self.path_tick != self.frame_n as u64 {
             self.path_cache.clear();
-            self.path_tick = self.tick;
+            self.path_tick = self.frame_n as u64;
         }
         if let Some(cached) = self.path_cache.get(&(from, to)) { return cached.clone(); }
-        let p = crate::timed!("sim.walk_path", self.trail_path(from, to));
+        let p = self.trail_path(from, to);
         self.path_cache.insert((from, to), p.clone());
         p
     }
@@ -114,15 +116,15 @@ impl Game {
     /// `trail_path` over its parts, for callers holding field borrows
     /// that a whole-`self` method call would conflict with.
     pub(in crate::session) fn trail_path_on(map: &TileMap, worn_map: &crate::engine::det::HashMap<(i32, i32), Trail>, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
-        // the cheapest a tile can be: a road reads as fully worn
-        const FLOOR: f32 = 1.0 - TRAIL_K;
-        map.walk_path_weighted(from, to, FLOOR, |x, y| {
-            let worn = match map.get(x, y) {
-                Some(Tile::Road) | Some(Tile::Bridge) => 1.0,
-                _ => worn_map.get(&(x, y)).map(|t| t.strength).unwrap_or(0.0),
-            };
+        // the cheapest a tile can be: a trail worn to saturation
+        const FLOOR: f32 = 1.0 - TRAIL_K * TRAIL_PARAMS.saturation;
+        crate::timed!("sim.walk_path", map.walk_path_weighted(from, to, FLOOR, |x, y| {
+            // roads aren't free for the planner: advance_travels prices
+            // a step by the trail actually recorded on the tile, so a
+            // road only earns its keep once folk have worn it in too
+            let worn = worn_map.get(&(x, y)).map(|t| t.strength).unwrap_or(0.0);
             trails::movement_cost(1.0, worn, TRAIL_K)
-        })
+        }))
     }
 
     /// A passable tile right next to a building's (occupied) one: where a

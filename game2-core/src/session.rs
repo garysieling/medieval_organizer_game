@@ -688,6 +688,19 @@ pub struct Pedlar {
     pub rumor_sold: bool,
 }
 
+/// A pile raised for the lost: every stone a hand laid on it, and the
+/// dead it keeps are not forgotten
+pub struct Cairn {
+    /// Where it stands (tile coords)
+    pub pos: (i32, i32),
+    /// The villager index it remembers (villagers[i])
+    pub honoree: usize,
+    /// What they're remembered for - "the mason", "the fire"
+    pub deed: String,
+    /// How many stones it holds - each one laid by a hand
+    pub stones: u32,
+}
+
 /// The map tests and tooling use: Game::new is always this one
 pub const MAP_SEED: u64 = 42;
 
@@ -872,6 +885,9 @@ pub struct Game {
     pub market_food: Entity, // our village's food store (the rivals have their own)
     pub buildings: Vec<(f32, f32, BSprite)>,
     pub stones: Vec<(i32, i32)>, // boulders out in the fields
+    /// The cairns: piles of stones raised for the lost, each one laid
+    /// by a hand that remembers
+    pub cairns: Vec<Cairn>,
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),

@@ -228,6 +228,7 @@ impl Game {
         }
         // and the wise stack while the path's open
         crate::timed!("sim.woodpile", self.woodpile_tick(tick));
+        crate::timed!("sim.cairns", self.cairn_tick(tick));
         drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));

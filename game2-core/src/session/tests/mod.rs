@@ -74,6 +74,7 @@ mod log_priority;
 mod magic;
 mod market;
 mod mine;
+mod cairns;
 mod member_line;
 mod minimap;
 mod music;

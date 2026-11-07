@@ -183,3 +183,18 @@ fn test_the_card_says_what_they_keep() {
     assert!(bio.contains("keeps") && bio.contains("sheep"),
         "the fold never showed: {}", bio);
 }
+
+#[test]
+fn test_the_card_names_their_pet() {
+    let mut g = Game::new();
+    let v = g.villagers[7];
+    // a bonded dog
+    let dog = crate::game::pets::spawn_pet(&mut g.world, "Fido",
+        crate::game::pets::Species::Dog, crate::game::pets::PetRole::Companion);
+    crate::game::pets::adopt(&mut g.world, dog, v);
+    g.world.get_component_mut::<crate::game::pets::Pet>(dog).unwrap().bond_strength = 0.6;
+    g.seats[0].selected_target = 7;
+    let ins = g.villager_inspector_at(0);
+    let bio = ins.lines.iter().find(|l| l.y == 454).map(|l| l.text.clone()).unwrap_or_default();
+    assert!(bio.contains("keeps Fido the dog"), "the pet never showed: {}", bio);
+}

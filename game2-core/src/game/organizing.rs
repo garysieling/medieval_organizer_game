@@ -800,13 +800,14 @@ pub fn yes_chance(world: &World, organizer: Entity, person: Entity, p: PropKind)
 
 /// Put the proposition: the yes records the promise on the org's plan
 /// (or warms a new contact for Introduce); the no costs a small chill.
-/// `roll` is 0..1. Returns the log line.
-pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity, p: PropKind, name: &str, roll: f32, tick: u64) -> String {
+/// `roll` is 0..1. Returns the log line, and for Introduce the friend
+/// they named - the one the camera's wanted on.
+pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity, p: PropKind, name: &str, roll: f32, tick: u64) -> (String, Option<Entity>) {
     use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
     if yes_chance(world, organizer, person, p) <= roll {
         record_interaction(world, organizer, Interaction {
             other: person, kind: InteractionKind::Conflict, intensity: 0.1 });
-        return format!("{} won't hear it - not yet.", name);
+        return (format!("{} won't hear it - not yet.", name), None);
     }
     // the ask itself is practice at the craft
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, 0.01);
@@ -835,14 +836,14 @@ pub fn propose(world: &mut World, organizer: Entity, org: Entity, person: Entity
     // a yes is a small warmth too
     record_interaction(world, organizer, Interaction {
         other: person, kind: InteractionKind::Aid, intensity: 0.2 });
-    msg
+    (msg, None)
 }
 
 /// "Who should I talk to?": the strongest of their bonds that shares
 /// something with them - the same trade, or a trouble you've heard them
 /// voice. The word of a friend opens a door: the named person starts a
 /// little warm to you.
-fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, tick: u64) -> String {
+fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, tick: u64) -> (String, Option<Entity>) {
     use crate::game::relationships::{bonds_of, record_interaction, Interaction, InteractionKind, Relationship};
     use crate::game::desires::{issue_tag, unrevealed, Known};
     let voc = world.get_component::<crate::game::vocation::Craft>(person).map(|c| c.vocation);
@@ -868,9 +869,9 @@ fn introduce(world: &mut World, organizer: Entity, person: Entity, name: &str, t
             // a friend's word opens a door: a little warmth to start on
             record_interaction(world, organizer, Interaction {
                 other: friend, kind: InteractionKind::Conversation, intensity: 0.6 });
-            format!("{} names a friend - someone you should know. A word from {} opens the door.", name, name)
+            (format!("{} names a friend - someone you should know. A word from {} opens the door.", name, name), Some(friend))
         }
-        None => format!("{} can't think of anyone to send you to.", name),
+        None => (format!("{} can't think of anyone to send you to.", name), None),
     }
 }
 

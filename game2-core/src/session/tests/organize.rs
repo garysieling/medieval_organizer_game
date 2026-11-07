@@ -173,7 +173,7 @@ fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
     let home = crate::game::household::home_of(&g.world, host);
     let home = home.unwrap_or_else(|| { let e = g.world.create_entity(); g.world.add_component(e, Pos { x: 16.0, y: 16.0 }); e });
     g.world.add_component(g.org, MeetingPlan { venue: Some((host, home)), ..Default::default() });
-    let (oe, tick) = (g.org, g.tick); propose(&mut g.world, pe, oe, guest, PropKind::ComeAlong, "Bram", 0.0, tick);
+    let (oe, tick) = (g.org, g.tick); let _ = propose(&mut g.world, pe, oe, guest, PropKind::ComeAlong, "Bram", 0.0, tick);
     assert!(g.world.get_component::<MeetingPlan>(g.org).unwrap().ready());
     g.update_ctx_actions();
     assert!(g.seats[0].ctx_actions.contains(&crate::session::CtxAct::Gather));
@@ -236,4 +236,66 @@ fn test_a_follower_greets_you_differently() {
         "I saved thee a thought or two since last we spoke, {other}."]
         .iter().map(|s| s.replace("{other}", "wanderer")).collect();
     assert!(expected.contains(first), "a follower greets the bond: {}", first);
+}
+
+#[test]
+fn test_an_introduction_names_someone_to_look_at() {
+    use crate::game::desires::{Known, Problem, Reveal, Want};
+    use crate::game::organizing::PropKind;
+    use crate::game::vocation::{craft, Vocation};
+    let mut g = Game::new();
+    let (pe, asker, friend) = (g.player, g.villagers[1], g.villagers[2]);
+    let friend_i = g.villagers.iter().position(|&v| v == friend).unwrap();
+    // the asker is a follower who knows you, and has someone to name: a
+    // bond of theirs in the same trade
+    relationships::record_interaction(&mut g.world, pe, relationships::Interaction {
+        other: asker, kind: relationships::InteractionKind::Conversation, intensity: 0.5 });
+    crate::game::relationships::find_relationship(&g.world, pe, asker)
+        .and_then(|r| g.world.get_component_mut::<Relationship>(r)).unwrap().strength = 0.7;
+    g.world.add_component(asker, Known { revealed: vec![
+        Reveal::Want(Want::GoodFood), Reveal::Want(Want::Love), Reveal::Problem(Problem::Taxed)] });
+    g.world.add_component(asker, craft(Vocation::Weaver, 0.5));
+    g.world.add_component(friend, craft(Vocation::Weaver, 0.5));
+    relationships::record_interaction(&mut g.world, asker, relationships::Interaction {
+        other: friend, kind: relationships::InteractionKind::Conversation, intensity: 0.8 });
+    // the talk can be started with a building still picked - the named
+    // friend takes the selection over, building and all
+    g.seats[0].selected_building = Some(0);
+    // ask until the proposition lands - the roll is the rng's, so a few
+    // tries may be needed; each refusal just asks again
+    let mut landed = false;
+    for _ in 0..80 {
+        if g.seats[0].talk.is_none() {
+            let p = *g.world.get_component::<Pos>(asker).unwrap();
+            *g.world.get_component_mut::<Pos>(pe).unwrap() = Pos { x: p.x + 0.5, y: p.y };
+            g.seats[0].selected_target = 1;
+            g.seats[0].picked = true;
+            g.act_at(0, 0);
+        }
+        let Some(t) = g.seats[0].talk.as_ref() else { break };
+        let (n, shown) = (t.options.len(), t.asks_shown());
+        let intro = t.asks.iter().take(shown).position(|a| *a == PropKind::Introduce);
+        match intro {
+            Some(k) => {
+                g.talk_pick_at(0, Some(n + k));
+                if g.seats[0].focus.is_some() { landed = true; break; }
+                g.talk_pick_at(0, None);
+            }
+            None => {
+                // the ask isn't on show this turn: spend a shown ask or a
+                // reply to move the conversation on
+                g.talk_pick_at(0, Some(if shown > 0 { n } else { 0 }));
+            }
+        }
+    }
+    assert!(landed, "an introduction lands and the camera's asked over");
+    assert!(g.seats[0].picked, "the named one's picked");
+    assert_eq!(g.seats[0].selected_building, None, "the building's selection is let go");
+    assert_eq!(g.seats[0].selected_target, friend_i, "it's them, not the asker");
+    let (fx, fy, ff) = g.seats[0].focus.unwrap();
+    let fp = *g.world.get_component::<Pos>(friend).unwrap();
+    assert_eq!((fx, fy), (fp.x, fp.y), "the camera's asked to where they stand");
+    assert_eq!(ff, g.frame_n, "asked this frame");
+    // and the model carries the ask for the client to answer
+    assert_eq!(g.ui_model_at(0).focus, Some((fx, fy, ff)));
 }

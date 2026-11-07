@@ -170,3 +170,12 @@ Completed task task_16: Add a comment to main.rs
 **Patterns Used:** existing grand_walls marker + per-piece scale constants; deterministic per-tile noise() for organic variety without sim state
 
 ---
+
+### Task: Correct the building ordinal in the member log (issue #732)
+**Date:** 2026-11-07
+**Type:** bug fix
+**Files Changed:** `game2-core/src/session/verbs.rs`, `game2-core/src/session/tests/member_line.rs`
+**Outcome:** Focused member-line and ordinal suffix tests pass.
+**Notes:** Apply the teen exception before checking the final digit; remove parenthetical wording from the member-facing line.
+
+---

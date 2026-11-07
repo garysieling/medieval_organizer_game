@@ -1145,9 +1145,9 @@ impl Game {
             .filter_map(|a| self.world.get_component::<crate::game::livestock::Livestock>(a)
                 .map(|l| (a, if l.kind == crate::game::livestock::LivestockKind::Sheep { Species::Sheep } else { Species::Goat })))
             .chain(self.hens.iter().copied().filter(|&a| near(a)).map(|a| (a, Species::Chicken)))
-            .chain(self.world.query::<Pet>().into_iter()
-                .filter(|&e| near(e))
-                .filter_map(|e| self.world.get_component::<Pet>(e).map(|p| (e, p.species))))
+            .chain(self.pets.iter()
+                .filter(|&&(e, _, _)| near(e))
+                .filter_map(|&(e, _, _)| self.world.get_component::<Pet>(e).map(|p| (e, p.species))))
             .min_by(|a, b| {
                 let d = |e: Entity| self.world.get_component::<Pos>(e)
                     .map(|p| (p.x - px).powi(2) + (p.y - py).powi(2)).unwrap_or(f32::MAX);

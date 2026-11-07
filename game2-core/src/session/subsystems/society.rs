@@ -687,6 +687,10 @@ impl Game {
                 .unwrap_or((self.village.0 as f32, self.village.1 as f32));
             for seat in &self.seats {
                 let pe = seat.player;
+                // standing near isn't attending: the dead and the held
+                // can't join the feast, so they can't warm it either
+                if villager::is_dead(&self.world, pe)
+                    || crate::game::dungeon::unavailable(&self.world, pe) { continue; }
                 let near = self.world.get_component::<Pos>(pe)
                     .map(|p| (p.x - mp.0).powi(2) + (p.y - mp.1).powi(2) <= 18.0 * 18.0)
                     .unwrap_or(false);

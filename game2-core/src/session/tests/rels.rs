@@ -69,6 +69,21 @@ fn test_a_player_at_the_feast_leaves_with_half_hearts() {
 }
 
 #[test]
+fn test_the_dead_cant_warm_the_feast() {
+    let mut g = Game::new();
+    // the player lies in state near the market on feast day
+    let mp = g.world.get_component::<Pos>(g.market_food).map(|p| (p.x, p.y)).unwrap();
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.0, y: mp.1 };
+    g.world.add_component(g.player, villager::Dead);
+    g.festival_tick(45);
+    let warmed = g.world.query::<Relationship>().iter()
+        .filter(|&&e| g.world.get_component::<Relationship>(e)
+            .map(|r| (r.from == g.player || r.other == g.player) && r.strength > 0.0).unwrap_or(false))
+        .count();
+    assert_eq!(warmed, 0, "the dead don't join the feast: {} bonds", warmed);
+}
+
+#[test]
 fn test_the_card_counts_hearts_in_halves() {
     let mut g = Game::new();
     g.seats[0].selected_target = 3;

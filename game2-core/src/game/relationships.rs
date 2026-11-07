@@ -64,9 +64,12 @@ pub struct Relationship {
 pub const MAX_HEARTS: f32 = 5.0;
 
 /// `strength` (-1..1) read as hearts (0..MAX_HEARTS): the warm half of
-/// the axis only, so a grudge never dips below empty
+/// the axis only, so a grudge never dips below empty - and snapped to
+/// the half-heart grid, since the daily drift would otherwise leave the
+/// meter showing 0.495 where the game only ever deals in halves
 pub fn hearts_of(strength: f32) -> f32 {
-    strength.clamp(0.0, 1.0) * MAX_HEARTS
+    let h = strength.clamp(0.0, 1.0) * MAX_HEARTS;
+    (h * 2.0).round() / 2.0
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -418,6 +421,8 @@ mod tests {
         assert_eq!(hearts_of(0.5), 2.5);
         assert_eq!(hearts_of(1.0), MAX_HEARTS);
         assert_eq!(hearts_of(-0.4), 0.0, "bad blood shows no hearts at all");
+        // a day's drift off the grid still reads as the half heart it was
+        assert_eq!(hearts_of(0.099), 0.5, "decay doesn't make 0.495 hearts");
     }
 
     #[test]

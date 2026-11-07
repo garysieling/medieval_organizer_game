@@ -890,6 +890,12 @@ impl Game {
             else if warmth >= 0.3 { parts.push("warm to you".into()); }
             else if warmth > 0.0 { parts.push("has your ear".into()); }
         }
+        // the body's strength: the live condition sickness and hunger
+        // wear at, plain to see whether or not the village knows them
+        if let Some(h) = world.get_component::<crate::sim::illness::Health>(v) {
+            if h.condition < 0.35 { parts.push("failing".into()); }
+            else if h.condition < 0.7 { parts.push("slowing".into()); }
+        }
         // what the body's learned, or still hides: a survivor's
         // hardiness, and the seed a sickness leaves to wake again
         if let Some(h) = world.get_component::<crate::sim::illness::Health>(v) {

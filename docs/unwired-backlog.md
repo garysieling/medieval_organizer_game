@@ -110,7 +110,7 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 79 | Their pet and its bond | `pets::Pet` | done #607 |
 | 80 | Illness stage, route, treatment | `illness::Disease`, `Stage`, `Treatment` | done #608 |
 | 81 | Immunity after recovery, relapses | `illness::immunity_gain`, `relapse` | done #609 |
-| 82 | Life stage and vitality | `lifecycle::Vitality` | todo |
+| 82 | Life stage and vitality | `lifecycle::Vitality` | done #610 |
 | 83 | Odd jobs and deals in their purse | `livelihood::OddJob`, `Deal` | todo |
 | 84 | Quality tier of goods in a satchel | `goods::tier` | todo |
 | 85 | Backstory | `dialogue_trees::backstory` | todo |

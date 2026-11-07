@@ -109,3 +109,17 @@ fn test_an_empty_home_s_card_offers_it_up() {
         "the letting never showed: {:?}",
         insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_a_building_near_the_fire_says_so() {
+    let mut g = Game::new();
+    let be = g.building_entities[0];
+    let pos = g.world.get_component::<Pos>(be).unwrap();
+    let (bx, by) = (pos.x as i32, pos.y as i32);
+    g.fire.burning.insert((bx + 2, by), 10);
+    g.seats[0].selected_building = Some(0);
+    let insp = g.building_inspector_at(0).unwrap();
+    assert!(insp.lines.iter().any(|l| l.text.contains("the fire's near")),
+        "the danger never showed: {:?}",
+        insp.lines.iter().map(|l| l.text.clone()).collect::<Vec<_>>());
+}

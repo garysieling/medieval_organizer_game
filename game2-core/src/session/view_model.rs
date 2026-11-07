@@ -530,7 +530,12 @@ impl Game {
             BuildingKind::Cellar => "Cheese cellar",
         };
         lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
-        lines.push(Line { x: 18, y: 340, text: kind_word.into(), rgb: (200, 200, 230) });
+        // the fire's near rides the kind word: flames close enough that
+        // this roof could carry them home
+        let near_fire = world.get_component::<Pos>(be)
+            .map(|p| self.fire.burns_near(p.x as i32, p.y as i32, 4)).unwrap_or(false);
+        lines.push(Line { x: 18, y: 340, rgb: (200, 200, 230),
+            text: format!("{}{}", kind_word, if near_fire { " \u{00b7} the fire's near" } else { "" }) });
         let worker = b.worker.and_then(|w| self.villagers.iter().position(|v| *v == w))
             .map(|i| vill_name(i).to_string())
             .or_else(|| b.worker.map(|_| "you".to_string()));

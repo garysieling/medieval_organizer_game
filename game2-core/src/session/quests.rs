@@ -165,8 +165,11 @@ impl Game {
     }
 
     /// The picked villager's job, taken on: the ask becomes the seat's
-    /// to run
+    /// to run. One job at a time - a second ask waits its turn
     pub fn accept_quest_at(&mut self, seat: usize) -> String {
+        if self.seats[seat].quest.is_some() {
+            return "You've already got a job on - see it through first.".into();
+        }
         let v = self.villagers[self.seats[seat].selected_target];
         // they're still asking, but only within earshot - walk over first
         let (px, py) = self.player_pos_at(seat);
@@ -281,7 +284,39 @@ impl Game {
             _ => format!("The {} reached {} - and {} remembers it.", thing, self.name_of(v), giver),
         };
         self.say(v, THANKS_LINES[q.kind as usize % THANKS_LINES.len()], TALK_BUBBLE_SECS * 2);
-        Some(format!("t{}: {} ({:.0}g)", self.tick, thanks, pay))
+        let known = self.quest_bond(seat, q.giver);
+        let mut line = format!("t{}: {} ({:.0}g)", self.tick, thanks, pay);
+        if known {
+            line.push_str(&format!(" - {} opens up to you; you know them now.", giver));
+        }
+        Some(line)
+    }
+
+    /// A job done for someone opens them up: the deed's recorded on the
+    /// bond (which alone reads as knowing them), and they tell you a
+    /// thing about why they asked. Returns whether they read as known.
+    fn quest_bond(&mut self, seat: usize, giver: Entity) -> bool {
+        crate::timed!("sim.quest_bond", self.quest_bond_inner(seat, giver))
+    }
+
+    fn quest_bond_inner(&mut self, seat: usize, giver: Entity) -> bool {
+        use crate::game::organizing::{stage_of, Deeds, RelStage};
+        use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+        if crate::game::villager::is_dead(&self.world, giver) { return false; }
+        let pe = self.seats[seat].player;
+        let bond = record_interaction(&mut self.world, pe, Interaction {
+            other: giver, kind: InteractionKind::Aid, intensity: 0.8 });
+        let mut deeds = self.world.get_component::<Deeds>(bond).copied().unwrap_or_default();
+        deeds.n += 1;
+        self.world.add_component(bond, deeds);
+        // they open up about why they needed the job
+        if let Some(r) = desires::next_reveal(&self.world, giver, self.tick, self.tick) {
+            if let Some(issue) = desires::hear(&mut self.world, pe, giver, r, self.tick) {
+                self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
+                self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+            }
+        }
+        stage_of(&self.world, pe, giver) >= RelStage::Known
     }
 
     /// A parcel walked out to a far village: the site's folk see it land
@@ -293,6 +328,9 @@ impl Game {
         if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { p.resources += 5.0; }
         if let Some(p) = self.world.get_component_mut::<livelihood::Purse>(pe) { p.gold += 5.0; }
         self.log.push(format!("t{}: the parcel reaches {} - word gets back to {}. (5g)", self.tick, name, giver));
+        if self.quest_bond(seat, q.giver) {
+            self.log.push(format!("t{}: {} opens up to you; you know them now.", self.tick, giver));
+        }
         self.toasts.push((format!("The parcel reached {}", name), self.tick + 60));
     }
 }

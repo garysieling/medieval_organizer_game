@@ -10,7 +10,6 @@ edition = "2021"
 [features]
 default = []
 # The 4x speed key: solo-play only while the flag rides out its deprecation
-speed-timer = ["game2-core/speed-timer"]
 
 [dependencies]
 game2-core = { path = "../game2-core" }

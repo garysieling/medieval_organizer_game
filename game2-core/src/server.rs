@@ -660,7 +660,7 @@ fn handle_conn(stream: TcpStream, server: Arc<Mutex<Server>>, stop: Arc<AtomicBo
                 match cm {
                     ClientMsg::Command(cmd) => {
                         // speed and pause are local-only: the shared world runs at one pace
-                        if !matches!(cmd, Command::TogglePause | Command::ToggleSpeed) {
+                        if !matches!(cmd, Command::TogglePause) {
                             s.apply(Input::Command { seat, cmd });
                         }
                     }

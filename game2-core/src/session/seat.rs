@@ -25,7 +25,6 @@ pub enum Command {
     /// Click the map through this camera (select villager or building)
     ClickMap { mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32 },
     TogglePause,
-    ToggleSpeed,
     /// Drop any walk-over-to-talk in progress
     CancelApproach,
     /// Answer the villager mid-Talk with reply `n`, or None to take your leave
@@ -212,7 +211,6 @@ impl Game {
             }
             Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
             Command::TogglePause => self.paused = !self.paused,
-            Command::ToggleSpeed => self.speed = if self.speed == 1 { 4 } else { 1 },
             Command::CancelApproach => self.seats[seat].approach = None,
             Command::TalkPick(n) => self.talk_pick_at(seat, n),
             Command::Decide(i) => self.decide_at(seat, i),

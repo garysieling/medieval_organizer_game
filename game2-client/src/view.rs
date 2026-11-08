@@ -1369,7 +1369,7 @@ impl View {
         }
 
         // season banner
-        let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.speed, m.food_yield, m.harsh_winter);
+        let hud = hud_text(season, tick, food_stock, m.precip.map(|k| k.label()), m.paused, m.food_yield, m.harsh_winter);
         // on a dark strip so it reads over any terrain the camera shows
         buf.rect(4, 4, text_width(&hud, 1) + 12, GLYPH_H + 8, 20, 20, 32);
         draw_text_outlined(&mut buf, 10, 8, &hud, 255, 255, 255);

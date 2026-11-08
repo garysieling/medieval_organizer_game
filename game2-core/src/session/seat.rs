@@ -179,6 +179,9 @@ impl Default for Seat {
 impl Game {
     /// One input from this seat: what a key press or click means to the sim.
     pub fn command_at(&mut self, seat: usize, cmd: Command) {
+        // the day's own record: the autosave replays it to the same village
+        self.journal.record(self.tick as u64, crate::session::journal::Input::Command {
+            seat, cmd: cmd.clone() });
         match cmd {
             Command::Act(i) => self.act_at(seat, i),
             Command::CtxAct(i) => self.ctx_act_at(seat, i),

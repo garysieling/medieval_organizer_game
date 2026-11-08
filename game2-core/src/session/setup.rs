@@ -1001,6 +1001,7 @@ impl Game {
             stocks_tile: None,
             lord_works: vec![],
             attended_days: vec![],
+            journal: crate::session::journal::Journal::default(),
             notices: vec![],
             notice_panel: false,
             boats: vec![(10, 5), (20, 8)],

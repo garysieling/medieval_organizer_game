@@ -142,8 +142,13 @@ fn read_search(window: &Window, q: &mut String) -> SearchKey {
     SearchKey::None
 }
 
-/// Map this frame's window input to Commands (shared by local and remote play)
-fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool) -> Vec<Command> {
+/// Two T presses this close together count as a double-tap (#944)
+const TALK_DBL: std::time::Duration = std::time::Duration::from_millis(350);
+
+/// Map this frame's window input to Commands (shared by local and remote play).
+/// `talk_armed` marks the last lone T press: a second one inside TALK_DBL
+/// with nothing between them is a double-tap - let the pick go, don't talk
+fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool, talk_armed: &mut Option<std::time::Instant>) -> Vec<Command> {
     // the find box has the keys: no game input gets through while it types
     if typing { return vec![]; }
     let mut cmds: Vec<Command> = vec![];
@@ -154,9 +159,19 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
         }
         if !done { cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 }); }
     }
+    // a click or a held key between the presses breaks the double-tap
+    if !cmds.is_empty() { *talk_armed = None; }
     const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
     for (i, k) in KEYS.iter().enumerate() {
-        if window.is_key_pressed(*k, minifb::KeyRepeat::No) { cmds.push(Command::Act(i)); }
+        if window.is_key_pressed(*k, minifb::KeyRepeat::No) {
+            if i == 0 && talk_armed.map(|t| t.elapsed() < TALK_DBL).unwrap_or(false) {
+                *talk_armed = None;
+                cmds.push(Command::Unselect);
+            } else {
+                if i == 0 { *talk_armed = Some(std::time::Instant::now()); }
+                cmds.push(Command::Act(i));
+            }
+        }
     }
     for (n, k) in [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5, Key::Key6, Key::Key7, Key::Key8].iter().enumerate() {
         if window.is_key_down(*k) { cmds.push(Command::Select(n)); }
@@ -241,6 +256,8 @@ fn main() {
     let mut search_at = 0usize;
     // leftover edge-scroll drift too small for the whole-px camera
     let mut edge_cam = (0.0f32, 0.0f32);
+    // the last lone T press: T-T inside it is a double-tap, an unselect
+    let mut talk_armed: Option<std::time::Instant> = None;
     // where the player stood and the zoom last frame, for the camera's follow
     let mut player_seen: Option<((f32, f32), f32)> = None;
 
@@ -487,7 +504,7 @@ fn main() {
         present(&mut window, &buf);
 
         // input -> commands -> local game or the wire
-        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus);
+        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed);
         // a hidden button (Recruit, before there's a campaign) can't be pressed
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap && !swallow_click {

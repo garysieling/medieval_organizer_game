@@ -565,6 +565,7 @@ impl Game {
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),
+            talk_target: self.talk_target_at(seat),
             blocked, ctx: self.seats[seat].ctx_actions.clone(),
             ctx_blocked: self.seats[seat].ctx_actions.iter()
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),

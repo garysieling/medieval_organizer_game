@@ -74,9 +74,14 @@ The same inputs the window sends, one frame's worth each.
 {"Command":"CancelApproach"}
 ```
 
+```json client
+{"Command":"Unselect"}
+```
+
 `Act(i)` is one of the three action buttons (0 Talk, 1 Recruit, 2 Build);
 `CtxAct(i)` the i-th context action the scene lists
-in `ctx`; `Select(i)` picks a villager; `TalkPick(n)` answers mid-Talk
+in `ctx`; `Select(i)` picks a villager; `Unselect` lets the pick go - the
+ring, the walk-over and the talk under way; `TalkPick(n)` answers mid-Talk
 (`null` to take your leave); `Decide(i)` answers a founding call.
 `TogglePause`/`ToggleSpeed` are ignored: the shared world runs at one pace.
 

@@ -743,10 +743,11 @@ impl View {
                         // bright when close enough to talk, recruit or meet; dim otherwise
                         let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
                         // the one an ask would land on rides the label
-                        // pass: the picked villager, or the one in
-                        // reach when nobody's picked
-                        let t = if m.sel.picked { m.sel.target } else { m.reach_target };
-                        let tgt = i == t && !pv.dead;
+                        // pass (older servers send no talk_target: fall
+                        // back to the picked or the one in reach)
+                        let t = m.talk_target
+                            .or(Some(if m.sel.picked { m.sel.target } else { m.reach_target }));
+                        let tgt = t == Some(i) && !pv.dead;
                         labels.push((lbl, lx, ly, rgb, pv.hungry, pv.selected, tgt, pv.in_reach, bond_hearts(pv.e),
                             m.org_members.contains(&pv.e)));
                         // sick: a green cross on the other side of the head

@@ -19,7 +19,9 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
         let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
         { let p = game.world.get_component_mut::<Pos>(game.player).unwrap(); p.x = vx + 0.5; p.y = vy; }
         game.selected_target = i;
-        for _ in 0..8 { game.act(0); } // talk until there's nothing new to hear
+        // picked each time: T's fresh-ears choice would move on to whoever
+        // else stands near after the first talk lets the pick go
+        for _ in 0..8 { game.picked = true; game.act(0); } // talk until there's nothing new to hear
         for _ in 0..40 {
             if game.world.get_component::<Organization>(game.org).unwrap().members.contains(&v)
                 || crate::game::dungeon::unavailable(&game.world, v) { break; }
@@ -31,6 +33,8 @@ fn test_the_village_can_still_be_won_when_people_join_at_meetings() {
             // apart won't climb past it unless the talking keeps up.
             // Earning the meeting: their own house is the venue, and
             // they've said they'll come.
+            game.selected_target = i;
+            game.picked = true;
             game.act(0);
             let (vx, vy) = { let p = game.world.get_component::<Pos>(v).unwrap(); (p.x, p.y) };
             plan_ready_meeting(&mut game, v, (vx, vy), &[v]);

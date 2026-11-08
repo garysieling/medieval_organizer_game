@@ -151,6 +151,7 @@ mod stay_home;
 mod succession;
 mod takings;
 mod talk_reach;
+mod talk_select;
 mod tavern;
 mod telemetry;
 mod trade_issue;

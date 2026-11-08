@@ -34,6 +34,9 @@ pub enum Command {
     /// conversation box: pick `n` of the framings, or the last option
     /// (let it rest)
     Decide(usize),
+    /// Let the pick go: the ring, the walk-over and the talk under way
+    /// (the window's double-tap of Talk)
+    Unselect,
 }
 
 /// A contextual action offered under the main buttons: what the player can
@@ -136,6 +139,11 @@ pub struct Seat {
     /// They picked the selected villager themselves and haven't walked off
     /// since: Talk and Recruit go to them, however far
     pub picked: bool,
+    /// The picked one was within a shout when picked, or has come within
+    /// one since: a pick that drifts past a shout lets go. A pick made
+    /// from further off was for a look, and keeps until they come near
+    /// or you pick another (#944)
+    pub pick_near: bool,
     /// A walk-over-to-act under way
     pub approach: Option<Approach>,
     /// Index into villagers[] of the villager currently selected
@@ -177,6 +185,7 @@ impl Default for Seat {
     fn default() -> Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
+               pick_near: false,
                pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, focus: None, last_pos: None, facing: 2, walking: false }
     }
@@ -191,13 +200,14 @@ impl Game {
         match cmd {
             Command::Act(i) => self.act_at(seat, i),
             Command::CtxAct(i) => self.ctx_act_at(seat, i),
-            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].picked = false; self.walk_at(seat, dx, dy); }
+            Command::Walk(dx, dy) => { self.seats[seat].approach = None; self.seats[seat].picked = false; self.seats[seat].pick_near = false; self.walk_at(seat, dx, dy); }
             Command::Select(i) => {
                 // an index off the list is refused, not stored - a client
                 // that sends one can't crash the next scene
                 if i < self.villagers.len() {
                     self.seats[seat].selected_target = i;
                     self.seats[seat].picked = true;
+                    self.seats[seat].pick_near = self.dist_to_at(seat, i) <= SHOUT_DIST;
                 }
             }
             Command::ClickMap { mx, my, cam_x, cam_y, zoom } => self.click_map_at(seat, mx, my, cam_x, cam_y, zoom),
@@ -206,6 +216,7 @@ impl Game {
             Command::CancelApproach => self.seats[seat].approach = None,
             Command::TalkPick(n) => self.talk_pick_at(seat, n),
             Command::Decide(i) => self.decide_at(seat, i),
+            Command::Unselect => self.unselect_at(seat),
         }
     }
 
@@ -520,15 +531,29 @@ impl Game {
                 }
             }
         }
-        // click on map selects nearest villager
+        // click on map selects nearest villager - by the figure's box,
+        // not its feet: a body is ~14px across standing ~30px tall (zoom
+        // scales both), so the part that shows past a roof still answers
+        // the click (#944)
         let on_map = mx < MAP_W as i32;
+        let z = zoom.max(0.5);
+        let box_d = |sx: i32, sy: i32| {
+            let dx = ((mx - sx).abs() as f32 - (14.0 * z + 4.0)).max(0.0);
+            let dy = (if my <= sy { (sy - my) as f32 - (34.0 * z + 6.0) }
+                else { (my - sy) as f32 - (8.0 * z + 4.0) }).max(0.0);
+            (dx * dx + dy * dy).sqrt()
+        };
         let mut best = self.seats[seat].selected_target;
-        let mut best_d = 9999.0f32;
+        let mut best_d = f32::MAX;
+        let mut best_sy = i32::MIN;
         for (i, v) in self.villagers.iter().enumerate() {
             if let Some(p) = self.world.get_component::<Pos>(*v) {
                 let (sx, sy) = iso_to_screen_cam(p.x, p.y, cam_x, cam_y, zoom);
-                let d = ((sx as f32 - mx as f32).powi(2) + (sy as f32 - my as f32).powi(2)).sqrt();
-                if on_map && d < 30.0 && d < best_d { best = i; best_d = d; }
+                let d = box_d(sx, sy);
+                // inside two overlapping boxes, the one in front answers
+                if on_map && d < 4.0 && (d < best_d - 1e-3 || ((d - best_d).abs() < 1e-3 && sy > best_sy)) {
+                    best = i; best_d = d; best_sy = sy;
+                }
             }
         }
         // click on a building: the inspector shows what it's for, who
@@ -540,10 +565,13 @@ impl Game {
             let d = ((sx as f32 - mx as f32).powi(2) + ((sy as f32 - 14.0 * zoom) - my as f32).powi(2)).sqrt();
             if on_map && d < 42.0 && d < best_bd { best_b = Some(i); best_bd = d; }
         }
-        // a villager wins the click only if clearly nearer
-        self.seats[seat].selected_building = if best_d + 8.0 < best_bd { None } else { best_b };
-        if self.seats[seat].selected_building.is_some() { self.seats[seat].picked = false; return; }
-        if best_d < 30.0 { self.seats[seat].picked = true; }
+        // the villager wins a shared click - they're the one in front
+        self.seats[seat].selected_building = if best_d <= best_bd { None } else { best_b };
+        if self.seats[seat].selected_building.is_some() { self.seats[seat].picked = false; self.seats[seat].pick_near = false; return; }
+        if best_d < 4.0 {
+            self.seats[seat].picked = true;
+            self.seats[seat].pick_near = self.dist_to_at(seat, best) <= SHOUT_DIST;
+        }
         self.seats[seat].selected_target = best;
     }
 
@@ -579,6 +607,8 @@ impl Game {
     pub fn update_ctx_actions(&mut self) { self.update_ctx_actions_at(0) }
 
     pub fn advance_approach(&mut self) { self.advance_approach_at(0) }
+
+    pub fn advance_selection(&mut self) { self.advance_selection_at(0) }
 
     pub fn call_meeting(&mut self) -> String {
         // calling a meeting is an action: the line goes in the log like

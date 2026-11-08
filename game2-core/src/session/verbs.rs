@@ -1730,7 +1730,7 @@ impl Game {
             name: "the fire brigade".into(),
             members, leader,
             influence_pool: 0.0, resources: 0.0,
-            charter: "answer every fire bell".into(),
+            charter: "answer every fire bell".into(), successors: vec![],
         });
         self.brigade = Some(e);
         self.brigade_gear = 3;

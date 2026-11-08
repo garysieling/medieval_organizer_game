@@ -157,8 +157,7 @@ mod tests {
         let leader = w.create_entity();
         w.add_component(o, Organization {
             name: "The League".into(), members: members.to_vec(), leader,
-            influence_pool: 0.0, resources: 0.0, charter: "".into(),
-        });
+            influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let vote = IssueVote { winner: "the taxes".into(), ballots: vec![] };
         let c = campaign::found_campaign(w, o, &vote, Framing::CommonFoe, DecisionRule::Majority, 1);
         (o, c)

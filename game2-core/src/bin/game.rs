@@ -55,7 +55,7 @@ fn main() {
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 100.0 });
     let org = world.create_entity();
-    world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+    world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(), successors: vec![] });
     world.add_component(org, OrganizedPower::new()); // grows with house meetings
     let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
     pets::adopt(&mut world, dog, villagers[0]);

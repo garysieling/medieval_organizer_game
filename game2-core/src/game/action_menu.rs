@@ -311,7 +311,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let v = w.create_entity();
         w.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.add_component(v, Hunger { value: 10.0 });
@@ -328,7 +328,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         crate::game::campaign::found_for_test(&mut w, org);
         let v = w.create_entity();
         w.add_component(v, crate::game::player::Rapport::for_player(player, 1.0));
@@ -360,7 +360,7 @@ mod tests {
         let mut w = World::new();
         let player = w.create_entity();
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let friend = crate::game::villager::spawn_villager(&mut w, 0.0, 0.0);
         let stranger = crate::game::villager::spawn_villager(&mut w, 1.0, 0.0);
         let rel = w.create_entity();
@@ -381,7 +381,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
         // Hear everyone out, organize until the village has joined, invest the gold
         for &v in &villagers {
@@ -399,7 +399,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
         // Build the hall first, then the same route as above
         execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
@@ -418,7 +418,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let villagers: Vec<Entity> = (0..5).map(|i| crate::game::villager::spawn_villager(&mut w, i as f32, 0.0)).collect();
         // Spend gold every way there is - the hall and a pact with everyone - then win
         execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
@@ -448,7 +448,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
         assert!(msg.contains("build a meeting hall"), "{}", msg);
         assert!(w.get_component::<MeetingHall>(org).is_some());
@@ -466,7 +466,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 30.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         assert!(execute_choice(&mut w, player, org, MenuActionType::Build, None, 5).contains("costs 40 gold; you have 30"));
         assert!(w.get_component::<MeetingHall>(org).is_none());
     }
@@ -479,7 +479,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let v = w.create_entity();
         let msg = execute_choice(&mut w, player, org, MenuActionType::Contract, Some(v), 5);
         assert!(msg.contains("seal a mutual-aid pact"), "{}", msg);
@@ -497,7 +497,7 @@ mod tests {
         let player = w.create_entity();
         w.add_component(player, PlayerCharacter { name: "P".into(), resources: 50.0 });
         let org = w.create_entity();
-        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "O".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         w.add_component(org, MeetingHall);
         storm_strikes_hall(&mut w, org);
         let msg = execute_choice(&mut w, player, org, MenuActionType::Build, None, 5);
@@ -529,7 +529,7 @@ mod tests {
             desires::add_grievance(&mut w, m, desires::Problem::Taxed, 200);
             m
         }).collect();
-        w.add_component(org, Organization { name: "the Harvesters".into(), members: members.clone(), leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "the Harvesters".into(), members: members.clone(), leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         // the first Meet is the founding vote
         let msg = execute_choice(&mut w, player, org, MenuActionType::Meet, None, 5);
         assert!(msg.contains("take a vote"), "{}", msg);
@@ -560,7 +560,7 @@ mod tests {
             }
             m
         }).collect();
-        w.add_component(org, Organization { name: "the Harvesters".into(), members: members.clone(), leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(org, Organization { name: "the Harvesters".into(), members: members.clone(), leader: player, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         execute_choice(&mut w, player, org, MenuActionType::Meet, None, 5);
         let msg = execute_choice(&mut w, player, org, MenuActionType::March, None, 8);
         assert!(msg.contains("march in the street"), "{}", msg);

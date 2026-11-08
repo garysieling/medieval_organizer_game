@@ -61,7 +61,7 @@ fn main() {
     world.add_component(player, PlayerCharacter { name: "W".into(), resources: 100.0 });
     world.add_component(player, Pos { x: 10.0, y: 10.0 });
     let org = world.create_entity();
-    world.add_component(org, Organization { name: "Org".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Aid".into() });
+    world.add_component(org, Organization { name: "Org".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Aid".into(), successors: vec![] });
 
     for _ in 0..ticks { sched.tick(&mut world); }
 

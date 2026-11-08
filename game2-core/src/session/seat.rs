@@ -225,7 +225,7 @@ impl Game {
         let org = self.world.create_entity();
         self.world.add_component(org, Organization {
             name: "The Free Folk".into(), members: vec![], leader: player,
-            influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() });
+            influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() , successors: vec![] });
         // every cause starts with the muscle to spend - a quiet one fades
         self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.seats.push(Seat { player, org, ..Seat::default() });
@@ -238,7 +238,7 @@ impl Game {
         let org = self.world.create_entity();
         self.world.add_component(org, Organization {
             name: "-".into(), members: vec![], leader: villager,
-            influence_pool: 0.0, resources: 0.0, charter: "-".into() });
+            influence_pool: 0.0, resources: 0.0, charter: "-".into() , successors: vec![] });
         self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         // their own ledger of what they've heard: it lets a villager agent
         // gather the grievances folk tell them, as a wanderer does

@@ -468,8 +468,7 @@ mod tests {
         let leader = w.create_entity();
         w.add_component(org, Organization {
             name: "Guild".into(), members: vec![], leader,
-            influence_pool: 0.0, resources: 0.0, charter: "Wages".into(),
-        });
+            influence_pool: 0.0, resources: 0.0, charter: "Wages".into(), successors: vec![] });
         (org, leader)
     }
 

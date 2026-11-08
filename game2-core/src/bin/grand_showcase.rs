@@ -52,7 +52,7 @@ fn main() {
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 150.0 });
     let org = world.create_entity();
-    world.add_component(org, Organization { name: "Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+    world.add_component(org, Organization { name: "Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(), successors: vec![] });
 
     // Merchants + pet
     for i in 0..3 {

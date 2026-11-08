@@ -40,7 +40,7 @@ impl Game {
                 self.world.add_component(org, Organization {
                     name: "the cell".into(), members: members.clone(),
                     leader: members[0], influence_pool: 0.0,
-                    resources: 0.0, charter: "out".into() });
+                    resources: 0.0, charter: "out".into(), successors: vec![] });
                 self.cells.push(crate::game::dungeon::CellOrg {
                     org, site: si, outstanding: None, rations: 0.5 });
             }

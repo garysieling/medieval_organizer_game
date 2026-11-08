@@ -83,7 +83,7 @@ fn main() {
     let player = world.create_entity();
     world.add_component(player, PlayerCharacter { name: "The Wanderer".into(), resources: 87.0 });
     let org = world.create_entity();
-    world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![villagers[0], villagers[1]], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+    world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![villagers[0], villagers[1]], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(), successors: vec![] });
 
     // === RENDER ===
     let mut buf = Buffer::new(W, H);

@@ -238,6 +238,7 @@ impl Game {
         crate::timed!("sim.petition", self.petition_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
+        crate::timed!("sim.stocks", self.stocks_tick(tick));
         drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));

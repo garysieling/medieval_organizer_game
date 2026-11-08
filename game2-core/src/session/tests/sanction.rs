@@ -78,3 +78,29 @@ fn test_the_card_names_the_rung() {
         "the card doesn't say where they stand: {:?}",
         ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_the_stocks_hold_their_body() {
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    // no crowd to save them - the shame sticks
+    g.world.get_component_mut::<crate::game::contracts::Reputation>(v)
+        .map(|r| r.trust_score = 0.0);
+    g.apply_sanction(v, crate::game::sanctions::Sanction::Stocks, 50);
+    assert!(g.stocks_tile.is_some(), "no stocks tile picked");
+    assert!(g.travels.iter().any(|t| t.who == v), "the condemned never walked");
+    // the walk lands them in the stocks
+    for d in 0..10 { g.stocks_tick(50 + d); }
+    // the walk may still be in flight - force the arrive
+    g.world.add_component(v, villager::InStocks { until: 57 });
+    // pinned and fed: their body stays, their belly's seen to
+    g.stocks_tick(52);
+    assert!(g.world.get_component::<villager::InStocks>(v).is_some(), "they slipped the stocks");
+    assert!(!g.send(v, Goal::HeadHome(g.market_food)), "a stocked body took an errand");
+    // the sentence runs out
+    g.stocks_tick(58);
+    assert!(g.world.get_component::<villager::InStocks>(v).is_none(), "the sentence ran and nobody freed them");
+    // but the sanction's memory stands its sixty days
+    assert!(g.sanctioned.iter().any(|(e, _s, u)| *e == v && *u >= 100),
+        "the shame didn't outlast the stocks");
+}

@@ -203,6 +203,9 @@ pub struct Art {
     pub works_winter: [Vec<Option<Sprite>>; WorkLook::N],
     /// The market cross with its notice board, and the maypole that
     /// stands there on a feast day
+    /// The stocks by the market: two posts, a foot bar, a seat - drawn,
+    /// not generated, a punishment the village feeds
+    pub stocks: Option<Sprite>,
     pub market_cross: Option<Sprite>,
     pub maypole: Option<Sprite>,
     /// Market-day stalls (sellers' looks), and the pedlar's striped booth
@@ -804,6 +807,20 @@ impl Art {
             details_k,
             works,
             works_winter,
+            stocks: Some({
+                // the stocks: two posts, a foot bar between them, a low
+                // seat - brown timber on transparent ground
+                let (w, h) = (12usize, 9usize);
+                let mut px = vec![0u8; w * h * 4];
+                let wood = |px: &mut Vec<u8>, x, y| {
+                    let i = (y * w + x) * 4;
+                    px[i] = 84; px[i + 1] = 60; px[i + 2] = 40; px[i + 3] = 255;
+                };
+                for y in 0..8 { wood(&mut px, 2, y); wood(&mut px, 9, y); }
+                for x in 2..10 { wood(&mut px, x, 7); wood(&mut px, x, 8); }
+                for x in 4..8 { wood(&mut px, x, 5); }
+                Sprite { width: w, height: h, pixels: px }
+            }),
             market_cross: at("rd/bits/market-cross.png"),
             maypole: at("rd/bits/maypole.png"),
             memorial_cross: at("rd/monuments/wayside-cross.png"),

@@ -44,6 +44,7 @@ impl Game {
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
             Goal::SeasonWork(t) => self.at_the_door(t.0, t.1),
             Goal::GoStocks => self.stocks_tile.map(|(x, y)| (x, y)),
+            Goal::GoGaol => self.village_gaol.or(self.castle_gaol),
             Goal::FillBucket => self.fire_bank_walkable((from.x.round() as i32, from.y.round() as i32)),
             Goal::DouseFire(t) => self.douse_spot_walkable(*t, (from.x.round() as i32, from.y.round() as i32)),
             Goal::Eat => {
@@ -690,6 +691,15 @@ impl Game {
                     }
                 }
                 self.world.add_component(who, villager::InStocks { until: self.tick + 7 });
+            }
+            Goal::GoGaol => {
+                // the gaol takes them: the Pos holds at the cell tile
+                let tile = self.village_gaol.or(self.castle_gaol);
+                if let Some(t) = tile {
+                    if let Some(p) = self.world.get_component_mut::<Pos>(who) {
+                        p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
+                    }
+                }
             }
             Goal::FarmWork(f) => {
                 // stood at the field: the day's work runs under the KidWork

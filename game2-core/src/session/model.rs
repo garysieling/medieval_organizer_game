@@ -488,6 +488,10 @@ pub struct UiModel {
     pub market: Option<(f32, f32)>,
     /// Where the stocks stand by the market, once a sentence names their tile
     pub stocks: Option<(i32, i32)>,
+    /// The village gaol's tile - the watch house's cellar, where the
+    /// watch post stands; and the castle's own cell block
+    pub village_gaol: Option<(i32, i32)>,
+    pub castle_gaol: Option<(i32, i32)>,
     #[serde(default)]
     pub feast: bool,
     /// Stalls standing today: (x, y, look) - a seller's stall by look

@@ -55,6 +55,31 @@ pub struct Seat {
 }
 
 /// A campaign: the org's settled cause, its own entity so it can carry
+/// The campaign's own season: it listens before it cuts, it reads the
+/// room before it acts, and it counts what it did before the next round
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CampaignPhase {
+    Listening,    // the open season - hearing the grievances
+    IssueCut,     // a target's named, the demands take shape
+    Research,     // sounding the target out - the interview's yield
+    Action,       // the street verbs - writs, pickets, the push itself
+    Evaluate,     // what did it earn - settle or another round
+}
+
+impl CampaignPhase {
+    /// The next season - Evaluate loops back to Listening unless the
+    /// campaign's settled, so the machine never deadlocks
+    pub fn step(self) -> Self {
+        match self {
+            Self::Listening => Self::IssueCut,
+            Self::IssueCut => Self::Research,
+            Self::Research => Self::Action,
+            Self::Action => Self::Evaluate,
+            Self::Evaluate => Self::Listening,
+        }
+    }
+}
+
 /// meetings, actions and prisoners of its own
 #[derive(Debug)]
 pub struct Campaign {
@@ -79,6 +104,9 @@ pub struct Campaign {
     /// What the debrief settled on - the mandate the room gave the
     /// campaign's next step
     pub directive: Option<String>,
+    /// The campaign's own season: it listens before it cuts, it reads
+    /// the room before it acts
+    pub phase: CampaignPhase,
 }
 
 /// Where the target stands on the campaign's issue, and the concern
@@ -268,7 +296,7 @@ pub fn found_campaign(world: &mut World, org: Entity, vote: &IssueVote, framing:
     let c = world.create_entity();
     world.add_component(c, Campaign {
         issue: vote.winner.clone(), framing, org, founded_day, dissenters,
-        dossier: None, directive: None,
+        dossier: None, directive: None, phase: CampaignPhase::Listening,
         decision_rule: rule, seats: vec![], target: None,
     });
     c

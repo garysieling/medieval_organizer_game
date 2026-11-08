@@ -1079,3 +1079,37 @@ impl Game {
         }
     }
 }
+
+impl Game {
+    /// The campaign's own season: it listens before it cuts, it reads
+    /// the room before it acts - a dossier moves it past the cutting,
+    /// a directive past the research, and a settled campaign loops
+    /// back to the listening or ends
+    pub(in crate::session) fn phase_tick(&mut self, tick: u64) {
+        let mut done: Vec<Entity> = vec![];
+        for e in self.world.query::<crate::game::campaign::Campaign>() {
+            let c = match self.world.get_component_mut::<crate::game::campaign::Campaign>(e) {
+                Some(c) => c, None => continue };
+            let next = match c.phase {
+                crate::game::campaign::CampaignPhase::Listening =>
+                    if c.target.is_some() { Some(c.phase.step()) } else { None },
+                crate::game::campaign::CampaignPhase::IssueCut =>
+                    if c.dossier.is_some() { Some(c.phase.step()) } else { None },
+                crate::game::campaign::CampaignPhase::Research =>
+                    if c.directive.is_some() { Some(c.phase.step()) } else { None },
+                crate::game::campaign::CampaignPhase::Action =>
+                    if tick > c.founded_day + 30 { Some(c.phase.step()) } else { None },
+                crate::game::campaign::CampaignPhase::Evaluate => Some(c.phase.step()),
+            };
+            if let Some(n) = next {
+                c.phase = n;
+                if n == crate::game::campaign::CampaignPhase::Action {
+                    self.log.push(format!("t{}: the campaign's season turns - the demands go to the street.", tick));
+                } else if n == crate::game::campaign::CampaignPhase::Listening {
+                    done.push(e); // a settled campaign ends its season
+                }
+            }
+        }
+        for e in done { self.world.remove_component::<crate::game::campaign::Campaign>(e); }
+    }
+}

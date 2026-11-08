@@ -1004,6 +1004,7 @@ impl Game {
             notices: vec![],
             notice_panel: false,
             construction_sites: vec![],
+            law_book: crate::game::laws::LawBook::new(),
             sites: vec![],
             village_gaol: None,
             castle_gaol: None,

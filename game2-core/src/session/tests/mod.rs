@@ -83,6 +83,7 @@ mod laborer_rowdiness;
 mod gaol;
 mod events_attend;
 mod construction;
+mod laws;
 mod notices;
 mod flood;
 mod lord_works;

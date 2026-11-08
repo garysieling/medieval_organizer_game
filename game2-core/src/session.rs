@@ -1024,6 +1024,10 @@ pub struct Game {
     pub notice_panel: bool,
     /// What's going up where hands are on it: the labor's slow raise
     pub construction_sites: Vec<ConstructionSite>,
+    /// The realm's statutes and the lords' own: the tax share, the
+    /// assembly cap, the drink levy, the writ's weight - a won campaign
+    /// writes its scope in
+    pub law_book: crate::game::laws::LawBook,
     /// The village gaol's tile - the watch house's cellar, picked when
     /// a watch post stands; the castle's own cell block at the keep
     pub village_gaol: Option<(i32, i32)>,

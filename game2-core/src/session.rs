@@ -195,6 +195,9 @@ pub struct Button {
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
+/// Shouting distance (tiles): a pick made within this lets go once
+/// they've drifted past it - too far to talk (#944)
+const SHOUT_DIST: f32 = 10.0;
 /// How far (tiles) an idle villager strays from the village food store
 /// before heading back
 const VILLAGE_RADIUS: f32 = 7.0;
@@ -2051,6 +2054,7 @@ impl Game {
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
             self.advance_approach_at(seat);
+            self.advance_selection_at(seat);
         }
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);

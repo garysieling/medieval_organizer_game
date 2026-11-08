@@ -153,7 +153,13 @@ impl Game {
         // Recruit is pointless on a member: say so on the button, as Build
         // does, rather than fail in the log. Talk and Recruit need the
         // selected villager alive (they walk over to them)
-        let target = self.villagers[if (i == 0 || i == 1) && self.seats[seat].picked { self.seats[seat].selected_target } else { self.reach_target_at(seat) }];
+        // nobody within a shout to talk to: the button says so outright
+        if i == 0 && self.talk_target_at(seat).is_none() { return Some("no one near enough".into()); }
+        let target = self.villagers[match i {
+            0 => self.talk_target_at(seat).unwrap_or(self.seats[seat].selected_target),
+            1 if self.seats[seat].picked => self.seats[seat].selected_target,
+            _ => self.reach_target_at(seat),
+        }];
         let target_alive = self.world.get_component::<Health>(target).is_some();
         let campaign = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org);
         let member = self.world.get_component::<Organization>(self.seats[seat].org).map(|o| o.members.contains(&target)).unwrap_or(false);
@@ -194,6 +200,63 @@ impl Game {
             }
         }
         best.map(|(site, _)| site)
+    }
+
+    /// Who Talk lands on now, if anyone: the picked villager while
+    /// they're still within a shout (a pick from further off is a look,
+    /// not a mark - #944), else someone near: the least lately heard
+    /// first, nearer on a tie. None when nobody's near enough to hear.
+    pub fn talk_target_at(&self, seat: usize) -> Option<usize> {
+        let s = &self.seats[seat];
+        if s.picked && s.selected_building.is_none()
+            && self.dist_to_at(seat, s.selected_target) <= SHOUT_DIST {
+            return Some(s.selected_target);
+        }
+        self.shout_pick_at(seat)
+    }
+
+    /// The best someone within a shout to single out with a Talk:
+    /// living, free, and sorted so the folk you talked to most recently
+    /// fall to the bottom (never heard from is on top), nearer on a tie
+    fn shout_pick_at(&self, seat: usize) -> Option<usize> {
+        let pe = self.seats[seat].player;
+        let (px, py) = self.player_pos_at(seat);
+        let mut best: Option<(usize, u64, f32)> = None;
+        for (i, v) in self.villagers.iter().enumerate() {
+            if self.world.get_component::<Health>(*v).is_none() { continue; }
+            if self.shunned(*v) || crate::game::dungeon::unavailable(&self.world, *v) { continue; }
+            let Some(p) = self.world.get_component::<Pos>(*v) else { continue };
+            let d = ((p.x - px).powi(2) + (p.y - py).powi(2)).sqrt();
+            if d > SHOUT_DIST { continue; }
+            let last = self.world.get_component::<TalkCount>(*v)
+                .and_then(|c| c.last_day_by.get(&pe).copied()).unwrap_or(0);
+            if best.map(|(_, l, n)| (last, d) < (l, n)).unwrap_or(true) { best = Some((i, last, d)); }
+        }
+        best.map(|(i, _, _)| i)
+    }
+
+    /// Each frame: a pick made within a shout lets go once they've
+    /// drifted past it - you can't talk to them from there. A pick from
+    /// further out was for a look and keeps, coming within a shout makes
+    /// it a near one. A walk-over to them in progress holds the pick.
+    pub fn advance_selection_at(&mut self, seat: usize) {
+        if !self.seats[seat].picked { return; }
+        if self.seats[seat].approach.as_ref().map(|a| a.who) == Some(self.seats[seat].selected_target) { return; }
+        if self.dist_to_at(seat, self.seats[seat].selected_target) <= SHOUT_DIST {
+            self.seats[seat].pick_near = true;
+        } else if self.seats[seat].pick_near {
+            self.seats[seat].picked = false;
+            self.seats[seat].pick_near = false;
+        }
+    }
+
+    /// Let the pick go outright: the ring, the walk-over and the talk
+    /// under way - the leave-taking goes on the record as one
+    pub fn unselect_at(&mut self, seat: usize) {
+        self.seats[seat].picked = false;
+        self.seats[seat].pick_near = false;
+        self.seats[seat].approach = None;
+        self.close_player_talk(seat, Some("You take your leave."));
     }
 
     /// Who Talk and Recruit go to: the selected villager if they're alive
@@ -321,6 +384,7 @@ impl Game {
             // still be done - they may have joined, or influence slipped)
             self.seats[seat].selected_target = who;
             self.seats[seat].picked = true;
+            self.seats[seat].pick_near = true;
             self.act_at(seat, a.action);
             return;
         }
@@ -354,9 +418,21 @@ impl Game {
     /// Take action button `i` (Talk, Recruit, Build)
     pub fn act_at(&mut self, seat: usize, i: usize) {
         let tick = self.tick;
-        // Talk and Recruit go to whoever the player picked; otherwise to
-        // whoever is in reach
-        if (i == 0 || i == 1) && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
+        // Recruit goes to whoever the player picked; otherwise to whoever
+        // is in reach
+        if i == 1 && !self.seats[seat].picked { self.seats[seat].selected_target = self.reach_target_at(seat); }
+        // Talk singles out someone to hear: the picked one while they're
+        // within a shout, else the best near - the least lately heard
+        // first. A pick from further off was for a look, and there's no
+        // walking over to someone too far to talk to (#944)
+        if i == 0 {
+            if let Some(t) = self.talk_target_at(seat) {
+                self.seats[seat].selected_target = t;
+                self.seats[seat].selected_building = None;
+                self.seats[seat].picked = true;
+                self.seats[seat].pick_near = true;
+            }
+        }
         let selected_target = self.seats[seat].selected_target;
         // a Talk's words go on the TALK panel, not the event log
         let mut talked = false;

@@ -499,6 +499,11 @@ pub struct UiModel {
     pub reach: Vec<usize>,
     /// Whom Talk/Recruit would go to now (a villager index)
     pub reach_target: usize,
+    /// Whom Talk would land on now, if anyone (a villager index): the
+    /// picked one while they're within a shout, else the best near.
+    /// None when nobody's near enough to hear; absent from older servers
+    #[serde(default)]
+    pub talk_target: Option<usize>,
     /// Disabled reason per action button
     pub blocked: [Option<String>; 3],
     pub ctx: Vec<CtxAct>,

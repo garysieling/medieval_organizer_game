@@ -444,9 +444,14 @@ impl Game {
         v
     }
 
-    /// End the seat's Talk, with a closing note on the record if given
+    /// End the seat's Talk, with a closing note on the record if given.
+    /// Whoever it was with lets go of the pick once it's over (#944)
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
+        if self.villagers.get(self.seats[seat].selected_target) == Some(&t.who) {
+            self.seats[seat].picked = false;
+            self.seats[seat].pick_near = false;
+        }
         if let Some(n) = note {
             if let Some(r) = self.talk_record_mut(t.id) {
                 r.lines.push(TalkLine { who: None, name: String::new(), text: n.to_string(), gist: false });
@@ -477,6 +482,7 @@ impl Game {
                     self.seats[seat].selected_building = None;
                     self.seats[seat].selected_target = i;
                     self.seats[seat].picked = true;
+                    self.seats[seat].pick_near = self.dist_to_at(seat, i) <= super::SHOUT_DIST;
                 }
                 if let Some(pos) = self.world.get_component::<villager::Pos>(f) {
                     self.seats[seat].focus = Some((pos.x, pos.y, self.frame_n));

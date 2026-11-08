@@ -498,6 +498,10 @@ impl Game {
                 if let Some(l) = sites[si].lord {
                     self.world.add_component(l, crate::game::relic::Relic::new(
                         &format!("the house of {}'s patron bone", sites[si].name), 0.5, 0.6));
+                    // and his own eyes on the village: a watcher whose
+                    // paranoia the weak feed
+                    self.world.add_component(l, crate::session::subsystems::society::Watcher {
+                        paranoia: 0.0, legitimacy: 0.7 });
                 }
             }
         }

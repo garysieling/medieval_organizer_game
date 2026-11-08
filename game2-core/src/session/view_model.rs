@@ -1275,6 +1275,7 @@ impl Game {
                         Turnout => "brings them out",
                         Agitation => "stirs a room",
                         Training => "brings others on",
+                        SecurityCulture => "keeps counsel",
                     };
                     parts.push(word.into());
                 }

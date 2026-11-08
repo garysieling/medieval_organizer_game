@@ -23,6 +23,8 @@ pub struct Organizing {
     pub agitation: f32,
     /// Developing other organizers
     pub training: f32,
+    /// The discipline that keeps the watcher's eyes off the weak
+    pub security_culture: f32,
 }
 
 /// The skills, for passing one around by name
@@ -33,6 +35,9 @@ pub enum OrgSkill {
     Turnout,
     Agitation,
     Training,
+    /// The discipline that keeps the watcher's eyes off the weak -
+    /// a practiced habit, not a wall
+    SecurityCulture,
 }
 
 impl Organizing {
@@ -44,6 +49,7 @@ impl Organizing {
             OrgSkill::Turnout => self.turnout,
             OrgSkill::Agitation => self.agitation,
             OrgSkill::Training => self.training,
+            OrgSkill::SecurityCulture => self.security_culture,
         }
     }
 
@@ -54,6 +60,7 @@ impl Organizing {
             OrgSkill::Turnout => &mut self.turnout,
             OrgSkill::Agitation => &mut self.agitation,
             OrgSkill::Training => &mut self.training,
+            OrgSkill::SecurityCulture => &mut self.security_culture,
         };
         *v = (*v + amount).min(1.0);
     }

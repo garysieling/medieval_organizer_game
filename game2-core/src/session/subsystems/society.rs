@@ -1113,3 +1113,48 @@ impl Game {
         for e in done { self.world.remove_component::<crate::game::campaign::Campaign>(e); }
     }
 }
+
+/// The watcher behind the curtain: the lord's own eyes, and the
+/// paranoia they feed - heavy eyes catch more, and catching more
+/// makes the watching worse
+#[derive(Debug, Clone)]
+pub struct Watcher {
+    pub paranoia: f32,   // what the eyes bring back feeds this
+    pub legitimacy: f32, // what an exposure costs him
+}
+
+impl Game {
+    /// The watcher's day: his eyes fall on the weak - a sick man, a
+    /// poor man, a frightened man - and each name they carry home
+    /// feeds the paranoia. A tight security culture keeps the eyes
+    /// off the weak. And once in a long while the watchers are
+    /// caught, and the watching costs him.
+    pub(in crate::session) fn surveillance_tick(&mut self, tick: u64) {
+        let org = self.org;
+        let skill = self.world.get_component::<crate::game::org_skills::Organizing>(org)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::SecurityCulture)).unwrap_or(0.0);
+        let mut leaks = 0usize;
+        for v in &self.villagers {
+            if villager::is_dead(&self.world, *v) { continue; }
+            let weak = self.world.get_component::<Health>(*v)
+                .map(|h| h.condition < 0.5).unwrap_or(false)
+                || self.world.get_component::<Purse>(*v)
+                    .map(|p| p.gold < 1.0).unwrap_or(false);
+            if weak { leaks += 1; }
+        }
+        // the discipline cuts the leaks; a practiced org keeps its own
+        let effective = leaks as f32 * (1.0 - skill * 0.8);
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            let Some(w) = self.world.get_component_mut::<Watcher>(l) else { continue };
+            w.paranoia = (w.paranoia + effective * 0.01).min(1.0);
+            // and the watchers get caught: a high paranoia's a high
+            // chance the eyes are found out, and the finding costs him
+            if w.paranoia > 0.6 && (tick.wrapping_mul(31).wrapping_add(l as u64)) % 1000 < 2 {
+                w.legitimacy = (w.legitimacy - 0.2).max(0.0);
+                w.paranoia = 0.0;
+                self.log.push(format!("t{}: the watchers are caught in the open - the lord's eyes cost him his standing.", tick));
+            }
+        }
+    }
+}

@@ -43,7 +43,7 @@ fn main() {
         world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32, warmth_episodes: (4-i) as u32, episodes: vec![] });
         world.add_component(v, Faith { religion: "Old Faith".into(), devotion: 0.3+(i as f32*0.1), traditions: vec![] });
         world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-        world.add_component(v, Age { years: 20.0+(i as f32*15.0), stage: LifeStage::Adult });
+        world.add_component(v, Age { years: 20.0+(i as f32*15.0), stage: LifeStage::Adult , born_day: 0 });
         world.add_component(v, Vitality { health: 0.9, max_age: 75.0+(i as f32*10.0), cause_of_death: None });
         villagers.push(v);
     }

@@ -329,6 +329,7 @@ impl Game {
         // the office gathers whoever's keeping the holy day - church
         // rows or the stones, priest or no priest
         crate::timed!("sim.faith", self.service_tick(tick));
+        crate::timed!("sim.birthday", self.birthday_tick(tick));
         // and folk who've gotten to know the Wanderer ask for small jobs
         crate::timed!("sim.quests", self.quest_dawn(tick, &mut rng));
         // now and then a mystery starts doing the rounds - the gossip's

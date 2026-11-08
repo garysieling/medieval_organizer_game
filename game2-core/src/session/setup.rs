@@ -870,7 +870,8 @@ impl Game {
                 world.get_component::<KidGrowth>(v).map(|kg| kg.age_days as f32 / 52.0).unwrap_or(5.0)
             } else { 19.0 + (g.next() % 42) as f32 };
             world.add_component(v, crate::game::lifecycle::Age {
-                years, stage: crate::game::lifecycle::stage_for(years) });
+                years, stage: crate::game::lifecycle::stage_for(years),
+                born_day: (v as u16) % 360 });
             // and where their soul stands on Fowler's scale - a seeded
             // draw weighted by the years they're carrying
             world.add_component(v, crate::sim::religion::FaithStage::for_years(years,
@@ -999,6 +1000,7 @@ impl Game {
             doctor: None,
             stocks_tile: None,
             lord_works: vec![],
+            attended_days: vec![],
             village_gaol: None,
             castle_gaol: None,
             suffrage_won: false,

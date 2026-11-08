@@ -356,6 +356,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // the meeting it reports to
         CtxAct::Interview => Button { label: "Interview".into(), key: ' ', x: UI_X as i32 + 146, y: 406, w: 62, h: 16, color: (90, 100, 140) },
         CtxAct::Debrief => Button { label: "Debrief".into(), key: ' ', x: UI_X as i32 + 216, y: 470, w: 62, h: 16, color: (100, 100, 130) },
+        CtxAct::Attend => Button { label: "Attend".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 62, h: 16, color: (140, 110, 60) },
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
@@ -1000,6 +1001,9 @@ pub struct Game {
     /// The lord's works: commissions the castle's treasury pays for,
     /// standing on their day (site index, the work, the day it rises)
     pub lord_works: Vec<(usize, crate::session::country::LordWork, u64)>,
+    /// Who's stood in a gathering today: (player, day) - the day's rite
+    /// counts once, not once per button press
+    pub attended_days: Vec<(Entity, u64)>,
     /// The village gaol's tile - the watch house's cellar, picked when
     /// a watch post stands; the castle's own cell block at the keep
     pub village_gaol: Option<(i32, i32)>,

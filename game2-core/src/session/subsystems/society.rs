@@ -654,6 +654,35 @@ impl Game {
     /// The year's feast days: one mid-season each quarter, the village
     /// gathers at the market, the good stock comes out, and for a day
     /// the wants that never quite get fed are fed
+    /// The year's own days: a birthday's observance lands where the
+    /// celebrant's means can take it - a poor soul's meal, a neighborly
+    /// call, a full little gathering where the gentry keeps the door
+    pub(in crate::session) fn birthday_tick(&mut self, tick: u64) {
+        let today = (tick % 360) as u16;
+        for v in self.villagers.clone() {
+            let Some(a) = self.world.get_component::<crate::game::lifecycle::Age>(v)
+                .map(|a| a.born_day) else { continue };
+            if a != today { continue; }
+            let name = self.name_of(v);
+            // what they can afford picks the observance: the gentry's
+            // door stands open, a tradesman's neighbours call, and a
+            // poor soul's day is a meal and a kind word
+            let gentry = self.world.get_component::<Craft>(v)
+                .map(|c| matches!(c.vocation, Vocation::Knight | Vocation::Priest)).unwrap_or(false);
+            let gregarious = self.world.get_component::<crate::sim::psychology::Personality>(v)
+                .map(|p| p.extraversion > 0.6).unwrap_or(false);
+            let scale = if gentry || gregarious { "the whole lane calls" }
+                else if self.world.get_component::<Craft>(v).is_some() { "the neighbours drop by" }
+                else { "a meal and a kind word" };
+            self.log.push(format!("t{}: it's {}'s birthday - {}.", tick, name, scale));
+            // and the day's own gladness: the celebrant's want for the
+            // gathering's warmth finds its satisfaction
+            if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(v) {
+                l.wants.retain(|w| *w != desires::Want::Love);
+            }
+        }
+    }
+
     pub fn festival_tick(&mut self, tick: u64) {
         if tick % 90 != 45 { return; }
         // one feast mid-season, named for the season it's in

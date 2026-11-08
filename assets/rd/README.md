@@ -102,7 +102,7 @@ soldier, "bareheaded ... no helmet" a bald man.
 - **Memorials** (`monuments/`, #703): wayside cross, picture stone,
   obelisk, trophy and the Scott column (`rd_tile__tile_object` 96px for
   the ground pieces, `rd_pro__isometric` 96px for the column), sliced
-  with `--strip-base`; the cairns are composed offline from
+  tight - the exports carried no ground slab to strip; the cairns are composed offline from
   `stones/stone*.png`, not generated. Registered as `Art.memorial_*`
   options - #702 picks which form a monument wears. The lychgate prompt
   is catalogued for #674, not generated.

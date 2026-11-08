@@ -465,6 +465,17 @@ impl View {
                 buf.rect(sx - k(1.0), sy - k(3.0), k(2.0), k(1.0), 220, 180, 80);
             }
         }
+        // the water's cells: a depth-tinted tile where the land lies
+        // under - shallow reads a sheen, deep a darker sink
+        for &(tx, ty, band) in &m.flood {
+            let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
+            let k = |v: f32| ((v * zoom).round() as i32).max(1);
+            if band >= 2 {
+                buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 20, 35, 90);
+            } else {
+                buf.rect(sx - k(4.0), sy - k(3.0), k(8.0), k(6.0), 70, 100, 140);
+            }
+        }
         // the scorched ground: dark scars where the fire's been
         for &(tx, ty) in &m.scorched {
             let (sx, sy) = iso_to_screen_cam(tx, ty, cam_x, cam_y, zoom);

@@ -120,6 +120,7 @@ impl Game {
             settlement_houses: country_plan.houses.clone(),
         };
         layout.buildings.push((vx - 6, vy - 7));
+        let heights = terrain.heights.clone();
         let mut map = TileMap::generate(&mut terrain, &layout);
         // where the mill wanted to stand is where it ended up (or nearly):
         // the last layout building, after the eight planned ones
@@ -916,7 +917,8 @@ impl Game {
         }
 
         let mut g = Game {
-            world, sched, map, climate, music, weather, congregation, villagers, rivals,
+            world, sched, map, heights, flood: crate::game::flood::Flood::new(),
+            climate, music, weather, congregation, villagers, rivals,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             village: (vx, vy),

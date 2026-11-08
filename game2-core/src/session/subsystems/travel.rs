@@ -128,15 +128,18 @@ impl Game {
     /// to the paths the village actually uses instead of cutting
     /// fresh lines over the fields.
     pub(in crate::session) fn trail_path(&self, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
-        Self::trail_path_on(&self.map, &self.trails, from, to)
+        Self::trail_path_on(&self.map, &self.trails, &self.flood, from, to)
     }
 
     /// `trail_path` over its parts, for callers holding field borrows
     /// that a whole-`self` method call would conflict with.
-    pub(in crate::session) fn trail_path_on(map: &TileMap, worn_map: &crate::engine::det::HashMap<(i32, i32), Trail>, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
+    pub(in crate::session) fn trail_path_on(map: &TileMap, worn_map: &crate::engine::det::HashMap<(i32, i32), Trail>, flood: &crate::game::flood::Flood, from: (i32, i32), to: (i32, i32)) -> Option<Vec<(i32, i32)>> {
         // the cheapest a tile can be: a trail worn to saturation
         const FLOOR: f32 = 1.0 - TRAIL_K * TRAIL_PARAMS.saturation;
         crate::timed!("sim.walk_path", map.walk_path_weighted(from, to, FLOOR, |x, y| {
+            // a tile under the water doesn't take a step - the flood
+            // routes folk round the wetting, not through it
+            if flood.flooded(x, y) { return f32::INFINITY; }
             // roads aren't free for the planner: advance_travels prices
             // a step by the trail actually recorded on the tile, so a
             // road only earns its keep once folk have worn it in too

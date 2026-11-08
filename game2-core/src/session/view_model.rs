@@ -596,6 +596,7 @@ impl Game {
             stocks: self.stocks_tile,
             village_gaol: self.village_gaol,
             castle_gaol: self.castle_gaol,
+            flood: self.flood.cells.iter().map(|(&(x, y), &b)| (x, y, b)).collect(),
             monuments: self.monuments.iter().filter(|m| m.stood_on.is_some())
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },

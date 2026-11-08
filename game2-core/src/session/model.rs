@@ -500,6 +500,9 @@ pub struct UiModel {
     /// watch post stands; and the castle's own cell block
     pub village_gaol: Option<(i32, i32)>,
     pub castle_gaol: Option<(i32, i32)>,
+    /// The water's cells: tile, depth band (1 shallow, 2 deep) - the
+    /// client draws the overlay where the land lies under it
+    pub flood: Vec<(i32, i32, u8)>,
     #[serde(default)]
     pub feast: bool,
     /// Stalls standing today: (x, y, look) - a seller's stall by look

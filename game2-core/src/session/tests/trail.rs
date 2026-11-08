@@ -74,7 +74,7 @@ fn the_worn_way_is_the_walk() {
             worn.insert((x, y), Trail { strength: 0.85 });
         }
     }
-    let path = Game::trail_path_on(&g.map, &worn, from, to).expect("still a way there");
+    let path = Game::trail_path_on(&g.map, &worn, &g.flood, from, to).expect("still a way there");
     assert!(path.iter().any(|&(x, y)| worn.contains_key(&(x, y))), "folk keep to the worn way");
     assert!(path.iter().all(|&(x, y)| g.map.passable(x, y)), "only open ground");
     assert_eq!(path.last(), Some(&to));

@@ -30,6 +30,7 @@ pub mod desires;
 pub mod household;
 pub mod livelihood;
 pub mod fire;
+pub mod flood;
 pub mod campaign;
 pub mod campaign_dialogue;
 pub mod campaign_beats;

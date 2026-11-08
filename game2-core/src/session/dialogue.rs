@@ -168,6 +168,12 @@ pub fn speaker_of(world: &World, who: Entity, name: &str, tick: u64) -> Speaker 
     let grieving = world.get_component::<AttachmentHistory>(who).map(|h| h.episodes.iter()
         .any(|e| matches!(e.kind, EpisodeKind::Loss) && villager::is_dead(world, e.with))).unwrap_or(false);
     if grieving { s.status.push("grieving"); }
+    // and how far their faith has grown - a mystic's words carry
+    // differently from a literalist's
+    if let Some(t) = world.get_component::<crate::sim::religion::FaithStage>(who)
+        .and_then(|st| st.title()) {
+        s.status.push(t);
+    }
     s
 }
 

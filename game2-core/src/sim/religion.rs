@@ -14,6 +14,109 @@ pub struct Faith {
     pub traditions: Vec<String>,// rituals/beliefs adopted
 }
 
+/// Fowler's stages of faith: how a soul makes sense of the holy.
+/// Structure, not intensity - devotion stays its own measure. Ordered:
+/// later is deeper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FaithStage {
+    /// primal: the sacred is everywhere and nowhere named
+    Undifferentiated,
+    /// intuitive-projective: story and image carry the holy
+    IntuitiveProjective,
+    /// mythic-literal: the stories are true, the rules are plain
+    MythicLiteral,
+    /// synthetic-conventional: belief is woven into the community's order
+    SyntheticConventional,
+    /// individuative-reflective: the person picks their own meaning
+    IndividuativeReflective,
+    /// conjunctive: the symbols are held together, paradox and all
+    Conjunctive,
+    /// universalizing: the holy is served in every person
+    Universalizing,
+}
+
+impl FaithStage {
+    /// The next stage down the road, if there is one
+    pub fn step(self) -> Option<FaithStage> {
+        use FaithStage::*;
+        Some(match self {
+            Undifferentiated => IntuitiveProjective,
+            IntuitiveProjective => MythicLiteral,
+            MythicLiteral => SyntheticConventional,
+            SyntheticConventional => IndividuativeReflective,
+            IndividuativeReflective => Conjunctive,
+            Conjunctive => Universalizing,
+            Universalizing => return None,
+        })
+    }
+
+    /// What the village calls a soul this far along - None while the
+    /// stage is ordinary
+    pub fn title(self) -> Option<&'static str> {
+        use FaithStage::*;
+        Some(match self {
+            IndividuativeReflective => "seeker",
+            Conjunctive => "mystic",
+            Universalizing => "sage",
+            _ => return None,
+        })
+    }
+
+    /// Where a soul of these years likely stands: children lean to the
+    /// early stages, the old can reach the late ones - a roll, not a law
+    pub fn for_years(years: f32, roll: u64) -> FaithStage {
+        use FaithStage::*;
+        let r = (roll % 1000) as u32;
+        let stage = if years < 14.0 {
+            if r < 450 { Undifferentiated } else if r < 850 { IntuitiveProjective } else { MythicLiteral }
+        } else if years < 18.0 {
+            if r < 100 { Undifferentiated } else if r < 400 { IntuitiveProjective }
+            else if r < 850 { MythicLiteral } else { SyntheticConventional }
+        } else if years < 60.0 {
+            if r < 150 { IntuitiveProjective } else if r < 600 { MythicLiteral }
+            else if r < 900 { SyntheticConventional } else { IndividuativeReflective }
+        } else {
+            if r < 200 { MythicLiteral } else if r < 550 { SyntheticConventional }
+            else if r < 850 { IndividuativeReflective } else if r < 970 { Conjunctive } else { Universalizing }
+        };
+        stage
+    }
+}
+
+/// A deterministic per-entity hash for stage rolls - the same soul
+/// always draws the same numbers, no rng stream spent
+pub fn stage_roll(e: Entity, salt: u64) -> u64 {
+    let mut z = (e as u64).wrapping_add(salt).wrapping_mul(0x9E3779B97F4A7C15);
+    z = (z ^ (z >> 29)).wrapping_mul(0xBF58476D1CE4E5B9);
+    z ^ (z >> 32)
+}
+
+/// The cult's lock: a cult-locked soul never passes MythicLiteral - the
+/// stage where the stories are taken literally and the leader's word is
+/// law. The flag is defined here; what breeds cults waits for the
+/// reformation work
+#[derive(Debug, Clone, Copy)]
+pub struct Cultish;
+
+/// The deepest stage a soul may hold: the cult-locked stop at the literal
+pub fn stage_cap(world: &World, e: Entity) -> FaithStage {
+    if world.get_component::<Cultish>(e).is_some() { FaithStage::MythicLiteral }
+    else { FaithStage::Universalizing }
+}
+
+/// A rare conversion moment - a service, a miracle, a milestone - moves
+/// a devout soul one stage deeper. `roll` is the caller's deterministic
+/// draw; about one soul in twenty-five takes the step per call
+pub fn stage_up(world: &mut World, e: Entity, roll: u64) {
+    if roll % 100 >= 4 { return; }
+    let Some(stage) = world.get_component::<FaithStage>(e).copied() else { return };
+    let devout = world.get_component::<Faith>(e).map(|f| f.devotion > 0.45).unwrap_or(false);
+    if !devout { return; }
+    let Some(next) = stage.step() else { return };
+    if next > stage_cap(world, e) { return; }
+    world.add_component(e, next);
+}
+
 /// A religious community
 #[derive(Debug)]
 pub struct Congregation {

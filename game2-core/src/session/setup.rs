@@ -870,6 +870,10 @@ impl Game {
             } else { 19.0 + (g.next() % 42) as f32 };
             world.add_component(v, crate::game::lifecycle::Age {
                 years, stage: crate::game::lifecycle::stage_for(years) });
+            // and where their soul stands on Fowler's scale - a seeded
+            // draw weighted by the years they're carrying
+            world.add_component(v, crate::sim::religion::FaithStage::for_years(years,
+                crate::sim::religion::stage_roll(v, 23)));
             world.add_component(v, crate::game::lifecycle::Vitality {
                 health: 1.0, max_age: 58.0 + (g.next() % 35) as f32, cause_of_death: None });
             let voc = world.get_component::<Craft>(v).map(|c| c.vocation);

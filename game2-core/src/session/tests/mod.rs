@@ -35,6 +35,7 @@ mod edict;
 mod emergence;
 mod events;
 mod faith;
+mod faith_stage;
 mod festival;
 mod feuds;
 mod fisher;

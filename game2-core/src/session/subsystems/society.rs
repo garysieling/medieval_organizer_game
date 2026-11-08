@@ -955,3 +955,37 @@ impl Game {
         }
     }
 }
+
+impl Game {
+    /// A caught wrong answered by the book: the fine takes the purse,
+    /// the dungeon takes the body, the stocks take the shame - routed
+    /// through whatever enforcement's already standing. The seam
+    /// #653's sheriffs call when they arrive.
+    #[allow(dead_code)]
+    pub(in crate::session) fn apply_penalty(&mut self, site: usize, who: Entity, crime: &str, tick: u64) {
+        let _law = self.law_book.law_for(site);
+        match crime {
+            "theft" | "smuggling" => {
+                if let Some(p) = self.world.get_component_mut::<Purse>(who) {
+                    let cut = (p.gold * 0.25).min(p.gold);
+                    p.gold -= cut;
+                    self.log_entity(who, format!("t{}: fined {:.0} gold under the law - {}.", tick, cut, self.name_of(who)));
+                }
+            }
+            "assembly" => {
+                // over the cap the law calls it a mob: the stocks for a
+                // ringleader, a fine for the rest
+                self.apply_sanction(who, crate::game::sanctions::Sanction::Stocks, tick);
+            }
+            "defiance" => {
+                // a writ defied: the dungeon's own answer
+                self.world.add_component(who, crate::game::dungeon::Imprisoned {
+                    since: tick, charge: crime.into() });
+                if let Some(g) = self.village_gaol.or(self.castle_gaol) {
+                    self.send_far(who, g, Goal::GoGaol);
+                }
+            }
+            _ => {}
+        }
+    }
+}

@@ -568,7 +568,7 @@ impl Game {
     /// A Building entity out in the country (its sprite is the map's
     /// settlement scenery, or the keep - not the village's building list).
     /// The tile is marked built-on so folk walk round it, not through
-    fn country_building(&mut self, kind: BuildingKind, name: String, x: i32, y: i32) -> Entity {
+    pub(in crate::session) fn country_building(&mut self, kind: BuildingKind, name: String, x: i32, y: i32) -> Entity {
         self.map.occupy(x, y);
         let b = household::spawn_building(&mut self.world, kind, "a house", x as f32, y as f32, 20);
         if let Some(bb) = self.world.get_component_mut::<Building>(b) { bb.name = name; }

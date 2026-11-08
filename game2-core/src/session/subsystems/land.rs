@@ -613,6 +613,42 @@ impl Game {
 }
 
 impl Game {
+    /// The site's day: hands on the scaffold count the labor, a day's
+    /// work's a day's raise, and a crew that never forms leaves the
+    /// foundation to the weather
+    pub(in crate::session) fn site_tick(&mut self, tick: u64) {
+        let mut done: Vec<usize> = vec![];
+        for (i, site) in self.construction_sites.iter_mut().enumerate() {
+            // who's on it: able hands standing at the tile, not the sick
+            // or the marched-off or the young
+            let on_site: Vec<Entity> = site.crew.iter().copied()
+                .filter(|&v| self.world.get_component::<Pos>(v)
+                    .map(|p| (p.x.round() as i32 - site.tile.0).abs()
+                        + (p.y.round() as i32 - site.tile.1).abs() < 4)
+                    .unwrap_or(false)).collect();
+            if !on_site.is_empty() {
+                site.progress += on_site.len() as u32;
+                site.stalled_days = 0;
+            } else {
+                site.stalled_days += 1;
+            }
+            if site.progress >= site.need { done.push(i); }
+        }
+        for i in done.into_iter().rev() {
+            let site = self.construction_sites.remove(i);
+            let b = self.country_building(site.kind, "the new work".into(),
+                site.tile.0, site.tile.1);
+            self.log.push(format!("t{}: the work stands at last - the village's {} roof rises.", tick, b));
+            self.built_count += 1;
+        }
+        // a site whose crew never came goes to weather: the log names it once
+        for site in self.construction_sites.iter_mut() {
+            if site.stalled_days == 7 {
+                self.log.push(format!("t{}: the work on the new ground stands unfinished - no hands came.", tick));
+            }
+        }
+    }
+
     /// The water's day: the rain raises it, the low ground drinks, the
     /// crops under it are gone - and when the weather dries, the shallow
     /// cells give the land back

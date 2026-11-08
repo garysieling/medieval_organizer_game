@@ -472,6 +472,17 @@ impl Works {
     }
 }
 
+/// A building going up: the tile's reserved, a crew labors it over
+/// days, and the road+rise flourish plays when the hands are done
+pub struct ConstructionSite {
+    pub kind: crate::game::household::BuildingKind,
+    pub tile: (i32, i32),
+    pub progress: u32,   // labor-days worked
+    pub need: u32,       // labor-days to stand
+    pub crew: Vec<Entity>,
+    pub stalled_days: u32,
+}
+
 /// A house meeting under way (Organize). The invited walk to the venue,
 /// talk it over in turns in thought bubbles, and only then does it
 /// resolve (Game::resolve_meeting).
@@ -584,6 +595,8 @@ pub enum Goal {
     GoStocks,
     /// The arrested walks to the gaol under escort
     GoGaol,
+    /// A hired hand walks to the construction site and labors on it
+    BuildWork((i32, i32)),
     /// An agent asked their villager to go stand and chat with someone
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere
@@ -1009,6 +1022,8 @@ pub struct Game {
     pub notices: Vec<(String, String, u64)>,
     /// Whether a seat's reading the board: the notices panel's open
     pub notice_panel: bool,
+    /// What's going up where hands are on it: the labor's slow raise
+    pub construction_sites: Vec<ConstructionSite>,
     /// The village gaol's tile - the watch house's cellar, picked when
     /// a watch post stands; the castle's own cell block at the keep
     pub village_gaol: Option<(i32, i32)>,

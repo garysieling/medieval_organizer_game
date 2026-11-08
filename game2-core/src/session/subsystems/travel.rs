@@ -45,6 +45,7 @@ impl Game {
             Goal::SeasonWork(t) => self.at_the_door(t.0, t.1),
             Goal::GoStocks => self.stocks_tile.map(|(x, y)| (x, y)),
             Goal::GoGaol => self.village_gaol.or(self.castle_gaol),
+            Goal::BuildWork(t) => Some(*t),
             Goal::FillBucket => self.fire_bank_walkable((from.x.round() as i32, from.y.round() as i32)),
             Goal::DouseFire(t) => self.douse_spot_walkable(*t, (from.x.round() as i32, from.y.round() as i32)),
             Goal::Eat => {
@@ -702,6 +703,12 @@ impl Game {
                     if let Some(p) = self.world.get_component_mut::<Pos>(who) {
                         p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
                     }
+                }
+            }
+            Goal::BuildWork(t) => {
+                // the laborer reaches the site: the crew counts them on it
+                if let Some(p) = self.world.get_component_mut::<Pos>(who) {
+                    p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
                 }
             }
             Goal::FarmWork(f) => {

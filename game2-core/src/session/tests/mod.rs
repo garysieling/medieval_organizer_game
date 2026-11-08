@@ -82,6 +82,7 @@ mod labor_backlash;
 mod laborer_rowdiness;
 mod gaol;
 mod events_attend;
+mod construction;
 mod notices;
 mod flood;
 mod lord_works;

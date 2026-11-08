@@ -256,6 +256,7 @@ impl Game {
         // and whatever the day caught, the fire runs on
         crate::timed!("sim.fire", self.fire_tick(tick));
         crate::timed!("sim.flood", self.flood_tick(tick));
+        crate::timed!("sim.site", self.site_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

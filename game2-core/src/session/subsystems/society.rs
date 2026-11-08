@@ -1058,3 +1058,24 @@ impl Game {
         }
     }
 }
+
+impl Game {
+    /// The relic's day: the pilgrims leave their pennies at whichever
+    /// shrine holds a saint, and once in a long while a denunciation
+    /// crashes every relic's market at once
+    pub(in crate::session) fn relic_tick(&mut self, tick: u64) {
+        for e in self.world.query::<crate::game::relic::Relic>() {
+            let (rev, exposed) = self.world.get_component::<crate::game::relic::Relic>(e)
+                .map(|r| (r.revenue, r.exposed)).unwrap_or((0.0, true));
+            if !exposed {
+                if let Some(p) = self.world.get_component_mut::<Purse>(e) { p.gold += rev * 0.05; }
+            }
+        }
+        // the exposé's a rare morning - the market's faith crashes all
+        // at once, the Reformation's own day
+        if self.rng.below(50000) == 0 {
+            crate::game::relic::expose_all(&mut self.world);
+            self.log.push(format!("t{}: a denunciation! The relics are exposed - the pilgrims' faith empties.", tick));
+        }
+    }
+}

@@ -85,6 +85,7 @@ mod gaol;
 mod events_attend;
 mod construction;
 mod cult;
+mod relic;
 mod laws;
 mod season_illness;
 mod sheriff;

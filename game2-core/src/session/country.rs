@@ -493,6 +493,13 @@ impl Game {
                 // sheriff's colors - not the carrier, not the lord
                 if kind == SiteKind::Castle && k == 2 { sites[si].sheriff = Some(v); }
             }
+            // the house's saint: a castle's relic sits with its lord
+            if kind == SiteKind::Castle {
+                if let Some(l) = sites[si].lord {
+                    self.world.add_component(l, crate::game::relic::Relic::new(
+                        &format!("the house of {}'s patron bone", sites[si].name), 0.5, 0.6));
+                }
+            }
         }
         self.assign_hierarchy(&mut sites, &mut rng);
         self.sites = sites;

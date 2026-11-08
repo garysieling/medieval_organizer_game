@@ -556,6 +556,9 @@ impl Game {
                 leader: villagers.iter().copied().find(|&v| world.get_component::<Craft>(v)
                     .map(|cr| cr.vocation == Vocation::Priest).unwrap_or(false)),
                 orthodoxy: 0.6, services: vec![] });
+            // the parish saint's relic: the church's prestige in a box
+            world.add_component(c, crate::game::relic::Relic::new(
+                "the parish saint's knuckle", 0.6, 0.5));
             c
         };
         // rival village: foreign settlement across the river, with its own

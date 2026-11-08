@@ -315,6 +315,7 @@ impl View {
             Castle(Option<&'a Sprite>, f32, f32),   // a town-wall block: wall, gatehouse or tower; (width, height) stretch - the castles' grand dress
             Herb,                              // a wild herb tuft, flat on the meadow
             Shroom,                            // a wild mushroom in the shade
+            Cache,                             // a cache the woods' rebels left behind
             Skep,                              // a woven beehive in the apiary's yard
             Swarm,                             // a swarm of bees on the wing
             Stand(&'a Sprite),                 // a generated prop at its own size (draw_standing)
@@ -354,6 +355,7 @@ impl View {
         fn small(set: &[Sprite], x: f32, y: f32, salt: u32) -> Option<&Sprite> { pick(set, (x * 7.0) as i32, (y * 7.0) as i32, salt) }
         standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, small(&art.herbs, x, y, 51).map_or(Piece::Herb, Piece::Stand))));
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, small(&art.shrooms, x, y, 52).map_or(Piece::Shroom, Piece::Stand))));
+        standing.extend(m.stolen.iter().map(|&(x, y)| (x, y, Piece::Cache)));
         standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, small(&art.skeps, x, y, 53).map_or(Piece::Skep, Piece::Stand))));
         // the boats ride the river: a hull at the moored tile
         for &(bx, by) in &m.boats {
@@ -579,6 +581,7 @@ impl View {
                 Piece::Prop(sprite, k) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom, k); },
                 Piece::Herb => herb_tuft(buf, sx, sy, zoom),
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
+                Piece::Cache => draw_cache(buf, sx, sy, zoom),
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
                 Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),

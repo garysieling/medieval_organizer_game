@@ -126,6 +126,7 @@ mod recipes;
 mod quests;
 mod story;
 mod tech;
+mod rebels;
 mod reckoning;
 mod rels;
 mod rep;

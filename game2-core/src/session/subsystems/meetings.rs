@@ -252,7 +252,9 @@ impl Game {
         for &c in &plan.coming {
             if !pool.iter().any(|(e, _)| *e == c) { pool.push((c, true)); }
         }
-        pool.retain(|(e, _)| *e != pe && self.villagers.contains(e));
+        pool.retain(|(e, _)| *e != pe && self.villagers.contains(e)
+            // the woods' bands don't answer village calls
+            && self.world.get_component::<rebels::Rebel>(*e).is_none());
         // one invite per person, however many roles brought them up -
         // dedup_by only catches neighbours, and a holder can recur
         // non-adjacently (e.g. the venue-lender also takes notes, with

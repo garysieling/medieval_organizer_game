@@ -12,6 +12,7 @@ pub mod routine;
 pub mod country;
 pub mod quests;
 pub mod mystery;
+pub mod rebels;
 pub mod roster;
 pub mod formation;
 
@@ -376,6 +377,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Flyers => Button { label: "Flyers".into(), key: ' ', x: UI_X as i32 + 10, y: 438, w: 130, h: 16, color: (120, 100, 40) },
         CtxAct::Recruit => Button { label: "Win them".into(), key: ' ', x: UI_X as i32 + 212, y: 470, w: 62, h: 16, color: (90, 110, 150) },
         CtxAct::PickCaps => Button { label: "Pick caps".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (110, 90, 50) },
+        CtxAct::TakeCache => Button { label: "Take the cache".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (120, 100, 60) },
         // the delivery sits in the clear below the log box
         CtxAct::ShareFindings => Button { label: "Tell them what you know".into(), key: ' ', x: UI_X as i32 + 10, y: 640, w: 280, h: 24, color: (140, 120, 60) },
         // a gift rides the card's bottom row between Seat and Strike
@@ -1364,6 +1366,11 @@ pub struct Game {
     pub rare_seed: u64,
     /// The country's towns and castles, and who keeps each
     pub sites: Vec<country::Site>,
+    /// The woods' rebel bands: each band's camp tile, indexed by the
+    /// `Rebel.band` tag (session::rebels)
+    pub rebel_camps: Vec<(i32, i32)>,
+    /// Caches the bands have left at the woods' edge for finders
+    pub rebel_stores: Vec<rebels::RebelStore>,
     /// The wood's own rng stream - visions, dark turns and the fire's
     /// blame roll off it, never off `rng`, so the wood doesn't shift
     /// what the village would have rolled either
@@ -1931,6 +1938,8 @@ impl Game {
             crate::timed!("sim.advance_meeting", self.advance_meeting());
             crate::timed!("sim.advance_player_talks", self.advance_player_talks());
             crate::timed!("sim.advance_travels", self.advance_travels());
+            // and the woods' bands: a caravan passing close may be hit
+            crate::timed!("sim.rebel_ambush", self.rebel_ambush());
             crate::timed!("sim.fire_duty", self.fire_duty());
             crate::timed!("sim.snowball_frame", self.snowball_frame());
             // and the jobs folk asked of the Wanderer: picked up where

@@ -56,3 +56,21 @@ fn test_children_wear_only_the_young_pack_looks() {
     assert_eq!(figure_look(false, 2, 8), 2);
     assert_eq!(figure_look(false, 9, 8), 1);
 }
+
+#[test]
+fn test_a_rebel_cache_draws_its_sack_and_glint() {
+    // the woods' bands leave a bulging sack with a glint of the take:
+    // at zoom 1 it sits on the tile like the other ground props
+    let mut buf = Buffer::new(64, 64);
+    draw_cache(&mut buf, 32, 32, 1.0);
+    let px = |x: usize, y: usize| {
+        let i = (y * 64 + x) * 4;
+        (buf.pixels[i], buf.pixels[i + 1], buf.pixels[i + 2])
+    };
+    // the sack's brown somewhere under the centre, the glint above it
+    assert!(px(32, 30) == (105, 80, 50) || px(31, 30) == (105, 80, 50)
+        || px(33, 30) == (105, 80, 50) || px(32, 29) == (105, 80, 50),
+        "no sack at the cache's foot: {:?}", px(32, 30));
+    let glint = (28..36).any(|x| (23..28).any(|y| px(x, y) == (200, 165, 90)));
+    assert!(glint, "no glint of the take on the sack");
+}

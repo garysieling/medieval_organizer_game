@@ -354,6 +354,12 @@ impl Game {
         for i in 0..villagers.len() {
             let v = villagers[i];
             if crate::game::dungeon::unavailable(&self.world, v) { continue; }
+            // the woods' bands keep their own hours: drift the trees,
+            // never the day's plan
+            if self.world.get_component::<rebels::Rebel>(v).is_some() {
+                self.plan_rebel_day(v, tick, &mut rng);
+                continue;
+            }
             // hunger comes first: a starving person abandons any errand
             // to look for food - even one already under way. And looking
             // means walking: the store has the day's meal - except the

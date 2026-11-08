@@ -488,6 +488,10 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::PickCaps);
             }
         }
+        // a cache the bands left: standing by it offers the taking
+        if self.rebel_store_at(seat).is_some() {
+            self.seats[seat].ctx_actions.push(CtxAct::TakeCache);
+        }
         // a house meeting is earned: the button shows once a place and a
         // promise are on the plan, and only while no meeting is under way
         if self.meeting.is_none()
@@ -1208,6 +1212,23 @@ impl Game {
                         let pe = self.seats[seat].player;
                         self.shroom_take(pe, pi, kind, self.tick);
                         String::new()
+                    }
+                    None => String::new(),
+                }
+            }
+            CtxAct::TakeCache => {
+                match self.rebel_store_at(seat).map(|si| self.rebel_stores.remove(si)) {
+                    Some(st) => {
+                        let pe = self.seats[seat].player;
+                        if let Some(s) = self.world.get_component_mut::<Satchel>(pe) {
+                            for (g, n) in &st.goods {
+                                *s.goods.entry(g.to_string()).or_insert(0) += n;
+                            }
+                        }
+                        let goods = st.goods.iter().map(|&(g, n)| format!("{} {}", n, g))
+                            .collect::<Vec<_>>().join(" and ");
+                        self.log.push(format!("t{}: you take the cache the rebels left - {}.", self.tick, goods));
+                        format!("Taken: {}.", goods)
                     }
                     None => String::new(),
                 }

@@ -1013,6 +1013,8 @@ impl Game {
             construction_sites: vec![],
             law_book: crate::game::laws::LawBook::new(),
             sites: vec![],
+            rebel_camps: vec![],
+            rebel_stores: vec![],
             village_gaol: None,
             castle_gaol: None,
             suffrage_won: false,
@@ -1122,6 +1124,8 @@ impl Game {
         };
         // and the country's folk, out in its towns and castles
         g.settle_country(&country_plan, seed);
+        // and the woods' bands, if the seed dealt any
+        g.settle_rebels(seed);
         g
     }
 

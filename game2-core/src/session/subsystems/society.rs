@@ -977,6 +977,15 @@ impl Game {
                 // ringleader, a fine for the rest
                 self.apply_sanction(who, crate::game::sanctions::Sanction::Stocks, tick);
             }
+            "poaching" => {
+                // taken in the chase: a fine for the purse, and the
+                // stocks if the purse can't pay
+                if let Some(p) = self.world.get_component_mut::<Purse>(who) {
+                    let cut = (p.gold * 0.4).min(p.gold);
+                    p.gold -= cut;
+                    if cut < 1.0 { self.apply_sanction(who, crate::game::sanctions::Sanction::Stocks, tick); }
+                }
+            }
             "defiance" => {
                 // a writ defied: the dungeon's own answer
                 self.world.add_component(who, crate::game::dungeon::Imprisoned {

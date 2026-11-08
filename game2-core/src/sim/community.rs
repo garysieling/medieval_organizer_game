@@ -109,7 +109,12 @@ impl crate::engine::ecs::System for OneOnOneSystem {
 pub const RECRUIT_MIN_TRUST: f32 = 0.5;
 
 pub fn recruit(world: &mut World, org: Entity, citizen: Entity, rel_quality: f32) -> bool {
-    if rel_quality < RECRUIT_MIN_TRUST { return false; } // need trust to recruit
+    // the wronged need less persuading: repression's deferred debt arrives
+    // as recruits - whoever watched the crackdown already half-believes
+    let quality = rel_quality + if world.get_component::<crate::game::reactions::Radicalized>(citizen).is_some() {
+        crate::game::reactions::RADICAL_RECRUIT_BONUS
+    } else { 0.0 };
+    if quality < RECRUIT_MIN_TRUST { return false; } // need trust to recruit
     if let Some(o) = world.get_component_mut::<Organization>(org) {
         if o.members.contains(&citizen) { return false; }
         o.members.push(citizen);

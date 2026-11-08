@@ -32,3 +32,65 @@ fn test_a_strong_org_stands_against_the_summons() {
     assert!(!g.travels.iter().any(|t| t.who == m && matches!(t.goal, Goal::Exile)),
         "he stays - for now");
 }
+
+#[test]
+fn test_a_hanging_radicalizes_the_witnesses() {
+    let mut g = Game::new();
+    g.lord_esteem = 0.8;
+    g.repression_debt = 2;
+    let m = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<TownRole>(v).is_none()).unwrap();
+    for _ in 0..4 { desires::add_grievance(&mut g.world, m, desires::Problem::Broke, 100); }
+    g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
+    // the debt comes due: the third defiance is a gibbet, and everyone
+    // who saw it carries the spark
+    g.edict_tick(320);
+    assert!(g.world.get_component::<villager::Dead>(m).is_some(), "the writ hangs him");
+    let marked = g.villagers.iter().filter(|&&v|
+        g.world.get_component::<crate::game::reactions::Radicalized>(v).is_some()).count();
+    assert!(marked > 0, "the wronged remember - {} marked", marked);
+    assert!(g.log.iter().any(|l| l.contains("the wronged remember")),
+        "the village knows what it saw");
+}
+
+#[test]
+fn test_a_debt_wrapped_writ_radicalizes_the_market() {
+    let mut g = Game::new();
+    g.repression_debt = 1;
+    // a levy day: tick 80 -> kind 0, mult = 2 "Double, for the last defiance"
+    g.edict_tick(80);
+    assert!(g.log.iter().any(|l| l.contains("Double, for the last defiance")),
+        "the debt comes down heavier");
+    let marked = g.villagers.iter().filter(|&&v|
+        g.world.get_component::<crate::game::reactions::Radicalized>(v).is_some()).count();
+    assert!(marked > 0, "a writ seen is a writ remembered");
+}
+
+#[test]
+fn test_the_wronged_recruit_easier() {
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<Organization>(g.org).map(|o| !o.members.contains(&v)).unwrap_or(true)
+            && !villager::is_dead(&g.world, v)).unwrap();
+    let org = g.org;
+    // below the trust bar: refused
+    assert!(!crate::sim::community::recruit(&mut g.world, org, v, 0.3),
+        "stranger's trust isn't enough");
+    // the spark of repression covers the gap: recruits arrive on a delay
+    g.world.add_component(v, crate::game::reactions::Radicalized { until: 9999 });
+    assert!(crate::sim::community::recruit(&mut g.world, org, v, 0.3),
+        "the wronged sign on with less persuading");
+}
+
+#[test]
+fn test_the_spark_fades() {
+    let mut g = Game::new();
+    let v = g.villagers[0];
+    g.world.add_component(v, crate::game::reactions::Radicalized { until: 50 });
+    g.radical_decay(49);
+    assert!(g.world.get_component::<crate::game::reactions::Radicalized>(v).is_some(),
+        "the spark still burns");
+    g.radical_decay(50);
+    assert!(g.world.get_component::<crate::game::reactions::Radicalized>(v).is_none(),
+        "un-caught, it fades");
+}

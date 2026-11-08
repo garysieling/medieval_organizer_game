@@ -57,6 +57,20 @@ pub fn cool_off(world: &mut World, who: Entity, tick: u64) -> bool {
     still
 }
 
+/// The spark repression leaves behind: whoever watched a hanging or a
+/// writ land heavier than it should carries the cause's call for weeks -
+/// the deferred debt of "tactical win, strategic loss" (Sétif→FLN:
+/// recruits arrive on a delay). The session sets `until`; presence is
+/// the mark, and `radical_decay` lifts it when the spark fades.
+#[derive(Debug, Clone, Copy)]
+pub struct Radicalized {
+    pub until: u64,
+}
+
+/// How much easier the wronged are to recruit: the spark covers half
+/// the trust bar again - they needed persuading less than most
+pub const RADICAL_RECRUIT_BONUS: f32 = 0.25;
+
 /// How the powers answer a public action
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Reaction {

@@ -102,6 +102,7 @@ mod flood;
 mod lord_works;
 mod research;
 mod plague_doctor;
+mod plague;
 mod suffrage;
 mod monuments;
 mod stone_circle;

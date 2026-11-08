@@ -86,7 +86,7 @@ impl Game {
                 && self.world.get_component::<Pos>(k)
                     .map(|p| (p.x - fp.x).abs() + (p.y - fp.y).abs() < KID_NEAR).unwrap_or(false));
             let Some(kid) = kid else { continue; };
-            let pay = KID_DAY_WAGE + self.rng.below(4) as f32 * 0.1;
+            let pay = (KID_DAY_WAGE + self.rng.below(4) as f32 * 0.1) * self.wage_mult();
             self.world.add_component(kid, vocation::KidWork { field, hirer, pay });
             self.send(kid, Goal::FarmWork(field));
         }

@@ -418,6 +418,29 @@ for slug, subj in [
     add("buildings", slug, f"{ISO}: {subj}", w=64, h=64, n=4, ref=COTTAGE_REF,
         notes="4 variants per call; together with the first cottage they're the village's homes")
 
+# Botháns (issue #708): squat Irish cottages that join the cottage rotation.
+# Winter versions are separate entries below, each referencing its summer
+# sprite so a home's design survives the season change.
+add("buildings", "bothans", f"{ISO}: Irish bothán cottage, very short and "
+    "squat, thick thatched roof sweeping low over the walls, whitewashed or "
+    "dry stone walls, one small door, fits on one ground tile",
+    w=64, h=64, n=4, ref=COTTAGE_REF,
+    notes="4 variants; the squat thatch look mixed into the cottages (#708)")
+
+# Winter botháns: one call each, the picked summer sprite as the reference
+# so the snowy version keeps its design (houses_winter pairs by index).
+BOTHAN_WINTER = [
+    ("bothans-winter-1", "art-prompts/raw/bothans-5998bfd5/0.png"),
+    ("bothans-winter-2", "art-prompts/raw/bothans-5998bfd5/2.png"),
+    ("bothans-winter-3", "art-prompts/raw/bothans-5998bfd5/3.png"),
+]
+for slug, ref in BOTHAN_WINTER:
+    add("buildings", slug, f"{ISO}: the same Irish bothán cottage in winter, "
+        "snow settled in thick layers on the thatch, whitewashed walls dusted "
+        "with snow, fits on one ground tile",
+        w=64, h=64, n=1, ref=ref,
+        notes="winter of a summer bothán; reference image keeps the design (#708)")
+
 SHOPS = [
     ("bakery", "bakery with brick oven chimney and bread sign"),
     ("smithy", "blacksmith smithy with forge, anvil outside, smoke"),

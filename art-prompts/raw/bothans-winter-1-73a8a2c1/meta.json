@@ -1,0 +1,28 @@
+{
+ "created_at": 1794097064,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 36.39,
+ "request_id": "c74b0017-b7d7-4556-8908-89ed7780e6ff",
+ "outputs_retained_until": 1794183337,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 36.39
+ },
+ "id": "bothans-winter-1-73a8a2c1",
+ "prompt": "single isometric medieval village asset: the same Irish both\u00e1n cottage in winter, snow settled in thick layers on the thatch, whitewashed walls dusted with snow, fits on one ground tile",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true,
+  "reference_image_path": "art-prompts/raw/bothans-5998bfd5/0.png"
+ },
+ "generated_at": "2026-11-07T19:17:45",
+ "seconds": 127.9
+}

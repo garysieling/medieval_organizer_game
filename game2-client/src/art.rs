@@ -595,10 +595,28 @@ impl Art {
         ].iter().map(|rel| pack(rel)).collect();
         // the generated cottages (assets/rd/buildings) replace the pack's
         // looks when present: a matched street, not a mix
-        let rd_houses: Vec<Option<Sprite>> = (1..=9).filter_map(|i| at(&format!("rd/buildings/cottage{}.png", i))).map(Some).collect();
+        let mut rd_houses: Vec<Option<Sprite>> = (1..=9).filter_map(|i| at(&format!("rd/buildings/cottage{}.png", i))).map(Some).collect();
+        // the botháns - squat thatch cottages - join the street behind the
+        // cottages; (file number, slot) pairs so winter sprites land right
+        let mut bothan_slots = Vec::new();
+        if !rd_houses.is_empty() {
+            for i in 1..=3 {
+                if let Some(s) = at(&format!("rd/buildings/bothan{}.png", i)) {
+                    bothan_slots.push((i, rd_houses.len()));
+                    rd_houses.push(Some(s));
+                }
+            }
+        }
         let houses = if rd_houses.is_empty() { houses } else { rd_houses };
-        let houses_winter: Vec<Option<Sprite>> = houses.iter()
+        let mut houses_winter: Vec<Option<Sprite>> = houses.iter()
             .map(|h| h.as_ref().map(|s| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85)))).collect();
+        // a bothán's winter sprite replaces its recoloured summer self:
+        // snow loads the thatch differently than a green tint can show
+        for (i, slot) in bothan_slots {
+            if let Some(s) = at(&format!("rd/buildings/bothan-winter{}.png", i)) {
+                houses_winter[slot] = Some(s);
+            }
+        }
 
         // walk cycles: the player's, and the villager looks that have one
         // (same order as vpeople: the peasant man and woman so far)

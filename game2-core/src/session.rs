@@ -571,6 +571,8 @@ pub enum Goal {
     CollectTax(Entity),
     /// A kid runs an OddJob (component has hirer/good/from/to/pay)
     RunOddJob,
+    /// A kid works a day in the fields (component has field/hirer/pay)
+    FarmWork(Entity),
     /// An agent asked their villager to go stand and chat with someone
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere

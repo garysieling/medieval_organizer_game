@@ -125,6 +125,17 @@ pub struct Craft {
 
 /// A child: no craft, no level - they run errands and play
 #[derive(Debug)]
+/// A kid hired for a day in the fields: they walk to the field, work
+/// it, and take a child's wages - the field grows faster for the hands
+pub struct KidWork {
+    /// The crop field they tend
+    pub field: Entity,
+    /// Who hired them (the farmer who pays)
+    pub hirer: Entity,
+    /// A child's wages for the day
+    pub pay: f32,
+}
+
 pub struct Kid;
 
 /// How a kid is growing: the days they've seen, and who keeps giving

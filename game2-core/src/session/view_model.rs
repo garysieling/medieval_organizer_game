@@ -599,6 +599,11 @@ impl Game {
             flood: self.flood.cells.iter().map(|(&(x, y), &b)| (x, y, b)).collect(),
             notices: self.notices.iter().filter(|(_, _, u)| self.tick < *u)
                 .map(|(k, t, _)| (k.clone(), t.clone())).collect(),
+            music: self.world.get_component::<crate::game::music::MusicState>(self.music)
+                .map(|st| (format!("{:?}", st.mood),
+                    st.layers.iter().map(|l| (l.name.clone(), l.intensity)).collect())),
+            sfx_v: self.sfx.iter()
+                .map(|s|  (s.kind.to_string(), s.x.round() as i32, s.y.round() as i32, s.intensity)).collect(),
             notice_panel: self.notice_panel,
             postings: self.building_entities.iter().filter_map(|&be|
                 self.world.get_component::<Building>(be)

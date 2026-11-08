@@ -53,6 +53,9 @@ pub struct View {
     pub ledger_open: bool,
     /// Where the mouse rests this frame - the flyer's hover reads it
     pub mouse: Option<(i32, i32)>,
+    /// The village's tune silenced: M toggles it, the client's own
+    /// choice, never the sim's
+    pub mute: bool,
     /// The find box under the minimap: what was typed and whether it has
     /// the keys - widget state like the toggles above
     pub search_q: String,
@@ -116,6 +119,7 @@ impl View {
             help_open: false,
             ledger_open: false,
             mouse: None,
+            mute: false,
             search_q: String::new(),
             search_focus: false,
             focus_seen: std::cell::Cell::new(None),

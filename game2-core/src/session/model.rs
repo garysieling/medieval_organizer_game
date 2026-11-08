@@ -511,6 +511,12 @@ pub struct UiModel {
     /// The buildings carrying a posting: a writ nailed to a door, a
     /// feast's handbill on the church - tile + the line it reads
     pub postings: Vec<(i32, i32, String)>,
+    /// The village's tune: mood + the voices' weights - the client
+    /// reads it to set the mix
+    pub music: Option<(String, Vec<(String, f32)>)>,
+    /// The sound the world just made: kind, where it fell, how loud -
+    /// the client plays it positionally
+    pub sfx_v: Vec<(String, i32, i32, f32)>,
     #[serde(default)]
     pub feast: bool,
     /// Stalls standing today: (x, y, look) - a seller's stall by look

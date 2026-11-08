@@ -76,7 +76,7 @@ PATH="$PATH:$USERPROFILE/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rus
 - Ground-block prompts use `ISO_GROUND`, never `ISO` (it draws a house on the block). Tile/building swaps need the whole set (roads/rivers carry their own grass).
 - Ground tiles are composed (`scripts/rd_compose_tiles.py`), not generated per piece. Walk prompts: describe appearance positively (negatives like "no helmet" backfire).
 - `four_angle_walking` only draws people: a rider or animal comes back as a walker. `rd_pro__isometric` sizes the object to the canvas (64px ~ a cottage); ask 96px for something that should tower over the roofs (the windmill).
-- Animation dumps: `GAME2_DUMP_WALK=dx,dy game_ui --dump-frame N --focus player` walks the player 8 frames before the shot.
+- Animation dumps: `GAME2_DUMP_WALK=dx,dy game_ui --dump-frame N --focus player` walks the player 8 frames before the shot. `GAME2_DUMP_SELECT=N` opens the inspector page on villager N, as a click would.
 
 ## Render performance
 - Measure with `GAME2_BENCH=N game_ui --dump-frame T --zoom Z ...` (prints update/model/render ms, per-section render times and the weather); `GAME2_BENCH_PAN=1` slides the camera every frame (uncached ground), `GAME2_BENCH_ZOOM=1` drifts the zoom. Benchmark late ticks too (600, 1500): weather and a grown village only show up there. `--weather` doesn't survive bench frames.

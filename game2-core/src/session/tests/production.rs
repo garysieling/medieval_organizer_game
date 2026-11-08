@@ -90,7 +90,8 @@ fn test_a_luxury_s_offer_line_says_so() {
     }
     g.seats[0].selected_building = g.building_entities.iter().position(|&x| x == shop);
     let insp = g.building_inspector_at(0).unwrap();
-    let offer = insp.lines.iter().find(|l| l.y == 404).map(|l| l.text.clone()).unwrap_or_default();
+    let offer = insp.lines.iter().find(|l| l.text.starts_with("for offer"))
+        .map(|l| l.text.clone()).unwrap_or_default();
     assert!(offer.contains("a luxury"), "the tier never showed: {}", offer);
 }
 

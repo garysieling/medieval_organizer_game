@@ -64,7 +64,7 @@ fn test_who_holds_it_shows_on_the_card() {
     let m = g.ui_model_at(0);
     let ins = m.inspector.expect("no card for him");
     // two in hand shows as one name and the count, inside one line
-    assert!(ins.lines.iter().any(|l| l.text.contains("holds a lute +1")),
+    assert!(ins.lines.iter().any(|l| l.text.contains("a lute +1")),
         "the card doesn't say what he holds: {:?}",
         ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }

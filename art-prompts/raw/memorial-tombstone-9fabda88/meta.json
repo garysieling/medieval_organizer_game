@@ -1,0 +1,27 @@
+{
+ "created_at": 1794149598,
+ "credit_cost": 8,
+ "balance_cost": 0.24,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 34.41,
+ "request_id": "0afc6e21-bf0f-410f-afc2-7e80e16acc8c",
+ "outputs_retained_until": 1794235969,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.24,
+  "balance_left": 34.41
+ },
+ "id": "memorial-tombstone-9fabda88",
+ "prompt": "single isometric medieval village asset: tombstone, upright carved grave marker with a rounded top, weathered grey stone, small and plain, no lettering",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 96,
+  "height": 96,
+  "num_images": 4,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T09:53:18",
+ "seconds": 29.1
+}

@@ -729,6 +729,18 @@ pub struct Monument {
 #[derive(Clone, Copy, PartialEq)]
 pub enum MonumentKind { Column, Circle }
 
+/// The village churchyard: the plots beside the church that the dead
+/// are carried to once their lying-in is done. Planned once on the
+/// first burial check; country sites keep the old custom (their dead
+/// lie where they fell).
+#[derive(Default)]
+pub struct Graveyard {
+    /// The slot tiles in burial order - death order fills them
+    pub slots: Vec<(i32, i32)>,
+    /// How many slots burials have taken
+    pub taken: usize,
+}
+
 /// The imperial levy's course: the crown's collector takes grain at a
 /// pace, and if the lord intercedes the pace halves for a stretch
 pub struct ImperialProject {
@@ -1009,6 +1021,9 @@ pub struct Game {
     /// hard frost - fields and bones feel it while it lasts
     pub weather: Entity,
     pub died_on: Vec<Option<u64>>, // per villager, the day they died
+    /// The churchyard's plots, planned on the first burial check
+    /// (None until then - and forever on a map with no church)
+    pub graveyard: Option<Graveyard>,
     /// The Building entity behind each `buildings` entry (parallel)
     pub building_entities: Vec<Entity>,
 

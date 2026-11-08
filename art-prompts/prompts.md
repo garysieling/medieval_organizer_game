@@ -660,6 +660,7 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | memorial-trophy-8c7af4be | single isometric medieval village asset: trophy monument, a captured enemy standard and captured arms mounted on a wooden frame | rd_tile__tile_object | 96x96 | 2 | 0.12 | memorial piece; sits on any ground - strip base (#703) |
 | memorial-lychgate-c606b4b8 | single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance | rd_tile__tile_object | 96x96 | 2 | 0.12 | deferred to funerals #674 - catalogued only |
 | memorial-column-6a3230f1 | single isometric medieval village asset: Scott monument, tall fluted stone column with ornate capital on a stepped pedestal, the town's memorial to a great deed | rd_pro__isometric | 96x96 | 2 | 0.36 | the flagship monument form; towers over the cottages (#703) |
+| memorial-tombstone-9fabda88 | single isometric medieval village asset: tombstone, upright carved grave marker with a rounded top, weathered grey stone, small and plain, no lettering | rd_tile__tile_object | 96x96 | 4 | 0.24 | churchyard tombstones (#673) - slice a few to rd/bits/tomb* |
 
 ## P1 - fills gaps in shipped features / regions/scotland
 

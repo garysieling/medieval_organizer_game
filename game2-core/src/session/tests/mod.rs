@@ -47,6 +47,7 @@ mod free_villager;
 mod garden;
 mod gibbet;
 mod grave;
+mod graveyard;
 mod grief;
 mod growth;
 mod grudge;

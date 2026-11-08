@@ -232,6 +232,7 @@ impl Game {
         // and the wise stack while the path's open
         crate::timed!("sim.woodpile", self.woodpile_tick(tick));
         crate::timed!("sim.cairns", self.cairn_tick(tick));
+        crate::timed!("sim.graveyard", self.graveyard_tick(tick));
         crate::timed!("sim.monuments", self.monument_tick(tick));
         crate::timed!("sim.levy", self.imperial_tick(tick));
         crate::timed!("sim.kids", self.kid_labor_tick(tick));

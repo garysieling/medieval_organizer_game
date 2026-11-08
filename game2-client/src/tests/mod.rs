@@ -15,6 +15,7 @@ mod dialogue;
 mod dog;
 mod dog_sprite;
 mod ground_cache;
+mod graveyard;
 mod hearts;
 mod help;
 mod hud;

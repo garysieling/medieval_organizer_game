@@ -966,6 +966,7 @@ impl Game {
             talk_next_id: 0,
             was_sick: vec![None; NAMES.len()],
             died_on: vec![None; NAMES.len()],
+            graveyard: None,
             frame_n: 0,
             precip: None,
             rainbow_from: None,

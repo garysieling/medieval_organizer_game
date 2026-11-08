@@ -105,6 +105,15 @@ pub(crate) fn focus_matches(kind: PKind, name: &str) -> bool {
 #[allow(clippy::too_many_arguments)]
 pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom: f32, cam: Option<(i32, i32)>, weather: Option<&str>, seed: u64, focus: Option<&str>) {
     let mut game = Game::new_seeded(seed);
+    // GAME2_KILL=N: mark the first N villagers dying at the start, so a
+    // dump can show the dead without waiting years for a natural one
+    if let Some(n) = std::env::var("GAME2_KILL").ok().and_then(|v| v.parse::<usize>().ok()) {
+        for &v in game.villagers.iter().take(n) {
+            if let Some(h) = game.world.get_component_mut::<game2_core::sim::illness::Health>(v) {
+                h.condition = 0.0;
+            }
+        }
+    }
     let mut view = View::new(art);
     view.zoom = zoom;
     match cam {
@@ -114,6 +123,15 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         None => if let Some((mx, my)) = game.ui_model().market { (view.cam_x, view.cam_y) = cam_centred_on(mx, my); },
     }
     while game.tick < target_tick { game.update(); }
+    // GAME2_KILL=N: report where the marked dead ended up, for shot checks
+    if std::env::var("GAME2_KILL").is_ok() {
+        eprintln!("art.tombstones={} art.graves={}", view.art.tombstones.len(), view.art.graves.len());
+        let mm = game.ui_model();
+        for p in mm.people.iter().filter(|p| p.dead) {
+            println!("dead {:?} pos {:.1},{:.1} buried={} epitaph={:?}", p.kind, p.pos.0, p.pos.1, p.buried, p.epitaph);
+        }
+        println!("graveyard slots: {:?}", &mm.graveyard[..mm.graveyard.len().min(8)]);
+    }
     // GAME2_DUMP_FRAMES=N: play N more frames into the day, so a dump shows
     // folk where the day's plan took them (stalls up, a congregation seated)
     let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);

@@ -1311,6 +1311,11 @@ add("monuments", "memorial-column", f"{ISO}: Scott monument, tall fluted "
     "memorial to a great deed",
     w=96, h=96, n=2, tier="p1",
     notes="the flagship monument form; towers over the cottages (#703)")
+add("monuments", "memorial-tombstone", f"{ISO}: tombstone, upright carved "
+    "grave marker with a rounded top, weathered grey stone, small and "
+    "plain, no lettering",
+    style="rd_tile__tile_object", w=96, h=96, n=4, tier="p1",
+    notes="churchyard tombstones (#673) - slice a few to rd/bits/tomb*")
 
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.

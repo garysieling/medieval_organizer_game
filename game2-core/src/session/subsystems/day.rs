@@ -514,6 +514,8 @@ impl Game {
             }
         }
         drop(folk);
+        // the spark of the wronged fades if the cause hasn't caught it
+        crate::timed!("sim.radical_decay", self.radical_decay(tick));
         // the print shop's work is the village's research: only the
         // printmakers who actually kept the bench today count
         crate::timed!("sim.prison", self.cell_tick(tick));

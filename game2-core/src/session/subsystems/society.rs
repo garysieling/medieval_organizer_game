@@ -313,6 +313,7 @@ impl Game {
                         // the third defiance: the bailiff doesn't come back
                         // alone - a writ at max repression is a gibbet
                         let name = self.name_of(m);
+                        let at = self.world.get_component::<Pos>(m).map(|p| (p.x, p.y));
                         self.world.add_component(m, villager::Dead);
                         if let Some(i) = self.villagers.iter().position(|&x| x == m) {
                             self.died_on[i] = Some(tick);
@@ -328,6 +329,9 @@ impl Game {
                                 desires::add_grievance(&mut self.world, v, desires::Problem::Grief, tick + 60);
                             }
                         }
+                        // and the wronged remember: the spark of recruits
+                        // arrives on a delay - repression's deferred debt
+                        if let Some(at) = at { self.mark_radicalized(at, tick); }
                     } else if member && self.lord_esteem > 0.7 {
                         self.repression_debt += 1;
                         self.log_entity(m, format!("t{}: a writ for {} - and the village stands against it. The bailiff rides home empty - and the castle won't forget it.", tick, self.name_of(m)));
@@ -361,11 +365,48 @@ impl Game {
                 }
             }
         }
+        // a writ that lands heavier than it should - the debt coming due -
+        // is seen at the market, and seen is remembered. The summons kind
+        // doesn't scale with the debt, so only the levies mark the crowd
+        if mult > 1 && kind != 2 {
+            let at = self.world.get_component::<Pos>(self.market_food).map(|p| (p.x, p.y));
+            if let Some(at) = at { self.mark_radicalized(at, tick); }
+        }
         // and the writ itself is a thing to organize about
         for v in self.villagers.iter().take(3).copied().collect::<Vec<_>>() {
             if !villager::is_dead(&self.world, v) {
                 desires::add_grievance(&mut self.world, v, desires::Problem::WritBorne, tick + 30);
             }
+        }
+    }
+
+    /// Repression's deferred debt: whoever watched a hanging or a writ
+    /// land heavier than it should carries the cause's spark for weeks -
+    /// the tactical win's strategic loss arrives as recruits, not as the
+    /// bailiff's ledger
+    fn mark_radicalized(&mut self, at: (f32, f32), tick: u64) {
+        let until = tick + 80;
+        let mut marked = 0;
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let near = self.world.get_component::<Pos>(v)
+                .map(|p| (p.x - at.0).abs() + (p.y - at.1).abs() < 12.0).unwrap_or(false);
+            if near {
+                self.world.add_component(v, crate::game::reactions::Radicalized { until });
+                marked += 1;
+            }
+        }
+        if marked > 0 {
+            self.log.push(format!("t{}: the wronged remember - {} will hear the cause's call.", tick, marked));
+        }
+    }
+
+    /// The spark of the wronged fades if the cause doesn't catch it first
+    pub(in crate::session) fn radical_decay(&mut self, tick: u64) {
+        for &v in &self.villagers.clone() {
+            let spent = self.world.get_component::<crate::game::reactions::Radicalized>(v)
+                .map(|r| tick >= r.until).unwrap_or(false);
+            if spent { self.world.remove_component::<crate::game::reactions::Radicalized>(v); }
         }
     }
 

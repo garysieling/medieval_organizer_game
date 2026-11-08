@@ -1034,6 +1034,12 @@ pub struct Game {
     pub notices: Vec<(String, String, u64)>,
     /// Whether a seat's reading the board: the notices panel's open
     pub notice_panel: bool,
+    /// The moral knot the road brings: the burdened man's two ways to
+    /// be wrong, waiting on a pick - and the debt each choice carries
+    /// home later, when someone remembers
+    pub dilemma: Option<crate::session::events::MoralKnot>,
+    pub dilemma_debts: Vec<crate::session::events::DilemmaDebt>,
+
     /// Where the boats are moored: the riverbank tiles the water holds
     /// them at - the player boards one and it takes the river
     pub boats: Vec<(i32, i32)>,

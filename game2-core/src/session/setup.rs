@@ -1008,6 +1008,7 @@ impl Game {
             journal: crate::session::journal::Journal::default(),
             notices: vec![],
             notice_panel: false,
+            dilemma: None, dilemma_debts: vec![],
             boats: vec![(10, 5), (20, 8)],
             aboard: None,
             construction_sites: vec![],

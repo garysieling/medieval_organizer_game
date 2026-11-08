@@ -88,6 +88,7 @@ mod construction;
 mod anticolonial;
 mod campaign_phase;
 mod cult;
+mod dilemma;
 mod relic;
 mod laws;
 mod season_illness;

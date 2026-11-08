@@ -1312,6 +1312,12 @@ add("monuments", "memorial-column", f"{ISO}: Scott monument, tall fluted "
     w=96, h=96, n=2, tier="p1",
     notes="the flagship monument form; towers over the cottages (#703)")
 
+# the plague doctor (#672): beaked mask, waxed coat - a visitor sprite
+add("visitors", "person-plague-doctor",
+    "plague doctor in a beaked bird mask and dark waxed leather coat, medieval",
+    style="rd_animation__four_angle_walking", w=48, h=48, sheet=True,
+    notes="visitor sprite; 48px 4-direction walk cycle as a PNG grid")
+
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.
 # ~$3 total - run this first to validate prompts, sizes and outputs before

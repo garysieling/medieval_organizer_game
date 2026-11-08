@@ -756,6 +756,9 @@ pub struct Graveyard {
     pub slots: Vec<(i32, i32)>,
     /// How many slots burials have taken
     pub taken: usize,
+    /// The lychgate's tile: the churchyard's entrance, on the walkable
+    /// grass between the first plot and the church
+    pub gate: Option<(i32, i32)>,
 }
 
 /// The liquor ordinance the lord grants the petition: all three teeth

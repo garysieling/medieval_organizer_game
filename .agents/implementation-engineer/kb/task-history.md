@@ -204,3 +204,12 @@ Completed task task_16: Add a comment to main.rs
 **Files Changed:** `README.md`, `evidence/videos/walkabout.gif`, `evidence/videos/village-day.gif`
 **Outcome:** README now embeds two generated, deterministic village playthrough clips.
 **Notes:** Use the built-in headless recorder with a fixed seed, a brief player script for one clip, and a separate winter seed for the other.
+
+---
+
+### Task: Funeral procession carrying the dead to the churchyard (issue #674)
+**Date:** 2026-11-08
+**Type:** feature
+**Files Changed:** `game2-core/src/session/formation.rs`, `game2-core/src/session/subsystems/procession.rs` (new), `game2-core/src/session/subsystems/graveyard.rs`, `game2-core/src/session/subsystems/day.rs`, `game2-core/src/game/villager.rs`, `game2-core/src/session/model.rs`, `game2-core/src/session/view_model.rs`, `game2-client/src/{art,view}.rs`, `assets/rd/bits/lychgate*.png`, `docs/protocol.md`, tests
+**Outcome:** 7 funeral + 5 graveyard core tests pass; 109 client tests pass; determinism/layering/protocol_doc pass. Full core suite: only the four pre-existing main failures (#831). Evidence: `evidence/funeral-march.bmp`, `evidence/funeral-aftermath.bmp`.
+**Notes:** Reuse `Formation` for the column - add `FormationKind::Funeral` plus a `villager::Funeral` cargo component; the body stays at the death tile (`Funeral.carried` latches on when a bearer is within 3 tiles after the head passes route[0]) then rides the lead bearers' midpoint. `Formation.stuck` counts moving-frames only; `waited` counts the gather grace separately, and `leg0` (leg length at waypoint entry) scales the stall budget (`leg0/pace*2+30`) so long approach legs aren't mistaken for walls - the same instant-skip-after-grace bug existed for parades and is fixed for all kinds. Pick mourners/carriers by bond strength + `routine::mix` hashes, never `self.rng`, so the shared roll stream doesn't shift. Lychgate art via the RD pipeline (`memorial-lychgate-c606b4b8`), drawn as `Piece::Stand` at `UiModel.lychgate` (documented in protocol.md).

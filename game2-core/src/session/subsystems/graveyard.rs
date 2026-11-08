@@ -37,20 +37,29 @@ impl Game {
             .collect();
         due.sort_unstable();
         for (_, i) in due {
-            let Some(gy) = &mut self.graveyard else { break };
-            let Some(&(sx, sy)) = gy.slots.get(gy.taken) else { break };
-            gy.taken += 1;
+            // one column at a time: while a funeral (or any column) is
+            // out, the rest of the day's burials wait for tomorrow
+            if self.formation.is_some() { break; }
+            let Some((sx, sy)) = self.graveyard.as_ref()
+                .and_then(|g| g.slots.get(g.taken)).copied() else { break };
             let v = self.villagers[i];
-            if let Some(p) = self.world.get_component_mut::<Pos>(v) {
-                *p = Pos { x: sx as f32, y: sy as f32 };
+            // the mourners carry the body to its plot; when no column
+            // can form the old road holds - laid in where the slot is
+            if !self.begin_funeral(tick, v, (sx, sy)) {
+                if let Some(gy) = &mut self.graveyard { gy.taken += 1; }
+                if let Some(p) = self.world.get_component_mut::<Pos>(v) {
+                    *p = Pos { x: sx as f32, y: sy as f32 };
+                }
+                self.world.add_component(v, villager::Buried);
+                let name = vill_name(i);
+                // the priest says the words where the village keeps one
+                let said = if self.church.is_some() {
+                    " The priest says the words."
+                } else { "" };
+                self.log.push(format!("t{}: {} is laid to rest in the churchyard.{}", tick, name, said));
+                continue;
             }
-            self.world.add_component(v, villager::Buried);
-            let name = vill_name(i);
-            // the priest says the words where the village keeps one
-            let said = if self.church.is_some() {
-                " The priest says the words."
-            } else { "" };
-            self.log.push(format!("t{}: {} is laid to rest in the churchyard.{}", tick, name, said));
+            if let Some(gy) = &mut self.graveyard { gy.taken += 1; }
         }
     }
 
@@ -89,6 +98,30 @@ impl Game {
                 slots = cand;
             }
         }
-        Graveyard { slots, taken: 0 }
+        // the lychgate marks the way in: the walkable grass nearest the
+        // first plot, on the church side of it
+        let gate = (|| {
+            let ch = self.church?;
+            let cp = self.world.get_component::<Pos>(ch)?;
+            let (cx, cy) = (cp.x.round() as i32, cp.y.round() as i32);
+            let (fx, fy) = *slots.first()?;
+            let mut cand: Vec<(i32, i32)> = vec![];
+            for dy in -GRAVE_REACH..=GRAVE_REACH {
+                for dx in -GRAVE_REACH..=GRAVE_REACH {
+                    let (x, y) = (cx + dx, cy + dy);
+                    // any walkable ground will do - the paths and lanes
+                    // into the churchyard aren't plots, and the gate
+                    // belongs over one
+                    if slots.contains(&(x, y))
+                        || self.map.is_occupied(x, y) || !self.map.passable(x, y) { continue; }
+                    cand.push((x, y));
+                }
+            }
+            cand.sort_by_key(|&(x, y)| {
+                ((x - fx).abs().max((y - fy).abs()), (x - cx).abs().max((y - cy).abs()), y, x)
+            });
+            cand.first().copied()
+        })();
+        Graveyard { slots, taken: 0, gate }
     }
 }

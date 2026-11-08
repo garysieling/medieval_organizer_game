@@ -1,0 +1,27 @@
+{
+ "created_at": 1794152932,
+ "credit_cost": 4,
+ "balance_cost": 0.12,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 34.15,
+ "request_id": "f59b4521-a16f-4c3b-99ca-5eaad8184cf3",
+ "outputs_retained_until": 1794239314,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.12,
+  "balance_left": 34.15
+ },
+ "id": "memorial-lychgate-c606b4b8",
+ "prompt": "single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 96,
+  "height": 96,
+  "num_images": 2,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T10:48:53",
+ "seconds": 19.0
+}

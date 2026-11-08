@@ -107,6 +107,25 @@ pub struct Dead;
 /// lands they lie in at the place they died (`Dead` alone).
 pub struct Buried;
 
+/// A funeral procession's cargo: the dead villager the column is
+/// carrying to their churchyard plot. Carried by the pallbearers'
+/// shoulders - their `Pos` is drawn along with the file each frame.
+#[derive(Debug)]
+pub struct Funeral {
+    /// The grave slot the column is bound for
+    pub slot: (i32, i32),
+    /// The pallbearers whose shoulders the body rides
+    pub carriers: Vec<Entity>,
+    /// The one who says the words at the graveside, when the village
+    /// could supply one
+    pub officiant: Option<Entity>,
+    /// The pallbearers have taken the body up - until then it lies
+    /// where it fell while the column walks to it
+    pub carried: bool,
+    /// The day the procession formed
+    pub since: u64,
+}
+
 /// What a villager smells of: the fold, the smoke, the cut. Recomputed
 /// daily from vocation; the rain washes it off; it shows in talk and
 /// damps the heart-helper's rolls. Texture, not a sim.

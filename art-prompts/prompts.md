@@ -24,7 +24,7 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
-| memorial-lychgate-c606b4b8 | single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance | rd_tile__tile_object | 96x96 | 2 | 0.12 | deferred to funerals #674 - catalogued only |
+| memorial-lychgate-c606b4b8 | single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance | rd_tile__tile_object | 96x96 | 2 | 0.12 | generated for funerals #674 |
 
 ## P1 - fills gaps in shipped features / regions/scotland
 

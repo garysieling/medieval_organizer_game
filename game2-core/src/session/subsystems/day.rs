@@ -404,6 +404,9 @@ impl Game {
                 if fed { continue; }
             }
             if self.travels.iter().any(|t| t.who == v) { continue; }
+            // the marching keep step - a funeral column or a parade has
+            // them, the day's plan waits
+            if self.world.get_component::<villager::InFormation>(v).is_some() { continue; }
             // a stray on the far grass: errands reach a day's walk, but a
             // soul that far out gets the long walk home before any plan
             if let Some(h) = household::home_of(&self.world, v) {

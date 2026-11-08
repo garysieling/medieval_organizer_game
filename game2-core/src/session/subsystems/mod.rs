@@ -17,6 +17,7 @@ pub(in crate::session) mod kids;
 pub(in crate::session) mod doctor;
 pub(in crate::session) mod laborers;
 pub(in crate::session) mod petition;
+pub(in crate::session) mod procession;
 pub(in crate::session) mod levy;
 pub(in crate::session) mod monuments;
 pub(in crate::session) mod post;

@@ -49,6 +49,9 @@ const CROWN_RESERVE: f32 = 40.0;
 const TOWN_STORE_CAP: u32 = 320;
 /// Strays farther than this from their own town walk home
 const STRAY_FROM_SITE: f32 = 12.0;
+/// Days between chances for the pestilence to take a carrier - a
+/// pandemic's an event of years, not of seasons
+const PLAGUE_GAP: i32 = 1400;
 
 const TOWN_NAMES: [&str; 8] = ["Ashby", "Thornford", "Marrowdale", "Kelby",
     "Holloway", "Wenlock", "Brackenhurst", "Oakham"];
@@ -525,6 +528,8 @@ impl Game {
             self.world.add_component(e, Pos { x: bx as f32, y: by as f32 });
             self.world.add_component(e, Outlander { site: si });
             self.world.add_component(e, Purse { gold: 0.0 });
+            // a rider's a body like any other - the pestilence can ride him
+            self.world.add_component(e, crate::sim::illness::Health { condition: 1.0, immunity: 0.3 });
             self.couriers.push(Courier { e, office: si, leg: 0,
                 depart: 3 + (si as u64 * 3) % 5, on_road: false });
         }
@@ -743,6 +748,35 @@ impl Game {
             .find(|&(x, y)| self.map.passable(x, y))
     }
 
+    /// Put the pestilence on a traveler: a site carrier or a post
+    /// rider, living, free, and not already carrying something. The
+    /// pick's seeded, so the same roads carry the same year
+    pub(in crate::session) fn seed_plague(&mut self, tick: u64) -> Option<Entity> {
+        let pool: Vec<Entity> = self.sites.iter()
+            .filter_map(|s| s.carrier)
+            .chain(self.couriers.iter().map(|c| c.e))
+            .filter(|&e| !villager::is_dead(&self.world, e)
+                && !crate::game::dungeon::unavailable(&self.world, e)
+                && disease_of(&self.world, e).is_none())
+            .collect();
+        if pool.is_empty() { return None; }
+        let who = pool[self.plague_rng.below(pool.len() as i32) as usize];
+        // the wave's own measure: some years the pestilence burns
+        // through a town, some it only scares it - the band straddles
+        // the line between the two, and the carrier's strength fades
+        // the farther down the road it walks
+        let severity = 1.12 + self.plague_rng.below(18) as f32 * 0.01;
+        let d = self.world.create_entity();
+        self.world.add_component(d, crate::sim::illness::Disease::new(
+            crate::sim::illness::DiseaseKind::Plague, who, severity));
+        let ci = self.villagers.iter().position(|&v| v == who);
+        let name = ci.map(vill_name).unwrap_or("a rider");
+        let at = self.world.get_component::<Pos>(who).map(|p| (p.x, p.y));
+        self.log.push_at_who(format!("t{}: {} comes home from the road burning - the pestilence walks the lanes.",
+            tick, name), at, ci);
+        Some(who)
+    }
+
     /// The country's day: the granaries fill with the towns' work, the
     /// carts set out for market (timed to arrive for market day) and come
     /// home after, the stewards ride for provisions, the tribute goes up
@@ -750,6 +784,13 @@ impl Game {
     pub(super) fn country_tick(&mut self, tick: u64) {
         self.lord_works_tick(tick);
         self.tribute_tick(tick);
+        // the pestilence walks the roads: a rare seeded roll puts it on
+        // a carrier, and the carriers' own rounds spread it settlement
+        // to settlement - no site rolls its own dice. Its own stream,
+        // so whether it comes doesn't move the village's other draws
+        if self.plague_rng.below(PLAGUE_GAP) == 0 {
+            self.seed_plague(tick);
+        }
         for si in 0..self.sites.len() {
             let site = self.sites[si].clone();
             let folk: Vec<Entity> = self.villagers.iter().copied()

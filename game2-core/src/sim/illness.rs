@@ -39,6 +39,9 @@ pub enum DiseaseKind {
     /// "the ague" - fenland malaria; the marsh's autumn visitor, always
     /// coming back
     Ague,
+    /// "the pestilence" - the plague; it walks the roads between
+    /// settlements on the carriers' backs, not on any season's calendar
+    Plague,
 }
 
 impl DiseaseKind {
@@ -55,6 +58,7 @@ impl DiseaseKind {
             DiseaseKind::Typhoid => "the slow fever",
             DiseaseKind::Dysentery => "the flux",
             DiseaseKind::Ague => "the ague",
+            DiseaseKind::Plague => "the pestilence",
         }
     }
 
@@ -72,6 +76,7 @@ impl DiseaseKind {
             DiseaseKind::Typhoid => 10,    // a week or three before it shows
             DiseaseKind::Dysentery => 2,
             DiseaseKind::Ague => 10,       // a fortnight's brewing, tertian
+            DiseaseKind::Plague => 4,      // a few days' silent walk before the bubo tells
         }
     }
 
@@ -88,6 +93,7 @@ impl DiseaseKind {
             DiseaseKind::Typhoid => Some((240, 300)),    // autumn's slow fever
             DiseaseKind::Dysentery => Some((180, 240)),  // summer's flux
             DiseaseKind::Influenza => Some((300, 60)),   // winter's grippe
+            // the pestilence keeps no season - it comes when the roads carry it
             _ => None,                                 // Ergotism/Gripes - no season
         }
     }
@@ -111,6 +117,7 @@ impl DiseaseKind {
             DiseaseKind::Cholera | DiseaseKind::Typhoid | DiseaseKind::Dysentery => Route::Water,
             DiseaseKind::Ergotism | DiseaseKind::Gripes => Route::Ingested,
             DiseaseKind::Ague => Route::Vector,
+            DiseaseKind::Plague => Route::Contact,
         }
     }
 
@@ -134,6 +141,7 @@ impl DiseaseKind {
             DiseaseKind::Typhoid => 0.8,
             DiseaseKind::Dysentery => 0.1,
             DiseaseKind::Ague => 0.05, // the marsh always sends it back
+            DiseaseKind::Plague => 0.05, // and the pestilence leaves the body nearly as it found it
         }
     }
 
@@ -144,7 +152,7 @@ impl DiseaseKind {
         match self {
             DiseaseKind::Ague => Some((300, 0.3)),
             DiseaseKind::Consumption => Some((400, 0.35)),
-            _ => None,
+            _ => None, // the pestilence doesn't come back - it burns through and is gone
         }
     }
 }

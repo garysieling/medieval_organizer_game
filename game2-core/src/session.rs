@@ -1427,6 +1427,9 @@ pub struct Game {
     /// The wood's own chance-stream: a lightning roll mustn't shift the
     /// village's other draws
     pub forest_rng: Rng,
+    /// The pestilence's own chance-stream: whether and where it walks
+    /// the roads mustn't shift the village's other draws
+    pub plague_rng: Rng,
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,

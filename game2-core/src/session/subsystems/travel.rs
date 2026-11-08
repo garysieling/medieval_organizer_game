@@ -40,6 +40,7 @@ impl Game {
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::FarmWork(f) => self.world.get_component::<Pos>(*f).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
+            Goal::SeasonWork(t) => self.at_the_door(t.0, t.1),
             Goal::FillBucket => self.fire_bank_walkable((from.x.round() as i32, from.y.round() as i32)),
             Goal::DouseFire(t) => self.douse_spot_walkable(*t, (from.x.round() as i32, from.y.round() as i32)),
             Goal::Eat => {
@@ -677,6 +678,7 @@ impl Game {
                     None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
                 }
             }
+            Goal::SeasonWork(_) => { /* the season's walk lands them at the village - they stay till the Laborer mark says home */ }
             Goal::FarmWork(f) => {
                 // stood at the field: the day's work runs under the KidWork
                 // marker - the kid_labor tick pays it out at dusk

@@ -375,6 +375,10 @@ pub enum Sex { Female, Male }
 /// the village can count who's new enough to be called a stranger
 pub struct Migrant { pub arrived: u64 }
 
+/// A country hand in for the season's work - drinks harder than the
+/// village's own, and the night takes it out of him
+pub struct Laborer { pub until: u64 }
+
 impl Sex {
     /// The body the spawn gives them, by the entity's own number -
     /// deterministic, and half the world either way

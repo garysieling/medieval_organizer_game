@@ -71,6 +71,9 @@ pub enum Problem {
     /// A child's hands in the fields when they should be at play -
     /// the village doesn't like to see it
     ChildLabor,
+    /// A stranger's fist in the street - the season hands' nights
+    /// end in the mud and the village remembers
+    Rowdy,
     /// The lord took his fifth of what the dead one left
     DeathDuty,
     /// Someone they loved is gone - bereavement, not the trauma of
@@ -199,6 +202,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::TheDark) => "the dark",
         Reveal::Problem(Problem::Grief) => "the grief",
         Reveal::Problem(Problem::ChildLabor) => "child labor",
+        Reveal::Problem(Problem::Rowdy) => "the rowdy",
         Reveal::Problem(Problem::Robbed) => "the thieves",
     };
     // a trade's grievance only echoes among the trade - the commons
@@ -243,6 +247,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the overseers' cut" => "the overseers' cut".into(),
         "the taxes" => "the tax collector's cut".into(),
         "the vote" => "a woman's say in the village".into(),
+        "the rowdy" => "the strangers' nights".into(),
         "poverty" => "folk without a coin".into(),
         "honest work's stink" => "the stink of honest work".into(),
         "the wolves" => "wolves at the fold".into(),
@@ -292,6 +297,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::NoInput(g) => format!("can't get {}", g),
         Problem::DerelictNearby => "lives by an empty shop".into(),
         Problem::ChildLabor => "sees a child's hands in the rows".into(),
+        Problem::Rowdy => "sees the strangers' nights turn ugly".into(),
         Problem::OverseerCut => "the overseer takes a cut".into(),
         Problem::Taxed => "paid the tax collector".into(),
         Problem::Broke => "is nearly broke".into(),
@@ -358,6 +364,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
         Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),
         Reveal::Problem(Problem::ChildLabor) => (format!("{} saw the child's hands", name), "Small hands in the rows when they should be at play. It isn't right.".into()),
+        Reveal::Problem(Problem::Rowdy) => (format!("{} saw the strangers' brawl", name), "The season hands drink hard and the nights end in the mud. I saw it.".into()),
     }
 }
 

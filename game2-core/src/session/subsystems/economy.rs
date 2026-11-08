@@ -415,8 +415,14 @@ impl Game {
             if !self.tavern_table.iter().any(|&(w, d)| w == v && d == tick) {
                 self.tavern_table.push((v, tick));
             }
-            if self.rng.below(100) < TAVERN_DRUNK_PCT {
-                self.world.add_component(v, villager::Drunk { until: tick + 2 });
+            // the season hands drink harder and longer than the
+            // village's own - the Laborer mark pulls them to the bench
+            // and keeps them under it
+            let pull = if self.world.get_component::<villager::Laborer>(v).is_some()
+                { TAVERN_DRUNK_PCT * 3 } else { TAVERN_DRUNK_PCT };
+            if self.rng.below(100) < pull {
+                let extra = if self.world.get_component::<villager::Laborer>(v).is_some() { 3 } else { 0 };
+                self.world.add_component(v, villager::Drunk { until: tick + 2 + extra });
                 self.say(v, "One more won't hurt.", CHAT_BUBBLE_SECS);
             }
         }

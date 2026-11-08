@@ -185,7 +185,10 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 `sign` is the picket-board design (0 wooden hand-lettered, 1 printed
 placard) while they gather for a protest or march, else null.
 `mounted` is true while a knight rides his horse on a country journey -
-the figure drawn is the mounted one.
+the figure drawn is the mounted one. On the dead, `epitaph` is the
+grave's hover line ("died day N, of ...") or absent, and `buried` marks
+those already laid in the churchyard (they wear the tombstone, not the
+lying-in mark). Both are absent from older servers.
 
 The figure whose `e` is your `you` is you. Only what the seat can see is
 here: no one's secret wants, no hidden sickness, no true strength of the
@@ -365,6 +368,10 @@ Older servers omit it; read it as empty.
 `trains` lists the freight on the roads, each `[x,y]` where a cart,
 levy, remit, tribute or gift train's driver stands - a wagon follows
 them. Older servers omit it; read it as empty.
+
+`graveyard` lists the churchyard's grave plots as `[x,y]` tile coords,
+in burial order - the worn ground under them. Empty on maps with no
+church and from older servers; read it as empty.
 
 ### Obs (agents)
 

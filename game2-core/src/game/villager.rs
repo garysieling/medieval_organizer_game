@@ -102,6 +102,11 @@ pub struct Betrothed {
 /// this marker is the durable record `is_dead` can still see afterward.
 pub struct Dead;
 
+/// The funeral has come: the dead have been laid in the churchyard and
+/// their `Pos` is their grave slot - it never moves again. Until this
+/// lands they lie in at the place they died (`Dead` alone).
+pub struct Buried;
+
 /// What a villager smells of: the fold, the smoke, the cut. Recomputed
 /// daily from vocation; the rain washes it off; it shows in talk and
 /// damps the heart-helper's rolls. Texture, not a sim.

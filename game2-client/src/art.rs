@@ -225,6 +225,9 @@ pub struct Art {
     /// Small generated props (assets/rd/bits); empty: the old blocks stand in
     pub skeps: Vec<Sprite>,
     pub graves: Vec<Sprite>,
+    /// Upright tombstones for the churchyard's buried (assets/rd/bits/tomb*);
+    /// empty: the flat grave marks serve both
+    pub tombstones: Vec<Sprite>,
     pub herbs: Vec<Sprite>,
     pub shrooms: Vec<Sprite>,
     /// Flames (frames to flicker between) and the scorched patch left behind
@@ -834,6 +837,7 @@ impl Art {
             bridges: [at("rd/bits/bridge_x.png"), at("rd/bits/bridge_y.png")],
             skeps: bits("skep"),
             graves: bits("grave"),
+            tombstones: bits("tomb"),
             herbs: bits("herb"),
             shrooms: bits("shroom"),
             fires: bits("fire"),

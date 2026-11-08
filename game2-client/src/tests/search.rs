@@ -5,7 +5,7 @@ fn person(find: &str) -> PersonV {
         e: 0, kind: PKind::Villager(0), pos: (0.0, 0.0), label: None,
         dead: false, kid: false, selected: false, in_reach: false,
         hungry: false, sick: false, act_mark: 0, bond: false, look: 0,
-        find: find_key(find), mounted: false,
+        find: find_key(find), mounted: false, epitaph: None, buried: false,
     }
 }
 

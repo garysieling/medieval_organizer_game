@@ -597,6 +597,8 @@ impl View {
         // in_reach, hearts - the seat's warmth, floated over the name,
         // member - the org pip trails a warmed member's tag)
         let mut labels: Vec<(String, i32, i32, (u8, u8, u8), bool, bool, bool, bool, f32, bool)> = vec![];
+        // the grave under the mouse, for its epitaph card
+        let mut grave_tip: Option<(&str, &str)> = None;
         // a figure's bond hearts, 0 for a stranger - the map only sends
         // bonds with warmth worth showing
         let bond_hearts = |e: Entity| m.bonds.iter().find(|b| b.0 == e).map(|b| b.1).unwrap_or(0.0);
@@ -645,9 +647,12 @@ impl View {
                 },
                 Who::P(pv) if let PKind::Villager(i) = pv.kind => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    // the dead get a gravestone where they fell, not their standing figure
+                    // the dead get a gravestone where they lie: the
+                    // churchyard's buried wear the tombstone, the
+                    // lying-in keep the flat mark
                     if pv.dead {
-                        let top = match variant(&art.graves, pv.e) {
+                        let stones = if pv.buried && !art.tombstones.is_empty() { &art.tombstones } else { &art.graves };
+                        let top = match variant(stones, pv.e) {
                             Some(g) => {
                                 draw_standing(&mut buf, g, sx, sy, zoom);
                                 sy + ((g.width as f32 / 4.0).min(TILE_H as f32) * zoom).round() as i32 - (g.height as f32 * zoom).round() as i32
@@ -656,6 +661,13 @@ impl View {
                         };
                         let (lx, _) = name_label_pos(sx, sy, vill_name(i));
                         labels.push((vill_name(i).into(), lx, top - GLYPH_H - LABEL_GAP, (160, 160, 170), false, pv.selected, false, false, 0.0, false));
+                        // the grave answers the mouse with who it keeps
+                        if let Some(epi) = pv.epitaph.as_deref() {
+                            let reach = 14.0 * zoom;
+                            if (mx - sx).abs() as f32 <= reach && (my - sy) > -(26.0 * zoom) as i32 && (my - sy) < (8.0 * zoom) as i32 {
+                                grave_tip = Some((vill_name(i), epi));
+                            }
+                        }
                     } else {
                         // a knight on the long roads rides: one
                         // horse-and-rider figure, mirrored leftward
@@ -916,6 +928,15 @@ impl View {
             }
             // selection: underline the selected villager's name
             if *selected { draw_rect(&mut buf, x - 1, ty + GLYPH_H + 1, text.len() as i32 * GLYPH_W + 1, 2, 255, 255, 0); }
+        }
+        // a grave's hover card: the name and how they went, beside the cursor
+        if let Some((name, epi)) = grave_tip {
+            let line = format!("{} - {}", name, epi);
+            let w = (text_width(&line, 1) + 14).min(MAP_W as i32 - 8);
+            let bx = (mx + 16).min(MAP_W as i32 - w - 4);
+            let by = (my - GLYPH_H - 14).max(4);
+            draw_rect(&mut buf, bx, by, w, GLYPH_H + 12, 24, 24, 34);
+            draw_text(&mut buf, bx + 7, by + 6, &line, 225, 218, 200);
         }
         if let Some((cx, top, z, f)) = player_marker {
             draw_player_marker(&mut buf, cx, top, z, f);
@@ -1357,6 +1378,8 @@ impl View {
         // scaled copies).
         let set = &self.art.tiles[season_tiles(season)];
         let faces = &self.art.faces[season_tiles(season)];
+        // the churchyard's plots, for the worn-earth ground (#673)
+        let graveyard: std::collections::HashSet<(i32, i32)> = m.graveyard.iter().copied().collect();
         let mut cache = self.blocks.borrow_mut();
         if cache.zoom != zoom || cache.set != season_tiles(season) {
             *cache = BlockCache { zoom, set: season_tiles(season), blocks: Default::default() };
@@ -1370,6 +1393,13 @@ impl View {
                 let Some(tile) = m.map.get(tx, ty) else { continue };
                 let (sx, sy) = iso_to_screen_cam(tx as f32, ty as f32, cam_x, cam_y, zoom);
                 if sx < -2 * tw || sx > buf.width as i32 + 2 * tw || sy < -4 * th || sy > buf.height as i32 + 4 * th { continue; }
+                // the churchyard's plots are worn earth, not grass
+                if graveyard.contains(&(tx, ty)) {
+                    let (r, g, b) = graveyard_dirt(season);
+                    buf.diamond(sx, sy, tw, th, r, g, b);
+                    buf.diamond(sx, sy + th, tw, 1, r / 2, g / 2, b / 2);
+                    continue;
+                }
                 // inland the blocks in front cover a tile's sides: just its face
                 let inland = tx + 1 < w_t && ty + 1 < h_t;
                 let set = if inland { faces } else { set };

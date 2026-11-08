@@ -106,6 +106,9 @@ soldier, "bareheaded ... no helmet" a bald man.
   `stones/stone*.png`, not generated. Registered as `Art.memorial_*`
   options - #702 picks which form a monument wears. The lychgate prompt
   is catalogued for #674, not generated.
+- **Tombstones** (`bits/tomb1..3.png`, #673): upright grave markers for
+  the churchyard's buried, resampled to ~20px via `rd_slice.py name@H`;
+  the flat `graves` marks still serve the lying-in.
 - **Botháns** (`buildings/bothan1..3.png` + `bothan-winter1..3.png`,
   #708): squat Irish thatch cottages appended to the cottage rotation.
   One 4-image call for summer picks, then a winter call per pick with

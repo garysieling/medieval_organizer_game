@@ -71,6 +71,14 @@ pub struct PersonV {
     /// the mounted figure instead of the walker
     #[serde(default)]
     pub mounted: bool,
+    /// The grave's epitaph for the hover card ("died day 42, of a fever")
+    /// - only on the dead
+    #[serde(default)]
+    pub epitaph: Option<String>,
+    /// Laid in the churchyard (vs still lying in where they fell): the
+    /// client draws the tombstone variant for these
+    #[serde(default)]
+    pub buried: bool,
 }
 
 /// Fold a name or epithet to what the find box compares: lowercase words,
@@ -517,6 +525,10 @@ pub struct UiModel {
     pub cave: Option<(f32, f32)>,
     /// The martyr's plot, when the gibbet made one
     pub grave: Option<(f32, f32)>,
+    /// The churchyard's grave slots (tile coords) - the client draws
+    /// worn ground under them
+    #[serde(default)]
+    pub graveyard: Vec<(i32, i32)>,
     /// The country's sites: name and kind for the minimap, the keeper
     /// when the keep's first bed holds one
     #[serde(default)]

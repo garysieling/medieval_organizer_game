@@ -253,6 +253,16 @@ pub(crate) fn tile_colour(tile: Tile, season: Season) -> (u8, u8, u8) {
     }
 }
 
+/// The churchyard's worn earth: bare dirt where the graves stand, snow
+/// in winter like the rest of the open ground
+pub(crate) fn graveyard_dirt(season: Season) -> (u8, u8, u8) {
+    let c = (140, 116, 88);
+    match season {
+        Season::Winter => blend(c, (228, 232, 240), 0.65),
+        _ => c,
+    }
+}
+
 /// Minimap dot colours: living villagers, and the graves of the dead
 pub(crate) const MM_VILLAGER: (u8, u8, u8) = (255, 80, 80);
 

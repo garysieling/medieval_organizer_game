@@ -1261,6 +1261,20 @@ for slug, subj in [
         "thin earth sides, top face is a 2:1 diamond",
         w=64, h=64, tier="p0", ref=GRASS_REF, notes="matches the grass block")
 
+# --- bothan houses (#708): short, squat, thick-thatched Irish crofts ---
+add("buildings/houses", "bldg-bothan-ash",
+    "short squat Irish bothan cottage, thick golden-brown thatched roof, "
+    "whitewashed stone walls, small square window, medieval",
+    w=64, h=64, notes="squat - shorter than the cottages; flush base")
+add("buildings/houses", "bldg-bothan-stone",
+    "low squat Irish crofter's bothan, deep brown thatch, stone chimney "
+    "gable end, rough granite walls, medieval",
+    w=64, h=64, notes="squat - heavier stone look; flush base")
+add("buildings/houses", "bldg-bothan-white",
+    "tiny squat whitewashed bothan cottage, moss-edged thick thatch roof, "
+    "narrow door, medieval Ireland",
+    w=64, h=64, notes="squat - smallest of the three; flush base")
+
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.
 # ~$3 total - run this first to validate prompts, sizes and outputs before

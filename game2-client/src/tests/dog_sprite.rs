@@ -25,7 +25,7 @@ fn test_generated_ground_set_and_villager_walks_load() {
     assert!(art.villager_walks.iter().all(|w| w.is_some()), "every villager look has a walk sheet");
     assert!(art.guard_walks.len() == 4 && art.guard_walks.iter().all(|w| w.is_some()));
     assert!(art.priest_walk.is_some());
-    assert_eq!(art.houses.len(), 9);
+    assert!(art.houses.len() >= 9, "the cottage roster kept its looks - the bothans only ever append");
     assert_eq!(art.houses_winter.len(), art.houses.len());
     let ws = art.villager_walks[0].as_ref().unwrap();
     assert_eq!((ws.frames.len(), ws.frames[0].len()), (4, 4));

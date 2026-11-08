@@ -1,0 +1,27 @@
+{
+ "created_at": 1794146652,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 35.67,
+ "request_id": "04647cb8-7f52-4b9d-bf62-7022820b882c",
+ "outputs_retained_until": 1794233031,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 35.67
+ },
+ "id": "bldg-bothan-stone-30b31062",
+ "prompt": "low squat Irish crofter's bothan, deep brown thatch, stone chimney gable end, rough granite walls, medieval",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T09:04:14",
+ "seconds": 21.7
+}

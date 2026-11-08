@@ -596,6 +596,10 @@ impl Art {
         // the generated cottages (assets/rd/buildings) replace the pack's
         // looks when present: a matched street, not a mix
         let rd_houses: Vec<Option<Sprite>> = (1..=9).filter_map(|i| at(&format!("rd/buildings/cottage{}.png", i))).map(Some).collect();
+        // the bothans come in after the cottages: squat thatched crofts
+        // in the same street - appended, never reordered
+        let rd_houses: Vec<Option<Sprite>> = rd_houses.into_iter()
+            .chain((10..=12).map(|i| at(&format!("rd/buildings/bothan{}.png", i)))).collect();
         let houses = if rd_houses.is_empty() { houses } else { rd_houses };
         let houses_winter: Vec<Option<Sprite>> = houses.iter()
             .map(|h| h.as_ref().map(|s| recolour_greens(s, |c| blend(c, (236, 240, 246), 0.85)))).collect();

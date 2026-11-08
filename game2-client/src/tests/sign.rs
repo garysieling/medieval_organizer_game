@@ -20,6 +20,9 @@ fn test_a_villager_with_a_sign_carries_their_board() {
         let v = m.people.iter_mut()
             .find(|p| matches!(p.kind, PKind::Villager(_)) && !p.dead).unwrap();
         v.sign = Some(1);
+        // a clear corner of the map: the placard's pixels shouldn't have
+        // to fight a thatched roof behind it
+        v.pos = (60.0, 60.0);
         (v.e, v.pos)
     };
     let mut view = View::new(Art::load_fs("../assets", 0));

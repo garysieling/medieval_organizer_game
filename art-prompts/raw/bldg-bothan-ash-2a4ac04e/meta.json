@@ -1,0 +1,27 @@
+{
+ "created_at": 1794146630,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 35.85,
+ "request_id": "36759060-f374-425a-86ea-cfd26cf244cb",
+ "outputs_retained_until": 1794232902,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 35.85
+ },
+ "id": "bldg-bothan-ash-2a4ac04e",
+ "prompt": "short squat Irish bothan cottage, thick golden-brown thatched roof, whitewashed stone walls, small square window, medieval",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T09:03:52",
+ "seconds": 128.5
+}

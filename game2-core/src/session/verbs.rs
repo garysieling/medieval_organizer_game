@@ -1796,6 +1796,17 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the burdened man's knot answers first: a pick writes its debt
+        // and the debt comes home when its day does
+        if let Some(knot) = self.dilemma.take() {
+            if let Some(b) = knot.branches.get(pick) {
+                self.dilemma_debts.push(crate::session::events::DilemmaDebt {
+                    branch: pick, due: self.tick + 3,
+                    witness: knot.witness, victim: b.victim, weight: b.debt });
+                self.log.push(format!("t{}: {} - the choice is carried out, and the remembering begins.", self.tick, b.text));
+            }
+            return;
+        }
         let Some(d) = self.seats[seat].pending_founding.take() else { return };
         use crate::game::campaign::{self, DecisionRule, Framing};
         if let Some(mut vote) = d.vote {

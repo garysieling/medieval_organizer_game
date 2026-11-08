@@ -59,6 +59,39 @@ pub enum EventId {
     // findings
     CoinHoard, OldStones, SpringBubbles, HoneyTree, Truffle, HerbFlush,
     BerryYear, MushroomFlush, StormWashUp, ProdigalSon,
+    // the moral knot: a man walks in carrying two ways to be wrong
+    Dilemma,
+}
+
+/// The moral knot the burdened man brings: two ways to be wrong, and
+/// a pick the player makes - the choice writes a debt that comes due
+/// days later, when someone remembers
+#[derive(Debug, Clone)]
+pub struct MoralKnot {
+    /// What the man asks - the two ways to be wrong
+    pub text: String,
+    /// Who watched the pick
+    pub witness: Entity,
+    /// Each branch: its words, and the debt it writes
+    pub branches: Vec<DilemmaBranch>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DilemmaBranch {
+    pub text: String,
+    /// The debt it writes: who it wounds, and how hard
+    pub debt: f32,
+    pub victim: Entity,
+}
+
+/// A choice's weight carried home: it lands when the debt's day comes
+#[derive(Debug, Clone)]
+pub struct DilemmaDebt {
+    pub branch: usize,
+    pub due: u64,
+    pub witness: Entity,
+    pub victim: Entity,
+    pub weight: f32,
 }
 
 /// The shape an event takes on the map
@@ -216,6 +249,7 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: MushroomFlush, name: "a mushroom flush", kind: Spell, fig: Fig::Traveller, gap: 280, span: 200, stay: 10, cry: "" },
     EventSpec { id: StormWashUp, name: "a storm's leavings", kind: Moment, fig: Fig::Traveller, gap: 400, span: 300, stay: 0, cry: "" },
     EventSpec { id: ProdigalSon, name: "a prodigal returns", kind: Visitor, fig: Fig::Traveller, gap: 520, span: 400, stay: 6, cry: "Is this still-? I've come a long way." },
+    EventSpec { id: Dilemma, name: "the burdened man", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 150, stay: 4, cry: "Two ways to be wrong - who\'ll hear me?" }
 ];
 
 /// The spec for `id`
@@ -303,6 +337,7 @@ pub enum Group { Road, Sky, Beasts, IllLuck, Findings }
 /// The family an event belongs to
 pub fn group(id: EventId) -> Group {
     match id {
+        Dilemma => Group::Road,
         Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger => Group::Road,
         Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
@@ -480,6 +515,22 @@ impl Game {
         let pitch = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at)
             .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
         match id {
+            EventId::Dilemma => {
+                // the burdened man sets his knot down: the granary burns,
+                // and there's one way to be wrong - the grain or the
+                // children inside it
+                let victim = *self.villagers.first().unwrap_or(&0);
+                self.dilemma = Some(MoralKnot {
+                    text: "the granary's caught - the grain feeds the village all winter, but two children are inside. Which do you carry out first?".into(),
+                    witness: self.player,
+                    branches: vec![
+                        DilemmaBranch { text: "the grain - the village starves else".into(),
+                            debt: 0.6, victim },
+                        DilemmaBranch { text: "the children - let the grain burn".into(),
+                            debt: 0.3, victim },
+                    ] });
+                self.log.push_at_who(format!("t{}: {} sets his knot down at the market - two ways to be wrong.", self.tick, s.name), pitch, None);
+            }
             EventId::Tinker => {
                 if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
                 self.log.push_at_who(format!("t{}: {} sets up by the market - out come the cracked pots.", self.tick, s.name), pitch, None);

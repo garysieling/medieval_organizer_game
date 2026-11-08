@@ -7,7 +7,7 @@ use crate::session::PKind;
 /// The whole registry's its hundred and counting, every id once
 #[test]
 fn test_the_registry_is_a_hundred() {
-    assert_eq!(EVENTS.len(), 102);
+    assert_eq!(EVENTS.len(), 103);
     for i in 0..EVENTS.len() {
         for j in (i + 1)..EVENTS.len() {
             assert_ne!(EVENTS[i].id, EVENTS[j].id, "duplicate id in the registry");

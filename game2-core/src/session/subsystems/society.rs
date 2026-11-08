@@ -1081,6 +1081,26 @@ impl Game {
 }
 
 impl Game {
+    /// The pick a dilemma carries home: the choice writes its debt and
+    /// the debt lands when its day comes - someone remembers what you
+    /// carried out first
+    pub(in crate::session) fn dilemma_tick(&mut self, tick: u64) {
+        let mut fired: Vec<usize> = vec![];
+        for (i, d) in self.dilemma_debts.iter().enumerate() {
+            if tick < d.due { continue }
+            // the witness remembers the pick - and the victim's owed the
+            // weight of it, for good or ill
+            crate::sim::psychology::record_episode(&mut self.world, d.witness,
+                crate::sim::psychology::Episode { with: d.victim, kind: crate::sim::psychology::EpisodeKind::Remembrance });
+            if d.weight > 0.4 {
+                desires::add_grievance(&mut self.world, d.victim, desires::Problem::Loss, d.due + 30);
+            }
+            self.log.push(format!("t{}: the choice comes home - someone remembers what was carried out first.", tick));
+            fired.push(i);
+        }
+        for i in fired.into_iter().rev() { self.dilemma_debts.remove(i); }
+    }
+
     /// The campaign's own season: it listens before it cuts, it reads
     /// the room before it acts - a dossier moves it past the cutting,
     /// a directive past the research, and a settled campaign loops

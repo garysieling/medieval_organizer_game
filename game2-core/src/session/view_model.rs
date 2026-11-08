@@ -583,6 +583,8 @@ impl Game {
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
             stocks: self.stocks_tile,
+            village_gaol: self.village_gaol,
+            castle_gaol: self.castle_gaol,
             monuments: self.monuments.iter().filter(|m| m.stood_on.is_some())
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },

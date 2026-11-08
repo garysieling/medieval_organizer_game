@@ -334,7 +334,22 @@ impl Game {
                         // as a free pair of legs, then the mark lands
                         self.dungeon.push((m, tick));
                         self.travels.retain(|t| t.who != m);
-                        self.send(m, Goal::Exile);
+                        // held at the castle: the walk goes to the keep's
+                        // own cell block, not the road out - picked once
+                        // at the site's centre, and it stands after
+                        if self.castle_gaol.is_none() {
+                            let castle = self.sites.iter().find(|s| s.kind == country::SiteKind::Castle)
+                                .map(|s| s.centre);
+                            self.castle_gaol = castle.map(|(cx, cy)|
+                                (0..4).map(|i| (cx + [1, -1, 0, 0][i], cy + [0, 0, 1, -1][i]))
+                                    .find(|&(tx, ty)| self.map.passable(tx, ty) && !self.map.is_occupied(tx, ty))
+                                    .unwrap_or((cx, cy)));
+                        }
+                        if let Some(g) = self.castle_gaol {
+                            self.send_far(m, g, Goal::GoGaol);
+                        } else {
+                            self.send(m, Goal::Exile);
+                        }
                         self.world.add_component(m, crate::game::dungeon::CastleHeld { since: tick });
                     }
                 }
@@ -401,6 +416,13 @@ impl Game {
     pub(in crate::session) fn free_prisoner(&mut self, m: Entity, tick: u64) {
         self.world.remove_component::<crate::game::dungeon::Imprisoned>(m);
         self.world.remove_component::<crate::game::dungeon::ReleaseCampaign>(m);
+        // the cell lets go - the walk home starts where the door swings
+        if let Some(home) = household::home_of(&self.world, m).or(Some(self.market_food)) {
+            if let Some(door) = self.world.get_component::<Pos>(home).copied()
+                .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) {
+                self.send_far(m, door, Goal::HeadHome(home));
+            }
+        }
         if let Some(rc) = self.world.get_component::<crate::game::dungeon::ReleaseOf>(m).map(|r| r.campaign) {
             self.world.remove_component::<crate::game::campaign::Campaign>(rc);
             self.world.remove_component::<crate::game::campaign::CampaignMeeting>(rc);
@@ -840,6 +862,41 @@ impl Game {
     }
 
 impl Game {
+    /// The gaol's day: the held hold at their tile, and now and then
+    /// one slips the cell - the door's honest, the wall's not
+    pub(in crate::session) fn gaol_tick(&mut self, tick: u64) {
+        let village_tile = self.village_gaol;
+        let castle_tile = self.castle_gaol;
+        for v in self.villagers.clone() {
+            let held = self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some();
+            let castle_held = self.world.get_component::<crate::game::dungeon::CastleHeld>(v).is_some();
+            if !held && !castle_held { continue; }
+            let tile = if castle_held { castle_tile } else { village_tile };
+            // the escape: a small seeded roll slips them free - the door's
+            // honest and the wall's not, and a release's effort ends with it
+            if self.rng.below(100) < 2 {
+                self.world.remove_component::<crate::game::dungeon::Imprisoned>(v);
+                self.world.remove_component::<crate::game::dungeon::CastleHeld>(v);
+                self.world.remove_component::<crate::game::dungeon::ReleaseCampaign>(v);
+                let name = self.name_of(v);
+                self.log_entity(v, format!("t{}: {} slips the cell and is gone - the road takes whoever the cell couldn't.", tick, name));
+                self.toasts.push(("one slipped the cell".into(), tick + 40));
+                if let Some(home) = household::home_of(&self.world, v).or(Some(self.market_food)) {
+                    if let Some(p) = self.world.get_component::<Pos>(home).copied() {
+                        self.send_far(v, (p.x.round() as i32, p.y.round() as i32), Goal::HeadHome(home));
+                    }
+                }
+                continue;
+            }
+            // pinned at the gaol: the Pos holds where the escort left them
+            if let Some(t) = tile {
+                if let Some(p) = self.world.get_component_mut::<Pos>(v) {
+                    p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
+                }
+            }
+        }
+    }
+
     /// The stocks' day: a body pinned there holds its spot, gets fed by
     /// the village watching, and walks free when the sentence runs out
     pub(in crate::session) fn stocks_tick(&mut self, tick: u64) {

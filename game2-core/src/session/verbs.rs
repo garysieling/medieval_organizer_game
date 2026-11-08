@@ -1444,6 +1444,26 @@ impl Game {
                     }
                     // every crackdown can still take someone
                     if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
+                        // the watch house stands? then the gaol's its
+                        // cellar, and the arrested walks there under
+                        // escort - the village sees them go
+                        if self.village_gaol.is_none() {
+                            let watch = self.building_entities.iter().copied().find(|&b|
+                                self.world.get_component::<Building>(b)
+                                    .map(|bb| bb.kind == BuildingKind::WatchPost).unwrap_or(false));
+                            if let Some(wb) = watch {
+                                if let Some(wp) = self.world.get_component::<Pos>(wb).copied() {
+                                    let (mx, my) = (wp.x.round() as i32, wp.y.round() as i32);
+                                    self.village_gaol = (0..4).map(|i| (mx + [1, -1, 0, 0][i], my + [0, 0, 1, -1][i]))
+                                        .find(|&(tx, ty)| self.map.passable(tx, ty) && !self.map.is_occupied(tx, ty))
+                                        .or(Some((mx, my + 1)));
+                                }
+                            }
+                        }
+                        if let Some(g) = self.village_gaol {
+                            self.send_far(taken, g, Goal::GoGaol);
+                        }
+                        
                         // hauled off mid-errand: whatever they were doing is dropped
                         self.travels.retain(|t| t.who != taken);
                         let tn = self.villagers.iter().position(|v| *v == taken).map(|i| vill_name(i))

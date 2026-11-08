@@ -311,6 +311,7 @@ impl View {
             Skep,                              // a woven beehive in the apiary's yard
             Swarm,                             // a swarm of bees on the wing
             Stand(&'a Sprite),                 // a generated prop at its own size (draw_standing)
+            Gaol,                             // a cell block or a barred door: dark timber, drawn
         }
         #[derive(Clone, Copy)]
         enum Who<'a> { P(&'a PersonV), Mill, Smoke(usize) }
@@ -354,6 +355,9 @@ impl View {
         }
         if let Some((x, y)) = m.stocks {
             if let Some(s) = art.stocks.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
+        }
+        for (x, y) in [m.village_gaol, m.castle_gaol].iter().flatten() {
+            standing.push((*x as f32, *y as f32, Piece::Gaol));
         }
         // today's stalls round the square, and the pedlar's booth
         for &(x, y, look) in &m.stalls {
@@ -542,6 +546,12 @@ impl View {
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
                 Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),
+                Piece::Gaol => {
+                    // a barred door: a dark lintel over iron bars
+                    let k = |d: i32| 1.max((d as f32 * zoom) as i32);
+                    buf.rect(sx - k(5), sy - k(12), k(10), k(2), 44, 36, 28);
+                    for x in [-4, -1, 2] { buf.rect(sx + k(x), sy - k(10), k(1), k(9), 58, 48, 38); }
+                },
                 Piece::Castle(sprite, wk, hk) => if let Some(s) = sprite {
                     // the generated set draws every piece at 1x; only the
                     // pack fallback still takes the grand stretch

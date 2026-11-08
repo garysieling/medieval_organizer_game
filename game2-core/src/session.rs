@@ -577,6 +577,8 @@ pub enum Goal {
     SeasonWork((i32, i32)),
     /// The condemned walks to the stocks by the market
     GoStocks,
+    /// The arrested walks to the gaol under escort
+    GoGaol,
     /// An agent asked their villager to go stand and chat with someone
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere
@@ -974,6 +976,10 @@ pub struct Game {
     pub doctor: Option<Doctor>,
     /// The stocks stand by the market - a fixed prop, picked at settle
     pub stocks_tile: Option<(i32, i32)>,
+    /// The village gaol's tile - the watch house's cellar, picked when
+    /// a watch post stands; the castle's own cell block at the keep
+    pub village_gaol: Option<(i32, i32)>,
+    pub castle_gaol: Option<(i32, i32)>,
     /// The vote: once a suffrage campaign carries it, a woman's name on
     /// a banner means the same as a man's
     pub suffrage_won: bool,

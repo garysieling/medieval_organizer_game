@@ -13,6 +13,7 @@ mod campaign_dungeon;
 mod campaign_grant;
 mod campaign_part_grant;
 mod campaign_visual;
+mod cascade;
 mod care;
 mod cave;
 mod chat;

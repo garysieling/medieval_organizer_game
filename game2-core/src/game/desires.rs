@@ -102,6 +102,10 @@ pub enum Problem {
     /// The good stock walked off in the night - a cellar worth robbing
     /// is a cellar worth watching
     Robbed,
+    /// The pot's bare and the belly knows it - days of empty tables
+    Hungry,
+    /// The fevers ride the village - days shut in with the sickness
+    Sick,
 }
 
 /// One secret a person can share: a want or a problem
@@ -127,6 +131,17 @@ pub struct InnerLife {
 #[derive(Debug, Default)]
 pub struct Known {
     pub revealed: Vec<Reveal>,
+}
+
+/// Days a villager has gone without: the streak that turns a hard day
+/// into a grievance. Reset the day the want's met again - a single
+/// missed meal isn't a crusade
+#[derive(Debug, Default)]
+pub struct Hardship {
+    /// Consecutive days at Hunger < 40 (hungry or starving)
+    pub hungry: u32,
+    /// Consecutive days showing a sickness's symptoms
+    pub sick: u32,
 }
 
 /// The organizer's ledger: what was heard, from whom, and when. Entries
@@ -204,6 +219,8 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::ChildLabor) => "child labor",
         Reveal::Problem(Problem::Rowdy) => "the rowdy",
         Reveal::Problem(Problem::Robbed) => "the thieves",
+        Reveal::Problem(Problem::Hungry) => "the empty pot",
+        Reveal::Problem(Problem::Sick) => "the fevers",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -318,6 +335,8 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::TheDark => "the dark keeps me".into(),
         Problem::Grief => "I watched it and can't unsee it".into(),
         Problem::Robbed => "was robbed in the night".into(),
+        Problem::Hungry => "has known the empty pot too long".into(),
+        Problem::Sick => "is sick and can't get well".into(),
     }
 }
 
@@ -365,6 +384,8 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),
         Reveal::Problem(Problem::ChildLabor) => (format!("{} saw the child's hands", name), "Small hands in the rows when they should be at play. It isn't right.".into()),
         Reveal::Problem(Problem::Rowdy) => (format!("{} saw the strangers' brawl", name), "The season hands drink hard and the nights end in the mud. I saw it.".into()),
+        Reveal::Problem(Problem::Hungry) => (format!("{}'s pot is bare", name), "Another day on thin broth. The pot's been bare a week.".into()),
+        Reveal::Problem(Problem::Sick) => (format!("{} is sick", name), "The fever rides the village. Nobody's untouched.".into()),
     }
 }
 

@@ -170,6 +170,7 @@ fn note_story(
             crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
             crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
             crate::sim::story::StoryTheme::Community => "a tale of the commons",
+            crate::sim::story::StoryTheme::Calamity => "a tale of calamity",
         };
         log.push_who(format!("t{}: the village marks it - {}'s is {}.", tick, vill_name(i), word), i);
     }
@@ -1393,6 +1394,15 @@ pub struct Game {
     pub tales: crate::engine::det::HashMap<usize, Vec<crate::sim::story::StoryEvent>>,
     /// Villager indexes whose formed tale was already named in the log
     pub tales_told: crate::engine::det::HashSet<usize>,
+    /// The village's own tale: the census's crossings of hardship,
+    /// sickness, death and anger - the dominos a calamity falls as
+    pub cascade_tale: Vec<crate::sim::story::StoryEvent>,
+    /// The day the last calamity was named in the log (a stretch of
+    /// hard years earns its name once, not every week)
+    pub cascade_named_at: Option<u64>,
+    /// Last census's signal levels, bit per domino - edges, not levels,
+    /// are what get written into the tale
+    pub cascade_levels: u8,
     /// The village's wood: a living stand that grows, spreads, burns
     /// and regrows - the fuel commons its coverage leans on
     pub forest: crate::sim::emergence::Automata,

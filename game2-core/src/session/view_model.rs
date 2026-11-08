@@ -877,7 +877,7 @@ impl Game {
             crate::sim::story::EventKind::Unrest => "felt the anger rise",
         }).collect()).unwrap_or_default();
         let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
-        if let Some(day) = self.died_on[i] {
+        if let Some(day) = self.died_on.get(i).copied().flatten() {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
             // who carries the grief for them - the losses the day their

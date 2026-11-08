@@ -661,7 +661,7 @@ impl Game {
     pub(in crate::session) fn school_tick(&mut self, tick: u64) {
         if let Some((e, until)) = self.teacher {
             if tick >= until {
-                self.villagers.retain(|&v| v != e);
+                self.drop_villager(e);
                 self.teacher = None;
                 self.log.push(format!("t{}: the schoolmistress moves on - the desk stands empty.", tick));
             }

@@ -137,6 +137,31 @@ impl Game {
             format!("t{}: a stranger settles - {} has come to town.", tick, vill_name(self.villagers.len() - 1)));
     }
 
+    /// A name off the roster: the line and every index that pointed at
+    /// it shifts home - the parallel rolls (was_sick, died_on), the
+    /// index-keyed tales, and each seat's pick, or the wrong records
+    /// hang on everyone after them
+    pub(in crate::session) fn drop_villager(&mut self, v: Entity) {
+        let Some(idx) = self.villagers.iter().position(|&x| x == v) else { return };
+        self.villagers.remove(idx);
+        self.was_sick.remove(idx);
+        self.died_on.remove(idx);
+        self.tales = std::mem::take(&mut self.tales).into_iter()
+            .filter(|(i, _)| *i != idx)
+            .map(|(i, t)| (if i > idx { i - 1 } else { i }, t))
+            .collect();
+        self.tales_told = std::mem::take(&mut self.tales_told).into_iter()
+            .filter(|&i| i != idx)
+            .map(|i| if i > idx { i - 1 } else { i })
+            .collect();
+        for seat in self.seats.iter_mut() {
+            if seat.selected_target > idx { seat.selected_target -= 1; }
+            else if seat.selected_target == idx {
+                seat.selected_target = idx.min(self.villagers.len().saturating_sub(1));
+            }
+        }
+    }
+
     /// The village walks a little slower for its own: a lame leg covers
     /// less ground in a day, and theirs check on them - kin, and the
     /// ones whose bond runs deep

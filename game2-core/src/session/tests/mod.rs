@@ -81,6 +81,7 @@ mod child_labor;
 mod labor_backlash;
 mod laborer_rowdiness;
 mod gaol;
+mod lord_works;
 mod research;
 mod plague_doctor;
 mod suffrage;

@@ -920,7 +920,8 @@ impl WorkLook {
             BuildingKind::Pasture => WorkLook::Fold,
             BuildingKind::Apiary => WorkLook::Apiary,
             BuildingKind::Cellar => WorkLook::Cellar,
-            BuildingKind::Home | BuildingKind::Church | BuildingKind::Mill | BuildingKind::TraderStall => return None,
+            BuildingKind::Home | BuildingKind::Church | BuildingKind::Mill | BuildingKind::TraderStall
+                | BuildingKind::Dungeon | BuildingKind::Plantation => return None,
         })
     }
 }
@@ -992,6 +993,9 @@ pub struct Game {
     pub doctor: Option<Doctor>,
     /// The stocks stand by the market - a fixed prop, picked at settle
     pub stocks_tile: Option<(i32, i32)>,
+    /// The lord's works: commissions the castle's treasury pays for,
+    /// standing on their day (site index, the work, the day it rises)
+    pub lord_works: Vec<(usize, crate::session::country::LordWork, u64)>,
     /// The village gaol's tile - the watch house's cellar, picked when
     /// a watch post stands; the castle's own cell block at the keep
     pub village_gaol: Option<(i32, i32)>,

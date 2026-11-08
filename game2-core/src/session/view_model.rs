@@ -656,6 +656,8 @@ impl Game {
             BuildingKind::Pasture => "Pasture",
             BuildingKind::Apiary => "Apiary",
             BuildingKind::Cellar => "Cheese cellar",
+            BuildingKind::Dungeon => "The dungeon",
+            BuildingKind::Plantation => "The plantation",
         };
         lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
         // the fire's near rides the kind word: flames close enough that
@@ -1322,6 +1324,8 @@ impl Game {
                 BuildingKind::TraderStall => "stall", BuildingKind::Pasture => "pasture",
             BuildingKind::Apiary => "apiary",
             BuildingKind::Cellar => "cellar",
+            BuildingKind::Dungeon => "dungeon",
+            BuildingKind::Plantation => "plantation",
             };
             Some(ObsBuilding { e: *be, name: b.name.clone(), kind: kind.into(), dist: d })
         }).collect();

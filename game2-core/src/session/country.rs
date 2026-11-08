@@ -697,6 +697,7 @@ impl Game {
     /// home after, the stewards ride for provisions, the tribute goes up
     /// and the gifts come down, and strays walk home
     pub(super) fn country_tick(&mut self, tick: u64) {
+        self.lord_works_tick(tick);
         self.tribute_tick(tick);
         for si in 0..self.sites.len() {
             let site = self.sites[si].clone();
@@ -1323,6 +1324,83 @@ mod tests {
                 }).collect();
                 println!("{}", row);
             }
+        }
+    }
+}
+
+/// What the lord's purse buys: the three works a commission can raise -
+/// a deeper cell block, a cash-crop ground, a trade the village lacks
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LordWork {
+    Dungeon,
+    Plantation,
+    Trade(Vocation),
+}
+
+/// A castle's seasonal spend: when the treasury's fat and the village
+/// lacks the thing the work buys, the lord pays - a rumor goes out,
+/// the build stands on its day
+impl Game {
+    pub(in crate::session) fn lord_works_tick(&mut self, tick: u64) {
+        // the builds stand on their day - the rumor ran ahead of them
+        let due: Vec<(usize, LordWork, u64)> = self.lord_works.iter().copied()
+            .filter(|(_, _, stood)| tick >= *stood).collect();
+        self.lord_works.retain(|(_, _, stood)| tick < *stood);
+        for (si, work, _) in due {
+            let Some(site) = self.sites.get(si).map(|s| (s.centre, s.name)) else { continue };
+            let (kind, name, flavor) = match work {
+                LordWork::Dungeon => (household::BuildingKind::Dungeon,
+                    "the lord's dungeon".to_string(), "deeper cells"),
+                LordWork::Plantation => (household::BuildingKind::Plantation,
+                    "the lord's plantation".to_string(), "vines for the market"),
+                LordWork::Trade(v) => (household::BuildingKind::Shop(v),
+                    format!("the lord's {}", vocation::trade_name(v)), "a trade the village lacked"),
+            };
+            let (cx, cy) = site.0;
+            // the work stands at the castle's edge - the first free tile
+            let mut spot = None;
+            'find: for r in 1i32..8 {
+                for (dx, dy) in [(-r, 0i32), (r, 0), (0, -r), (0, r), (-r, -r), (r, r)] {
+                    let (x, y) = (cx + dx, cy + dy);
+                    if self.map.passable(x, y) && !self.map.is_occupied(x, y) {
+                        spot = Some((x, y)); break 'find;
+                    }
+                }
+            }
+            if let Some((bx, by)) = spot {
+                self.country_building(kind, name.clone(), bx, by);
+                self.log.push(format!("t{}: {} rises at {} - the lord's gold buys {}.", tick, name, site.1, flavor));
+                self.toasts.push(("the lord's work stands".into(), tick + 40));
+            }
+        }
+        // the spend: every castle that can afford a work and needs one
+        // pays its purse - one commission a season, the treasury decides
+        if tick % 90 != 15 { return; }
+        for si in 0..self.sites.len() {
+            let (is_castle, name, rich) = self.sites.get(si)
+                .map(|s| (s.kind == SiteKind::Castle, s.name, s.treasury >= 120.0))
+                .unwrap_or((false, "", false));
+            if !is_castle || !rich { continue; }
+            if self.lord_works.iter().any(|(s, _, _)| *s == si) { continue; }
+            // what the village lacks decides the work: a deeper dungeon
+            // where the cells ran out, vines where no plantation stands,
+            // a missing trade where the roll calls
+            let has_dungeon = self.building_entities.iter().any(|&b|
+                self.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Dungeon).unwrap_or(false));
+            let has_plantation = self.building_entities.iter().any(|&b|
+                self.world.get_component::<household::Building>(b)
+                    .map(|bb| bb.kind == household::BuildingKind::Plantation).unwrap_or(false));
+            let work = if !has_dungeon && self.castle_gaol.is_some() {
+                (LordWork::Dungeon, 120.0)
+            } else if !has_plantation {
+                (LordWork::Plantation, 100.0)
+            } else {
+                continue; // nothing's lacking - the purse stays shut
+            };
+            self.sites[si].treasury -= work.1;
+            self.lord_works.push((si, work.0, tick + 5));
+            self.log.push(format!("t{}: rumor of the lord's works - {}'s treasury pays, and the crews will come.", tick, name));
         }
     }
 }

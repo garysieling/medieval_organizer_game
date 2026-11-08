@@ -38,6 +38,8 @@ impl Game {
             Goal::RunOddJob => self.world.get_component::<OddJob>(who)
                 .and_then(|j| self.world.get_component::<Pos>(j.from).copied())
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
+            Goal::FarmWork(f) => self.world.get_component::<Pos>(*f).copied()
+                .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
             Goal::FillBucket => self.fire_bank_walkable((from.x.round() as i32, from.y.round() as i32)),
             Goal::DouseFire(t) => self.douse_spot_walkable(*t, (from.x.round() as i32, from.y.round() as i32)),
             Goal::Eat => {
@@ -673,6 +675,18 @@ impl Game {
                         self.log_entity(who, format!("t{}: {} treats {}'s {}.", tick, vill_name(HERB_IDX), patient, illness.unwrap_or_else(|| "illness".into())));
                     }
                     None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
+                }
+            }
+            Goal::FarmWork(f) => {
+                // stood at the field: the day's work runs under the KidWork
+                // marker - the kid_labor tick pays it out at dusk
+                if self.world.get_component::<vocation::KidWork>(who)
+                    .map(|w| w.field == f).unwrap_or(false) {
+                    if let Some(p) = self.world.get_component::<Pos>(f).copied() {
+                        if let Some(pos) = self.world.get_component_mut::<Pos>(who) {
+                            pos.x = p.x + 0.5; pos.y = p.y + 0.5;
+                        }
+                    }
                 }
             }
             Goal::RunOddJob => {

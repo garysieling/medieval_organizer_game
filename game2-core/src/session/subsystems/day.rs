@@ -234,6 +234,7 @@ impl Game {
         crate::timed!("sim.cairns", self.cairn_tick(tick));
         crate::timed!("sim.monuments", self.monument_tick(tick));
         crate::timed!("sim.levy", self.imperial_tick(tick));
+        crate::timed!("sim.kids", self.kid_labor_tick(tick));
         drop(hearths);
         // the gardens fill in a little more each week
         crate::timed!("sim.garden", self.garden_tick(tick));
@@ -422,8 +423,10 @@ impl Game {
             if gathered { continue; }
             if self.world.get_component::<Kid>(v).is_some() {
                 // a child off the errand list plays - or sits a spell
-                // at the schoolhouse, when it's open and they lean that way
-                if self.world.get_component::<OddJob>(v).is_none() {
+                // at the schoolhouse, when it's open and they lean that way;
+                // a hired hand's day is spoken for already
+                if self.world.get_component::<OddJob>(v).is_none()
+                    && self.world.get_component::<vocation::KidWork>(v).is_none() {
                     if !self.school_draw(v, &mut rng) { self.plan_play(v, tick, &mut rng); }
                 }
                 continue;

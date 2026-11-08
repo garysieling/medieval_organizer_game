@@ -76,6 +76,7 @@ mod magic;
 mod market;
 mod mine;
 mod levy;
+mod child_labor;
 mod monuments;
 mod stone_circle;
 mod cairns;

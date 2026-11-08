@@ -68,6 +68,9 @@ pub enum Problem {
     Blamed,
     /// Ate spoiled stock - a sour gut for a poor soul
     SourGut,
+    /// A child's hands in the fields when they should be at play -
+    /// the village doesn't like to see it
+    ChildLabor,
     /// The lord took his fifth of what the dead one left
     DeathDuty,
     /// Someone they loved is gone - bereavement, not the trauma of
@@ -195,6 +198,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::LongWinter) => "the long winter",
         Reveal::Problem(Problem::TheDark) => "the dark",
         Reveal::Problem(Problem::Grief) => "the grief",
+        Reveal::Problem(Problem::ChildLabor) => "child labor",
         Reveal::Problem(Problem::Robbed) => "the thieves",
     };
     // a trade's grievance only echoes among the trade - the commons
@@ -286,6 +290,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::NoMaster => "has no master".into(),
         Problem::NoInput(g) => format!("can't get {}", g),
         Problem::DerelictNearby => "lives by an empty shop".into(),
+        Problem::ChildLabor => "sees a child's hands in the rows".into(),
         Problem::OverseerCut => "the overseer takes a cut".into(),
         Problem::Taxed => "paid the tax collector".into(),
         Problem::Broke => "is nearly broke".into(),
@@ -351,6 +356,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::TheDark) => (format!("{} keeps to the dark", name), "The village is loud with light. Down here it's honest.".into()),
         Reveal::Problem(Problem::Grief) => (format!("{} saw it", name), "They strung him up where we could see. I can't unsee it.".into()),
         Reveal::Problem(Problem::Robbed) => (format!("{} was robbed", name), "In the night, quiet as a cat. Took the good stock.".into()),
+        Reveal::Problem(Problem::ChildLabor) => (format!("{} saw the child's hands", name), "Small hands in the rows when they should be at play. It isn't right.".into()),
     }
 }
 

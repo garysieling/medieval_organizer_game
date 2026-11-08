@@ -4,7 +4,9 @@
 generate_art_prompts.py decides WHAT to draw; this script spends the
 money: it POSTs each picked entry to the RD API, saves every returned
 image under art-prompts/raw/<id>/, and records the id as done in
-art-prompts/generated.json (tracked: the shared ledger of paid work).
+art-prompts/generated.json (tracked: the ledger of PAID work only -
+batches merely claimed by the generator's --record live in
+art-prompts/emitted.json and do not block generation here).
 
     # free dry run: what would these cost?
     python scripts/rd_generate.py sheet-farm-animals --dry-run

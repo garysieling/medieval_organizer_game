@@ -207,6 +207,8 @@ pub struct Art {
     /// not generated, a punishment the village feeds
     pub stocks: Option<Sprite>,
     pub market_cross: Option<Sprite>,
+    /// A moored boat's hull - drawn small, the river's own craft
+    pub boat: Option<Sprite>,
     pub maypole: Option<Sprite>,
     /// Market-day stalls (sellers' looks), and the pedlar's striped booth
     pub stalls: Vec<Sprite>,
@@ -825,6 +827,17 @@ impl Art {
                 Sprite { width: w, height: h, pixels: px }
             }),
             market_cross: at("rd/bits/market-cross.png"),
+            boat: at("rd/bits/boat.png").or_else(|| {
+                // a little hull: dark below, a thwart across, a lighter
+                // gunwale - the drawn boat stands where the pack's silent
+                let mut s = Sprite { width: 14, height: 8, pixels: vec![0; 14*8*4] };
+                for x in 0..14 { for y in 2..8 {
+                    let c = if y > 6 { (60, 45, 30, 255) } else if y < 4 { (100, 80, 55, 255) } else { (80, 60, 40, 255) };
+                    s.pixels[(y*14+x)*4] = c.0; s.pixels[(y*14+x)*4+1] = c.1;
+                    s.pixels[(y*14+x)*4+2] = c.2; s.pixels[(y*14+x)*4+3] = c.3;
+                }}
+                Some(s)
+            }),
             maypole: at("rd/bits/maypole.png"),
             memorial_cross: at("rd/monuments/wayside-cross.png"),
             memorial_picture: at("rd/monuments/picture-stone.png"),

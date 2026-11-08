@@ -355,6 +355,12 @@ impl View {
         standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, small(&art.herbs, x, y, 51).map_or(Piece::Herb, Piece::Stand))));
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, small(&art.shrooms, x, y, 52).map_or(Piece::Shroom, Piece::Stand))));
         standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, small(&art.skeps, x, y, 53).map_or(Piece::Skep, Piece::Stand))));
+        // the boats ride the river: a hull at the moored tile
+        for &(bx, by) in &m.boats {
+            if let Some(s) = art.boat.as_ref() {
+                standing.push((bx as f32 + 0.5, by as f32 + 0.5, Piece::Stand(s)));
+            }
+        }
         // the board's own post: a placard at the market's edge - the
         // notices stand on it, the player reads them at a click
         if let Some((x, y)) = m.market {

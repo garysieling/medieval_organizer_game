@@ -73,6 +73,24 @@ pub struct Campaign {
     /// Who the demands are put to - a cut issue names a target; a
     /// mutual-aid cause has none
     pub target: Option<Entity>,
+    /// What the org's sounded the target out on: their stance on the
+    /// issue and the stake that drives it - the interview earns it
+    pub dossier: Option<Dossier>,
+    /// What the debrief settled on - the mandate the room gave the
+    /// campaign's next step
+    pub directive: Option<String>,
+}
+
+/// Where the target stands on the campaign's issue, and the concern
+/// that puts them there - the interview's yield
+#[derive(Clone, Debug)]
+pub struct Dossier {
+    /// The person sounded out
+    pub target: Entity,
+    /// Support, Oppose, or Undecided on the campaign's issue
+    pub stance: &'static str,
+    /// The concern that drives them - their top issue tag
+    pub stake: String,
 }
 
 /// The meeting a campaign holds on its cadence: turnout, resolutions,
@@ -250,6 +268,7 @@ pub fn found_campaign(world: &mut World, org: Entity, vote: &IssueVote, framing:
     let c = world.create_entity();
     world.add_component(c, Campaign {
         issue: vote.winner.clone(), framing, org, founded_day, dissenters,
+        dossier: None, directive: None,
         decision_rule: rule, seats: vec![], target: None,
     });
     c

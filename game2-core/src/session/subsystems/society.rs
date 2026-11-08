@@ -159,7 +159,17 @@ impl Game {
                 } else {
                     self.rep_apply(v, RepAction::Betrayal);
                     self.log_entity(v, format!("t{}: {} sits in the stocks by the store.", tick, name));
-                    if let Some(store) = Some(self.market_food) { self.send(v, Goal::HeadHome(store)); }
+                    // the stocks stand by the market - pick their tile the
+                    // first time a sentence needs it, and it stands after
+                    if self.stocks_tile.is_none() {
+                        let mp = self.world.get_component::<Pos>(self.market_food)
+                            .map(|p| (p.x.round() as i32, p.y.round() as i32));
+                        self.stocks_tile = mp.and_then(|(mx, my)|
+                            (0..4).map(|i| (mx + [1, -1, 0, 0][i], my + [0, 0, 1, -1][i]))
+                                .find(|&(tx, ty)| self.map.passable(tx, ty) && !self.map.is_occupied(tx, ty))
+                                .or(Some((mx + 1, my))));
+                    }
+                    self.send(v, Goal::GoStocks);
                     self.say(v, "...all right. All right.", TALK_BUBBLE_SECS);
                 }
             }
@@ -828,3 +838,27 @@ impl Game {
         world.add_component(v, crate::game::guilds::Merchant { name: name.into(),
             wealth, trade_routes: vec!["the market".into()], vulnerable: true });
     }
+
+impl Game {
+    /// The stocks' day: a body pinned there holds its spot, gets fed by
+    /// the village watching, and walks free when the sentence runs out
+    pub(in crate::session) fn stocks_tick(&mut self, tick: u64) {
+        let Some(tile) = self.stocks_tile else { return };
+        for v in self.villagers.clone() {
+            let Some(u) = self.world.get_component::<villager::InStocks>(v).map(|s| s.until) else { continue };
+            if tick >= u {
+                self.world.remove_component::<villager::InStocks>(v);
+                self.log_entity(v, format!("t{}: {} walks free of the stocks - the sentence's run, the shame's not.", tick, self.name_of(v)));
+                continue;
+            }
+            // pinned and fed: the body stays, the belly's seen to - the
+            // village's theater doesn't starve its player
+            if let Some(p) = self.world.get_component_mut::<Pos>(v) {
+                p.x = tile.0 as f32 + 0.5; p.y = tile.1 as f32 + 0.5;
+            }
+            if let Some(h) = self.world.get_component_mut::<villager::Hunger>(v) {
+                h.value = 100.0;
+            }
+        }
+    }
+}

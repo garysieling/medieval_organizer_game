@@ -371,10 +371,34 @@ pub fn nourishment_step(world: &mut World, sick: &[Entity]) {
 }
 
 /// Spawn a villager at a position
+/// What the village calls the body it gave them - the suffrage question
+/// turns on it, so it has to exist before the campaign can fight it
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum Sex { Female, Male }
+
+/// A newcomer to the village - stamped when the road brings them, so
+/// the village can count who's new enough to be called a stranger
+pub struct Migrant { pub arrived: u64 }
+
+/// A country hand in for the season's work - drinks harder than the
+/// village's own, and the night takes it out of him
+pub struct Laborer { pub until: u64 }
+
+/// In the stocks by the market: a body shamed is a body pinned - the
+/// village feeds its theater, and the sentence's days run out
+pub struct InStocks { pub until: u64 }
+
+impl Sex {
+    /// The body the spawn gives them, by the entity's own number -
+    /// deterministic, and half the world either way
+    pub fn from_id(e: Entity) -> Sex { if e % 2 == 0 { Sex::Female } else { Sex::Male } }
+}
+
 pub fn spawn_villager(world: &mut World, x: f32, y: f32) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Pos { x, y });
     world.add_component(e, Hunger { value: 100.0 });
+    world.add_component(e, Sex::from_id(e));
     world.add_component(e, Villager {
         activity: Activity::Idle,
         target_food: None,

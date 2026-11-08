@@ -573,6 +573,10 @@ pub enum Goal {
     RunOddJob,
     /// A kid works a day in the fields (component has field/hirer/pay)
     FarmWork(Entity),
+    /// A country hand walks in for the season's work
+    SeasonWork((i32, i32)),
+    /// The condemned walks to the stocks by the market
+    GoStocks,
     /// An agent asked their villager to go stand and chat with someone
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere
@@ -640,6 +644,17 @@ pub struct Travel {
     pub who: Entity,
     pub path: Vec<(i32, i32)>,
     pub goal: Goal,
+}
+
+/// The plague doctor: rides in when the sickness takes three, works
+/// the sick households for a fee, and rides home when the village
+/// mends - a stranger's hands for the village's grief
+pub struct Doctor {
+    pub e: Entity,
+    /// The sick he still has to see today
+    pub rounds: Vec<Entity>,
+    /// The fees he's carrying out with him
+    pub fee_bank: f32,
 }
 
 /// The travelling minstrel: walks the road in, plays at the market a
@@ -739,6 +754,28 @@ pub struct Graveyard {
     pub slots: Vec<(i32, i32)>,
     /// How many slots burials have taken
     pub taken: usize,
+}
+
+/// The liquor ordinance the lord grants the petition: all three teeth
+/// at once - drink dearer, earlier closing, no license no barrels
+#[derive(Clone, Copy)]
+pub struct Ordinance {
+    /// The day it took effect
+    pub passed_on: u64,
+    /// Drink goods' price goes up this much
+    pub price_mult: f32,
+    /// Drink trades need a license (their goods sell at half reach)
+    pub licensed: bool,
+}
+
+/// The wives' petition: drink's toll gathers voices until the castle
+/// has to answer - it presses once, and the lord's esteem decides
+#[derive(Clone, Copy)]
+pub struct Petition {
+    /// The day it first went up
+    pub started: u64,
+    /// The day the lord answers it
+    pub answer_on: u64,
 }
 
 /// The imperial levy's course: the crown's collector takes grain at a
@@ -945,6 +982,18 @@ pub struct Game {
     /// The emperor's levy: while it runs, the granary bleeds for a
     /// project nobody here will ever see
     pub imperial_project: Option<ImperialProject>,
+    /// The plague doctor while the sickness runs three deep
+    pub doctor: Option<Doctor>,
+    /// The stocks stand by the market - a fixed prop, picked at settle
+    pub stocks_tile: Option<(i32, i32)>,
+    /// The vote: once a suffrage campaign carries it, a woman's name on
+    /// a banner means the same as a man's
+    pub suffrage_won: bool,
+    /// The liquor ordinance: the lord's answer to the wives' petition -
+    /// drink dearer, earlier closing, no license no barrels
+    pub ordinance: Option<Ordinance>,
+    /// The wives' petition while it presses the castle
+    pub petition: Option<Petition>,
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),

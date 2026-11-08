@@ -494,6 +494,8 @@ pub struct UiModel {
     /// feast (the maypole stands there instead)
     #[serde(default)]
     pub market: Option<(f32, f32)>,
+    /// Where the stocks stand by the market, once a sentence names their tile
+    pub stocks: Option<(i32, i32)>,
     #[serde(default)]
     pub feast: bool,
     /// Stalls standing today: (x, y, look) - a seller's stall by look

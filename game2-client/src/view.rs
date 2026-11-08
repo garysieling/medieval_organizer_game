@@ -352,6 +352,9 @@ impl View {
             let s = if m.feast { art.maypole.as_ref().or(art.market_cross.as_ref()) } else { art.market_cross.as_ref() };
             if let Some(s) = s { standing.push((x, y, Piece::Stand(s))); }
         }
+        if let Some((x, y)) = m.stocks {
+            if let Some(s) = art.stocks.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
+        }
         // today's stalls round the square, and the pedlar's booth
         for &(x, y, look) in &m.stalls {
             let s = if look == routine::STALL_TRADER { art.trader_stall.as_ref() }

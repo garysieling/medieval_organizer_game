@@ -6,6 +6,8 @@ impl Game {
     /// Send `who` walking toward `goal` (a person, a shop or a tile).
     /// Returns whether a way was found - otherwise nothing happens
     pub fn send(&mut self, who: Entity, goal: Goal) -> bool {
+        // a body in the stocks goes nowhere until the sentence runs
+        if self.world.get_component::<villager::InStocks>(who).is_some() { return false; }
         // the held take no errands - the jailer's rounds aren't theirs;
         // the dead take none either, however short the walk; and the
         // marching take none - the column's walking them
@@ -40,6 +42,8 @@ impl Game {
                 .map(|p| (p.x.round() as i32, p.y.round() as i32)),
             Goal::FarmWork(f) => self.world.get_component::<Pos>(*f).copied()
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)),
+            Goal::SeasonWork(t) => self.at_the_door(t.0, t.1),
+            Goal::GoStocks => self.stocks_tile.map(|(x, y)| (x, y)),
             Goal::FillBucket => self.fire_bank_walkable((from.x.round() as i32, from.y.round() as i32)),
             Goal::DouseFire(t) => self.douse_spot_walkable(*t, (from.x.round() as i32, from.y.round() as i32)),
             Goal::Eat => {
@@ -676,6 +680,16 @@ impl Game {
                     }
                     None => { self.say(her, "Nothing in the hedge for that today.", CHAT_BUBBLE_SECS); }
                 }
+            }
+            Goal::SeasonWork(_) => { /* the season's walk lands them at the village - they stay till the Laborer mark says home */ }
+            Goal::GoStocks => {
+                // in the stocks: pinned for the sentence's days
+                if let Some(t) = self.stocks_tile {
+                    if let Some(p) = self.world.get_component_mut::<Pos>(who) {
+                        p.x = t.0 as f32 + 0.5; p.y = t.1 as f32 + 0.5;
+                    }
+                }
+                self.world.add_component(who, villager::InStocks { until: self.tick + 7 });
             }
             Goal::FarmWork(f) => {
                 // stood at the field: the day's work runs under the KidWork

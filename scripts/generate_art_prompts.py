@@ -12,9 +12,11 @@ Outputs:
   art-prompts/prompts.md     human list, grouped by priority then group
 
 De-dup:
-  Every entry has a stable id (slug + hash of the request). Pass a state
-  file with --state listing ids already generated; those are skipped.
-  --record writes the emitted ids into the state file, so the workflow is:
+  Every entry has a stable id (slug + hash of the request). Two ledgers:
+  generated.json lists ids actually generated (paid; written by
+  rd_generate.py on success, or --mark-done) and emitted.json lists ids
+  claimed by a --record batch. The emit filter skips the union of both;
+  --record appends to emitted.json, so the workflow is:
 
     python scripts/generate_art_prompts.py --limit 100 --record
     # ...generate those 100 on retrodiffusion.ai...
@@ -35,6 +37,10 @@ from collections import OrderedDict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "art-prompts")
 STATE = os.path.join(OUT_DIR, "generated.json")
+# Claimed batches: emitted but not (yet) paid. Kept out of generated.json
+# because rd_generate.py reads that file as "already paid" and would skip
+# ids that were only ever emitted.
+EMITTED = os.path.join(OUT_DIR, "emitted.json")
 CULTURES_TSV = os.path.join(ROOT, "wiki", "creativity-corpus", "sources.tsv")
 
 # ---------------------------------------------------------------------------
@@ -1317,6 +1323,12 @@ add("monuments", "memorial-tombstone", f"{ISO}: tombstone, upright carved "
     style="rd_tile__tile_object", w=96, h=96, n=4, tier="p1",
     notes="churchyard tombstones (#673) - slice a few to rd/bits/tomb*")
 
+# the plague doctor (#672): beaked mask, waxed coat - a visitor sprite
+add("visitors", "person-plague-doctor",
+    "plague doctor in a beaked bird mask and dark waxed leather coat, medieval",
+    style="rd_animation__four_angle_walking", w=48, h=48, sheet=True,
+    notes="visitor sprite; 48px 4-direction walk cycle as a PNG grid")
+
 # ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.
 # ~$3 total - run this first to validate prompts, sizes and outputs before
@@ -1380,16 +1392,22 @@ def load_state(path):
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict):
-            data = data.get("done", [])
+            data = data.get("done", data.get("emitted", []))
         return set(data)
     except (OSError, json.JSONDecodeError):
         return set()
 
 
-def save_state(path, done):
+def save_state(path, done, key="done"):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"done": sorted(done)}, f, indent=1)
+        json.dump({key: sorted(done)}, f, indent=1)
+
+
+def claimed(state_path):
+    """Ids filtered out of future batches: paid ones (state file) plus
+    every id a --record run already claimed (emitted.json)."""
+    return load_state(state_path) | load_state(EMITTED)
 
 
 def pick(entries, args, done):
@@ -1466,8 +1484,9 @@ def main():
     ap.add_argument("--state", default=STATE,
                     help="JSON file of ids already generated (default %(default)s)")
     ap.add_argument("--record", action="store_true",
-                    help="record emitted ids into the state file as pending-generation "
-                         "(use --mark-done once the API calls actually succeed)")
+                    help="record emitted ids into emitted.json as a claimed batch "
+                         "so re-runs don't re-emit them (rd_generate.py marks "
+                         "generated.json done once the API calls actually succeed)")
     ap.add_argument("--include-done", action="store_true",
                     help="don't filter by state (list everything)")
     ap.add_argument("--mark-done", metavar="IDS_OR_FILE",
@@ -1492,11 +1511,12 @@ def main():
 
     if args.smoke:
         out = args.out if args.out != OUT_DIR else os.path.join(OUT_DIR, "smoke")
-        done = set() if args.include_done else load_state(args.state)
+        done = set() if args.include_done else claimed(args.state)
         picked, spend = pick(smoke_entries(), args, done)
         emit(picked, out)
         if args.record:
-            save_state(args.state, load_state(args.state) | {e["id"] for e in picked})
+            save_state(EMITTED, load_state(EMITTED) | {e["id"] for e in picked},
+                       key="emitted")
         print(f"wrote {len(picked)} smoke prompts (${spend:.2f} est) to {out}")
         for e in picked:
             print(f"  {e['id']:42s} {e['request']['prompt_style']:42s} ${e['est_cost_usd']:.2f}")
@@ -1507,14 +1527,14 @@ def main():
     if dupes:
         sys.exit(f"internal duplicate ids: {sorted(dupes)}")
 
-    existing_done = load_state(args.state)
-    done = set() if args.include_done else existing_done
+    done = set() if args.include_done else claimed(args.state)
     entries = sorted(ENTRIES, key=sort_key)
     picked, spend = pick(entries, args, done)
 
     emit(picked, args.out)
     if args.record:
-        save_state(args.state, existing_done | {e["id"] for e in picked})
+        save_state(EMITTED, load_state(EMITTED) | {e["id"] for e in picked},
+                   key="emitted")
 
     by_tier = {}
     for e in picked:

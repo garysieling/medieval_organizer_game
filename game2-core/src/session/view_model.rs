@@ -237,6 +237,13 @@ impl Game {
             people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: 0, kind: PKind::Traveller, pos: (tx, ty),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
+        if let Some(d) = &self.doctor {
+            if let Some(p) = self.world.get_component::<Pos>(d.e).copied() {
+                people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: d.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the plague doctor".into()), dead: false, kid: false, selected: false, in_reach: false,
+                    hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
+            }
+        }
         if let Some(m) = &self.minstrel {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { sign: None, mounted: false, epitaph: None, buried: false, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),
@@ -586,6 +593,7 @@ impl Game {
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
             graveyard: self.graveyard.as_ref().map(|g| g.slots.clone()).unwrap_or_default(),
+            stocks: self.stocks_tile,
             monuments: self.monuments.iter().filter(|m| m.stood_on.is_some())
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },

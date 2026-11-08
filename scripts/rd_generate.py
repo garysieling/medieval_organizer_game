@@ -4,7 +4,9 @@
 generate_art_prompts.py decides WHAT to draw; this script spends the
 money: it POSTs each picked entry to the RD API, saves every returned
 image under art-prompts/raw/<id>/, and records the id as done in
-art-prompts/generated.json (tracked: the shared ledger of paid work).
+art-prompts/generated.json (tracked: the ledger of PAID work only -
+batches merely claimed by the generator's --record live in
+art-prompts/emitted.json and do not block generation here).
 
     # free dry run: what would these cost?
     python scripts/rd_generate.py sheet-farm-animals --dry-run
@@ -156,6 +158,36 @@ def is_two_stage(e):
     return e["request"]["prompt_style"].startswith("rd_advanced_animation")
 
 
+def response_blobs(r):
+    """Every image in a response, decoded to bytes. Two delivery modes:
+    inline base64_images; hosted URLs under output_urls / output_images
+    (the edit/inpaint/outpaint styles return base64_images empty and
+    deliver only by URL). URLs win nothing when base64 is present - they
+    host the same outputs - so they're a fallback, not an extra."""
+    out = []
+    for b64 in r.get("base64_images") or []:
+        try:
+            out.append(base64.b64decode(b64))
+        except ValueError:
+            print(f"  warning: undecodable base64_images entry skipped")
+    if out:
+        return out
+    for u in r.get("output_urls") or r.get("output_images") or []:
+        if isinstance(u, dict):
+            u = u.get("url") or u.get("image_url")
+        if not isinstance(u, str):
+            continue
+        try:
+            if u.startswith(("http://", "https://")):
+                with urllib.request.urlopen(u, timeout=120) as resp:
+                    out.append(resp.read())
+            else:
+                out.append(base64.b64decode(u))
+        except (OSError, ValueError) as err:
+            print(f"  warning: output image fetch failed: {err}")
+    return out
+
+
 def body_for(e, check_cost=False, input_image=None):
     b = dict(e["request"])
     b["prompt"] = e["prompt"]
@@ -236,14 +268,16 @@ def run(args):
             if not os.listdir(out):
                 os.rmdir(out)
             continue
-        imgs = r.get("base64_images") or []
-        if not imgs:
+        blobs = response_blobs(r)
+        if not blobs:
             print(f"{e['id']}: FAILED no images in response: "
                   + json.dumps({k: v for k, v in r.items() if k != 'base64_images'})[:500])
             failed.append(e["id"])
             continue
-        for i, b64 in enumerate(imgs):
-            raw = base64.b64decode(b64)
+        want = e["request"].get("num_images", 1)
+        if len(blobs) < want:
+            print(f"  warning: asked for {want} images, got {len(blobs)}")
+        for i, raw in enumerate(blobs):
             # animation styles can answer with a GIF; name files by content
             ext = "gif" if raw[:4] == b"GIF8" else "webp" if raw[8:12] == b"WEBP" else "png"
             with open(os.path.join(out, f"{i}.{ext}"), "wb") as f:
@@ -257,7 +291,7 @@ def run(args):
             f.write("\n")
         done.add(e["id"])
         save_done(done)
-        print(f"{e['id']}: {len(imgs)} image(s) -> {os.path.relpath(out, ROOT)} "
+        print(f"{e['id']}: {len(blobs)} image(s) -> {os.path.relpath(out, ROOT)} "
               f"(${r.get('balance_cost', '?')}, {meta['seconds']}s, balance left "
               f"${r.get('remaining_balance', '?')})")
 

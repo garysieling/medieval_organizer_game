@@ -84,6 +84,7 @@ mod gaol;
 mod events_attend;
 mod construction;
 mod laws;
+mod season_illness;
 mod sheriff;
 mod sisterhood;
 mod notices;

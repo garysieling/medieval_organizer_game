@@ -106,9 +106,15 @@ impl Game {
                     .map(|(_, &e)| e).fold(0.0f32, f32::max);
                 if load >= 0.5 && self.rng.below(1000) < (load * 60.0) as i32 {
                     // fouler water carries the fouler fevers
-                    let kind = if load >= 0.8 && self.rng.below(100) < 40 { DiseaseKind::Cholera }
-                        else if load >= 0.6 && self.rng.below(100) < 30 { DiseaseKind::Typhoid }
-                        else { DiseaseKind::Dysentery };
+                    // the foul water carries its fevers when their
+                    // season's on them - out of it, the well holds
+                    let day = (tick % 365) as u32;
+                    let kind = if load >= 0.8 && self.rng.below(100) < 40
+                        && DiseaseKind::Cholera.in_season(day) { DiseaseKind::Cholera }
+                        else if load >= 0.6 && self.rng.below(100) < 30
+                            && DiseaseKind::Typhoid.in_season(day) { DiseaseKind::Typhoid }
+                        else if DiseaseKind::Dysentery.in_season(day) { DiseaseKind::Dysentery }
+                        else { continue };
                     let severity = match kind {
                         DiseaseKind::Cholera => 0.55 + load * 0.3,
                         DiseaseKind::Typhoid => 0.45 + load * 0.2,
@@ -116,6 +122,20 @@ impl Game {
                     };
                     let d = self.world.create_entity();
                     self.world.add_component(d, Disease::new(kind, v, severity));
+                }
+            }
+            // the slow kinds find their season's opening: consumption
+            // rides winter's damp indoors, the sweats the late-summer
+            // heat - a rare roll in their window brings one through
+            let day = (tick % 365) as u32;
+            for (kind, chance) in [(DiseaseKind::Consumption, 8),
+                (DiseaseKind::Sweats, 6)] {
+                if kind.in_season(day) && self.rng.below(1000) < chance {
+                    if let Some(&v) = self.villagers.iter().find(|&&v|
+                        !villager::is_dead(&self.world, v) && disease_of(&self.world, v).is_none()) {
+                        let d = self.world.create_entity();
+                        self.world.add_component(d, Disease::new(kind, v, 0.4));
+                    }
                 }
             }
             // the ague rides the autumn air off the marshes: homes by the

@@ -76,11 +76,29 @@ impl DiseaseKind {
     }
 
     /// The part of the year it rides in on, if it has one (day-of-year
-    /// window on the 365-day cycle)
+    /// window on the 365-day cycle). A window that wraps the year -
+    /// start past end - reads winter into the new year.
     pub fn season(self) -> Option<(u32, u32)> {
         match self {
-            DiseaseKind::Ague => Some((240, 310)), // the autumn marsh fever
-            _ => None,
+            DiseaseKind::Ague => Some((240, 310)),       // the autumn marsh fever
+            DiseaseKind::Consumption => Some((300, 90)), // winter's long cough
+            DiseaseKind::ScarletFever => Some((330, 120)),// winter into spring
+            DiseaseKind::Sweats => Some((210, 300)),     // late summer's heat
+            DiseaseKind::Cholera => Some((180, 240)),    // summer's foul water
+            DiseaseKind::Typhoid => Some((240, 300)),    // autumn's slow fever
+            DiseaseKind::Dysentery => Some((180, 240)),  // summer's flux
+            DiseaseKind::Influenza => Some((300, 60)),   // winter's grippe
+            _ => None,                                 // Ergotism/Gripes - no season
+        }
+    }
+
+    /// Whether a day-of-year falls inside the kind's season - a window
+    /// that wraps the year (start past end) covers winter into spring
+    pub fn in_season(self, day: u32) -> bool {
+        match self.season() {
+            Some((s0, s1)) if s0 <= s1 => (s0..=s1).contains(&day),
+            Some((s0, s1)) => day >= s0 || day <= s1,
+            None => true, // no season keeps it year-round
         }
     }
 

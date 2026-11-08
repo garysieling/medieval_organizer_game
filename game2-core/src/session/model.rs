@@ -548,6 +548,10 @@ pub struct UiModel {
     /// worn ground under them
     #[serde(default)]
     pub graveyard: Vec<(i32, i32)>,
+    /// The lychgate at the churchyard's entrance (tile coords), when
+    /// the graveyard planning found a spot for one
+    #[serde(default)]
+    pub lychgate: Option<(i32, i32)>,
     /// The country's sites: name and kind for the minimap, the keeper
     /// when the keep's first bed holds one
     #[serde(default)]

@@ -593,6 +593,7 @@ impl Game {
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
             graveyard: self.graveyard.as_ref().map(|g| g.slots.clone()).unwrap_or_default(),
+            lychgate: self.graveyard.as_ref().and_then(|g| g.gate),
             stocks: self.stocks_tile,
             village_gaol: self.village_gaol,
             castle_gaol: self.castle_gaol,

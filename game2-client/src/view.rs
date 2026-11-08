@@ -374,6 +374,13 @@ impl View {
         if let Some((x, y)) = m.stocks {
             if let Some(s) = art.stocks.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
         }
+        // the lychgate over the churchyard path, when the graveyard's
+        // planning found its spot
+        if let Some((x, y)) = m.lychgate {
+            if let Some(s) = pick(&art.lychgate, x, y, 55) {
+                standing.push((x as f32, y as f32, Piece::Stand(s)));
+            }
+        }
         for (x, y) in [m.village_gaol, m.castle_gaol].iter().flatten() {
             standing.push((*x as f32, *y as f32, Piece::Gaol));
         }

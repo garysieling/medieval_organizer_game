@@ -230,6 +230,9 @@ pub struct Art {
     /// Upright tombstones for the churchyard's buried (assets/rd/bits/tomb*);
     /// empty: the flat grave marks serve both
     pub tombstones: Vec<Sprite>,
+    /// The lychgate over the churchyard path (assets/rd/bits/lychgate*);
+    /// empty: the gate goes undrawn
+    pub lychgate: Vec<Sprite>,
     pub herbs: Vec<Sprite>,
     pub shrooms: Vec<Sprite>,
     /// Flames (frames to flicker between) and the scorched patch left behind
@@ -851,6 +854,7 @@ impl Art {
             skeps: bits("skep"),
             graves: bits("grave"),
             tombstones: bits("tomb"),
+            lychgate: bits("lychgate"),
             herbs: bits("herb"),
             shrooms: bits("shroom"),
             fires: bits("fire"),

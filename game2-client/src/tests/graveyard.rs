@@ -93,6 +93,59 @@ fn test_the_churchyard_draws_its_dead() {
     assert!(frames_differ(&frame, &hovered), "the grave's epitaph never showed");
 }
 
+/// The lychgate (#674): the churchyard's gate stands on its tile at the
+/// plots' entrance, drawn from the generated pack
+#[test]
+fn test_the_lychgate_stands_at_the_churchyard_gate() {
+    let mut game = Game::new_seeded(MAP_SEED);
+    game.speed = 8;
+    // the graveyard (and its gate) is planned on the first day's check
+    while game.tick < 2 { game.update(); }
+    let m = game.ui_model();
+    let Some((gx, gy)) = m.lychgate else { panic!("no lychgate on the model") };
+    assert!(!m.graveyard.contains(&(gx, gy)), "the gate sits on a grave plot");
+    let art = Art::load_fs("../assets", 0);
+    assert!(art.lychgate.len() >= 2, "the lychgate pack didn't load");
+    let (sw, sh) = { let s = pick(&art.lychgate, gx, gy, 55).expect("no lychgate sprite picked");
+        (s.width, s.height) };
+    let mut view = View::new(art);
+    (view.cam_x, view.cam_y) = cam_centred_on(gx as f32, gy as f32);
+    view.zoom = 2.0;
+    let with = view.render(&m, (-1, -1));
+    let art_plain = Art::load(&|rel: &str| {
+        if rel.contains("lychgate") { None } else {
+            std::fs::read(std::path::Path::new("../assets").join(rel)).ok()
+        }
+    }, 0);
+    let mut view_plain = View::new(art_plain);
+    (view_plain.cam_x, view_plain.cam_y) = (view.cam_x, view.cam_y);
+    view_plain.zoom = 2.0;
+    let without = view_plain.render(&m, (-1, -1));
+    // the gate must draw ON its tile: the diff hugs the gate's screen spot
+    let (mut x0, mut y0, mut x1, mut y1, mut n) = (i32::MAX, i32::MAX, i32::MIN, i32::MIN, 0);
+    for y in 0..with.height {
+        for x in 0..with.width {
+            let i = (y * with.width + x) * 4;
+            if with.pixels[i..i + 3] != without.pixels[i..i + 3] {
+                n += 1;
+                x0 = x0.min(x as i32); y0 = y0.min(y as i32);
+                x1 = x1.max(x as i32); y1 = y1.max(y as i32);
+            }
+        }
+    }
+    assert!(n > 0, "the lychgate never drew");
+    // the diff stays inside the sprite's drawn rect: draw_standing anchors
+    // the sprite's bottom just past the tile centre and lets it tower up
+    let (sx, sy) = iso_to_screen_cam(gx as f32, gy as f32, view.cam_x, view.cam_y, 2.0);
+    let w = (sw as f32 * 2.0).round() as i32;
+    let h = (sh as f32 * 2.0).round() as i32;
+    let bottom = sy + ((sw as f32 / 4.0).min(game2_core::session::layout::TILE_H as f32) * 2.0).round() as i32;
+    let (dx, dy) = (sx - w / 2, bottom - h);
+    assert!(x0 >= dx - 4 && x1 <= dx + w + 4 && y0 >= dy - 4 && y1 <= bottom + 4,
+        "lychgate diff escaped its tile: ({x0},{y0})-({x1},{y1}) vs drawn ({dx},{dy})-({},{bottom})",
+        dx + w);
+}
+
 fn px(b: &Buffer, x: i32, y: i32) -> (u8, u8, u8) {
     let i = (y as usize * b.width + x as usize) * 4;
     (b.pixels[i], b.pixels[i + 1], b.pixels[i + 2])

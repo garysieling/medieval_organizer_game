@@ -104,8 +104,9 @@ soldier, "bareheaded ... no helmet" a bald man.
   the ground pieces, `rd_pro__isometric` 96px for the column), sliced
   tight - the exports carried no ground slab to strip; the cairns are composed offline from
   `stones/stone*.png`, not generated. Registered as `Art.memorial_*`
-  options - #702 picks which form a monument wears. The lychgate prompt
-  is catalogued for #674, not generated.
+  options - #702 picks which form a monument wears. The lychgate
+  (`bits/lychgate1..2.png`, #674) stands at the churchyard's entrance,
+  picked per tile like the other props.
 - **Tombstones** (`bits/tomb1..3.png`, #673): upright grave markers for
   the churchyard's buried, resampled to ~20px via `rd_slice.py name@H`;
   the flat `graves` marks still serve the lying-in.

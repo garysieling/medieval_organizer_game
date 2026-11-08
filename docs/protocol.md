@@ -373,6 +373,10 @@ them. Older servers omit it; read it as empty.
 in burial order - the worn ground under them. Empty on maps with no
 church and from older servers; read it as empty.
 
+`lychgate` is the churchyard gate's `[x,y]` tile coord, or `null` when
+the graveyard planning found no spot (or on older servers, which omit
+it - read a missing field as `null`).
+
 ### Obs (agents)
 
 What an agent's villager knows: itself, who and what is near, its satchel,

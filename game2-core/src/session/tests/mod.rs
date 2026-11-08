@@ -43,6 +43,7 @@ mod fixtures;
 mod flock;
 mod food_reach;
 mod formation;
+mod funeral;
 mod free_villager;
 mod garden;
 mod gibbet;

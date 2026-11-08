@@ -13,6 +13,16 @@ fn kill_on(g: &mut Game, i: usize, day: u64) {
     g.died_on[i] = Some(day);
 }
 
+/// March the funeral column until it resolves - the burial lands when
+/// the mourners reach the plot, not when the day turns
+fn drain_formation(g: &mut Game) {
+    for _ in 0..40000 {
+        if g.formation.is_none() { return; }
+        g.formation_step();
+    }
+    panic!("the funeral column never arrived");
+}
+
 #[test]
 fn test_the_dead_lie_in_then_rest_in_the_graveyard() {
     let mut g = Game::new();
@@ -23,9 +33,15 @@ fn test_the_dead_lie_in_then_rest_in_the_graveyard() {
     g.graveyard_tick(2);
     assert!(g.world.get_component::<villager::Buried>(v).is_none(), "buried inside the lying-in");
     assert_eq!(pos_of(&g, v), fell, "moved before the funeral");
-    // day 3: carried to the churchyard, once
+    // day 3: the mourners form and carry the body to the churchyard
     g.graveyard_tick(3);
-    assert!(g.world.get_component::<villager::Buried>(v).is_some(), "no burial on the funeral day");
+    assert!(g.world.get_component::<villager::Buried>(v).is_none(),
+        "buried before the column reached the plot");
+    assert!(matches!(g.formation.as_ref().map(|f| &f.kind),
+        Some(formation::FormationKind::Funeral(d)) if *d == v),
+        "no funeral column formed for the dead");
+    drain_formation(&mut g);
+    assert!(g.world.get_component::<villager::Buried>(v).is_some(), "no burial when the column arrived");
     let rest = pos_of(&g, v);
     assert_ne!(rest, fell, "still lying where they fell");
     let gy = g.graveyard.as_ref().expect("the churchyard was planned");
@@ -44,7 +60,13 @@ fn test_the_graveyard_fills_in_the_order_they_died() {
     kill_on(&mut g, 0, 10);
     kill_on(&mut g, 1, 5);
     kill_on(&mut g, 2, 20);
-    g.graveyard_tick(30);
+    // one column at a time: each day's check forms the next burial's
+    // procession once the last has come home
+    for day in 25..60 {
+        g.graveyard_tick(day);
+        drain_formation(&mut g);
+        if g.graveyard.as_ref().map(|gy| gy.taken).unwrap_or(0) == 3 { break; }
+    }
     let gy = g.graveyard.as_ref().unwrap();
     assert_eq!(gy.taken, 3, "not every eligible dead was buried");
     // slots go in death order: day 5, then day 10, then day 20
@@ -89,6 +111,7 @@ fn test_the_model_marks_the_buried_and_their_epitaphs() {
     let mut g = Game::new();
     kill_on(&mut g, 0, 0);
     g.graveyard_tick(3);
+    drain_formation(&mut g);
     let m = g.ui_model();
     let dead = m.people.iter().find(|p| p.kind == PKind::Villager(0)).unwrap();
     assert!(dead.dead && dead.buried, "the model doesn't know they're buried");

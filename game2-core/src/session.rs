@@ -729,6 +729,28 @@ pub struct Monument {
 #[derive(Clone, Copy, PartialEq)]
 pub enum MonumentKind { Column, Circle }
 
+/// The liquor ordinance the lord grants the petition: all three teeth
+/// at once - drink dearer, earlier closing, no license no barrels
+#[derive(Clone, Copy)]
+pub struct Ordinance {
+    /// The day it took effect
+    pub passed_on: u64,
+    /// Drink goods' price goes up this much
+    pub price_mult: f32,
+    /// Drink trades need a license (their goods sell at half reach)
+    pub licensed: bool,
+}
+
+/// The wives' petition: drink's toll gathers voices until the castle
+/// has to answer - it presses once, and the lord's esteem decides
+#[derive(Clone, Copy)]
+pub struct Petition {
+    /// The day it first went up
+    pub started: u64,
+    /// The day the lord answers it
+    pub answer_on: u64,
+}
+
 /// The imperial levy's course: the crown's collector takes grain at a
 /// pace, and if the lord intercedes the pace halves for a stretch
 pub struct ImperialProject {
@@ -936,6 +958,11 @@ pub struct Game {
     /// The vote: once a suffrage campaign carries it, a woman's name on
     /// a banner means the same as a man's
     pub suffrage_won: bool,
+    /// The liquor ordinance: the lord's answer to the wives' petition -
+    /// drink dearer, earlier closing, no license no barrels
+    pub ordinance: Option<Ordinance>,
+    /// The wives' petition while it presses the castle
+    pub petition: Option<Petition>,
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),

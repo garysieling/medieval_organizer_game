@@ -371,6 +371,10 @@ pub fn nourishment_step(world: &mut World, sick: &[Entity]) {
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Sex { Female, Male }
 
+/// A newcomer to the village - stamped when the road brings them, so
+/// the village can count who's new enough to be called a stranger
+pub struct Migrant { pub arrived: u64 }
+
 impl Sex {
     /// The body the spawn gives them, by the entity's own number -
     /// deterministic, and half the world either way

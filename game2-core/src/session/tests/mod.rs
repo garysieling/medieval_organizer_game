@@ -96,7 +96,7 @@ mod stone_circle;
 mod cairns;
 mod member_line;
 mod minimap;
-mod music;
+mod music_view;
 mod mystery;
 mod mounted;
 mod nourish;

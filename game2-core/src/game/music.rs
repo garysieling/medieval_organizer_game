@@ -71,12 +71,12 @@ pub fn recommend_mood(mood: Mood) -> &'static str {
 /// Target layers for each mood (which techno elements play)
 fn target_layers(mood: Mood) -> Vec<(&'static str, f32)> {
     match mood {
-        Mood::Calm => vec![("pad", 0.4), ("bass", 0.2)],
-        Mood::Growing => vec![("pad", 0.5), ("bass", 0.4), ("kick", 0.3), ("percussion", 0.2)],
-        Mood::Tense => vec![("kick", 0.6), ("bass", 0.7), ("synth", 0.4), ("percussion", 0.5)],
-        Mood::Triumphant => vec![("kick", 0.5), ("bass", 0.5), ("synth", 0.7), ("pad", 0.6), ("percussion", 0.4)],
-        Mood::Somber => vec![("pad", 0.3), ("synth", 0.2)],
-        Mood::Mysterious => vec![("pad", 0.4), ("synth", 0.5), ("percussion", 0.3)],
+        Mood::Calm => vec![("drone", 0.4), ("pluck", 0.2)],
+        Mood::Growing => vec![("drone", 0.5), ("pluck", 0.4), ("drum", 0.3), ("bell", 0.2)],
+        Mood::Tense => vec![("drum", 0.6), ("pluck", 0.7), ("choir", 0.4), ("bell", 0.5)],
+        Mood::Triumphant => vec![("drum", 0.5), ("pluck", 0.5), ("choir", 0.7), ("drone", 0.6), ("bell", 0.4)],
+        Mood::Somber => vec![("drone", 0.3), ("choir", 0.2)],
+        Mood::Mysterious => vec![("drone", 0.4), ("choir", 0.5), ("bell", 0.3)],
     }
 }
 
@@ -118,11 +118,11 @@ pub fn spawn_music(world: &mut World) -> Entity {
     let e = world.create_entity();
     world.add_component(e, MusicState {
         layers: vec![
-            Layer { name: "kick".into(), active: false, intensity: 0.0, added_at: 0 },
-            Layer { name: "bass".into(), active: false, intensity: 0.0, added_at: 0 },
-            Layer { name: "synth".into(), active: false, intensity: 0.0, added_at: 0 },
-            Layer { name: "pad".into(), active: true, intensity: 0.3, added_at: 0 },
-            Layer { name: "percussion".into(), active: false, intensity: 0.0, added_at: 0 },
+            Layer { name: "drum".into(), active: false, intensity: 0.0, added_at: 0 },
+            Layer { name: "pluck".into(), active: false, intensity: 0.0, added_at: 0 },
+            Layer { name: "choir".into(), active: false, intensity: 0.0, added_at: 0 },
+            Layer { name: "drone".into(), active: true, intensity: 0.3, added_at: 0 },
+            Layer { name: "bell".into(), active: false, intensity: 0.0, added_at: 0 },
         ],
         mood: Mood::Calm,
         intensity: 0.3,
@@ -170,7 +170,7 @@ mod tests {
         let (mut w, m) = music();
         let st = w.get_component_mut::<MusicState>(m).unwrap();
         for _ in 0..20 { evolve(st, &metrics(0.8)); }
-        let kick = st.layers.iter().find(|l| l.name == "kick").unwrap();
+        let kick = st.layers.iter().find(|l| l.name == "drum").unwrap();
         assert!(kick.active);
         assert!(kick.added_at >= MOOD_HOLD_TICKS - 1, "kick came in after the drop, at {}", kick.added_at);
     }

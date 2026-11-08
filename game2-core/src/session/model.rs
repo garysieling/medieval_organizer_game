@@ -182,6 +182,10 @@ pub struct CampaignV {
     pub due: bool,
     /// Days between meetings, the organizer's recommendation
     pub cadence_days: u64,
+    /// The accountability assembly's standing, when one's been called:
+    /// the agenda posted, the pledges on record - empty otherwise
+    #[serde(default)]
+    pub assembly: String,
 }
 
 /// The right-hand panel's player/org data

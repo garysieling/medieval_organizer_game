@@ -4,6 +4,7 @@
 //! New subsystems go here as their own file, not into session.rs.
 
 mod animals;
+mod assembly;
 mod cascade;
 mod day;
 mod economy;

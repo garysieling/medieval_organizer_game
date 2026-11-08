@@ -79,6 +79,9 @@ pub enum CtxAct {
     MendHall,
     /// Set how often the cause meets: the organizer's recommendation
     Cadence,
+    /// Call the accountability assembly: the agenda goes up and the
+    /// leader's yes and no go on record
+    Assembly,
     /// Call the house meeting the organizer has earned - a venue promised
     /// and folk who've said they'll come
     Gather,

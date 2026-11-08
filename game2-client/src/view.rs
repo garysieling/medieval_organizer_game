@@ -1150,8 +1150,11 @@ impl View {
             // the cause's posture rides the cadence: won through, the
             // room's split, the cause's weary
             let state = if c.state.is_empty() { String::new() } else { format!(" - {}", c.state) };
+            // the assembly's standing rides the same line when it's
+            // got something to say - the agenda posted, pledges counted
+            let assembly = if c.assembly.is_empty() { String::new() } else { format!(" - {}", c.assembly) };
             draw_text(&mut buf, UI_X as i32 + 18, 500,
-                &format!("every {}d - {}{}{}", c.cadence_days, due, state,
+                &format!("every {}d - {}{}{}{}", c.cadence_days, due, state, assembly,
                     if c.seats.join(" ").is_empty() { String::new() } else { format!(" - {}", c.seats.join(" ")) }),
                 120, 120, 140);
         } else {

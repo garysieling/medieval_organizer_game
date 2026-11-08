@@ -96,6 +96,12 @@ impl Game {
                 .then(|| "the streets have heard it today".to_string()),
             CtxAct::Cadence => (self.cadence_day == self.tick)
                 .then(|| "the organizer needs a day to think".to_string()),
+            CtxAct::Assembly => {
+                let _ = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org)?;
+                if self.assembly_day == self.tick {
+                    Some("the organizer needs a day to think".into())
+                } else { None }
+            }
             CtxAct::MendHall => {
                 let purse = self.world.get_component::<Organization>(self.seats[seat].org)
                     .map(|o| o.resources).unwrap_or(0.0);
@@ -541,6 +547,13 @@ impl Game {
                 self.seats[seat].ctx_actions.push(CtxAct::Debrief);
             }
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
+            // the accountability assembly can be called early while no
+            // agenda stands - it keeps its own dates otherwise
+            let agenda_up = self.world.get_component::<crate::game::campaign::Assembly>(c)
+                .map(|a| a.announced.is_some()).unwrap_or(false);
+            if !agenda_up {
+                self.seats[seat].ctx_actions.push(CtxAct::Assembly);
+            }
             // no second column while one's already marching
             if self.formation.is_none() {
                 self.seats[seat].ctx_actions.push(CtxAct::March);
@@ -870,6 +883,19 @@ impl Game {
                 let next = match now { 0..=3 => 7, 4..=7 => 14, 8..=14 => 30, _ => 3 };
                 crate::game::campaign::set_cadence(&mut self.world, c, next, tick);
                 format!("The cause will meet every {} days now - the organizer's word.", next)
+            }
+            CtxAct::Assembly => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };
+                self.assembly_day = self.tick;
+                match crate::game::campaign::announce_assembly(&mut self.world, c, tick) {
+                    Some(questions) => {
+                        let oname = self.world.get_component::<Organization>(self.seats[seat].org)
+                            .map(|o| o.name.clone()).unwrap_or_default();
+                        format!("{} call the accountability assembly - the agenda's posted: {}.",
+                            oname, questions.join("; "))
+                    }
+                    None => "There's no assembly to call - the campaign's still finding its feet.".into(),
+                }
             }
             CtxAct::Delegate => {
                 let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else { return };

@@ -512,9 +512,13 @@ impl Game {
                 }
                 continue;
             }
-            // a day at the craft, at the bench
+            // a day at the craft, at the bench - unless it's a day of
+            // care: the checker gives the morning to the visit instead
+            // of the day's work
             self.plan_bench(v, tick);
-            let (made, up) = self.bench_work(v, tick);
+            let care = self.world.get_component::<villager::CareVisit>(v)
+                .map(|c| c.day == tick).unwrap_or(false);
+            let (made, up) = if care { (0.0, None) } else { self.bench_work(v, tick) };
             let _ = made;
             if let Some(level) = up {
                 let lvl = vocation::level_name(level);

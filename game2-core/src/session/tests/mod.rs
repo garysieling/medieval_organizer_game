@@ -28,6 +28,7 @@ mod country;
 mod crops;
 mod determinism;
 mod dialogue;
+mod disabilities;
 mod driver;
 mod disclosure;
 mod dog_sprite;

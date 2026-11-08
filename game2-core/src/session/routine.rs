@@ -707,6 +707,9 @@ impl Game {
         let mut green: Vec<Entity> = vec![];
         for v in self.villagers.clone() {
             if !self.free_to_gather(v) { continue; }
+            // the deaf miss the call - no bell or summons reaches them
+            if self.world.get_component::<villager::Condition>(v)
+                .map(|c| c.kind == "no hearing" && tick < c.until).unwrap_or(false) { continue; }
             let pious = has_trait(&self.world, v, crate::game::traits::Trait::Pious);
             // the green word calls its own harder: they always answer,
             // though the roll still runs so the day's draws don't shift

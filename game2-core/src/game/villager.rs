@@ -153,6 +153,14 @@ pub struct Drunk {
     pub until: u64,
 }
 
+/// A day of care: someone checked on a villager carrying a Condition,
+/// and the checker gave the morning to the visit instead of the bench.
+/// Set by care_tick, spent by the day's work loop.
+#[derive(Debug, Clone, Copy)]
+pub struct CareVisit {
+    pub day: u64,
+}
+
 /// A thing made to outlast its maker: a lute, a window, a fine toolset -
 /// named, owned, and passed down. It gathers stories the way a person does.
 #[derive(Debug)]

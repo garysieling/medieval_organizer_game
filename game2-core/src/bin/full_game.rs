@@ -54,8 +54,7 @@ fn main() {
     let org = world.create_entity();
     world.add_component(org, Organization {
         name: "Harvesters Guild".into(), members: vec![], leader: villagers[0],
-        influence_pool: 0.0, resources: 100.0, charter: "Mutual aid".into(),
-    });
+        influence_pool: 0.0, resources: 100.0, charter: "Mutual aid".into(), successors: vec![] });
     world.add_component(org, OrganizedPower::new());
 
     // Recruit villagers into org (needs trust > 0.5)

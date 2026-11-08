@@ -32,6 +32,9 @@ pub struct Organization {
     pub influence_pool: f32,   // collective sway
     pub resources: f32,        // treasury
     pub charter: String,       // purpose/method
+    /// The men named before the blow falls: when the head's cut off
+    /// the next of them stands up in his place
+    pub successors: Vec<Entity>,
 }
 
 /// A 1-1 conversation that builds relationship
@@ -153,8 +156,7 @@ mod tests {
         let leader = w.create_entity();
         w.add_component(o, Organization {
             name: "Guild".into(), members: vec![], leader,
-            influence_pool: 0.0, resources: 100.0, charter: "Trade".into(),
-        });
+            influence_pool: 0.0, resources: 100.0, charter: "Trade".into(), successors: vec![] });
         let c = w.create_entity();
         assert!(!recruit(&mut w, o, c, 0.3)); // low trust fails
         assert!(recruit(&mut w, o, c, 0.8));  // high trust succeeds
@@ -170,8 +172,7 @@ mod tests {
         let leader = w.create_entity();
         w.add_component(o, Organization {
             name: "Guild".into(), members: vec![], leader,
-            influence_pool: 0.0, resources: 100.0, charter: "Trade".into(),
-        });
+            influence_pool: 0.0, resources: 100.0, charter: "Trade".into(), successors: vec![] });
         for infl in [0.2, 0.3] {
             let c = w.create_entity();
             w.add_component(c, Citizen { influence: infl, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
@@ -188,8 +189,7 @@ mod tests {
         let leader = w.create_entity();
         w.add_component(o, Organization {
             name: "Guild".into(), members: vec![], leader,
-            influence_pool: 0.5, resources: 0.0, charter: "Wages".into(),
-        });
+            influence_pool: 0.5, resources: 0.0, charter: "Wages".into(), successors: vec![] });
         w.add_component(o, OrganizedPower { capacity, idle_ticks: 7 });
         for _ in 0..members {
             let c = w.create_entity();
@@ -255,8 +255,7 @@ mod tests {
         let leader = w.create_entity();
         w.add_component(o, Organization {
             name: "Guild".into(), members: vec![], leader,
-            influence_pool: 0.0, resources: 0.0, charter: "".into(),
-        });
+            influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let mut ms = vec![];
         for infl in [0.2, 0.3] {
             let c = w.create_entity();
@@ -278,5 +277,51 @@ mod tests {
         w.add_component(ms[0], crate::game::villager::Dead);
         InfluenceSystem.run(&mut w);
         assert!(w.get_component::<Organization>(o).unwrap().members.is_empty(), "a member marked Dead leaves too");
+    }
+}
+
+/// The head falls and the next man stands: a decapitation pulls the
+/// first named successor into the leader's seat - and a hardened org
+/// answers the blow with a harder edge
+pub fn decapitate(world: &mut World, org: Entity, _day: u64) -> Option<Entity> {
+    world.get_component_mut::<Organization>(org).and_then(|o| {
+        let n = o.successors.first().copied();
+        if let Some(n) = n { o.leader = n; o.successors.remove(0); }
+        n
+    })
+}
+
+/// The boycott measured by the web it leaves: a defector's ties strip
+/// in a dense village's hands, and barely pull in a thin one's. The
+/// effectiveness is the average bond strength the remaining members
+/// still hold - a thin web can't cut a man out.
+pub fn insider_boycott(world: &mut World, org: Entity, defector: Entity) -> f32 {
+    let members = world.get_component::<Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default();
+    let dense = if members.is_empty() { 0.0 } else {
+        let inside = members.iter().filter(|&&m|
+            world.get_component::<crate::sim::psychology::Bond>(m)
+                .map(|b| members.contains(&b.target)).unwrap_or(false)).count();
+        inside as f32 / members.len() as f32
+    };
+    if let Some(b) = world.get_component_mut::<crate::sim::psychology::Bond>(defector) {
+        b.security = (b.security - dense * 0.6).max(0.0);
+    }
+    dense
+}
+
+/// The oath shared at the rite binds faster than the room's talk: the
+/// members' bonds to each other take a step up - the Bois Cauman's own
+/// kind of joining
+pub fn sacred_rite(world: &mut World, org: Entity) {
+    let members = world.get_component::<Organization>(org)
+        .map(|o| o.members.clone()).unwrap_or_default();
+    for i in 0..members.len() {
+        for j in (i + 1)..members.len() {
+            let (m, o) = (members[i], members[j]);
+            if let Some(b) = world.get_component_mut::<crate::sim::psychology::Bond>(m) {
+                if b.target == o { b.security = (b.security + 0.2).min(1.0); }
+            }
+        }
     }
 }

@@ -596,7 +596,7 @@ impl Game {
             world.add_component(player, crate::sim::psychology::personality_from_seed(0xBEEF));
         world.add_component(player, Pos { x: (vx - 6) as f32, y: (vy - 6) as f32 }); // player has a position
         let org = world.create_entity();
-        world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() });
+        world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() , successors: vec![] });
         world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         let dog = pets::spawn_pet(&mut world, "Rex", Species::Dog, PetRole::Companion);
         pets::adopt(&mut world, dog, villagers[0]);

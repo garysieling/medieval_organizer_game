@@ -29,8 +29,7 @@ fn main() {
     let org = world.create_entity();
     world.add_component(org, Organization {
         name: "The Harvesters".into(), members: vec![], leader: player,
-        influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(),
-    });
+        influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(), successors: vec![] });
 
     // a campaign to recruit into
     let vote = game2_core::game::campaign::IssueVote { winner: "bread".into(), ballots: vec![] };

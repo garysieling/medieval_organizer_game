@@ -194,7 +194,7 @@ mod tests {
         let p = w.create_entity();
         w.add_component(p, PlayerCharacter { name: "P".into(), resources: 100.0 });
         let o = w.create_entity();
-        w.add_component(o, Organization { name: "O".into(), members: vec![], leader: p, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(o, Organization { name: "O".into(), members: vec![], leader: p, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         let vs = (0..5).map(|_| w.create_entity()).collect();
         (w, p, o, vs)
     }
@@ -305,7 +305,7 @@ mod tests {
         let bea = w.create_entity();
         w.add_component(bea, PlayerCharacter { name: "Bea".into(), resources: 100.0 });
         let o_bea = w.create_entity();
-        w.add_component(o_bea, Organization { name: "O2".into(), members: vec![], leader: bea, influence_pool: 0.0, resources: 0.0, charter: "".into() });
+        w.add_component(o_bea, Organization { name: "O2".into(), members: vec![], leader: bea, influence_pool: 0.0, resources: 0.0, charter: "".into(), successors: vec![] });
         found(&mut w, o_bea);
         let bram = vs[0];
         for i in 0..20 { act_talk(&mut w, ada, bram, i); }

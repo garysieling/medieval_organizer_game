@@ -57,8 +57,7 @@ fn main() {
     let org = world.create_entity();
     world.add_component(org, Organization {
         name: "Harvesters Guild".into(), members: vec![], leader: player,
-        influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(),
-    });
+        influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into(), successors: vec![] });
 
     // Merchants (for guild formation)
     for i in 0..3 {

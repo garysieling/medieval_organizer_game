@@ -69,8 +69,7 @@ fn main() {
     let guild = world.create_entity();
     world.add_component(guild, Organization {
         name: "Harvesters".into(), members: villagers[1..].to_vec(), leader: villagers[0],
-        influence_pool: 0.0, resources: 0.0, charter: "Mutual aid".into(),
-    });
+        influence_pool: 0.0, resources: 0.0, charter: "Mutual aid".into(), successors: vec![] });
 
     let name = |e: Entity| villagers.iter().position(|v| *v == e).map(|i| names[i]).unwrap_or("nobody");
     let health = |w: &World, e: Entity| w.get_component::<Health>(e).map(|h| h.condition).unwrap_or(0.0);

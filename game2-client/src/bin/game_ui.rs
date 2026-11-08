@@ -592,7 +592,7 @@ fn main() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.
             view.zoom = (view.zoom * 1.1_f32.powf(scroll_y)).clamp(MIN_ZOOM, MAX_ZOOM);
-            manual_cam = true;
+            if scroll_y != 0.0 { manual_cam = true; }
         }
         if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { view.zoom = (view.zoom + 0.006).min(MAX_ZOOM); manual_cam = true; }
         if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { view.zoom = (view.zoom - 0.006).max(MIN_ZOOM); manual_cam = true; }

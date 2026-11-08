@@ -136,6 +136,7 @@ mod reckoning;
 mod rels;
 mod rep;
 mod rites;
+mod marriage;
 mod river;
 mod roster;
 mod sanction;

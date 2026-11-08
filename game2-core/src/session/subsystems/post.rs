@@ -38,8 +38,12 @@ impl Game {
                 }
             }
         }
-        // and the riders go out on their days
+        // and the riders go out on their days - the dead don't ride
         for i in 0..self.couriers.len() {
+            if villager::is_dead(&self.world, self.couriers[i].e) {
+                self.couriers[i].on_road = false;
+                continue;
+            }
             if self.couriers[i].on_road || tick < self.couriers[i].depart { continue; }
             let office = self.couriers[i].office;
             let e = self.couriers[i].e;

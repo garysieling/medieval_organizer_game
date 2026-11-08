@@ -15,10 +15,10 @@ model: sonnet
 # Grill Tickets
 
 One session = a grilling pass over open issues. For each ticket: read it,
-census the code it touches, grill the user with real questions, record
-the answers on the issue, tag it `grilled`. Tickets tagged `grilled`
-are the pool `/ticket-loop` picks from - don't grill tickets that are
-already tagged, claimed, or closed.
+census the code it touches, brief the user with real context, grill them
+with real questions, record the answers on the issue, tag it `grilled`.
+Tickets tagged `grilled` are the pool `/ticket-loop` picks from - don't
+grill tickets that are already tagged, claimed, or closed.
 
 Repo: `github.com/garysieling/game2`. Pass `-R garysieling/game2` to
 every `gh` call - you may be standing in a worktree.
@@ -46,18 +46,36 @@ tagging.
    the capability already exists unwired (`docs/architecture.md` is
    law; `docs/bug-audit.md` and `docs/unwired-backlog.md` are the
    autopsy style).
-3. **Grill** - use the platform's question UI (`ask_user_question`),
-   1-4 focused questions per call. Grill means surfacing what the
-   issue *doesn't* say:
+3. **Brief, then grill** - the user should never answer a question
+   cold. Before the first `ask_user_question` call, post a briefing in
+   chat covering:
+   - Which ticket: `#N - <title>`, plus one or two sentences on what it
+     wants in plain terms. No jargon, no "see the issue" - the user may
+     not remember which ticket this is.
+   - What the code does today, with file paths - e.g. "`session/x.rs`
+     already has `foo()` but nothing schedules it". This is what makes
+     the question answerable.
+   - The 1-3 real decisions the ticket leaves open.
+
+   Then grill with `ask_user_question`, 1-4 questions per call. Grill
+   means surfacing what the issue *doesn't* say:
    - Ambiguous acceptance criteria: what does "done" look like concretely?
    - Scope edges: which of several plausible wirings is intended?
-   - Probe truths: may the player see the real number, or only a rumour/sign?
+   - Probe truths: may the player see the real number, or only a
+     rumour/sign? (Say what "probe truth" means - data only tests can
+     see.)
    - New art needed? Which `assets/rd` prompt / fallback?
    - Anything in the ticket's test steps you can't actually run - say so.
-   If the user says "use your judgment", record each judgment call and
-   proceed. Don't ask what you can verify yourself.
-4. **Record** - post one comment on the issue with the Q&A and decisions
-   so a fresh session understands them without this chat:
+
+   Every question must stand alone: name the ticket in the question
+   text and state the concrete fork ("Ticket #N: should X, or Y?").
+   Option labels and descriptions carry the trade-offs - never bare
+   "Option A / Option B". If the user says "use your judgment", record
+   each judgment call and proceed. Don't ask what you can verify
+   yourself.
+4. **Record** - post one comment on the issue with the briefing summary,
+   the Q&A and decisions, so a fresh session understands them without
+   this chat:
 
    ```bash
    gh issue comment <N> -R garysieling/game2 --body-file grill.md
@@ -70,6 +88,9 @@ tagging.
 ## Rules
 
 - One ticket at a time; never batch questions across tickets.
+- Questions and briefings stand alone: someone reading the chat (or the
+  recorded comment) cold must know which ticket, what the code does
+  today, and what the fork is - no "as discussed above" or bare jargon.
 - The comment is the deliverable: `/ticket-loop` reads it in Stage 1/2,
   so write answers a stranger could implement from.
 - Don't edit the issue body; comments + label only.

@@ -535,6 +535,7 @@ impl Game {
                 .chain(self.traveller_pos().zip(self.traveller_pos_at(self.frame_n.wrapping_sub(1)))
                     .map(|(now, was)| (0, facing_on_screen(now.0 - was.0, now.1 - was.1), true))).collect(),
             tick: self.tick, frame: self.frame_n, focus: self.seats[seat].focus,
+            player_event: self.player_event_at(seat),
             map: if with_map { self.map.clone() } else { crate::game::tilemap::TileMap::default() }, town_wall: self.town_wall,
             season, precip: self.precip, rainbow_from: self.rainbow_from,
             food_yield: world.get_component::<climate::Climate>(self.climate)
@@ -565,6 +566,7 @@ impl Game {
             sel: Selection { target: self.seats[seat].selected_target, picked: self.seats[seat].picked, building: self.seats[seat].selected_building },
             reach: in_reach.iter().filter_map(|v| self.villagers.iter().position(|x| x == v)).collect(),
             reach_target: self.reach_target_at(seat),
+            talk_target: self.talk_target_at(seat),
             blocked, ctx: self.seats[seat].ctx_actions.clone(),
             ctx_blocked: self.seats[seat].ctx_actions.iter()
                 .map(|a| self.ctx_blocker_at(seat, *a)).collect(),
@@ -635,7 +637,9 @@ impl Game {
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },
                     if m.kind == MonumentKind::Circle { m.title.clone() }
-                    else { format!("{} - {}", vill_name(m.honoree), m.title) })).collect(),
+                    else { format!("{} - {}",
+                        if m.honoree == usize::MAX { "the one who moved on" } else { vill_name(m.honoree) },
+                        m.title) })).collect(),
             sites: self.sites.iter().map(|s| {
                 // the keeper: who holds the keep's first bed, when the
                 // site has one - the castle's lord, a town's first house
@@ -669,6 +673,32 @@ impl Game {
                 .filter_map(|t| world.get_component::<Pos>(t.who)
                     .map(|p| (p.x, p.y))).collect(),
         }
+    }
+
+    /// The civic event this seat's player is part of, for the camera:
+    /// a march the seat called (the column's live head) or a house
+    /// meeting it called (its venue). A march outranks a meeting when
+    /// both stand; anything else civic plugs into the same field
+    fn player_event_at(&self, seat: usize) -> Option<EventFocusV> {
+        if let Some(f) = &self.formation {
+            if f.seat == seat && f.kind == formation::FormationKind::March {
+                if let Some(h) = f.members.first()
+                    .and_then(|&m| self.world.get_component::<Pos>(m)) {
+                    return Some(EventFocusV {
+                        epoch: f.born * 4, kind: 0,
+                        pos: (h.x, h.y), extent: 18.0, moving: true });
+                }
+            }
+        }
+        if let Some(m) = &self.meeting {
+            if m.seat == seat {
+                return Some(EventFocusV {
+                    epoch: m.born * 4 + 1, kind: 1,
+                    pos: (m.venue.0 as f32, m.venue.1 as f32),
+                    extent: 6.0, moving: false });
+            }
+        }
+        None
     }
 
     /// The inspector card for the building this seat clicked
@@ -902,7 +932,7 @@ impl Game {
             crate::sim::story::EventKind::Unrest => "felt the anger rise",
         }).collect()).unwrap_or_default();
         let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
-        if let Some(day) = self.died_on[i] {
+        if let Some(day) = self.died_on.get(i).copied().flatten() {
             y += 14;
             lines.push(Line { x: 60, y, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             y += 13;

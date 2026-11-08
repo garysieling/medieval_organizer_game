@@ -19,23 +19,25 @@ fn test_talk_goes_to_whoever_is_beside_you_not_the_last_clicked() {
     assert!(talk.with.contains(&game.villagers[2]), "talked with {}", vill_name(2));
 }
 
-/// A villager the player can walk to who's well out of talking distance
-fn far_villager(game: &Game) -> usize {
+/// A villager the player can walk to who's out of talking distance but
+/// still within a shout - past it Talk wouldn't walk at all (#944)
+fn walkable_villager(game: &Game) -> usize {
     (0..game.villagers.len())
         // a villager across the village, not one out in the country
         .filter(|&i| game.site_of(game.villagers[i]).is_none())
-        .filter(|&i| game.dist_to(i) > 4.0 && game.path_to(i).is_some())
+        .filter(|&i| { let d = game.dist_to(i); d > 4.0 && d < SHOUT_DIST && game.path_to(i).is_some() })
         .max_by(|&a, &b| game.dist_to(a).partial_cmp(&game.dist_to(b)).unwrap())
-        .expect("someone to walk over to")
+        .expect("someone a walk away inside a shout")
 }
 
 #[test]
 fn test_talk_on_a_picked_villager_walks_over_then_talks() {
     let mut game = Game::new();
     while game.tick < 3 { game.update(); }
-    let who = far_villager(&game);
+    let who = walkable_villager(&game);
     game.selected_target = who;
     game.picked = true; // clicked on them
+    game.pick_near = true; // within a shout
     let v = game.villagers[who];
     let talks = |g: &Game| g.world.get_component::<TalkCount>(v).map(|c| c.value).unwrap_or(0);
     let before = talks(&game);
@@ -60,7 +62,7 @@ fn test_talk_on_a_picked_villager_walks_over_then_talks() {
 fn test_recruit_on_a_picked_villager_walks_over_then_recruits() {
     let mut game = Game::new();
     while game.tick < 3 { game.update(); }
-    let who = far_villager(&game);
+    let who = walkable_villager(&game);
     game.selected_target = who;
     game.picked = true;
     let org = game.org;
@@ -106,20 +108,30 @@ fn test_recruit_is_hidden_until_a_campaign_exists() {
 }
 
 #[test]
-fn test_talk_is_never_too_far_away() {
+fn test_a_pick_past_a_shout_doesnt_walk_over() {
+    // was "Talk is never too far away" - now a pick from that far is for
+    // a look: T singles out someone within a shout instead (#944)
     let mut game = Game::new();
     let (px, py) = game.player_pos();
     let from = (px.round() as i32, py.round() as i32);
-    // a tile the player can walk to, well out of reach
+    // a tile the player can walk to, well out of shouting distance
     let spot = (0..game.map.height as i32).flat_map(|y| (0..game.map.width as i32).map(move |x| (x, y)))
-        .find(|&(x, y)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt() > MEETING_REACH + 2.0
+        .find(|&(x, y)| ((x as f32 - px).powi(2) + (y as f32 - py).powi(2)).sqrt() > SHOUT_DIST + 2.0
             && game.map.walk_path(from, (x, y)).is_some())
         .expect("somewhere far but reachable");
-    let v = game.villagers[2];
-    *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: spot.0 as f32, y: spot.1 as f32 };
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        *game.world.get_component_mut::<Pos>(v).unwrap() = if i == 2 {
+            Pos { x: spot.0 as f32, y: spot.1 as f32 }
+        } else if i == 3 {
+            Pos { x: px + 1.0, y: py }
+        } else {
+            Pos { x: px + 40.0 + i as f32, y: py + 40.0 }
+        };
+    }
     game.selected_target = 2;
     game.picked = true;
-    assert_eq!(game.disabled_reason(0), None, "Talk walks over, so distance doesn't grey it out");
+    game.pick_near = false; // a click from this far is for a look
     game.act(0);
-    assert!(game.approach.is_some() && game.log.last().unwrap().contains("You walk over to"), "{}", game.log.last().unwrap());
+    assert_eq!(game.selected_target, 3, "Talk turns to who's within a shout, got {}", vill_name(game.selected_target));
+    assert!(game.approach.as_ref().map(|a| a.who != 2).unwrap_or(true), "no walk-over to someone past a shout");
 }

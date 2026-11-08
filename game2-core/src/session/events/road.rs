@@ -1303,29 +1303,8 @@ impl Game {
                 match kid {
                     Some(v) if self.rare_roll(id) % 3 != 0 => {
                         // off the roster, and every index that pointed at
-                        // the line shifts home with it - the parallel
-                        // rolls (was_sick, died_on) shift too, or they'd
-                        // hang the wrong records on everyone after him
-                        let idx = self.villagers.iter().position(|&x| x == v).unwrap();
-                        self.villagers.remove(idx);
-                        self.was_sick.remove(idx);
-                        self.died_on.remove(idx);
-                        // the tale keeps belong to the folk, not the
-                        // places - everyone after him moves a key home
-                        self.tales = std::mem::take(&mut self.tales).into_iter()
-                            .filter(|(i, _)| *i != idx)
-                            .map(|(i, v)| (if i > idx { i - 1 } else { i }, v))
-                            .collect();
-                        self.tales_told = std::mem::take(&mut self.tales_told).into_iter()
-                            .filter(|&i| i != idx)
-                            .map(|i| if i > idx { i - 1 } else { i })
-                            .collect();
-                        for seat in self.seats.iter_mut() {
-                            if seat.selected_target > idx { seat.selected_target -= 1; }
-                            else if seat.selected_target == idx {
-                                seat.selected_target = idx.min(self.villagers.len().saturating_sub(1));
-                            }
-                        }
+                        // the line shifts home with it
+                        self.drop_villager(v);
                         // his bed's free (the org rolls prune him next
                         // influence tick - the destroyed lack Health, so
                         // is_dead reads them gone)

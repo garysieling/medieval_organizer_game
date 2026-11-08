@@ -435,7 +435,7 @@ impl Game {
         // already wet, the reach already carrying the town's leavings
         let mut land = crate::sim::environment::LandScore {
             tree_cover: map.trees.iter().map(|&t| (t, 0.85f32)).collect(),
-            pit_water: 0.5, effluent: Default::default(),
+            pit_water: 0.5, effluent: Default::default(), filth: Default::default(),
         };
         let pit = stones.first().copied();
         // the reach: river tiles below the south wall take what the town dumps
@@ -1055,6 +1055,7 @@ impl Game {
             ailments: vec![],
             shroom_rng: Rng(seed ^ 0xCA45),
             forest_rng: Rng(seed ^ 0xF12E),
+            plague_rng: Rng(seed ^ 0x9A6E),
             shroom_disclaimed: false,
             tavern,
             tavern_table: vec![],

@@ -195,6 +195,9 @@ pub struct Button {
 /// How close (in tiles) a villager must be to the player to talk, recruit,
 /// or come to a house meeting
 const MEETING_REACH: f32 = 8.0;
+/// Shouting distance (tiles): a pick made within this lets go once
+/// they've drifted past it - too far to talk (#944)
+const SHOUT_DIST: f32 = 10.0;
 /// How far (tiles) an idle villager strays from the village food store
 /// before heading back
 const VILLAGE_RADIUS: f32 = 7.0;
@@ -495,6 +498,10 @@ pub struct ConstructionSite {
 /// resolve (Game::resolve_meeting).
 pub struct Meeting {
     pub label: String,                       // where it is: "Bram's house"
+    /// The venue's tile - where the camera frames the gathering
+    pub venue: (i32, i32),
+    /// The day it was called - each meeting's own stamp
+    pub born: u64,
     pub invited: Vec<Entity>,
     pub spots: Vec<(i32, i32)>,              // where each invitee stands, round the venue
     pub paths: Vec<Option<Vec<(i32, i32)>>>, // each one's way there, next step first (None: no way)
@@ -740,7 +747,8 @@ pub struct Pedlar {
 pub struct Cairn {
     /// Where it stands (tile coords)
     pub pos: (i32, i32),
-    /// The villager index it remembers (villagers[i])
+    /// The villager index it remembers (villagers[i]); usize::MAX once
+    /// their name's off the roll - the pile remembers the village
     pub honoree: usize,
     /// What they're remembered for - "the mason", "the fire"
     pub deed: String,
@@ -754,7 +762,8 @@ pub struct Cairn {
 pub struct Monument {
     /// Where it stands (tile coords)
     pub pos: (i32, i32),
-    /// The villager index it honors
+    /// The villager index it honors; usize::MAX for the org's ring, or
+    /// once their name's off the roll
     pub honoree: usize,
     /// What it's for - the tale's title
     pub title: String,
@@ -1427,6 +1436,9 @@ pub struct Game {
     /// The wood's own chance-stream: a lightning roll mustn't shift the
     /// village's other draws
     pub forest_rng: Rng,
+    /// The pestilence's own chance-stream: whether and where it walks
+    /// the roads mustn't shift the village's other draws
+    pub plague_rng: Rng,
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,
@@ -2042,6 +2054,7 @@ impl Game {
         for seat in 0..self.seats.len() {
             self.update_ctx_actions_at(seat);
             self.advance_approach_at(seat);
+            self.advance_selection_at(seat);
         }
         let frame = self.frame_n;
         self.bubbles.retain(|(_, _, until, _, _)| frame < *until);

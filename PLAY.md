@@ -34,7 +34,8 @@ cargo run --bin game           # text-mode version
 | **Click villager** | Select/inspect them (class, vocation, skill, gold, home, shop, and any secrets they've let slip) |
 | **Click building** | Inspect it: purpose, who works or lives there, stock and what's for offer |
 | **1-5** | Select villager by number |
-| **T/R/B** | Keyboard: Talk/Recruit/Build |
+| **T/R/B** | Keyboard: Talk/Recruit/Build. T with nobody selected singles out someone nearby - folk you haven't heard lately first |
+| **T,T** | Let go of the pick (double-tap) |
 | **Arrows** | Pan the camera around the map |
 | **Space** | Pause/unpause |
 | **0** | Toggle 4x speed |

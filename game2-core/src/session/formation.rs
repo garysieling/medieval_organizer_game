@@ -23,6 +23,8 @@ pub struct Formation {
     pub kind: FormationKind,
     /// The seat the column belongs to - a march's outcome lands there
     pub seat: usize,
+    /// The day it formed - each column's own stamp
+    pub born: u64,
     /// The column, front to back - members[0] leads
     pub members: Vec<Entity>,
     /// Where the head's going, waypoint by waypoint
@@ -242,7 +244,7 @@ impl Game {
             self.world.add_component(m, villager::InFormation);
         }
         self.formation = Some(Formation { kind: FormationKind::Parade { feast },
-            seat: 0, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default() });
+            seat: 0, born: self.tick, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default() });
     }
 
     /// Call the mourners out: the funeral column forms at the body and
@@ -262,7 +264,7 @@ impl Game {
         self.world.add_component(dead, villager::Funeral {
             slot, carriers, officiant, carried: false, since: self.tick });
         self.formation = Some(Formation { kind: FormationKind::Funeral(dead),
-            seat: 0, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default() });
+            seat: 0, born: self.tick, members, route, at: 0, stuck: 0, waited: 0, leg0: -1.0, cheered: Default::default() });
         true
     }
 

@@ -6,7 +6,7 @@
 use std::sync::{Arc, Mutex};
 use minifb::{Key, Window, WindowOptions, MouseMode, Scale, ScaleMode};
 use game2_core::engine::render::Buffer;
-use game2_client::{self as client, Art, View};
+use game2_client::{self as client, Art, EventCam, View};
 use game2_core::session::{
     self, ClientKind, ClientMsg, Command, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
 };
@@ -14,8 +14,8 @@ use game2_core::session::{
 const W: usize = session::W;
 const H: usize = session::H;
 const FPS: u32 = session::FPS;
-const MIN_ZOOM: f32 = 0.5;
-const MAX_ZOOM: f32 = 2.0;
+const MIN_ZOOM: f32 = client::MIN_ZOOM;
+const MAX_ZOOM: f32 = client::MAX_ZOOM;
 /// The speed key stays while the flag's on; web builds and the server drop it
 const SPEED: bool = cfg!(feature = "speed-timer");
 
@@ -142,8 +142,13 @@ fn read_search(window: &Window, q: &mut String) -> SearchKey {
     SearchKey::None
 }
 
-/// Map this frame's window input to Commands (shared by local and remote play)
-fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool) -> Vec<Command> {
+/// Two T presses this close together count as a double-tap (#944)
+const TALK_DBL: std::time::Duration = std::time::Duration::from_millis(350);
+
+/// Map this frame's window input to Commands (shared by local and remote play).
+/// `talk_armed` marks the last lone T press: a second one inside TALK_DBL
+/// with nothing between them is a double-tap - let the pick go, don't talk
+fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, f32), minimap_hit: bool, typing: bool, talk_armed: &mut Option<std::time::Instant>) -> Vec<Command> {
     // the find box has the keys: no game input gets through while it types
     if typing { return vec![]; }
     let mut cmds: Vec<Command> = vec![];
@@ -154,9 +159,19 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
         }
         if !done { cmds.push(Command::ClickMap { mx, my, cam_x: cam.0, cam_y: cam.1, zoom: cam.2 }); }
     }
+    // a click or a held key between the presses breaks the double-tap
+    if !cmds.is_empty() { *talk_armed = None; }
     const KEYS: [Key; 3] = [Key::T, Key::R, Key::B];
     for (i, k) in KEYS.iter().enumerate() {
-        if window.is_key_pressed(*k, minifb::KeyRepeat::No) { cmds.push(Command::Act(i)); }
+        if window.is_key_pressed(*k, minifb::KeyRepeat::No) {
+            if i == 0 && talk_armed.map(|t| t.elapsed() < TALK_DBL).unwrap_or(false) {
+                *talk_armed = None;
+                cmds.push(Command::Unselect);
+            } else {
+                if i == 0 { *talk_armed = Some(std::time::Instant::now()); }
+                cmds.push(Command::Act(i));
+            }
+        }
     }
     for (n, k) in [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5, Key::Key6, Key::Key7, Key::Key8].iter().enumerate() {
         if window.is_key_down(*k) { cmds.push(Command::Select(n)); }
@@ -241,8 +256,12 @@ fn main() {
     let mut search_at = 0usize;
     // leftover edge-scroll drift too small for the whole-px camera
     let mut edge_cam = (0.0f32, 0.0f32);
+    // the last lone T press: T-T inside it is a double-tap, an unselect
+    let mut talk_armed: Option<std::time::Instant> = None;
     // where the player stood and the zoom last frame, for the camera's follow
     let mut player_seen: Option<((f32, f32), f32)> = None;
+    // the event camera: which civic event has it, and the eased centre
+    let mut event_cam = EventCam::default();
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
@@ -416,11 +435,21 @@ fn main() {
             }
         }
 
+        // an event the seat's part of has the camera: a new one jumps
+        // and frames itself, a live one tracks till the player takes it
+        if let Some(m) = &cur_model {
+            let ((nx, ny), nz) = event_cam.step(m.player_event.as_ref(),
+                (view.cam_x, view.cam_y), view.zoom);
+            (view.cam_x, view.cam_y) = (nx, ny);
+            view.zoom = nz;
+        }
+
         // minimap look is a local camera move in both modes
+        let mut manual_cam = false;
         let mut on_minimap = false;
         if mouse_down {
             if let Some(m) = &cur_model {
-                if let Some((cx, cy)) = session::minimap_look_map(&m.map, mx, my) { (view.cam_x, view.cam_y) = (cx, cy); on_minimap = true; }
+                if let Some((cx, cy)) = session::minimap_look_map(&m.map, mx, my) { (view.cam_x, view.cam_y) = (cx, cy); on_minimap = true; manual_cam = true; }
             }
         }
 
@@ -443,6 +472,7 @@ fn main() {
                             let p = &m.people[hits[search_at % hits.len()]];
                             search_at += 1;
                             (view.cam_x, view.cam_y) = session::camera_on(p.pos.0, p.pos.1);
+                            manual_cam = true;
                         }
                     }
                 }
@@ -477,6 +507,7 @@ fn main() {
                 edge_cam.1 -= dy as f32;
                 view.cam_x += dx;
                 view.cam_y += dy;
+                manual_cam = true;
             }
         }
 
@@ -487,7 +518,7 @@ fn main() {
         present(&mut window, &buf);
 
         // input -> commands -> local game or the wire
-        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus);
+        let mut cmds = read_input(&window, mx, my, clicked, (view.cam_x, view.cam_y, view.zoom), on_minimap || swallow_click, view.search_focus, &mut talk_armed);
         // a hidden button (Recruit, before there's a campaign) can't be pressed
         if let Some(m) = &cur_model { cmds.retain(|c| !matches!(c, Command::Act(i) if !session::action_shown(m, *i))); }
         if clicked && !on_minimap && !swallow_click {
@@ -496,6 +527,7 @@ fn main() {
                 if let Some(i) = view.toast_hit(m, mx, my) {
                     if let Some(at) = m.toasts[i].at {
                         (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                        manual_cam = true;
                         cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     }
                 }
@@ -506,6 +538,7 @@ fn main() {
                     cmds.retain(|x| !matches!(x, Command::ClickMap { .. }));
                     if let Some(at) = entry.at {
                         (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                        manual_cam = true;
                     }
                     if let Some(who) = entry.who {
                         cmds.push(Command::Select(who));
@@ -534,6 +567,7 @@ fn main() {
                     if let Some(mz) = &m.panel.mystery {
                         if let Some(at) = mz.asker_at {
                             (view.cam_x, view.cam_y) = session::camera_on(at.0, at.1);
+                            manual_cam = true;
                         }
                     }
                     cmds.push(Command::Select(i));
@@ -575,15 +609,19 @@ fn main() {
             // Scale multiplicatively so a wheel notch feels consistent at any zoom,
             // while trackpads can still make smaller, smooth adjustments.
             view.zoom = (view.zoom * 1.1_f32.powf(scroll_y)).clamp(MIN_ZOOM, MAX_ZOOM);
+            if scroll_y != 0.0 { manual_cam = true; }
         }
-        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { view.zoom = (view.zoom + 0.006).min(MAX_ZOOM); }
-        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { view.zoom = (view.zoom - 0.006).max(MIN_ZOOM); }
+        if window.is_key_down(Key::Equal) || window.is_key_down(Key::NumPadPlus) { view.zoom = (view.zoom + 0.006).min(MAX_ZOOM); manual_cam = true; }
+        if window.is_key_down(Key::Minus) || window.is_key_down(Key::NumPadMinus) { view.zoom = (view.zoom - 0.006).max(MIN_ZOOM); manual_cam = true; }
         if !view.search_focus {
-            if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)  { view.cam_x += 2; }
-            if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No) { view.cam_x -= 2; }
-            if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)    { view.cam_y += 2; }
-            if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)  { view.cam_y -= 2; }
+            if window.is_key_pressed(Key::Left, minifb::KeyRepeat::No)  { view.cam_x += 2; manual_cam = true; }
+            if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No) { view.cam_x -= 2; manual_cam = true; }
+            if window.is_key_pressed(Key::Up, minifb::KeyRepeat::No)    { view.cam_y += 2; manual_cam = true; }
+            if window.is_key_pressed(Key::Down, minifb::KeyRepeat::No)  { view.cam_y -= 2; manual_cam = true; }
         }
+        // a manual pan or zoom holds the event camera off briefly - pan
+        // wins for a moment, then the event has it back
+        if manual_cam { event_cam.hold(); }
 
         if window.is_key_pressed(Key::F12, minifb::KeyRepeat::No) { buf.save_bmp(&format!("evidence/ui-shot-{}.bmp", cur_model.as_ref().map(|m| m.frame).unwrap_or(0))).ok(); }
         // the frame's done with: the next render draws into it

@@ -1,8 +1,8 @@
 # AGENTS.md - Game2 Project Instructions & Learned Information
 
 ## Ticket Loop
-- When asked to take/work a ticket or issue: follow `.claude/skills/ticket-loop/SKILL.md` (claim a `grilled` or `agent-ready` issue, plan + test plan, worktree, verify with the repo's dump-frame/bench/test tooling, survive Devin Review, merge, then next). `in-progress` means claimed.
-- Grilling is a separate pass: `.claude/skills/grill/SKILL.md` ("grill me about open tickets") asks the user the hard questions per open issue, records answers as an issue comment, and tags the issue `grilled` when done. Only `grilled`/`agent-ready`-labeled issues are safe to take; everything else needs grilling first.
+- When asked to take/work a ticket or issue: follow `.claude/skills/ticket-loop/SKILL.md` (claim a `grilled` or `agent-ready` issue, plan + test plan, worktree, verify with the repo's dump-frame/bench/test tooling, self-review the diff, merge, then next). `in-progress` means claimed.
+- Grilling is a separate pass: `.claude/skills/grill/SKILL.md` ("grill me about open tickets") asks the user the hard questions per open issue, records answers as an issue comment, and tags the issue `grilled` when done. Only `grilled`/`agent-ready`-labeled issues are safe to take - except actionable bug reports (crash traces, clear repros, plainly broken behavior), which skip grilling; everything else needs grilling first.
 
 ## Layout
 - Read `docs/architecture.md` before adding code: sim vs public views (`UiModel`, `AgentObs`) vs probe (omniscient, tests only) vs the client (the `game2-client` crate: draws a `UiModel`, owns the window bins, and depends on `game2-core`, never the reverse). The split of `session.rs` is in progress there; put new code in its target layer.

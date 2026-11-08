@@ -588,7 +588,7 @@ impl Game {
                 if !near { continue; }
                 if let Some(from) = livelihood::seller_for(&self.world, input, pos)
                     .filter(|&s| !self.boycotted(s)) {
-                    let pay = livelihood::ODD_JOB_MIN + self.rng.below(4) as f32;
+                    let pay = (livelihood::ODD_JOB_MIN + self.rng.below(4) as f32) * self.wage_mult();
                     self.world.add_component(k, OddJob {
                         hirer: v, good: input.to_string(), qty: 2, from, to: v, pay, loaded: false });
                     self.send(k, Goal::RunOddJob);
@@ -636,5 +636,20 @@ impl Game {
                 .min_by_key(|&(x, y)| dist(x, y)),
             _ => None,
         }
+    }
+
+    /// What a hired hand's day costs when hands are few: the able
+    /// workforce's shortfall lifts every wage - the living command
+    /// more when the dead and the sick take the rows. Village folk
+    /// only: the country's own labor isn't for hire here
+    pub(in crate::session) fn wage_mult(&self) -> f32 {
+        const LABOR_BASE: f32 = 24.0;
+        let hands = self.villagers.iter().filter(|&&v| {
+            !villager::is_dead(&self.world, v)
+                && self.world.get_component::<Kid>(v).is_none()
+                && self.world.get_component::<country::Outlander>(v).is_none()
+                && sickness_name(&self.world, v).is_none()
+        }).count() as f32;
+        (LABOR_BASE / hands.max(1.0)).clamp(1.0, 3.0)
     }
 }

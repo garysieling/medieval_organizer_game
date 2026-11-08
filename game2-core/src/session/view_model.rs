@@ -626,7 +626,7 @@ impl Game {
             sfx_v: self.sfx.iter()
                 .map(|s|  (s.kind.to_string(), s.x.round() as i32, s.y.round() as i32, s.intensity)).collect(),
             boats: self.boats.clone(),
-            notice_panel: self.notice_panel,
+            notice_panel: self.seats[seat].notice_panel,
             postings: self.building_entities.iter().filter_map(|&be|
                 self.world.get_component::<Building>(be)
                     .and_then(|b| b.flyer.as_ref().map(|f|

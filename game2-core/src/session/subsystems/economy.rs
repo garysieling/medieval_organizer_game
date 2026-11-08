@@ -281,8 +281,13 @@ impl Game {
             .filter(|&k| !villager::is_dead(&self.world, k)
                 && !crate::game::dungeon::unavailable(&self.world, k));
         let Some(keeper) = keeper else { return };
-        if tick % 2 == 0 { self.tavern_restock(tick, tavern, keeper); }
-        self.tavern_bench(tick, tavern, keeper);
+        // the ordinance's early closing: on the holy day the tap stays
+        // corked - the wives' answer to the tavern's toll
+        let dark = self.ordinance.is_some() && tick % 7 == 4;
+        if !dark {
+            if tick % 2 == 0 { self.tavern_restock(tick, tavern, keeper); }
+            self.tavern_bench(tick, tavern, keeper);
+        }
     }
 
     /// The keeper lays in a barrel. He brews nothing: what runs low on
@@ -322,7 +327,11 @@ impl Game {
             // reserve back. His is the only trade that pays for its stock
             // before it sells any, so a keeper who commits the last of
             // his coin to one barrel never buys a second
-            let unit = goods::worth_at(&self.world, good) * TAVERN_WHOLESALE;
+            let unit = goods::worth_at(&self.world, good) * TAVERN_WHOLESALE
+                * self.ordinance.map(|o| o.price_mult).unwrap_or(1.0)
+                // the licensing's cut on the unlicensed maker: the road's
+                // stall and the named drink trades lose half their price
+                * if self.ordinance.map(|o| o.licensed).unwrap_or(false) { 0.8 } else { 1.0 };
             let purse = self.world.get_component::<Purse>(keeper).map(|p| p.gold).unwrap_or(0.0);
             if unit <= 0.0 { continue; }
             let committable = (purse - TAVERN_RESERVE).max(0.0) * TAVERN_SPEND_SHARE;

@@ -994,6 +994,8 @@ impl Game {
             monuments: vec![],
             imperial_project: None,
             suffrage_won: false,
+            ordinance: None,
+            petition: None,
             derelict: Default::default(),
             ruined: Default::default(),
             cutaways: Default::default(),

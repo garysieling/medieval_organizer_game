@@ -830,7 +830,7 @@ fn test_the_drove_fills_the_fold() {
             g.world.add_component(f, household::Building {
                 kind: household::BuildingKind::Pasture, name: "the fold".into(),
                 occupants: vec![], worker: None, overseer: None,
-                stock: Default::default(), capacity: 0 });
+                stock: Default::default(), capacity: 0, flyer: None });
         }
         let sheep0 = g.world.query::<crate::game::livestock::Livestock>().len();
         g.force_event(EventId::Drover);
@@ -1002,7 +1002,7 @@ fn test_the_clip_pays_the_shepherd() {
             g.world.add_component(f, household::Building {
                 kind: household::BuildingKind::Pasture, name: "the fold".into(),
                 occupants: vec![], worker: Some(shepherd), overseer: None,
-                stock: Default::default(), capacity: 0 });
+                stock: Default::default(), capacity: 0, flyer: None });
         } else {
             g.world.get_component_mut::<household::Building>(
                 g.world.query::<household::Building>().iter().copied()
@@ -1438,7 +1438,7 @@ fn test_the_doctored_fold_holds_the_wolves_off() {
                 g.world.add_component(f, household::Building {
                     kind: household::BuildingKind::Pasture, name: "the fold".into(),
                     occupants: vec![], worker: Some(shepherd), overseer: None,
-                    stock: Default::default(), capacity: 0 });
+                    stock: Default::default(), capacity: 0, flyer: None });
                 f
             }
         };
@@ -1479,7 +1479,7 @@ fn test_the_ring_of_iron() {
                 g.world.add_component(f, household::Building {
                     kind: household::BuildingKind::Pasture, name: "the fold".into(),
                     occupants: vec![], worker: Some(shepherd), overseer: None,
-                    stock: Default::default(), capacity: 0 });
+                    stock: Default::default(), capacity: 0, flyer: None });
             }
         }
         g.world.get_component_mut::<Purse>(shepherd).unwrap().gold = 10.0;

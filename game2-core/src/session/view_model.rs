@@ -597,6 +597,15 @@ impl Game {
             village_gaol: self.village_gaol,
             castle_gaol: self.castle_gaol,
             flood: self.flood.cells.iter().map(|(&(x, y), &b)| (x, y, b)).collect(),
+            notices: self.notices.iter().filter(|(_, _, u)| self.tick < *u)
+                .map(|(k, t, _)| (k.clone(), t.clone())).collect(),
+            notice_panel: self.notice_panel,
+            postings: self.building_entities.iter().filter_map(|&be|
+                self.world.get_component::<Building>(be)
+                    .and_then(|b| b.flyer.as_ref().map(|f|
+                        self.world.get_component::<Pos>(be)
+                            .map(|p| (p.x.round() as i32, p.y.round() as i32, f.clone())))))
+                .flatten().collect(),
             monuments: self.monuments.iter().filter(|m| m.stood_on.is_some())
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },

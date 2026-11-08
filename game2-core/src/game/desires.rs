@@ -601,7 +601,7 @@ mod tests {
         w.add_component(b, Building {
             kind: BuildingKind::Home, name: "a house".into(),
             occupants: vec![e], worker: None, overseer: None,
-            stock: Default::default(), capacity: 20,
+            stock: Default::default(), capacity: 20, flyer: None,
         });
     }
 

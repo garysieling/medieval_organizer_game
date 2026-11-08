@@ -503,6 +503,14 @@ pub struct UiModel {
     /// The water's cells: tile, depth band (1 shallow, 2 deep) - the
     /// client draws the overlay where the land lies under it
     pub flood: Vec<(i32, i32, u8)>,
+    /// The market board's postings: kind, the line it carries - what
+    /// the notices panel draws when the board's read
+    pub notices: Vec<(String, String)>,
+    /// Whether the board's open to read - the notices panel's on
+    pub notice_panel: bool,
+    /// The buildings carrying a posting: a writ nailed to a door, a
+    /// feast's handbill on the church - tile + the line it reads
+    pub postings: Vec<(i32, i32, String)>,
     #[serde(default)]
     pub feast: bool,
     /// Stalls standing today: (x, y, look) - a seller's stall by look

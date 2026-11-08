@@ -636,11 +636,11 @@ mod tests {
         let h1 = w.create_entity();
         w.add_component(h1, Building { kind: BuildingKind::Home, name: "home".into(),
             occupants: vec![sick_own, family], worker: None, overseer: None,
-            stock: HashMap::default(), capacity: 0 });
+            stock: HashMap::default(), capacity: 0, flyer: None });
         let h2 = w.create_entity();
         w.add_component(h2, Building { kind: BuildingKind::Home, name: "home".into(),
             occupants: vec![lodger], worker: None, overseer: None,
-            stock: HashMap::default(), capacity: 0 });
+            stock: HashMap::default(), capacity: 0, flyer: None });
         // sanity: the fabricated home registers for both occupants
         assert_eq!(crate::game::household::home_of(&w, family), Some(h1));
         assert_eq!(crate::game::household::home_of(&w, sick_own), Some(h1));

@@ -157,6 +157,8 @@ impl Game {
                 self.fetch_spot(kind, rng).map(|p| (kind, QuestTarget::Villager(v), Some(p)))
             };
             let Some((kind, target, pickup)) = offer else { continue };
+            self.notices.push(("quest".into(), format!("{} asks for help - the board carries it",
+                self.name_of(v)), tick + 14));
             self.pending_quests.push(PendingQuest {
                 giver: v, kind, target, pickup, expires: tick + OFFER_DAYS });
             self.say(v, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);

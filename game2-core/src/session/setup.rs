@@ -1001,6 +1001,8 @@ impl Game {
             stocks_tile: None,
             lord_works: vec![],
             attended_days: vec![],
+            notices: vec![],
+            notice_panel: false,
             village_gaol: None,
             castle_gaol: None,
             suffrage_won: false,

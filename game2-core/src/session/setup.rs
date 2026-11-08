@@ -994,6 +994,7 @@ impl Game {
             monuments: vec![],
             imperial_project: None,
             doctor: None,
+            stocks_tile: None,
             suffrage_won: false,
             ordinance: None,
             petition: None,

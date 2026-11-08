@@ -379,6 +379,10 @@ pub struct Migrant { pub arrived: u64 }
 /// village's own, and the night takes it out of him
 pub struct Laborer { pub until: u64 }
 
+/// In the stocks by the market: a body shamed is a body pinned - the
+/// village feeds its theater, and the sentence's days run out
+pub struct InStocks { pub until: u64 }
+
 impl Sex {
     /// The body the spawn gives them, by the entity's own number -
     /// deterministic, and half the world either way

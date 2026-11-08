@@ -575,6 +575,8 @@ pub enum Goal {
     FarmWork(Entity),
     /// A country hand walks in for the season's work
     SeasonWork((i32, i32)),
+    /// The condemned walks to the stocks by the market
+    GoStocks,
     /// An agent asked their villager to go stand and chat with someone
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere
@@ -970,6 +972,8 @@ pub struct Game {
     pub imperial_project: Option<ImperialProject>,
     /// The plague doctor while the sickness runs three deep
     pub doctor: Option<Doctor>,
+    /// The stocks stand by the market - a fixed prop, picked at settle
+    pub stocks_tile: Option<(i32, i32)>,
     /// The vote: once a suffrage campaign carries it, a woman's name on
     /// a banner means the same as a man's
     pub suffrage_won: bool,

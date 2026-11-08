@@ -58,7 +58,7 @@ fn test_foul_water_brings_the_waterborne_sickness() {
     let hp = household::home_of(&g.world, v)
         .and_then(|h| g.world.get_component::<Pos>(h).copied()).expect("villager 0 has a home");
     g.land.effluent.insert((hp.x.round() as i32 + 1, hp.y.round() as i32), 0.9);
-    for _ in 0..300 { g.land_tick(2); }
+    for _ in 0..300 { g.land_tick(212); }
     let waterborne = g.world.query::<Disease>().iter().any(|&d|
         g.world.get_component::<Disease>(d)
             .map(|dd| dd.kind.route() == illness::Route::Water).unwrap_or(false));

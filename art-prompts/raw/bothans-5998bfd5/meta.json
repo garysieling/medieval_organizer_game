@@ -1,0 +1,28 @@
+{
+ "created_at": 1794096909,
+ "credit_cost": 4,
+ "balance_cost": 0.72,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 36.57,
+ "request_id": "f3cac942-7ad7-4778-b61b-51246e9fa33f",
+ "outputs_retained_until": 1794183220,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.72,
+  "balance_left": 36.57
+ },
+ "id": "bothans-5998bfd5",
+ "prompt": "single isometric medieval village asset: Irish both\u00e1n cottage, very short and squat, thick thatched roof sweeping low over the walls, whitewashed or dry stone walls, one small door, fits on one ground tile",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 64,
+  "height": 64,
+  "num_images": 4,
+  "remove_bg": true,
+  "reference_image_path": "art-prompts/raw/scale-cottage-a42c70c2/0.png"
+ },
+ "generated_at": "2026-11-07T19:15:10",
+ "seconds": 90.2
+}

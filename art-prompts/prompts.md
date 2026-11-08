@@ -8,6 +8,10 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
+| bothans-5998bfd5 | single isometric medieval village asset: Irish bothán cottage, very short and squat, thick thatched roof sweeping low over the walls, whitewashed or dry stone walls, one small door, fits on one ground tile | rd_pro__isometric | 64x64 | 4 | 0.72 | 4 variants; the squat thatch look mixed into the cottages (#708) |
+| bothans-winter-1-73a8a2c1 | single isometric medieval village asset: the same Irish bothán cottage in winter, snow settled in thick layers on the thatch, whitewashed walls dusted with snow, fits on one ground tile | rd_pro__isometric | 64x64 | 1 | 0.18 | winter of a summer bothán; reference image keeps the design (#708) |
+| bothans-winter-2-b0e73a38 | single isometric medieval village asset: the same Irish bothán cottage in winter, snow settled in thick layers on the thatch, whitewashed walls dusted with snow, fits on one ground tile | rd_pro__isometric | 64x64 | 1 | 0.18 | winter of a summer bothán; reference image keeps the design (#708) |
+| bothans-winter-3-dedeef06 | single isometric medieval village asset: the same Irish bothán cottage in winter, snow settled in thick layers on the thatch, whitewashed walls dusted with snow, fits on one ground tile | rd_pro__isometric | 64x64 | 1 | 0.18 | winter of a summer bothán; reference image keeps the design (#708) |
 | church-1ec390cd | single isometric medieval village asset: stone village church with bell tower and graveyard | rd_pro__isometric | 160x160 | 1 | 0.18 |  |
 | granary-107d49b6 | single isometric medieval village asset: raised granary barn on staddle stones | rd_pro__isometric | 160x160 | 1 | 0.18 |  |
 | guildhall-da6ed492 | single isometric medieval village asset: grand timber guildhall, two storeys, ornate gables | rd_pro__isometric | 160x160 | 1 | 0.18 |  |

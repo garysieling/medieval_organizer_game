@@ -16,12 +16,29 @@ fn count_rgb(buf: &Buffer, x: i32, y: i32, w: i32, h: i32, rgb: (u8, u8, u8)) ->
 fn test_a_villager_with_a_sign_carries_their_board() {
     let game = Game::new_seeded(MAP_SEED);
     let mut m = game.ui_model();
-    let (ve, pos) = {
-        let v = m.people.iter_mut()
-            .find(|p| matches!(p.kind, PKind::Villager(_)) && !p.dead).unwrap();
-        v.sign = Some(1);
-        (v.e, v.pos)
-    };
+    let idx = m.people.iter()
+        .position(|p| matches!(p.kind, PKind::Villager(_)) && !p.dead).unwrap();
+    // stand well clear of everything: a house or neighbour in front
+    // would legitimately hide the board
+    'spot: for ty in 1..m.map.height.saturating_sub(1) {
+        for tx in 1..m.map.width.saturating_sub(1) {
+            let (x, y) = (tx as f32 + 0.5, ty as f32 + 0.5);
+            let close = |ax: f32, ay: f32, r: f32| {
+                let (dx, dy) = (ax - x, ay - y);
+                dx * dx + dy * dy < r * r
+            };
+            if m.buildings.iter().any(|b| close(b.x, b.y, 3.0))
+                || m.map.trees.iter().any(|&(tx, ty)| close(tx as f32 + 0.5, ty as f32 + 0.5, 3.0))
+                || m.stones.iter().any(|&(tx, ty)| close(tx as f32 + 0.5, ty as f32 + 0.5, 2.5))
+                || m.people.iter().any(|p| close(p.pos.0, p.pos.1, 2.0)) {
+                continue;
+            }
+            m.people[idx].pos = (x, y);
+            break 'spot;
+        }
+    }
+    m.people[idx].sign = Some(1);
+    let (ve, pos) = (m.people[idx].e, m.people[idx].pos);
     let mut view = View::new(Art::load_fs("../assets", 0));
     (view.cam_x, view.cam_y) = camera_on(pos.0, pos.1);
     let buf = view.render(&m, (-1, -1));

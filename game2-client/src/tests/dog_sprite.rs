@@ -25,8 +25,13 @@ fn test_generated_ground_set_and_villager_walks_load() {
     assert!(art.villager_walks.iter().all(|w| w.is_some()), "every villager look has a walk sheet");
     assert!(art.guard_walks.len() == 4 && art.guard_walks.iter().all(|w| w.is_some()));
     assert!(art.priest_walk.is_some());
-    assert_eq!(art.houses.len(), 9);
+    // 9 cottages plus the 3 botháns (squat thatch cottages, #708),
+    // each with a snowy version for winter
+    assert_eq!(art.houses.len(), 12);
     assert_eq!(art.houses_winter.len(), art.houses.len());
+    // the botháns sit at the tail of the rotation, summer and winter
+    assert!(art.houses[9..].iter().all(|s| s.is_some()));
+    assert!(art.houses_winter[9..].iter().all(|s| s.is_some()));
     let ws = art.villager_walks[0].as_ref().unwrap();
     assert_eq!((ws.frames.len(), ws.frames[0].len()), (4, 4));
     assert!((28..=40).contains(&(ws.feet - ws.head)), "a grown-up is ~35px tall, not {}", ws.feet - ws.head);

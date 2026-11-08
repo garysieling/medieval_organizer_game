@@ -180,8 +180,8 @@ impl Game {
             else if d_sq <= 6 && mansions < 4 { mansions += 1; BSprite::Mansion }
             else if x < mid_x {
                 if let Some(i) = twin.take() { BSprite::House(i) }
-                else { let i = town_rng.below(9) as usize; twin = Some(i); BSprite::House(i) }
-            } else { BSprite::Rowhouse(((y * 37 + 11).rem_euclid(9)) as usize) }
+                else { let i = town_rng.below(97) as usize; twin = Some(i); BSprite::House(i) }
+            } else { BSprite::Rowhouse(((y * 37 + 11).rem_euclid(97)) as usize) }
         }).collect();
         let mut homes = picks.into_iter().zip(looks);
         for _ in 0..n_homes {

@@ -99,6 +99,12 @@ soldier, "bareheaded ... no helmet" a bald man.
   two 4-image calls using it as `reference_images`) replace the pack's
   10 house looks. Their grass bases are recoloured to snow in winter
   (`Art.houses_winter`).
+- **Botháns** (`buildings/bothan1..3.png` + `bothan-winter1..3.png`,
+  #708): squat Irish thatch cottages appended to the cottage rotation.
+  One 4-image call for summer picks, then a winter call per pick with
+  the summer sprite as `reference_images`, so each snowy version keeps
+  its design; `Art::load` overrides the recoloured winter look with the
+  generated one where it exists.
 - **Ground:** wheat and corn fields (soil + wheat + green-crop blocks) and
   the whole winter set (snow + ice blocks; roads and rivers reuse dirt and
   water) composed like the green set. Blocks with crops or snow above the

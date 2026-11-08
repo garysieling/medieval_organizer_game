@@ -295,6 +295,14 @@ impl Game {
                 self.send_attend(x, site);
             }
             self.send_attend(by, site);
+            // the matchmaker's own fee and the dowry's little move: the
+            // broker takes a penny for the brokering, and a gift crosses
+            // between the pair's households to seal the word
+            let gift = self.world.get_component::<Purse>(a).map(|p| p.gold * 0.1).unwrap_or(0.0);
+            if gift > 0.01 {
+                if let Some(pa) = self.world.get_component_mut::<Purse>(a) { pa.gold -= gift; }
+                if let Some(pb) = self.world.get_component_mut::<Purse>(b) { pb.gold += gift; }
+            }
             let (an, bn) = (self.name_of(a), self.name_of(b));
             self.log_entity(a, format!("t{}: {} and {} are to be wed.", tick, an, bn));
         }

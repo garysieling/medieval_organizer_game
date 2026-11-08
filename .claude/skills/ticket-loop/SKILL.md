@@ -1,6 +1,6 @@
 ---
 name: ticket-loop
-description: Work one GitHub issue end to end - claim a grilled ticket, plan how to test it, branch + worktree, implement using the repo's existing verification tools, survive the AI PR review, merge, then take the next ticket. Use when asked to "take a ticket", "work an issue", "pick a grilled ticket", "do the next ticket", or run the ticket loop.
+description: Work one GitHub issue end to end - claim a grilled ticket (or an actionable bug report, which skips grilling), plan how to test it, branch + worktree, implement using the repo's existing verification tools, self-review the diff, merge, then take the next ticket. Use when asked to "take a ticket", "work an issue", "pick a grilled ticket", "do the next ticket", "fix this bug", or run the ticket loop.
 allowed-tools:
   - Read
   - Write
@@ -26,8 +26,18 @@ Repo: `github.com/garysieling/game2`. Pass `-R garysieling/game2` to every
 Only issues labeled **`grilled`** are safe to take - `/grill` already
 asked the user the hard questions and recorded the answers on the issue.
 (`agent-ready` tickets a human fully specified are also eligible - they
-skipped grilling by definition.) Everything else is not yours: if the
-user hands you an un-grilled ticket, offer to `/grill` it first.
+skipped grilling by definition.)
+
+**Actionable bug reports skip grilling.** A crash with a stack trace,
+a defect with a clear repro, plainly wrong behavior - there's nothing
+to ask when the code just panics, and grilling exists to pin down
+feature and design ambiguity, not to gate fixing what's broken. Take
+these directly, labeled or not. The bar is "could a reasonable agent
+start fixing this without asking anything" - a vague report ("it's
+slow sometimes", "feels off") can't, so reproduce it or grill first.
+
+Everything else is not yours: if the user hands you an un-grilled
+feature or enhancement ticket, offer to `/grill` it first.
 
 ```bash
 gh issue list -R garysieling/game2 --label grilled --state open
@@ -190,11 +200,38 @@ The PR body carries the completed Ticket Form plus evidence: test
 commands run and pass, dump-frame BMP paths, bench numbers if relevant.
 End the body with `Closes #<N>`.
 
-## Stage 7 - Survive the AI review
+## Stage 7 - Review the diff yourself
 
-Devin Review (`devin-ai-integration[bot]`) auto-reviews every PR: a
-review summary plus inline comments on `pulls/<PR>/comments`, with
-`✅ Resolved` replies as findings get fixed.
+Devin Review (`devin-ai-integration[bot]`) stopped firing when the
+repo was renamed to `medieval_organizer_game`, so **the review is
+yours - always.** Before merging, re-read the full diff as a reviewer
+would, fresh eyes on your own work:
+
+```bash
+git diff origin/main...HEAD
+```
+
+The checklist:
+
+- **Correctness** - off-by-ones, unwraps that can fire, index-keyed
+  data that goes stale when the thing it indexes shifts (the
+  `villagers`-parallel-rolls class: check every `usize` field stored
+  against the roster, every `foo[i]` read).
+- **Determinism** - no std `HashMap`/`HashSet`, no wall clocks, no
+  iteration order the seed doesn't decide, in `game/`/`sim/`/
+  `session/`/`engine/`.
+- **Wire/serde** - `Command`/`UiModel`/protocol changes update
+  `docs/protocol.md` and tolerate old clients.
+- **Per-frame cost** - nothing O(roster)/O(map) added to every-frame
+  paths without a `crate::timed!` scope.
+- **Coverage** - a test that fails without the fix. For a bug, the
+  test should hit the reported path, not a neighbor.
+- **The same bug, elsewhere** - grep for the pattern you just fixed;
+  this repo's bugs come in families (unwired features, parallel
+  rolls, unscheduled `*_tick`s).
+
+Fix what you find, push, re-read. **Done = a pass with nothing new to
+fix** and checks green:
 
 ```bash
 gh api repos/garysieling/game2/pulls/<PR>/reviews    --jq '.[].body[0:200]'
@@ -202,23 +239,11 @@ gh api repos/garysieling/game2/pulls/<PR>/comments   --jq '.[] | {path, body: .b
 gh pr checks <PR> -R garysieling/game2               # if CI exists
 ```
 
-Loop until clean:
-
-1. Wait for the review round (typically a few minutes after push; poll
-   every ~2 min, give up after ~20 and ask the user).
-2. Fix each unresolved finding, or reply with a justification if it's
-   wrong. Push.
-3. The next round re-reviews. Repeat.
-4. **Done = a round with no new unresolved findings** and checks green.
-
-**If the review never fires** (e.g. the GitHub app is detached - it
-stopped reviewing after the repo was renamed to
-`medieval_organizer_game`): don't block. Do the review yourself:
-re-read the full diff (`git diff origin/main...HEAD`) as a reviewer
-would - correctness, wire/serde compatibility, determinism, driver
-conflicts, per-frame cost, missing test coverage - fix what you find,
-push, then merge with a PR comment noting the self-review and why the
-AI review was absent.
+If a Devin Review round ever does land, treat it as another round of
+the same loop: fix each unresolved finding or reply with a
+justification if it's wrong, push, and repeat until a round comes
+back clean. Merge with a PR comment noting what the self-review
+caught (even if the answer is "nothing").
 
 ## Stage 8 - Merge, then next ticket
 

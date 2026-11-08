@@ -248,6 +248,16 @@ look and the frame it was asked on, so a client can answer each ask
 once (an introduction's name, say). Older servers omit it; read it as
 no ask pending.
 
+`player_event` is the sim's civic-event camera ask, or absent - the
+`EventFocusV` an event the seat's own part of is running:
+`{"epoch":1,"kind":0,"pos":[x,y],"extent":12.0,"moving":true}` - `kind`
+is 0 a march, 1 a meeting; `pos` the event's live centre in tiles;
+`extent` how wide it reaches in tiles (so a client can zoom out to
+frame it); `epoch` a counter that names the event, the same while it
+runs and new for the next, so a client jumps once and tracks after;
+`moving` whether the centre is still worth easing toward. Older
+servers omit it; read it as no event pending.
+
 `buildings` lists the village's built structures this frame, each a
 `BldgV` - `{"x":12.0,"y":9.0,"sprite":...,"risen":1.0,"derelict":false,
 "smoke":true}`: `risen` runs 0..1 while a building goes up, and `smoke`

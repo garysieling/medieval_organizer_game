@@ -393,6 +393,23 @@ impl<'de> Deserialize<'de> for MysteryV {
     }
 }
 
+/// An event the seat's player is part of, for the camera: a march
+/// the seat called, a house meeting it called. The client jumps to a
+/// new `epoch`, frames `extent`, and tracks `pos` while `moving`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct EventFocusV {
+    /// The instance's stamp - a new event is a new epoch
+    pub epoch: u64,
+    /// What it is: 0 a march, 1 a house meeting
+    pub kind: u8,
+    /// Where it is now - live for movers
+    pub pos: (f32, f32),
+    /// How far it reaches across the map, for zoom-to-fit
+    pub extent: f32,
+    /// Whether pos keeps moving while it lasts
+    pub moving: bool,
+}
+
 /// Everything `View::render` draws that comes from the simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiModel {
@@ -411,6 +428,10 @@ pub struct UiModel {
     /// it; a client should ignore an absent field.
     #[serde(default)]
     pub focus: Option<(f32, f32, u32)>,
+    /// The civic event this seat's player is part of, if any - the
+    /// camera tracks it; absent from older servers
+    #[serde(default)]
+    pub player_event: Option<EventFocusV>,
     pub map: TileMap,
     pub town_wall: (i32, i32, i32, i32),
     pub season: Season,

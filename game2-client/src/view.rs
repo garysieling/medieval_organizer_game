@@ -1523,6 +1523,74 @@ pub fn search_people(people: &[PersonV], query: &str) -> Vec<usize> {
 /// the camera counts them as lost - about a sprite's worth
 const LOST_MARGIN: i32 = 48;
 
+/// The zoom clamps every camera path shares
+pub const MIN_ZOOM: f32 = 0.5;
+pub const MAX_ZOOM: f32 = 2.0;
+/// The breathing room an event's frame keeps from the map view's rim
+const EVENT_MARGIN: f32 = 80.0;
+/// Frames of manual camera input that hold the event camera off -
+/// pan wins briefly, then the event has it back
+pub const EVENT_HOLD: u32 = 240;
+
+/// The zoom that frames an event `extent` tiles across the map view:
+/// only ever zooms out - a small gathering keeps the player's zoom,
+/// a street-wide march pulls back toward MIN_ZOOM
+pub fn event_zoom(extent: f32, current: f32) -> f32 {
+    let fit = ((MAP_W as f32 - 2.0 * EVENT_MARGIN) / (extent.max(1.0) * 4.0 * TILE_W as f32))
+        .clamp(MIN_ZOOM, MAX_ZOOM);
+    current.min(fit)
+}
+
+/// The event camera's state between frames: which event it's on, how
+/// long a manual input keeps it off, and the eased centre
+#[derive(Default)]
+pub struct EventCam {
+    seen: Option<u64>,
+    hold: u32,
+    ease: Option<(f32, f32)>,
+}
+
+impl EventCam {
+    /// The player took the camera: the event keeps it off this long
+    pub fn hold(&mut self) { self.hold = EVENT_HOLD; }
+
+    /// A frame of event-camera: a new event jumps and frames itself,
+    /// a live one tracks its centre unless a manual input holds it
+    /// off; returns the camera and zoom to use
+    pub fn step(&mut self, ev: Option<&EventFocusV>, cam: (i32, i32), zoom: f32)
+        -> ((i32, i32), f32)
+    {
+        let Some(ev) = ev else {
+            self.seen = None;
+            self.ease = None;
+            return (cam, zoom);
+        };
+        if self.seen != Some(ev.epoch) {
+            // a new event has the camera: jump to it, framed to fit
+            self.seen = Some(ev.epoch);
+            self.hold = 0;
+            let (cx, cy) = camera_on(ev.pos.0, ev.pos.1);
+            self.ease = Some((cx as f32, cy as f32));
+            return ((cx, cy), event_zoom(ev.extent, zoom));
+        }
+        if self.hold > 0 {
+            self.hold -= 1;
+            // resume eases from where the player left it, not from
+            // where the event was when they grabbed the camera
+            self.ease = Some((cam.0 as f32, cam.1 as f32));
+            return (cam, zoom);
+        }
+        if !ev.moving { return (cam, zoom); }
+        // track the live centre, eased toward it - a hard cut every
+        // frame would jitter, and the column's own pace reads fine
+        let (tx, ty) = camera_on(ev.pos.0, ev.pos.1);
+        let (ex, ey) = self.ease.unwrap_or((cam.0 as f32, cam.1 as f32));
+        let (nx, ny) = (ex + (tx as f32 - ex) * 0.15, ey + (ty as f32 - ey) * 0.15);
+        self.ease = Some((nx, ny));
+        ((nx.round() as i32, ny.round() as i32), zoom)
+    }
+}
+
 /// The camera follows a character who walks clean off the map view:
 /// while they move - or the zoom shifts them out of sight - and their
 /// feet are out of sight, look back to have them in the middle again.

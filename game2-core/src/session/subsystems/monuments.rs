@@ -77,7 +77,7 @@ impl Game {
             if m.kind == MonumentKind::Circle {
                 self.log.push(format!("t{}: the stones stand - {}'s ring is raised on the hill.", tick, m.title));
             } else {
-                let name = vill_name(m.honoree);
+                let name = if m.honoree == usize::MAX { "the one who moved on" } else { vill_name(m.honoree) };
                 self.log.push(format!("t{}: the monument stands - {} is remembered. {}'s stone rises at the cross.",
                     tick, name, name));
             }

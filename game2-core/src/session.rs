@@ -740,7 +740,8 @@ pub struct Pedlar {
 pub struct Cairn {
     /// Where it stands (tile coords)
     pub pos: (i32, i32),
-    /// The villager index it remembers (villagers[i])
+    /// The villager index it remembers (villagers[i]); usize::MAX once
+    /// their name's off the roll - the pile remembers the village
     pub honoree: usize,
     /// What they're remembered for - "the mason", "the fire"
     pub deed: String,
@@ -754,7 +755,8 @@ pub struct Cairn {
 pub struct Monument {
     /// Where it stands (tile coords)
     pub pos: (i32, i32),
-    /// The villager index it honors
+    /// The villager index it honors; usize::MAX for the org's ring, or
+    /// once their name's off the roll
     pub honoree: usize,
     /// What it's for - the tale's title
     pub title: String,

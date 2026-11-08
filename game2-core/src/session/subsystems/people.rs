@@ -160,6 +160,18 @@ impl Game {
                 seat.selected_target = idx.min(self.villagers.len().saturating_sub(1));
             }
         }
+        // the stones' honored are roll-indices too: they shift home, and
+        // a pile whose honored left the roll remembers the village
+        for c in self.cairns.iter_mut() {
+            if c.honoree == usize::MAX { continue; }
+            if c.honoree > idx { c.honoree -= 1; }
+            else if c.honoree == idx { c.honoree = usize::MAX; }
+        }
+        for m in self.monuments.iter_mut() {
+            if m.honoree == usize::MAX { continue; } // the ring honors the org itself
+            if m.honoree > idx { m.honoree -= 1; }
+            else if m.honoree == idx { m.honoree = usize::MAX; }
+        }
     }
 
     /// The village walks a little slower for its own: a lame leg covers

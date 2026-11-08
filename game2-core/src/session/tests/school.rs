@@ -72,3 +72,35 @@ fn test_the_desk_emptying_shifts_the_rolls_home() {
     assert_eq!(g.died_on[ti], None, "her record hung on the wrong villager");
     assert_eq!(g.seats[0].selected_target, ti, "the pick didn't follow the shift");
 }
+
+#[test]
+fn test_the_stones_honored_shift_with_the_roll() {
+    let mut g = Game::new();
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
+    g.seats[0].ctx_actions = vec![CtxAct::School];
+    g.ctx_act_at(0, 0);
+    let (teacher, season_end) = g.teacher.unwrap();
+    let ti = g.villagers.iter().position(|&v| v == teacher).unwrap();
+    // a later arrival sits after her - the stones that honor him must
+    // follow him home, and hers mustn't hang on him
+    let home = g.building_entities.iter().copied().find(|&b|
+        g.world.get_component::<household::Building>(b)
+            .map(|bb| bb.kind == household::BuildingKind::Home && bb.occupants.len() < 4)
+            .unwrap_or(false)).expect("no home with a spare bed");
+    g.spawn_kid(home, g.tick);
+    g.cairns.push(Cairn { pos: (5, 5), honoree: ti + 1, deed: "of the bench".into(), stones: 1 });
+    g.cairns.push(Cairn { pos: (6, 6), honoree: ti, deed: "of the desk".into(), stones: 1 });
+    g.monuments.push(Monument { pos: (7, 7), honoree: ti + 1, title: "a deed".into(),
+        build_until: 0, stood_on: Some(1), kind: MonumentKind::Column });
+    g.monuments.push(Monument { pos: (8, 8), honoree: usize::MAX, title: "the ring".into(),
+        build_until: 0, stood_on: Some(1), kind: MonumentKind::Circle });
+    g.tick = season_end;
+    g.school_tick(season_end);
+    assert_eq!(g.cairns[0].honoree, ti, "his pile didn't follow him home");
+    assert_eq!(g.cairns[1].honoree, usize::MAX, "her pile hangs on the wrong name");
+    assert_eq!(g.monuments[0].honoree, ti, "his column didn't follow him home");
+    assert_eq!(g.monuments[1].honoree, usize::MAX, "the ring's sentinel moved");
+    // and the rolls still read: no panic past the end of the roll
+    g.cairn_tick(g.tick + 1);
+    g.monument_tick(g.tick + 1);
+}

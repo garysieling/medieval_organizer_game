@@ -635,7 +635,9 @@ impl Game {
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },
                     if m.kind == MonumentKind::Circle { m.title.clone() }
-                    else { format!("{} - {}", vill_name(m.honoree), m.title) })).collect(),
+                    else { format!("{} - {}",
+                        if m.honoree == usize::MAX { "the one who moved on" } else { vill_name(m.honoree) },
+                        m.title) })).collect(),
             sites: self.sites.iter().map(|s| {
                 // the keeper: who holds the keep's first bed, when the
                 // site has one - the castle's lord, a town's first house

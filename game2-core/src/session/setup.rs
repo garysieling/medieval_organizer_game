@@ -1003,6 +1003,8 @@ impl Game {
             attended_days: vec![],
             notices: vec![],
             notice_panel: false,
+            construction_sites: vec![],
+            sites: vec![],
             village_gaol: None,
             castle_gaol: None,
             suffrage_won: false,
@@ -1107,7 +1109,6 @@ impl Game {
             next_rare: events::initial_due(seed),
             rare_fired: vec![],
             rare_seed: seed ^ 0xAA55_5EED,
-            sites: vec![],
             pending_quests: vec![],
             quest_rest: Default::default(),
         };

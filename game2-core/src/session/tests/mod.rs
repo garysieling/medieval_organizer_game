@@ -85,6 +85,7 @@ mod events_attend;
 mod construction;
 mod laws;
 mod sheriff;
+mod sisterhood;
 mod notices;
 mod flood;
 mod lord_works;

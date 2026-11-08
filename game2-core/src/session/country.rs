@@ -104,6 +104,9 @@ pub struct Site {
     /// The law's arm at the castle: a knight in the sheriff's colors -
     /// he answers a poacher in the reserve or a trespasser with the book
     pub sheriff: Option<Entity>,
+    /// An abbess's house keeps the hive: the matriarch's the queen
+    /// and the sisters the body - the record sits on the site itself
+    pub sisterhood: Option<Sisterhood>,
     /// The site's treasury in gold: tribute in, gifts and the crown's
     /// cut out
     pub treasury: f32,
@@ -458,7 +461,7 @@ impl Game {
                 persona: if kind == SiteKind::Castle { LordPersona {
                     cruelty: 0.3 + (rng.below(7) as f32 / 10.0),
                     vanity: (rng.below(10) as f32 / 10.0) } } else { LordPersona::default() },
-                sheriff: None });
+                sheriff: None, sisterhood: None });
         }
         // the folk, a household to a site under their own roofs; the
         // roster puts children last so the carrier slots - the first
@@ -493,6 +496,7 @@ impl Game {
         }
         self.assign_hierarchy(&mut sites, &mut rng);
         self.sites = sites;
+
         // the post: an office at each town and castle, and a rider to
         // keep it - the village hands its letters off at the market
         for si in 0..self.sites.len() {
@@ -537,7 +541,19 @@ impl Game {
             // the year starts thin in the fields - the ripening shows
             if let Some(fs) = self.world.get_component_mut::<villager::FoodSource>(f) { fs.servings = 15; }
             self.crop_fields.push(f);
+        }        // the sisterhood: an abbess's house keeps the hive - the
+        // matriarch's the queen, the sisters the body, and the lay
+        // brothers work but come last in a lean winter
+        for si in 0..self.sites.len() {
+            if self.sites[si].kind != SiteKind::Monastery || self.sites[si].title != Some("Abbess") { continue; }
+            let members: Vec<Entity> = self.villagers.iter().copied()
+                .filter(|&v| self.world.get_component::<Outlander>(v)
+                    .map(|o| o.site == si).unwrap_or(false)).collect();
+            let leader = self.sites[si].lord.unwrap_or(0u32);
+            let name = format!("the sisterhood of {}", self.sites[si].name);
+            self.sites[si].sisterhood = Some(Sisterhood { members, leader, charter: name });
         }
+
     }
 
     /// The lordly map: castles answer to the crown (off the map, so
@@ -1427,4 +1443,13 @@ impl Game {
             self.log.push(format!("t{}: rumor of the lord's works - {}'s treasury pays, and the crews will come.", tick, name));
         }
     }
+}
+
+/// The abbess's hive: the sisters keep the body and the lay brothers
+/// come last in a lean winter - the matriarch's the queen
+#[derive(Clone, Debug)]
+pub struct Sisterhood {
+    pub members: Vec<Entity>,
+    pub leader: Entity,
+    pub charter: String,
 }

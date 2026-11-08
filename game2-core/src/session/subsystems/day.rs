@@ -162,6 +162,9 @@ impl Game {
         crate::timed!("sim.trail", self.trail_tick());
         // the land keeps score: canopy, pit water, the reach
         crate::timed!("sim.land", self.land_tick(tick));
+        // and the village's own tally of the dominos: hardship, fever,
+        // the dead, the anger - the cascade they fall in
+        crate::timed!("sim.cascade", self.cascade_tick(tick));
         // the ladder of shame climbs one rung at a time
         crate::timed!("sim.sanction", self.sanction_tick(tick));
         // and the blood feuds simmer or settle under it

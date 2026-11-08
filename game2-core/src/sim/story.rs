@@ -36,6 +36,10 @@ pub enum EventKind {
     Conflict,
     Discovery,
     Achievement,
+    /// the village's belly is empty - famine's first domino
+    Hardship,
+    /// the grumbling turns to anger - grievance's pressure on the street
+    Unrest,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -47,6 +51,9 @@ pub enum StoryTheme {
     Conflict,    // faction war
     Survival,    // endures hardship
     Community,   // organizing works
+    /// the village itself is the protagonist: famine, pestilence, the
+    /// dying - the cascade the commons lived through
+    Calamity,
 }
 
 /// Detect a story from a sequence of events
@@ -81,6 +88,44 @@ pub fn detect_story(events: &[StoryEvent]) -> Option<Story> {
         theme,
         participants: vec![],
         intensity: events.len() as f32 / 10.0,
+    })
+}
+
+/// Detect a village-scale calamity: the dominos of a crisis falling in
+/// order - hardship first, sickness riding it, then the dying or the
+/// anger. The events are the census's crossings, so a bare winter that
+/// never sickens nobody and a fever with full granaries are no tale.
+/// The story is named for what led it: hunger's year, the pestilence,
+/// or the great dying when the dead mount.
+pub fn detect_cascade(events: &[StoryEvent]) -> Option<Story> {
+    if events.len() < 3 { return None; }
+    let at = |k: EventKind| events.iter().position(|e| e.kind == k);
+    let (h, i) = (at(EventKind::Hardship), at(EventKind::Illness));
+    // the want must come before the fever - or the fever stand alone;
+    // a want with no sickness can still close on the dead or the anger
+    let ordered = match (h, i) {
+        (Some(h), Some(i)) => h < i,
+        (Some(_), None) | (None, Some(_)) => true,
+        (None, None) => false,
+    };
+    if !ordered { return None; }
+    let marks = [h, i].into_iter().flatten();
+    let (first, last) = (marks.clone().min().unwrap(), marks.max().unwrap());
+    // and it must end in loss or anger after the dominos have fallen
+    let closes = events.iter().enumerate().skip(last + 1)
+        .any(|(_, e)| matches!(e.kind, EventKind::Death | EventKind::Unrest));
+    if !closes { return None; }
+    let window = &events[first..];
+    let deaths = window.iter().filter(|e| e.kind == EventKind::Death).count();
+    let title = if deaths >= 2 { "the great dying" }
+        else if h.is_some() { "the hunger year" }
+        else { "the pestilence" };
+    Some(Story {
+        title: title.into(),
+        events: events.to_vec(),
+        theme: StoryTheme::Calamity,
+        participants: vec![],
+        intensity: window.len() as f32 / 10.0,
     })
 }
 

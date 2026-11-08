@@ -857,6 +857,8 @@ impl Game {
             crate::sim::story::EventKind::Conflict => "bad blood",
             crate::sim::story::EventKind::Discovery => "found out",
             crate::sim::story::EventKind::Achievement => "made their name",
+            crate::sim::story::EventKind::Hardship => "knew the empty pot",
+            crate::sim::story::EventKind::Unrest => "felt the anger rise",
         }).collect()).unwrap_or_default();
         let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
         if let Some(day) = self.died_on[i] {
@@ -1078,6 +1080,7 @@ impl Game {
                 crate::sim::story::StoryTheme::Redemption => "a tale of redemption",
                 crate::sim::story::StoryTheme::Conflict => "a tale of bad blood",
                 crate::sim::story::StoryTheme::Community => "a tale of the commons",
+                crate::sim::story::StoryTheme::Calamity => "a tale of calamity",
             });
         if let Some(bio) = self.bio_line_at(seat, v) {
             let suffix = tale.map(|t| format!(" - {}", t)).unwrap_or_default();

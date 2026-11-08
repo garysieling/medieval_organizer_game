@@ -25,11 +25,15 @@ impl Game {
                 *c = (*c + 0.005).min(1.0);
             }
         }
+        // famine is the village's own measure - when two in five bellies
+        // are hollow the leavings pile faster and the water's drawn anyway
+        let famine = self.village_famine();
         // the reach: the town's leavings settle in downstream water
         if tick % 3 == 0 {
+            let gain = if famine { 0.008 } else { 0.004 };
             for t in self.reach.clone() {
                 let e = self.land.effluent.entry(t).or_insert(0.0);
-                *e = (*e + 0.004).min(1.0);
+                *e = (*e + gain).min(1.0);
             }
         }
         // but the river washes a little clean each day - foul water
@@ -104,7 +108,7 @@ impl Game {
                     .filter(|(&(x, y), &e)| e >= 0.5
                         && (x as f32 - hp.x).abs() + (y as f32 - hp.y).abs() < 6.0)
                     .map(|(_, &e)| e).fold(0.0f32, f32::max);
-                if load >= 0.5 && self.rng.below(1000) < (load * 60.0) as i32 {
+                if load >= 0.5 && self.rng.below(1000) < (load * if famine { 120.0 } else { 60.0 }) as i32 {
                     // fouler water carries the fouler fevers
                     // the foul water carries its fevers when their
                     // season's on them - out of it, the well holds
@@ -122,6 +126,20 @@ impl Game {
                     };
                     let d = self.world.create_entity();
                     self.world.add_component(d, Disease::new(kind, v, severity));
+                }
+            }
+            // and the unburied dead foul the water the same way - each
+            // corpse's leavings settle in the reach nearest where they
+            // fell; the churchyard's interred stay out of it
+            for &v in self.villagers.clone().iter() {
+                if !villager::is_dead(&self.world, v) { continue; }
+                if self.world.get_component::<villager::Buried>(v).is_some() { continue; }
+                if self.world.get_component::<country::Outlander>(v).is_some() { continue; }
+                let Some(cp) = self.world.get_component::<Pos>(v).copied() else { continue };
+                if let Some(&(x, y)) = self.reach.iter()
+                    .min_by_key(|&&(x, y)| ((x as f32 - cp.x).abs() + (y as f32 - cp.y).abs()) as i32) {
+                    let e = self.land.effluent.entry((x, y)).or_insert(0.0);
+                    *e = (*e + 0.01).min(1.0);
                 }
             }
             // the slow kinds find their season's opening: consumption

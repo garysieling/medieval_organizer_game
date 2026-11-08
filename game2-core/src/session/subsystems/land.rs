@@ -611,3 +611,49 @@ impl Game {
         }
     }
 }
+
+impl Game {
+    /// The water's day: the rain raises it, the low ground drinks, the
+    /// crops under it are gone - and when the weather dries, the shallow
+    /// cells give the land back
+    pub(in crate::session) fn flood_tick(&mut self, tick: u64) {
+        // the rain raises the water; a dry day's sun lets it down
+        let wet_day = matches!(self.precip, Some(crate::sim::precipitation::PrecipKind::Rain)
+            | Some(crate::sim::precipitation::PrecipKind::HeavyRain)
+            | Some(crate::sim::precipitation::PrecipKind::Showers));
+        if wet_day {
+            self.flood.raise(crate::game::flood::RAIN_LEVEL);
+        } else if self.flood.level > 0.0 {
+            self.flood.recede(0.02);
+        }
+        // the wetting front: the cells under the level soak in
+        self.flood.wet(&self.map, &self.heights, tick);
+        // a crop under the water is lost - the harvest doesn't come back
+        for &(x, y) in self.flood.cells.keys() {
+            if let Some(&ce) = self.crop_fields.iter().find(|&&ce| {
+                self.world.get_component::<Pos>(ce)
+                    .map(|p| p.x.round() as i32 == x && p.y.round() as i32 == y).unwrap_or(false)
+            }) {
+                if let Some(c) = self.world.get_component_mut::<crate::game::villager::Crop>(ce) {
+                    if c.growth > 0.0 {
+                        c.growth = 0.0;
+                        self.log.push(format!("t{}: the water takes a field - the year's work's under it.", tick));
+                    }
+                }
+            }
+        }
+        // a building in deep water is a ruin; in shallow, it's waterlogged
+        for (&(x, y), &band) in self.flood.cells.clone().iter() {
+            if let Some(&be) = self.building_entities.iter().find(|&&be| {
+                self.world.get_component::<Pos>(be)
+                    .map(|p| p.x.round() as i32 == x && p.y.round() as i32 == y).unwrap_or(false)
+            }) {
+                if band >= 2 {
+                    self.ruin_building(be, "gone, under the water");
+                } else if let Some(b) = self.world.get_component_mut::<Building>(be) {
+                    b.stock.clear(); // the shallow water spoils what's stored
+                }
+            }
+        }
+    }
+}

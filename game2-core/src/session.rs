@@ -966,6 +966,10 @@ pub struct Game {
     pub sched: Scheduler,
     /// What each tile is (water, grass, road, river...), laid out on the terrain
     pub map: TileMap,
+    /// The land's own heights - the flood reads where the water runs first
+    pub heights: Vec<Vec<f32>>,
+    /// The water risen over the low ground: the level, and the cells it holds
+    pub flood: crate::game::flood::Flood,
     pub climate: Entity,
     pub villagers: Vec<Entity>,
     /// Each villager's last position, facing and whether they moved this
@@ -1729,7 +1733,7 @@ impl Game {
                         && !self.travels.iter().any(|t| t.who == *v) {
                         if let Some(t) = food_tile {
                             let from = (p.x.round() as i32, p.y.round() as i32);
-                            if let Some(mut path) = Self::trail_path_on(&self.map, &self.trails, from, t) {
+                            if let Some(mut path) = Self::trail_path_on(&self.map, &self.trails, &self.flood, from, t) {
                                 path.push(t);
                                 self.travels.push(Travel { who: *v, path, goal: Goal::Wander });
                                 continue;
@@ -1740,7 +1744,7 @@ impl Game {
                     let (nx, ny) = (p.x + dx / d * step, p.y + dy / d * step);
                     if self.map.passable(nx.round() as i32, ny.round() as i32) {
                         p.x = nx; p.y = ny;
-                    } else if let Some(path) = food_tile.and_then(|t| Self::trail_path_on(&self.map, &self.trails, (p.x.round() as i32, p.y.round() as i32), t)) {
+                    } else if let Some(path) = food_tile.and_then(|t| Self::trail_path_on(&self.map, &self.trails, &self.flood, (p.x.round() as i32, p.y.round() as i32), t)) {
                         if let Some(&(qx, qy)) = path.first() {
                             let (ddx, ddy) = (qx as f32 - p.x, qy as f32 - p.y);
                             let dd = (ddx * ddx + ddy * ddy).sqrt().max(1e-4);

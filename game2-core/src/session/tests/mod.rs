@@ -8,6 +8,7 @@ mod assembly;
 mod attach;
 mod blocker;
 mod build;
+mod bits;
 mod campaign;
 mod campaign_ban;
 mod campaign_dungeon;

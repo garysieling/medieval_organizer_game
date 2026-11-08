@@ -64,7 +64,7 @@ fn main() {
         members: villagers.clone(),
         leader: Some(villagers[0]),
         orthodoxy: 0.6,
-        services: vec![],
+        services: vec![], cultish: false 
     });
 
     // Tech tree

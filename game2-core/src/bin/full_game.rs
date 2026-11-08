@@ -70,7 +70,7 @@ fn main() {
     // The whole village keeps the Old Faith's harvest rite together
     let church = world.create_entity();
     world.add_component(church, Congregation {
-        name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![],
+        name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![], cultish: false 
     });
 
     // Market

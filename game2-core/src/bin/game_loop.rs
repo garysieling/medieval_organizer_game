@@ -56,7 +56,7 @@ fn main() {
     // The whole village belongs to the Old Faith's congregation
     let church = world.create_entity();
     world.add_component(church, Congregation {
-        name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![],
+        name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![], cultish: false 
     });
 
     // Dagny takes in a dog; if they look after it, it'll see them through hard times

@@ -635,7 +635,9 @@ impl Game {
                 .map(|m| (m.pos.0, m.pos.1,
                     if m.kind == MonumentKind::Circle { 1u8 } else { 0u8 },
                     if m.kind == MonumentKind::Circle { m.title.clone() }
-                    else { format!("{} - {}", vill_name(m.honoree), m.title) })).collect(),
+                    else { format!("{} - {}",
+                        if m.honoree == usize::MAX { "the one who moved on" } else { vill_name(m.honoree) },
+                        m.title) })).collect(),
             sites: self.sites.iter().map(|s| {
                 // the keeper: who holds the keep's first bed, when the
                 // site has one - the castle's lord, a town's first house
@@ -877,7 +879,7 @@ impl Game {
             crate::sim::story::EventKind::Unrest => "felt the anger rise",
         }).collect()).unwrap_or_default();
         let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
-        if let Some(day) = self.died_on[i] {
+        if let Some(day) = self.died_on.get(i).copied().flatten() {
             lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
             lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
             // who carries the grief for them - the losses the day their

@@ -1814,6 +1814,9 @@ impl Game {
         self.world.add_component(e, Villager { activity: Activity::Idle, target_food: None });
         self.world.add_component(e, TownRole::Teacher);
         self.villagers.push(e);
+        // the parallel rolls grow with the roster or the next lookup panics
+        self.was_sick.push(None);
+        self.died_on.push(None);
         self.teacher = Some((e, self.tick + days));
         self.log.push(format!("t{}: a schoolmistress takes the desk for the season.", self.tick));
     }

@@ -58,7 +58,8 @@ impl Game {
         // bonded first, then any passerby
         for ci in 0..self.cairns.len() {
             let c = self.cairns[ci].pos;
-            let honoree = self.villagers[self.cairns[ci].honoree];
+            let honoree = if self.cairns[ci].honoree == usize::MAX { self.org }
+                else { self.villagers[self.cairns[ci].honoree] };
             if self.cairns[ci].stones >= FULL_PILE { continue; }
             // the bonded take up a stone first - grief finds the work
             let mut layer = None;

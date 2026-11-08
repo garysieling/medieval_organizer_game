@@ -44,7 +44,7 @@ fn village() -> Village {
         w.add_component(v, AttachmentHistory { anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         w.add_component(v, Citizen { influence, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
         w.add_component(v, Faith { religion: "Old Faith".into(), devotion: 0.5, traditions: vec![] });
-        w.add_component(v, Age { years: 40.0, stage: LifeStage::Adult });
+        w.add_component(v, Age { years: 40.0, stage: LifeStage::Adult, born_day: 0 });
         w.add_component(v, Vitality { health: 1.0, max_age: 90.0, cause_of_death: None });
         v
     };
@@ -61,10 +61,12 @@ fn village() -> Village {
     world.add_component(guild, Organization {
         name: "Harvesters".into(), members: vec![child, friend], leader: elder,
         influence_pool: 0.0, resources: 0.0, charter: "Mutual aid".into(),
+        successors: vec![],
     });
     let church = world.create_entity();
     world.add_component(church, Congregation {
         name: "Old Faith".into(), members: vec![elder, child, friend], leader: None, orthodoxy: 0.5, services: vec![],
+        cultish: false,
     });
     Village { world, sched, elder, child, friend, dog, guild, church }
 }

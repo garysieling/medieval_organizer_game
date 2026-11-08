@@ -964,6 +964,7 @@ impl Game {
             cadence_day: u64::MAX,
             townhall_day: u64::MAX,
             petition_day: u64::MAX,
+            assembly_day: u64::MAX,
             snowball_cued: false,
             snowball_at: (0.0, 0.0),
             snowballs: vec![],

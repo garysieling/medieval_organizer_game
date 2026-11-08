@@ -410,6 +410,21 @@ impl Game {
                 ("arc:fatigue", "the cause's weary"), ("arc:consent", "the room consents"),
                 ("arc:strong", "runs strong"), ("arc:weak", "runs thin"),
             ].iter().find(|(f, _)| facts.has(f)).map(|(_, w)| w.to_string()).unwrap_or_default();
+            // the assembly's standing: the agenda posted, or the
+            // pledges the room's keeping count of - a broken word
+            // shows till the cap's drained it
+            let assembly = world.get_component::<crate::game::campaign::Assembly>(e)
+                .map(|a| {
+                    if a.announced.is_some() { return "assembly called - the agenda's posted".to_string(); }
+                    let broken = a.pledges.iter().filter(|p| p.kept == Some(false)).count();
+                    let open = a.pledges.iter().filter(|p| p.kept.is_none()).count();
+                    let kept = a.pledges.iter().filter(|p| p.kept == Some(true)).count();
+                    let mut parts = vec![];
+                    if broken > 0 { parts.push(format!("{} pledge{} broke", broken, if broken == 1 { "" } else { "s" })); }
+                    if open > 0 { parts.push(format!("{} pledge{} stand{}", open, if open == 1 { "" } else { "s" }, if open == 1 { "s" } else { "" })); }
+                    if kept > 0 && broken == 0 { parts.push(format!("{} pledge{} kept", kept, if kept == 1 { "" } else { "s" })); }
+                    parts.join(" - ")
+                }).unwrap_or_default();
             CampaignV {
                 issue: c.issue.clone(),
                 shadow,
@@ -420,6 +435,7 @@ impl Game {
                 resolves: mtg.map(|m| m.resolves).unwrap_or(0),
                 due: mtg.map(|m| self.tick.saturating_sub(m.last_held) >= m.cadence_days).unwrap_or(false),
                 cadence_days: mtg.map(|m| m.cadence_days).unwrap_or(0),
+                assembly,
             }
         });
         let blocked = [self.action_blocker_at(seat, 0), self.action_blocker_at(seat, 1), self.action_blocker_at(seat, 2)];

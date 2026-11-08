@@ -4,6 +4,7 @@
 mod action_log;
 mod agent;
 mod apiary;
+mod assembly;
 mod attach;
 mod blocker;
 mod build;

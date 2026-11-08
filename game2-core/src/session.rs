@@ -358,6 +358,7 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // the meeting it reports to
         CtxAct::Interview => Button { label: "Interview".into(), key: ' ', x: UI_X as i32 + 146, y: 406, w: 62, h: 16, color: (90, 100, 140) },
         CtxAct::Debrief => Button { label: "Debrief".into(), key: ' ', x: UI_X as i32 + 216, y: 470, w: 62, h: 16, color: (100, 100, 130) },
+        CtxAct::Assembly => Button { label: "Assembly".into(), key: ' ', x: UI_X as i32 + 216, y: 454, w: 62, h: 16, color: (110, 90, 130) },
         CtxAct::Attend => Button { label: "Attend".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 62, h: 16, color: (140, 110, 60) },
         CtxAct::Board => Button { label: "Board".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
         CtxAct::Disembark => Button { label: "Disembark".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
@@ -1115,6 +1116,7 @@ pub struct Game {
     pub cadence_day: u64,
     pub townhall_day: u64,
     pub petition_day: u64,
+    pub assembly_day: u64,
     /// Whether today's fight has raised its hubbub yet
     pub snowball_cued: bool,
     /// Where today's fight is being made, for the sound's pan

@@ -462,6 +462,347 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     Some(MeetingOutcome { attendees, healed, drifted, noted, consent })
 }
 
+// --- The accountability assembly (IAF): the campaign's own session on
+// its own cadence - the agenda published ahead, the leader's yes/no
+// answers on record, and pledges the deadline reads against what the
+// village saw. It's a standing institution, not a meeting: it calls
+// itself, and the organizer can call it early.
+
+/// Days between accountability assemblies
+pub const ASSEMBLY_CADENCE: u64 = 14;
+/// Days the published agenda sits before the assembly sits - the
+/// "in advance" that makes the pin-downs accountability, not ambush
+pub const PUBLISH_GAP: u64 = 2;
+/// Days into the fight before the first assembly can be called
+pub const FIRST_ASSEMBLY_DELAY: u64 = 10;
+/// Questions on a published agenda
+const AGENDA_LEN: usize = 3;
+/// Pledges kept on the record - the oldest resolved ones drop first
+const PLEDGE_CAP: usize = 40;
+
+/// What a pledge is checked against: the observable state that says
+/// whether the word was kept. Each variant reads the world at the
+/// deadline - nothing here tracks a promise, it's a question the
+/// village can see the answer to
+#[derive(Debug, Clone)]
+pub enum PledgeCheck {
+    /// an arc action lands - a march, a strike, a townhall
+    Action { from: u32 },
+    /// this many more meetings held
+    Meetings { from: u32, more: u32 },
+    /// the org's muscle grew past `from`
+    Stronger { from: f32 },
+    /// an assembly after the pledge's day turns out `min` strong
+    Delegation { min: usize },
+    /// `fewer` fewer dissenters than `from`
+    Doubters { from: usize, fewer: usize },
+}
+
+impl PledgeCheck {
+    /// Whether the observable says the thing happened - read at the
+    /// deadline, against the state the village could see
+    fn holds(&self, world: &World, campaign: Entity, pledge: &Pledge) -> bool {
+        match self {
+            PledgeCheck::Action { from } =>
+                world.get_component::<crate::game::campaign_arc::ArcRecord>(campaign)
+                    .map(|r| r.actions > *from).unwrap_or(false),
+            PledgeCheck::Meetings { from, more } =>
+                world.get_component::<CampaignMeeting>(campaign)
+                    .map(|m| m.held >= from.saturating_add(*more)).unwrap_or(false),
+            PledgeCheck::Stronger { from } => world.get_component::<Campaign>(campaign)
+                .and_then(|c| world.get_component::<crate::sim::organized_power::OrganizedPower>(c.org))
+                .map(|p| p.capacity > from + 0.1).unwrap_or(false),
+            // the pledge's own assembly doesn't count - the check wants
+            // a later one, which is why the deadline outlasts the cadence
+            PledgeCheck::Delegation { min } =>
+                world.get_component::<Assembly>(campaign)
+                    .map(|a| a.last_held > pledge.day && a.last_turnout >= *min).unwrap_or(false),
+            PledgeCheck::Doubters { from, fewer } =>
+                world.get_component::<Campaign>(campaign)
+                    .map(|c| c.dissenters.len().saturating_add(*fewer) <= *from).unwrap_or(false),
+        }
+    }
+}
+
+/// A yes/no answer the leader gave on the record - the artifact an
+/// accountability assembly exists to produce
+#[derive(Debug, Clone)]
+pub struct Pledge {
+    pub question: String,
+    pub leader: Entity,
+    /// The answer on record - yes is a promise, no is a refusal; both
+    /// are checked against what happened
+    pub answer: bool,
+    pub day: u64,
+    pub deadline: u64,
+    /// The member whose testimony amended the recorded answer, if the
+    /// room checked the leader's word before it was inked
+    pub challenged: Option<Entity>,
+    /// None until the deadline's check runs
+    pub kept: Option<bool>,
+    pub check: PledgeCheck,
+}
+
+/// The accountability assembly's own state, on the campaign entity
+#[derive(Debug)]
+pub struct Assembly {
+    /// Days between assemblies
+    pub cadence_days: u64,
+    /// The day the last assembly sat
+    pub last_held: u64,
+    /// The day the standing agenda was published
+    pub announced: Option<u64>,
+    /// The published questions, each with what it's checked against
+    pub agenda: Vec<(String, PledgeCheck)>,
+    /// How many answered the last call
+    pub last_turnout: usize,
+    /// Who answered it - the room a broken pledge chills
+    pub musterered: Vec<Entity>,
+    /// Assemblies sat since the institution was called
+    pub held: u32,
+    /// The pledges on record
+    pub pledges: Vec<Pledge>,
+}
+
+/// What an assembly sitting produced
+#[derive(Debug)]
+pub struct AssemblyOutcome {
+    pub attendees: Vec<Entity>,
+    /// The pledges the leader's answers made
+    pub pledges: Vec<Pledge>,
+    /// Members whose testimony amended an answer - (who, the question)
+    pub challenges: Vec<(Entity, String)>,
+    pub leader: Entity,
+}
+
+/// What the deadline's check found for one pledge
+#[derive(Debug)]
+pub struct PledgeVerdict {
+    pub question: String,
+    pub answer: bool,
+    /// The word was kept: what they said is what happened
+    pub kept: bool,
+}
+
+/// The questions an assembly could put, in priority order - each with
+/// the observable it'll later be held to. Only what the campaign can
+/// actually be asked makes the ballot
+fn agenda_checks(world: &World, campaign: Entity, org: Entity) -> Vec<(String, PledgeCheck)> {
+    let mut out = vec![];
+    // the fight going public
+    let actions = world.get_component::<crate::game::campaign_arc::ArcRecord>(campaign)
+        .map(|r| r.actions).unwrap_or(0);
+    out.push(("Will we carry the fight to the streets?".into(),
+        PledgeCheck::Action { from: actions }));
+    // the room keeping its date
+    if let Some(m) = world.get_component::<CampaignMeeting>(campaign) {
+        out.push(("Will the room meet again before the next assembly?".into(),
+            PledgeCheck::Meetings { from: m.held, more: 1 }));
+    }
+    // the muscle growing
+    let power = world.get_component::<crate::sim::organized_power::OrganizedPower>(org)
+        .map(|p| p.capacity).unwrap_or(0.0);
+    out.push(("Will we come out of this stronger than we went in?".into(),
+        PledgeCheck::Stronger { from: power }));
+    // the delegation answering - in force means most of them
+    let free: Vec<Entity> = world.get_component::<Organization>(org)
+        .map(|o| o.members.iter().copied()
+            .filter(|&m| !crate::game::dungeon::unavailable(world, m)).collect())
+        .unwrap_or_default();
+    if free.len() >= 3 {
+        out.push(("Will the delegation turn out in force?".into(),
+            PledgeCheck::Delegation { min: free.len() / 2 + 1 }));
+    }
+    // the doubters coming round
+    let dissenters = world.get_component::<Campaign>(campaign)
+        .map(|c| c.dissenters.iter()
+            .filter(|&&d| !crate::game::dungeon::unavailable(world, d)).count())
+        .unwrap_or(0);
+    if dissenters > 0 {
+        out.push(("Will the doubters come 'round?".into(),
+            PledgeCheck::Doubters { from: dissenters, fewer: dissenters }));
+    }
+    out
+}
+
+/// Post the agenda: AGENDA_LEN questions picked deterministically -
+/// rotated by the day and the campaign so assemblies don't ask the
+/// same three things forever. Returns the questions for the log; None
+/// when there's no org or nobody to answer for it
+pub fn announce_assembly(world: &mut World, campaign: Entity, tick: u64) -> Option<Vec<String>> {
+    let org = world.get_component::<Campaign>(campaign)?.org;
+    // somebody has to answer for the org
+    living_leader(world, org)?;
+    let mut checks = agenda_checks(world, campaign, org);
+    if checks.is_empty() { return None; }
+    let rot = (tick as usize).wrapping_add(campaign as usize) % checks.len();
+    checks.rotate_left(rot);
+    checks.truncate(AGENDA_LEN);
+    let questions: Vec<String> = checks.iter().map(|(q, _)| q.clone()).collect();
+    if world.get_component::<Assembly>(campaign).is_none() {
+        world.add_component(campaign, Assembly {
+            cadence_days: ASSEMBLY_CADENCE, last_held: tick,
+            announced: None, agenda: vec![], last_turnout: 0,
+            musterered: vec![], held: 0, pledges: vec![],
+        });
+    }
+    if let Some(a) = world.get_component_mut::<Assembly>(campaign) {
+        a.announced = Some(tick);
+        a.agenda = checks;
+    }
+    Some(questions)
+}
+
+/// Sit the assembly: the published agenda comes due, the delegation
+/// musters on the same ties as a meeting, and the leader's yes/no
+/// answers go on record as pledges the deadline will check. The
+/// publish gap is what makes it accountability - the questions were
+/// public before the answers were asked
+pub fn hold_assembly(world: &mut World, campaign: Entity, tick: u64) -> Option<AssemblyOutcome> {
+    let announced = world.get_component::<Assembly>(campaign)?.announced?;
+    if tick < announced + PUBLISH_GAP { return None; }
+    let agenda = world.get_component::<Assembly>(campaign)?.agenda.clone();
+    if agenda.is_empty() { return None; }
+    let org = world.get_component::<Campaign>(campaign)?.org;
+    let leader = living_leader(world, org)?;
+    let members = world.get_component::<Organization>(org)?.members.clone();
+    let in_org = |h: Entity| h == leader || members.contains(&h);
+
+    // the same call a meeting answers: the coordinator's ties if the
+    // seat's filled, else the shadow elite's pull, else the leader's
+    let coordinator = seat_holder(world, campaign, Role::TurnoutCoordinator)
+        .filter(|&h| !crate::game::dungeon::unavailable(world, h) && in_org(h));
+    let driver = coordinator
+        .or_else(|| shadow_elite(world, campaign))
+        .or(Some(leader))
+        .filter(|&d| !crate::game::dungeon::unavailable(world, d))?;
+
+    use crate::game::relationships::{find_relationship, Relationship};
+    let strength_to = |w: &World, m: Entity| find_relationship(w, m, driver)
+        .and_then(|r| w.get_component::<Relationship>(r))
+        .map(|r| r.strength).unwrap_or(0.0);
+    let mut attendees: Vec<Entity> = vec![driver];
+    for m in &members {
+        if *m == driver || crate::game::dungeon::unavailable(world, *m) { continue; }
+        if strength_to(world, *m) >= ATTEND_MIN_TIE { attendees.push(*m); }
+    }
+
+    // the room's weight is the org's muscle: a thin house earns little,
+    // and a lone leader earns nothing - the mandate's what's mustered
+    if attendees.len() >= 3 {
+        crate::sim::organized_power::record_action(world, org,
+            crate::sim::organized_power::ActionQuality::Transformational);
+    } else if attendees.len() >= 2 {
+        crate::sim::organized_power::record_action(world, org,
+            crate::sim::organized_power::ActionQuality::Transactional);
+    }
+
+    // the leader answers the published agenda on the record - seeded
+    // like the room's talk, so a replay says the same
+    let mut rng = crate::game::conversation::Rng::new(
+        tick.wrapping_mul(0x0100_0000_01B3) ^ ((campaign as u64) << 32));
+    let cadence = world.get_component::<Assembly>(campaign)
+        .map(|a| a.cadence_days).unwrap_or(ASSEMBLY_CADENCE);
+    // the deadline outlasts the cadence by the publish gap, so the next
+    // assembly has sat before a delegation pledge comes due
+    let deadline = tick + cadence + PUBLISH_GAP;
+    let mut pledges: Vec<Pledge> = agenda.iter().map(|(q, check)| Pledge {
+        question: q.clone(), leader,
+        answer: rng.below(100) < 60,
+        day: tick, deadline, challenged: None, kept: None, check: check.clone(),
+    }).collect();
+
+    // a member's testimony can amend the leader's answer before it's
+    // inked - the room's own check on the pin-downs. The amended word
+    // is what the deadline reads, and the challenge itself is a
+    // disagreement aired in public: it feeds the same trust ledger
+    // every other friction does
+    let mut challenges: Vec<(Entity, String)> = vec![];
+    let pool: Vec<Entity> = attendees.iter().copied()
+        .filter(|&m| m != leader).collect();
+    if pool.len() >= 2 && !pledges.is_empty() && rng.below(100) < 60 {
+        let challenger = pool[rng.below(pool.len())];
+        let pi = rng.below(pledges.len());
+        pledges[pi].answer = !pledges[pi].answer;
+        pledges[pi].challenged = Some(challenger);
+        challenges.push((challenger, pledges[pi].question.clone()));
+        use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+        record_interaction(world, challenger, Interaction {
+            other: leader, kind: InteractionKind::Conflict, intensity: 0.5 });
+    }
+
+    if let Some(a) = world.get_component_mut::<Assembly>(campaign) {
+        a.announced = None;
+        a.last_held = tick;
+        a.held += 1;
+        a.last_turnout = attendees.len();
+        a.musterered = attendees.clone();
+        a.pledges.extend(pledges.clone());
+        if a.pledges.len() > PLEDGE_CAP {
+            let excess = a.pledges.len() - PLEDGE_CAP;
+            a.pledges.drain(..excess);
+        }
+    }
+    Some(AssemblyOutcome { attendees, pledges, challenges, leader })
+}
+
+/// Read every due pledge against the observable and mark it kept or
+/// broken. The word kept warms the room that heard it; the word broken
+/// chills it - and spends the consent the meetings banked, which is
+/// the drift #853's watchdog will read through `broken_pledges`
+pub fn resolve_pledges(world: &mut World, campaign: Entity, tick: u64) -> Vec<PledgeVerdict> {
+    use crate::game::relationships::{record_interaction, Interaction, InteractionKind};
+    // which pledges came due - the check reads the world, so the
+    // mutable borrow waits for the verdicts
+    let due: Vec<usize> = world.get_component::<Assembly>(campaign)
+        .map(|a| a.pledges.iter().enumerate()
+            .filter(|(_, p)| p.kept.is_none() && tick >= p.deadline)
+            .map(|(i, _)| i).collect()).unwrap_or_default();
+    if due.is_empty() { return vec![]; }
+    let mut results: Vec<(usize, Entity, PledgeVerdict)> = vec![];
+    for &i in &due {
+        let Some(p) = world.get_component::<Assembly>(campaign).and_then(|a| a.pledges.get(i)) else { continue };
+        let happened = p.check.holds(world, campaign, p);
+        let kept = p.answer == happened;
+        results.push((i, p.leader, PledgeVerdict {
+            question: p.question.clone(), answer: p.answer, kept }));
+    }
+    if results.is_empty() { return vec![]; }
+    let musterered = world.get_component::<Assembly>(campaign)
+        .map(|a| a.musterered.clone()).unwrap_or_default();
+    if let Some(a) = world.get_component_mut::<Assembly>(campaign) {
+        for &(i, _, ref v) in &results { a.pledges[i].kept = Some(v.kept); }
+    }
+    // one verdict per leader: a single broken word chills the room,
+    // a clean sheet warms it
+    let mut leaders: Vec<Entity> = vec![];
+    for &(_, l, _) in &results { if !leaders.contains(&l) { leaders.push(l); } }
+    for l in leaders {
+        let any_broken = results.iter().any(|&(_, fl, ref v)| fl == l && !v.kept);
+        for &m in &musterered {
+            if m == l { continue; }
+            record_interaction(world, m, Interaction {
+                other: l,
+                kind: if any_broken { InteractionKind::Conflict } else { InteractionKind::Conversation },
+                intensity: if any_broken { 1.0 } else { 0.5 },
+            });
+        }
+        if any_broken {
+            // the room's banked consent doesn't survive a broken word
+            crate::game::campaign_arc::record_consent(world, campaign, false);
+        }
+    }
+    results.into_iter().map(|(_, _, v)| v).collect()
+}
+
+/// The pledges the deadline broke - the commitments #853's enforcement
+/// forms will watch for going quiet
+pub fn broken_pledges(world: &World, campaign: Entity) -> Vec<&Pledge> {
+    world.get_component::<Assembly>(campaign)
+        .map(|a| a.pledges.iter().filter(|p| p.kept == Some(false)).collect())
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

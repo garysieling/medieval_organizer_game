@@ -84,6 +84,7 @@ mod laborer_rowdiness;
 mod gaol;
 mod events_attend;
 mod construction;
+mod cult;
 mod laws;
 mod season_illness;
 mod sheriff;

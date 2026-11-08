@@ -998,3 +998,63 @@ impl Game {
         }
     }
 }
+
+impl Game {
+    /// The cult's day: a strict orthodoxy, a charismatic head, and a
+    /// flock cut off tip the parish into a cult - the tithe drains the
+    /// members to the leader, and a congregation that relaxes comes
+    /// back to itself
+    pub(in crate::session) fn cult_tick(&mut self, tick: u64) {
+        let ce = self.congregation;
+        let (mut cult, orthodoxy, leader, members) = {
+            let c = self.world.get_component::<crate::sim::religion::Congregation>(ce)
+                .expect("the parish has a congregation");
+            (c.cultish, c.orthodoxy, c.leader, c.members.clone())
+        };
+        // the three factors: strict, charismatic, cut off. Charisma's a
+        // leader who holds the flock's hearts; isolation's the flock's
+        // bonds staying inside itself
+        let charismatic = leader.map(|l| {
+            let bonds = self.world.query::<crate::sim::psychology::Bond>().iter()
+                .filter(|&&e| self.world.get_component::<crate::sim::psychology::Bond>(e)
+                    .map(|b| b.target == l).unwrap_or(false)).count();
+            bonds >= 4
+        }).unwrap_or(false);
+        let isolated = {
+            let inside: usize = self.world.query::<crate::sim::psychology::Bond>().iter()
+                .filter(|&&e| members.contains(&e)
+                    && self.world.get_component::<crate::sim::psychology::Bond>(e)
+                        .map(|b| members.contains(&b.target)).unwrap_or(false)).count();
+            let outside: usize = self.world.query::<crate::sim::psychology::Bond>().iter()
+                .filter(|&&e| members.contains(&e)
+                    && self.world.get_component::<crate::sim::psychology::Bond>(e)
+                        .map(|b| !members.contains(&b.target)).unwrap_or(false)).count();
+            inside as f32 > (outside as f32) * 1.5
+        };
+        if !cult && orthodoxy > 0.7 && charismatic && isolated {
+            cult = true;
+            self.log.push(format!("t{}: the parish turns inward - the flock follows its shepherd past the village's edge.", tick));
+            for m in &members { self.world.add_component(*m, crate::sim::religion::Cultish); }
+        } else if cult && orthodoxy < 0.5 {
+            // institutionalized: the fire burns out, the flock comes
+            // back to the village's own fold
+            cult = false;
+            for m in &members { self.world.remove_component::<crate::sim::religion::Cultish>(*m); }
+            self.log.push(format!("t{}: the fire burns out - the parish is the village's own again.", tick));
+        }
+        self.world.get_component_mut::<crate::sim::religion::Congregation>(ce)
+            .map(|c| c.cultish = cult);
+        // the tithe: the members' gold flows to the shepherd while the
+        // cult holds - a quarter of what each has
+        if cult && tick % 7 == 0 {
+            let take = members.iter().filter_map(|&m| {
+                let p = self.world.get_component_mut::<Purse>(m)?;
+                let cut = p.gold * 0.25;
+                p.gold -= cut; Some(cut)
+            }).sum::<f32>();
+            if let Some(l) = leader {
+                if let Some(p) = self.world.get_component_mut::<Purse>(l) { p.gold += take; }
+            }
+        }
+    }
+}

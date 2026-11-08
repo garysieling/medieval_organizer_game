@@ -41,6 +41,7 @@ fn main() {
             name: "Harvest Rite".into(), frequency: "weekly".into(),
             participants: devout.clone(), cohesion_boost: 0.15, charity_output: 0.1,
         }],
+        cultish: false,
     });
 
     // Run systems - orthodoxy spreads, congregation produces cohesion

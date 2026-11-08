@@ -125,6 +125,9 @@ pub struct Congregation {
     pub leader: Option<Entity>,
     pub orthodoxy: f32,         // how strict about beliefs
     pub services: Vec<Service>,
+    /// The three factors tip a drifting congregation into a cult: a
+    /// strict orthodoxy, a charismatic head, and the flock cut off
+    pub cultish: bool,
 }
 
 /// A religious service/ritual
@@ -256,6 +259,7 @@ mod tests {
                 cohesion_boost: 0.2,
                 charity_output: 0.1,
             }],
+            cultish: false,
         });
         // Service exists with cohesion effect
         assert!(w.get_component::<Congregation>(c).unwrap().services[0].cohesion_boost > 0.0);
@@ -270,7 +274,7 @@ mod tests {
     fn congregation(w: &mut World, members: Vec<Entity>) -> Entity {
         let c = w.create_entity();
         w.add_component(c, Congregation {
-            name: "Village Church".into(), members, leader: None, orthodoxy: 0.5, services: vec![],
+            name: "Village Church".into(), members, leader: None, orthodoxy: 0.5, services: vec![], cultish: false,
         });
         c
     }

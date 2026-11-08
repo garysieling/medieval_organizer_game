@@ -51,6 +51,8 @@ pub struct View {
     pub help_open: bool,
     /// the village ledger (F3): the public KPI lines the session built
     pub ledger_open: bool,
+    /// Where the mouse rests this frame - the flyer's hover reads it
+    pub mouse: Option<(i32, i32)>,
     /// The find box under the minimap: what was typed and whether it has
     /// the keys - widget state like the toggles above
     pub search_q: String,
@@ -113,6 +115,7 @@ impl View {
             inspector_open: true,
             help_open: false,
             ledger_open: false,
+            mouse: None,
             search_q: String::new(),
             search_focus: false,
             focus_seen: std::cell::Cell::new(None),
@@ -348,6 +351,11 @@ impl View {
         standing.extend(m.herbs.iter().map(|&(x, y)| (x, y, small(&art.herbs, x, y, 51).map_or(Piece::Herb, Piece::Stand))));
         standing.extend(m.mush.iter().map(|&(x, y)| (x, y, small(&art.shrooms, x, y, 52).map_or(Piece::Shroom, Piece::Stand))));
         standing.extend(m.skeps.iter().map(|&(x, y)| (x, y, small(&art.skeps, x, y, 53).map_or(Piece::Skep, Piece::Stand))));
+        // the board's own post: a placard at the market's edge - the
+        // notices stand on it, the player reads them at a click
+        if let Some((x, y)) = m.market {
+            standing.push((x + 1.5, y + 1.0, Piece::Gaol));
+        }
         // the market cross, or the maypole on a feast day
         if let Some((x, y)) = m.market {
             let s = if m.feast { art.maypole.as_ref().or(art.market_cross.as_ref()) } else { art.market_cross.as_ref() };
@@ -1351,6 +1359,22 @@ impl View {
         // help overlay
         if self.help_open { draw_help(&mut buf); }
 
+        // the board's postings: the notices panel, read at the market
+        if m.notice_panel && !m.notices.is_empty() {
+            let lines: Vec<String> = m.notices.iter()
+                .map(|(k, t)| format!("[{}] {}", k, t)).collect();
+            let refs: Vec<&str> = lines.iter().map(String::as_str).collect();
+            draw_overlay(&mut buf, 480, "the board's postings", (255, 240, 200), &refs, 120, None);
+        }
+        // a flyer's hover: mouse near a posted door and its words show
+        if let Some((mx, my)) = self.mouse {
+            for &(fx, fy, ref f) in &m.postings {
+                let (sx, sy) = iso_to_screen_cam(fx as f32, fy as f32, cam_x, cam_y, zoom);
+                if (mx - sx).abs() < 20 && (my - sy).abs() < 20 {
+                    draw_overlay(&mut buf, 300, f, (220, 200, 160), &[f.as_str()], 60, None);
+                }
+            }
+        }
         // the ledger overlay: the public KPIs the model carried (F3)
         if self.ledger_open && !m.debug_lines.is_empty() {
             let rows = m.debug_lines.len();

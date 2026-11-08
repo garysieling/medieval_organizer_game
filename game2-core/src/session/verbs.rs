@@ -1571,6 +1571,7 @@ impl Game {
                             crate::game::reactions::AssemblyBan { cap: 2 });
                         msg += " The Reeve proclaims it law: no more than two assembled.";
                         self.toasts.push(("the ban is proclaimed".into(), tick + 40));
+                        self.notices.push(("ban".into(), "no more than two assembled - the Reeve's law".into(), tick + 60));
                     }
                     // every crackdown can still take someone
                     if let Some(taken) = crate::game::dungeon::arrest(&mut self.world, c, tick) {
@@ -1709,7 +1710,8 @@ impl Game {
         self.world.add_component(e, crate::game::household::Building {
             kind: crate::game::household::BuildingKind::Schoolhouse,
             name: "the schoolhouse".into(), occupants: vec![], worker: None,
-            overseer: None, stock: crate::engine::det::HashMap::default(), capacity: 0 });
+            overseer: None, stock: crate::engine::det::HashMap::default(),
+                    flyer: None, capacity: 0 });
         self.building_entities.push(e);
         self.school = Some(e);
     }

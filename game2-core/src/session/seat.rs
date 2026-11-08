@@ -467,6 +467,18 @@ impl Game {
     /// caller's camera: rivals rebuff or greet you, villagers get selected
     pub fn click_map_at(&mut self, seat: usize, mx: i32, my: i32, cam_x: i32, cam_y: i32, zoom: f32) {
         let tick = self.tick;
+        // the market board: click near the market cross and you're
+        // reading what's pinned - the panel opens, the notices stand
+        if let Some(mp) = self.world.get_component::<Pos>(self.market_food).copied() {
+            let (sx, sy) = iso_to_screen_cam(mp.x, mp.y, cam_x, cam_y, zoom);
+            let d = (((sx - mx) as f32).powi(2) + ((sy - my) as f32).powi(2)).sqrt();
+            if mx < MAP_W as i32 && d < 30.0 {
+                self.notice_panel = !self.notice_panel;
+                self.log.push(format!("t{}: {} the board's postings.", tick,
+                    if self.notice_panel { "you read" } else { "you step away from" }));
+                return;
+            }
+        }
         // click on a rival villager -> they rebuff you (foreign village is wary)
         for (i, rv) in self.rivals.clone().into_iter().enumerate() {
             if let Some(p) = self.world.get_component::<Pos>(rv) {

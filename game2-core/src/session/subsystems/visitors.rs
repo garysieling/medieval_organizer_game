@@ -152,6 +152,7 @@ impl Game {
                     kind: household::BuildingKind::TraderStall,
                     name: "the pedlar's pitch".into(),
                     worker: Some(m.e), stock, occupants: vec![],
+                    flyer: None,
                     capacity: 1, overseer: None,
                 });
                 m.stall = Some(stall);

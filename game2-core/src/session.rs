@@ -1004,6 +1004,11 @@ pub struct Game {
     /// Who's stood in a gathering today: (player, day) - the day's rite
     /// counts once, not once per button press
     pub attended_days: Vec<(Entity, u64)>,
+    /// The market board's postings: what's pinned to it, and when each
+    /// comes down - a writ's term, a feast's day, a quest's asking
+    pub notices: Vec<(String, String, u64)>,
+    /// Whether a seat's reading the board: the notices panel's open
+    pub notice_panel: bool,
     /// The village gaol's tile - the watch house's cellar, picked when
     /// a watch post stands; the castle's own cell block at the keep
     pub village_gaol: Option<(i32, i32)>,

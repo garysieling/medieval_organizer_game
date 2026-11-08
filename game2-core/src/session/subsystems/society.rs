@@ -252,6 +252,10 @@ impl Game {
                     if bargained { " - the org talks him down" } else { "" },
                     if mult > 1 { " Double, for the last defiance." } else { "" }),
                     toast_spot(&self.world, self.market_food), None);
+                self.notices.push(("writ".into(), format!("the castle levies {} grain", take), tick + 7));
+                if let Some(b) = self.world.get_component_mut::<Building>(self.market_food) {
+                    b.flyer = Some(format!("levy: {} grain due", take));
+                }
             }
             1 => {
                 // a fee: gold off every purse that has it
@@ -267,6 +271,7 @@ impl Game {
                 }
                 self.log.push(format!("t{}: a bailiff's writ - a fee of {:.0} gold off the village.{}",
                     tick, taken, if bargained { " Halved - the org's word counts." } else { "" }));
+                self.notices.push(("writ".into(), format!("a fee of {:.0} gold off the village", taken), tick + 7));
             }
             3 => {
                 // the drink levy: the castle's share of every barrel in
@@ -286,6 +291,7 @@ impl Game {
                 self.log.push(format!("t{}: a bailiff's writ - the castle's share of the barrel, {} measures off the village's drink.{}",
                     tick, taken,
                     if bargained { " Halved - the org's word counts." } else { "" }));
+                self.notices.push(("writ".into(), format!("the castle's share of the barrel: {} measures", taken), tick + 7));
             }
             _ => {
                 // a summons: one of the village's own for 'questioning' -
@@ -690,6 +696,7 @@ impl Game {
         let feast = FEASTS[(tick / 90 % 4) as usize];
         self.log.push_at_who(format!("t{}: {} - the village gathers at the market.", tick, feast),
             toast_spot(&self.world, self.market_food), None);
+        self.notices.push(("feast".into(), format!("{} - the village gathers at the market", feast), tick + 3));
         // the good stock comes out: bread, honey, whatever the stalls held
         let mut loaves = 0u32;
         for &be in &self.building_entities.clone() {

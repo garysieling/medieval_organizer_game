@@ -59,6 +59,9 @@ pub struct Building {
     pub stock: HashMap<String, u32>,
     /// Cap per good kept in stock
     pub capacity: u32,
+    /// What's nailed to the door: a writ's posting, a feast's handbill -
+    /// the board's own words where the building carries them
+    pub flyer: Option<String>,
 }
 
 /// The building kind a vocation works out of
@@ -128,6 +131,7 @@ pub fn spawn_building(world: &mut World, kind: BuildingKind, name: &str, x: f32,
         kind, name: name.to_string(),
         occupants: vec![], worker: None, overseer: None,
         stock: HashMap::default(), capacity,
+        flyer: None,
     });
     e
 }

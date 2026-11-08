@@ -644,6 +644,17 @@ pub struct Travel {
     pub goal: Goal,
 }
 
+/// The plague doctor: rides in when the sickness takes three, works
+/// the sick households for a fee, and rides home when the village
+/// mends - a stranger's hands for the village's grief
+pub struct Doctor {
+    pub e: Entity,
+    /// The sick he still has to see today
+    pub rounds: Vec<Entity>,
+    /// The fees he's carrying out with him
+    pub fee_bank: f32,
+}
+
 /// The travelling minstrel: walks the road in, plays at the market a
 /// while, and leaves
 pub struct Minstrel {
@@ -957,6 +968,8 @@ pub struct Game {
     /// The emperor's levy: while it runs, the granary bleeds for a
     /// project nobody here will ever see
     pub imperial_project: Option<ImperialProject>,
+    /// The plague doctor while the sickness runs three deep
+    pub doctor: Option<Doctor>,
     /// The vote: once a suffrage campaign carries it, a woman's name on
     /// a banner means the same as a man's
     pub suffrage_won: bool,

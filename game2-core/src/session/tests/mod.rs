@@ -79,6 +79,7 @@ mod levy;
 mod child_labor;
 mod labor_backlash;
 mod laborer_rowdiness;
+mod plague_doctor;
 mod suffrage;
 mod monuments;
 mod stone_circle;

@@ -993,6 +993,7 @@ impl Game {
             cairns: vec![],
             monuments: vec![],
             imperial_project: None,
+            doctor: None,
             suffrage_won: false,
             ordinance: None,
             petition: None,

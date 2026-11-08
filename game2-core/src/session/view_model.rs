@@ -227,6 +227,13 @@ impl Game {
             people.push(PersonV { sign: None, mounted: false, e: 0, kind: PKind::Traveller, pos: (tx, ty),
                 label: None, dead: false, kid: false, selected: false, in_reach: false, hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
         }
+        if let Some(d) = &self.doctor {
+            if let Some(p) = self.world.get_component::<Pos>(d.e).copied() {
+                people.push(PersonV { sign: None, mounted: false, e: d.e, kind: PKind::Traveller, pos: (p.x, p.y),
+                    label: Some("the plague doctor".into()), dead: false, kid: false, selected: false, in_reach: false,
+                    hungry: false, sick: false, act_mark: 0, bond: false, look: 0, find: String::new() });
+            }
+        }
         if let Some(m) = &self.minstrel {
             if let Some(p) = world.get_component::<Pos>(m.e) {
                 people.push(PersonV { sign: None, mounted: false, e: m.e, kind: PKind::Traveller, pos: (p.x, p.y),

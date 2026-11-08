@@ -678,6 +678,9 @@ impl Game {
         let world = &self.world;
         let b = world.get_component::<Building>(be)?;
         let mut lines: Vec<Line> = vec![];
+        // the same page as a person's card: each row takes only the room
+        // it needs, long rows wrapped inside the card's edge
+        let mut y = 326;
         let kind_word = match b.kind {
             BuildingKind::Home => "Home",
             BuildingKind::Shop(_) => "Workshop",
@@ -694,22 +697,25 @@ impl Game {
             BuildingKind::Dungeon => "The dungeon",
             BuildingKind::Plantation => "The plantation",
         };
-        lines.push(Line { x: 18, y: 326, text: b.name.clone(), rgb: (255, 255, 255) });
+        lines.push(Line { x: 18, y, text: b.name.clone(), rgb: (255, 255, 255) });
         // the fire's near rides the kind word: flames close enough that
         // this roof could carry them home
         let near_fire = world.get_component::<Pos>(be)
             .map(|p| self.fire.burns_near(p.x as i32, p.y as i32, 4)).unwrap_or(false);
-        lines.push(Line { x: 18, y: 340, rgb: (200, 200, 230),
+        y += 14;
+        lines.push(Line { x: 18, y, rgb: (200, 200, 230),
             text: format!("{}{}", kind_word, if near_fire { " \u{00b7} the fire's near" } else { "" }) });
         let worker = b.worker.and_then(|w| self.villagers.iter().position(|v| *v == w))
             .map(|i| vill_name(i).to_string())
             .or_else(|| b.worker.map(|_| "you".to_string()));
         let who = worker.map(|w| format!("worked by {}", w)).unwrap_or_else(|| "stands empty".to_string());
         let col = if household::derelict(b) { (230, 140, 90) } else { (190, 190, 210) };
-        lines.push(Line { x: 18, y: 354, text: who, rgb: col });
+        y += 12;
+        lines.push(Line { x: 18, y, text: who, rgb: col });
         if let Some(o) = b.overseer {
             let on = self.villagers.iter().position(|v| *v == o).map(|i| vill_name(i)).unwrap_or("someone");
-            lines.push(Line { x: 18, y: 368, text: format!("overseer: {}", on), rgb: (200, 160, 120) });
+            y += 12;
+            lines.push(Line { x: 18, y, text: format!("overseer: {}", on), rgb: (200, 160, 120) });
         }
         if b.kind == BuildingKind::Home {
             let names: Vec<&str> = b.occupants.iter()
@@ -735,17 +741,20 @@ impl Game {
                 (false, true) => " \u{00b7} a workshop too",
                 (false, false) => "",
             };
-            lines.push(Line { x: 18, y: 368,
-                text: format!("lives here: {}{}", if names.is_empty() { "no one".into() } else { names.join(", ") }, also),
-                rgb: (190, 190, 210) });
+            card_prop(&mut lines, &mut y, "Lives here",
+                &format!("{}{}", if names.is_empty() { "no one".into() } else { names.join(", ") }, also),
+                (190, 190, 210));
         }
         let offers = household::on_offer_at(&self.world, b);
         let stock_line = offers.iter().take(3).map(|(g, q, _)| format!("{}{} {}",
             g, if goods::tier(g) == goods::Tier::Luxury { "*" } else { "" }, q))
             .collect::<Vec<_>>().join(" \u{00b7} ");
-        lines.push(Line { x: 18, y: 390,
-            text: if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
-            rgb: (180, 190, 210) });
+        y += 12;
+        for w in wrap_text(&if stock_line.is_empty() { "stock: empty".into() } else { format!("stock: {}", stock_line) },
+            card_chars(18)) {
+            lines.push(Line { x: 18, y, text: w, rgb: (180, 190, 210) });
+            y += CARD_ROW;
+        }
         if let Some((g, q, pr)) = offers.first() {
             // the street reads a price against the ordinary: scarce
             // shelves ask dear, a glut sells cheap
@@ -754,14 +763,18 @@ impl Game {
                 else if *pr < base * 0.9 { " \u{00b7} cheap" } else { "" };
             // a luxury reads so - the street knows silk from salt
             let kind = if goods::tier(g) == goods::Tier::Luxury { " \u{00b7} a luxury (* = luxury)" } else { "" };
-            lines.push(Line { x: 18, y: 404, text: format!("for offer: {} {} @ {:.0}g{}{}", q, g, pr, lean, kind), rgb: (150, 210, 150) });
+            for w in wrap_text(&format!("for offer: {} {} @ {:.0}g{}{}", q, g, pr, lean, kind), card_chars(18)) {
+                lines.push(Line { x: 18, y, text: w, rgb: (150, 210, 150) });
+                y += CARD_ROW;
+            }
         }
         // the chain the shop worked today: what went in and what came out
         if let Some((_, flow)) = self.shop_flow.get(&be).filter(|(d, _)| *d == self.tick) {
             let txt = flow.iter().map(|(g, n)| format!("{}{} {}", if *n < 0 { "" } else { "+" }, n, g))
                 .collect::<Vec<_>>().join("  ");
             if !txt.is_empty() {
-                lines.push(Line { x: 18, y: 418, text: format!("today: {}", txt), rgb: (200, 190, 160) });
+                y += 12;
+                lines.push(Line { x: 18, y, text: format!("today: {}", txt), rgb: (200, 190, 160) });
             }
         }
         // the printer's bench is the village's research desk: what it's
@@ -770,7 +783,8 @@ impl Game {
             if let Some(t) = self.tech.iter()
                 .filter(|t| !t.discovered && crate::game::tech_tree::can_research(&self.tech, &t.name))
                 .min_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap()) {
-                lines.push(Line { x: 18, y: 432,
+                y += 12;
+                lines.push(Line { x: 18, y,
                     text: format!("learning: {} ({:.0}/{:.0})", t.name, t.progress, t.cost),
                     rgb: (170, 190, 230) });
             }
@@ -780,7 +794,8 @@ impl Game {
         if b.kind == BuildingKind::Cellar {
             let n = self.cheeses.len();
             let oldest = self.cheeses.first().map(|t| self.tick - t).unwrap_or(0);
-            lines.push(Line { x: 18, y: 432,
+            y += 12;
+            lines.push(Line { x: 18, y,
                 text: if n == 0 { format!("{} - empty", self.cellar_trait) }
                     else { format!("{} - {} wheels, oldest {}d", self.cellar_trait, n, oldest) },
                 rgb: (230, 200, 140) });
@@ -788,7 +803,8 @@ impl Game {
         // a home that keeps hens says so - the roost's count with it
         if self.hen_houses.contains(&be) {
             let n = livestock::flock(&world, be).len();
-            lines.push(Line { x: 18, y: 432,
+            y += 12;
+            lines.push(Line { x: 18, y,
                 text: if n == 0 { "roost empty".into() } else { format!("keeps hens - {} on the roost", n) },
                 rgb: (220, 180, 120) });
         }
@@ -810,9 +826,11 @@ impl Game {
                 1..=2 => format!(" - {}", drank.join(", ")),
                 n => format!(" - {}, +{}", drank[..2].join(", "), n - 2),
             };
-            lines.push(Line { x: 18, y: 432,
-                text: format!("the table's company{}", company),
-                rgb: (220, 180, 140) });
+            y += 12;
+            for w in wrap_text(&format!("the table's company{}", company), card_chars(18)) {
+                lines.push(Line { x: 18, y, text: w, rgb: (220, 180, 140) });
+                y += CARD_ROW;
+            }
         }
         // the herb-wife's tally, and who's called at her hut lately
         if Some(be) == self.herb_hut {
@@ -827,9 +845,11 @@ impl Game {
                 1..=2 => format!(" - lately: {}", callers.join(", ")),
                 n => format!(" - lately: {}, +{}", callers[..2].join(", "), n - 2),
             };
-            lines.push(Line { x: 18, y: 432,
-                text: format!("her tally: {} cures{}", self.cured, late),
-                rgb: (190, 210, 150) });
+            y += 12;
+            for w in wrap_text(&format!("her tally: {} cures{}", self.cured, late), card_chars(18)) {
+                lines.push(Line { x: 18, y, text: w, rgb: (190, 210, 150) });
+                y += CARD_ROW;
+            }
         }
         Some(InspectorV { fig: None, kid: false, dead: false, died_day: None, hearts: None, lines })
     }
@@ -850,13 +870,18 @@ impl Game {
         out
     }
 
-    /// The inspector card for the selected villager
+    /// The inspector card for the selected villager: a properties page.
+    /// The name and the seat's read of them sit beside the portrait up
+    /// top; the rest is labelled rows and bulleted sections, each row
+    /// taking only the room it needs, so a long telling wraps inside the
+    /// card rather than running off across the map
     pub(in crate::session) fn villager_inspector_at(&self, seat: usize) -> InspectorV {
         let world = &self.world;
         let i = self.seats[seat].selected_target;
         let v = self.villagers[i];
         let mut lines: Vec<Line> = vec![];
-        lines.push(Line { x: 60, y: 330, text: vill_name(i).into(), rgb: (255, 255, 255) });
+        let mut y = 330;
+        lines.push(Line { x: 60, y, text: vill_name(i).into(), rgb: (255, 255, 255) });
         // the family's record: the last beats of a life in a word each
         // - built before the dead's branch so a grave keeps it too
         let beats: Vec<&'static str> = self.tales.get(&i).map(|t| t.iter().rev().take(2).map(|e| match e.kind {
@@ -878,8 +903,10 @@ impl Game {
         }).collect()).unwrap_or_default();
         let record = if beats.is_empty() { String::new() } else { format!(" ({})", beats.join("\u{00b7}")) };
         if let Some(day) = self.died_on[i] {
-            lines.push(Line { x: 60, y: 344, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
-            lines.push(Line { x: 60, y: 358, text: "rest in peace".into(), rgb: (150, 150, 165) });
+            y += 14;
+            lines.push(Line { x: 60, y, text: format!("Died on day {}", day), rgb: (230, 90, 80) });
+            y += 13;
+            lines.push(Line { x: 60, y, text: "rest in peace".into(), rgb: (150, 150, 165) });
             // who carries the grief for them - the losses the day their
             // death's mourned left behind
             // villagers and the seats' wanderers alike - grief records
@@ -899,19 +926,18 @@ impl Game {
                     .map(|mi| vill_name(mi).to_string())
                     .or_else(|| self.world.get_component::<PlayerCharacter>(m).map(|p| p.name.clone()))
                     .unwrap_or_else(|| "someone".into())).collect();
-            if !mourners.is_empty() {
-                lines.push(Line { x: 60, y: 372, text: format!("mourned by {}", mourners.join(", ")),
-                    rgb: (170, 160, 190) });
-            }
-            if !record.is_empty() {
-                lines.push(Line { x: 60, y: 386, text: format!("a life{}", record), rgb: (160, 180, 200) });
-            }
+            // clear of the grave's portrait, then the plain record
+            y = y.max(398);
+            card_prop(&mut lines, &mut y, "Mourned by", &mourners.join(", "), (170, 160, 190));
+            card_prop(&mut lines, &mut y, "A life",
+                record.trim().trim_start_matches('(').trim_end_matches(')'), (160, 180, 200));
             return InspectorV { fig: None, kid: false, dead: true, died_day: Some(day), hearts: None, lines };
         }
         let org_members = world.get_component::<Organization>(self.seats[seat].org)
             .map(|o| o.members.clone()).unwrap_or_default();
         let occ = desires::occupation_of(world, v).unwrap_or_else(|| "Villager".into());
-        lines.push(Line { x: 60, y: 342,
+        y += 12;
+        lines.push(Line { x: 60, y,
             text: format!("{} \u{00b7} {}", occ, vocation::class_name(desires::class_of(world, v))), rgb: (200, 200, 230) });
         if livelihood::has_role(&self.world, v, TownRole::Herbologist) {
             let n = herbology::remedies_on_hand(world, v);
@@ -924,8 +950,11 @@ impl Game {
                 .unwrap_or_default();
             let what = if on_shelf.is_empty() { String::new() }
                 else { format!(" \u{00b7} {}", on_shelf.join(", ")) };
-            lines.push(Line { x: 60, y: 354,
-                text: format!("knows the cures \u{00b7} {} remedies{}", n, what), rgb: (150, 210, 150) });
+            y += 12;
+            for w in wrap_text(&format!("knows the cures \u{00b7} {} remedies{}", n, what), card_chars(60)) {
+                lines.push(Line { x: 60, y, text: w, rgb: (150, 210, 150) });
+                y += CARD_ROW;
+            }
         }
         if let Some(c) = world.get_component::<Craft>(v) {
             // the day's work on the same line: what the bench made today
@@ -937,55 +966,29 @@ impl Game {
             // their rung first - it can't ride off the note's edge
             // behind a busy day's make
             let level = vocation::level_of(c.skill);
-            lines.push(Line { x: 60, y: 354,
-                text: format!("\u{1}Craft\u{2}{}{:.0}% \u{b7} {:?}{}", c.skill, c.skill * 100.0, level, made_txt), rgb: (0, 0, 0) });
+            y += 12;
+            lines.push(Line { x: 60, y,
+                text: format!("\u{1}Craft\u{2}{}:{:.0}% \u{b7} {:?}{}", c.skill, c.skill * 100.0, level, made_txt), rgb: (0, 0, 0) });
         }
         if let Some(p) = world.get_component::<Purse>(v) {
-            lines.push(Line { x: 60, y: 366, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });
+            y += 12;
+            lines.push(Line { x: 60, y, text: format!("Gold {:.0}", p.gold), rgb: (240, 210, 120) });
         }
         if let Some(h) = world.get_component::<Hunger>(v) {
-            lines.push(Line { x: 60, y: 378,
-                text: format!("\u{1}Fed\u{2}{}{}", h.value / 100.0, fullness_word(h.value)), rgb: (0, 0, 0) });
+            y += 12;
+            lines.push(Line { x: 60, y,
+                text: format!("\u{1}Fed\u{2}{}:{}", h.value / 100.0, fullness_word(h.value)), rgb: (0, 0, 0) });
         }
         if let Some(he) = world.get_component::<Health>(v) {
             let note = disease_of(world, v).map(|(name, stage)| format!("{} ({:?})", name, stage))
                 .unwrap_or_else(|| format!("{:.0}%", he.condition * 100.0));
-            lines.push(Line { x: 60, y: 390, text: format!("\u{1}Health\u{2}{}{}", he.condition, note), rgb: (0, 0, 0) });
+            y += 12;
+            lines.push(Line { x: 60, y, text: format!("\u{1}Health\u{2}{}:{}", he.condition, note), rgb: (0, 0, 0) });
         }
-        let home = household::home_of(world, v)
-            .and_then(|h| world.get_component::<Building>(h)).map(|b| b.name.clone());
-        let shop = world.get_component::<Craft>(v).and_then(|c| c.workplace)
-            .and_then(|s| world.get_component::<Building>(s)).map(|b| b.name.clone());
-        let roost = match (&home, &shop) {
-            (Some(h), Some(s)) => format!("{} \u{00b7} {}", h, s),
-            (Some(h), None) => h.clone(),
-            (None, Some(s)) => format!("no home \u{00b7} {}", s),
-            (None, None) => "no home".into(),
-        };
-        let faith = world.get_component::<crate::sim::religion::Faith>(v)
-            .map(|f| if f.devotion > 0.6 { " \u{00b7} devout" }
-                else if f.devotion < 0.25 { " \u{00b7} lapsed" } else { "" }).unwrap_or("");
-        // and a soul far enough along gets a name for it
-        let stage_tag = world.get_component::<crate::sim::religion::FaithStage>(v)
-            .and_then(|st| st.title()).map(|t| format!(" · {}", t)).unwrap_or_default();
-        // the guild's badge: a trader in the mutual-protection compact
-        let guilded = world.query::<crate::game::guilds::Guild>().first().copied()
-            .and_then(|g| world.get_component::<crate::game::guilds::Guild>(g))
-            .map(|g| g.members.contains(&v)).unwrap_or(false);
-        let badge = if guilded { " \u{00b7} of the guild" } else { "" };
-        // the village's word on them: a name in good standing or in ill
-        // repute - the stage they've earned, not the bond they hold
-        let standing = world.get_component::<crate::sim::reputation_qsp::ReputationState>(v)
-            .map(|r| match r.stage {
-                crate::sim::reputation_qsp::RepStage::Esteemed => " \u{00b7} esteemed",
-                crate::sim::reputation_qsp::RepStage::Trusted => " \u{00b7} well thought of",
-                crate::sim::reputation_qsp::RepStage::Disgraced => " \u{00b7} ill-spoken of",
-                _ => "" }).unwrap_or("");
-        lines.push(Line { x: 18, y: 404, text: format!("{}{}{}{}{}", roost, faith, stage_tag, standing, badge), rgb: (190, 190, 210) });
-        // how well the organizer knows them: the stage word sits beside
-        // the name, clear of the two rows the card keeps for feuds and
-        // secrets
+        // how well the organizer knows them: the stage word rides the
+        // name row, and it decides how much of the page they let you read
         let stage = crate::game::organizing::stage_of(world, self.seats[seat].player, v);
+        let known = stage >= crate::game::organizing::RelStage::Known;
         // the odds before the ask: a campaign under way, a member not yet
         // made - shown for a sympathetic stranger too, since their ask
         // lands without rapport at all
@@ -1014,33 +1017,53 @@ impl Game {
         } else if !hope.is_empty() {
             lines.push(Line { x: 150, y: 330, text: hope.into(), rgb: (170, 200, 160) });
         }
-        // the card's two reserved rows say what the village knows of
-        // them: bad blood first - it burns brightest in the talk - then
-        // whatever secrets they've told fill the room that's left
-        let feuds = self.feuds_of(v);
-        let mut band = 0i32;
-        for (other, burning) in feuds.iter().take(2) {
-            let more = if band == 1 && feuds.len() > 2 { format!(" +{}", feuds.len() - 2) } else { String::new() };
-            lines.push(Line { x: 18, y: 416 + band * 11,
-                text: format!("feuds with {}{}{}", self.name_of(*other), more,
-                    if *burning { " - it burns" } else { "" }),
-                rgb: (230, 140, 110) });
-            band += 1;
-        }
-        // a sworn hand shows in the same band - the pact's no secret
-        if band < 2 && crate::game::contracts::pact_live(world, self.seats[seat].player, v) {
-            lines.push(Line { x: 18, y: 416 + band * 11, text: "sworn to you".into(), rgb: (150, 210, 150) });
-            band += 1;
-        }
-        if let Some(k) = world.get_component::<Known>(v) {
-            for r in k.revealed.iter().take((2 - band).max(0) as usize) {
-                let text = match r {
-                    desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
-                    desires::Reveal::Problem(p) => desires::problem_label(p),
-                };
-                lines.push(Line { x: 18, y: 416 + band * 11, text, rgb: (210, 170, 140) });
-                band += 1;
-            }
+        // below the portrait the page's fields begin: each a labelled
+        // row, its value wrapped inside the card
+        y = y.max(400);
+        let home = household::home_of(world, v)
+            .and_then(|h| world.get_component::<Building>(h)).map(|b| b.name.clone());
+        let shop = world.get_component::<Craft>(v).and_then(|c| c.workplace)
+            .and_then(|s| world.get_component::<Building>(s)).map(|b| b.name.clone());
+        let roost = match (&home, &shop) {
+            (Some(h), Some(s)) => format!("{} \u{00b7} {}", h, s),
+            (Some(h), None) => h.clone(),
+            (None, Some(s)) => format!("no home \u{00b7} {}", s),
+            (None, None) => "no home".into(),
+        };
+        card_prop(&mut lines, &mut y, "Home", &roost, (190, 190, 210));
+        let faith = world.get_component::<crate::sim::religion::Faith>(v)
+            .map(|f| if f.devotion > 0.6 { "devout" }
+                else if f.devotion < 0.25 { "lapsed" } else { "" }).unwrap_or("");
+        // and a soul far enough along gets a name for it
+        let stage_tag = world.get_component::<crate::sim::religion::FaithStage>(v)
+            .and_then(|st| st.title()).unwrap_or_default();
+        card_prop(&mut lines, &mut y, "Faith",
+            &[faith, stage_tag].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" \u{00b7} "),
+            (190, 190, 210));
+        // the guild's badge: a trader in the mutual-protection compact
+        let guilded = world.query::<crate::game::guilds::Guild>().first().copied()
+            .and_then(|g| world.get_component::<crate::game::guilds::Guild>(g))
+            .map(|g| g.members.contains(&v)).unwrap_or(false);
+        // the village's word on them: a name in good standing or in ill
+        // repute - the stage they've earned, not the bond they hold
+        let standing = world.get_component::<crate::sim::reputation_qsp::ReputationState>(v)
+            .map(|r| match r.stage {
+                crate::sim::reputation_qsp::RepStage::Esteemed => "esteemed",
+                crate::sim::reputation_qsp::RepStage::Trusted => "well thought of",
+                crate::sim::reputation_qsp::RepStage::Disgraced => "ill-spoken of",
+                _ => "" }).unwrap_or("");
+        card_prop(&mut lines, &mut y, "Repute",
+            &[standing, if guilded { "of the guild" } else { "" }].into_iter()
+                .filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" \u{00b7} "),
+            (190, 190, 210));
+        // kin by name take a bond close enough to have been told
+        if known {
+            let kin: Vec<String> = self.villagers.iter().copied()
+                .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
+                .take(3)
+                .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|i| vill_name(i).to_string()))
+                .collect();
+            card_prop(&mut lines, &mut y, "Kin", &kin.join(", "), (190, 190, 210));
         }
         if let Some(vil) = world.get_component::<Villager>(v) {
             let nature = world.get_component::<AttachmentHistory>(v)
@@ -1052,35 +1075,90 @@ impl Game {
                 .and_then(|c| world.get_component::<crate::game::campaign::Campaign>(c))
                 .map(|c| c.issue.clone());
             let cause = if world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
-                " \u{00b7} taken"
+                "taken"
             } else if world.get_component::<crate::game::actions::Demoralized>(v).is_some() {
-                " \u{00b7} hollow"
+                "hollow"
             } else if fight.as_ref().map(|issue|
                 world.get_component::<crate::game::reactions::Sympathized>(v)
                     .map(|s| s.issues.iter().any(|(i, _)| i == issue)).unwrap_or(false))
                 .unwrap_or(false) {
-                " \u{00b7} woke"
-            } else if org_members.contains(&v) { " \u{00b7} with you" } else { "" };
+                "woke"
+            } else if org_members.contains(&v) { "with you" } else { "" };
             // what they're about: the day's plan, unless hunger has them
             let bench = world.get_component::<Craft>(v).and_then(|c| c.workplace)
                 .and_then(|b| world.get_component::<Building>(b)).map(|b| b.name.clone());
             let doing = (vil.activity == Activity::Idle)
                 .then(|| routine::routine_text(world, v, bench.as_deref())).flatten()
                 .unwrap_or_else(|| activity_text(vil.activity).to_string());
+            card_prop(&mut lines, &mut y, "Nature", nature, (200, 160, 160));
+            card_prop(&mut lines, &mut y, "Today", &doing, (200, 160, 160));
+            card_prop(&mut lines, &mut y, "Cause", cause, (200, 160, 160));
             // a thing made to outlast, in their hands - one name and a
-            // count, and it leads the line: the card's tail can clip
-            // under a long day's routine, the holding can't
-            let known = crate::game::organizing::stage_of(world, self.seats[seat].player, v)
-                >= crate::game::organizing::RelStage::Known;
+            // count, told only once they're known to you
             let held: Vec<&str> = if known { self.heirlooms.iter()
                 .filter_map(|&i| world.get_component::<villager::Heirloom>(i))
                 .filter(|h| h.owner == v).map(|h| h.name).collect() } else { vec![] };
-            let keepsake = match held.as_slice() {
-                [] => String::new(),
-                [one] => format!("holds {} \u{00b7} ", one),
-                [first, rest @ ..] => format!("holds {} +{} \u{00b7} ", first, rest.len()),
-            };
-            lines.push(Line { x: 18, y: 440, text: format!("{}{} \u{00b7} {}{}", keepsake, nature, doing, cause), rgb: (200, 160, 160) });
+            match held.as_slice() {
+                [] => {}
+                [one] => card_prop(&mut lines, &mut y, "Holds", one, (220, 200, 160)),
+                [first, rest @ ..] => card_prop(&mut lines, &mut y, "Holds",
+                    &format!("{} +{}", first, rest.len()), (220, 200, 160)),
+            }
+        }
+        // what they're made of, once they've let you close enough to see:
+        // each trait and what it does to their day, their temperament
+        // under it all - a word the village would use
+        if known {
+            let mut told: Vec<String> = world.get_component::<crate::game::traits::Personality>(v)
+                .map(|p| p.traits.iter().map(|&t|
+                    format!("{} ({})", trait_word(t), trait_hint(t))).collect())
+                .unwrap_or_default();
+            if let Some(p) = world.get_component::<crate::sim::psychology::Personality>(v) {
+                told.push(crate::sim::psychology::disposition_word(p).into());
+            }
+            if !told.is_empty() {
+                card_head(&mut lines, &mut y, "TRAITS");
+                for t in told { card_bullet(&mut lines, &mut y, t, (215, 200, 160)); }
+            }
+        }
+        // what the village holds against them or has let slip: bad blood
+        // first - it burns brightest in the talk - then the sworn word,
+        // the secrets told, the stocks' verdict
+        let mut issues: Vec<(String, (u8, u8, u8))> = vec![];
+        let feuds = self.feuds_of(v);
+        for (n, (other, burning)) in feuds.iter().take(2).enumerate() {
+            let more = if n == 1 && feuds.len() > 2 { format!(" +{}", feuds.len() - 2) } else { String::new() };
+            issues.push((format!("feuds with {}{}{}", self.name_of(*other), more,
+                if *burning { " - it burns" } else { "" }), (230, 140, 110)));
+        }
+        // a sworn hand shows in the same list - the pact's no secret
+        if crate::game::contracts::pact_live(world, self.seats[seat].player, v) {
+            issues.push(("sworn to you".into(), (150, 210, 150)));
+        }
+        if let Some(k) = world.get_component::<Known>(v) {
+            let mut told = 0;
+            for r in k.revealed.iter() {
+                if told >= 3 { break; }
+                let text = match r {
+                    desires::Reveal::Want(w) => desires::want_label(*w).to_string(),
+                    desires::Reveal::Problem(p) => desires::problem_label(p),
+                };
+                // a worry heard twice still reads once
+                if !issues.iter().any(|(t, _)| *t == text) {
+                    issues.push((text, (210, 170, 140)));
+                    told += 1;
+                }
+            }
+        }
+        // the village's answer, public as the stocks: the rung they're on
+        if let Some(s) = self.sanctioned.iter()
+            .filter(|(e, _, u)| *e == v && self.tick < *u)
+            .map(|(_, s, _)| *s).max() {
+            issues.push((crate::game::sanctions::label(s).into(), (230, 140, 110)));
+        }
+        if !issues.is_empty() {
+            card_head(&mut lines, &mut y, "ISSUES");
+            for (t, rgb) in issues { card_bullet(&mut lines, &mut y, t, rgb); }
         }
         // the biography the seat knows: years and build are public, but
         // temperament and kin take a bond close enough to have been told
@@ -1098,11 +1176,15 @@ impl Game {
                 crate::sim::story::StoryTheme::Community => "a tale of the commons",
                 crate::sim::story::StoryTheme::Calamity => "a tale of calamity",
             });
-        if let Some(bio) = self.bio_line_at(seat, v) {
-            let suffix = tale.map(|t| format!(" - {}", t)).unwrap_or_default();
-            lines.push(Line { x: 18, y: 454, text: format!("{}{}{}", bio, suffix, record), rgb: (160, 180, 200) });
-        } else if let Some(t) = tale {
-            lines.push(Line { x: 18, y: 454, text: format!("{}{}", t, record), rgb: (160, 180, 200) });
+        let bio = self.bio_line_at(seat, v);
+        if bio.is_some() || tale.is_some() || !record.is_empty() {
+            card_head(&mut lines, &mut y, "LIFE");
+            let text = match bio {
+                Some(b) => format!("{}{}{}", b,
+                    tale.map(|t| format!(" - {}", t)).unwrap_or_default(), record),
+                None => format!("{}{}", tale.unwrap_or_default(), record),
+            };
+            card_para(&mut lines, &mut y, &text, (160, 180, 200), LIFE_LINES);
         }
         // the seat's hearts for them: warmth read in half-heart steps,
         // five at most - empty for a stranger, full for a true friend
@@ -1246,30 +1328,8 @@ impl Game {
                 .unwrap_or_else(|| "someone".into());
             parts.push(format!("grieves for {}", name));
         }
-        // the village's answer, public as the stocks: the rung they're on
-        if let Some(s) = self.sanctioned.iter()
-            .filter(|(e, _, u)| *e == v && self.tick < *u)
-            .map(|(_, s, _)| *s).max() {
-            parts.push(crate::game::sanctions::label(s).into());
-        }
         if crate::game::organizing::stage_of(world, self.seats[seat].player, v)
             >= crate::game::organizing::RelStage::Known {
-            if let Some(p) = world.get_component::<crate::game::traits::Personality>(v) {
-                let ts: Vec<String> = p.traits.iter().map(|&t|
-                    format!("{} - {}", trait_word(t), trait_hint(t))).collect();
-                if !ts.is_empty() { parts.push(ts.join(", ")); }
-            }
-            // their temperament under it all: the Big5's dominant pole,
-            // a word the village would use
-            if let Some(p) = world.get_component::<crate::sim::psychology::Personality>(v) {
-                parts.push(crate::sim::psychology::disposition_word(p).into());
-            }
-            let kin: Vec<String> = self.villagers.iter().copied()
-                .filter(|&o| o != v && self.rel_kind(v, o) == Some(crate::game::relationships::RelKind::Family))
-                .take(3)
-                .filter_map(|o| self.villagers.iter().position(|&x| x == o).map(|i| vill_name(i).to_string()))
-                .collect();
-            if !kin.is_empty() { parts.push(format!("kin: {}", kin.join(", "))); }
             if world.get_component::<country::Outlander>(v).is_some() {
                 parts.push(if world.get_component::<rebels::Rebel>(v).is_some() {
                     "a rebel of the woods".into()
@@ -1439,5 +1499,65 @@ fn trait_hint(t: crate::game::traits::Trait) -> &'static str {
         Kind => "a warm word", Stingy => "tight-fisted",
         Pious => "keeps the faith", Hotheaded => "quick to anger",
         Gregarious => "strolls the village", Proud => "a proud bearing",
+    }
+}
+
+/// The inspector card's text margins, in the card's own coordinate
+/// space: the plate's edge sits a few px further right, and rows wrap
+/// before they reach it rather than running off across the map
+pub(in crate::session) const CARD_X: i32 = 18;
+/// The right edge card text may reach, in the same space
+pub(in crate::session) const CARD_RX: i32 = 366;
+/// A card row's pitch
+const CARD_ROW: i32 = 11;
+/// The LIFE paragraph's cap: a life's longest telling earns a trailing
+/// "..." rather than a card that swallows the map
+const LIFE_LINES: usize = 6;
+
+/// How many glyphs fit on a card row from `x` to the card's edge
+fn card_chars(x: i32) -> usize { ((CARD_RX - x) / GLYPH_W).max(10) as usize }
+
+/// A labelled property row: the label dim, its value in the row's
+/// colour, a long value wrapping with the continuation hanging under
+/// the value
+fn card_prop(lines: &mut Vec<Line>, y: &mut i32, label: &str, value: &str, rgb: (u8, u8, u8)) {
+    if value.is_empty() { return; }
+    let vx = CARD_X + (label.chars().count() as i32 + 2) * GLYPH_W;
+    lines.push(Line { x: CARD_X, y: *y, text: format!("{}:", label), rgb: (150, 150, 170) });
+    for w in wrap_text(value, card_chars(vx)) {
+        lines.push(Line { x: vx, y: *y, text: w, rgb });
+        *y += CARD_ROW;
+    }
+}
+
+/// A section heading, set off a little from the rows above it
+fn card_head(lines: &mut Vec<Line>, y: &mut i32, head: &str) {
+    *y += 5;
+    lines.push(Line { x: CARD_X, y: *y, text: head.into(), rgb: (255, 215, 0) });
+    *y += CARD_ROW + 2;
+}
+
+/// One of a section's items: "- ..." hung so a wrapped point still
+/// reads as one
+fn card_bullet(lines: &mut Vec<Line>, y: &mut i32, text: String, rgb: (u8, u8, u8)) {
+    for (n, w) in wrap_text(&text, card_chars(CARD_X + 12)).into_iter().enumerate() {
+        lines.push(Line { x: CARD_X, y: *y,
+            text: format!("{}{}", if n == 0 { "- " } else { "  " }, w), rgb });
+        *y += CARD_ROW;
+    }
+}
+
+/// A wrapped paragraph row block (the LIFE section), capped at
+/// `max` lines with a trailing "..." when the telling runs longer
+fn card_para(lines: &mut Vec<Line>, y: &mut i32, text: &str, rgb: (u8, u8, u8), max: usize) {
+    let mut ws = wrap_text(text, card_chars(CARD_X + 8));
+    let more = ws.len() > max;
+    ws.truncate(max);
+    if more {
+        if let Some(l) = ws.last_mut() { l.push_str(" ..."); }
+    }
+    for w in ws {
+        lines.push(Line { x: CARD_X + 8, y: *y, text: w, rgb });
+        *y += CARD_ROW;
     }
 }

@@ -1052,17 +1052,22 @@ impl View {
             }
         }
 
-        // inspector: a villager's card, or a building's when one's clicked -
-        // it floats on the map's bottom-left now that the panel's middle
-        // band belongs to the context buttons. The card's lines carry
-        // offsets from its old panel slot, shifted by the delta
+        // inspector: a villager's properties page, or a building's card
+        // when one's clicked - it floats on the map's bottom-left now
+        // that the panel's middle band belongs to the context buttons.
+        // The card's lines carry offsets from its old panel slot; the
+        // plate grows to meet the deepest row, so a full page has the
+        // room a bare name never asked for
         const INSP_X: i32 = 16;
-        const INSP_Y: i32 = 780;
+        const INSP_W: i32 = 364;
         if self.inspector_open && m.inspector.is_some() {
-            let lx = |k: i32| INSP_X + k - 10;
-            let ly = |k: i32| INSP_Y + k - 316;
-            draw_rect(&mut buf, lx(10), ly(316), 320, 150, 45, 45, 65);
             let insp = m.inspector.as_ref().unwrap();
+            let deep = insp.lines.iter().map(|l| l.y).max().unwrap_or(460) + 14;
+            let card_h = (deep - 316).clamp(120, 560);
+            let top = 948 - card_h;
+            let lx = |k: i32| INSP_X + k - 10;
+            let ly = |k: i32| top + k - 316;
+            draw_rect(&mut buf, lx(10), ly(316), INSP_W, card_h, 45, 45, 65);
             if insp.dead {
                 draw_grave(&mut buf, lx(PORTRAIT_FOOT.0), ly(PORTRAIT_FOOT.1), 2.0);
             } else if let Some(fig_i) = insp.fig {
@@ -1073,7 +1078,7 @@ impl View {
             for line in &insp.lines {
                 if line.text.starts_with('\u{1}') {
                     // "METER:name:frac:note" sentinel from the sim
-                    let mut it = line.text[3..].split('\u{2}');
+                    let mut it = line.text[1..].split('\u{2}');
                     let (name, rest) = (it.next().unwrap_or(""), it.next().unwrap_or(""));
                     let (frac, note) = rest.split_once(':')
                         .map(|(a, b)| (a.parse::<f32>().unwrap_or(0.0), b))
@@ -1086,7 +1091,7 @@ impl View {
             // the seat's hearts for them, top-right of the card -
             // five pixels-hearts in half steps, clear of the name row
             if let Some(h) = insp.hearts {
-                draw_hearts(&mut buf, lx(286), ly(320), h, 5);
+                draw_hearts(&mut buf, lx(10) + INSP_W - 8 - 5 * HEART_PITCH, ly(320), h, 5);
             }
         }
 

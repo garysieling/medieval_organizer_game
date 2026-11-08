@@ -137,6 +137,11 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
     let more: u32 = std::env::var("GAME2_DUMP_FRAMES").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     for _ in 0..more { game.update(); }
     if more > 0 { let m = game.ui_model(); println!("day {} + {} frames: {} stalls, feast {}", m.tick, more, m.stalls.len(), m.feast); }
+    // GAME2_DUMP_SELECT=N: open the inspector's page on villager N, as a
+    // click on them would - screenshot checks for the card land on it
+    if let Some(n) = std::env::var("GAME2_DUMP_SELECT").ok().and_then(|v| v.parse::<usize>().ok()) {
+        game.seats[0].selected_target = n;
+    }
     // GAME2_DUMP_WALK=dx,dy: walk the player that way for the last few
     // frames, so a dump shows the walk cycle mid-stride
     if let Some((dx, dy)) = std::env::var("GAME2_DUMP_WALK").ok().as_deref()

@@ -31,17 +31,20 @@ fn test_flu_from_a_real_game_stays_in_the_log_by_day_600() {
     let mut game = Game::new();
     game.speed = 8;
     while game.tick < 600 { game.update(); }
-    // however busy the village's been, the last sickness still pins above
-    // everyday chatter - newer happenings (a birth, an exile) may outrank
-    // it, but gossip and weather never do
+    // however busy the village's been, the sickness still reaches the
+    // log. Only the newest few headlines pin to the top - a wall of old
+    // news can't bury today's warning - so an older sickness may sit
+    // among the rest, but the freshest important entries always outrank
+    // everyday chatter
     let shown: Vec<&String> = visible_log(&game.log).into_iter().map(|i| &game.log[i]).collect();
-    let sick = shown.iter().position(|e| e.contains("is taken with") || e.contains("recovered from"));
-    let chatter = shown.iter().position(|e| is_gossip(e) || is_weather_note(e));
-    assert!(sick.is_some(), "sickness should reach the log in a real game by day 600: {:?}",
+    assert!(shown.iter().any(|e| e.contains("is taken with") || e.contains("recovered from")),
+        "sickness should reach the log in a real game by day 600: {:?}",
         game.log.iter().rev().take(20).collect::<Vec<_>>());
-    if let (Some(s), Some(c)) = (sick, chatter) {
-        assert!(s < c, "the sickness should outrank routine chatter: {:?} vs {:?}", shown[s], shown[c]);
-    }
+    let n_imp = shown.iter().filter(|e| is_important(e)).count();
+    let first_rest = shown.iter().position(|e| !is_important(e)).unwrap_or(shown.len());
+    assert!(first_rest >= n_imp.min(LOG_PINNED_SHOWN),
+        "the newest {} headlines should pin above the rest: {:?}",
+        n_imp.min(LOG_PINNED_SHOWN), &shown[..shown.len().min(8)]);
 }
 
 #[test]

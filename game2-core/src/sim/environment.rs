@@ -22,6 +22,8 @@ pub struct LandScore {
     pub pit_water: f32,
     /// river tile -> the stink carried to it (0 = clean, 1.0 = foul)
     pub effluent: HashMap<(i32, i32), f32>,
+    /// ground tile -> the midden's leavings: dropped, spread, hauled
+    pub filth: HashMap<(i32, i32), f32>,
 }
 
 /// A wood tile yields while there's canopy on it; stumps give little

@@ -209,6 +209,84 @@ impl Game {
     /// gone, whoever worked or lived there is out on the street, and the
     /// view dims what's left. `how` says what took it ("burned to
     /// shells", "under the flood")
+    /// The midden's own score: doorsteps drip a little, the animal
+    /// yards and the messier shops worse, and what isn't hauled,
+    /// composted or dumped sits and stinks - a grievance on whoever
+    /// sleeps beside it
+    pub(in crate::session) fn filth_tick(&mut self, tick: u64) {
+        use crate::game::household::BuildingKind;
+        // the sources: every doorstep a little, the fold and the tavern's
+        // mess more - the leavings land on the building's tile
+        for &b in &self.building_entities {
+            let Some(bb) = self.world.get_component::<household::Building>(b) else { continue };
+            let Some(p) = self.world.get_component::<Pos>(b) else { continue };
+            let drip = match bb.kind {
+                BuildingKind::Home => 0.006,
+                BuildingKind::Pasture => 0.03,
+                BuildingKind::Shop(crate::game::vocation::Vocation::Taverner) => 0.02,
+                BuildingKind::Shop(_) => 0.008,
+                _ => 0.0,
+            };
+            if drip > 0.0 {
+                let t = (p.x.round() as i32, p.y.round() as i32);
+                let e = self.land.filth.entry(t).or_insert(0.0);
+                *e = (*e + drip).min(1.0);
+            }
+        }
+        // decay, a little spread off the foulest tiles, and the three
+        // ways the leavings leave: the cart's haul to the water, the
+        // compost that fields take faster, and the river's own carry
+        let mut spread_from: Vec<(i32, i32)> = vec![];
+        let mut dump_at: Vec<(i32, i32)> = vec![];
+        for (&t, f) in self.land.filth.iter_mut() {
+            let compost = matches!(self.map.get(t.0, t.1),
+                Some(Tile::Wheat) | Some(Tile::Corn));
+            *f = (*f - if compost { 0.01 } else { 0.004 }).max(0.0);
+            if *f > 0.3 { spread_from.push(t); }
+            if self.map.get(t.0, t.1) == Some(Tile::River) { dump_at.push(t); }
+        }
+        for t in spread_from {
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let n = (t.0 + dx, t.1 + dy);
+                if self.map.get(n.0, n.1).is_none() { continue; }
+                let e = self.land.filth.entry(n).or_insert(0.0);
+                *e = (*e + 0.002).min(1.0);
+            }
+        }
+        for t in dump_at {
+            let take = self.land.filth.get(&t).copied().unwrap_or(0.0) * 0.2;
+            if let Some(f) = self.land.filth.get_mut(&t) { *f -= take; }
+            let e = self.land.effluent.entry(t).or_insert(0.0);
+            *e = (*e + take * 0.5).min(1.0);
+        }
+        // the cart errand, in the small: a household on a fouled doorstep
+        // clears a share of it each day and the load lands downstream;
+        // and the leavings by the door are a grievance on whoever's in
+        for &b in &self.building_entities {
+            let Some(bb) = self.world.get_component::<household::Building>(b) else { continue };
+            let Some(p) = self.world.get_component::<Pos>(b) else { continue };
+            if bb.kind != BuildingKind::Home || bb.occupants.is_empty() { continue; }
+            let bt = (p.x.round() as i32, p.y.round() as i32);
+            let f = self.land.filth.get(&bt).copied().unwrap_or(0.0);
+            if f > 0.05 {
+                let haul = (f * 0.15).min(0.02);
+                if let Some(x) = self.land.filth.get_mut(&bt) { *x -= haul; }
+                // dumped downstream: the nearest reach tile takes the cart's load
+                if let Some(&r) = self.reach.first() {
+                    let e = self.land.effluent.entry(r).or_insert(0.0);
+                    *e = (*e + haul * 0.3).min(1.0);
+                }
+            }
+            if f > 0.4 {
+                let occs: Vec<Entity> = bb.occupants.clone();
+                for occ in occs {
+                    desires::add_grievance(&mut self.world, occ,
+                        desires::Problem::StinkingReach, tick + 30);
+                }
+            }
+        }
+    }
+
     pub(in crate::session) fn ruin_building(&mut self, e: Entity, how: &str) {
         // the village's own store is the one roof the street can't lose -
         // it can burn and be robbed of its stock, but it stands

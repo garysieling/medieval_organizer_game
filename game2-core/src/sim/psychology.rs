@@ -34,13 +34,34 @@ pub struct Episode {
     pub kind: EpisodeKind,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EpisodeKind {
     Anxiety,   // distress met with comfort or absence
     Warmth,    // positive bonding moment
     Rejection, // bid for comfort rebuffed
     Loss,      // attachment figure absent/removed
     Remembrance, // the dead brought to mind - a cairn does it, a keepsake
+}
+
+/// A story two folk carry between them: they were both there, and the
+/// telling of it warms the pair a little - if they ever get round to it
+#[derive(Debug, Clone)]
+pub struct SharedBit {
+    /// The other half of the story
+    pub partner: Entity,
+    /// What they both saw - the episode's subject and its kind
+    pub subject: Entity,
+    pub kind: EpisodeKind,
+    /// Whether the pair have told it to each other yet
+    pub told: bool,
+    /// The day it formed
+    pub born: u64,
+}
+
+/// The bits a villager carries: shared memories waiting on a telling
+#[derive(Debug, Default)]
+pub struct SharedBits {
+    pub bits: Vec<SharedBit>,
 }
 
 /// Personality traits (simplified Big5-inspired)

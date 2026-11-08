@@ -1142,6 +1142,76 @@ impl Game {
         for i in fired.into_iter().rev() { self.dilemma_debts.remove(i); }
     }
 
+    /// The shared story: folk who witnessed the same thing carry a bit
+    /// between them, and the retelling warms the pair - an untold bit
+    /// fades inside the month
+    pub(in crate::session) fn bits_tick(&mut self, tick: u64) {
+        use crate::sim::psychology::{AttachmentHistory, SharedBit, SharedBits};
+        // what everyone carries: group each villager's memories by the
+        // thing witnessed - two names on the same memory is a bit
+        let mut by_memory: crate::engine::det::HashMap<(Entity, crate::sim::psychology::EpisodeKind), Vec<Entity>> =
+            crate::engine::det::HashMap::default();
+        for &v in &self.villagers {
+            let Some(h) = self.world.get_component::<AttachmentHistory>(v) else { continue };
+            // the fresh end of memory is what folk still trade in -
+            // scanning the whole of a life every day would drag. And a
+            // Warmth beat is a bond moment, not a witnessed thing - letting
+            // retellings seed new bits would run the loop away
+            for e in h.episodes.iter().rev().take(40) {
+                if matches!(e.kind, crate::sim::psychology::EpisodeKind::Warmth) { continue; }
+                by_memory.entry((e.with, e.kind)).or_default().push(v);
+            }
+        }
+        for ((subject, kind), mut holders) in by_memory {
+            if holders.len() < 2 { continue; }
+            holders.sort_unstable();
+            for i in 0..holders.len() {
+                for j in (i + 1)..holders.len() {
+                    let (a, b) = (holders[i], holders[j]);
+                    for (x, y) in [(a, b), (b, a)] {
+                        let mut sb = self.world.get_component::<SharedBits>(x)
+                            .map(|s| SharedBits { bits: s.bits.clone() }).unwrap_or_default();
+                        if !sb.bits.iter().any(|bit| bit.partner == y
+                            && bit.subject == subject && bit.kind == kind) {
+                            sb.bits.push(SharedBit {
+                                partner: y, subject, kind, told: false, born: tick });
+                            self.world.add_component(x, sb);
+                        }
+                    }
+                }
+            }
+        }
+        // the telling: when next the pair meet they trade it - a day's
+        // grace, then the small warmth lands; a bit never told fades
+        const BIT_TTL: u64 = 30;
+        for &v in &self.villagers {
+            let Some(bits) = self.world.get_component::<SharedBits>(v)
+                .map(|s| s.bits.clone()) else { continue };
+            let mut keep = vec![];
+            for mut bit in bits {
+                if bit.told {
+                    // a story once told is done its work - keeping every
+                    // one forever would drag the daily scan
+                    continue;
+                }
+                if tick >= bit.born + 1
+                    && !crate::game::villager::is_dead(&self.world, bit.partner) {
+                    // a warmth beat, not a new relationship entity -
+                    // spawning one inside the daily tick would shift the
+                    // entity order and starve the store
+                    crate::sim::psychology::record_episode(&mut self.world, v,
+                        crate::sim::psychology::Episode { with: bit.partner,
+                            kind: crate::sim::psychology::EpisodeKind::Warmth });
+                    bit.told = true;
+                } else if tick >= bit.born + BIT_TTL {
+                    continue;
+                }
+                keep.push(bit);
+            }
+            self.world.add_component(v, SharedBits { bits: keep });
+        }
+    }
+
     /// The campaign's own season: it listens before it cuts, it reads
     /// the room before it acts - a dossier moves it past the cutting,
     /// a directive past the research, and a settled campaign loops

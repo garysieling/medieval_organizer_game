@@ -266,6 +266,7 @@ impl Game {
         crate::timed!("sim.phase", self.phase_tick(tick));
         crate::timed!("sim.surveil", self.surveillance_tick(tick));
         crate::timed!("sim.dilemma", self.dilemma_tick(tick));
+        crate::timed!("sim.bits", self.bits_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

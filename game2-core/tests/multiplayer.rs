@@ -508,9 +508,8 @@ fn a_scene_carries_each_toasts_announcement_frame() {
     let server = start(None);
     let mut human = connect(server.addr);
     hello(&mut human, None, ClientKind::Human);
-    // turbo: the village announces itself soon enough - a promotion, an
+    // the village announces itself soon enough - a promotion, an
     // omen, a market day. Wait for the first banner to ride a scene
-    send(&mut human, &ClientMsg::Command(Command::ToggleSpeed));
     let (model, raw) = until("a toast in a scene", &mut human, 90, |m, t| match m {
         ServerMsg::Scene(s) if !s.toasts.is_empty() => Some((s.as_ref().clone(), t.to_string())),
         _ => None,
@@ -568,8 +567,7 @@ fn an_introduction_over_the_wire_asks_the_camera_over() {
     // a second seat: the ask is delivered to its own seat alone
     let mut other = connect(server.addr);
     hello(&mut other, None, ClientKind::Human);
-    // turbo: days fly by, and the bond still only deepens one talk a day
-    send(&mut me, &ClientMsg::Command(Command::ToggleSpeed));
+    // days fly by, and the bond still only deepens one talk a day
 
     // play the organizer: bend ears until somebody names a friend. The
     // asks only surface once they've told you a thing about themself, so

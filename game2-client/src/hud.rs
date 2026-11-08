@@ -3,7 +3,7 @@
 use super::*;
 
 /// The top-left status line: season, day, the village food store, weather, speed
-pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool, speed: u32,
+pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, weather: Option<&str>, paused: bool,
     food_yield: f32, harsh_winter: bool) -> String {
     // two independent reads: what the climate does to the fields, and
     // whether a harsh winter's also running - one can hide neither
@@ -14,7 +14,7 @@ pub(crate) fn hud_text(season: Season, day: u64, food: impl std::fmt::Display, w
     format!("{:?} | day {} | food store {}{}{}{}", season, day, food,
         weather.map(|w| format!(" | {}", w)).unwrap_or_default(),
         yield_word,
-        if paused { " [PAUSED]" } else if speed > 1 { " [4x]" } else { "" })
+        if paused { " [PAUSED]" } else { "" })
 }
 
 /// The seat's own bag and belly, as one strip under the HUD line:

@@ -83,7 +83,7 @@ The same inputs the window sends, one frame's worth each.
 in `ctx`; `Select(i)` picks a villager; `Unselect` lets the pick go - the
 ring, the walk-over and the talk under way; `TalkPick(n)` answers mid-Talk
 (`null` to take your leave); `Decide(i)` answers a founding call.
-`TogglePause`/`ToggleSpeed` are ignored: the shared world runs at one pace.
+`TogglePause` is ignored: the shared world runs at one pace.
 
 ### AgentCmd (agents)
 

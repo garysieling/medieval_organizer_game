@@ -18,7 +18,7 @@
 //!   420 ctx 0        a contextual action (Work, Pair up, ...)
 //!   440 click 700 400   click the map through the camera
 //!   500 pause        toggle pause
-//!   600 speed        toggle 1x/4x
+
 //!   700 look 40 60   move the camera to a map tile
 //!   750 cancel       drop a walk-over-to-act in progress
 
@@ -148,7 +148,6 @@ pub fn parse_script(text: &str) -> Result<Vec<(u64, ScriptOp)>, String> {
             }),
             "look" => ScriptOp::Look(num(&mut it)? as i32, num(&mut it)? as i32),
             "pause" => ScriptOp::Cmd(Command::TogglePause),
-            "speed" => ScriptOp::Cmd(Command::ToggleSpeed),
             "cancel" => ScriptOp::Cmd(Command::CancelApproach),
             _ => return Err(err("unknown verb")),
         };
@@ -709,9 +708,9 @@ mod tests {
 
     #[test]
     fn test_parse_script_commands() {
-        let s = "# a comment\n\n120 walk 1 0\n340 stop\n360 act 1\n400 select 3\n420 ctx 0\n440 click 700 400\n500 pause\n600 speed\n700 look 40 60\n750 cancel\n";
+        let s = "# a comment\n\n120 walk 1 0\n340 stop\n360 act 1\n400 select 3\n420 ctx 0\n440 click 700 400\n500 pause\n700 look 40 60\n750 cancel\n";
         let ops = parse_script(s).unwrap();
-        assert_eq!(ops.len(), 10);
+        assert_eq!(ops.len(), 9);
         assert!(matches!(ops[0], (120, ScriptOp::Cmd(Command::Walk(dx, dy))) if dx == 1.0 && dy == 0.0));
         assert!(matches!(ops[1], (340, ScriptOp::Cmd(Command::Walk(0.0, 0.0)))));
         assert!(matches!(ops[2], (360, ScriptOp::Cmd(Command::Act(1)))));
@@ -719,9 +718,8 @@ mod tests {
         assert!(matches!(ops[4], (420, ScriptOp::Cmd(Command::CtxAct(0)))));
         assert!(matches!(ops[5], (440, ScriptOp::Cmd(Command::ClickMap { mx: 700, my: 400, .. }))));
         assert!(matches!(ops[6], (500, ScriptOp::Cmd(Command::TogglePause))));
-        assert!(matches!(ops[7], (600, ScriptOp::Cmd(Command::ToggleSpeed))));
-        assert!(matches!(ops[8], (700, ScriptOp::Look(40, 60))));
-        assert!(matches!(ops[9], (750, ScriptOp::Cmd(Command::CancelApproach))));
+        assert!(matches!(ops[7], (700, ScriptOp::Look(40, 60))));
+        assert!(matches!(ops[8], (750, ScriptOp::Cmd(Command::CancelApproach))));
         assert!(parse_script("oops").is_err());
         assert!(parse_script("10 frobnicate").is_err());
     }

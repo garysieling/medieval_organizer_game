@@ -17,7 +17,6 @@ const FPS: u32 = session::FPS;
 const MIN_ZOOM: f32 = client::MIN_ZOOM;
 const MAX_ZOOM: f32 = client::MAX_ZOOM;
 /// The speed key stays while the flag's on; web builds and the server drop it
-const SPEED: bool = cfg!(feature = "speed-timer");
 
 fn present(window: &mut Window, buf: &Buffer) {
     // RGBA -> 0xRRGGBB u32 pixels for minifb, into one buffer kept across
@@ -600,7 +599,6 @@ fn main() {
         if remote.is_none() {
             if let Some(g) = &mut game {
                 if !view.search_focus && window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { g.paused = !g.paused; }
-                if SPEED && !view.search_focus && window.is_key_pressed(Key::Key0, minifb::KeyRepeat::No) { g.speed = if g.speed == 1 { 4 } else { 1 }; }
             }
         }
         if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }

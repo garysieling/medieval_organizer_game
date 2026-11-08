@@ -541,7 +541,7 @@ impl Game {
             food_yield: world.get_component::<climate::Climate>(self.climate)
                 .map(|c| climate::climate_multiplier(c, "food")).unwrap_or(1.0),
             harsh_winter: self.harsh_winter,
-            paused: self.paused, speed: self.speed,
+            paused: self.paused,
             stones: self.stones.clone(), buildings, people, bonds, org_members,
             player_satchel: self.world.get_component::<Satchel>(seat_player)
                 .map(|s| { let mut g: Vec<_> = s.goods.iter().filter(|(_, &n)| n > 0)

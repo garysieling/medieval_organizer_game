@@ -448,7 +448,6 @@ pub struct UiModel {
     pub rainbow_from: Option<u32>,
     pub paused: bool,
     /// Sim speed when local control is allowed (always 1 when networked)
-    pub speed: u32,
     pub stones: Vec<(i32, i32)>,
     /// The standing monuments: where each stands, its kind (0 column,
     /// 1 the org's ring), and the words it carries

@@ -996,6 +996,7 @@ impl Game {
             imperial_project: None,
             doctor: None,
             stocks_tile: None,
+            lord_works: vec![],
             village_gaol: None,
             castle_gaol: None,
             suffrage_won: false,

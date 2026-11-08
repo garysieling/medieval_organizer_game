@@ -36,6 +36,12 @@ pub enum BuildingKind {
     /// The settlement post: letters for the road gathered under one
     /// roof - a venue, not a workplace
     PostOffice,
+    /// The keep's undercroft grown: a castle's own cell block, built
+    /// by a commission - more of the realm's prisoners fit inside
+    Dungeon,
+    /// A cash-crop ground out on a castle's demesne: vines tended for
+    /// the market's wine, a commission's work
+    Plantation,
 }
 
 /// A building on the map (entity; its Pos is where it stands)

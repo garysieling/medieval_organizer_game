@@ -352,6 +352,10 @@ pub fn ctx_button(act: CtxAct) -> Button {
         // prisoner's petition sits where the seat button would
         CtxAct::Townhall => Button { label: "Demands".into(), key: ' ', x: UI_X as i32 + 146, y: 422, w: 62, h: 16, color: (150, 60, 60) },
         CtxAct::Petition => Button { label: "Petition".into(), key: ' ', x: UI_X as i32 + 146, y: 438, w: 62, h: 16, color: (140, 80, 80) },
+        // the target's card gets the interview; the debrief sits beside
+        // the meeting it reports to
+        CtxAct::Interview => Button { label: "Interview".into(), key: ' ', x: UI_X as i32 + 146, y: 406, w: 62, h: 16, color: (90, 100, 140) },
+        CtxAct::Debrief => Button { label: "Debrief".into(), key: ' ', x: UI_X as i32 + 216, y: 470, w: 62, h: 16, color: (100, 100, 130) },
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },

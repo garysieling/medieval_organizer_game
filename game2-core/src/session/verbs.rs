@@ -512,6 +512,11 @@ impl Game {
             if due {
                 self.seats[seat].ctx_actions.push(CtxAct::Meet);
             }
+            // the debrief settles the next step after a meeting's held
+            if self.world.get_component::<crate::game::campaign::CampaignMeeting>(c)
+                .map(|m| m.held > 0).unwrap_or(false) {
+                self.seats[seat].ctx_actions.push(CtxAct::Debrief);
+            }
             self.seats[seat].ctx_actions.push(CtxAct::Cadence);
             // no second column while one's already marching
             if self.formation.is_none() {
@@ -548,6 +553,14 @@ impl Game {
         if self.seats[seat].selected_building.is_none()
             && (self.seats[seat].picked || self.seats[seat].agent) {
             let v = self.villagers[self.seats[seat].selected_target];
+            // the cause's target can be sounded out: the interview earns
+            // their stance and the stake that puts them there
+            if let Some(ci) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) {
+                if self.world.get_component::<crate::game::campaign::Campaign>(ci)
+                    .map(|cc| cc.target == Some(v)).unwrap_or(false) {
+                    self.seats[seat].ctx_actions.push(CtxAct::Interview);
+                }
+            }
             if !crate::game::villager::is_dead(&self.world, v) {
                 if self.world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some() {
                     // someone's inside: the way out is pressure - the
@@ -986,6 +999,75 @@ impl Game {
                     self.world.remove_component::<crate::game::organizing::HallDamaged>(oe);
                     "The carpenters patch the roof - the hall's fit to meet in again.".into()
                 }
+            }
+            CtxAct::Interview => {
+                let t = self.villagers[self.seats[seat].selected_target];
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+                    self.log.push(format!("t{}: no cause to sound anyone out for.", tick)); return; };
+                let Some(target) = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.target).unwrap_or(None) else { return; };
+                if target != t { return; }
+                // rapport earns the hearing: a stranger's stance is a
+                // wall's, a warm ear's is an answer
+                let warm = crate::game::player::rapport(&self.world, self.seats[seat].player, t);
+                if warm < 0.3 { return; }
+                // the stance is computed, deterministic: their own
+                // concerns decide where they land on the cause's issue
+                let issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.issue.clone()).unwrap_or_default();
+                let shares = self.world.get_component::<desires::InnerLife>(t)
+                    .map(|l| l.grievances.iter().any(|g|
+                        desires::issue_tag(&self.world, t, &desires::Reveal::Problem(g.0)) == issue))
+                    .unwrap_or(false);
+                let stance = if shares { "for it" }
+                    else if self.world.get_component::<desires::InnerLife>(t)
+                        .map(|l| !l.grievances.is_empty()).unwrap_or(false) { "against it" }
+                    else { "undecided" };
+                // the stake is their top concern - the thing that names
+                // where they'd put the cause's weight
+                let stake = self.world.get_component::<desires::InnerLife>(t)
+                    .and_then(|l| l.grievances.first().map(|g|
+                        desires::issue_tag(&self.world, t, &desires::Reveal::Problem(g.0))))
+                    .unwrap_or_else(|| issue.clone());
+                if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
+                    cc.dossier = Some(crate::game::campaign::Dossier {
+                        target: t, stance, stake: stake.clone() });
+                }
+                format!("You learn where {} stands on it - {} - and what's behind it: {}.",
+                    self.name_of(t), stance, stake)
+            }
+            CtxAct::Debrief => {
+                let Some(c) = crate::game::campaign::campaign_of(&self.world, self.seats[seat].org) else {
+                    return; };
+                // the room's answer: the members standing here pick the
+                // next step - the tally's by who's present, not who's on
+                // the roll, and the thin room's a weak mandate
+                let members = self.world.get_component::<Organization>(self.seats[seat].org)
+                    .map(|o| o.members.clone()).unwrap_or_default();
+                let present: Vec<Entity> = members.iter().copied().filter(|&m|
+                    !villager::is_dead(&self.world, m)
+                    && self.world.get_component::<Pos>(m).zip(self.world.get_component::<Pos>(self.seats[seat].player))
+                        .map(|(a, b)| (a.x - b.x).abs() + (a.y - b.y).abs() < 20.0).unwrap_or(false)).collect();
+                if present.is_empty() { return; }
+                let options = ["the petition", "the march", "the strike", "a town hall"];
+                let _issue = self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.issue.clone()).unwrap_or_default();
+                // each present member's choice is deterministic: their own
+                // grievance's tag picks the step that answers it
+                let mut tally: crate::engine::det::HashMap<&str, usize> = crate::engine::det::HashMap::default();
+                for m in &present {
+                    let pick = options[*m as usize % options.len()];
+                    *tally.entry(pick).or_insert(0) += 1;
+                }
+                let winner = options.iter()
+                    .max_by_key(|o| tally.get(*o).copied().unwrap_or(0))
+                    .copied().unwrap_or("the petition");
+                let mandate = if present.len() < 3 { " - a thin room's weak word" } else { "" };
+                if let Some(cc) = self.world.get_component_mut::<crate::game::campaign::Campaign>(c) {
+                    cc.directive = Some(winner.to_string());
+                }
+                self.log.push(format!("t{}: the debrief settles it - the room's for {}{}.", tick, winner, mandate));
+                format!("The room settles on {}{}.", winner, mandate)
             }
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];

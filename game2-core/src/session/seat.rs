@@ -60,6 +60,12 @@ pub enum CtxAct {
     Townhall,
     /// Keep pressing for the prisoner's release
     Petition,
+    /// Sound the campaign's target out: where they stand on the issue,
+    /// and the stake that puts them there - rapport earns the hearing
+    Interview,
+    /// The debrief: present members ballot the next step and the vote
+    /// sets the campaign's directive
+    Debrief,
     /// Mend the meeting hall a storm took - the org's treasury pays
     MendHall,
     /// Set how often the cause meets: the organizer's recommendation

@@ -211,7 +211,20 @@ fn main() {
     // server only deals one to a seat it minted, so an empty roster
     // means a returning claim (or an older server) - no picker
     let mut want_remote_pick = remote.is_some();
-    let mut game = if remote.is_none() { Some(Game::new_seeded(seed)) } else { None };
+    // a saved day's own record: --load replays the journal to the same
+    // village, the autosave keeps it against a crash
+    let load_path = args.iter().position(|a| a == "--load").and_then(|i| args.get(i + 1)).cloned();
+    let mut last_saved_day = 0u64;
+    let mut game = if remote.is_none() {
+        if let Some(ref lp) = load_path {
+            if let Ok(j) = std::fs::read_to_string(lp)
+                .and_then(|s| serde_json::from_str::<game2_core::session::journal::Journal>(&s)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))) {
+                let frames = j.entries.last().map(|e| e.0).unwrap_or(0);
+                Some(game2_core::session::journal::replay(&j, frames))
+            } else { Some(Game::new_seeded(seed)) }
+        } else { Some(Game::new_seeded(seed)) }
+    } else { None };
     // the prologue card stands between the picker and the game: the
     // seed's own facts, till any key lets the day begin. A remote seat's
     // facts ride the Welcome - the card shows once it lands
@@ -351,6 +364,19 @@ fn main() {
         mouse_was_down = mouse_down;
 
         // the frame to draw: the server's latest scene, or the local game's
+        // the day's own record goes down at the boundary: the autosave
+        // file writes atomic, a .prev keeps the day before it
+        if let Some(g) = game.as_ref() {
+            let day = g.tick;
+            if day != last_saved_day {
+                last_saved_day = day;
+                std::fs::create_dir_all("saves").ok();
+                let json = serde_json::to_string(&g.journal).unwrap_or_default();
+                std::fs::rename("saves/autosave.json", "saves/autosave.prev.json").ok();
+                std::fs::write("saves/autosave.tmp", json).ok()
+                    .and_then(|_| std::fs::rename("saves/autosave.tmp", "saves/autosave.json").ok());
+            }
+        }
         let cur_model: Option<UiModel> = match (&remote, &mut game) {
             (Some(r), _) => r.latest.lock().unwrap().clone(),
             (None, Some(g)) => { g.update(); Some(g.ui_model()) }

@@ -1020,6 +1020,9 @@ pub struct Game {
     /// Who's stood in a gathering today: (player, day) - the day's rite
     /// counts once, not once per button press
     pub attended_days: Vec<(Entity, u64)>,
+    /// The day's own record: every input the world took - the autosave
+    /// writes it, a load replays it to the same village
+    pub journal: crate::session::journal::Journal,
     /// The market board's postings: what's pinned to it, and when each
     /// comes down - a writ's term, a feast's day, a quest's asking
     pub notices: Vec<(String, String, u64)>,

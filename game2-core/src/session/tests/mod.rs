@@ -96,6 +96,7 @@ mod stone_circle;
 mod cairns;
 mod member_line;
 mod minimap;
+mod autosave;
 mod boats;
 mod music_view;
 mod mystery;

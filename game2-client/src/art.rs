@@ -210,6 +210,15 @@ pub struct Art {
     pub trader_stall: Option<Sprite>,
     /// The footbridge over the river: deck along x, along y
     pub bridges: [Option<Sprite>; 2],
+    /// The memorial pieces (assets/rd/monuments, #703): wayside cross,
+    /// picture stone, obelisk, trophy and the Scott column, and the
+    /// composed cairns; None/empty keeps the caller's placeholder draw
+    pub memorial_cross: Option<Sprite>,
+    pub memorial_picture: Option<Sprite>,
+    pub memorial_obelisk: Option<Sprite>,
+    pub memorial_trophy: Option<Sprite>,
+    pub memorial_column: Option<Sprite>,
+    pub memorial_cairns: Vec<Sprite>,
     /// Small generated props (assets/rd/bits); empty: the old blocks stand in
     pub skeps: Vec<Sprite>,
     pub graves: Vec<Sprite>,
@@ -797,6 +806,12 @@ impl Art {
             works_winter,
             market_cross: at("rd/bits/market-cross.png"),
             maypole: at("rd/bits/maypole.png"),
+            memorial_cross: at("rd/monuments/wayside-cross.png"),
+            memorial_picture: at("rd/monuments/picture-stone.png"),
+            memorial_obelisk: at("rd/monuments/obelisk.png"),
+            memorial_trophy: at("rd/monuments/trophy.png"),
+            memorial_column: at("rd/monuments/column.png"),
+            memorial_cairns: (1..=2).filter_map(|i| at(&format!("rd/monuments/cairn{}.png", i))).collect(),
             stalls: bits("stall"),
             trader_stall: at("rd/bits/trader-stall.png"),
             bridges: [at("rd/bits/bridge_x.png"), at("rd/bits/bridge_y.png")],

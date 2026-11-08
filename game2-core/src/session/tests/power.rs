@@ -13,7 +13,9 @@ fn test_power_builds_as_its_spent_and_atrophies_idle() {
     g.record_power(crate::sim::organized_power::ActionQuality::Transformational);
     let high = capacity(&g);
     assert!(high > 0.2, "meetings in the street build it");
-    for t in (3..60).step_by(7) { g.power_tick(t); }
+    // atrophy moved to the daily influence tick (#552) - a season idle
+    // and the muscle is gone
+    for t in 1..=60 { g.influence_tick(t); }
     assert!(capacity(&g) < high, "power atrophies when idle - unlike gold");
 }
 

@@ -856,6 +856,10 @@ impl Game {
                         let open = [Role::TurnoutCoordinator, Role::NoteTaker, Role::Chair].iter().copied()
                             .find(|&r| crate::game::campaign::seat_holder(&self.world, c, r).is_none());
                         match open {
+                            Some(_) if !self.suffrage_won
+                                && self.world.get_component::<villager::Sex>(v)
+                                    .map(|s| *s == villager::Sex::Female).unwrap_or(false) =>
+                                format!("{} can't hold a seat - not while a woman's say in the village goes unasked.", name),
                             Some(r) if crate::game::campaign::delegate_role(&mut self.world, c, r, v) => {
                                 // naming a seat teaches its craft: a mentor
                                 // who's built it hands the trade down

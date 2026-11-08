@@ -495,6 +495,10 @@ pub struct ConstructionSite {
 /// resolve (Game::resolve_meeting).
 pub struct Meeting {
     pub label: String,                       // where it is: "Bram's house"
+    /// The venue's tile - where the camera frames the gathering
+    pub venue: (i32, i32),
+    /// The day it was called - each meeting's own stamp
+    pub born: u64,
     pub invited: Vec<Entity>,
     pub spots: Vec<(i32, i32)>,              // where each invitee stands, round the venue
     pub paths: Vec<Option<Vec<(i32, i32)>>>, // each one's way there, next step first (None: no way)

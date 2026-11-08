@@ -1584,7 +1584,7 @@ impl Game {
             self.world.add_component(m, villager::InFormation);
         }
         self.formation = Some(formation::Formation {
-            kind: formation::FormationKind::March, seat,
+            kind: formation::FormationKind::March, seat, born: self.tick,
             members: members.clone(), route, at: 0, stuck: 0, waited: 0, leg0: -1.0,
             cheered: Default::default() });
         format!("the cause marches: {} take to the streets.", members.len())

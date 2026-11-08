@@ -289,7 +289,7 @@ impl Game {
             plan.song.is_some(), plan.closer.is_some());
         let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
         let msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
-        self.meeting = Some(Meeting { label, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles });
         msg
     }
 

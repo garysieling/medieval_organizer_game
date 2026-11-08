@@ -51,6 +51,15 @@ pub(crate) fn shroom_tuft(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     buf.rect(sx - k(1), sy - k(1), 1.max(k(3)), 1.max(k(2)), 235, 225, 200);
 }
 
+/// A cache the woods' rebels left: a bulging sack and a glint of the
+/// take, half-hidden in the leaf-mould
+pub(crate) fn draw_cache(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
+    let k = |v: i32| ((v as f32) * zoom).round() as i32;
+    buf.rect(sx - k(4), sy - k(6), 1.max(k(8)), 1.max(k(5)), 105, 80, 50);
+    buf.rect(sx - k(3), sy - k(8), 1.max(k(5)), 1.max(k(3)), 125, 95, 60);
+    buf.rect(sx - k(1), sy - k(7), 1.max(k(2)), 1.max(k(2)), 200, 165, 90);
+}
+
 /// A woven skep: a small domed hive with banding
 pub(crate) fn draw_skep(buf: &mut Buffer, sx: i32, sy: i32, zoom: f32) {
     let k = |v: i32| ((v as f32) * zoom).round() as i32;

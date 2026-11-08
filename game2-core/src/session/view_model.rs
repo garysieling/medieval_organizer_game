@@ -567,6 +567,8 @@ impl Game {
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
             mush: self.mush_patches.iter().filter(|p| self.tick >= p.next_ready)
                 .map(|p| (p.tile.0 as f32, p.tile.1 as f32)).collect(),
+            stolen: self.rebel_stores.iter().filter(|s| self.tick < s.until)
+                .map(|s| (s.tile.0 as f32, s.tile.1 as f32)).collect(),
             skeps: self.hives.iter().filter_map(|&h| world.get_component::<Pos>(h)
                 .map(|p| (p.x, p.y))).collect(),
             swarm: self.swarm.and_then(|(w, _)| world.get_component::<Pos>(w).map(|p| (p.x, p.y))),
@@ -1250,7 +1252,9 @@ impl Game {
                 .collect();
             if !kin.is_empty() { parts.push(format!("kin: {}", kin.join(", "))); }
             if world.get_component::<country::Outlander>(v).is_some() {
-                parts.push("of the country".into());
+                parts.push(if world.get_component::<rebels::Rebel>(v).is_some() {
+                    "a rebel of the woods".into()
+                } else { "of the country".into() });
             }
             // a seed they carry: something only the ones who've earned
             // their confidence could know

@@ -306,7 +306,10 @@ impl Game {
             || self.world.get_component::<Hunger>(v).map(|h| h.value < 30.0).unwrap_or(false)
             || self.world.get_component::<villager::Drunk>(v).map(|d| tick < d.until).unwrap_or(false)
             || self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false)
-            || is_sick(&self.world, v) { return false; }
+            || is_sick(&self.world, v)
+            // the woods' bands don't do village calls - a rebel's
+            // "I'll come find you" stays a polite wave-off
+            || self.world.get_component::<rebels::Rebel>(v).is_some() { return false; }
         let Some(t) = self.world.get_component::<Pos>(rb.to)
             .map(|p| (p.x.round() as i32, p.y.round() as i32)) else {
             self.world.remove_component::<crate::game::organizing::RoundBack>(v);
@@ -517,6 +520,7 @@ impl Game {
     fn free_to_gather(&self, v: Entity) -> bool {
         !crate::game::dungeon::unavailable(&self.world, v)
             && self.world.get_component::<TownRole>(v).is_none()
+            && self.world.get_component::<rebels::Rebel>(v).is_none()
             && self.world.get_component::<Hunger>(v).map(|h| h.value >= 30.0).unwrap_or(true)
             && !self.travels.iter().any(|t| t.who == v)
             && !self.meeting.as_ref().map(|m| m.invited.contains(&v)).unwrap_or(false)

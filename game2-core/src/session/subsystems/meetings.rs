@@ -122,7 +122,19 @@ impl Game {
         use crate::game::campaign;
         let org = self.seats[seat].org;
         let oname = self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default();
+        // a woman's banner doesn't fly while the vote's unasked - the
+        // room won't follow what the village won't call a voice
+        let woman_led = self.world.get_component::<Organization>(org)
+            .map(|o| self.world.get_component::<villager::Sex>(o.leader)
+                .map(|s| *s == villager::Sex::Female).unwrap_or(false))
+            .unwrap_or(false);
+        if woman_led && !self.suffrage_won && vote.winner != "the vote" {
+            return "the room won't follow - not while a woman's say in the village goes unasked.".into();
+        }
         let c = campaign::found_campaign(&mut self.world, org, vote, framing, rule, self.tick);
+        // the vote is won when a room carries it - the question put to
+        // the village is the answer it needed
+        if vote.winner == "the vote" { self.suffrage_won = true; }
         // a cut issue names its target: the Reeve for the taxes, the
         // overseer for his cut - a hurt nobody stands over, the village
         // mends itself

@@ -366,10 +366,22 @@ pub fn nourishment_step(world: &mut World, sick: &[Entity]) {
 }
 
 /// Spawn a villager at a position
+/// What the village calls the body it gave them - the suffrage question
+/// turns on it, so it has to exist before the campaign can fight it
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum Sex { Female, Male }
+
+impl Sex {
+    /// The body the spawn gives them, by the entity's own number -
+    /// deterministic, and half the world either way
+    pub fn from_id(e: Entity) -> Sex { if e % 2 == 0 { Sex::Female } else { Sex::Male } }
+}
+
 pub fn spawn_villager(world: &mut World, x: f32, y: f32) -> Entity {
     let e = world.create_entity();
     world.add_component(e, Pos { x, y });
     world.add_component(e, Hunger { value: 100.0 });
+    world.add_component(e, Sex::from_id(e));
     world.add_component(e, Villager {
         activity: Activity::Idle,
         target_food: None,

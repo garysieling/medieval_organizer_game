@@ -933,6 +933,9 @@ pub struct Game {
     /// The emperor's levy: while it runs, the granary bleeds for a
     /// project nobody here will ever see
     pub imperial_project: Option<ImperialProject>,
+    /// The vote: once a suffrage campaign carries it, a woman's name on
+    /// a banner means the same as a man's
+    pub suffrage_won: bool,
     /// The town wall's rectangle this map (it breathes with the seed) - for
     /// keeping the grass specks off the town streets
     pub town_wall: (i32, i32, i32, i32),

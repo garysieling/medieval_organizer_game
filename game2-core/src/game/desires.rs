@@ -242,6 +242,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "empty shops" => "the boarded-up shops".into(),
         "the overseers' cut" => "the overseers' cut".into(),
         "the taxes" => "the tax collector's cut".into(),
+        "the vote" => "a woman's say in the village".into(),
         "poverty" => "folk without a coin".into(),
         "honest work's stink" => "the stink of honest work".into(),
         "the wolves" => "wolves at the fold".into(),

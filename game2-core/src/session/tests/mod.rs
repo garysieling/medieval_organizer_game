@@ -77,6 +77,7 @@ mod market;
 mod mine;
 mod levy;
 mod child_labor;
+mod suffrage;
 mod monuments;
 mod stone_circle;
 mod cairns;

@@ -993,6 +993,7 @@ impl Game {
             cairns: vec![],
             monuments: vec![],
             imperial_project: None,
+            suffrage_won: false,
             derelict: Default::default(),
             ruined: Default::default(),
             cutaways: Default::default(),

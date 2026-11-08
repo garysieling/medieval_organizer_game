@@ -99,6 +99,13 @@ soldier, "bareheaded ... no helmet" a bald man.
   two 4-image calls using it as `reference_images`) replace the pack's
   10 house looks. Their grass bases are recoloured to snow in winter
   (`Art.houses_winter`).
+- **Memorials** (`monuments/`, #703): wayside cross, picture stone,
+  obelisk, trophy and the Scott column (`rd_tile__tile_object` 96px for
+  the ground pieces, `rd_pro__isometric` 96px for the column), sliced
+  tight - the exports carried no ground slab to strip; the cairns are composed offline from
+  `stones/stone*.png`, not generated. Registered as `Art.memorial_*`
+  options - #702 picks which form a monument wears. The lychgate prompt
+  is catalogued for #674, not generated.
 - **Botháns** (`buildings/bothan1..3.png` + `bothan-winter1..3.png`,
   #708): squat Irish thatch cottages appended to the cottage rotation.
   One 4-image call for summer picks, then a winter call per pick with

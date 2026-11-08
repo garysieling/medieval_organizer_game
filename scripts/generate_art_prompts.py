@@ -1285,6 +1285,34 @@ for slug, subj in [
         w=64, h=64, tier="p0", ref=GRASS_REF, notes="matches the grass block")
 
 # ---------------------------------------------------------------------------
+# P1: memorial monuments (#703) - the pieces a village raises to remember.
+# Ground pieces are tile_object props that sit on any ground (slice with
+# --flush-base/--strip-base); the column towers, so it asks 96px isometric.
+# The cairn is composed from assets/rd/stones, not generated; the lychgate
+# waits for the funerals ticket (#674) - catalogued, not generated yet.
+MONUMENTS = [
+    ("memorial-wayside-cross", "wayside cross, ringed wheel cross head on a "
+     "tapered carved stone shaft, early medieval", "rd_tile__tile_object", 96),
+    ("memorial-picture-stone", "picture stone, squat carved slab covered in "
+     "runic-style carved figures, gotland style", "rd_tile__tile_object", 96),
+    ("memorial-obelisk", "obelisk, tall tapered square stone shaft with a "
+     "small pyramidion finial on a stepped base", "rd_tile__tile_object", 96),
+    ("memorial-trophy", "trophy monument, a captured enemy standard and "
+     "captured arms mounted on a wooden frame", "rd_tile__tile_object", 96),
+    ("memorial-lychgate", "lychgate, small roofed wooden arch over a path, "
+     "the churchyard entrance", "rd_tile__tile_object", 96),
+]
+for slug, subj, style, px in MONUMENTS:
+    add("monuments", slug, f"{ISO}: {subj}", style=style, w=px, h=px, n=2,
+        tier="p1", notes="memorial piece; sits on any ground - strip base (#703)"
+        if slug != "memorial-lychgate" else "deferred to funerals #674 - catalogued only")
+add("monuments", "memorial-column", f"{ISO}: Scott monument, tall fluted "
+    "stone column with ornate capital on a stepped pedestal, the town's "
+    "memorial to a great deed",
+    w=96, h=96, n=2, tier="p1",
+    notes="the flagship monument form; towers over the cottages (#703)")
+
+# ---------------------------------------------------------------------------
 # Smoke batch: one representative call per rendering mode / style family.
 # ~$3 total - run this first to validate prompts, sizes and outputs before
 # any real spend. ids get a -smoke suffix so they don't collide with the

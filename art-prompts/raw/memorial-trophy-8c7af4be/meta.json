@@ -1,0 +1,27 @@
+{
+ "created_at": 1794147124,
+ "credit_cost": 4,
+ "balance_cost": 0.12,
+ "model": "rd_fast",
+ "remaining_credits": 0,
+ "remaining_balance": 35.01,
+ "request_id": "f9bdf5c0-bad2-4286-ac03-e6bc9769e72f",
+ "outputs_retained_until": 1794233509,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.12,
+  "balance_left": 35.01
+ },
+ "id": "memorial-trophy-8c7af4be",
+ "prompt": "single isometric medieval village asset: trophy monument, a captured enemy standard and captured arms mounted on a wooden frame",
+ "request": {
+  "prompt_style": "rd_tile__tile_object",
+  "width": 96,
+  "height": 96,
+  "num_images": 2,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T09:13:05",
+ "seconds": 76.6
+}

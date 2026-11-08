@@ -34,7 +34,7 @@ impl Game {
         self.world.add_component(v, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
         self.world.add_component(v, crate::sim::psychology::personality_from_seed(tick ^ v as u64));
-        self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant });
+        self.world.add_component(v, crate::game::lifecycle::Age { years: 0.0, stage: crate::game::lifecycle::LifeStage::Infant, born_day: (v as u16) % 360 });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, Purse { gold: 0.0 });
@@ -97,7 +97,8 @@ impl Game {
         self.world.add_component(v, Purse { gold: 8.0 });
         let years = 19.0 + (self.rng.next() % 42) as f32;
         self.world.add_component(v, crate::game::lifecycle::Age {
-            years, stage: crate::game::lifecycle::stage_for(years) });
+            years, stage: crate::game::lifecycle::stage_for(years),
+            born_day: (v as u16) % 360 });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });

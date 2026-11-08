@@ -16,7 +16,7 @@ fn main() {
     for (i, _n) in names.iter().enumerate() {
         let v = world.create_entity();
         world.add_component(v, Pos { x: (i*3) as f32, y: 0.0 });
-        world.add_component(v, Age { years: ages[i], stage: if ages[i] < 13.0 { LifeStage::Child } else if ages[i] < 65.0 { LifeStage::Adult } else { LifeStage::Elder } });
+        world.add_component(v, Age { years: ages[i], stage: if ages[i] < 13.0 { LifeStage::Child } else if ages[i] < 65.0 { LifeStage::Adult } else { LifeStage::Elder } , born_day: 0 });
         world.add_component(v, Vitality { health: 0.9, max_age: 80.0 + (i as f32 * 5.0), cause_of_death: None });
         villagers.push(v);
     }

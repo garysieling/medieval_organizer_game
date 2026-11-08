@@ -610,7 +610,8 @@ impl Game {
             .map(|kg| kg.age_days as f32 / 52.0)
             .unwrap_or(19.0 + (rng.next() % 42) as f32);
         self.world.add_component(v, crate::game::lifecycle::Age {
-            years, stage: crate::game::lifecycle::stage_for(years) });
+            years, stage: crate::game::lifecycle::stage_for(years),
+                born_day: (v as u16) % 360 });
         self.world.add_component(v, crate::game::lifecycle::Vitality {
             health: 1.0, max_age: 58.0 + (rng.next() % 35) as f32, cause_of_death: None });
         if let Some(b) = self.world.get_component_mut::<Building>(home) { b.occupants.push(v); }

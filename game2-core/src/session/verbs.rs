@@ -494,6 +494,14 @@ impl Game {
             && self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
                 .map(|p| p.ready()).unwrap_or(false) {
             self.seats[seat].ctx_actions.push(CtxAct::Gather);
+            // a gathering today the player can join: the service, the
+            // feast, or a celebrant's day - standing in it counts
+            if routine::is_holy(self.tick) || self.tick % 90 == 45
+                || self.villagers.iter().any(|&v|
+                    self.world.get_component::<crate::game::lifecycle::Age>(v)
+                        .map(|a| a.born_day == (self.tick % 360) as u16).unwrap_or(false)) {
+                self.seats[seat].ctx_actions.push(CtxAct::Attend);
+            }
         }
         // winter's own button: once a day, everyone free can be called out
         // to a snowball fight - it shares Gather's row on the panel
@@ -1068,6 +1076,46 @@ impl Game {
                 }
                 self.log.push(format!("t{}: the debrief settles it - the room's for {}{}.", tick, winner, mandate));
                 format!("The room settles on {}{}.", winner, mandate)
+            }
+            CtxAct::Attend => {
+                // the player's presence counts for what the day means:
+                // a service, a feast, a birthday - the gathering's warmth
+                // lands on whoever stands inside it
+                let player = self.seats[seat].player;
+                // whose gathering is at hand: anyone holding a slot today
+                // at worship or feast, or the celebrant whose birthday it is
+                let gathering = routine::is_holy(tick) || tick % 90 == 45
+                    || self.villagers.iter().any(|&v|
+                        self.world.get_component::<routine::Routine>(v)
+                            .map(|r| r.day == tick
+                                && matches!(r.mode, routine::Mode::Worshipping | routine::Mode::Feasting))
+                            .unwrap_or(false));
+                let birthday = self.villagers.iter().any(|&v|
+                    self.world.get_component::<crate::game::lifecycle::Age>(v)
+                        .map(|a| a.born_day == (tick % 360) as u16).unwrap_or(false));
+                if !gathering && !birthday {
+                    self.log.push(format!("t{}: there's no gathering to join.", tick)); return;
+                }
+                // attending once per day - the day's own rite counts once
+                let already = self.attended_days.iter().any(|&(p, d)| p == player && d == tick);
+                if already { self.log.push(format!("t{}: you've already been to the day's gathering.", tick)); return; }
+                self.attended_days.push((player, tick));
+                // the warmth lands: a small devotion for the standing, a
+                // rapport for the company, the want for the gathering met
+                if let Some(l) = self.world.get_component_mut::<desires::InnerLife>(player) {
+                    l.wants.retain(|w| *w != desires::Want::Faith);
+                }
+
+                // and the folk standing with you warm a little: presence
+                // is the bond's own language
+                for v in self.villagers.iter().copied().collect::<Vec<_>>() {
+                    if self.world.get_component::<Pos>(v).zip(self.world.get_component::<Pos>(player))
+                        .map(|(a, b)| (a.x - b.x).abs() + (a.y - b.y).abs() < 12.0).unwrap_or(false) {
+                        crate::game::player::note_conversation(&mut self.world, player, v);
+                    }
+                }
+                self.log.push(format!("t{}: you stand in the gathering - the day's rite counts for you.", tick));
+                "".into()
             }
             CtxAct::Petition => {
                 let v = self.villagers[self.seats[seat].selected_target];

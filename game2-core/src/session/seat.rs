@@ -66,6 +66,9 @@ pub enum CtxAct {
     /// The debrief: present members ballot the next step and the vote
     /// sets the campaign's directive
     Debrief,
+    /// Join the gathering at hand: a service, a feast, a birthday -
+    /// the player's presence counts for what the day means
+    Attend,
     /// Mend the meeting hall a storm took - the org's treasury pays
     MendHall,
     /// Set how often the cause meets: the organizer's recommendation

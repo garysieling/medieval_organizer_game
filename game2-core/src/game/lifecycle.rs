@@ -8,6 +8,9 @@ use crate::engine::ecs::{Entity, World};
 pub struct Age {
     pub years: f32,
     pub stage: LifeStage,
+    /// The day of the year they were born - the birthday's observance
+    /// fires on it, scaled by what they can afford
+    pub born_day: u16,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -100,7 +103,7 @@ pub fn stage_for(years: f32) -> LifeStage {
 /// Spawn a newborn
 pub fn spawn_person(world: &mut World, _name: &str) -> Entity {
     let e = world.create_entity();
-    world.add_component(e, Age { years: 0.0, stage: LifeStage::Infant });
+    world.add_component(e, Age { years: 0.0, stage: LifeStage::Infant, born_day: 0 });
     world.add_component(e, Vitality { health: 1.0, max_age: 70.0, cause_of_death: None });
     e
 }

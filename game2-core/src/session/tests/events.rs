@@ -942,6 +942,9 @@ fn test_the_pepper_eases_and_cures() {
         { let t = g.tick; g.plan_visit(v, t); }
         g.world.get_component_mut::<Purse>(v).unwrap().gold = 10.0;
         g.world.get_component_mut::<desires::InnerLife>(v).unwrap().wants = vec![Want::GoodFood];
+        // she's not thirsty today: a cup at the bench near the pitch
+        // would spend gold the pepper's meant to be the only spend of
+        desires::satisfy(&mut g.world, v, Want::Drink, g.tick + 90);
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the spice merchant")),
             "the frame shows the spice-cart on {:?}", st);
@@ -1334,8 +1337,14 @@ fn test_the_strange_thing_sells() {
         g.world.get_component_mut::<Pos>(v).unwrap().y = at.1 as f32;
         // come to see the visitor: that's today's place
         { let t = g.tick; g.plan_visit(v, t); }
-        g.world.get_component_mut::<crate::game::livelihood::Satchel>(v)
-            .unwrap().goods.insert("witch's hazel".into(), 1);
+        {
+            let s = g.world.get_component_mut::<crate::game::livelihood::Satchel>(v).unwrap();
+            s.goods.clear();
+            s.goods.insert("witch's hazel".into(), 1);
+        }
+        // and she's not thirsty: a bench-cup near the pitch would leave
+        // a dry measure in the satchel the sale's meant to empty
+        desires::satisfy(&mut g.world, v, Want::Drink, g.tick + 90);
         let gold0 = g.world.get_component::<Purse>(v).map(|p| p.gold).unwrap_or(0.0);
         let model = g.ui_model();
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the alchemist")),

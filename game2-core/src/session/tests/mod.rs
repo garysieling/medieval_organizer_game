@@ -84,6 +84,7 @@ mod gaol;
 mod events_attend;
 mod construction;
 mod laws;
+mod sheriff;
 mod notices;
 mod flood;
 mod lord_works;

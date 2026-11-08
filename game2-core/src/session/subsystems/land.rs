@@ -613,6 +613,33 @@ impl Game {
 }
 
 impl Game {
+    /// The sheriff's day: the law's arm out of the castle answers a
+    /// poacher in the reserve or a trespasser with the book - a body
+    /// walking the wooded ring under his castle's law reads as a crime
+    pub(in crate::session) fn sheriff_tick(&mut self, tick: u64) {
+        for i in 0..self.sites.len() {
+            if self.sites[i].kind != country::SiteKind::Castle || self.sites[i].sheriff.is_none() { continue; }
+            let (cx, cy, r) = { let s = &self.sites[i]; (s.centre.0, s.centre.1, s.radius) };
+            // who's on his ground: a village body on a wooded tile inside
+            // the chase's ring, not his own folk and not the sheriff
+            for v in self.villagers.clone() {
+                if villager::is_dead(&self.world, v) || self.site_of(v).is_some() { continue; }
+                let p = match self.world.get_component::<Pos>(v) { Some(p) => *p, None => continue };
+                let d = (p.x.round() as i32 - cx).abs() + (p.y.round() as i32 - cy).abs();
+                if d > r + 4 { continue; }
+                // a body in the woods where only the hunt's law stands:
+                // the book answers with the fine and the log names the crime
+                if self.map.trees.iter().any(|&(tx, ty)|
+                    (p.x.round() as i32 - tx).abs() <= 1 && (p.y.round() as i32 - ty).abs() <= 1) {
+                    self.apply_penalty(i, v, "poaching", tick);
+                    self.log_entity(v, format!("t{}: {} taken poaching in the chase - the sheriff answers.",
+                        tick, self.name_of(v)));
+                    break;
+                }
+            }
+        }
+    }
+
     /// The site's day: hands on the scaffold count the labor, a day's
     /// work's a day's raise, and a crew that never forms leaves the
     /// foundation to the weather

@@ -63,6 +63,15 @@ const MINE_NAMES: [&str; 4] = ["Gritstone Cut", "Blackrake", "Owd Vein", "Silver
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SiteKind { Town, Castle, Farm, Monastery, Mine }
 
+/// The lord's own measure: cruelty weights his writs, vanity his
+/// pride - rolled on the country stream so the same seed rolls the
+/// same man
+#[derive(Clone, Copy, Debug, Default)]
+pub struct LordPersona {
+    pub cruelty: f32,
+    pub vanity: f32,
+}
+
 /// A settlement out in the country, and who keeps it
 #[derive(Clone, Debug)]
 pub struct Site {
@@ -88,6 +97,13 @@ pub struct Site {
     /// Who holds the site: the castle's lord, a town's reeve, a farm's
     /// headman, the abbey's abbot. They ride the tribute when it's due
     pub lord: Option<Entity>,
+    /// The lord's own measure: how cruel the writs land, how vain the
+    /// pride - rolled on the country stream, hidden till the player's
+    /// met him
+    pub persona: LordPersona,
+    /// The law's arm at the castle: a knight in the sheriff's colors -
+    /// he answers a poacher in the reserve or a trespasser with the book
+    pub sheriff: Option<Entity>,
     /// The site's treasury in gold: tribute in, gifts and the crown's
     /// cut out
     pub treasury: f32,
@@ -438,7 +454,11 @@ impl Game {
             }
             sites.push(Site { name, kind, centre: (cx, cy), radius: r, store, homes,
                 carrier: None, away_until: None, liege: None, title: None,
-                lord: None, treasury: 0.0 });
+                lord: None, treasury: 0.0,
+                persona: if kind == SiteKind::Castle { LordPersona {
+                    cruelty: 0.3 + (rng.below(7) as f32 / 10.0),
+                    vanity: (rng.below(10) as f32 / 10.0) } } else { LordPersona::default() },
+                sheriff: None });
         }
         // the folk, a household to a site under their own roofs; the
         // roster puts children last so the carrier slots - the first
@@ -466,6 +486,9 @@ impl Game {
                 if spec.is_some() && sites[si].carrier != Some(v) && sites[si].lord.is_none() {
                     sites[si].lord = Some(v);
                 }
+                // the law's arm: the castle's third knight wears the
+                // sheriff's colors - not the carrier, not the lord
+                if kind == SiteKind::Castle && k == 2 { sites[si].sheriff = Some(v); }
             }
         }
         self.assign_hierarchy(&mut sites, &mut rng);

@@ -6,7 +6,7 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use game2_core::server::{serve, ServerConfig, ServerHandle};
-use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, PKind, SceneCache, ServerMsg, UiModel, MAP_SEED};
+use game2_core::session::{AgentCmd, ClientKind, ClientMsg, Command, PKind, SceneCache, ServerMsg, UiModel, MAP_SEED, TILE_H, TILE_W};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
@@ -662,5 +662,40 @@ fn an_introduction_over_the_wire_asks_the_camera_over() {
         ServerMsg::Scene(s) => Some(s.focus), _ => None,
     });
     assert!(theirs.is_none(), "the camera ask leaked to another seat");
+    server.stop();
+}
+
+#[test]
+fn the_board_opens_only_for_the_seat_that_reads_it() {
+    let server = start(None);
+    let mut reader = connect(server.addr);
+    hello(&mut reader, None, ClientKind::Human);
+    // a second seat: another seat's read can't open their panel (#819)
+    let mut other = connect(server.addr);
+    hello(&mut other, None, ClientKind::Human);
+
+    // aim the reader's camera so the market cross lands mid-view, and
+    // click it through that camera
+    let market = until("the market in a scene", &mut reader, 10, |m, _| match m {
+        ServerMsg::Scene(s) => s.market, _ => None,
+    });
+    let cam_x = -((market.0 - market.1) * TILE_W as f32).round() as i32;
+    let cam_y = (460.0 - (market.0 + market.1) * TILE_H as f32).round() as i32;
+    send(&mut reader, &ClientMsg::Command(Command::ClickMap { mx: 540, my: 400, cam_x, cam_y, zoom: 1.0 }));
+
+    // the reader's panel opens
+    until("the reader's panel to open", &mut reader, 10, |m, _| match m {
+        ServerMsg::Scene(s) if s.notice_panel => Some(()), _ => None,
+    });
+    // and a run of scenes on the other seat stays shut
+    let mut scenes = 0;
+    until("a run of shut panels on the other seat", &mut other, 10, |m, _| match m {
+        ServerMsg::Scene(s) => {
+            assert!(!s.notice_panel, "the reader's click opened the other seat's panel");
+            scenes += 1;
+            (scenes >= 20).then_some(())
+        }
+        _ => None,
+    });
     server.stop();
 }

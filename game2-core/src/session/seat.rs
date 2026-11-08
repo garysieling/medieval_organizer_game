@@ -169,6 +169,9 @@ pub struct Seat {
     pub mystery_wait: u64,
     /// The last mystery dealt, so the same one doesn't come round twice
     pub mystery_last: usize,
+    /// Whether they're stood reading the market board: the notices panel
+    /// opens on this seat's screen alone (#819)
+    pub notice_panel: bool,
     /// Where the sim last asked the camera to look - (x, y, the frame it
     /// was asked on), so a client can tell a new ask from a repeated one
     pub focus: Option<(f32, f32, u32)>,
@@ -186,7 +189,8 @@ impl Default for Seat {
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
                pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
-               mystery_last: usize::MAX, focus: None, last_pos: None, facing: 2, walking: false }
+               mystery_last: usize::MAX, notice_panel: false,
+               focus: None, last_pos: None, facing: 2, walking: false }
     }
 }
 
@@ -497,9 +501,9 @@ impl Game {
             let (sx, sy) = iso_to_screen_cam(mp.x, mp.y, cam_x, cam_y, zoom);
             let d = (((sx - mx) as f32).powi(2) + ((sy - my) as f32).powi(2)).sqrt();
             if mx < MAP_W as i32 && d < 30.0 {
-                self.notice_panel = !self.notice_panel;
+                self.seats[seat].notice_panel = !self.seats[seat].notice_panel;
                 self.log.push(format!("t{}: {} the board's postings.", tick,
-                    if self.notice_panel { "you read" } else { "you step away from" }));
+                    if self.seats[seat].notice_panel { "you read" } else { "you step away from" }));
                 return;
             }
         }

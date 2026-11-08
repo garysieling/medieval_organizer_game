@@ -1042,8 +1042,7 @@ pub struct Game {
     /// The market board's postings: what's pinned to it, and when each
     /// comes down - a writ's term, a feast's day, a quest's asking
     pub notices: Vec<(String, String, u64)>,
-    /// Whether a seat's reading the board: the notices panel's open
-    pub notice_panel: bool,
+
     /// The moral knot the road brings: the burdened man's two ways to
     /// be wrong, waiting on a pick - and the debt each choice carries
     /// home later, when someone remembers

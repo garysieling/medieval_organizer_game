@@ -573,6 +573,8 @@ pub enum Goal {
     RunOddJob,
     /// A kid works a day in the fields (component has field/hirer/pay)
     FarmWork(Entity),
+    /// A country hand walks in for the season's work
+    SeasonWork((i32, i32)),
     /// An agent asked their villager to go stand and chat with someone
     TalkTo(Entity),
     /// An agent asked their villager to simply stand somewhere

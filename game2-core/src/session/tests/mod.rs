@@ -84,6 +84,7 @@ mod laborer_rowdiness;
 mod gaol;
 mod events_attend;
 mod construction;
+mod campaign_phase;
 mod cult;
 mod relic;
 mod laws;

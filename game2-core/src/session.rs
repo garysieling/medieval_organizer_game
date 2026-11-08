@@ -357,6 +357,9 @@ pub fn ctx_button(act: CtxAct) -> Button {
         CtxAct::Interview => Button { label: "Interview".into(), key: ' ', x: UI_X as i32 + 146, y: 406, w: 62, h: 16, color: (90, 100, 140) },
         CtxAct::Debrief => Button { label: "Debrief".into(), key: ' ', x: UI_X as i32 + 216, y: 470, w: 62, h: 16, color: (100, 100, 130) },
         CtxAct::Attend => Button { label: "Attend".into(), key: ' ', x: UI_X as i32 + 150, y: 236, w: 62, h: 16, color: (140, 110, 60) },
+        CtxAct::Board => Button { label: "Board".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
+        CtxAct::Disembark => Button { label: "Disembark".into(), key: ' ', x: UI_X as i32 + 150, y: 254, w: 62, h: 16, color: (80, 100, 140) },
+        CtxAct::Fish => Button { label: "Fish".into(), key: ' ', x: UI_X as i32 + 150, y: 272, w: 62, h: 16, color: (80, 120, 100) },
         // Gather sits where Organize used to - the meeting is earned now
         CtxAct::Gather => Button { label: "Gather".into(), key: ' ', x: UI_X as i32 + 10, y: 236, w: 130, h: 30, color: (120, 100, 40) },
         CtxAct::TakeJob => Button { label: "Take the job".into(), key: ' ', x: UI_X as i32 + 150, y: 278, w: 130, h: 30, color: (90, 110, 90) },
@@ -1022,6 +1025,12 @@ pub struct Game {
     pub notices: Vec<(String, String, u64)>,
     /// Whether a seat's reading the board: the notices panel's open
     pub notice_panel: bool,
+    /// Where the boats are moored: the riverbank tiles the water holds
+    /// them at - the player boards one and it takes the river
+    pub boats: Vec<(i32, i32)>,
+    /// Who's aboard which boat: the player on the water, or None on
+    /// the bank
+    pub aboard: Option<usize>,
     /// What's going up where hands are on it: the labor's slow raise
     pub construction_sites: Vec<ConstructionSite>,
     /// The realm's statutes and the lords' own: the tax share, the
@@ -1510,7 +1519,12 @@ impl Game {
         let (tx, ty) = (x.round() as i32, y.round() as i32);
         let built = self.map.is_occupied(tx, ty)
             || self.buildings.iter().any(|(bx, by, _)| bx.round() as i32 == tx && by.round() as i32 == ty);
-        !built && !matches!(self.map.get(tx, ty), None | Some(Tile::Water) | Some(Tile::River))
+        // aboard, the water carries them; on the bank, the water stops
+        if self.aboard.is_some() {
+            !built && matches!(self.map.get(tx, ty), Some(Tile::Water) | Some(Tile::River))
+        } else {
+            !built && !matches!(self.map.get(tx, ty), None | Some(Tile::Water) | Some(Tile::River))
+        }
     }
 
 

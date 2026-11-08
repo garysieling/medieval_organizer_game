@@ -517,6 +517,8 @@ pub struct UiModel {
     /// The sound the world just made: kind, where it fell, how loud -
     /// the client plays it positionally
     pub sfx_v: Vec<(String, i32, i32, f32)>,
+    /// Where the boats are moored: the riverbank tiles they stand at
+    pub boats: Vec<(i32, i32)>,
     #[serde(default)]
     pub feast: bool,
     /// Stalls standing today: (x, y, look) - a seller's stall by look

@@ -69,6 +69,12 @@ pub enum CtxAct {
     /// Join the gathering at hand: a service, a feast, a birthday -
     /// the player's presence counts for what the day means
     Attend,
+    /// Take a boat at the bank: the water carries you from here
+    Board,
+    /// Put in at the bank: the water lets you off here
+    Disembark,
+    /// Drop a line off the boat: the river feeds you where it runs
+    Fish,
     /// Mend the meeting hall a storm took - the org's treasury pays
     MendHall,
     /// Set how often the cause meets: the organizer's recommendation

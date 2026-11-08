@@ -1003,6 +1003,8 @@ impl Game {
             attended_days: vec![],
             notices: vec![],
             notice_panel: false,
+            boats: vec![(10, 5), (20, 8)],
+            aboard: None,
             construction_sites: vec![],
             law_book: crate::game::laws::LawBook::new(),
             sites: vec![],

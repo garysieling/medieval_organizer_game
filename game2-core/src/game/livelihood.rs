@@ -379,7 +379,19 @@ pub fn barter_person(
     // is an even one, whatever the goods alone would say
     let gave = offer_worth + boot.max(0.0);
     let got = want_worth + (-boot).max(0.0);
-    Some(Deal { boot, fairness: if got > 0.0 { gave / got } else { 1.0 } })
+    let fairness = if got > 0.0 { gave / got } else { 1.0 };
+    // the deal's a meeting of a kind: a square swap warms the
+    // acquaintance; a skewed one leaves a mark - the weight rides
+    // the worth that crossed
+    let strength = (want_worth / 8.0).min(1.0);
+    let (kind, intensity) = if fairness > 1.15 || fairness < 0.85 {
+        (crate::game::relationships::InteractionKind::Conflict, strength * 0.5)
+    } else {
+        (crate::game::relationships::InteractionKind::Conversation, strength)
+    };
+    crate::game::relationships::record_interaction(world, buyer,
+        crate::game::relationships::Interaction { kind, intensity, other: seller });
+    Some(Deal { boot, fairness })
 }
 
 /// What the buyer's satchel could offer toward `target` worth: cheapest

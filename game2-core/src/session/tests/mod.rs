@@ -94,6 +94,7 @@ mod laws;
 mod season_illness;
 mod sheriff;
 mod surveillance;
+mod trade_rel;
 mod sisterhood;
 mod notices;
 mod flood;

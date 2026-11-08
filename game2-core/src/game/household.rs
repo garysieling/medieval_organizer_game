@@ -164,6 +164,11 @@ pub fn buy_at_shop(world: &mut World, shop: Entity, buyer: Entity, good: &str, q
         take_stock(b, good, qty)
     };
     if taken < qty { return None; }
+    // the deal's a meeting of a kind: the buyer knows the keeper now,
+    // a bigger order carrying the warmer acquaintance
+    crate::game::relationships::record_interaction(world, buyer,
+        crate::game::relationships::Interaction { kind: crate::game::relationships::InteractionKind::Conversation,
+            intensity: (price / 8.0).min(1.0), other: worker });
     // a shelf just emptied leans the good's felt worth a little dear
     let bare = world.get_component::<Building>(shop)
         .map(|b| b.stock.get(good).copied().unwrap_or(0) == 0).unwrap_or(false);

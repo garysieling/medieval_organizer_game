@@ -1483,6 +1483,33 @@ impl Game {
         }
     }
 
+    /// The frame's own weapon: the legitimacy that shields the lord
+    /// also obligates him - the petition's own count, framed in his
+    /// own terms, extracts the concession or the standing. The
+    /// protection's own promise made enforceable
+    pub(in crate::session) fn paternalism_tick(&mut self, tick: u64) {
+        if tick % 30 != 11 { return; }
+        if self.petition_count == 0 { return; }
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            let legit = self.world.get_component::<Watcher>(l)
+                .map(|w| w.legitimacy).unwrap_or(0.0);
+            if legit < 0.5 { continue; }
+            // the frame's own claim: a petition citing the lord's own
+            // protection extracts the concession - the standing's own
+            // obligation made real
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                o.capacity = (o.capacity + self.petition_count as f32 * 0.001).min(1.0);
+            }
+            // and the ignoring's own cost: a frame-cited demand
+            // unanswered costs the standing more than the demand
+            // asked - the shield's own two-sidedness
+            if let Some(w) = self.world.get_component_mut::<Watcher>(l) {
+                w.legitimacy = (w.legitimacy - self.petition_count as f32 * 0.002).max(0.0);
+            }
+        }
+    }
+
     /// The canon's own curation: the crown's own Bible cuts the
     /// liberation framings - the members' own edge dulls on the
     /// official telling, unless the vernacular's own transmission

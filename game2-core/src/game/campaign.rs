@@ -47,6 +47,12 @@ pub enum Role {
     Chair,
 }
 
+/// The lord's plant inside the org: an infiltrated member who waits
+/// for the campaign's peak to push a violent step - the proposal's
+/// the weapon, not the deed
+#[derive(Debug)]
+pub struct Plant(pub Entity);
+
 /// The lord's own counter-offer: a seat on the board - binding (a real
 /// concession behind it) or performative (the offer absorbs the cause's
 /// own energy if taken). The flag stays hidden until it's read

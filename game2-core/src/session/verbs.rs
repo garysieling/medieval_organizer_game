@@ -1904,6 +1904,45 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the plant's violent word answers first: discipline the cause,
+        // verify who pushed it, or throw them out on suspicion
+        if self.proposal.is_some() && self.plant.is_some() {
+            let m = self.plant.unwrap();
+            match pick {
+                0 => { // marshal: the cause stays honest, the plant's read
+                    self.log.push(format!("t{}: the discipline holds - the cause marches honest, and the torch-word dies.", self.tick));
+                    self.plant = None;
+                }
+                1 => { // verify: the ask reads the plant
+                    if self.world.get_component::<crate::game::campaign::Plant>(m).is_some() {
+                        self.log.push(format!("t{}: the asking reads it out - the plant's own name surfaces, the lord's hand behind the word.", self.tick));
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                            or.influence_pool = (or.influence_pool + 0.05).min(1.0);
+                        }
+                        self.plant = None;
+                    } else {
+                        self.log.push(format!("t{}: no hand behind the word - the suspicion cost the room its trust.", self.tick));
+                    }
+                }
+                _ => { // eject: suspicion enough - right or wrong, it costs
+                    let real = self.world.get_component::<crate::game::campaign::Plant>(m).is_some();
+                    if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        or.members.retain(|&x| x != m);
+                    }
+                    if real {
+                        self.log.push(format!("t{}: the plant's thrown out - the lord's word's gone, and the room knows it.", self.tick));
+                    } else {
+                        self.log.push(format!("t{}: a true heart's thrown out on suspicion - the room's trust wears thin.", self.tick));
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                            or.influence_pool *= 0.9;
+                        }
+                    }
+                    self.plant = None;
+                }
+            }
+            self.proposal = None;
+            return;
+        }
         // the lord's own counter-offer answers first: take the seat,
         // refuse it, or ask what it really carries
         if let Some(o) = self.seat_offer.take() {

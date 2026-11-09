@@ -1433,6 +1433,47 @@ impl Game {
         }
     }
 
+    /// The plant's work: the lord's infiltration puts a member in the
+    /// org while it's a threat, and at the campaign's action peak that
+    /// member pushes the violent step - the proposal's the weapon, not
+    /// the deed (deferred to #842)
+    pub(in crate::session) fn provocateur_tick(&mut self, tick: u64) {
+        // plant the member while the org shows and a castle's eyes are on it
+        if self.plant.is_none() && tick % 40 == 20 {
+            let org = self.org;
+            let organizing = self.world.get_component::<crate::game::org_skills::Organizing>(org)
+                .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                    + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0);
+            if organizing >= 0.5 {
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
+                    if w.paranoia < 0.5 { continue; }
+                    // a member of theirs, the least-marked, goes in
+                    let plant = self.world.get_component::<crate::sim::community::Organization>(org)
+                        .and_then(|o| o.members.first().copied());
+                    if let Some(m) = plant {
+                        self.world.add_component(m, crate::game::campaign::Plant(l));
+                        self.plant = Some(m);
+                        self.log.push(format!("t{}: a new face joins the cause - quiet, keeps to the edges.", tick));
+                    }
+                    return;
+                }
+            }
+        }
+        // the proposal: at the campaign's own action peak, the plant
+        // speaks for the violent step - the player's call after that
+        if self.plant.is_some() && self.proposal.is_none() {
+            let acting = self.world.query::<crate::game::campaign::Campaign>().iter()
+                .any(|&c| self.world.get_component::<crate::game::campaign::Campaign>(c)
+                    .map(|cc| cc.phase == crate::game::campaign::CampaignPhase::Action).unwrap_or(false));
+            if acting {
+                self.proposal = Some(tick);
+                self.log.push(format!("t{}: one of them's for the torch - burn the lord's stores, they say, now while the eyes are on us.", tick));
+            }
+        }
+    }
+
     /// The lord's counter: while the org's a threat (its organizing
     /// shows and a castle's eyes are on it), a seat gets offered on the
     /// board - binding behind it, or the performative kind that absorbs

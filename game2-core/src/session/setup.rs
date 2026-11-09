@@ -1142,6 +1142,7 @@ impl Game {
             separation_pressure: 0.0,
             suffering_meaning: 0.5,
             front: false,
+            brand_saturation: 0.0,
             interdict: false,
             player_passed: false,
             martyr_grave: None,

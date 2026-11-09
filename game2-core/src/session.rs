@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The sign's own recognition: the brand's saturation - how far
+    /// the org's symbol's carried by the channels' own reach, and
+    /// what it multiplies on the call
+    pub brand_saturation: f32,
     /// The org's own two faces: an open front for the legitimacy and
     /// the mass work, a secret wing for what can't be legal - the
     /// linkage's the vulnerability and the strength both

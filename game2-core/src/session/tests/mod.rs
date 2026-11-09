@@ -74,6 +74,7 @@ mod food_reach;
 mod formation;
 mod funeral;
 mod free_villager;
+mod fundamentalism;
 mod garden;
 mod gibbet;
 mod governance;

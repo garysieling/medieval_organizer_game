@@ -171,6 +171,10 @@ pub struct Congregation {
     /// The three factors tip a drifting congregation into a cult: a
     /// strict orthodoxy, a charismatic head, and the flock cut off
     pub cultish: bool,
+    /// The fold's own hardness: the absolutist drift - the weak
+    /// bonds, the high orthodoxy, and the cultish seed drifting the
+    /// fold toward the radicalism
+    pub absolutism: f32,
 }
 
 /// One who's walked out: the mark the exit leaves - they don't come
@@ -303,6 +307,7 @@ mod tests {
         let c = w.create_entity();
         w.add_component(c, Congregation {
             routinization: 0.0,
+            absolutism: 0.0,
             name: "Village Church".into(),
             members: vec![],
             leader: None,
@@ -330,6 +335,7 @@ mod tests {
         let c = w.create_entity();
         w.add_component(c, Congregation {
             routinization: 0.0,
+            absolutism: 0.0,
             name: "Village Church".into(), members, leader: None, orthodoxy: 0.5, services: vec![], cultish: false,
         });
         c

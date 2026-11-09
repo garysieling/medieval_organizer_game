@@ -34,6 +34,7 @@ fn main() {
     let congregation = world.create_entity();
     world.add_component(congregation, Congregation {
         routinization: 0.0,
+            absolutism: 0.0,
         name: "Old Faith Circle".into(),
         members: devout.clone(),
         leader: Some(villagers[0]), // most devout leads

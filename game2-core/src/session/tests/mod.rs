@@ -155,6 +155,7 @@ mod parley;
 mod orgskills;
 mod pacing;
 mod painter;
+mod paternalism;
 mod panel;
 mod parade;
 mod pedagogy;

@@ -216,6 +216,7 @@ mod telemetry;
 mod town_growth;
 mod trade_issue;
 mod trail;
+mod uprising;
 mod vermin;
 mod visitors;
 mod village;

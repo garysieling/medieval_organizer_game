@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The mob's own rising: the grievance's own boil-over - the
+    /// pitchforks and the torches, the soldiers' own answer, and the
+    /// peasants' own loss
+    pub uprising: Option<u64>,
     /// The road's own caravan: the trade between two sites - the
     /// price's own differential worth the walking, the bandit's own
     /// risk on the way

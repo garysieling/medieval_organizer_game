@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The lord's own reach: the authority over the village - the
+    /// org's own growth dissolves it, and the dissolution's own space
+    /// feeds the self-organization
+    pub lord_strength: f32,
     /// The teller's own arc: the phase state machine - the setup, the
     /// escalation, the climax, the resolution - the drama's own
     /// scheduling, not just the detecting

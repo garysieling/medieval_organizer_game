@@ -269,6 +269,7 @@ impl Game {
         crate::timed!("sim.language", self.language_tick(tick));
         crate::timed!("sim.event_pace", self.event_pace_tick(tick));
         crate::timed!("sim.storyteller", self.storyteller_tick(tick));
+        crate::timed!("sim.authority", self.authority_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
         crate::timed!("sim.stocks", self.stocks_tick(tick));

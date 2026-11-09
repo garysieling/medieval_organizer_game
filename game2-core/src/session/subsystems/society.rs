@@ -1482,6 +1482,35 @@ impl Game {
         }
     }
 
+    /// The iron rule's own work: the leader's own weight - the
+    /// dependence's a vulnerability when the leader's taken, and the
+    /// cold-anger screen keeps the brittle ones off the ladder
+    pub(in crate::session) fn leader_tick(&mut self, tick: u64) {
+        if tick % 40 != 17 { return; }
+        let org = self.org;
+        let Some(leader) = self.world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| o.leader) else { return };
+        // the cold-anger screen: the leader whose own agency's brittle
+        // can't take the criticism - screened off the ladder
+        let brittle = self.world.get_component::<crate::game::desires::Domination>(leader)
+            .map(|d| d.critical_agency < 0.2 && d.internalized_domination > 0.5)
+            .unwrap_or(false);
+        if brittle {
+            self.log.push(format!("t{}: the cold-anger screen - the brittle one can't take the criticism, and steps back.", tick));
+        }
+        // the dependence's own growth: the longer the leader holds,
+        // the more the cause leans - and the more the taking would cost
+        self.leader_dependence = (self.leader_dependence + 0.005).min(1.0);
+        // the dependence's own bite: the capacity's own strength caps
+        // at what the cause can do without the leader - the dependence
+        // is the vulnerability, not the strength
+        if self.leader_dependence > 0.7 {
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
+                o.capacity = (o.capacity - 0.01).max(0.0);
+            }
+        }
+    }
+
     /// The movement school's own work: the community teacher - the
     /// organic intellectual - grows the members' own agency; the
     /// imported expert grows the dependency instead. And the folk

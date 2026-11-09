@@ -42,6 +42,7 @@ mod dialogue;
 mod disabilities;
 mod driver;
 mod disclosure;
+mod discipline;
 mod dog_sprite;
 mod drink;
 mod dungeon;

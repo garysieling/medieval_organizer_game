@@ -1483,6 +1483,40 @@ impl Game {
         }
     }
 
+    /// The desk's own making: the school produces the subjects it
+    /// teaches - the kids' own dispositions accrue the domination
+    /// the crown's own classroom instills. And the fold's own school
+    /// counters it - the org-run desk produces the agency instead.
+    /// The subject-production's the real battleground
+    pub(in crate::session) fn discipline_tick(&mut self, tick: u64) {
+        if tick % 30 != 3 { return; }
+        // the classroom's own output: the kids at the desk accrue the
+        // domination - the crown's own subject made
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if self.world.get_component::<crate::session::Kid>(v).is_none() { continue; }
+            let at_desk = self.world.get_component::<crate::session::routine::Routine>(v)
+                .map(|r| r.day == tick - 1 || r.day == tick).unwrap_or(false);
+            if !at_desk { continue; }
+            let mut d = self.world.get_component::<crate::game::desires::Domination>(v)
+                .copied().unwrap_or_default();
+            d.internalized_domination = (d.internalized_domination + 0.005).min(1.0);
+            self.world.add_component(v, d);
+        }
+        // and the fold's own counter: the org-run desk produces the
+        // agency instead - the counter-institution's own making
+        if self.folk_school {
+            let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+                .map(|o| o.members.clone()).unwrap_or_default();
+            for m in members {
+                let mut d = self.world.get_component::<crate::game::desires::Domination>(m)
+                    .copied().unwrap_or_default();
+                d.critical_agency = (d.critical_agency + 0.005).min(1.0);
+                self.world.add_component(m, d);
+            }
+        }
+    }
+
     /// The frame's own weapon: the legitimacy that shields the lord
     /// also obligates him - the petition's own count, framed in his
     /// own terms, extracts the concession or the standing. The

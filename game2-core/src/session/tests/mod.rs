@@ -7,6 +7,7 @@ mod apiary;
 mod apprentice;
 mod assembly;
 mod attach;
+mod authority;
 mod blocker;
 mod bookbinder;
 mod broker;

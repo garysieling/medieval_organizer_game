@@ -1170,6 +1170,7 @@ impl Game {
             learned_words: 0,
             drought: 0,
             arc_phase: 0,
+            lord_strength: 0.8,
             storyteller: None,
             celebration: None,
             fluent: 0.0,

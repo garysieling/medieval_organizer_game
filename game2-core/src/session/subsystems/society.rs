@@ -1484,6 +1484,29 @@ impl Game {
         }
     }
 
+    /// The lord's own reach: the authority over the village - the
+    /// org's own growth dissolves it, and the dissolution's own space
+    /// feeds the self-organization. The thesis's own loop: the lord's
+    /// weakening IS the village's own answer
+    pub(in crate::session) fn authority_tick(&mut self, tick: u64) {
+        if tick % 30 != 19 { return; }
+        // the dissolution: the org's own capacity weakens the lord's
+        // own reach - the struggle over the rate, not just the taking
+        let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
+            .map(|o| o.capacity).unwrap_or(0.0);
+        self.lord_strength = (self.lord_strength - capacity * 0.01).max(0.0);
+        // and the self-organization: the lord's own low reach feeds
+        // the village's own answer - the thesis's own loop
+        if self.lord_strength < 0.4 {
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                o.capacity = (o.capacity + 0.01).min(1.0);
+            }
+            if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                org.resources += 2.0;
+            }
+        }
+    }
+
     /// The teller's own arc: the drama's own scheduling - the setup
     /// looms, the escalation builds, the climax fires, the resolution
     /// closes. The persona's own on/off cycle paces the threat to

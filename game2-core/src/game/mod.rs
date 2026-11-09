@@ -9,6 +9,7 @@ pub mod contracts;
 pub mod recipes;
 pub mod lifecycle;
 pub mod guilds;
+pub mod faith_axiom;
 pub mod organizing;
 pub mod player;
 pub mod action_menu;

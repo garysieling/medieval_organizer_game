@@ -144,6 +144,18 @@ pub struct Totalism {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CollapseMode { Implosion, Capture, Deadline, Institutionalization }
 
+/// The creed's own scoring: the canon the council's settled, and the
+/// heresy_vector - the positions defeated that can resurface as
+/// splinters. Belief as scored conflict, not a fixed type
+#[derive(Debug)]
+pub struct Doctrine {
+    /// The settled positions - the council's own wins
+    pub canon: Vec<String>,
+    /// The defeated positions - the clause's own excluded side, which
+    /// can resurface as a splinter
+    pub heresy_vector: Vec<String>,
+}
+
 /// A religious community
 #[derive(Debug)]
 pub struct Congregation {

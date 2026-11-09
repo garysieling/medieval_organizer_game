@@ -1445,6 +1445,39 @@ impl Game {
         }
     }
 
+    /// The creed's own scoring: a council settles a position - the
+    /// canon grows by the win, the defeated side lands on the
+    /// heresy_vector where it can resurface as a splinter. And the
+    /// suffering the faith answers converts the grievances to
+    /// devotion - the theodicy's own work
+    pub(in crate::session) fn doctrine_tick(&mut self, tick: u64) {
+        if tick % 30 != 19 { return; }
+        // the council's own settling: a position lands on the canon,
+        // the loser on the heresy_vector
+        if (tick / 90) % 4 == 1 {
+            let positions = ["the eucharist's own presence", "the saints' own intercession",
+                "the tithe's own due", "the priest's own celibacy"];
+            let i = (tick as usize / 90) % positions.len();
+            let Some(d) = self.world.get_component_mut::<crate::sim::religion::Doctrine>(self.congregation) else { return };
+            let pos = positions[i].to_string();
+            if !d.canon.contains(&pos) {
+                d.canon.push(pos.clone());
+                d.heresy_vector.push(format!("the {} denied", pos));
+            }
+        }
+        // the theodicy's own work: the grievances the faith answers
+        // convert to the devotion it holds
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let grieved = self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|i| !i.grievances.is_empty()).unwrap_or(false);
+            if !grieved { continue; }
+            if let Some(f) = self.world.get_component_mut::<crate::sim::religion::Faith>(v) {
+                f.devotion = (f.devotion + self.suffering_meaning * 0.005).min(1.0);
+            }
+        }
+    }
+
     /// The church's own instruments: the parallel fold accrues its
     /// own weight until the schism fires; and the lord's own silence -
     /// the interdict - drains what the services would hold

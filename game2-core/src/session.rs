@@ -1052,9 +1052,6 @@ pub struct Game {
     /// Where the boats are moored: the riverbank tiles the water holds
     /// them at - the player boards one and it takes the river
     pub boats: Vec<(i32, i32)>,
-    /// Who's aboard which boat: the player on the water, or None on
-    /// the bank
-    pub aboard: Option<usize>,
     /// What's going up where hands are on it: the labor's slow raise
     pub construction_sites: Vec<ConstructionSite>,
     /// The realm's statutes and the lords' own: the tax share, the
@@ -1561,11 +1558,21 @@ impl Game {
         let (tx, ty) = (x.round() as i32, y.round() as i32);
         let built = self.map.is_occupied(tx, ty)
             || self.buildings.iter().any(|(bx, by, _)| bx.round() as i32 == tx && by.round() as i32 == ty);
-        // aboard, the water carries them; on the bank, the water stops
-        if self.aboard.is_some() {
+        // on the bank, the water stops them
+        !built && !matches!(self.map.get(tx, ty), None | Some(Tile::Water) | Some(Tile::River))
+    }
+
+    /// The ground rules for one seat's feet: aboard their own boat the
+    /// water carries them and the bank won't (#822 - the boat is the
+    /// seat's, not the world's)
+    pub fn walkable_for(&self, seat: usize, x: f32, y: f32) -> bool {
+        if self.seats.get(seat).map(|s| s.aboard.is_some()).unwrap_or(false) {
+            let (tx, ty) = (x.round() as i32, y.round() as i32);
+            let built = self.map.is_occupied(tx, ty)
+                || self.buildings.iter().any(|(bx, by, _)| bx.round() as i32 == tx && by.round() as i32 == ty);
             !built && matches!(self.map.get(tx, ty), Some(Tile::Water) | Some(Tile::River))
         } else {
-            !built && !matches!(self.map.get(tx, ty), None | Some(Tile::Water) | Some(Tile::River))
+            self.walkable(x, y)
         }
     }
 

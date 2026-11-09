@@ -172,6 +172,10 @@ pub struct Seat {
     /// Whether they're stood reading the market board: the notices panel
     /// opens on this seat's screen alone (#819)
     pub notice_panel: bool,
+    /// The boat this seat's player is on (an index into boats), or None
+    /// on the bank: aboard, the water carries them - it's per-seat or one
+    /// boarder floods everyone's shoes (#822)
+    pub aboard: Option<usize>,
     /// Where the sim last asked the camera to look - (x, y, the frame it
     /// was asked on), so a client can tell a new ask from a repeated one
     pub focus: Option<(f32, f32, u32)>,
@@ -189,7 +193,7 @@ impl Default for Seat {
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
                pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
-               mystery_last: usize::MAX, notice_panel: false,
+               mystery_last: usize::MAX, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false }
     }
 }
@@ -198,7 +202,7 @@ impl Game {
     /// One input from this seat: what a key press or click means to the sim.
     pub fn command_at(&mut self, seat: usize, cmd: Command) {
         // the day's own record: the autosave replays it to the same village
-        self.journal.record(self.tick as u64, crate::session::journal::Input::Command {
+        self.journal.record(self.frame_n as u64, crate::session::journal::Input::Command {
             seat, cmd: cmd.clone() });
         match cmd {
             Command::Act(i) => self.act_at(seat, i),
@@ -244,6 +248,7 @@ impl Game {
             influence_pool: 0.0, resources: 0.0, charter: "Newcomers".into() , successors: vec![] });
         // every cause starts with the muscle to spend - a quiet one fades
         self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
+        self.journal.record(self.frame_n as u64, crate::session::journal::Input::AddSeat);
         self.seats.push(Seat { player, org, ..Seat::default() });
         self.seats.len() - 1
     }
@@ -259,6 +264,7 @@ impl Game {
         // their own ledger of what they've heard: it lets a villager agent
         // gather the grievances folk tell them, as a wanderer does
         self.world.add_component(villager, Organizer::default());
+        self.journal.record(self.frame_n as u64, crate::session::journal::Input::AddAgentSeat { villager });
         self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
         self.seats.len() - 1
     }
@@ -337,6 +343,8 @@ impl Game {
     /// machinery the village's own errands use, so nothing happens until the
     /// walking is done - arrival triggers the trade, the chat, the gather.
     pub fn agent_command(&mut self, seat: usize, cmd: AgentCmd) -> Result<(), String> {
+        self.journal.record(self.frame_n as u64, crate::session::journal::Input::AgentCmd {
+            seat, cmd: cmd.clone() });
         let who = self.seats.get(seat).map(|s| s.player).ok_or_else(|| "no such seat".to_string())?;
         // the held can only stand down - walks, errands and gathers all
         // pass the jailer first
@@ -471,7 +479,7 @@ impl Game {
         let mut at = (px, py);
         for _ in 0..steps {
             let Some(nxt) = [(at.0 + ux, at.1 + uy), (at.0 + ux, at.1), (at.0, at.1 + uy)]
-                .into_iter().find(|&(x, y)| self.walkable(x, y)) else { break };
+                .into_iter().find(|&(x, y)| self.walkable_for(seat, x, y)) else { break };
             let ot = (at.0.round() as i32, at.1.round() as i32);
             at = nxt;
             let nt = (at.0.round() as i32, at.1.round() as i32);

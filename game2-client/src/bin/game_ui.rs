@@ -316,10 +316,13 @@ fn main() {
             if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) {
                 // keeping the wanderer is a decision too: tell the server,
                 // or a reclaim would offer the picker over a purse earned
-                // since
+                // since. Solo takes the same path so the seat's settled
+                // and the day's record carries it
                 if let Some(r) = &remote {
                     let msg = serde_json::to_string(&ClientMsg::DeclinePick).unwrap();
                     let _ = r.ws.lock().unwrap().send(tungstenite::Message::Text(msg.into()));
+                } else if let Some(g) = game.as_mut() {
+                    g.decline_pick_at(0);
                 }
                 picker = None;
                 started = true;
@@ -598,7 +601,7 @@ fn main() {
         // pause and speed are solo-only: the shared world runs at one pace
         if remote.is_none() {
             if let Some(g) = &mut game {
-                if !view.search_focus && window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { g.paused = !g.paused; }
+                if !view.search_focus && window.is_key_pressed(Key::Space, minifb::KeyRepeat::No) { g.command(Command::TogglePause); }
             }
         }
         if !view.search_focus && (window.is_key_pressed(Key::H, minifb::KeyRepeat::No)) { view.help_open = !view.help_open; }

@@ -161,6 +161,7 @@ impl Game {
     /// sheet. Returns false for a seat or card that isn't there. The
     /// world seed must be set - a journaled replay rebuilds it the same.
     pub fn pick_character_at(&mut self, seat: usize, idx: usize) -> bool {
+        self.journal.record(self.frame_n as u64, crate::session::journal::Input::PickCharacter { seat, idx });
         let Some(sheet) = roster(self.seed).get(idx).cloned() else { return false };
         // only a wanderer seat has a player to rewrite - an agent's seat
         // is a villager, and picking would stamp a stranger's parts on it
@@ -210,6 +211,7 @@ impl Game {
     /// so a reclaim doesn't deal the picker over a character who's
     /// since gotten above themselves. Idempotent; agents have no say
     pub fn decline_pick_at(&mut self, seat: usize) -> bool {
+        self.journal.record(self.frame_n as u64, crate::session::journal::Input::DeclinePick { seat });
         let Some(seat_ref) = self.seats.get(seat) else { return false };
         if seat_ref.agent { return false; }
         let player = seat_ref.player;
@@ -237,6 +239,11 @@ impl Game {
         if keeps.len() >= 2 {
             facts.push(format!("{} and {} keep the lord's peace from the heights.",
                 keeps[0], keeps[1]));
+        }
+        // the ground's own name: the landform the seed shaped, told to
+        // the wanderer who lands on it (#822 - it was stored, never told)
+        if let Some(n) = &self.landform {
+            facts.push(format!("The village makes its home in {}.", n));
         }
         // a face worth knowing early: the living villagers only - the
         // dead would greet a returning seat with a grave's tenant, and

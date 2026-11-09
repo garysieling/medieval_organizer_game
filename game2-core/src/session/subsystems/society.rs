@@ -1483,6 +1483,34 @@ impl Game {
         }
     }
 
+    /// The fiber's own making: the weaver's own skill scales the
+    /// cloth's own quality - the same fiber plus the skill spans the
+    /// ten-times price range. And the good cloth comforts the wearer
+    /// - the texture's own ease
+    pub(in crate::session) fn textile_tick(&mut self, tick: u64) {
+        if tick % 30 != 22 { return; }
+        // the weaver's own skill scales the cloth's own quality - the
+        // same fiber plus the skill spans the price's own range
+        let skill = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter_map(|v| self.world.get_component::<crate::game::vocation::Craft>(v))
+            .filter(|c| c.vocation == crate::game::vocation::Vocation::Weaver)
+            .map(|c| c.skill).fold(0.0f32, f32::max);
+        if skill > 0.0 {
+            self.cloth_quality = (self.cloth_quality + skill * 0.01).min(1.0);
+        }
+        // and the good cloth comforts the wearer - the texture's own
+        // ease on the body's own condition
+        if self.cloth_quality >= 0.6 {
+            for &v in &self.villagers.clone() {
+                if villager::is_dead(&self.world, v) { continue; }
+                if let Some(h) = self.world.get_component_mut::<crate::sim::illness::Health>(v) {
+                    h.condition = (h.condition + 0.003).min(1.0);
+                }
+            }
+        }
+    }
+
     /// The kettle's own leaf: the pedlar's own import stocks the tea,
     /// the cup's own lift raises the villagers' own energy (the
     /// caffeine's own psychometric), and the ceremony's own bond

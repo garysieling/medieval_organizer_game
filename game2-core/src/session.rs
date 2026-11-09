@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The fiber's own making: the village's own cloth quality - the
+    /// weaver's own skill scales it, and the good cloth comforts the
+    /// wearer
+    pub cloth_quality: f32,
     /// The kettle's own leaf: the tea stock - the pedlar's own import,
     /// the cup's own lift on the villagers' own energy, and the
     /// ceremony's own bond when the brew's shared

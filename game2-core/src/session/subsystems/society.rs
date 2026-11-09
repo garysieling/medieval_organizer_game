@@ -264,6 +264,7 @@ impl Game {
         let cong = self.world.create_entity();
         self.world.add_component(cong, Congregation {
             routinization: 0.0,
+            absolutism: 0.0,
             name: "the green fellowship".into(),
             members: vec![v],
             leader: Some(v),
@@ -1480,6 +1481,31 @@ impl Game {
                     w.paranoia = (w.paranoia + 0.01).min(1.0);
                 }
             }
+        }
+    }
+
+    /// The fold's own hardness: the extremism's own confluence - the
+    /// weak bonds, the high orthodoxy, the cultish seed - drifts the
+    /// absolutism up; at the high ebb the fold's own hardness shows,
+    /// the orthodoxy's own line and the separation's own pressure
+    pub(in crate::session) fn fundamentalism_tick(&mut self, tick: u64) {
+        if tick % 30 != 26 { return; }
+        // the risk's own confluence: the weak bonds + the high
+        // orthodoxy + the cultish seed drifts the absolutism up
+        let weak_bonds = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter_map(|v| self.world.get_component::<crate::sim::psychology::Bond>(v))
+            .filter(|b| b.security < 0.4).count();
+        let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) else { return };
+        if c.orthodoxy >= 0.6 && (c.cultish || weak_bonds >= 3) {
+            c.absolutism = (c.absolutism + 0.01).min(1.0);
+        }
+        // at the high ebb the fold's own hardness shows - the
+        // orthodoxy's own line hardens and the separation's own
+        // pressure rises on the radicalism
+        if c.absolutism >= 0.6 {
+            c.orthodoxy = (c.orthodoxy + 0.005).min(1.0);
+            self.separation_pressure = (self.separation_pressure + 0.005).min(1.0);
         }
     }
 

@@ -61,6 +61,7 @@ fn main() {
     let church = world.create_entity();
     world.add_component(church, Congregation {
         routinization: 0.0,
+            absolutism: 0.0,
         name: "Village Chapel".into(),
         members: villagers.clone(),
         leader: Some(villagers[0]),

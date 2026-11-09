@@ -1167,6 +1167,8 @@ impl Game {
             war: None,
             caravan: None,
             uprising: None,
+            learned_words: 0,
+            fluent: 0.0,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

@@ -1484,6 +1484,28 @@ impl Game {
         }
     }
 
+    /// The stranger's own tongue: the outlander's own speech glosses
+    /// itself over the contact - the ear's own learning accrues, and
+    /// the words join the player's own ledger
+    pub(in crate::session) fn language_tick(&mut self, tick: u64) {
+        if tick % 30 != 9 { return; }
+        // the contact's own learning: an outlander in the village's
+        // own ear accrues the fluency - the words gloss over time
+        let outlanders = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter(|v| self.world.get_component::<crate::session::country::Outlander>(*v).is_some())
+            .count();
+        if outlanders == 0 { return; }
+        self.fluent = (self.fluent + outlanders as f32 * 0.005).min(1.0);
+        // and the words join the ledger: the fluency's own threshold
+        // marks a word learned
+        let words = (self.fluent * 20.0) as usize;
+        if words > self.learned_words {
+            self.learned_words = words;
+            self.log.push(format!("t{}: a word settles in the ear - the outlander's own speech glossing itself.", tick));
+        }
+    }
+
     /// The mob's own rising: the grievance's own boil-over - the
     /// pitchforks and the torches march on the seats of power, the
     /// soldiers ride in after, and the peasants always lose. The

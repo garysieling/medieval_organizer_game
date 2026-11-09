@@ -179,6 +179,7 @@ mod protest;
 mod recipes;
 mod quests;
 mod story;
+mod tea;
 mod tech;
 mod raid;
 mod rebels;

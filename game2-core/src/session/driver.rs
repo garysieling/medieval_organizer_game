@@ -77,6 +77,20 @@ pub fn drive_agent(obs: &AgentObs) -> AgentCmd {
     // the bench is short of its raw good: go and get it (two days in
     // three - a fetch that keeps failing mustn't keep them from the bench)
     if obs.me.needs.is_some() && obs.tick % 3 != 2 { return AgentCmd::FetchInput; }
+    // the surplus's own market: a full satchel goes to the market - the
+    // villager's own sell, the goods they carry past the day's own need
+    if obs.satchel.len() >= 3 {
+        return AgentCmd::Context { action: crate::session::AgentAction::Errand, target: None };
+    }
+    // the cause's own pull: an org's own cause on the village - the
+    // villager who sees it joins on the ties' own pull (rare - the
+    // cause's own answer when the bench's own work's done)
+    if !obs.orgs.is_empty() && obs.tick % 20 == 0 {
+        return AgentCmd::JoinOrg;
+    }
+    // the rest day: a tired villager rests at home (a day in eight -
+    // the work's own rhythm)
+    if obs.tick % 8 == 7 { return AgentCmd::Idle; }
     // default: a day's work - village first
     AgentCmd::WorkDay
 }
@@ -122,5 +136,23 @@ mod tests {
         o.held = false;
         o.hunger = 20.0;
         assert!(matches!(drive_agent(&o), AgentCmd::Eat));
+    }
+
+    #[test]
+    fn test_the_driver_sells_the_surplus_joins_the_cause_and_rests() {
+        let mut o = obs();
+        // a full satchel goes to market - the errand's own sell
+        o.tick = 1;
+        o.satchel = vec![("shoes".into(), 2), ("cloth".into(), 1), ("bread".into(), 3)];
+        assert!(matches!(drive_agent(&o), AgentCmd::Context { action: crate::session::AgentAction::Errand, .. }));
+        // the cause's own pull on a quiet day - the org seen joins
+        o.satchel.clear();
+        o.tick = 20;
+        o.orgs = vec!["the cause".into()];
+        assert!(matches!(drive_agent(&o), AgentCmd::JoinOrg));
+        // and the rest day: a day in eight, the tired stand down
+        o.orgs.clear();
+        o.tick = 7;
+        assert!(matches!(drive_agent(&o), AgentCmd::Idle));
     }
 }

@@ -1484,6 +1484,34 @@ impl Game {
         }
     }
 
+    /// The road's own caravan: the trade between two sites - the
+    /// price's own differential worth the walking, the bandit's own
+    /// risk on the way, and the far market's own pay
+    pub(in crate::session) fn caravan_tick(&mut self, tick: u64) {
+        if tick % 60 != 33 { return; }
+        if self.caravan.is_some() { return; }
+        // the caravan's own forming: two sites to run the route - the
+        // price's own differential worth the walking
+        let sites = self.sites.iter().filter(|s| s.lord.is_some()).count();
+        if sites < 2 { return; }
+        self.caravan = Some(tick);
+        // the bandit's own risk: a watching castle's own paranoia
+        // catches the caravan - the road's own danger
+        let bandits = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.7).unwrap_or(false));
+        if bandits {
+            self.log.push(format!("t{}: the caravan's taken on the road - the bandits' own risk, the goods never reached the far market.", tick));
+            return;
+        }
+        // the far market's own pay: the caravan's own goods sell at
+        // the other end - the org's own resources lifted
+        if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+            org.resources += 15.0;
+        }
+        self.log.push(format!("t{}: the caravan reaches the far market - the road's own trade, the goods sold.", tick));
+    }
+
     /// The horizon's own war: the conflict between two sites - the
     /// levies called, the battle's own light attrition (the bigger
     /// host wins), the loser's tribute paid, and the levied

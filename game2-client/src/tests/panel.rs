@@ -19,3 +19,13 @@ fn test_the_org_blocks_hide_until_the_causes_founded() {
     m.panel.members = vec!["Watt".into()];
     assert!(org_started(&m), "the org blocks hid after the cause");
 }
+
+#[test]
+fn test_the_hair_tint_gives_four_looks() {
+    let tints: Vec<_> = (0..4).map(|l| hair_tint(l)).collect();
+    // the four looks read differently - black, brown, auburn, grey
+    let unique: std::collections::HashSet<_> = tints.iter().collect();
+    assert_eq!(unique.len(), 4, "the hair tints collapse to {}", unique.len());
+    // and a look past the four wraps to one of them - deterministic
+    assert_eq!(hair_tint(5), hair_tint(1), "the tint's not keyed on the look");
+}

@@ -580,6 +580,18 @@ pub(crate) fn draw_prop(buf: &mut Buffer, s: &Sprite, sx: i32, sy: i32, zoom: f3
 /// Which villager figure a person wears: grown folk cycle the whole
 /// pack; children take only its two youngest - a peasant lad or lass -
 /// so no elder's beard or noble's poise lands on a kid
+/// The villager's own hair: a deterministic tint on the head - the
+/// look's own roll picks the colour (black, brown, auburn, grey) so
+/// two villagers standing side by side read differently
+pub(crate) fn hair_tint(look: u8) -> (u8, u8, u8) {
+    match look % 4 {
+        0 => (40, 30, 25),    // the black
+        1 => (90, 55, 30),    // the brown
+        2 => (140, 70, 30),   // the auburn
+        _ => (170, 170, 160), // the grey
+    }
+}
+
 pub(crate) fn figure_look(kid: bool, i: usize, n: usize) -> usize {
     let n = n.max(1);
     if kid { i % n.min(2) } else { i % n }

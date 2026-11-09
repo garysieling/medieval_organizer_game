@@ -7,6 +7,7 @@ mod apiary;
 mod assembly;
 mod attach;
 mod blocker;
+mod broker;
 mod build;
 mod bits;
 mod campaign;

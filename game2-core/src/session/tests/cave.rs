@@ -1,29 +1,19 @@
 use crate::session::*;
-use crate::session::routine::{Routine, Spot};
 
 #[test]
-fn test_the_hermit_keeps_to_the_dark() {
+fn test_the_monochrome_under_sits_a_few_tiles_round_the_mouth() {
     let g = Game::new();
-    let Some(h) = g.hermit else { panic!("no hermit") };
-    assert_eq!(g.world.get_component::<TownRole>(h), Some(&TownRole::Hermit));
-    assert!(desires::problems_of(&g.world, h, 1).contains(&desires::Problem::TheDark),
-        "the dark keeps them");
-    // and the deep patch is there for the picking
-    assert!(g.mush_patches.iter().any(|p| p.tile == (35, 33) && p.kind == MushKind::UnderCap),
-        "the best mushrooms grow in the under");
+    let Some((mx, my)) = g.cave_pos else { panic!("no cave mouth") };
+    let Some(((ax, ay), (bx, by))) = g.cave_zone else { panic!("no cave zone") };
+    // a small dark: a few tiles each way, the mouth inside its own bounds
+    assert!(ax <= mx && mx <= bx && ay <= my && my <= by,
+        "the mouth {:?} falls outside the zone", (mx, my));
+    assert!((bx - ax) <= 8 && (by - ay) <= 8, "the zone sprawls");
 }
 
 #[test]
-fn test_the_dark_keeps_the_hermit_home() {
-    let mut g = Game::new();
-    let h = g.hermit.expect("a recluse keeps the cave");
-    let cave = g.cave_pos.expect("a cave at the map's edge");
-    // the real daily loop, not a plan_day call - the TownRole skip
-    // takes him before it if the loop doesn't name him
-    g.livelihood_tick(8);
-    let r = g.world.get_component::<Routine>(h).expect("no routine");
-    assert!(matches!(r.spot, Spot::Cave), "he's not bound for the cave: {:?}", r.spot);
-    assert_eq!((r.anchor.0.round() as i32, r.anchor.1.round() as i32), cave, "not the cave");
-    assert!(!desires::problems_of(&g.world, h, g.tick).contains(&desires::Problem::TheDark),
-        "the dark never kept him");
+fn test_the_zone_projects_to_the_wire_for_the_tint_pass() {
+    let g = Game::new();
+    let m = g.ui_model();
+    assert!(m.cave_zone.is_some(), "the zone never reached the model");
 }

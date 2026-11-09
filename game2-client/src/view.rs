@@ -577,14 +577,22 @@ impl View {
             // the whole map's trees, rocks and walls are in this list: skip
             // what can't reach the view (most of it when zoomed in)
             if off_view(sx, sy, zoom) { return; }
+            // the monochrome under: what stands inside the cave dims with it
+            let in_cave = m.cave_zone.map(|((ax, ay), (bx2, by2))|
+                bx >= ax && bx <= bx2 && by >= ay && by <= by2).unwrap_or(false);
+            let dim = |s: &Sprite| -> Sprite { crate::art::tint(s, (30, 30, 42), 0.65) };
             match piece {
-                Piece::Prop(sprite, k) => if let Some(s) = sprite { draw_prop(buf, s, sx, sy, zoom, k); },
+                Piece::Prop(sprite, k) => if let Some(s) = sprite {
+                    if in_cave { draw_prop(buf, &dim(s), sx, sy, zoom, k); }
+                    else { draw_prop(buf, s, sx, sy, zoom, k); }
+                },
                 Piece::Herb => herb_tuft(buf, sx, sy, zoom),
                 Piece::Shroom => shroom_tuft(buf, sx, sy, zoom),
                 Piece::Cache => draw_cache(buf, sx, sy, zoom),
                 Piece::Skep => draw_skep(buf, sx, sy, zoom),
                 Piece::Swarm => draw_swarm(buf, sx, sy, zoom),
-                Piece::Stand(s) => draw_standing(buf, s, sx, sy, zoom),
+                Piece::Stand(s) => if in_cave { draw_standing(buf, &dim(s), sx, sy, zoom); }
+                    else { draw_standing(buf, s, sx, sy, zoom); },
                 Piece::Gaol => {
                     // a barred door: a dark lintel over iron bars
                     let k = |d: i32| 1.max((d as f32 * zoom) as i32);
@@ -592,6 +600,8 @@ impl View {
                     for x in [-4, -1, 2] { buf.rect(sx + k(x), sy - k(10), k(1), k(9), 58, 48, 38); }
                 },
                 Piece::Castle(sprite, wk, hk) => if let Some(s) = sprite {
+                    let tinted = if in_cave { dim(s) } else { s.clone() };
+                    let s = &tinted;
                     // the generated set draws every piece at 1x; only the
                     // pack fallback still takes the grand stretch
                     if wk == 1.0 && hk == 1.0 {
@@ -599,6 +609,8 @@ impl View {
                     } else { draw_castle_wh(buf, s, sx, sy, zoom, wk, hk); }
                 },
                 Piece::Building(sprite, up) | Piece::Cutaway(sprite, up) => if let Some(s) = sprite {
+                    let tinted = if in_cave { dim(s) } else { s.clone() };
+                    let s = &tinted;
                     if up >= 1.0 {
                         if matches!(piece, Piece::Cutaway(_, _)) { draw_cutaway(buf, s, sx, sy, zoom, press_era); }
                         else { draw_on_tile(buf, s, sx, sy, zoom); }
@@ -1467,11 +1479,19 @@ impl View {
                 // inland the blocks in front cover a tile's sides: just its face
                 let inland = tx + 1 < w_t && ty + 1 < h_t;
                 let set = if inland { faces } else { set };
+                let in_cave = m.cave_zone.map(|((ax, ay), (bx, by))|
+                    tx as f32 >= ax && tx as f32 <= bx && ty as f32 >= ay && ty as f32 <= by).unwrap_or(false);
                 match set.block(&m.map, tx, ty) {
                     Some(block) => {
                         let (w, h, x, y) = block_rect(block, sx, sy, zoom);
-                        let (scaled, runs) = cache.blocks.entry(block as *const Sprite as usize).or_insert_with(|| {
-                            let mut s = block.scaled(w, h);
+                        // the cave's own dark: the block desaturated into
+                        // the monochrome under, cached with the rest
+                        let tinted: Option<Sprite> = if in_cave {
+                            Some(crate::art::tint(block, (30, 30, 42), 0.65))
+                        } else { None };
+                        let base = tinted.as_ref().unwrap_or(block);
+                        let (scaled, runs) = cache.blocks.entry(base as *const Sprite as usize).or_insert_with(|| {
+                            let mut s = base.scaled(w, h);
                             let runs = s.opaque_runs();
                             (s, runs)
                         });

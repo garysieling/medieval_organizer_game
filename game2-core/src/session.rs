@@ -1350,6 +1350,9 @@ pub struct Game {
     pub couriers: Vec< Courier>,
     /// The cave mouth at the map's edge - the monochrome under
     pub cave_pos: Option<(i32, i32)>,
+    /// The dark that lives behind the mouth: a few tiles in, the zone
+    /// the client desaturates - pure render, the pathing stays the same
+    pub cave_zone: Option<((i32, i32), (i32, i32))>,
     /// The martyr's plot, when the gibbet made one
     /// The hermit who keeps to it
     pub hermit: Option<Entity>,

@@ -1638,6 +1638,47 @@ impl Game {
         }
     }
 
+    /// A marriage's own end: a bond worn thin and a grievance kept
+    /// makes the separation likely - church-declared, the union never
+    /// was (the annulment); a spouse's own walking, the deserter's
+    /// claim falls to the stayer (the desertion). Children follow the
+    /// staying parent's roof
+    pub(in crate::session) fn separation_tick(&mut self, tick: u64) {
+        if tick % 30 != 17 { return; }
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(m) = self.world.get_component::<crate::game::relationships::Married>(v).copied() else { continue };
+            if m.form != 0 { continue; }
+            // a bond worn thin: the union's own strain
+            let thin = self.world.get_component::<crate::sim::psychology::Bond>(v)
+                .map(|b| b.target == m.spouse && b.security < 0.3).unwrap_or(false);
+            if !thin { continue; }
+            // the roll: the church's own read (the annulment) vs the
+            // spouse's own walking (the desertion)
+            let annulled = (tick.wrapping_mul(37).wrapping_add(v as u64)) % 100 < 30;
+            if let Some(mm) = self.world.get_component_mut::<crate::game::relationships::Married>(v) {
+                mm.form = if annulled { 1 } else { 2 };
+            }
+            if let Some(mm) = self.world.get_component_mut::<crate::game::relationships::Married>(m.spouse) {
+                mm.form = if annulled { 1 } else { 2 };
+            }
+            if annulled {
+                self.log.push(format!("t{}: the union's declared never-was - the church's own reading of it.", tick));
+            } else {
+                // the deserter's own claim falls to the stayer: the
+                // purse and the stock stay with the one who kept the roof
+                if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                    let share = p.gold * 0.5;
+                    p.gold -= share;
+                    if let Some(sp) = self.world.get_component_mut::<Purse>(m.spouse) {
+                        sp.gold += share;
+                    }
+                }
+                self.log.push(format!("t{}: a spouse walks - the deserter's claim falls to the one who kept the roof.", tick));
+            }
+        }
+    }
+
     /// The org's own eyes: the level grows with its own discipline
     /// (Turnout + SecurityCulture) and the density of its one-on-ones -
     /// the deep org reads what the lord can't see

@@ -1483,6 +1483,45 @@ impl Game {
         }
     }
 
+    /// The canon's own curation: the crown's own Bible cuts the
+    /// liberation framings - the members' own edge dulls on the
+    /// official telling, unless the vernacular's own transmission
+    /// reads past it. The fold's own letters gate how far the
+    /// redaction reaches
+    pub(in crate::session) fn canon_tick(&mut self, tick: u64) {
+        if tick % 30 != 16 { return; }
+        if !self.redacted_canon { return; }
+        // the fold's own letters: a numerate fold reads past the
+        // official telling - the redaction's own reach stops at the
+        // literacy the crown can't take
+        let literate = matches!(self.numeracy, crate::session::Numeracy::Positional);
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        for m in &members {
+            let Some(mut o) = self.world.get_component::<crate::game::org_skills::Organizing>(*m).cloned() else { continue };
+            if self.vernacular || literate {
+                // the illicit telling restores the edge - at the cost
+                // of the reading itself being a risk
+                o.agitation = (o.agitation + 0.005).min(1.0);
+            } else {
+                // the official telling dulls the edge - the liberation
+                // framings cut, the obedience kept
+                o.agitation = (o.agitation - 0.01).max(0.0);
+            }
+            self.world.add_component(*m, o);
+        }
+        // and the vernacular's own risk: the illicit telling feeds the
+        // castle's own ears
+        if self.vernacular && !literate {
+            for site in &self.sites {
+                let Some(l) = site.lord else { continue };
+                if let Some(w) = self.world.get_component_mut::<Watcher>(l) {
+                    w.paranoia = (w.paranoia + 0.005).min(1.0);
+                }
+            }
+        }
+    }
+
     /// The crown's own offer: while the fold's own work's a threat,
     /// the legal status lands - the gold for the routinization, the
     /// edge for the refusal

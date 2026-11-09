@@ -1152,6 +1152,8 @@ impl Game {
             institutions: 0,
             campaign_logistics: 0.0,
             incorporation_offer: None,
+            redacted_canon: false,
+            vernacular: false,
             discipline: 0.0,
             locally_sponsored: false,
             frame_readiness: false,

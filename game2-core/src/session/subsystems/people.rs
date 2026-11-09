@@ -39,6 +39,14 @@ impl Game {
             health: 1.0, max_age: 58.0 + (self.rng.next() % 35) as f32, cause_of_death: None });
         self.world.add_component(v, Purse { gold: 0.0 });
         self.world.add_component(v, InnerLife { wants: vec![], grievances: vec![], satisfied: vec![] });
+        // born to their parents' own standing: a child takes the
+        // estate of the house it came to
+        let estate = self.world.get_component::<household::Building>(home)
+            .and_then(|b| b.occupants.iter().find(|&&o|
+                self.world.get_component::<crate::game::vocation::Estate>(o).is_some()).copied())
+            .and_then(|o| self.world.get_component::<crate::game::vocation::Estate>(o).copied())
+            .unwrap_or(crate::game::vocation::Estate::Laity);
+        self.world.add_component(v, estate);
         if let Some(b) = self.world.get_component_mut::<household::Building>(home) { b.occupants.push(v); }
         // born out in the country, they belong to its town or castle
         if let Some(si) = self.sites.iter().position(|s| s.homes.contains(&home)) {

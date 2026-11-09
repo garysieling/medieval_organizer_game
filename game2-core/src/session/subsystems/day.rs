@@ -284,6 +284,7 @@ impl Game {
         crate::timed!("sim.compliance", self.compliance_tick(tick));
         crate::timed!("sim.separation", self.separation_tick(tick));
         crate::timed!("sim.trade_exposure", self.trade_exposure_tick(tick));
+        crate::timed!("sim.estate", self.estate_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

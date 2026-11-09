@@ -1158,6 +1158,7 @@ impl Game {
             prophet: false,
             soil_quality: 0.8,
             raid: None,
+            incense: 0.5,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

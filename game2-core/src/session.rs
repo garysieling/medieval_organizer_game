@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The church's own resin: the incense stock that marks the
+    /// sacred - the pedlar's own route keeps it, the services
+    /// consume it, and at zero the church goes dark
+    pub incense: f32,
     /// The horizon's own threat: the raiders' own landing - the
     /// outside armed threat the village's own defenses answer or
     /// don't

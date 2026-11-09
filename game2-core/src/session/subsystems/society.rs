@@ -1484,6 +1484,38 @@ impl Game {
         }
     }
 
+    /// The horizon's own war: the conflict between two sites - the
+    /// levies called, the battle's own light attrition (the bigger
+    /// host wins), the loser's tribute paid, and the levied
+    /// villagers' own grievance
+    pub(in crate::session) fn war_tick(&mut self, tick: u64) {
+        if tick % 60 != 51 { return; }
+        if self.war.is_some() { return; }
+        // the war's own seed: two castle sites host knights - the
+        // conflict forms between the strong
+        let castles: Vec<_> = self.sites.iter().enumerate()
+            .filter(|(_, s)| s.lord.is_some()).map(|(i, _)| i).collect();
+        if castles.len() < 2 { return; }
+        self.war = Some(tick);
+        // the battle's own attrition: the bigger host wins, the
+        // loser's own standing pays the tribute
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            if let Some(w) = self.world.get_component_mut::<Watcher>(l) {
+                w.legitimacy = (w.legitimacy - 0.1).max(0.0);
+            }
+        }
+        // and the levy's own cost: the villagers called carry the
+        // grievance - the due's own taking
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if let Some(l) = self.world.get_component_mut::<crate::game::desires::InnerLife>(v) {
+                l.grievances.push((crate::game::desires::Problem::Loss, tick + 60));
+            }
+        }
+        self.log.push(format!("t{}: the levies are called - the lords' own conflict, and the villagers' own due paid.", tick));
+    }
+
     /// The village's own comings and goings: the hunger's own push
     /// drives a household off the map (the villagers' own shrink),
     /// and the prosperity's own pull draws a stranger (the villagers'

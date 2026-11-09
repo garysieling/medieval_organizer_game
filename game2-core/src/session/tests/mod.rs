@@ -219,6 +219,7 @@ mod vermin;
 mod visitors;
 mod village;
 mod walk;
+mod war;
 mod weather;
 mod winter;
 mod weaver;

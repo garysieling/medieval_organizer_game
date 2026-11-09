@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The horizon's own war: the conflict between two sites - the
+    /// levies called, the battle's own light attrition, the loser's
+    /// tribute paid
+    pub war: Option<u64>,
     /// The village's own comings and goings: the households that left -
     /// the hunger's own push or the prosperity's own pull on the
     /// next town

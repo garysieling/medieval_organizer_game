@@ -11,6 +11,7 @@ mod broker;
 mod build;
 mod bits;
 mod campaign;
+mod brand;
 mod channel;
 mod campaign_ban;
 mod campaign_dungeon;

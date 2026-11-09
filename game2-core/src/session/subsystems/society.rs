@@ -1482,6 +1482,36 @@ impl Game {
         }
     }
 
+    /// The sign's own spread: the org's symbol rides the channels'
+    /// own reach - carried further the stronger they run, and fading
+    /// without the work of spreading it. More answer the call when
+    /// the sign's known
+    pub(in crate::session) fn brand_tick(&mut self, tick: u64) {
+        if tick % 20 != 14 { return; }
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        // the channels' own reach carries the sign: symbol + signal_net
+        // + pulpit's borrowed standing
+        let mut reach = 0.0;
+        for m in &members {
+            if let Some(o) = self.world.get_component::<crate::game::org_skills::Organizing>(*m) {
+                reach += o.get(crate::game::org_skills::OrgSkill::Symbol)
+                    + o.get(crate::game::org_skills::OrgSkill::SignalNet)
+                    + o.get(crate::game::org_skills::OrgSkill::Pulpit);
+            }
+        }
+        // it rises on the channels' own work, and fades unreinforced
+        self.brand_saturation = (self.brand_saturation + reach * 0.02 - 0.01)
+            .max(0.0).min(1.0);
+        // and the sign's own pull: more answer the call when it's known -
+        // the cause's own reach scales by it
+        if self.brand_saturation > 0.3 {
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                o.capacity = (o.capacity + self.brand_saturation * 0.01).min(1.0);
+            }
+        }
+    }
+
     /// The lord's own counter-rite: a de-oathing ceremony on the
     /// threat-watch - the oath's own binding frays, the members' own
     /// hands loosen, but nobody's taken. The front's own armor: an

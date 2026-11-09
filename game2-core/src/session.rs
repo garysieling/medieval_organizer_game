@@ -1456,6 +1456,12 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The canvass's own tally: the petition's own count - the number
+    /// the opponent sees, the legible strength
+    pub petition_count: u32,
+    /// The frame's own readiness: a pre-planned narrative for when the
+    /// channel's suppressed - the bigger story waiting
+    pub frame_readiness: bool,
     /// The iron rule's own weight: how far the cause leans on the
     /// leader - the dependence's a vulnerability, and the loss hits
     /// proportionally

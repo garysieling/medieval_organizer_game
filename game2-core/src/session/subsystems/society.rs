@@ -1482,6 +1482,43 @@ impl Game {
         }
     }
 
+    /// The canvass's own work: the petition's own count grows the
+    /// signatures and develops the hands that carry it - and a
+    /// suppression's own backfire, if the frame's ready, turns the
+    /// gag into the bigger story
+    pub(in crate::session) fn canvass_tick(&mut self, tick: u64) {
+        if tick % 20 != 8 { return; }
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        if members.is_empty() { return; }
+        // the canvass's own count: every carried signature's a name
+        // the opponent can read
+        self.petition_count = self.petition_count.saturating_add(members.len() as u32);
+        // and the carrying develops the hands - the canvass is the
+        // practice, not just the tally
+        for m in &members {
+            if let Some(mut o) = self.world.get_component::<crate::game::org_skills::Organizing>(*m).cloned() {
+                o.one_on_one = (o.one_on_one + 0.005).min(1.0);
+                self.world.add_component(*m, o);
+            }
+        }
+        // the suppression's own backfire: a ban with a frame ready
+        // becomes the bigger story - the castle pays its own standing
+        let suppressed = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.7).unwrap_or(false));
+        if suppressed && self.frame_readiness {
+            self.petition_count = self.petition_count.saturating_add(members.len() as u32 * 2);
+            for site in &self.sites {
+                let Some(l) = site.lord else { continue };
+                if let Some(w) = self.world.get_component_mut::<Watcher>(l) {
+                    w.legitimacy = (w.legitimacy - 0.05).max(0.0);
+                }
+            }
+            self.log.push(format!("t{}: they ban the posting, and the ban's the story - the frame was ready.", tick));
+        }
+    }
+
     /// The iron rule's own work: the leader's own weight - the
     /// dependence's a vulnerability when the leader's taken, and the
     /// cold-anger screen keeps the brittle ones off the ladder

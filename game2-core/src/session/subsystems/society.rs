@@ -1445,6 +1445,45 @@ impl Game {
         }
     }
 
+    /// The lord's own suit: while the org's a threat, a manor court
+    /// action lands - the fees accrue day on day, the longer contested
+    /// the deeper the drain. Winning the case and losing the org's a
+    /// real outcome - a favorable ruling still leaves the cause spent
+    pub(in crate::session) fn lawfare_tick(&mut self, tick: u64) {
+        if let Some((filed, _)) = self.lawfare {
+            let days = tick.saturating_sub(filed);
+            // the fees escalate by the day contested - the org's own
+            // practice in the courts blunts the ladder some
+            let defense = self.world.get_component::<crate::game::org_skills::Organizing>(self.org)
+                .map(|o| o.get(crate::game::org_skills::OrgSkill::Training)).unwrap_or(0.0);
+            let drain = 0.02 * days as f32 * (1.0 - defense * 0.5).max(0.3);
+            if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                o.resources = (o.resources - drain).max(0.0);
+            }
+            // a favorable ruling ends the case on day 15 - the drain's
+            // already spent, the org's thinner for the winning
+            if days >= 15 {
+                self.lawfare = None;
+                self.log.push(format!("t{}: the court finds for the cause - but the org's thinner for the winning of it.", tick));
+            }
+            return;
+        }
+        // the file: a threat + a castle's eyes + on the cooldown
+        if tick % 40 != 34 { return; }
+        let organizing = self.world.get_component::<crate::game::org_skills::Organizing>(self.org)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0);
+        if organizing < 0.5 { return; }
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
+            if w.paranoia < 0.5 { continue; }
+            self.lawfare = Some((tick, tick));
+            self.log.push(format!("t{}: a summons on parchment - the lord's own court calls the cause to answer. The fees begin.", tick));
+            return;
+        }
+    }
+
     /// The org's own secrecy: the oath binds the members' own hands
     /// (the stronger the oath, the surer they keep - and the steeper
     /// the fall for the one who breaks it), the cover's own truth

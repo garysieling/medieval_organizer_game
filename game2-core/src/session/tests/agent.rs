@@ -211,6 +211,8 @@ fn an_agent_can_take_a_nearby_job_offer() {
     let at = *g.world.get_component::<Pos>(giver).unwrap();
     *g.world.get_component_mut::<Pos>(who).unwrap() = at;
     let seat = g.add_agent_seat(who);
+    // the opening job's been heard out - the slot's free for a begging one
+    g.seats[seat].quest = None;
     assert!(g.agent_obs(seat).unwrap().near.iter().any(|p| p.e == giver && p.job_offer.as_deref() == Some("Note")),
         "the observation names the offered work");
     g.agent_command(seat, AgentCmd::Context {

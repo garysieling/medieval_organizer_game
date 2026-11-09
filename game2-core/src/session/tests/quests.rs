@@ -22,6 +22,8 @@ fn pending(giver: Entity, kind: QuestKind, target: QuestTarget, pickup: Option<(
 #[test]
 fn test_a_begging_job_shows_on_the_card_and_can_be_taken() {
     let mut g = Game::new();
+    // the opening job's been heard out - the slot's free for a begging one
+    g.seats[0].quest = None;
     let folk = askers(&g);
     assert!(folk.len() >= 3, "enough folk to ask");
     let (giver, other) = (folk[0], folk[1]);

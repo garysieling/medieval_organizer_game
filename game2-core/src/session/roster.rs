@@ -266,6 +266,13 @@ impl Game {
                 None => facts.push(format!("{} lives here - worth knowing early.", vill_name(i))),
             }
         }
+        // and the one the Wanderer washes up beside: a real grievance,
+        // named so the card can point at them - the same pick the
+        // opening quest runs on, not a second roll
+        if let Some((v, wrong)) = self.intro_victim {
+            facts.push(format!("{} carries {} - only a listener can ease it.",
+                self.name_of(v), crate::game::desires::wrong_phrase(wrong)));
+        }
         // and the mood the world walks in with
         const MOOD: &[&str] = &[
             "Mysteries hide in the gossip - ask, and listen.",

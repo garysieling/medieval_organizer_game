@@ -1125,11 +1125,15 @@ impl Game {
             rare_seed: seed ^ 0xAA55_5EED,
             pending_quests: vec![],
             quest_rest: Default::default(),
+            intro_victim: None,
         };
         // and the country's folk, out in its towns and castles
         g.settle_country(&country_plan, seed);
         // and the woods' bands, if the seed dealt any
         g.settle_rebels(seed);
+        // one villager marked by a seeded injustice - the Wanderer's
+        // first job is to hear them out
+        g.pick_intro_victim();
         g
     }
 

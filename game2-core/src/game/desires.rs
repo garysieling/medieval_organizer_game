@@ -178,6 +178,42 @@ pub fn add_grievance(world: &mut World, e: Entity, p: Problem, until: u64) {
     }
 }
 
+/// A problem in a clause the intro card can say - "the bailiff's writ
+/// hangs over them"
+pub fn wrong_phrase(p: Problem) -> &'static str {
+    match p {
+        Problem::Taxed => "the tax-man's tally",
+        Problem::WritBorne => "the bailiff's writ",
+        Problem::Blamed => "the village's blame",
+        Problem::DeathDuty => "the lord's fifth",
+        Problem::Bereaved => "a grave they still visit",
+        Problem::ShortChanged => "a count that didn't add up",
+        Problem::OverseerCut => "an overseer's cut",
+        Problem::NoHome => "no roof of their own",
+        Problem::NoWorkplace => "no bench to work",
+        Problem::NoMaster => "no master to learn from",
+        Problem::NoInput(_) => "materials they can't lay hands on",
+        Problem::DerelictNearby => "an empty shop beside their door",
+        Problem::Smelly => "a smell that hangs on them",
+        Problem::Loss => "stock lost in the night",
+        Problem::SourGut => "a sour gut from spoiled stock",
+        Problem::ChildLabor => "a child's hands in the fields",
+        Problem::Rowdy => "a fist that ended a night in mud",
+        Problem::ThinWood => "woods gone thin",
+        Problem::DryPit => "a drowned pit",
+        Problem::StinkingReach => "a reach that stinks",
+        Problem::Tempted => "the road's calling",
+        Problem::LongWinter => "a winter that runs long",
+        Problem::ColdHearth => "a hearth that eats cold",
+        Problem::TheDark => "the dark that keeps them",
+        Problem::Grief => "a hanging they can't unsee",
+        Problem::Robbed => "a cellar worth robbing",
+        Problem::Hungry => "a belly that knows the pot's bare",
+        Problem::Sick => "the fevers riding the village",
+        Problem::Broke => "less gold than a meal",
+    }
+}
+
 /// The issue family a reveal belongs to - parallel complaints share one
 pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
     let base: &'static str = match r {

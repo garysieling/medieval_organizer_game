@@ -250,7 +250,9 @@ impl Game {
         self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.journal.record(self.frame_n as u64, crate::session::journal::Input::AddSeat);
         self.seats.push(Seat { player, org, ..Seat::default() });
-        self.seats.len() - 1
+        let seat = self.seats.len() - 1;
+        self.intro_quest_for(seat);
+        seat
     }
 
     /// An API agent takes the reins of a villager: the seat's character is
@@ -266,7 +268,9 @@ impl Game {
         self.world.add_component(villager, Organizer::default());
         self.journal.record(self.frame_n as u64, crate::session::journal::Input::AddAgentSeat { villager });
         self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
-        self.seats.len() - 1
+        let seat = self.seats.len() - 1;
+        self.intro_quest_for(seat);
+        seat
     }
 
     /// The first living villager nobody drives yet. A posting isn't up

@@ -114,6 +114,7 @@ mod research;
 mod plague_doctor;
 mod plague;
 mod suffrage;
+mod suppression_arc;
 mod monuments;
 mod stone_circle;
 mod cairns;

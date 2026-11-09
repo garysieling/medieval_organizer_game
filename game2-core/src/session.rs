@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The suppression arc's own reading: which rung the lord's own
+    /// counter reached - 1 the offer, 2 the plant, 3 the ban - the
+    /// cause's eyes read the shape of the watching
+    pub suppression_arc: u8,
     /// The org's own counter-intel: how deep its own eyes read - grows
     /// with the cause's own discipline and the density of its bonds
     pub counter_intel: u8,

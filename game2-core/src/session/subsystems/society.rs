@@ -1494,6 +1494,7 @@ impl Game {
             // org's own eyes, the longer its witnesses have to come
             self.emergency = Some((tick, tick + 20 + self.counter_intel as u64 * 4));
             self.witnesses = 0;
+            self.suppression_arc = 3;
             self.log.push(format!("t{}: a brawl at the granary - the lord calls it the cause's own doing and bans the square. The clock runs.", tick));
             return;
         }
@@ -1521,6 +1522,7 @@ impl Game {
                     if let Some(m) = plant {
                         self.world.add_component(m, crate::game::campaign::Plant(l));
                         self.plant = Some(m);
+                        self.suppression_arc = 2;
                         self.log.push(format!("t{}: a new face joins the cause - quiet, keeps to the edges.", tick));
                     }
                     return;
@@ -1564,6 +1566,7 @@ impl Game {
             self.seat_offer = Some(crate::game::campaign::SeatOffer {
                 from: l, role: crate::game::campaign::Role::Chair,
                 binding, offered: tick });
+            self.suppression_arc = 1;
             self.log.push(format!("t{}: the lord's man carries an offer - a seat on the board for the cause.", tick));
             return;
         }

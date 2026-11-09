@@ -1904,6 +1904,23 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the arc's own early contest: while the watching's young,
+        // contest the word - the next rung costs him more
+        if self.suppression_arc > 0 && pick == 0 && self.counter_intel >= 2 {
+            for site in &self.sites {
+                let Some(l) = site.lord else { continue };
+                if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                    w.legitimacy = (w.legitimacy - 0.05).max(0.0);
+                }
+            }
+            let rung = match self.suppression_arc {
+                1 => "the offer",
+                2 => "the planted word",
+                _ => "the ban",
+            };
+            self.log.push(format!("t{}: the cause reads {} coming - the word's contested early, the lord's own standing wears.", self.tick, rung));
+            return;
+        }
         // the org's own counter-intel plays: feed the watcher a false
         // word, or read his papers out to the room
         if self.counter_intel >= 2 && self.dilemma.is_none() {

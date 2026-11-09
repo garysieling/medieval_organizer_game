@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The org's own two faces: an open front for the legitimacy and
+    /// the mass work, a secret wing for what can't be legal - the
+    /// linkage's the vulnerability and the strength both
+    pub front: bool,
     /// The theodicy stat: the suffering the faith answers - the
     /// grievances' own meaning, converted to devotion until the
     /// affliction's gone and the meaning depreciates

@@ -111,6 +111,7 @@ mod relic;
 mod laws;
 mod sacrament;
 mod sea;
+mod secret_society;
 mod separation;
 mod seat_offer;
 mod solstice;

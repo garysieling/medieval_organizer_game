@@ -1445,6 +1445,31 @@ impl Game {
         }
     }
 
+    /// The lord's own counter-rite: a de-oathing ceremony on the
+    /// threat-watch - the oath's own binding frays, the members' own
+    /// hands loosen, but nobody's taken. The front's own armor: an
+    /// open face halves what the exposure costs the secret wing
+    pub(in crate::session) fn counter_ritual_tick(&mut self, tick: u64) {
+        if tick % 40 != 27 { return; }
+        let watched = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.5).unwrap_or(false));
+        if !watched { return; }
+        let org = self.org;
+        let members = self.world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        // the de-oathing: the oath's own binding frays a notch, the
+        // members' own hands loosen - commitment damage, not removal
+        self.oath_intensity = self.oath_intensity.saturating_sub(1);
+        let damage = if self.front { 0.02 } else { 0.05 };
+        for m in members {
+            if let Some(b) = self.world.get_component_mut::<crate::sim::psychology::Bond>(m) {
+                b.security = (b.security - damage).max(0.0);
+            }
+        }
+        self.log.push(format!("t{}: the de-oathing ceremony - the members' hands loosen, but nobody's taken.", tick));
+    }
+
     /// The creed's own scoring: a council settles a position - the
     /// canon grows by the win, the defeated side lands on the
     /// heresy_vector where it can resurface as a splinter. And the

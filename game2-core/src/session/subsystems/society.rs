@@ -1482,6 +1482,42 @@ impl Game {
         }
     }
 
+    /// The pillars' own work: the member institutions pay their dues
+    /// and lend their names - but their own agendas constrain the
+    /// cause, and the powerful's own patronage can pull one loose
+    /// unless the founding's own sponsorship holds
+    pub(in crate::session) fn institution_tick(&mut self, tick: u64) {
+        if tick % 30 != 13 { return; }
+        if self.institutions == 0 { return; }
+        // the dues: the institutions' own recurring income, and the
+        // names lend the cause their standing
+        if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+            o.resources += self.institutions as f32 * 2.0;
+        }
+        if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+            o.capacity = (o.capacity + self.institutions as f32 * 0.005).min(1.0);
+        }
+        // the agenda's own constraint: the institutions' own caution
+        // slows the agitation they do not own
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        for m in &members {
+            if let Some(mut o) = self.world.get_component::<crate::game::org_skills::Organizing>(*m).cloned() {
+                o.agitation = (o.agitation - self.institutions as f32 * 0.002).max(0.0);
+                self.world.add_component(*m, o);
+            }
+        }
+        // the patronage's own pull: the powerful's own offer - an
+        // institution drifts unless the founding's sponsorship holds
+        let offered = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.7).unwrap_or(false));
+        if offered && !self.locally_sponsored && self.institutions > 0 {
+            self.institutions -= 1;
+            self.log.push(format!("t{}: a patron's own offer - one of the pillars drifts toward the powerful.", tick));
+        }
+    }
+
     /// The canvass's own work: the petition's own count grows the
     /// signatures and develops the hands that carry it - and a
     /// suppression's own backfire, if the frame's ready, turns the

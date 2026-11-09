@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The cause's own pillars: the member institutions - the
+    /// churches, the guilds, the mutual-aid bodies joined by vote and
+    /// dues
+    pub institutions: u32,
+    /// The founding's own sponsorship: a sponsoring committee's local
+    /// names - the credibility that halves the outside-agitator smear
+    pub locally_sponsored: bool,
     /// The canvass's own tally: the petition's own count - the number
     /// the opponent sees, the legible strength
     pub petition_count: u32,

@@ -1148,6 +1148,8 @@ impl Game {
             folk_school: false,
             leader_dependence: 0.5,
             petition_count: 0,
+            institutions: 0,
+            locally_sponsored: false,
             frame_readiness: false,
             community_teacher: false,
             inquisition: None,

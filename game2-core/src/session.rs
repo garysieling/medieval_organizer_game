@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The lord's own parley: an offer to talk under a flag of peace -
+    /// the parley's the trap (the negotiate-and-decapitate play) or a
+    /// real settlement - and a partial offer peels the moderates
+    pub parley: Option<u64>,
     /// The sign's own recognition: the brand's saturation - how far
     /// the org's symbol's carried by the channels' own reach, and
     /// what it multiplies on the call

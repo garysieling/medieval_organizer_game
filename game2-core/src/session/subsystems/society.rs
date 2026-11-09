@@ -1482,6 +1482,33 @@ impl Game {
         }
     }
 
+    /// The lord's own parley: while the org's a threat, an offer to
+    /// talk lands - the negotiate-and-decapitate play, or a real
+    /// settlement. Riding to it risks the ambush; holding the
+    /// distance's safe; demanding hostages makes the guarantee cost
+    /// the castle itself
+    pub(in crate::session) fn parley_tick(&mut self, tick: u64) {
+        if tick % 40 != 31 { return; }
+        if self.parley.is_some() { return; }
+        // the threat's on the members' own work, not the org's own
+        // record: Turnout + Agitation on whoever's carrying the word
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        let organizing: f32 = members.iter().map(|&m|
+            self.world.get_component::<crate::game::org_skills::Organizing>(m)
+                .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                    + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0)).sum();
+        if organizing < 0.5 { return; }
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
+            if w.paranoia < 0.5 { continue; }
+            self.parley = Some(tick);
+            self.log.push(format!("t{}: a herald under a white flag - the lord offers to talk. The flag's own honor's the question.", tick));
+            return;
+        }
+    }
+
     /// The sign's own spread: the org's symbol rides the channels'
     /// own reach - carried further the stronger they run, and fading
     /// without the work of spreading it. More answer the call when

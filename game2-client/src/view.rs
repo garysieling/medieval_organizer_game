@@ -856,6 +856,10 @@ impl View {
                         let cycle = ws.frames.get(facing as usize).map_or(4, |r| r.len());
                         anchor = Some(ws.draw(&mut buf, facing, walking,
                             self.walk_t(pv.e, px, py, cycle, m.frame), sx, sy, scale) - SPRITE_HEAD);
+                        // the hair's own cap: the deterministic tint on
+                        // the head - the look's own identity mark
+                        let (hr, hg, hb) = hair_tint(pv.look);
+                        buf.rect(sx - 2, sy - 34, 5, 3, hr, hg, hb);
                     } else if let Some(fig) = vfig {
                         if pv.kid { draw_kid(&mut buf, fig, sx, sy, zoom); }
                         else { draw_character(&mut buf, fig, sx, sy, zoom); }

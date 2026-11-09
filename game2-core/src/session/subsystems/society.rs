@@ -1212,6 +1212,57 @@ impl Game {
         }
     }
 
+    /// The exit: a villager whose live grievances pass what their
+    /// devotion can bear walks out of the fold - the mark the leaving
+    /// leaves on them, the congregation's roll, and the temple's books
+    pub(in crate::session) fn exit_tick(&mut self, tick: u64) {
+        use crate::sim::religion::Apostate;
+        let cong = self.congregation;
+        // the week's tithe comes due on its day: the call's own weight
+        // is the grievance it accrues on the purses it bites - the coin
+        // stays out of it, a real drain starved the till
+        if tick % 7 == 3 {
+            let members: Vec<Entity> = self.world.get_component::<crate::sim::religion::Congregation>(cong)
+                .map(|c| c.members.clone()).unwrap_or_default();
+            for m in &members {
+                let thin = self.world.get_component::<Purse>(*m).map(|p| p.gold < 1.0).unwrap_or(false);
+                if thin {
+                    desires::add_grievance(&mut self.world, *m, desires::Problem::Taxed, tick + 30);
+                }
+            }
+        }
+        // the tolerance: a devout heart bears more than a drifting one -
+        // past it, a det-mix roll decides whether today they walk
+        let members: Vec<Entity> = self.world.get_component::<crate::sim::religion::Congregation>(cong)
+            .map(|c| c.members.clone()).unwrap_or_default();
+        for m in members {
+            let live = self.world.get_component::<desires::InnerLife>(m)
+                .map(|l| l.grievances.iter().filter(|(_, u)| *u > tick).count()).unwrap_or(0);
+            let devotion = self.world.get_component::<crate::sim::religion::Faith>(m)
+                .map(|f| f.devotion).unwrap_or(0.0);
+            let tolerance = 2 + (devotion * 4.0) as usize;
+            if live <= tolerance { continue; }
+            let roll = (tick.wrapping_mul(31).wrapping_add(m as u64)) % 1000;
+            if roll < 120 {
+                let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(cong)
+                    else { continue };
+                c.members.retain(|&x| x != m);
+                self.world.add_component(m, Apostate);
+                self.log.push(format!("t{}: {} walks out of the fold - the grievances outgrew the faith.", tick, self.name_of(m)));
+            }
+        }
+    }
+
+    /// The rival's push: an org leans on a congregation's weak hearts -
+    /// grievances injected where the faith already thins. The seam the
+    /// org-side consumer rides - rivals and bots call it, not the tick
+    #[allow(dead_code)]
+    pub(in crate::session) fn exit_push(&mut self, tick: u64, targets: &[Entity]) {
+        for &m in targets {
+            desires::add_grievance(&mut self.world, m, desires::Problem::OverseerCut, tick + 20);
+        }
+    }
+
     /// The campaign's own season: it listens before it cuts, it reads
     /// the room before it acts - a dossier moves it past the cutting,
     /// a directive past the research, and a settled campaign loops

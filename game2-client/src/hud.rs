@@ -126,6 +126,10 @@ pub(crate) const MEMBERS_LABEL: &str = "Joined";
 pub(crate) const MEMBERS_CHARS: usize = 36;
 
 /// The card's member list, cut at a whole name with ".." when it won't fit
+/// The cause's own sign: the org's blocks only make sense once the
+/// cause's founded - the members' roll non-empty is the marker
+pub(crate) fn org_started(m: &crate::UiModel) -> bool { !m.panel.members.is_empty() }
+
 pub(crate) fn members_line(names: &[&str]) -> String {
     if names.is_empty() { return "nobody yet - recruit!".into(); }
     let all = names.join(", ");

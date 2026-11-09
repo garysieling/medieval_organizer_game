@@ -1117,6 +1117,8 @@ impl Game {
             seat_offer: None,
             plant: None,
             proposal: None,
+            emergency: None,
+            witnesses: 0,
             player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),

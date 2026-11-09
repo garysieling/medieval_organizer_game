@@ -614,6 +614,9 @@ impl Game {
     pub(in crate::session) fn call_protest(&mut self, rally: (f32, f32), folk: Vec<Entity>,
                                            sign: u8, until: u64, tick: u64) {
         if folk.is_empty() { return; }
+        // the lord's emergency holds the square: no gathering's called
+        // while the ban stands
+        if self.emergency.is_some() { return; }
         self.protests.push(Protest { rally, folk: folk.clone(), sign, until });
         self.seat_protest(rally, &folk, tick);
     }

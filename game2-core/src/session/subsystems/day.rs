@@ -274,6 +274,7 @@ impl Game {
         crate::timed!("sim.exit", self.exit_tick(tick));
         crate::timed!("sim.seat_offer", self.seat_offer_tick(tick));
         crate::timed!("sim.provocateur", self.provocateur_tick(tick));
+        crate::timed!("sim.emergency", self.emergency_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

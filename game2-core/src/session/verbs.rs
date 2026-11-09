@@ -1904,6 +1904,25 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the emergency's own window answers first: gather the
+        // witnesses against the lord's staged tale
+        if self.emergency.is_some() && pick == 0 {
+            self.witnesses += 1;
+            self.log.push(format!("t{}: a witness steps up - the tale has {} telling what they saw.", self.tick, self.witnesses));
+            if self.witnesses >= 4 {
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                        w.legitimacy = (w.legitimacy - 0.2).max(0.0);
+                        w.paranoia = 0.0;
+                    }
+                }
+                self.emergency = None;
+                self.witnesses = 0;
+                self.log.push(format!("t{}: the witnesses stand four deep - the lord's staged brawl's read for what it is, the square's free again.", self.tick));
+            }
+            return;
+        }
         // the plant's violent word answers first: discipline the cause,
         // verify who pushed it, or throw them out on suspicion
         if self.proposal.is_some() && self.plant.is_some() {

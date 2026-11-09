@@ -1433,6 +1433,48 @@ impl Game {
         }
     }
 
+    /// The staged incident: while the org's a threat AND at a campaign's
+    /// own peak, the lord declares the emergency - assemblies banned,
+    /// the square held - and the clock runs on the village's answer
+    pub(in crate::session) fn emergency_tick(&mut self, tick: u64) {
+        if let Some((_, deadline)) = self.emergency {
+            // the window's run out: the repression's just how things are
+            // now - the paranoia's the accrual of a normalized ban
+            if tick >= deadline {
+                self.emergency = None;
+                self.witnesses = 0;
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    if let Some(w) = self.world.get_component_mut::<Watcher>(l) {
+                        w.paranoia = (w.paranoia + 0.3).min(1.0);
+                    }
+                }
+                self.log.push(format!("t{}: the emergency's just how things are now - the ban's the season, not the news.", tick));
+            }
+            return;
+        }
+        // the declare: a threat + a campaign's own action peak
+        if tick % 40 != 30 { return; }
+        let org = self.org;
+        let organizing = self.world.get_component::<crate::game::org_skills::Organizing>(org)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0);
+        if organizing < 0.5 { return; }
+        let acting = self.world.query::<crate::game::campaign::Campaign>().iter()
+            .any(|&c| self.world.get_component::<crate::game::campaign::Campaign>(c)
+                .map(|cc| cc.phase == crate::game::campaign::CampaignPhase::Action).unwrap_or(false));
+        if !acting { return; }
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
+            if w.paranoia < 0.5 { continue; }
+            self.emergency = Some((tick, tick + 20));
+            self.witnesses = 0;
+            self.log.push(format!("t{}: a brawl at the granary - the lord calls it the cause's own doing and bans the square. The clock runs.", tick));
+            return;
+        }
+    }
+
     /// The plant's work: the lord's infiltration puts a member in the
     /// org while it's a threat, and at the campaign's action peak that
     /// member pushes the violent step - the proposal's the weapon, not

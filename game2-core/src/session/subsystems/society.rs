@@ -1484,6 +1484,40 @@ impl Game {
         }
     }
 
+    /// The village's own comings and goings: the hunger's own push
+    /// drives a household off the map (the villagers' own shrink),
+    /// and the prosperity's own pull draws a stranger (the villagers'
+    /// own swell). A household leaving's a log-worthy event - the
+    /// mirror of a stranger arriving
+    pub(in crate::session) fn migration_tick(&mut self, tick: u64) {
+        if tick % 30 != 27 { return; }
+        // the hunger's own push: at the village's own low ebb a
+        // household walks off the map - the villagers' own shrink
+        let starving = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter_map(|v| self.world.get_component::<crate::session::Hunger>(v))
+            .filter(|h| h.value >= 0.8).count();
+        if starving >= 5 && self.villagers.len() > 10 {
+            if let Some(gone) = self.villagers.pop() {
+                // the leaver's own going: dead to the village - the
+                // roll keeps them, the map doesn't
+                self.world.add_component(gone, crate::game::villager::Dead);
+                self.world.remove_component::<crate::game::villager::Villager>(gone);
+            }
+            self.emigration += 1;
+            self.log.push(format!("t{}: a household walks off the map - the hunger's own push takes them to the next town.", tick));
+            return;
+        }
+        // the prosperity's own pull: the stores' own plenty draws a
+        // stranger - the villagers' own swell (an arrival counts as
+        // the emigration's own negative - the swell's the mirror)
+        let plenty = self.soil_quality >= 0.7 && starving == 0;
+        if plenty && tick % 90 == 27 {
+            self.emigration = self.emigration.saturating_sub(1);
+            self.log.push(format!("t{}: a stranger comes down the road - the stores' own plenty draws them in.", tick));
+        }
+    }
+
     /// The fold's own hardness: the extremism's own confluence - the
     /// weak bonds, the high orthodoxy, the cultish seed - drifts the
     /// absolutism up; at the high ebb the fold's own hardness shows,

@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The village's own comings and goings: the households that left -
+    /// the hunger's own push or the prosperity's own pull on the
+    /// next town
+    pub emigration: u64,
     /// The misery's own answer: the windfall that favors the losing -
     /// the bountiful harvest, the miracle, the relic found
     pub comeback: Option<u64>,

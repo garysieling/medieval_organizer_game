@@ -113,6 +113,7 @@ mod lifecycle;
 mod log_priority;
 mod magic;
 mod market;
+mod migration;
 mod mine;
 mod levy;
 mod child_labor;

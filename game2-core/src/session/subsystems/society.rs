@@ -945,10 +945,17 @@ impl Game {
     }
 
     pub fn festival_tick(&mut self, tick: u64) {
-        if tick % 90 != 45 { return; }
-        // one feast mid-season, named for the season it's in
-        const FEASTS: [&str; 4] = ["May Day", "Midsummer", "the Harvest Home", "Yule"];
-        let feast = FEASTS[(tick / 90 % 4) as usize];
+        // the celestial wheel: each feast falls on its own anchor day,
+        // the solstices and the quarter-days the year turns on - not a
+        // fixed rotation, the sky's own marking
+        const FEASTS: [(u64, &str); 4] = [
+            (81, "May Day"),            // the first of May, the spring's quarter
+            (172, "Midsummer"),         // the year's long day
+            (263, "the Harvest Home"),  // the autumn's turn
+            (355, "Yule"),              // midwinter's dark
+        ];
+        let Some(&(_, feast)) = FEASTS.iter().find(|(d, _)| tick % 365 == *d)
+            else { return };
         self.log.push_at_who(format!("t{}: {} - the village gathers at the market.", tick, feast),
             toast_spot(&self.world, self.market_food), None);
         self.notices.push(("feast".into(), format!("{} - the village gathers at the market", feast), tick + 3));

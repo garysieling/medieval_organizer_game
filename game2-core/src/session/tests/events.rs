@@ -1310,7 +1310,7 @@ fn test_the_sky_reads_the_village() {
         assert!(model.people.iter().any(|p| p.label.as_deref() == Some("the astrologer")),
             "the frame shows his charts on {:?}", st);
         stage::run_days(&mut g, 1);
-        assert!(g.log.iter().any(|l| l.contains("astrologer reads the sky")),
+        assert!(g.log.iter().any(|l| l.contains("astrologer sells his pages")),
             "the reading was told on {:?}", st);
         assert!(desires::is_satisfied(&g.world, v, Want::Security, g.tick),
             "forearmed on {:?}", st);

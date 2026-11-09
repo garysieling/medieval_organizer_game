@@ -37,7 +37,7 @@ fn test_the_feast_half_hearts_a_few_random_souls() {
         let r = g.world.get_component::<Relationship>(e).unwrap();
         before.insert((r.from.min(r.other), r.from.max(r.other)), r.strength);
     }
-    g.festival_tick(45);
+    g.festival_tick(81);
     // the feast waits at the cross for the column to walk it in -
     // walk it straight out: the parade's own tests cover the march
     if let Some(f) = g.formation.take() {
@@ -65,7 +65,7 @@ fn test_a_player_at_the_feast_leaves_with_half_hearts() {
     // stand the player in the market crowd
     let mp = g.world.get_component::<Pos>(g.market_food).map(|p| (p.x, p.y)).unwrap();
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.0, y: mp.1 };
-    g.festival_tick(45);
+    g.festival_tick(81);
     // the feast waits at the cross for the column to walk it in -
     // walk it straight out: the parade's own tests cover the march
     if let Some(f) = g.formation.take() {
@@ -87,7 +87,7 @@ fn test_the_dead_cant_warm_the_feast() {
     let mp = g.world.get_component::<Pos>(g.market_food).map(|p| (p.x, p.y)).unwrap();
     *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.0, y: mp.1 };
     g.world.add_component(g.player, villager::Dead);
-    g.festival_tick(45);
+    g.festival_tick(81);
     // the feast waits at the cross for the column to walk it in -
     // walk it straight out: the parade's own tests cover the march
     if let Some(f) = g.formation.take() {

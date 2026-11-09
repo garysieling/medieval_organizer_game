@@ -98,6 +98,7 @@ mod dilemma;
 mod relic;
 mod laws;
 mod sea;
+mod solstice;
 mod season_illness;
 mod sheriff;
 mod surveillance;

@@ -1154,6 +1154,7 @@ impl Game {
             incorporation_offer: None,
             redacted_canon: false,
             mystic: None,
+            council: None,
             vernacular: false,
             discipline: 0.0,
             locally_sponsored: false,

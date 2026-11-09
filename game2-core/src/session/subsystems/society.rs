@@ -1483,6 +1483,22 @@ impl Game {
         }
     }
 
+    /// The fold's own deadlock: the stall that won't break on its own
+    /// - the council's own call, the Constantine's own move, the
+    /// influence that settles what the stall can't
+    pub(in crate::session) fn council_tick(&mut self, tick: u64) {
+        if tick % 60 != 53 { return; }
+        if self.council.is_some() { return; }
+        // the deadlock's own signal: the split's own pressure past the
+        // stall's own line, or the creed's own heresies grown long
+        let stalled = self.separation_pressure >= 0.7
+            || self.world.get_component::<crate::sim::religion::Doctrine>(self.congregation)
+                .map(|d| d.heresy_vector.len() >= 3).unwrap_or(false);
+        if !stalled { return; }
+        self.council = Some(tick);
+        self.log.push(format!("t{}: the fold's own stall - a council's called to break what the silence can't.", tick));
+    }
+
     /// The spirit's own marking: a villager whose own devotion burns
     /// past the fold's own telling becomes the mystic the institution
     /// must answer - the license to prophesy's the gate

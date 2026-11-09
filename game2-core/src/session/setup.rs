@@ -1114,6 +1114,7 @@ impl Game {
             letters: vec![],
             cave_pos: Some(cave_pos),
             cave_zone: Some(((cave_pos.0 - 3, cave_pos.1 - 3), (cave_pos.0 + 3, cave_pos.1 + 3))),
+            seat_offer: None,
             player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),

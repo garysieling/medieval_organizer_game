@@ -1445,6 +1445,9 @@ pub struct Game {
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,
+    /// The lord's counter-offer when one stands - a seat on the board,
+    /// binding or performative - waits on the player's pick
+    pub seat_offer: Option<crate::game::campaign::SeatOffer>,
     /// The green fellowship: the splinter congregation a provoked
     /// villager starts - None until the reformation ignites
     pub splinter: Option<Entity>,

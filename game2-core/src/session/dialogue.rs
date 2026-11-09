@@ -589,6 +589,23 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
+        if let Some(o) = &self.seat_offer {
+            let lord = self.name_of(o.from);
+            let options = vec![
+                "Take the seat - sit at their board".into(),
+                "Refuse it - the cause stays the streets".into(),
+                "Ask what it really carries".into(),
+            ];
+            let rows = vec![
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: format!("{}'s man brings an offer: a seat on the board.", lord) },
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: "Take it and the cause sits at their table - or at their mercy. Your call.".into() },
+            ];
+            return Some(ConvoPanelV {
+                title: "THE LORD'S OFFER".into(),
+                rows, options, decides: true, leave: false });
+        }
         if let Some(d) = &s.pending_founding {
             let mut rows = self.record_rows(seat, d.record);
             let (lean, options) = match &d.vote {

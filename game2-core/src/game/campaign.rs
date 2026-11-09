@@ -47,6 +47,21 @@ pub enum Role {
     Chair,
 }
 
+/// The lord's own counter-offer: a seat on the board - binding (a real
+/// concession behind it) or performative (the offer absorbs the cause's
+/// own energy if taken). The flag stays hidden until it's read
+#[derive(Debug, Clone, Copy)]
+pub struct SeatOffer {
+    /// The lord who makes it
+    pub from: Entity,
+    /// The seat on offer
+    pub role: Role,
+    /// What it really carries - hidden from the player until read
+    pub binding: bool,
+    /// When the offer was made
+    pub offered: u64,
+}
+
 /// Who holds a seat
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Seat {

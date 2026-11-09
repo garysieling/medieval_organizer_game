@@ -1445,6 +1445,39 @@ impl Game {
         }
     }
 
+    /// The church's own instruments: the parallel fold accrues its
+    /// own weight until the schism fires; and the lord's own silence -
+    /// the interdict - drains what the services would hold
+    pub(in crate::session) fn sacrament_tick(&mut self, tick: u64) {
+        if tick % 30 != 26 { return; }
+        // the parallel fold's own weight: the org's own size is the
+        // infrastructure the church cannot see
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.len()).unwrap_or(0);
+        if members > 6 {
+            self.separation_pressure = (self.separation_pressure
+                + members as f32 * 0.005).min(1.0);
+        }
+        // and the schism fires whether the leadership wants it or not
+        if self.separation_pressure >= 1.0 {
+            self.separation_pressure = 0.0;
+            if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+                c.orthodoxy = (c.orthodoxy - 0.2).max(0.0);
+            }
+            self.log.push(format!("t{}: the fold splits on its own weight - a second way of praying walks out the door.", tick));
+        }
+        // the lord's own silence: the interdict's own drain on the flock
+        if self.interdict {
+            let flock = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+                .map(|c| c.members.clone()).unwrap_or_default();
+            for m in flock {
+                if let Some(f) = self.world.get_component_mut::<crate::sim::religion::Faith>(m) {
+                    f.devotion = (f.devotion - 0.01).max(0.0);
+                }
+            }
+        }
+    }
+
     /// The lord's own postings: while the org's a threat, the
     /// reporting/audit burden lands - the compliance work itself is
     /// the weapon. Unmet, the burden ticks the cause's own capacity

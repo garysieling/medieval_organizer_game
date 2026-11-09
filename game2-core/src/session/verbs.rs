@@ -1919,6 +1919,19 @@ impl Game {
             }
             return;
         }
+        // the deference's own refusal: a small thing alone - the honor
+        // unpaid, the oath unsworn - but a commitment-display for the
+        // movement, and a cost on the castle's own standing
+        if self.separation_pressure > 0.4 && pick == 1 && self.dilemma.is_none() {
+            for site in &self.sites {
+                let Some(l) = site.lord else { continue };
+                if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                    w.legitimacy = (w.legitimacy - 0.05).max(0.0);
+                }
+            }
+            self.log.push(format!("t{}: the honor goes unsworn - a small thing alone, but the castle reads what it means.", self.tick));
+            return;
+        }
         // the cult's own counters: shelter a soul out, break the milieu,
         // or call the lord's hand - the last replicates the cage's own
         let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)

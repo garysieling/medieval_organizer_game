@@ -8,6 +8,7 @@ mod apprentice;
 mod assembly;
 mod attach;
 mod blocker;
+mod bookbinder;
 mod broker;
 mod build;
 mod bits;

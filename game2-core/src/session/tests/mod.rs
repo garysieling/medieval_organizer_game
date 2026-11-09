@@ -12,6 +12,7 @@ mod build;
 mod bits;
 mod campaign;
 mod brand;
+mod campaign_stack;
 mod canvass;
 mod channel;
 mod campaign_ban;

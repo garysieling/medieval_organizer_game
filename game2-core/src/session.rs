@@ -1456,6 +1456,12 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The campaign's own supply: the logistics the endurance actions
+    /// consume - the supply lines, the runners, the stores
+    pub campaign_logistics: f32,
+    /// The campaign's own discipline: the trained habit that holds
+    /// against the provocateur - the highest-stakes stat
+    pub discipline: f32,
     /// The cause's own pillars: the member institutions - the
     /// churches, the guilds, the mutual-aid bodies joined by vote and
     /// dues

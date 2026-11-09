@@ -1149,6 +1149,8 @@ impl Game {
             leader_dependence: 0.5,
             petition_count: 0,
             institutions: 0,
+            campaign_logistics: 0.0,
+            discipline: 0.0,
             locally_sponsored: false,
             frame_readiness: false,
             community_teacher: false,

@@ -1482,6 +1482,39 @@ impl Game {
         }
     }
 
+    /// The stack's own work: the logistics accrue on the org's own
+    /// supply hands, and the endurance consumes them; the discipline
+    /// trains on the members' own practiced meetings, and the
+    /// provocateur's own test finds the untrained
+    pub(in crate::session) fn campaign_stack_tick(&mut self, tick: u64) {
+        if tick % 20 != 4 { return; }
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        if members.is_empty() { return; }
+        // the supply's own hands: the organizers' own practiced work
+        // feeds the logistics the endurance needs
+        let supply: f32 = members.iter().map(|&m|
+            self.world.get_component::<crate::game::org_skills::Organizing>(m)
+                .map(|o| o.get(crate::game::org_skills::OrgSkill::Training)
+                    + o.get(crate::game::org_skills::OrgSkill::SignalNet)).unwrap_or(0.0)).sum();
+        self.campaign_logistics = (self.campaign_logistics + supply * 0.01 - 0.005).max(0.0).min(1.0);
+        // and the discipline's own training: the practiced meetings
+        // build the habit that holds against the provocateur
+        let practice: f32 = members.iter().map(|&m|
+            self.world.get_component::<crate::game::org_skills::Organizing>(m)
+                .map(|o| o.get(crate::game::org_skills::OrgSkill::SecurityCulture)).unwrap_or(0.0)).sum();
+        self.discipline = (self.discipline + practice * 0.005).min(1.0);
+        // the provocateur's own test: a plant's own call to violence
+        // finds the untrained - the breaking converts the asset into
+        // the liability
+        if self.plant.is_some() && self.discipline < 0.3 {
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                o.capacity = (o.capacity - 0.05).max(0.0);
+            }
+            self.log.push(format!("t{}: the untrained room takes the plant's bait - the discipline wasn't there to hold.", tick));
+        }
+    }
+
     /// The pillars' own work: the member institutions pay their dues
     /// and lend their names - but their own agendas constrain the
     /// cause, and the powerful's own patronage can pull one loose

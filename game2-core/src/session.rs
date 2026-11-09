@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The stranger's own tongue: the words the player's learned by
+    /// exposure - the outlander's own speech glossing itself over
+    /// the contact
+    pub learned_words: usize,
+    /// The ear's own learning: the language exposure - the more the
+    /// outlander's own speech, the more the words gloss
+    pub fluent: f32,
     /// The mob's own rising: the grievance's own boil-over - the
     /// pitchforks and the torches, the soldiers' own answer, and the
     /// peasants' own loss

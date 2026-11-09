@@ -263,6 +263,7 @@ impl Game {
         let name = self.name_of(v);
         let cong = self.world.create_entity();
         self.world.add_component(cong, Congregation {
+            routinization: 0.0,
             name: "the green fellowship".into(),
             members: vec![v],
             leader: Some(v),
@@ -1480,6 +1481,20 @@ impl Game {
                 }
             }
         }
+    }
+
+    /// The crown's own offer: while the fold's own work's a threat,
+    /// the legal status lands - the gold for the routinization, the
+    /// edge for the refusal
+    pub(in crate::session) fn incorporation_tick(&mut self, tick: u64) {
+        if tick % 40 != 23 { return; }
+        if self.incorporation_offer.is_some() { return; }
+        let watched = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.5).unwrap_or(false));
+        if !watched { return; }
+        self.incorporation_offer = Some(tick);
+        self.log.push(format!("t{}: a charter offered - the crown's own legal status for the fold, and the gold that comes with it.", tick));
     }
 
     /// The stack's own work: the logistics accrue on the org's own

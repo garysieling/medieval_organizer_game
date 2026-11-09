@@ -551,6 +551,7 @@ impl Game {
         let congregation = {
             let c = world.create_entity();
             world.add_component(c, crate::sim::religion::Congregation {
+            routinization: 0.0,
                 cultish: false,
                 name: "the village parish".into(), members: villagers.clone(),
                 leader: villagers.iter().copied().find(|&v| world.get_component::<Craft>(v)
@@ -1150,6 +1151,7 @@ impl Game {
             petition_count: 0,
             institutions: 0,
             campaign_logistics: 0.0,
+            incorporation_offer: None,
             discipline: 0.0,
             locally_sponsored: false,
             frame_readiness: false,

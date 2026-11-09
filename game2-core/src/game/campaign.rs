@@ -515,6 +515,29 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     // Participation teaches: the room learns meeting craft, the seats
     // learn theirs
     crate::game::org_skills::learn_from_meeting(world, campaign, &attendees);
+
+    // a conversion campaign's own pull: the issue IS the faith's own
+    // name - only when some soul in the world already carries that
+    // faith does the room's hearts drift toward it
+    if let Some(issue) = world.get_component::<Campaign>(campaign).map(|c| c.issue.clone()) {
+        let is_faith = world.query::<crate::sim::religion::Faith>()
+            .iter().any(|&e| world.get_component::<crate::sim::religion::Faith>(e)
+                .map(|f| f.religion == issue).unwrap_or(false));
+        if !issue.is_empty() && is_faith {
+            let orth = world.get_component::<crate::sim::religion::Congregation>(org)
+                .map(|c| c.orthodoxy).unwrap_or(0.3);
+            for &a in &attendees {
+                let Some(f) = world.get_component_mut::<crate::sim::religion::Faith>(a) else { continue };
+                // the pull drifts the devotion; a fold's own orthodoxy
+                // resists it
+                f.devotion = (f.devotion + 0.04 * (1.0 - orth)).min(1.0);
+                // and the heart fully won takes the faith's own name
+                if f.devotion >= 0.95 && f.religion != issue {
+                    f.religion = issue.clone();
+                }
+            }
+        }
+    }
     Some(MeetingOutcome { attendees, healed, drifted, noted, consent, splintered })
 }
 
@@ -1025,6 +1048,47 @@ mod tests {
     fn bond(w: &mut World, a: Entity, b: Entity) {
         for _ in 0..2 {
             record_interaction(w, a, Interaction { other: b, kind: InteractionKind::Aid, intensity: 1.0 });
+        }
+    }
+
+    #[test]
+    fn test_a_conversion_room_pulls_the_hearts() {
+        let mut w = World::new();
+        let (a, b) = (member(&mut w), member(&mut w));
+        bond(&mut w, a, b);
+        let (_, c) = campaign_with(&mut w, &[a, b]);
+        w.get_component_mut::<Campaign>(c).unwrap().issue = "the old faith".into();
+        w.add_component(a, crate::sim::religion::Faith {
+            religion: "the old faith".into(), devotion: 0.5, traditions: vec![] });
+        w.add_component(b, crate::sim::religion::Faith {
+            religion: "the parish".into(), devotion: 0.5, traditions: vec![] });
+        set_cadence(&mut w, c, 7, 1);
+        delegate_role(&mut w, c, Role::TurnoutCoordinator, a);
+        hold_campaign_meeting(&mut w, c, 8);
+        let after = w.get_component::<crate::sim::religion::Faith>(b)
+            .map(|f| f.devotion).unwrap_or(0.5);
+        assert!(after >= 0.5, "the room's hearts never drifted");
+    }
+
+    #[test]
+    fn test_a_heart_fully_won_takes_the_faith() {
+        let mut w = World::new();
+        let (a, b) = (member(&mut w), member(&mut w));
+        bond(&mut w, a, b);
+        let (_, c) = campaign_with(&mut w, &[a, b]);
+        w.get_component_mut::<Campaign>(c).unwrap().issue = "the old faith".into();
+        w.add_component(a, crate::sim::religion::Faith {
+            religion: "the old faith".into(), devotion: 0.9, traditions: vec![] });
+        w.add_component(b, crate::sim::religion::Faith {
+            religion: "the parish".into(), devotion: 0.94, traditions: vec![] });
+        set_cadence(&mut w, c, 7, 1);
+        delegate_role(&mut w, c, Role::TurnoutCoordinator, a);
+        hold_campaign_meeting(&mut w, c, 8);
+        if let Some(f) = w.get_component::<crate::sim::religion::Faith>(b) {
+            if f.devotion >= 0.95 {
+                assert_eq!(f.religion, "the old faith",
+                    "the heart fully won never took the name");
+            }
         }
     }
 

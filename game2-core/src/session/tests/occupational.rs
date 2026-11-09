@@ -17,7 +17,7 @@ fn test_past_the_threshold_the_trade_hits() {
     let m = g.villagers[0];
     g.world.add_component(m, crate::game::vocation::Craft {
         vocation: crate::game::vocation::Vocation::Mason, skill: 0.5,
-        workplace: None, master: None, exposure: 0.5, tasked_by: None, pending: 0.0 });
+        workplace: None, master: None, exposure: 0.5, tasked_by: None, pending: 0.0, apprentice_years: 0 });
     g.world.add_component(m, crate::sim::illness::Health { condition: 0.8, immunity: 0.0 });
     g.trade_exposure_tick(3);
     let cond = g.world.get_component::<crate::sim::illness::Health>(m).map(|h| h.condition).unwrap_or(0.8);

@@ -1483,6 +1483,26 @@ impl Game {
         }
     }
 
+    /// The term's own counting: the years under a master accrue, and
+    /// at seven the journeyman's own ceremony lifts the skill - the
+    /// apprenticeship's own graduation, the piece made
+    pub(in crate::session) fn apprentice_tick(&mut self, tick: u64) {
+        if tick % 30 != 24 { return; }
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(c) = self.world.get_component_mut::<crate::game::vocation::Craft>(v) else { continue };
+            if c.master.is_none() { continue; }
+            c.apprentice_years += 1;
+            // the graduation: at seven years the journeyman's own
+            // ceremony - the piece made, the skill lifted past the
+            // apprentice's own cap
+            if c.apprentice_years >= 7 && c.skill < 0.4 {
+                c.skill = 0.4;
+                self.log.push(format!("t{}: the journeyman's own ceremony - the term's done, the piece's made.", tick));
+            }
+        }
+    }
+
     /// The prophet's own vulnerability: the revelation-built org has
     /// no internal way to remove him - the takeover, the co-option,
     /// the knife-fight over the succession. And the cover's own

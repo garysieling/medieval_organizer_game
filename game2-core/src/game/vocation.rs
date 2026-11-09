@@ -148,6 +148,9 @@ pub struct Craft {
     /// Part of a day's output made but not yet a whole unit - a half-rate
     /// day still counts toward the next one
     pub pending: f32,
+    /// The term's own counting: the years under a master - at seven
+    /// the journeyman's own ceremony lifts the skill
+    pub apprentice_years: u32,
 }
 
 /// A child: no craft, no level - they run errands and play
@@ -539,7 +542,7 @@ pub fn train_day(craft: &mut Craft) -> Option<Level> {
 
 /// Seed the craft for a character
 pub fn craft(vocation: Vocation, skill: f32) -> Craft {
-    Craft { vocation, skill, workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0 }
+    Craft { vocation, skill, workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0, apprentice_years: 0 }
 }
 
 #[cfg(test)]

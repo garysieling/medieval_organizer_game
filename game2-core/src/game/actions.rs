@@ -314,7 +314,7 @@ mod tests {
         for _ in 0..5 { bond(&mut w, mason, dead_member); }
         w.add_component(mason, Craft {
             vocation: Vocation::Mason, skill: 0.5,
-            workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0 });
+            workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0, apprentice_years: 0 });
         w.add_component(dead_member, crate::game::villager::Dead);
         let out = strike_vote(&mut w, camp, Vocation::Mason, 10).unwrap();
         assert_eq!(out.yes, 0, "a dead member's pull died with them");
@@ -337,7 +337,7 @@ mod tests {
         for m in masons.iter().chain([&pulled, &unmoved]) {
             w.add_component(*m, Craft {
                 vocation: Vocation::Mason, skill: 0.5,
-                workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0 });
+                workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0, apprentice_years: 0 });
         }
         let (_, camp) = campaign(&mut w, &[masons[0]], "the taxes");
         bond(&mut w, pulled, masons[0]); // 0.24 - not enough to pull alone

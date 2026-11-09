@@ -1153,6 +1153,7 @@ impl Game {
             campaign_logistics: 0.0,
             incorporation_offer: None,
             redacted_canon: false,
+            mystic: None,
             vernacular: false,
             discipline: 0.0,
             locally_sponsored: false,

@@ -1919,6 +1919,34 @@ impl Game {
             }
             return;
         }
+        // the mystic's own answer: canonize the spirit's own marking,
+        // license it under conditions, or suppress it - and risk the
+        // martyrdom's own conversion
+        if self.mystic.is_some() && pick <= 2 && self.dilemma.is_none() {
+            self.mystic = None;
+            match pick {
+                0 => { // canonize: the charisma absorbed, a saint's own asset
+                    if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+                        c.orthodoxy = (c.orthodoxy + 0.1).min(1.0);
+                    }
+                    self.log.push(format!("t{}: the mystic's canonized - the spirit's own marking folded into the fold's own telling.", self.tick));
+                }
+                1 => { // license: tolerated under conditions - bounded influence
+                    self.separation_pressure = (self.separation_pressure - 0.1).max(0.0);
+                    self.log.push(format!("t{}: the mystic's licensed - the spirit's own marking tolerated under the fold's own terms.", self.tick));
+                }
+                _ => { // suppress: the removal - and the martyrdom's own risk
+                    let martyr = (self.tick.wrapping_mul(37).wrapping_add(self.org as u64)) % 100 < 40;
+                    if martyr {
+                        self.separation_pressure = (self.separation_pressure + 0.3).min(1.0);
+                        self.log.push(format!("t{}: the mystic's suppressed - and the dead one's bigger than the living was.", self.tick));
+                    } else {
+                        self.log.push(format!("t{}: the mystic's suppressed - the spirit's own marking quieted, for now.", self.tick));
+                    }
+                }
+            }
+            return;
+        }
         // the charter's own answer: the gold for the routinization, or
         // the edge for the refusal
         if self.incorporation_offer.is_some() && pick <= 1 && self.dilemma.is_none() {

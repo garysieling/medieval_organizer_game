@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The field's own memory: the soil's own quality - the fallow
+    /// restores it, the continuous crop drains it, and the hunger's
+    /// own gap comes in the spring before the first harvest
+    pub soil_quality: f32,
     /// The cause's own revelation: the org's built on a prophet - and
     /// a prophetic org has no internal way to remove him
     pub prophet: bool,

@@ -184,6 +184,7 @@ mod resistance;
 mod revelation;
 mod reformation;
 mod rites;
+mod rotation;
 mod marriage;
 mod river;
 mod roster;

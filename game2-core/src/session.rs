@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The iron rule's own weight: how far the cause leans on the
+    /// leader - the dependence's a vulnerability, and the loss hits
+    /// proportionally
+    pub leader_dependence: f32,
     /// The org's own school: the movement's own building, where the
     /// leaders develop and the memory keeps
     pub folk_school: bool,

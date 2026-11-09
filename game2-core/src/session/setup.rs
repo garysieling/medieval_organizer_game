@@ -1146,6 +1146,7 @@ impl Game {
             parley: None,
             hidden_institution: false,
             folk_school: false,
+            leader_dependence: 0.5,
             community_teacher: false,
             inquisition: None,
             interdict: false,

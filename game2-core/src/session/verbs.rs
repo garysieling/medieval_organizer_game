@@ -1919,6 +1919,30 @@ impl Game {
             }
             return;
         }
+        // the council's own answer: convene and settle it by the
+        // influence, or let the stall go - the Constantine's own price
+        if self.council.is_some() && pick <= 1 && self.dilemma.is_none() {
+            self.council = None;
+            if pick == 0 { // convene: the influence settles, the convener pays
+                self.separation_pressure = (self.separation_pressure - 0.3).max(0.0);
+                if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+                    c.orthodoxy = (c.orthodoxy + 0.1).min(1.0);
+                }
+                // the Constantine's own price: the convener's own
+                // standing pays for the breaking
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                        w.legitimacy = (w.legitimacy - 0.1).max(0.0);
+                    }
+                }
+                self.log.push(format!("t{}: the council's convened - the influence settles the stall, and the convener's own standing pays.", self.tick));
+            } else { // let it stall: the pressure grows
+                self.separation_pressure = (self.separation_pressure + 0.1).min(1.0);
+                self.log.push(format!("t{}: the stall goes on - the fold's own silence deepens.", self.tick));
+            }
+            return;
+        }
         // the mystic's own answer: canonize the spirit's own marking,
         // license it under conditions, or suppress it - and risk the
         // martyrdom's own conversion

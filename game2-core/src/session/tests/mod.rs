@@ -35,6 +35,7 @@ mod admin_attrition;
 mod capacity;
 mod cult_end;
 mod clandestine;
+mod council;
 mod counter_intel;
 mod crops;
 mod determinism;

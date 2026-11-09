@@ -1484,6 +1484,41 @@ impl Game {
         }
     }
 
+    /// The mob's own rising: the grievance's own boil-over - the
+    /// pitchforks and the torches march on the seats of power, the
+    /// soldiers ride in after, and the peasants always lose. The
+    /// bystanders' own doors bar; the caught are taken or killed
+    pub(in crate::session) fn uprising_tick(&mut self, tick: u64) {
+        if tick % 60 != 55 { return; }
+        if self.uprising.is_some() { return; }
+        // the boil-over's own line: the villagers' own grievances past
+        // the threshold - the legal channel's own failure
+        let grieved = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .filter(|&v| self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|l| !l.grievances.is_empty()).unwrap_or(false))
+            .count();
+        if grieved < 8 { return; }
+        self.uprising = Some(tick);
+        // the soldiers' own answer: the lord's own arm rides in - the
+        // mob's own suppression, the peasants always lose. The
+        // repression's own debt lands on the next writ
+        self.repression_debt += 1;
+        // and the mob's own cost: the caught are taken or killed -
+        // a few of the grieved go to the castle or the grave
+        let mut taken = 0;
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if taken >= 2 { break; }
+            if self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|l| !l.grievances.is_empty()).unwrap_or(false) {
+                self.world.add_component(v, crate::game::dungeon::Imprisoned { since: tick, charge: "the rising".into() });
+                taken += 1;
+            }
+        }
+        self.log.push(format!("t{}: the mob rises - the pitchforks and the torches, and the soldiers ride in after. The peasants never win.", tick));
+    }
+
     /// The road's own caravan: the trade between two sites - the
     /// price's own differential worth the walking, the bandit's own
     /// risk on the way, and the far market's own pay

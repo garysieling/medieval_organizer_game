@@ -68,6 +68,9 @@ pub enum Vocation {
     Perfumer,
     /// Mixes pigment and lays it on wood: painted signs, murals, heraldry
     Painter,
+    /// Works the last and the awl: leather in, shoes out - the cobbler's
+    /// own repair keeps the village shod
+    Shoemaker,
     /// Works the pit: ore up out of the open cut, day after day
     Miner,
     /// Works the river's edge: fish, eels, and the strange things the
@@ -210,6 +213,7 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
         Vocation::Distiller => &["wine"],
         Vocation::Cooper => &["wood"],
         Vocation::Perfumer => &["marigold", "lavender", "spirits"],
+        Vocation::Shoemaker => &["leather"],
         // the taverner's stock-in-trade comes off the drink trades'
         // shelves, not out of a vat - see Game::tavern_tick
         Vocation::Taverner => &[],
@@ -243,6 +247,7 @@ pub fn output(v: Vocation) -> Option<&'static str> {
         Vocation::Vintner => Some("wine"),
         Vocation::Distiller => Some("spirits"),
         Vocation::Cooper => Some("casks"),
+        Vocation::Shoemaker => Some("shoes"),
         Vocation::Taverner => Some("lodging"),
     }
 }
@@ -332,6 +337,7 @@ pub fn trade_name(v: Vocation) -> &'static str {
         Vocation::Vintner => "the vintner's",
         Vocation::Distiller => "the distillery",
         Vocation::Cooper => "the cooper's",
+        Vocation::Shoemaker => "the cobbler's",
         Vocation::Taverner => "the tavern",
     }
 }
@@ -361,6 +367,7 @@ pub fn vocation_name(v: Vocation) -> &'static str {
         Vocation::Vintner => "Vintner",
         Vocation::Distiller => "Distiller",
         Vocation::Cooper => "Cooper",
+        Vocation::Shoemaker => "Cobbler",
         Vocation::Taverner => "Taverner",
     }
 }
@@ -423,6 +430,11 @@ pub fn actions(v: Vocation) -> Vec<VocationAction> {
             a("forge tools", "make tools folk work faster with"),
             a("mend tools", "repair what the village wears out"),
             a("fine set", "a masterwork set for a patron"),
+        ],
+        Vocation::Shoemaker => vec![
+            a("last shoes", "turn leather into shoes"),
+            a("mend shoes", "repair what the village wears through"),
+            a("fine boots", "a master's pair for a patron"),
         ],
         Vocation::Knight => vec![
             a("walk the watch", "patrol and sell protection"),

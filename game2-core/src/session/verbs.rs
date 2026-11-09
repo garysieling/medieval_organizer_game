@@ -1904,6 +1904,35 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the lord's own counter-offer answers first: take the seat,
+        // refuse it, or ask what it really carries
+        if let Some(o) = self.seat_offer.take() {
+            match pick {
+                0 => {
+                    if o.binding {
+                        self.log.push(format!("t{}: the seat's real - a binding word from the board, and the cause gains it.", self.tick));
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                            or.influence_pool = (or.influence_pool + 0.1).min(1.0);
+                        }
+                    } else {
+                        self.log.push(format!("t{}: the seat was air - the cause's own fire's spent at their table, and its name's spent with it.", self.tick));
+                        if let Some(or) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                            or.influence_pool *= 0.8;
+                            or.resources = (or.resources * 0.9).max(0.0);
+                        }
+                    }
+                }
+                1 => {
+                    self.log.push(format!("t{}: the offer's refused - the lord notes the defiance in his book.", self.tick));
+                }
+                _ => {
+                    self.log.push(format!("t{}: the seat's read first - it {} the board's real word.", self.tick,
+                        if o.binding { "carries" } else { "lacks" }));
+                    self.seat_offer = Some(o);
+                }
+            }
+            return;
+        }
         // the burdened man's knot answers first: a pick writes its debt
         // and the debt comes home when its day does
         if let Some(knot) = self.dilemma.take() {

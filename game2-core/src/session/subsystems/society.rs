@@ -1433,6 +1433,35 @@ impl Game {
         }
     }
 
+    /// The lord's counter: while the org's a threat (its organizing
+    /// shows and a castle's eyes are on it), a seat gets offered on the
+    /// board - binding behind it, or the performative kind that absorbs
+    /// the cause's own energy if taken
+    pub(in crate::session) fn seat_offer_tick(&mut self, tick: u64) {
+        if self.seat_offer.is_some() { return; }
+        // on the cooldown, while the org shows enough to look like a threat
+        if tick % 40 != 12 { return; }
+        let org = self.org;
+        let organizing = self.world.get_component::<crate::game::org_skills::Organizing>(org)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0);
+        if organizing < 0.5 { return; }
+        // a castle's eyes mark it: the watcher whose paranoia's high enough
+        for site in &self.sites {
+            let Some(l) = site.lord else { continue };
+            let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
+            if w.paranoia < 0.5 { continue; }
+            // the offer: binding on a det roll - the deeper the cause's
+            // cut, the likelier the lord means it
+            let binding = (tick.wrapping_mul(37).wrapping_add(l as u64)) % 100 < 40;
+            self.seat_offer = Some(crate::game::campaign::SeatOffer {
+                from: l, role: crate::game::campaign::Role::Chair,
+                binding, offered: tick });
+            self.log.push(format!("t{}: the lord's man carries an offer - a seat on the board for the cause.", tick));
+            return;
+        }
+    }
+
     /// The exit: a villager whose live grievances pass what their
     /// devotion can bear walks out of the fold - the mark the leaving
     /// leaves on them, the congregation's roll, and the temple's books

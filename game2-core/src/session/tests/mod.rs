@@ -56,6 +56,7 @@ mod funeral;
 mod free_villager;
 mod garden;
 mod gibbet;
+mod governance;
 mod grave;
 mod graveyard;
 mod grief;

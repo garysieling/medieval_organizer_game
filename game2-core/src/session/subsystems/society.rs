@@ -1433,6 +1433,28 @@ impl Game {
         }
     }
 
+    /// The org's own eyes: the level grows with its own discipline
+    /// (Turnout + SecurityCulture) and the density of its one-on-ones -
+    /// the deep org reads what the lord can't see
+    pub(in crate::session) fn counter_intel_tick(&mut self, tick: u64) {
+        if tick % 90 != 8 { return; }
+        let org = self.org;
+        let skill = self.world.get_component::<crate::game::org_skills::Organizing>(org)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::SecurityCulture)
+                + o.get(crate::game::org_skills::OrgSkill::Training)).unwrap_or(0.0);
+        let density = self.world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| {
+                let inside: usize = o.members.iter()
+                    .filter(|&&m| {
+                        o.members.iter().any(|&n| n != m &&
+                            self.world.get_component::<crate::sim::psychology::Bond>(n)
+                                .map(|b| b.target == m).unwrap_or(false))
+                    }).count();
+                inside
+            }).unwrap_or(0);
+        self.counter_intel = ((skill * 2.0 + density as f32 * 0.5) as u8).min(3);
+    }
+
     /// The staged incident: while the org's a threat AND at a campaign's
     /// own peak, the lord declares the emergency - assemblies banned,
     /// the square held - and the clock runs on the village's answer
@@ -1468,7 +1490,9 @@ impl Game {
             let Some(l) = site.lord else { continue };
             let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
             if w.paranoia < 0.5 { continue; }
-            self.emergency = Some((tick, tick + 20));
+            // the documentation widens the window: the deeper the
+            // org's own eyes, the longer its witnesses have to come
+            self.emergency = Some((tick, tick + 20 + self.counter_intel as u64 * 4));
             self.witnesses = 0;
             self.log.push(format!("t{}: a brawl at the granary - the lord calls it the cause's own doing and bans the square. The clock runs.", tick));
             return;
@@ -1661,7 +1685,9 @@ impl Game {
             if weak { leaks += 1; }
         }
         // the discipline cuts the leaks; a practiced org keeps its own
-        let effective = leaks as f32 * (1.0 - skill * 0.8);
+        let mut effective = leaks as f32 * (1.0 - skill * 0.8);
+        // the vetting: a deep-read org slows the eyes' accrual
+        if self.counter_intel >= 2 { effective *= 0.6; }
         for site in &self.sites {
             let Some(l) = site.lord else { continue };
             let Some(w) = self.world.get_component_mut::<Watcher>(l) else { continue };

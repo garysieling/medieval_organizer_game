@@ -1904,6 +1904,38 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the org's own counter-intel plays: feed the watcher a false
+        // word, or read his papers out to the room
+        if self.counter_intel >= 2 && self.dilemma.is_none() {
+            if pick == 0 {
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                        w.paranoia = (w.paranoia - 0.2).max(0.0);
+                    }
+                }
+                self.log.push(format!("t{}: a false word's fed to the lord's eyes - the watching softens.", self.tick));
+                return;
+            }
+            if pick == 1 && self.counter_intel >= 3 {
+                let bad = (self.tick.wrapping_mul(41).wrapping_add(self.org as u64)) % 100 < 20;
+                for site in &self.sites {
+                    let Some(l) = site.lord else { continue };
+                    if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                        if bad {
+                            w.paranoia = (w.paranoia + 0.3).min(1.0);
+                        } else {
+                            w.legitimacy = (w.legitimacy - 0.3).max(0.0);
+                            w.paranoia = 0.0;
+                        }
+                    }
+                }
+                self.log.push(format!("t{}: {}.", self.tick,
+                    if bad { "the reading's found out - the watching hardens" }
+                           else { "the watcher's papers read out - the lord's program's spent" }));
+                return;
+            }
+        }
         // the emergency's own window answers first: gather the
         // witnesses against the lord's staged tale
         if self.emergency.is_some() && pick == 0 {

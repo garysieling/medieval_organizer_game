@@ -589,6 +589,18 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
+        if self.counter_intel >= 2 && self.proposal.is_none() && self.seat_offer.is_none()
+            && self.emergency.is_none() && (s.talk.is_none() || seat == 0) {
+            let mut options = vec!["Feed the watcher false word - the eyes read what we show".into()];
+            if self.counter_intel >= 3 {
+                options.push("Read the watcher out - his own papers in the open".into());
+            }
+            return Some(ConvoPanelV {
+                title: "THE ORG'S OWN EYES".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: "The cause's own eyes read the lord's - counter the watching.".into() }],
+                options, decides: true, leave: false });
+        }
         if self.emergency.is_some() {
             let rows = vec![
                 TalkRowV { name: None, gist: true, you: false, rule: false, who: None,

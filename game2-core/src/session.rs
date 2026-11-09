@@ -1451,6 +1451,9 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The org's own counter-intel: how deep its own eyes read - grows
+    /// with the cause's own discipline and the density of its bonds
+    pub counter_intel: u8,
     /// The lord's own emergency: a staged incident suspends the
     /// assemblies while it stands - (the day declared, the refutation
     /// window's end) - beat it fast and the scandal's his, let it run

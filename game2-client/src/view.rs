@@ -1140,21 +1140,30 @@ impl View {
 
         // the org's own muscle - a word for its strength and whether it's
         // been used; the inspector card floats on the map now, so the row
-        // always has the panel to itself
+        // always has the panel to itself. The org blocks only make sense
+        // once the cause's founded - before it they're noise
         if let Some(pw) = &m.panel.power {
             draw_text(&mut buf, UI_X as i32 + 18, 452, pw, 170, 200, 170);
         }
 
-        // organization: who has joined, by name
-        let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
-        draw_text(&mut buf, UI_X as i32 + 18, 464, MEMBERS_LABEL, 255, 215, 0);
-        draw_text(&mut buf, UI_X as i32 + 18 + (MEMBERS_LABEL.len() as i32 + 1) * GLYPH_W, 464, &members_line(&member_names), 220, 220, 180);
+        // organization: who has joined, by name - a cause's own roll,
+        // drawn once the cause's founded (the members' non-empty's the
+        // org's own sign)
+        if org_started(m) {
+            let member_names: Vec<&str> = m.panel.members.iter().map(|s| s.as_str()).collect();
+            draw_text(&mut buf, UI_X as i32 + 18, 464, MEMBERS_LABEL, 255, 215, 0);
+            draw_text(&mut buf, UI_X as i32 + 18 + (MEMBERS_LABEL.len() as i32 + 1) * GLYPH_W, 464, &members_line(&member_names), 220, 220, 180);
+        }
 
-        // the issues the organizer has pieced together
-        draw_text(&mut buf, UI_X as i32 + 18, 476, "ISSUES", 255, 215, 0);
+        // the issues the organizer has pieced together - the organizer's
+        // own ledger, drawn once a cause exists (the members' or the
+        // issues' own non-empty's the sign)
+        if org_started(m) || !m.panel.issues.is_empty() {
+            draw_text(&mut buf, UI_X as i32 + 18, 476, "ISSUES", 255, 215, 0);
         let issue_line = if m.panel.issues.is_empty() { "none heard yet".to_string() } else { m.panel.issues.join("; ") };
         for (n, line) in wrap_text(&issue_line, 42).iter().take(if m.panel.campaign.is_some() { 1 } else { 2 }).enumerate() {
             draw_text(&mut buf, UI_X as i32 + 18 + (7 * GLYPH_W), 476 + n as i32 * 11, line, 220, 190, 140);
+        }
         }
         // the campaign the org fights for, once it's taken its vote - the
         // Meet button (a ctx action) sits to the right of the issue line

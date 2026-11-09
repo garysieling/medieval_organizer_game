@@ -260,6 +260,7 @@ impl Game {
         crate::timed!("sim.incense", self.incense_tick(tick));
         crate::timed!("sim.tea", self.tea_tick(tick));
         crate::timed!("sim.textile", self.textile_tick(tick));
+        crate::timed!("sim.comeback", self.comeback_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
         crate::timed!("sim.stocks", self.stocks_tick(tick));

@@ -1456,6 +1456,9 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The misery's own answer: the windfall that favors the losing -
+    /// the bountiful harvest, the miracle, the relic found
+    pub comeback: Option<u64>,
     /// The fiber's own making: the village's own cloth quality - the
     /// weaver's own skill scales it, and the good cloth comforts the
     /// wearer

@@ -1483,6 +1483,30 @@ impl Game {
         }
     }
 
+    /// The misery's own answer: the windfall that favors the losing -
+    /// at the village's own low ebb a comeback event fires, the
+    /// bountiful harvest or the relic found, the purse and the stores
+    /// lifted - a story's own relief, not a fix
+    pub(in crate::session) fn comeback_tick(&mut self, tick: u64) {
+        if tick % 60 != 44 { return; }
+        if self.comeback.is_some() { return; }
+        // the misery's own line: the capacity's own low ebb fires the
+        // windfall - the rubber band's own answer
+        let misery = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(self.org)
+            .map(|o| o.capacity < 0.2).unwrap_or(false);
+        if !misery { return; }
+        self.comeback = Some(tick);
+        // the windfall's own relief: the purse's own lift and the
+        // stores' own answer - a story's own turn, not a fix
+        if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+            o.capacity = (o.capacity + 0.2).min(1.0);
+        }
+        if let Some(org) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+            org.resources += 10.0;
+        }
+        self.log.push(format!("t{}: the windfall's own turn - a bountiful harvest, and the cause's own ebb lifts.", tick));
+    }
+
     /// The fiber's own making: the weaver's own skill scales the
     /// cloth's own quality - the same fiber plus the skill spans the
     /// ten-times price range. And the good cloth comforts the wearer

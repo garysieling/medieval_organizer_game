@@ -37,6 +37,7 @@ mod edge;
 mod edict;
 mod emergence;
 mod events;
+mod exit;
 mod faith;
 mod faith_stage;
 mod festival;

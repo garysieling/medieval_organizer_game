@@ -130,6 +130,11 @@ pub struct Congregation {
     pub cultish: bool,
 }
 
+/// One who's walked out: the mark the exit leaves - they don't come
+/// back to the fold on their own
+#[derive(Debug)]
+pub struct Apostate;
+
 /// A religious service/ritual
 #[derive(Debug)]
 pub struct Service {

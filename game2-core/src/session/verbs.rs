@@ -590,7 +590,7 @@ impl Game {
             }
             // the water's verbs: board at a bank, disembark at a bank,
             // and a line off the boat where the river runs
-            if self.aboard.is_some() {
+            if self.seats[seat].aboard.is_some() {
                 self.seats[seat].ctx_actions.push(CtxAct::Disembark);
                 self.seats[seat].ctx_actions.push(CtxAct::Fish);
             } else if self.boats.iter().any(|&(bx, by)| {
@@ -1240,22 +1240,22 @@ impl Game {
                     let p = self.world.get_component::<Pos>(self.seats[seat].player).copied()
                         .unwrap_or(Pos { x: 0.0, y: 0.0 });
                     (p.x.round() as i32 - bx).abs() + (p.y.round() as i32 - by).abs() < 4 }) {
-                    self.aboard = Some(bi);
+                    self.seats[seat].aboard = Some(bi);
                     self.log.push(format!("t{}: you push off - the river takes the boat.", tick));
                 }
                 "".into()
             }
             CtxAct::Disembark => {
                 // put in at the bank: the water lets you off
-                if self.aboard.is_some() {
-                    self.aboard = None;
+                if self.seats[seat].aboard.is_some() {
+                    self.seats[seat].aboard = None;
                     self.log.push(format!("t{}: you put in - the bank's under your feet.", tick));
                 }
                 "".into()
             }
             CtxAct::Fish => {
                 // a line off the boat: the river feeds you where it runs
-                if self.aboard.is_some() {
+                if self.seats[seat].aboard.is_some() {
                     if let Some(s) = self.world.get_component_mut::<Satchel>(self.seats[seat].player) {
                         *s.goods.entry("fish".into()).or_insert(0) += 1;
                     }

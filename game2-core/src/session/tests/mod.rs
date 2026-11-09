@@ -82,6 +82,7 @@ mod illness;
 mod influence;
 mod ink_boiler;
 mod inspector;
+mod institution;
 mod intro;
 mod intro_victim;
 mod journal;

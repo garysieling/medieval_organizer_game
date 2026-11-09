@@ -244,6 +244,7 @@ impl Game {
         crate::timed!("sim.levy", self.imperial_tick(tick));
         crate::timed!("sim.kids", self.kid_labor_tick(tick));
         crate::timed!("sim.petition", self.petition_tick(tick));
+        crate::timed!("sim.institution", self.institution_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
         crate::timed!("sim.stocks", self.stocks_tick(tick));

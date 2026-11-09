@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The horizon's own threat: the raiders' own landing - the
+    /// outside armed threat the village's own defenses answer or
+    /// don't
+    pub raid: Option<u64>,
     /// The field's own memory: the soil's own quality - the fallow
     /// restores it, the continuous crop drains it, and the hunger's
     /// own gap comes in the spring before the first harvest

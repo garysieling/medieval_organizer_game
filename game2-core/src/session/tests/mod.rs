@@ -16,6 +16,7 @@ mod campaign;
 mod brand;
 mod campaign_stack;
 mod canon;
+mod caravan;
 mod cobbler;
 mod capture;
 mod canvass;

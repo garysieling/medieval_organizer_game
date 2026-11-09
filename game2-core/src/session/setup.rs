@@ -1165,6 +1165,7 @@ impl Game {
             comeback: None,
             emigration: 0,
             war: None,
+            caravan: None,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

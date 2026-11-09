@@ -279,6 +279,7 @@ impl Game {
         crate::timed!("sim.hidden_venue", self.hidden_venue_tick(tick));
         crate::timed!("sim.totalism", self.totalism_tick(tick));
         crate::timed!("sim.cult_collapse", self.cult_collapse_tick(tick));
+        crate::timed!("sim.clandestine", self.clandestine_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

@@ -58,6 +58,7 @@ mod doctrine;
 mod durability;
 mod edge;
 mod estate;
+mod event_pace;
 mod edict;
 mod emergence;
 mod events;

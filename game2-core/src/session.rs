@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The calendar's own rhythm: the dry-spell counter - the days
+    /// since the last event, and the drought-breaker's own payoff at
+    /// the long stretch
+    pub drought: u32,
+    /// The win's own moment: the celebration that fires on the
+    /// payoff - the conditioning's own juice
+    pub celebration: Option<u64>,
     /// The stranger's own tongue: the words the player's learned by
     /// exposure - the outlander's own speech glossing itself over
     /// the contact

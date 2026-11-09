@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The crown's own Bible: the canon curated - the liberation
+    /// framings cut, the obedience kept
+    pub redacted_canon: bool,
+    /// The fold's own vernacular: the illicit transmission back - the
+    /// samizdat-scripture, the oral telling that reads past the
+    /// redaction
+    pub vernacular: bool,
     /// The crown's own offer: the legal status laid on the fold - the
     /// incorporation's own trap (accept for the gold, refuse for the
     /// edge)

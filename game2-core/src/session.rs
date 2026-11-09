@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The lord's own postings: the reporting/audit burden laid on
+    /// the cause - the compliance work itself is the weapon, the
+    /// unmet burden's what drains the cause's own capacity
+    pub compliance_burden: f32,
     /// The lord's own suit: a manor court action filed against the
     /// cause - the process is the weapon, the fees the drain
     pub lawfare: Option<(u64, u64)>,

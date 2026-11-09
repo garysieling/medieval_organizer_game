@@ -1138,6 +1138,7 @@ impl Game {
             cover: false,
             penetration: 0.0,
             lawfare: None,
+            compliance_burden: 0.0,
             player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),

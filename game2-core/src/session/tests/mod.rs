@@ -134,6 +134,7 @@ mod perf;
 mod perfume;
 mod pet;
 mod power;
+mod provocateur;
 mod production;
 mod progression;
 mod protest;

@@ -1448,6 +1448,12 @@ pub struct Game {
     /// The lord's counter-offer when one stands - a seat on the board,
     /// binding or performative - waits on the player's pick
     pub seat_offer: Option<crate::game::campaign::SeatOffer>,
+    /// The lord's plant inside the org - the member whose violence is
+    /// read as the cause's own when the proposal's pushed
+    pub plant: Option<Entity>,
+    /// The plant's own proposal when it stands - a violent step at the
+    /// campaign's peak, waiting on the player's counter
+    pub proposal: Option<u64>,
     /// The green fellowship: the splinter congregation a provoked
     /// villager starts - None until the reformation ignites
     pub splinter: Option<Entity>,

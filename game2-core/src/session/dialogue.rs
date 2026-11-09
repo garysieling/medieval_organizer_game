@@ -589,6 +589,22 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
+        if self.proposal.is_some() && self.plant.is_some() {
+            let options = vec![
+                "Marshal the discipline - the cause stays honest".into(),
+                "Verify first - ask who put them to it".into(),
+                "Throw them out - suspicion enough".into(),
+            ];
+            let rows = vec![
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: "One of them's for the torch - burn the lord's stores, they say, now.".into() },
+                TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: "Answer it and the cause reads as honest or as the lord's own tale. Your call.".into() },
+            ];
+            return Some(ConvoPanelV {
+                title: "THE VIOLENT WORD".into(),
+                rows, options, decides: true, leave: false });
+        }
         if let Some(o) = &self.seat_offer {
             let lord = self.name_of(o.from);
             let options = vec![

@@ -117,6 +117,27 @@ pub fn stage_up(world: &mut World, e: Entity, roll: u64) {
     world.add_component(e, next);
 }
 
+/// Lifton's eight dials of totalism, read off the congregation's own
+/// drift: 0-10 each, pushed up by a hard head and a strict orthodoxy,
+/// multiplied by the flock's own cutting-off. High totalism's high
+/// loyalty, high extraction, and the collapse that waits on it
+#[derive(Debug)]
+pub struct Totalism {
+    /// The eight dials (milieu control, mystical manipulation, the
+    /// demand for purity, confession, sacred science, loaded language,
+    /// doctrine over person, the dispensing of existence) - 0-10 each
+    pub dials: [u8; 8],
+    /// The extractable reserve: what belonging and hope generate, and
+    /// what the leader and his coterie spend down
+    pub idealism: f32,
+    /// What it costs a member to leave: each costly rite raises it -
+    /// the member's own choices become the cage
+    pub exit_cost: f32,
+    /// The flock's own cutting-off (0-1): physical, social,
+    /// informational - multiplies every dial's own effect
+    pub isolation: f32,
+}
+
 /// A religious community
 #[derive(Debug)]
 pub struct Congregation {

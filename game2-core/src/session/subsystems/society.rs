@@ -1445,6 +1445,63 @@ impl Game {
         }
     }
 
+    /// The cult's own drift: a hard head and a strict orthodoxy push
+    /// the dials up; the idealism's spent down to the leader's own
+    /// purse; the flock's own cutting-off multiplies what the dials
+    /// take and raises what it costs a member to leave
+    pub(in crate::session) fn totalism_tick(&mut self, tick: u64) {
+        if tick % 30 != 10 { return; }
+        let cong = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .map(|c| (c.leader, c.orthodoxy, c.services.len()));
+        let Some((leader, orthodoxy, services)) = cong else { return };
+        // the head's own heat: ambitious, hot, proud - the kind that
+        // tightens a fold
+        let heat = leader.and_then(|l| self.world.get_component::<crate::game::traits::Personality>(l)
+            .map(|p| p.traits.iter().filter(|&&t| matches!(t,
+                crate::game::traits::Trait::Ambitious
+                | crate::game::traits::Trait::Hotheaded
+                | crate::game::traits::Trait::Proud)).count() as f32)).unwrap_or(0.0);
+        // the flock's own cutting-off: the members' outside bonds run thin
+        let members = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .map(|c| c.members.clone()).unwrap_or_default();
+        let outside = members.iter()
+            .filter(|&&m| self.world.get_component::<crate::sim::psychology::AttachmentHistory>(m)
+                .map(|h| h.episodes.len() < 4).unwrap_or(false)).count();
+        let isolation = if members.is_empty() { 0.0 } else { outside as f32 / members.len() as f32 };
+        let take = {
+            let Some(t) = self.world.get_component_mut::<crate::sim::religion::Totalism>(self.congregation) else { return };
+            // a pressured hard head and a strict orthodoxy push a dial
+            let push = heat + orthodoxy + isolation;
+            if (tick.wrapping_mul(31).wrapping_add(self.congregation as u64)) % 100 < (push * 12.0) as u64 {
+                let i = (tick as usize * 7 + self.congregation as usize) % 8;
+                t.dials[i] = t.dials[i].saturating_add(1).min(10);
+            }
+            // the extraction: the idealism's spent down to the leader
+            let take = t.idealism * 0.05;
+            t.idealism -= take;
+            // and the isolation multiplies what the dials take - and
+            // what it costs to leave
+            t.exit_cost += t.dials.iter().map(|&d| d as f32).sum::<f32>() * 0.01 * (1.0 + isolation);
+            // each rite's its own rung in the cage
+            t.exit_cost += services as f32 * 0.005;
+            t.isolation = isolation;
+            take
+        };
+        if take > 0.0 {
+            if let Some(l) = leader {
+                if let Some(p) = self.world.get_component_mut::<Purse>(l) {
+                    p.gold += take * 0.1;
+                }
+            }
+        }
+        // the flag reads off the dial total
+        let sum = self.world.get_component::<crate::sim::religion::Totalism>(self.congregation)
+            .map(|t| t.dials.iter().map(|&d| d as u16).sum::<u16>()).unwrap_or(0);
+        if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+            c.cultish = sum > 40;
+        }
+    }
+
     /// The org's own eyes: the level grows with its own discipline
     /// (Turnout + SecurityCulture) and the density of its one-on-ones -
     /// the deep org reads what the lord can't see

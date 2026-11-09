@@ -22,7 +22,12 @@ fn test_a_strong_org_stands_against_the_summons() {
     g.lord_esteem = 0.8;
     let m = g.villagers.iter().copied().find(|&v|
         g.world.get_component::<TownRole>(v).is_none()).unwrap();
-    for _ in 0..4 { desires::add_grievance(&mut g.world, m, desires::Problem::Broke, 100); }
+    // the opening victim carries a grievance of their own - m needs
+    // more than one wrong to be the summons' mark
+    for p in [desires::Problem::Broke, desires::Problem::Taxed,
+              desires::Problem::WritBorne, desires::Problem::Bereaved] {
+        desires::add_grievance(&mut g.world, m, p, 400);
+    }
     g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
     // summons day: tick 320 -> (320/120)%3 == 2
     g.edict_tick(320);
@@ -40,7 +45,12 @@ fn test_a_hanging_radicalizes_the_witnesses() {
     g.repression_debt = 2;
     let m = g.villagers.iter().copied().find(|&v|
         g.world.get_component::<TownRole>(v).is_none()).unwrap();
-    for _ in 0..4 { desires::add_grievance(&mut g.world, m, desires::Problem::Broke, 100); }
+    // same mark race as the summons test: the opening victim's seeded
+    // grievance means m has to be the most wronged to hang
+    for p in [desires::Problem::Broke, desires::Problem::Taxed,
+              desires::Problem::WritBorne, desires::Problem::Bereaved] {
+        desires::add_grievance(&mut g.world, m, p, 400);
+    }
     g.world.get_component_mut::<Organization>(g.org).unwrap().members.push(m);
     // the debt comes due: the third defiance is a gibbet, and everyone
     // who saw it carries the spark

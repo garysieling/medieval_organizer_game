@@ -232,7 +232,9 @@ impl Game {
         // every cause starts with the muscle to spend - a quiet one fades
         self.world.add_component(org, crate::sim::organized_power::OrganizedPower::new());
         self.seats.push(Seat { player, org, ..Seat::default() });
-        self.seats.len() - 1
+        let seat = self.seats.len() - 1;
+        self.intro_quest_for(seat);
+        seat
     }
 
     /// An API agent takes the reins of a villager: the seat's character is
@@ -247,7 +249,9 @@ impl Game {
         // gather the grievances folk tell them, as a wanderer does
         self.world.add_component(villager, Organizer::default());
         self.seats.push(Seat { player: villager, org, agent: true, ..Seat::default() });
-        self.seats.len() - 1
+        let seat = self.seats.len() - 1;
+        self.intro_quest_for(seat);
+        seat
     }
 
     /// The first living villager nobody drives yet. A posting isn't up

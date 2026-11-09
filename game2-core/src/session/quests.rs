@@ -11,7 +11,7 @@ use crate::session::*;
 
 /// What the job is about
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum QuestKind { Note, Parcel, Egg, Stone }
+pub enum QuestKind { Note, Parcel, Egg, Stone, Talk }
 
 /// Where the thing ends up
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -156,6 +156,10 @@ impl Game {
                 let kind = if roll < 78 { QuestKind::Egg } else { QuestKind::Stone };
                 self.fetch_spot(kind, rng).map(|p| (kind, QuestTarget::Villager(v), Some(p)))
             };
+            // the opening victim's ear is already promised - they don't
+            // go begging for a second job while it stands
+            if self.seats.iter().any(|s| s.quest.as_ref()
+                .map(|q| q.kind == QuestKind::Talk && q.giver == v).unwrap_or(false)) { continue; }
             let Some((kind, target, pickup)) = offer else { continue };
             self.notices.push(("quest".into(), format!("{} asks for help - the board carries it",
                 self.name_of(v)), tick + 14));
@@ -163,6 +167,53 @@ impl Game {
                 giver: v, kind, target, pickup, expires: tick + OFFER_DAYS });
             self.say(v, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
             self.log_entity(v, format!("t{}: {} has a small job going - pick them to hear it.", tick, self.name_of(v)));
+        }
+    }
+
+    /// The opening victim: one villager of the village marked by a real,
+    /// seeded injustice - the grievance drives their wants like any
+    /// other wrong, and every seat's first job is simply to hear them
+    /// out. Picked off its own stream so the village's rolls don't move
+    pub(in crate::session) fn pick_intro_victim(&mut self) {
+        let mut rng = Rng(self.seed ^ 0x0666_0000_0000_0007);
+        let eligible: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
+            self.world.get_component::<crate::game::vocation::Kid>(v).is_none()
+                && !crate::game::villager::is_dead(&self.world, v)
+                && self.world.get_component::<crate::session::country::Outlander>(v).is_none()
+        ).collect();
+        if eligible.is_empty() { return; }
+        let v = eligible[rng.below(eligible.len() as i32) as usize];
+        // the curated wrongs - an injustice the village would recognize,
+        // never the hermit's dark or a passing whim
+        const WRONGS: [desires::Problem; 7] = [
+            desires::Problem::Taxed, desires::Problem::WritBorne, desires::Problem::Blamed,
+            desires::Problem::DeathDuty, desires::Problem::Bereaved,
+            desires::Problem::ShortChanged, desires::Problem::OverseerCut];
+        let wrong = WRONGS[rng.below(WRONGS.len() as i32) as usize];
+        desires::add_grievance(&mut self.world, v, wrong, u64::MAX);
+        self.intro_victim = Some((v, wrong));
+        for seat in 0..self.seats.len() { self.intro_quest_for(seat); }
+    }
+
+    /// A seat's share of the opening: the victim's warmth (enough to
+    /// open up, not best-friends) and the talk job itself. Seats that
+    /// join later get the same through their own add path
+    pub(in crate::session) fn intro_quest_for(&mut self, seat: usize) {
+        let Some((v, _)) = self.intro_victim else { return };
+        if crate::game::villager::is_dead(&self.world, v) { return; }
+        // an agent driving the victim can't hear themselves out - the
+        // job's for a listener, and they are the one with the trouble
+        if self.seats[seat].player == v { return; }
+        let pe = self.seats[seat].player;
+        let mut rap = self.world.get_component::<crate::game::player::Rapport>(v)
+            .cloned().unwrap_or_default();
+        let e = rap.by_player.entry(pe).or_insert(0.0);
+        *e = e.max(0.3);
+        self.world.add_component(v, rap);
+        if self.seats[seat].quest.is_none() {
+            self.seats[seat].quest = Some(PlayerQuest {
+                giver: v, kind: QuestKind::Talk, target: QuestTarget::Villager(v),
+                stage: QuestStage::ToCarry, pickup: None, expires: self.tick + QUEST_DAYS });
         }
     }
 
@@ -205,6 +256,7 @@ impl Game {
                 format!("Would you carry this parcel out to {}?", self.sites.get(i).map(|s| s.name).unwrap_or("the village")),
             (QuestKind::Egg, _) => "Could you fetch a fresh egg from the hen run?".into(),
             (QuestKind::Stone, _) => "Would you bring me a stone from the old boulders?".into(),
+            (QuestKind::Talk, _) => "I carry a trouble only a listener can ease - will you hear me out?".into(),
             _ => "Will you do me a small job?".into(),
         }
     }
@@ -239,6 +291,9 @@ impl Game {
 
     /// The job as the panel shows it: what's wanted and who's it for
     pub fn quest_panel_line(&self, q: &PlayerQuest) -> String {
+        if q.kind == QuestKind::Talk {
+            return format!("Job: hear {}'s trouble out", self.name_of(q.giver));
+        }
         let thing = self.quest_thing(q);
         let where_to = match q.target {
             QuestTarget::Villager(t) => self.name_of(t),
@@ -261,6 +316,7 @@ impl Game {
             QuestKind::Parcel => "the parcel",
             QuestKind::Egg => "the egg",
             QuestKind::Stone => "the stone",
+            QuestKind::Talk => "their trouble",
         }
     }
 
@@ -273,6 +329,15 @@ impl Game {
         if !delivers { return None; }
         self.seats[seat].quest = None;
         let giver = self.name_of(q.giver);
+        // the opening ear earns no coin - the reward is the bond itself
+        if q.kind == QuestKind::Talk {
+            let known = self.quest_bond(seat, q.giver);
+            let mut line = format!("t{}: {} feels heard - the trouble's lighter for saying it.", self.tick, giver);
+            if known {
+                line.push_str(&format!(" - {} opens up to you; you know them now.", giver));
+            }
+            return Some(line);
+        }
         let thing = self.quest_thing(&q);
         // a little gold for the leg-work, more for the long walk out
         let pay = match q.target { QuestTarget::Site(_) => 5.0, _ => 3.0 };

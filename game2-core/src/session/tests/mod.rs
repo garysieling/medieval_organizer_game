@@ -41,6 +41,7 @@ mod drink;
 mod dungeon;
 mod durability;
 mod edge;
+mod estate;
 mod edict;
 mod emergence;
 mod events;

@@ -1638,6 +1638,52 @@ impl Game {
         }
     }
 
+    /// A soul's own standing: ordination lifts a priest to clergy, a
+    /// knighting lifts a knight to nobility, and a wedding pulls the
+    /// lower house to the higher. The clergy's own read of the law
+    /// brings its dues - the devotion they tend accrues a touch faster
+    pub(in crate::session) fn estate_tick(&mut self, tick: u64) {
+        if tick % 20 != 8 { return; }
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let est = self.world.get_component::<crate::game::vocation::Estate>(v).copied();
+            // ordination and knighthood lift the standing
+            if let Some(c) = self.world.get_component::<crate::game::vocation::Craft>(v) {
+                let lift = match c.vocation {
+                    crate::game::vocation::Vocation::Priest => Some(crate::game::vocation::Estate::Clergy),
+                    crate::game::vocation::Vocation::Knight => Some(crate::game::vocation::Estate::Nobility),
+                    _ => None,
+                };
+                if let Some(l) = lift {
+                    if est != Some(l) {
+                        self.world.add_component(v, l);
+                    }
+                }
+            }
+            // a wedding pulls the lower house to the higher
+            if let Some(m) = self.world.get_component::<crate::game::relationships::Married>(v) {
+                if m.form == 0 {
+                    if let (Some(me), Some(se)) = (
+                        self.world.get_component::<crate::game::vocation::Estate>(v).copied(),
+                        self.world.get_component::<crate::game::vocation::Estate>(m.spouse).copied()) {
+                        let rank = |e: crate::game::vocation::Estate| match e {
+                            crate::game::vocation::Estate::Laity => 0,
+                            crate::game::vocation::Estate::Clergy => 1,
+                            crate::game::vocation::Estate::Nobility => 2 };
+                        if rank(se) > rank(me) { self.world.add_component(v, se); }
+                    }
+                }
+            }
+            // the clergy's own read of the law brings its dues: their
+            // devotion accrues a touch faster - a bonus, not a wall
+            if est == Some(crate::game::vocation::Estate::Clergy) {
+                if let Some(f) = self.world.get_component_mut::<crate::sim::religion::Faith>(v) {
+                    f.devotion = (f.devotion + 0.002).min(1.0);
+                }
+            }
+        }
+    }
+
     /// A marriage's own end: a bond worn thin and a grievance kept
     /// makes the separation likely - church-declared, the union never
     /// was (the annulment); a spouse's own walking, the deserter's

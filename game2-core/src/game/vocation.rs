@@ -21,6 +21,14 @@ pub enum SocialClass {
 
 /// A working-class trade
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// A soul's estate: clergy, nobility, laity - the three the world
+/// knows. Hereditary (a child takes the parents') but movable:
+/// ordination, knighthood, or marriage to a higher house can lift it.
+/// The clergy's own read of the law brings its bonuses - a soft
+/// power, not a wall on the laity's own practice
+pub enum Estate { Clergy, Nobility, Laity }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Vocation {
     Farmer,
     Baker,

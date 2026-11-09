@@ -169,3 +169,25 @@ Disposition per field:
 
 No code changes: the fields are `pub` (reachable) and the events are
 in the log (visible). The third sweep's a disposition, not a wire.
+
+## Session.rs split audit (ticket #823) - the remaining bulk's the API
+
+The sweep ran on `session.rs` (2311 lines, ~90 items). Finding:
+the remaining bulk IS the intentional seam per
+`docs/architecture.md` - the `Game` struct, the constants, and the
+public surface (`update`/`advance_frame`/`decide_at`/the component
+types). The split's real seams are already out: the daily subsystems
+under `session/subsystems/`, the rare events under `session/events/`,
+the tests under `session/tests/`, the country under
+`session/country.rs`, the net under `session/net.rs`, the layout
+under `session/layout.rs`, the driver under `session/driver.rs`, the
+view under `session/view_model.rs`.
+
+The component structs that grew this sprint (`Domination`, `Broker`,
+`Doctrine`, `Estate`, `Married`, `Watcher`, `Numeracy`) are inline in
+`session.rs` for now - they ride the Game's own API surface and
+moving them out is the next seam if a fourth sweep calls for it.
+
+Disposition: the remaining bulk's intentional - `session.rs` IS the
+sim's public API. The split's real seams are out and the layering's
+legible. No code change - the audit's the close.

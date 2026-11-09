@@ -1483,6 +1483,36 @@ impl Game {
         }
     }
 
+    /// The horizon's own threat: the raiders land - the take falls on
+    /// the villagers' own purses and stores, the castle's own watching
+    /// halves it (the lord's own obligation, or its own failure), and
+    /// the raided carry the grievance
+    pub(in crate::session) fn raid_tick(&mut self, tick: u64) {
+        // the raiders' own landing: rare - the horizon's own threat on
+        // the rarest day, and only once
+        if self.raid.is_some() { return; }
+        if tick % 400 != 200 { return; }
+        self.raid = Some(tick);
+        // the take falls on the purses and the stores - the castle's
+        // own watching halves what the raiders can carry
+        let defended = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.5).unwrap_or(false));
+        let take = if defended { 2.0 } else { 5.0 };
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if let Some(p) = self.world.get_component_mut::<crate::session::Purse>(v) {
+                p.gold = (p.gold - take).max(0.0);
+            }
+            // and the raided carry the grievance - the horizon's own
+            // threat answered or not
+            if let Some(l) = self.world.get_component_mut::<crate::game::desires::InnerLife>(v) {
+                l.grievances.push((crate::game::desires::Problem::Loss, tick + 60));
+            }
+        }
+        self.log.push(format!("t{}: the raiders come over the ridge - the take falls on the village's own purses, and the castle's own answer's what it is.", tick));
+    }
+
     /// The field's own memory: the three-field's own cycle - every
     /// third year the fallow restores the soil, the other years the
     /// crop takes it. And the hunger's own gap: the spring's own thin

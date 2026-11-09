@@ -176,6 +176,7 @@ mod recipes;
 mod quests;
 mod story;
 mod tech;
+mod raid;
 mod rebels;
 mod reckoning;
 mod rels;

@@ -54,6 +54,36 @@ pub struct AxiomVector {
     pub religion_state_relation: u8,
 }
 
+/// The fight's own signature, read off two vectors' collision -
+/// emergent from the shapes, never a scripted event
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CollisionKind {
+    /// exclusive x exclusive: two one-true-ways over the same ground -
+    /// the contested shrine, and the war it builds
+    ContestedShrine,
+    /// orthodoxic vs a dissenter: the belief's own law reads the
+    /// other shape for a heresy
+    Heresy,
+    /// a total law under a foreign state: the standing daily-rule
+    /// conflict
+    RuleConflict,
+    /// a closed fold under contact: the boundary hardens to
+    /// expulsion's edge
+    BoundaryHardening,
+}
+
+/// How the faith reads a violation of its own law: the breach's own
+/// shape by the faith's own lean
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Resolution {
+    /// The orthopraxic read: the breach's a pollution - a cleansing
+    /// rite, exclusion until the wash
+    Cleansing,
+    /// The orthodoxic read: the breach's a heresy - a recantation,
+    /// a penance, a schism if the shape's structural
+    Recantation,
+}
+
 impl AxiomVector {
     /// The coherence rules: the impossible combinations that can't
     /// stand as one faith. A total law can't sit on no purity; a faith
@@ -94,6 +124,41 @@ impl AxiomVector {
             afterlife: 1, salvation_mechanism: 1, authority_structure: 1,
             religion_state_relation: 2,
         }
+    }
+
+    /// The collision signatures: two faiths' own shapes meet and the
+    /// fight's already read off them - not a scripted event, the
+    /// vectors' own collision
+    pub fn collision(&self, other: &Self) -> Option<CollisionKind> {
+        // exclusive x exclusive: two one-true-ways over the same ground
+        if self.truth_stance == 1 && other.truth_stance == 1 {
+            return Some(CollisionKind::ContestedShrine);
+        }
+        // orthodoxic vs a different shape: the belief's own law
+        // reads the dissenter for a heresy
+        if self.orthopraxy_orthodoxy == 1 && other.orthopraxy_orthodoxy != self.orthopraxy_orthodoxy {
+            return Some(CollisionKind::Heresy);
+        }
+        // a total law under a foreign state: the standing daily-rule
+        // conflict - the faith's own law against the state's
+        if self.law_scope == 2 && other.religion_state_relation == 2 {
+            return Some(CollisionKind::RuleConflict);
+        }
+        // a closed fold (initiated/chosen, exclusive claim) under
+        // contact: the boundary hardens
+        if self.membership_mode > 0 && self.truth_stance == 1
+            && other.truth_stance != 1 {
+            return Some(CollisionKind::BoundaryHardening);
+        }
+        None
+    }
+
+    /// How a violation resolves, read off the faith's own lean: an
+    /// orthopraxic faith reads the breach as a pollution to cleanse;
+    /// an orthodoxic one reads it as a heresy to answer for
+    pub fn resolution(&self) -> Resolution {
+        if self.orthopraxy_orthodoxy == 1 { Resolution::Recantation }
+        else { Resolution::Cleansing }
     }
 
     /// The old faith at the stones: territorial, syncretic, orthopraxic,

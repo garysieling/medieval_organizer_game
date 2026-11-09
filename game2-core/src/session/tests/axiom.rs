@@ -31,3 +31,28 @@ fn test_the_folk_defaults_territorial_and_orthopraxic() {
     assert_eq!(folk.orthopraxy_orthodoxy, 0, "the folk's not practice-first");
     assert_eq!(folk.afterlife, 0, "the folk's dead don't stay near");
 }
+
+#[test]
+fn test_two_exclusive_faiths_meet_over_the_shrine() {
+    // two one-true-ways over the same ground: the contested shrine
+    let a = crate::game::faith_axiom::AxiomVector::church();
+    let b = crate::game::faith_axiom::AxiomVector::church();
+    assert_eq!(a.collision(&b), Some(crate::game::faith_axiom::CollisionKind::ContestedShrine),
+        "exclusive x exclusive never read the shrine");
+    // the parish reads the orthopraxic old faith for a heresy - the
+    // belief's own law reading the dissenter
+    assert_eq!(a.collision(&crate::game::faith_axiom::AxiomVector::old_faith()),
+        Some(crate::game::faith_axiom::CollisionKind::Heresy),
+        "the orthodoxic church never read the dissenter");
+}
+
+#[test]
+fn test_the_lean_reads_the_violations_shape() {
+    // the orthopraxic breach cleanses; the orthodoxic one answers for
+    let orthoprax = crate::game::faith_axiom::AxiomVector::old_faith();
+    let orthodox = crate::game::faith_axiom::AxiomVector::church();
+    assert_eq!(orthoprax.resolution(), crate::game::faith_axiom::Resolution::Cleansing,
+        "the practice-first faith read a heresy");
+    assert_eq!(orthodox.resolution(), crate::game::faith_axiom::Resolution::Recantation,
+        "the belief-first faith read a pollution");
+}

@@ -1144,6 +1144,8 @@ impl Game {
             front: false,
             brand_saturation: 0.0,
             parley: None,
+            hidden_institution: false,
+            inquisition: None,
             interdict: false,
             player_passed: false,
             martyr_grave: None,

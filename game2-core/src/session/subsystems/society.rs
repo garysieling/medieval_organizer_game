@@ -1482,6 +1482,59 @@ impl Game {
         }
     }
 
+    /// The inquisition's own cycle: the summons, the harvest, the
+    /// informers, the prosecution, the relapse - the medieval
+    /// repression ladder rung by rung. The hidden fold's own
+    /// dissimulation halves what the prosecution can take
+    pub(in crate::session) fn inquisition_tick(&mut self, tick: u64) {
+        // the ladder's rung comes at a season's own pace, not a
+        // constant drain on the cause
+        if tick % 90 != 32 { return; }
+        let watched = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.5).unwrap_or(false));
+        if !watched { return; }
+        // the lord doesn't run the ladder on a watcher's own nerves
+        // alone - the cause has to be a real one, its own work loud
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        let organizing: f32 = members.iter().map(|&m|
+            self.world.get_component::<crate::game::org_skills::Organizing>(m)
+                .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                    + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0)).sum();
+        if organizing < 0.5 { return; }
+        let stage = self.inquisition.unwrap_or(0);
+        let org = self.org;
+        match stage {
+            0 => { // the summons: the call to answer lands
+                self.log.push(format!("t{}: a summons to answer - the lord's own questions begin.", tick));
+            }
+            1 => { // the harvest: the grace/amnesty takes the weak
+                if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
+                    let n = o.members.len() / 10;
+                    for _ in 0..n { o.members.pop(); }
+                }
+            }
+            2 => { // the informers: the eyes inside grow
+                self.penetration = (self.penetration + 0.1).min(1.0);
+            }
+            3 => { // the prosecution: the raid lands - the hidden fold
+                // takes half what an open one would
+                let damage = if self.hidden_institution { 0.05 } else { 0.15 };
+                if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
+                    o.capacity = (o.capacity - damage).max(0.0);
+                }
+            }
+            _ => { // the relapse: the maintenance stage - the cycle's
+                // run, the penitents' own leverage stays until it's cut
+                self.penetration = (self.penetration + 0.05).min(1.0);
+            }
+        }
+        // the ladder runs once to the relapse - the maintenance stage,
+        // not a perpetual re-harvest
+        self.inquisition = Some((stage + 1).min(4));
+    }
+
     /// The lord's own parley: while the org's a threat, an offer to
     /// talk lands - the negotiate-and-decapitate play, or a real
     /// settlement. Riding to it risks the ambush; holding the

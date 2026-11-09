@@ -1919,6 +1919,14 @@ impl Game {
             }
             return;
         }
+        // the exposed one's own release: cut loose WITH the support -
+        // the compassion's the counter-intelligence, the informer's
+        // leverage fails
+        if self.inquisition.is_some() && self.penetration > 0.3 && pick == 0 && self.dilemma.is_none() {
+            self.penetration = (self.penetration - 0.2).max(0.0);
+            self.log.push(format!("t{}: an exposed one walks free with bread and a door - the leverage the eyes built on them fails.", self.tick));
+            return;
+        }
         // the parley's own choice: ride to it and risk the ambush, hold
         // the distance, or demand hostages - the guarantee costs the
         // castle what the ambush would have cost the cause

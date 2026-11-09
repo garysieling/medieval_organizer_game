@@ -250,6 +250,7 @@ impl Game {
         crate::timed!("sim.canon", self.canon_tick(tick));
         crate::timed!("sim.paternalism", self.paternalism_tick(tick));
         crate::timed!("sim.discipline", self.discipline_tick(tick));
+        crate::timed!("sim.revelation", self.revelation_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
         crate::timed!("sim.stocks", self.stocks_tick(tick));

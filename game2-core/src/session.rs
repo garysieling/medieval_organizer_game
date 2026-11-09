@@ -1456,6 +1456,9 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The fold's own mystic: a villager the spirit's marked - the
+    /// faith institution must answer: canonize, license, or suppress
+    pub mystic: Option<u64>,
     /// The crown's own Bible: the canon curated - the liberation
     /// framings cut, the obedience kept
     pub redacted_canon: bool,

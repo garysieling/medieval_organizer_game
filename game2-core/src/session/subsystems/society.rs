@@ -1483,6 +1483,28 @@ impl Game {
         }
     }
 
+    /// The spirit's own marking: a villager whose own devotion burns
+    /// past the fold's own telling becomes the mystic the institution
+    /// must answer - the license to prophesy's the gate
+    pub(in crate::session) fn revelation_tick(&mut self, tick: u64) {
+        if tick % 60 != 47 { return; }
+        if self.mystic.is_some() { return; }
+        // the spirit's own marking: a villager whose own faith burns
+        // brightest becomes the mystic the fold must answer
+        let best = self.villagers.iter().copied()
+            .filter(|&v| !villager::is_dead(&self.world, v))
+            .max_by(|&a, &b| {
+                let fa = self.world.get_component::<crate::sim::religion::Faith>(a)
+                    .map(|f| f.devotion).unwrap_or(0.0);
+                let fb = self.world.get_component::<crate::sim::religion::Faith>(b)
+                    .map(|f| f.devotion).unwrap_or(0.0);
+                fa.partial_cmp(&fb).unwrap_or(std::cmp::Ordering::Equal)
+            });
+        let Some(_m) = best else { return };
+        self.mystic = Some(tick);
+        self.log.push(format!("t{}: a mystic walks the lanes - the spirit's own marking, and the fold must answer.", tick));
+    }
+
     /// The desk's own making: the school produces the subjects it
     /// teaches - the kids' own dispositions accrue the domination
     /// the crown's own classroom instills. And the fold's own school

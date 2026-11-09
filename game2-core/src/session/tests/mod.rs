@@ -178,6 +178,7 @@ mod reckoning;
 mod rels;
 mod rep;
 mod resistance;
+mod revelation;
 mod reformation;
 mod rites;
 mod marriage;

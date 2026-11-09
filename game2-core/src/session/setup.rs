@@ -1155,6 +1155,8 @@ impl Game {
             redacted_canon: false,
             mystic: None,
             council: None,
+            prophet: false,
+            shield_cover: None,
             vernacular: false,
             discipline: 0.0,
             locally_sponsored: false,

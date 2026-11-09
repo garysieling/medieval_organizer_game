@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The cause's own revelation: the org's built on a prophet - and
+    /// a prophetic org has no internal way to remove him
+    pub prophet: bool,
+    /// The shield's own cover: the institutional respectability that
+    /// grants the governing capacity - and can be withdrawn at the
+    /// worst moment
+    pub shield_cover: Option<u64>,
     /// The fold's own deadlock: the council called to break it - the
     /// Constantine's own move, the influence that settles what the
     /// stall can't

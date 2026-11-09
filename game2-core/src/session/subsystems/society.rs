@@ -1445,6 +1445,39 @@ impl Game {
         }
     }
 
+    /// The cult's own end: when the dials run past sixty and the
+    /// idealism's spent, the cage breaks one of four ways - the
+    /// implosion of its own split, the capture by a harder head, the
+    /// deadline's date, or the rare routinization into a sect
+    pub(in crate::session) fn cult_collapse_tick(&mut self, tick: u64) {
+        if self.cult_collapse.is_some() { return; }
+        if tick % 30 != 15 { return; }
+        let t = self.world.get_component::<crate::sim::religion::Totalism>(self.congregation);
+        let Some(t) = t else { return };
+        let sum = t.dials.iter().map(|&d| d as u16).sum::<u16>();
+        if sum < 60 || t.idealism > 0.2 { return; }
+        // the mode reads the fold's own shape: an ambitious head
+        // captures, a strong member implodes, the rare one's the sect
+        let ambitious = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .and_then(|c| c.leader)
+            .and_then(|l| self.world.get_component::<crate::game::traits::Personality>(l)
+                .map(|p| p.traits.contains(&crate::game::traits::Trait::Ambitious)))
+            .unwrap_or(false);
+        let roll = (tick.wrapping_mul(43).wrapping_add(self.congregation as u64)) % 100;
+        let mode = if roll < 10 { crate::sim::religion::CollapseMode::Institutionalization }
+            else if ambitious { crate::sim::religion::CollapseMode::Capture }
+            else if roll < 60 { crate::sim::religion::CollapseMode::Implosion }
+            else { crate::sim::religion::CollapseMode::Deadline };
+        self.cult_collapse = Some(mode);
+        let name = match mode {
+            crate::sim::religion::CollapseMode::Implosion => "the fold splits on itself",
+            crate::sim::religion::CollapseMode::Capture => "a harder head takes the fold",
+            crate::sim::religion::CollapseMode::Deadline => "the fold's own date comes",
+            crate::sim::religion::CollapseMode::Institutionalization => "the fold becomes a sect",
+        };
+        self.log.push(format!("t{}: {} - the cage breaks its own way.", tick, name));
+    }
+
     /// The cult's own drift: a hard head and a strict orthodoxy push
     /// the dials up; the idealism's spent down to the leader's own
     /// purse; the flock's own cutting-off multiplies what the dials

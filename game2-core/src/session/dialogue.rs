@@ -589,6 +589,21 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
+        let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .map(|c| c.cultish).unwrap_or(false);
+        if cultish && self.proposal.is_none() && self.seat_offer.is_none()
+            && self.emergency.is_none() && self.dilemma.is_none() {
+            return Some(ConvoPanelV {
+                title: "THE TIGHTENED FOLD".into(),
+                rows: vec![TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                    text: "The fold's own cage tightens - a soul or two want out.".into() }],
+                options: vec![
+                    "Shelter the one who wants out".into(),
+                    "Bring the outside word in - the milieu breaks".into(),
+                    "Call the lord's hand on it - the coercion".into(),
+                ],
+                decides: true, leave: false });
+        }
         if self.counter_intel >= 2 && self.proposal.is_none() && self.seat_offer.is_none()
             && self.emergency.is_none() && (s.talk.is_none() || seat == 0) {
             let mut options = vec!["Feed the watcher false word - the eyes read what we show".into()];

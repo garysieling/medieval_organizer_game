@@ -1904,6 +1904,43 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the cult's own counters: shelter a soul out, break the milieu,
+        // or call the lord's hand - the last replicates the cage's own
+        let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .map(|c| c.cultish).unwrap_or(false);
+        if cultish && self.dilemma.is_none() {
+            match pick {
+                0 => { // shelter: a soul walks free, the cage's cost aside
+                    let m = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+                        .and_then(|c| c.members.first().copied());
+                    if let Some(m) = m {
+                        if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+                            c.members.retain(|&x| x != m);
+                        }
+                        self.log.push(format!("t{}: a soul walks free of the fold - the cage's own cost let them.", self.tick));
+                    }
+                    return;
+                }
+                1 => { // the outside word: the milieu breaks, the dials drop
+                    if let Some(t) = self.world.get_component_mut::<crate::sim::religion::Totalism>(self.congregation) {
+                        for d in t.dials.iter_mut() { *d = d.saturating_sub(2); }
+                        t.isolation = (t.isolation - 0.2).max(0.0);
+                    }
+                    self.log.push(format!("t{}: the outside word comes in - the fold's own walls thin.", self.tick));
+                    return;
+                }
+                _ => { // the coercion: the lord's own hand, and the cage's own method
+                    for site in &self.sites {
+                        let Some(l) = site.lord else { continue };
+                        if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                            w.paranoia = (w.paranoia + 0.3).min(1.0);
+                        }
+                    }
+                    self.log.push(format!("t{}: the lord's hand's called on the fold - the coercion's own method replicates the cage.", self.tick));
+                    return;
+                }
+            }
+        }
         // the arc's own early contest: while the watching's young,
         // contest the word - the next rung costs him more
         if self.suppression_arc > 0 && pick == 0 && self.counter_intel >= 2 {

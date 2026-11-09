@@ -138,6 +138,12 @@ pub struct Totalism {
     pub isolation: f32,
 }
 
+/// How a cult ends: the implosion of its own split, the capture by a
+/// harder head, the deadline's own date, or the rare routinization
+/// into a sect - emergent endings off the dials, not scripted
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CollapseMode { Implosion, Capture, Deadline, Institutionalization }
+
 /// A religious community
 #[derive(Debug)]
 pub struct Congregation {

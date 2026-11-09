@@ -924,6 +924,7 @@ impl Game {
         let mut g = Game {
             world, sched, map, heights, flood: crate::game::flood::Flood::new(),
             climate, music, weather, congregation, villagers, rivals,
+            splinter: None, reformation_spark: None,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
             village: (vx, vy),

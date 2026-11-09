@@ -1445,6 +1445,13 @@ pub struct Game {
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,
+    /// The green fellowship: the splinter congregation a provoked
+    /// villager starts - None until the reformation ignites
+    pub splinter: Option<Entity>,
+    /// A provocation gathering force: (the day it was struck, what
+    /// struck it) - reformation_tick spends it on the most susceptible
+    /// soul, or lets it fade
+    pub reformation_spark: Option<(u64, &'static str)>,
     /// What the priest's old books have taught: the parish's reading,
     /// collected
     pub grimoire: crate::sim::magic::Grimoire,

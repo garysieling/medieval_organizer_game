@@ -135,6 +135,12 @@ pub struct Congregation {
 #[derive(Debug)]
 pub struct Apostate;
 
+/// A soul of the green fellowship: the splinter congregation that broke
+/// from the parish. Members keep their Faith but worship at the green,
+/// not the church - the marker is what routing and services read
+#[derive(Debug)]
+pub struct Reformed;
+
 /// A religious service/ritual
 #[derive(Debug)]
 pub struct Service {

@@ -35,6 +35,12 @@ const RITE_LINES: [&str; 3] = [
     "The stones remember.",
     "The old faith endures.",
 ];
+/// What the green fellowship says as they gather on the green
+pub(in crate::session) const GREEN_WORD: [&str; 3] = [
+    "The church sells what God gives free - the word is for all of us.",
+    "They kept the Gospel behind a door. It was never theirs to keep.",
+    "A plainer word, for plainer folk - gather on the green.",
+];
 /// Ambling pace, tiles a second (errands walk at MEETING_WALK, 2.5)
 const AMBLE_SPEED: f32 = 0.7;
 
@@ -183,6 +189,13 @@ pub fn routine_text(world: &World, v: Entity, bench: Option<&str>) -> Option<Str
         (Mode::Worshipping, Spot::Church) => if lead { "leading prayers".into() } else { "at prayer in church".into() },
         (Mode::Worshipping, Spot::StoneCircle) => if lead { "leading the old rite".into() } else { "at the stone circle".into() },
         (Mode::Worshipping, Spot::Grove) => if lead { "leading the old rite".into() } else { "at the grove".into() },
+        (Mode::Worshipping, Spot::Green) => {
+            // the splinter's word, or the parish's when there's no church
+            let green = world.get_component::<crate::sim::religion::Reformed>(v).is_some();
+            if lead { "preaching the green word".into() }
+            else if green { "at the green word".into() }
+            else { "at prayer".into() }
+        }
         (Mode::Worshipping, _) => "at prayer".into(),
         (Mode::Feasting, _) => "at the feast".into(),
         (Mode::Protesting, _) => "at the protest".into(),
@@ -691,11 +704,20 @@ impl Game {
             self.world.get_component::<Building>(b).map(|bb| bb.kind == BuildingKind::Church).unwrap_or(false));
         let mut flock: Vec<Entity> = vec![];
         let mut old: Vec<Entity> = vec![];
+        let mut green: Vec<Entity> = vec![];
         for v in self.villagers.clone() {
             if !self.free_to_gather(v) { continue; }
             let pious = has_trait(&self.world, v, crate::game::traits::Trait::Pious);
-            if !pious && rng.below(100) >= 70 { continue; }
-            if keeps_old_ways(&self.world, v) { old.push(v); } else { flock.push(v); }
+            // the green word calls its own harder: they always answer,
+            // though the roll still runs so the day's draws don't shift
+            let reformed = self.world.get_component::<crate::sim::religion::Reformed>(v).is_some();
+            if !pious {
+                let roll = rng.below(100);
+                if roll >= 70 && !reformed { continue; }
+            }
+            if keeps_old_ways(&self.world, v) { old.push(v); }
+            else if reformed { green.push(v); }
+            else { flock.push(v); }
         }
         // a monastery's brothers keep the day at their own abbey - the
         // village church's call can't carry out to them in the country
@@ -745,6 +767,36 @@ impl Game {
                     self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
                 }
                 if church.is_some() { self.emit_sfx("bell", front.0, front.1, 0.8); }
+            }
+        }
+        // the green fellowship: the splinter keeps its own word on the
+        // green by the market cross, the reformer at its head when they
+        // come - a few tiles off the feast's centre so the two fellowships
+        // don't share one spot
+        if !green.is_empty() {
+            if let Some(sg) = self.splinter {
+                let lead = self.world.get_component::<crate::sim::religion::Congregation>(sg)
+                    .and_then(|c| c.leader).filter(|l| green.contains(l));
+                let mut folk = green.clone();
+                if let Some(l) = lead { folk.retain(|&v| v != l); }
+                let base = self.world.get_component::<Pos>(self.market_food)
+                    .map(|p| (p.x, p.y)).unwrap_or(self.priest);
+                let anchor = [(4.0, 0.0), (0.0, 4.0), (-4.0, 0.0), (0.0, -4.0), (0.0, 0.0)]
+                    .iter().map(|&(dx, dy)| (base.0 + dx, base.1 + dy))
+                    .find(|&(x, y)| self.map.passable(x.round() as i32, y.round() as i32))
+                    .unwrap_or(base);
+                let slots = self.ring_round(anchor, folk.len(), 2.0);
+                let n = self.assemble(tick, Mode::Worshipping, Spot::Green,
+                    lead.map(|l| (l, anchor)), &folk, &slots, anchor, CALL_REACH + 2);
+                if n > 0 {
+                    self.log.push_at_who(format!("t{}: {} keep the green word at the market cross.", tick, n),
+                        Some(anchor), None);
+                    let speaker = lead.filter(|&l| self.reached_worship(l, tick))
+                        .or_else(|| folk.iter().copied().find(|&v| self.reached_worship(v, tick)));
+                    if let Some(v) = speaker {
+                        self.say(v, GREEN_WORD[rng.below(GREEN_WORD.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
+                    }
+                }
             }
         }
         // the old ways: a ring at the standing stones one holy day, round

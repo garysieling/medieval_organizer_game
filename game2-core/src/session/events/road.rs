@@ -487,6 +487,9 @@ impl Game {
                         }
                     }
                 }
+                // and his word can kindle the green fellowship in a
+                // susceptible soul
+                self.spark_reformation(tick, "the heretic's word");
             }
             EventId::Drover => {
                 // sheep to market: a head a day off his drove into the

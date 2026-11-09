@@ -80,6 +80,9 @@ impl Game {
                 h.condition = (h.condition - 0.1).max(0.05);
             }
             self.say(patient, "The doctor's hands left him worse.", 4);
+            // a miracle that failed is a provocation: it can kindle
+            // the green word in a susceptible soul
+            self.spark_reformation(tick, "the physician's failure");
         } else {
             let eff = 0.15 + (self.shroom_rng.below(3) as f32) * 0.05;
             if herbology::apply_efficacy(&mut self.world, patient, eff) {

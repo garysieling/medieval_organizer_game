@@ -97,6 +97,7 @@ mod cult;
 mod dilemma;
 mod relic;
 mod laws;
+mod sea;
 mod season_illness;
 mod sheriff;
 mod surveillance;

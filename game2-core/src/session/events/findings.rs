@@ -202,7 +202,9 @@ impl Game {
             EventId::StormWashUp => {
                 // the reach gives back what the storm took elsewhere:
                 // driftwood and a barrel on the strand - into hands
-                // that can use them, what room's left and no more
+                // that can use them, what room's left and no more. Now
+                // and then the tide throws up the sea's own store - an
+                // amber's worth a season's wage
                 let able: Vec<Entity> = self.villagers.iter().copied().filter(|&v|
                     !villager::is_dead(&self.world, v)
                         && !crate::game::dungeon::unavailable(&self.world, v)).collect();
@@ -210,6 +212,19 @@ impl Game {
                 if !able.is_empty() {
                     // driftwood only - wood's the leavings hands can use
                     let off = (roll as usize / 3) % able.len();
+                    // the rare big find: an amber or a jet on the strand
+                    if roll % 10 == 1 {
+                        let lucky = able[roll as usize % able.len()];
+                        let find = if roll % 20 == 1 { "amber" } else { "jet" };
+                        if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(lucky) {
+                            let held = s.goods.get(find).copied().unwrap_or(0);
+                            if held < crate::game::livelihood::SATCHEL_CAP {
+                                *s.goods.entry(find.into()).or_insert(0) += 1;
+                            }
+                        }
+                        self.log_entity(lucky, format!("t{}: the storm throws up {} - the strand's own fortune.",
+                            self.tick, if roll % 20 == 1 { "an amber" } else { "a jet" }));
+                    }
                     for i in 0..able.len().min(3) {
                         let v = able[(off + i) % able.len()];
                         if let Some(s) = self.world.get_component_mut::<crate::game::livelihood::Satchel>(v) {

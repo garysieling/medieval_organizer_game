@@ -524,10 +524,18 @@ impl Game {
             .and_then(|b| b.worker)
             .filter(|&w| !crate::game::dungeon::unavailable(&self.world, w))
         else { return };
-        // the catch: winter's thin, the rest of the year's fuller
+        // the catch: winter's thin, the rest of the year's fuller; the
+        // water gives its own kind by season - the eel run in autumn,
+        // the beds' shellfish in summer, the deep's odd squid otherwise
         let catch = if tick % 365 >= 270 { 1 } else { 3 };
+        let good = match (tick % 365) / 91 {
+            1 => "prawn",
+            2 => "lobster",
+            _ => if (tick % 365) / 91 == 3 { "squid" } else { "fish" },
+        };
+        let good = if tick % 365 >= 180 && tick % 365 < 270 { "eel" } else { good };
         if let Some(b) = self.world.get_component_mut::<Building>(hut) {
-            household::add_stock(b, "fish", catch);
+            household::add_stock(b, good, catch);
         }
         // and now and then the water brings up something strange - a pale
         // stone, a thing that glows - and the tale gets around

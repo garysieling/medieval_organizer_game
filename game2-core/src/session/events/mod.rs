@@ -47,7 +47,7 @@ pub enum EventId {
     // the sky and the weather
     Hailstorm, HeatWave, Drought, Flood, LightningStrike, LateFrost,
     IndianSummer, FirstSnow, Thaw, Aurora, MeteorShower, BloodMoon,
-    DarkNoon, WindStorm, Mirage,
+    DarkNoon, WindStorm, Mirage, SeaMonster,
     // the beasts
     WolfAtFold, FoxInYard, HawkStoops, StrayDog, StrayCat, RatPlague,
     Locusts, CaterpillarYear, Starlings, BeeTree, DeerInFields, WildBoar,
@@ -249,7 +249,8 @@ pub const EVENTS: &[EventSpec] = &[
     EventSpec { id: MushroomFlush, name: "a mushroom flush", kind: Spell, fig: Fig::Traveller, gap: 280, span: 200, stay: 10, cry: "" },
     EventSpec { id: StormWashUp, name: "a storm's leavings", kind: Moment, fig: Fig::Traveller, gap: 400, span: 300, stay: 0, cry: "" },
     EventSpec { id: ProdigalSon, name: "a prodigal returns", kind: Visitor, fig: Fig::Traveller, gap: 520, span: 400, stay: 6, cry: "Is this still-? I've come a long way." },
-    EventSpec { id: Dilemma, name: "the burdened man", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 150, stay: 4, cry: "Two ways to be wrong - who\'ll hear me?" }
+    EventSpec { id: Dilemma, name: "the burdened man", kind: Visitor, fig: Fig::Traveller, gap: 300, span: 150, stay: 4, cry: "Two ways to be wrong - who\'ll hear me?" },
+    EventSpec { id: SeaMonster, name: "the deep one", kind: Moment, fig: Fig::Traveller, gap: 500, span: 360, stay: 0, cry: "" },
 ];
 
 /// The spec for `id`
@@ -339,7 +340,7 @@ pub fn group(id: EventId) -> Group {
     match id {
         Dilemma => Group::Road,
         Tinker | KnifeGrinder | RagAndBone | ChimneySweep | RatCatcher | Dowser | Scribe | ToothDrawer | BarberSurgeon | PilgrimBand | RelicSeller | Pardoner | Juggler | BearWard | Puppeteer | BalladMonger | NewsCrier | Recruiter | Deserter | RefugeeFamily | LeperBand | Friar | Heretic | Drover | FishHawker | SaltSeller | WoolMerchant | WineMerchant | SpiceMerchant | Bookseller | Glazier | Thatcher | WellDigger | CharcoalBurner | LimeBurner | Tanner | CandleMaker | Potter | HorseCop | Eggler | CheeseMonger | FortuneTeller | Astrologer | Alchemist | Quack | Midwife | Sowgelder | Farrier | CornFactor | Messenger => Group::Road,
-        Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage => Group::Sky,
+        Hailstorm | HeatWave | Drought | Flood | LightningStrike | LateFrost | IndianSummer | FirstSnow | Thaw | Aurora | MeteorShower | BloodMoon | DarkNoon | WindStorm | Mirage | SeaMonster => Group::Sky,
         WolfAtFold | FoxInYard | HawkStoops | StrayDog | StrayCat | RatPlague | Locusts | CaterpillarYear | Starlings | BeeTree | DeerInFields | WildBoar | OwlInTower | CrowsMob | FishRun => Group::Beasts,
         ChimneyFire | FouledWell | GranaryLeak | CartOverturns | DrownedInPond | LostChild | Foundling | Quarrel | AlehouseBrawl | OldOakFalls | Assize | CellarThief => Group::IllLuck,
         CoinHoard | OldStones | SpringBubbles | HoneyTree | Truffle | HerbFlush | BerryYear | MushroomFlush | StormWashUp | ProdigalSon => Group::Findings,

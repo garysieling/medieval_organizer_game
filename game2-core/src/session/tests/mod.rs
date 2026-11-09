@@ -40,6 +40,7 @@ mod disclosure;
 mod dog_sprite;
 mod drink;
 mod dungeon;
+mod doctrine;
 mod durability;
 mod edge;
 mod estate;

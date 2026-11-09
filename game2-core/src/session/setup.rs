@@ -1140,6 +1140,7 @@ impl Game {
             lawfare: None,
             compliance_burden: 0.0,
             separation_pressure: 0.0,
+            suffering_meaning: 0.5,
             interdict: false,
             player_passed: false,
             martyr_grave: None,

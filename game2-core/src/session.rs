@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The theodicy stat: the suffering the faith answers - the
+    /// grievances' own meaning, converted to devotion until the
+    /// affliction's gone and the meaning depreciates
+    pub suffering_meaning: f32,
     /// The parallel church's own weight: the cells, the lay leaders,
     /// the vernacular texts - the separation pressure accruing until
     /// the schism fires whether the leadership wants it or not

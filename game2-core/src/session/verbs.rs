@@ -1919,6 +1919,52 @@ impl Game {
             }
             return;
         }
+        // the parley's own choice: ride to it and risk the ambush, hold
+        // the distance, or demand hostages - the guarantee costs the
+        // castle what the ambush would have cost the cause
+        if self.parley.is_some() && self.dilemma.is_none() {
+            match pick {
+                0 => { // ride to the parley: a real settlement, or the trap
+                    let ambush = (self.tick.wrapping_mul(41).wrapping_add(self.org as u64)) % 100 < 40;
+                    self.parley = None;
+                    if ambush {
+                        // the negotiate-and-decapitate play: the leader's
+                        // taken, and the flag's own violation costs the
+                        // castle's own standing
+                        if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                            let leader = o.leader;
+                            o.members.retain(|&m| m != leader);
+                        }
+                        for site in &self.sites {
+                            let Some(l) = site.lord else { continue };
+                            if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                                w.legitimacy = (w.legitimacy - 0.3).max(0.0);
+                            }
+                        }
+                        self.log.push(format!("t{}: the parley was a trap - the leader's taken under a white flag, and the castle's own honor's spent for it.", self.tick));
+                    } else {
+                        self.log.push(format!("t{}: the talk was real - the cause's own grievance's heard, for now.", self.tick));
+                    }
+                    return;
+                }
+                1 => { // hold the distance: safe, but the talk never happens
+                    self.parley = None;
+                    self.log.push(format!("t{}: the cause holds its distance - no talk, no trap.", self.tick));
+                    return;
+                }
+                _ => { // demand hostages: the guarantee costs the castle
+                    self.parley = None;
+                    for site in &self.sites {
+                        let Some(l) = site.lord else { continue };
+                        if let Some(w) = self.world.get_component_mut::<crate::session::subsystems::society::Watcher>(l) {
+                            w.legitimacy = (w.legitimacy - 0.1).max(0.0);
+                        }
+                    }
+                    self.log.push(format!("t{}: hostages demanded for the talking - the castle's own guarantee costs its own standing.", self.tick));
+                    return;
+                }
+            }
+        }
         // the deference's own refusal: a small thing alone - the honor
         // unpaid, the oath unsworn - but a commitment-display for the
         // movement, and a cost on the castle's own standing

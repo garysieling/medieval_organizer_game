@@ -1143,6 +1143,7 @@ impl Game {
             suffering_meaning: 0.5,
             front: false,
             brand_saturation: 0.0,
+            parley: None,
             interdict: false,
             player_passed: false,
             martyr_grave: None,

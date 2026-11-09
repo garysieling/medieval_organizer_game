@@ -145,6 +145,7 @@ mod mounted;
 mod nourish;
 mod occupational;
 mod organize;
+mod parley;
 mod orgskills;
 mod pacing;
 mod painter;

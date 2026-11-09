@@ -28,6 +28,21 @@ pub enum SocialClass {
 /// power, not a wall on the laity's own practice
 pub enum Estate { Clergy, Nobility, Laity }
 
+/// The broker's own standing: an intermediary between the castle's
+/// power and the community's own ground - a priest, a steward, a
+/// foreman - whose power's the gap they bridge. Their loyalty reads
+/// both ways, and the pressure's what flips them
+#[derive(Debug, Clone, Copy)]
+pub struct Broker {
+    /// The castle's own hold on them
+    pub power_loyalty: f32,
+    /// The community's own hold on them
+    pub community_loyalty: f32,
+    /// The squeeze both sides put on - chronic pressure's what flips
+    /// a broker to the movement
+    pub pressure: f32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Vocation {
     Farmer,

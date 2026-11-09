@@ -1638,6 +1638,36 @@ impl Game {
         }
     }
 
+    /// The broker's own squeeze: the intermediaries between the castle
+    /// and the ground carry the pressure both sides put on - and at
+    /// enough squeeze, the community's own pull flips them to the cause
+    pub(in crate::session) fn broker_tick(&mut self, tick: u64) {
+        if tick % 30 != 12 { return; }
+        let threat = self.sites.iter().any(|s| s.lord
+            .and_then(|l| self.world.get_component::<Watcher>(l))
+            .map(|w| w.paranoia >= 0.5).unwrap_or(false));
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(mut b) = self.world.get_component::<crate::game::vocation::Broker>(v).copied() else { continue };
+            if threat { b.pressure = (b.pressure + 0.05).min(1.0); }
+            // the flip: enough squeeze and the community's own pull
+            // outweighs the castle's - the broker comes over
+            if b.pressure > 0.8 && b.community_loyalty > b.power_loyalty {
+                let already = self.world.get_component::<crate::sim::community::Organization>(self.org)
+                    .map(|o| o.members.contains(&v)).unwrap_or(false);
+                if !already {
+                    if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                        o.members.push(v);
+                    }
+                    self.log.push(format!("t{}: an intermediary comes over - the broker reads the ground for the cause.", tick));
+                    self.world.remove_component::<crate::game::vocation::Broker>(v);
+                    continue;
+                }
+            }
+            self.world.add_component(v, b);
+        }
+    }
+
     /// A soul's own standing: ordination lifts a priest to clergy, a
     /// knighting lifts a knight to nobility, and a wedding pulls the
     /// lower house to the higher. The clergy's own read of the law

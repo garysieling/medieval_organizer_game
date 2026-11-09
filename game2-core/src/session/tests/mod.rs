@@ -33,6 +33,7 @@ mod disclosure;
 mod dog_sprite;
 mod drink;
 mod dungeon;
+mod durability;
 mod edge;
 mod edict;
 mod emergence;

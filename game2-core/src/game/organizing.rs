@@ -92,8 +92,48 @@ pub fn living_leader(world: &mut World, org: Entity) -> Option<Entity> {
             _ => Some((m, infl)),
         })
         .map(|(m, _)| m)?;
-    world.get_component_mut::<Organization>(org)?.leader = successor;
+    // the head's fall costs the org - deeper anchors keep more of the pool
+    let factor = anchor_factor(world, org);
+    if let Some(o) = world.get_component_mut::<Organization>(org) {
+        o.influence_pool *= 1.0 - 0.4 * (1.0 - factor);
+        o.leader = successor;
+    }
     Some(successor)
+}
+
+/// The institutional anchor: the deeper an organization is rooted, the
+/// better it weathers a leader's loss and an idle season's atrophy -
+/// the hall's the shallowest root, a congregation tie deeper, a guild
+/// charter deepest
+#[derive(Debug, Clone, Copy)]
+pub enum AnchorTier { Hall, Congregation, Guild }
+
+/// The anchor an organization carries - deeper tiers insure better
+#[derive(Debug)]
+pub struct Anchor(pub AnchorTier);
+
+/// How much of the storm an org's anchor weathers: the hall a quarter,
+/// a congregation tie half, a guild charter three quarters
+pub fn anchor_factor(world: &World, org: Entity) -> f32 {
+    if let Some(a) = world.get_component::<Anchor>(org) {
+        return match a.0 {
+            AnchorTier::Hall => 0.25,
+            AnchorTier::Congregation => 0.5,
+            AnchorTier::Guild => 0.75,
+        };
+    }
+    // no formal anchor: an undamaged hall still roots it a little
+    if world.get_component::<MeetingHall>(org).is_some()
+        && world.get_component::<HallDamaged>(org).is_none() { 0.25 } else { 0.0 }
+}
+
+/// The mentor's work: an org spends its actions growing a member's
+/// influence - the successor the pipeline prefers when the chair empties
+#[allow(dead_code)]
+pub fn mentor(world: &mut World, member: Entity, boost: f32) {
+    if let Some(c) = world.get_component_mut::<Citizen>(member) {
+        c.influence = (c.influence + boost).min(1.0);
+    }
 }
 
 /// An organization's meeting hall: with somewhere to gather, house meetings

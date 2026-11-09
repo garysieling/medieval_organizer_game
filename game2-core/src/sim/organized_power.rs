@@ -70,6 +70,10 @@ impl crate::engine::ecs::System for PowerAtrophySystem {
     fn run(&mut self, world: &mut crate::engine::ecs::World) {
         let params = PowerParams::default();
         for e in world.query::<OrganizedPower>() {
+            // a deeper anchor weathers the idle season better - the
+            // atrophy's rate scales down by what the org's rooted in
+            let mut params = params.clone();
+            params.atrophy_rate *= 1.0 - crate::game::organizing::anchor_factor(world, e);
             if let Some(p) = world.get_component_mut::<OrganizedPower>(e) {
                 step_idle(p, &params);
             }

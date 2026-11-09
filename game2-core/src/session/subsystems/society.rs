@@ -1482,6 +1482,38 @@ impl Game {
         }
     }
 
+    /// The pedagogy's own work: the domination's taken in lowered by
+    /// the consciousness-raising, the agency grown on it, and the
+    /// praxis loop - the experience the action leaves turned to skill
+    /// only by the reflection alternating with it. Action alone
+    /// plateaus; reflection alone makes theorists
+    pub(in crate::session) fn pedagogy_tick(&mut self, tick: u64) {
+        if tick % 30 != 9 { return; }
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(mut d) = self.world.get_component::<crate::game::desires::Domination>(v).copied() else { continue };
+            // the consciousness-raising: a meeting or a witnessed win
+            // lowers the domination's own hold, grows the agency
+            let met = self.world.get_component::<crate::game::desires::InnerLife>(v)
+                .map(|i| !i.wants.is_empty()).unwrap_or(false);
+            if met {
+                d.internalized_domination = (d.internalized_domination - 0.01).max(0.0);
+                d.critical_agency = (d.critical_agency + 0.01).min(1.0);
+            }
+            // the praxis loop: action's own experience + reflection's
+            // own agency, alternating, turns into the skill - neither
+            // alone gets there
+            if d.experience > 0.1 && d.critical_agency > 0.3 {
+                if let Some(mut o) = self.world.get_component::<crate::game::org_skills::Organizing>(v).cloned() {
+                    o.one_on_one = (o.one_on_one + d.experience * d.critical_agency * 0.01).min(1.0);
+                    self.world.add_component(v, o);
+                    d.experience = (d.experience - 0.01).max(0.0);
+                }
+            }
+            self.world.add_component(v, d);
+        }
+    }
+
     /// The inquisition's own cycle: the summons, the harvest, the
     /// informers, the prosecution, the relapse - the medieval
     /// repression ladder rung by rung. The hidden fold's own

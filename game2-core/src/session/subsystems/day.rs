@@ -293,6 +293,7 @@ impl Game {
         crate::timed!("sim.brand", self.brand_tick(tick));
         crate::timed!("sim.parley", self.parley_tick(tick));
         crate::timed!("sim.inquisition", self.inquisition_tick(tick));
+        crate::timed!("sim.pedagogy", self.pedagogy_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

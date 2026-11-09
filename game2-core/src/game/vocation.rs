@@ -229,6 +229,20 @@ pub fn inputs(v: Vocation) -> &'static [&'static str] {
     }
 }
 
+/// The luxury goods a vocation can make on top of the staple - the
+/// tranche's own unlanded goods: the hippocras on the vintner, the
+/// spectacles and mirror on the glazier, the rosewater and pomander
+/// on the perfumer
+pub fn luxuries(v: Vocation) -> &'static [&'static str] {
+    match v {
+        Vocation::Vintner => &["hippocras"],
+        Vocation::Glazier => &["spectacles", "mirror"],
+        Vocation::Perfumer => &["rosewater", "pomander"],
+        Vocation::Baker => &["simnel cake"],
+        _ => &[],
+    }
+}
+
 /// The good a vocation makes for stock and sale. Knights and priests give
 /// services instead, which stock their posts the same way
 pub fn output(v: Vocation) -> Option<&'static str> {

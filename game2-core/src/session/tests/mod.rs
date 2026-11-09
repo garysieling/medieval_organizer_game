@@ -111,6 +111,7 @@ mod lawfare;
 mod leader;
 mod fire_brigade;
 mod lordeye;
+mod luxury;
 mod letter;
 mod letters;
 mod lifecycle;

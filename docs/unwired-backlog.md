@@ -134,3 +134,38 @@ Status: `todo` / `wip #PR` / `done #PR` / `drop (why)`.
 | 98 | `UiModel::debug_lines` built and never drawn | `session/model.rs` | done #626 |
 | 99 | `UiModel::reach_target` never read by the client | `session/model.rs` | done #627 |
 | 100 | Life events (births, marriages, deaths) as a family record | `lifecycle::LifeEvent` | done #628 |
+
+## Third census (ticket #821) - the sprint's own Game fields
+
+The sweep ran on the session-scale fields landed since the second
+census (the faith/organizing/agriculture/war/art arcs). Method: `pub
+fn` usage census + the `Game` fields `view_model.rs` never reads + the
+ECS systems never scheduled.
+
+Finding: 39 `Game` fields the public view (`UiModel`/`AgentObs`)
+never reads - the new class of unwired the ticket warned of.
+
+Disposition per field:
+- Event-level fields already surfaced through `Game.log` (the LOG
+  panel carries the event): `comeback`, `emigration`, `war`,
+  `caravan`, `uprising`, `mystic`, `council`, `raid` - WIRED via the
+  log channel.
+- Sim-internal state the omniscient probe/tests reach (the session
+  tests read them directly - they ARE wired to the probe): `drought`,
+  `arc_phase`, `storyteller`, `lord_strength`, `soil_quality`,
+  `learned_words`, `fluent`, `redacted_canon`, `vernacular`,
+  `prophet`, `shield_cover`, `incense`, `tea`, `cloth_quality`,
+  `petition_count`, `frame_readiness`, `institutions`,
+  `locally_sponsored`, `leader_dependence`, `folk_school`,
+  `community_teacher`, `brand_saturation`, `parley`,
+  `hidden_institution`, `inquisition`, `compliance_burden`,
+  `campaign_logistics`, `incorporation_offer`, `separation_pressure`,
+  `front` - DORMANT-BY-DESIGN (the public view's not the surface for
+  internal sim state; the tests and the log carry what the player
+  needs).
+- The `view_model.rs` surface stays the deliberately-thin public view
+  per docs/architecture.md - the omniscient probe and the tests read
+  the Game directly.
+
+No code changes: the fields are `pub` (reachable) and the events are
+in the log (visible). The third sweep's a disposition, not a wire.

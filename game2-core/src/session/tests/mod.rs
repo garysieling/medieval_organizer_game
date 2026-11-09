@@ -25,6 +25,7 @@ mod climate;
 mod continuation;
 mod contracts;
 mod country;
+mod capacity;
 mod counter_intel;
 mod crops;
 mod determinism;

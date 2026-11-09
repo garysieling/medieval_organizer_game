@@ -1123,6 +1123,7 @@ impl Game {
             witnesses: 0,
             counter_intel: 0,
             suppression_arc: 0,
+            hidden_venue: false,
             player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),

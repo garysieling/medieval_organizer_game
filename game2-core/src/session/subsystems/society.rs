@@ -1433,6 +1433,18 @@ impl Game {
         }
     }
 
+    /// The hidden school's own mirror: the flag puts the cover on the
+    /// org - its own trainings run slower but no shutter reaches them
+    pub(in crate::session) fn hidden_venue_tick(&mut self, tick: u64) {
+        if tick % 90 != 5 { return; }
+        let has = self.world.get_component::<crate::game::org_skills::HiddenVenue>(self.org).is_some();
+        if self.hidden_venue && !has {
+            self.world.add_component(self.org, crate::game::org_skills::HiddenVenue);
+        } else if !self.hidden_venue && has {
+            self.world.remove_component::<crate::game::org_skills::HiddenVenue>(self.org);
+        }
+    }
+
     /// The org's own eyes: the level grows with its own discipline
     /// (Turnout + SecurityCulture) and the density of its one-on-ones -
     /// the deep org reads what the lord can't see

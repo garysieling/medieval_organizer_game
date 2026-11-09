@@ -256,6 +256,7 @@ impl Game {
         crate::timed!("sim.apprentice", self.apprentice_tick(tick));
         crate::timed!("sim.rotation", self.rotation_tick(tick));
         crate::timed!("sim.raid", self.raid_tick(tick));
+        crate::timed!("sim.incense", self.incense_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
         crate::timed!("sim.stocks", self.stocks_tick(tick));

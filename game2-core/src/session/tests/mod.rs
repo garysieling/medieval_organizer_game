@@ -86,6 +86,7 @@ mod heirloom;
 mod hen;
 mod herb;
 mod illness;
+mod incense;
 mod incorporation;
 mod influence;
 mod ink_boiler;

@@ -1483,6 +1483,28 @@ impl Game {
         }
     }
 
+    /// The church's own resin: the incense stock that marks the
+    /// sacred - the pedlar's own route keeps it stocked, the services
+    /// consume it, and at zero the church goes dark - the sacred's own
+    /// mark fades, the separation's own pressure rises
+    pub(in crate::session) fn incense_tick(&mut self, tick: u64) {
+        if tick % 30 != 18 { return; }
+        // the pedlar's own route keeps the resin stocked - the
+        // spice-trade's own middleman brings it in
+        self.incense = (self.incense + 0.02).min(1.0);
+        // and the services consume it - the sacred's own marking
+        // burns what the route brings
+        let services = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .map(|c| c.services.len()).unwrap_or(0);
+        self.incense = (self.incense - services as f32 * 0.01).max(0.0);
+        // at zero the church goes dark - the sacred's own mark fades,
+        // and the separation's own pressure rises on the lapse
+        if self.incense <= 0.0 {
+            self.separation_pressure = (self.separation_pressure + 0.02).min(1.0);
+            self.log.push(format!("t{}: the censer hangs cold - the church's own supply's lapsed, and the sacred's own mark's faded.", tick));
+        }
+    }
+
     /// The horizon's own threat: the raiders land - the take falls on
     /// the villagers' own purses and stores, the castle's own watching
     /// halves it (the lord's own obligation, or its own failure), and

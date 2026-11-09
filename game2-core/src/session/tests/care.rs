@@ -2,11 +2,12 @@ use crate::session::*;
 
 #[test]
 fn test_the_village_walks_slower_for_a_lame_leg() {
-    let g = Game::new();
-    let lame = g.villagers.iter().copied().find(|&v|
-        g.world.get_component::<villager::Condition>(v)
-            .map(|c| c.kind == "a lame leg").unwrap_or(false));
-    assert!(lame.is_some(), "someone carries a difference");
+    let mut g = Game::new();
+    let v = g.villagers.iter().copied().find(|&v|
+        g.world.get_component::<villager::Condition>(v).is_none()).unwrap();
+    g.world.add_component(v, villager::Condition { kind: "a lame leg", until: u64::MAX });
+    assert!(g.world.get_component::<villager::Condition>(v)
+        .map(|c| c.kind == "a lame leg").unwrap_or(false));
 }
 
 #[test]

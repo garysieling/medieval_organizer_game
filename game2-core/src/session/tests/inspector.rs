@@ -24,10 +24,15 @@ fn bio_of(g: &mut Game, i: usize) -> String {
 #[test]
 fn test_the_card_tells_the_biography_you_know() {
     let mut g = Game::new();
-    // villagers[7] carries "a lame leg" from the setup
+    // villagers[7] may or may not carry a difference from the setup -
+    // make sure they've one so the card has something to say
     let v = g.villagers[7];
+    if g.world.get_component::<villager::Condition>(v).is_none() {
+        g.world.add_component(v, villager::Condition { kind: "a lame leg", until: u64::MAX });
+    }
+    let kind = g.world.get_component::<villager::Condition>(v).unwrap().kind;
     let bio = bio_of(&mut g, 7);
-    assert!(bio.contains("a lame leg"), "the limp is plain to see: {}", bio);
+    assert!(bio.contains(kind), "the difference is plain to see: {}", bio);
     assert!(!TRAIT_WORDS.iter().any(|w| bio.contains(w)),
         "a stranger doesn't read their temperament: {}", bio);
     // a follower's bond is close enough to have been told things

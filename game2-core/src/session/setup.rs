@@ -717,12 +717,21 @@ impl Game {
             }
         }
         world.get_component_mut::<Building>(trader_stall).unwrap().worker = Some(villagers[25]);
-        // a few carry a difference: the village walks a little slower
-        // for them, and theirs check on them
-        for (i, kind) in [(7usize, "a lame leg"), (11, "failing sight"), (15, "a mind that needs quiet")] {
-            if i < villagers.len() {
-                world.add_component(villagers[i], villager::Condition { kind, until: u64::MAX });
-            }
+        // about one in twelve carry a permanent difference - rank the
+        // roster by a fixed hash and take the first ~8%, so the draw
+        // never moves with later rolls: the village walks a little
+        // slower for some, and theirs check on them all. "no sight"
+        // knows every path but can't browse the stalls; "no hearing"
+        // misses the bell that calls the faithful
+        const DIFFERENCE_KINDS: [&str; 5] = [
+            "a lame leg", "failing sight", "a mind that needs quiet", "no sight", "no hearing"];
+        let mut ranked: Vec<(u64, Entity)> = villagers.iter()
+            .map(|&v| (routine::mix(v, 1383), v)).collect();
+        ranked.sort_by_key(|&(h, _)| h);
+        let take = ((villagers.len() as f64 * 0.08).ceil() as usize).max(1);
+        for &(_, v) in ranked.iter().take(take) {
+            let kind = DIFFERENCE_KINDS[(routine::mix(v, 13) % DIFFERENCE_KINDS.len() as u64) as usize];
+            world.add_component(v, villager::Condition { kind, until: u64::MAX });
         }
         // and the recluse keeps to the cave at the map's edge - the same
         // offset from the village as the classic seed's corner, nudged

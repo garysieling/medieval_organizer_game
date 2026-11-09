@@ -548,6 +548,9 @@ impl Game {
     /// What this person might walk out to buy today: a good that feeds an
     /// unsatisfied want, stocked by some working shop
     pub fn want_shopping(&mut self, v: Entity, tick: u64) -> Option<Goal> {
+        // browsing the stalls takes eyes - the blind don't make the rounds
+        if self.world.get_component::<villager::Condition>(v)
+            .map(|c| c.kind == "no sight" && tick < c.until).unwrap_or(false) { return None; }
         const WANT_GOODS: [(Want, &str); 11] = [
             (Want::GoodFood, "bread"), (Want::Finery, "garments"), (Want::Faith, "faith"),
             (Want::Security, "security"), (Want::Instrument, "lute"), (Want::BetterTools, "tools"),

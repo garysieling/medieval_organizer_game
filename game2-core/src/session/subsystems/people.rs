@@ -225,6 +225,14 @@ impl Game {
                     .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|r| r.from));
             let Some(checker) = checker else { continue };
+            // the visit costs a morning: the checker gives the day to
+            // them instead of the bench - but the village shares the
+            // load, so a checker who gave one lately keeps their back
+            let rested = self.world.get_component::<villager::CareVisit>(checker)
+                .map(|c| tick.saturating_sub(c.day) < 28).unwrap_or(false);
+            if !rested {
+                self.world.add_component(checker, villager::CareVisit { day: tick });
+            }
             // the visit: a bond kept warm, and the walk there counted
             relationships::record_interaction(&mut self.world, checker, relationships::Interaction {
                 other: v, kind: relationships::InteractionKind::Conversation, intensity: 1.2 });
@@ -233,6 +241,8 @@ impl Game {
                 self.say(checker, match cond {
                     "a lame leg" => "How's the leg treating you?",
                     "failing sight" => "Let me read it out for you.",
+                    "no sight" => "I'll tell you what the board says.",
+                    "no hearing" => "No need to shout - you're not missing a thing.",
                     _ => "The quiet does you good, I hope.",
                 }, CHAT_BUBBLE_SECS);
             }

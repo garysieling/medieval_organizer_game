@@ -6,6 +6,7 @@ use game2_core::game::villager::Pos;
 use game2_core::game::lifecycle::{Age, Vitality, LifeStage};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== LIFECYCLE: birth->aging->death->succession ===\n");
     let mut world = World::new();
 

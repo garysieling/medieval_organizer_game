@@ -187,6 +187,7 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let days: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(200);
     let seed: u64 = args.get(2).and_then(|v| v.parse().ok()).unwrap_or(42);

@@ -29,6 +29,7 @@ fn iso(tx: f32, ty: f32) -> (i32, i32) {
 struct Check { name: &'static str, pass: bool, detail: String }
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let ticks: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(120);
 

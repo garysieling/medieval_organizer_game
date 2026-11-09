@@ -24,6 +24,7 @@ use game2_core::server::{serve, ServerConfig};
 use game2_core::session;
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let arg = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
     let cfg = ServerConfig {

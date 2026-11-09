@@ -5,6 +5,7 @@ use game2_core::engine::ecs::World;
 use game2_core::game::music::{spawn_music, evolve, describe, WorldMetrics, MusicState};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== MUSIC EVOLUTION (techno layers) ===\n");
     let mut world = World::new();
     let music = spawn_music(&mut world);

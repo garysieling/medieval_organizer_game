@@ -18,6 +18,7 @@ fn iso(tx: f32, ty: f32) -> (i32, i32) {
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     let mut world = World::new();
     let terrain = Terrain::generate(33, 0.7, 42);
     let assets = Assets::new("assets");

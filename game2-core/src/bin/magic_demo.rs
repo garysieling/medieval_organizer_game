@@ -3,6 +3,7 @@
 use game2_core::sim::magic::{ancient_sources, ingest_text, magic_effects, Grimoire};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== MAGIC DISCOVERY ===\n");
     println!("The world is written in an ancient language...\n");
 

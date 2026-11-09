@@ -4,6 +4,7 @@
 use game2_core::agents::manager_bot::{ManagerBot, build_sprint_plan, SprintTask};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== MANAGER BOT MINI-SPRINT ===\n");
 
     // Build a sprint plan

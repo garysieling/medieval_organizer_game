@@ -4,6 +4,7 @@
 use game2_core::sim::story::{StoryEvent, EventKind, detect_story, surface_story};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== STORY RECOGNITION ===\n");
 
     // Story 1: Survival - illness -> recovery -> bonding

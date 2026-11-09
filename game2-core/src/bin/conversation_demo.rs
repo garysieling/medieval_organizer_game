@@ -24,6 +24,7 @@ fn print_separator(title: &str) {
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     let library = village_library();
 
     // -----------------------------------------------------------------

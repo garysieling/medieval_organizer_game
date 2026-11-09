@@ -6,6 +6,7 @@ use game2_core::game::villager::{self, FoodSource};
 use game2_core::agents::simple_playtester::{SimplePlaytester, Goal, GoalCheck};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== SIMPLE PLAYTESTER ===\n");
 
     let mut world = World::new();

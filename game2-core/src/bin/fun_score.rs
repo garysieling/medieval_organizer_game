@@ -3,6 +3,7 @@
 use game2_core::agents::fun_inspector::{FunInspector, FunScores};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== FUN INSPECTOR SCORING ===\n");
 
     let inspector = FunInspector::new();

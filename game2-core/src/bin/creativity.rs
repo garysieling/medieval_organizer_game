@@ -11,6 +11,7 @@ use game2_core::infra::ollama::OllamaClient;
 use std::time::Instant;
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut request = String::new();
     let mut count = 100usize;

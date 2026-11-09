@@ -3,6 +3,7 @@
 use game2_core::agents::retrospective_agent::RetrospectiveAgent;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== RETROSPECTIVE AGENT ===\n");
 
     let agent = RetrospectiveAgent::new();

@@ -5,6 +5,7 @@ use game2_core::engine::ecs::{World, Scheduler};
 use game2_core::game::contracts::{Contract, Term, ContractStatus, ContractSystem, Reputation, breach};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== CONTRACTS + REPUTATION ===\n");
     let mut world = World::new();
 

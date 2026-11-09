@@ -8,6 +8,7 @@ use game2_core::ui::isometric::{render_terrain, render_entity};
 use game2_core::sim::climate::{self, SeasonSystem};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== FRAME SEQUENCE (video) ===\n");
 
     let mut world = World::new();

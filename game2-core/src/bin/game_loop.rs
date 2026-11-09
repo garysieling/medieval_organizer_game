@@ -15,6 +15,7 @@ use game2_core::sim::community::Citizen;
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== UNIFIED GAME LOOP ===\n");
 
     let mut world = World::new();

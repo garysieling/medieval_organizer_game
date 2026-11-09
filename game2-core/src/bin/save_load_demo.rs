@@ -6,6 +6,7 @@ use game2_core::game::villager::{self, Hunger};
 use game2_core::infra::save_load::History;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== Datomic Save/Load Demo ===\n");
 
     let mut world = World::new();

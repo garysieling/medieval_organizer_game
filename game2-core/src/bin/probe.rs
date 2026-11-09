@@ -6,6 +6,7 @@ use game2_core::game::villager::{self, Hunger, Pos, Villager, Activity, FoodSour
 use game2_core::game::livelihood::Purse;
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let days: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(300);
     let seed: u64 = args.get(2).and_then(|v| v.parse().ok()).unwrap_or(42);

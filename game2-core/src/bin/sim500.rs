@@ -12,6 +12,7 @@ const FIELD_CAPACITY: u32 = 2;
 const FIELD_GROWTH: f32 = 0.028;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== 500-TURN SIMULATION ===\n");
 
     let mut world = World::new();

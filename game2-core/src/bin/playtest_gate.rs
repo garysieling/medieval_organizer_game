@@ -82,6 +82,7 @@ fn real_frame_checks() -> Vec<Check> {
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let seed: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(42);
 

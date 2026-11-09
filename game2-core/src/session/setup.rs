@@ -1147,6 +1147,8 @@ impl Game {
             hidden_institution: false,
             folk_school: false,
             leader_dependence: 0.5,
+            petition_count: 0,
+            frame_readiness: false,
             community_teacher: false,
             inquisition: None,
             interdict: false,

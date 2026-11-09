@@ -108,6 +108,7 @@ mod cult;
 mod dilemma;
 mod relic;
 mod laws;
+mod sacrament;
 mod sea;
 mod separation;
 mod seat_offer;

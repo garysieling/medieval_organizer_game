@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The parallel church's own weight: the cells, the lay leaders,
+    /// the vernacular texts - the separation pressure accruing until
+    /// the schism fires whether the leadership wants it or not
+    pub separation_pressure: f32,
+    /// The lord's own silence: every service in the region shut down -
+    /// the interdict, legitimacy-costly and devastating both
+    pub interdict: bool,
     /// The lord's own postings: the reporting/audit burden laid on
     /// the cause - the compliance work itself is the weapon, the
     /// unmet burden's what drains the cause's own capacity

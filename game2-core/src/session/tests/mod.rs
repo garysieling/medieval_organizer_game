@@ -131,6 +131,7 @@ mod cairns;
 mod member_line;
 mod minimap;
 mod autosave;
+mod axiom;
 mod boats;
 mod music_view;
 mod mystery;

@@ -120,6 +120,220 @@ impl Game {
                 crate::sim::religion::stage_up(&mut self.world, v, routine::mix(v, tick));
             }
         }
+        // the green fellowship keeps its own word on the same holy day:
+        // its own congregation, its own service - but the poor box
+        // stays the parish's
+        if let Some(sg) = self.splinter {
+            crate::sim::religion::perform_service(&mut self.world, sg,
+                crate::sim::religion::Service {
+                    name: "the green word".into(), frequency: "weekly".into(),
+                    participants: attendees, cohesion_boost: 0.3, charity_output: 0.0 });
+        }
+    }
+
+    /// A provocation lands on the parish: the first spark kindles while
+    /// the reformation_spark burns; later strikes change nothing. Sparks
+    /// are authored events - a heretic's word, a failed cure, the tithe -
+    /// never a periodic roll
+    pub(in crate::session) fn spark_reformation(&mut self, tick: u64, kind: &'static str) {
+        if self.splinter.is_some() { return; }
+        if self.reformation_spark.is_none() {
+            self.reformation_spark = Some((tick, kind));
+        }
+    }
+
+    /// Days a struck spark stays lit waiting for susceptible soil
+    const SPARK_DAYS: u64 = 30;
+    /// The village needs a season to become a parish before it can
+    /// reform one
+    const REFORMATION_EARLIEST: u64 = 60;
+
+    /// The reformation's slow burn, run daily beside the office: a lit
+    /// spark finds the most susceptible soul and they take the green
+    /// word; once the fellowship stands, parish hearts drift over a few
+    /// at a time. Every roll is a mix() of the soul and the day - no
+    /// rng stream moves
+    pub(in crate::session) fn reformation_tick(&mut self, tick: u64) {
+        if tick < Self::REFORMATION_EARLIEST { return; }
+        // the fuse burns out if no soil took the spark
+        if let Some((when, _)) = self.reformation_spark {
+            if tick > when + Self::SPARK_DAYS { self.reformation_spark = None; }
+        }
+        if self.splinter.is_none() {
+            if let Some((_, kind)) = self.reformation_spark {
+                if let Some(v) = self.most_susceptible(tick) {
+                    self.ignite_reformation(v, kind, tick);
+                    self.reformation_spark = None;
+                }
+            }
+            return;
+        }
+        // the fellowship grows: the faithful drift to the green word
+        self.grow_splinter(tick);
+        // a dead or gone leader hands the word to the next soul
+        let Some(sg) = self.splinter else { return };
+        let healthy = self.world.get_component::<crate::sim::religion::Congregation>(sg)
+            .map(|c| c.leader.filter(|l| !villager::is_dead(&self.world, *l)
+                && c.members.contains(l)).is_some())
+            .unwrap_or(false);
+        if !healthy {
+            let next = self.world.get_component::<crate::sim::religion::Congregation>(sg)
+                .map(|c| c.members.iter().copied()
+                    .find(|&m| !villager::is_dead(&self.world, m)))
+                .flatten();
+            if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(sg) {
+                c.leader = next;
+            }
+        }
+    }
+
+    /// Who the spark can land on: the parish heart most ready to turn -
+    /// live grievances, a thinning devotion, a weak bond with the
+    /// priest. The old faith, the clergy and the young never reform
+    fn reformation_eligible(&self, v: Entity, need_grievance: bool, tick: u64) -> bool {
+        use crate::sim::religion::{Apostate, Reformed};
+        if villager::is_dead(&self.world, v)
+            || crate::game::dungeon::unavailable(&self.world, v)
+            || self.world.get_component::<Kid>(v).is_some()
+            || self.world.get_component::<TownRole>(v).is_some()
+            || self.world.get_component::<Reformed>(v).is_some()
+            || self.world.get_component::<crate::sim::religion::Faith>(v).is_none()
+            || routine::keeps_old_ways(&self.world, v)
+            || self.site_of(v).is_some()
+        { return false; }
+        // the priest doesn't preach against himself
+        let priest = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .and_then(|c| c.leader);
+        if priest == Some(v) { return false; }
+        // of the fold: a parish member, or one who already walked out
+        let cong = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation);
+        let of_fold = cong.map(|c| c.members.contains(&v)).unwrap_or(false)
+            || self.world.get_component::<Apostate>(v).is_some();
+        if !of_fold { return false; }
+        if need_grievance {
+            // the reformer needs the grievances plural - a slow burn,
+            // not a single bad day
+            return self.world.get_component::<InnerLife>(v)
+                .map(|l| l.grievances.iter().filter(|(_, u)| *u > tick).count() >= 2)
+                .unwrap_or(false);
+        }
+        true
+    }
+
+    /// How ready a soul is to turn: grievances weigh heaviest, then a
+    /// devotion thinner than the flock's and a weak tie to the priest,
+    /// with the pious just that much readier. A per-soul nudge keeps the
+    /// pick lively without a roll
+    fn susceptibility(&self, v: Entity, priest: Option<Entity>, tick: u64) -> f32 {
+        let faith = self.world.get_component::<crate::sim::religion::Faith>(v)
+            .map(|f| f.devotion).unwrap_or(0.5);
+        let grievances = self.world.get_component::<InnerLife>(v)
+            .map(|l| l.grievances.iter().filter(|(_, u)| *u > tick).count()).unwrap_or(0);
+        let bond = priest.and_then(|p| crate::game::relationships::find_relationship(&self.world, v, p))
+            .and_then(|r| self.world.get_component::<crate::game::relationships::Relationship>(r))
+            .map(|r| r.strength).unwrap_or(0.0);
+        let pious = routine::has_trait(&self.world, v, crate::game::traits::Trait::Pious) as u8 as f32;
+        grievances as f32 * 0.25
+            + (0.55 - faith).max(0.0) * 0.8
+            + (0.4 - bond).max(0.0) * 0.5
+            + pious * 0.1
+            + (routine::mix(v, tick) % 100) as f32 / 1000.0
+    }
+
+    /// The most susceptible eligible soul, or none if the village's
+    /// soil is too thin for the spark
+    fn most_susceptible(&self, tick: u64) -> Option<Entity> {
+        let priest = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .and_then(|c| c.leader);
+        let mut best: Option<(Entity, f32)> = None;
+        for &v in &self.villagers {
+            if !self.reformation_eligible(v, true, tick) { continue; }
+            let score = self.susceptibility(v, priest, tick);
+            if best.map(|(_, s)| score > s).unwrap_or(true) { best = Some((v, score)); }
+        }
+        best.filter(|(_, s)| *s > 0.30).map(|(v, _)| v)
+    }
+
+    /// The spark catches: a new fellowship stands on the green, its
+    /// founder walks out of the fold, and the parish answers - a
+    /// denouncement always, the ladder's first rung when the parish is
+    /// orthodox enough to care
+    fn ignite_reformation(&mut self, v: Entity, kind: &str, tick: u64) {
+        use crate::sim::religion::{Apostate, Congregation, Reformed};
+        let name = self.name_of(v);
+        let cong = self.world.create_entity();
+        self.world.add_component(cong, Congregation {
+            name: "the green fellowship".into(),
+            members: vec![v],
+            leader: Some(v),
+            orthodoxy: 0.25,
+            services: vec![],
+            cultish: false,
+        });
+        self.splinter = Some(cong);
+        if let Some(c) = self.world.get_component_mut::<Congregation>(self.congregation) {
+            c.members.retain(|&m| m != v);
+        }
+        self.world.add_component(v, Apostate);
+        self.world.add_component(v, Reformed);
+        if let Some(f) = self.world.get_component_mut::<crate::sim::religion::Faith>(v) {
+            f.religion = "the green fellowship".into();
+            f.devotion = f.devotion.max(0.55);
+            if !f.traditions.iter().any(|t| t == "the green word") {
+                f.traditions.push("the green word".into());
+            }
+        }
+        desires::add_grievance(&mut self.world, v, desires::Problem::Doctrine, tick + 180);
+        let at = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y));
+        self.log.push_at_who(format!("t{}: {} takes the green word - a fellowship is born of {}.",
+            tick, name, kind), at, None);
+        self.say(v, routine::GREEN_WORD[(routine::mix(v, tick) as usize) % routine::GREEN_WORD.len()],
+            TALK_BUBBLE_SECS * 2);
+        // the parish answers: the priest denounces from the door, and a
+        // strict parish reaches for the first rung of shame
+        if let Some(p) = self.world.get_component::<Congregation>(self.congregation).and_then(|c| c.leader) {
+            if !villager::is_dead(&self.world, p) {
+                self.say(p, "A crow on the green - the parish will not have it.", TALK_BUBBLE_SECS * 2);
+            }
+        }
+        let orth = self.world.get_component::<Congregation>(self.congregation)
+            .map(|c| c.orthodoxy).unwrap_or(0.0);
+        if orth >= 0.7 { self.apply_sanction(v, Sanction::Gossip, tick); }
+    }
+
+    /// Hearts drift to the green word: each eligible parish soul rolls
+    /// a deterministic chance scaled by how ready they already are
+    fn grow_splinter(&mut self, tick: u64) {
+        use crate::sim::religion::{Apostate, Congregation, Reformed};
+        let Some(sg) = self.splinter else { return };
+        let priest = self.world.get_component::<Congregation>(self.congregation).and_then(|c| c.leader);
+        let defectors: Vec<Entity> = self.villagers.iter().copied()
+            .filter(|&v| self.reformation_eligible(v, false, tick))
+            .filter(|&v| {
+                let score = self.susceptibility(v, priest, tick);
+                let chance = (score * 80.0).min(60.0) as u64;
+                routine::mix(v, tick.wrapping_add(0x6A71)) % 1000 < chance
+            }).collect();
+        for v in defectors {
+            let name = self.name_of(v);
+            if let Some(c) = self.world.get_component_mut::<Congregation>(self.congregation) {
+                c.members.retain(|&m| m != v);
+            }
+            self.world.add_component(v, Apostate);
+            self.world.add_component(v, Reformed);
+            if let Some(f) = self.world.get_component_mut::<crate::sim::religion::Faith>(v) {
+                f.religion = "the green fellowship".into();
+                if !f.traditions.iter().any(|t| t == "the green word") {
+                    f.traditions.push("the green word".into());
+                }
+            }
+            desires::add_grievance(&mut self.world, v, desires::Problem::Doctrine, tick + 90);
+            if let Some(c) = self.world.get_component_mut::<Congregation>(sg) {
+                if !c.members.contains(&v) { c.members.push(v); }
+            }
+            let at = self.world.get_component::<Pos>(v).map(|p| (p.x, p.y));
+            self.log.push_at_who(format!("t{}: {} takes the green word.", tick, name), at, None);
+        }
     }
 
     /// A rung lands: what the village does to its own
@@ -1228,6 +1442,9 @@ impl Game {
                 let thin = self.world.get_component::<Purse>(*m).map(|p| p.gold < 1.0).unwrap_or(false);
                 if thin {
                     desires::add_grievance(&mut self.world, *m, desires::Problem::Taxed, tick + 30);
+                    // the parish's due is a provocation: it can kindle
+                    // the green word in a susceptible soul
+                    self.spark_reformation(tick, "the parish's due");
                 }
             }
         }

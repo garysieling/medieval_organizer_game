@@ -106,6 +106,9 @@ pub enum Problem {
     Hungry,
     /// The fevers ride the village - days shut in with the sickness
     Sick,
+    /// The parish preaches one thing and lives another - a plainer word
+    /// is heard on the green
+    Doctrine,
 }
 
 /// One secret a person can share: a want or a problem
@@ -211,6 +214,7 @@ pub fn wrong_phrase(p: Problem) -> &'static str {
         Problem::Hungry => "a belly that knows the pot's bare",
         Problem::Sick => "the fevers riding the village",
         Problem::Broke => "less gold than a meal",
+        Problem::Doctrine => "a word the parish calls crooked",
     }
 }
 
@@ -257,6 +261,7 @@ pub fn issue_tag(world: &World, e: Entity, r: &Reveal) -> IssueTag {
         Reveal::Problem(Problem::Robbed) => "the thieves",
         Reveal::Problem(Problem::Hungry) => "the empty pot",
         Reveal::Problem(Problem::Sick) => "the fevers",
+        Reveal::Problem(Problem::Doctrine) => "the true faith",
     };
     // a trade's grievance only echoes among the trade - the commons
     // (tax, poverty, the bad bread, the sour gut) echo for everyone
@@ -318,6 +323,7 @@ pub fn issue_name(tag: IssueTag) -> String {
         "the grief" => "the grief".into(),
         "the drink" => "a dry village".into(),
         "the thieves" => "thieves in the night".into(),
+        "the true faith" => "the parish's crooked ways".into(),
         _ => tag,
     }
 }
@@ -373,6 +379,7 @@ pub fn problem_label(p: &Problem) -> String {
         Problem::Robbed => "was robbed in the night".into(),
         Problem::Hungry => "has known the empty pot too long".into(),
         Problem::Sick => "is sick and can't get well".into(),
+        Problem::Doctrine => "hears the plain word".into(),
     }
 }
 
@@ -422,6 +429,7 @@ pub fn reveal_speech(name: &str, r: &Reveal) -> (String, String) {
         Reveal::Problem(Problem::Rowdy) => (format!("{} saw the strangers' brawl", name), "The season hands drink hard and the nights end in the mud. I saw it.".into()),
         Reveal::Problem(Problem::Hungry) => (format!("{}'s pot is bare", name), "Another day on thin broth. The pot's been bare a week.".into()),
         Reveal::Problem(Problem::Sick) => (format!("{} is sick", name), "The fever rides the village. Nobody's untouched.".into()),
+        Reveal::Problem(Problem::Doctrine) => (format!("{} takes the green word", name), "The church sells what God gives free. The word is for all of us.".into()),
     }
 }
 

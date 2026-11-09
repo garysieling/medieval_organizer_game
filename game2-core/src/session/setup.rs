@@ -1163,6 +1163,7 @@ impl Game {
             tea: 0.3,
             cloth_quality: 0.5,
             comeback: None,
+            emigration: 0,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

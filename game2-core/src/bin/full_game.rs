@@ -15,6 +15,7 @@ use game2_core::game::organizing::house_meeting;
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== UNIFIED WORLD STATE ===\n");
 
     let mut world = World::new();

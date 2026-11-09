@@ -18,6 +18,7 @@ use game2_core::sim::psychology::{AttachmentHistory, Bond, GriefSystem};
 const TICKS: u64 = 400;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== HARD WINTER ===\n");
     let mut world = World::new();
     let mut sched = Scheduler::new();

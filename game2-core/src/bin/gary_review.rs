@@ -2,6 +2,7 @@
 use game2_core::agents::gary_agent::review;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== GARY AGENT REVIEW ===\n");
     println!("Checking project against Gary's vision...\n");
     for nudge in review() {

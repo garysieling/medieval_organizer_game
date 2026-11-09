@@ -4,6 +4,7 @@ use game2_core::ui::font::draw_text;
 use std::path::Path;
 
 fn main() {
+    game2_core::infra::crash::install();
     let mut buf = Buffer::new(400, 300);
     buf.rect(0, 0, 400, 300, 30, 30, 45);
 

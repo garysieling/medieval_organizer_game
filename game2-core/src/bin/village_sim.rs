@@ -11,6 +11,7 @@ use game2_core::sim::economics::{self, Market, ProductionSystem};
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== INTEGRATED VILLAGE SIM ===\n");
     println!("Villagers have hunger + health + attachment; market + climate interact\n");
 

@@ -185,6 +185,7 @@ fn read_input(window: &Window, mx: i32, my: i32, clicked: bool, cam: (i32, i32, 
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     // headless verification: --dump-frame N renders tick N to BMP and exits
     let args: Vec<String> = std::env::args().collect();
     let dump_at: Option<u64> = args.iter().position(|a| a == "--dump-frame")

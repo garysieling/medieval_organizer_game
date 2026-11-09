@@ -5,6 +5,7 @@
 use game2_core::agents::implementation_engineer::{ImplementationEngineer, ImplementationTask};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== REAL OLLAMA AGENT TASK ===\n");
 
     let engineer = ImplementationEngineer::new("gemma3:4b");

@@ -4,6 +4,7 @@
 use game2_core::game::economy::{Stockpile, Producer, produce};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== PRODUCTION CHAIN ===\n");
     let mut stock = Stockpile { goods: Default::default() };
     stock.goods.insert("wheat".into(), 20);

@@ -30,6 +30,7 @@ fn arg<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let mut opts = RecordOpts::default();
     opts.play_secs = arg(&args, "--play-time").and_then(|v| v.parse().ok()).unwrap_or(opts.play_secs);

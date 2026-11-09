@@ -5,6 +5,7 @@ use game2_core::engine::ecs::World;
 use game2_core::sim::religion::{Faith, Congregation, Service, GatherSystem, DevotionSystem};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== RELIGION EMERGENCE (homophily) ===\n");
     let mut world = World::new();
 

@@ -11,6 +11,7 @@ use game2_core::session::{self, AgentObs, ClientKind, ClientMsg, ServerMsg};
 use game2_core::session::driver::drive_agent;
 
 fn main() {
+    game2_core::infra::crash::install();
     let args: Vec<String> = std::env::args().collect();
     let url = args.get(1).cloned().unwrap_or_else(|| "ws://localhost:8787".into());
     let count: usize = args.get(2).and_then(|v| v.parse().ok()).unwrap_or(5);

@@ -14,6 +14,7 @@ use game2_core::sim::psychology::{AttachmentHistory, infer_style, AttachmentStyl
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== FINAL SHOWCASE: the complete game ===\n");
 
     let mut world = World::new();

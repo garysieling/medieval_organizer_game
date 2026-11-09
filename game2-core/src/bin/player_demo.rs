@@ -7,6 +7,7 @@ use game2_core::game::player::{PlayerCharacter, act_talk, act_recruit, rapport, 
 use game2_core::sim::community::{Citizen, Organization};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== PLAYER LAYER: outsider earns trust ===\n");
     let mut world = World::new();
 

@@ -5,6 +5,7 @@ use game2_core::engine::ecs::{Scheduler, World};
 use game2_core::game::feuds::{spawn_feud, Feud, FeudStatus, VengeanceKind, vengeance_escalation, peacemaking, FeudSystem};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== FEUD: vengeance cycle ===\n");
     let mut world = World::new();
     let mut sched = Scheduler::new();

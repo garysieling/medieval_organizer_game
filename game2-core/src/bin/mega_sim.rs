@@ -20,6 +20,7 @@ const FIELD_GROWTH: f32 = 0.028;
 const RESEARCH_PER_VILLAGER: f32 = 0.1;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== MEGA SIM: All Systems Together ===\n");
 
     let mut world = World::new();

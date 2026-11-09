@@ -7,6 +7,7 @@ use game2_core::sim::illness::{Health, Disease, DiseaseKind, treat_health};
 use game2_core::game::herbology::{self, Apothecary, HerbEffect, PrepMethod};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== ILLNESS OUTBREAK ===\n");
     let mut world = World::new();
     let _sched = Scheduler::new();

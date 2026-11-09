@@ -3,6 +3,7 @@
 
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== VILLAGE STRATIFICATION (economic) ===\n");
 
     // Villagers with different productive capacity

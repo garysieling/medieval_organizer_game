@@ -37,6 +37,7 @@ fn draw_button(buf: &mut Buffer, b: &Button) {
 }
 
 fn main() {
+    game2_core::infra::crash::install();
     let mut world = World::new();
     let terrain = Terrain::generate(33, 0.7, 42);
     villager::spawn_food_source(&mut world, 8.0, 8.0, 500);

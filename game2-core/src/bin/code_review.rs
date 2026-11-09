@@ -3,6 +3,7 @@
 use game2_core::agents::pedantic_senior_engineer::{PedanticEngineer, Severity};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== PEDANTIC ENGINEER CODE REVIEW ===\n");
 
     let mut eng = PedanticEngineer::new();

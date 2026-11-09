@@ -19,6 +19,7 @@ use game2_core::sim::community::{Citizen, Organization};
 use game2_core::sim::organized_power::{OrganizedPower, PowerAtrophySystem};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== THE WANDERER ===\n");
     println!("You arrive in a village with nothing. Earn trust,");
     println!("organize the villagers, win them over.\n");

@@ -17,6 +17,7 @@ use game2_core::sim::community::{Citizen, Organization};
 use game2_core::infra::telemetry::Telemetry;
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== FULL SESSION: the game in one run ===\n");
 
     let mut world = World::new();

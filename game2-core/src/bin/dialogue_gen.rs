@@ -92,6 +92,7 @@ An AI evaluator or reviewer should grade the conversations against the rubric be
 }
 
 fn main() -> io::Result<()> {
+    game2_core::infra::crash::install();
     let args: Vec<String> = env::args().collect();
     let mut num_characters = 10;
     let mut num_conversations = 5;

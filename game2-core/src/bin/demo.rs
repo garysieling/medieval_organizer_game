@@ -9,6 +9,7 @@ use game2_core::sim::economics::Market;
 use game2_core::sim::psychology::{infer_style, AttachmentHistory};
 
 fn main() {
+    game2_core::infra::crash::install();
     println!("=== EVIDENCE DEMO ===\n");
 
     println!("--- C2: Terrain Generation (seed=7) ---");

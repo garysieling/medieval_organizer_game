@@ -56,3 +56,34 @@ fn test_the_lean_reads_the_violations_shape() {
     assert_eq!(orthodox.resolution(), crate::game::faith_axiom::Resolution::Recantation,
         "the belief-first faith read a pollution");
 }
+
+#[test]
+fn test_the_prophets_mint_stands_coherent() {
+    // a charismatic event calls a faith out: chosen, exclusive, the
+    // spirit's own authority - and it stands coherent
+    let mint = crate::game::faith_axiom::AxiomVector::mint_prophet();
+    assert!(mint.coherent(), "the prophet's mint didn't stand");
+    assert_eq!(mint.membership_mode, 2, "the prophet's fold isn't chosen");
+    assert_eq!(mint.authority_structure, 3, "the spirit's not the authority");
+}
+
+#[test]
+fn test_a_schism_differs_on_the_contested_axiom() {
+    // the child shares the parent's shape except the one it split over
+    let parent = crate::game::faith_axiom::AxiomVector::church();
+    let child = parent.schism("authority");
+    assert_eq!(child.authority_structure, 3,
+        "the schism never contested the authority");
+    assert_eq!(child.truth_stance, parent.truth_stance,
+        "the schism moved a second axiom");
+    assert_eq!(child.law_scope, parent.law_scope,
+        "the schism moved the law's reach too");
+}
+
+#[test]
+fn test_the_accommodative_faith_softens_to_carry_the_cult() {
+    // a faith folds a local cult in: the deity becomes a saint, the
+    // stance softens to carry the fold
+    let sync = crate::game::faith_axiom::AxiomVector::church().syncretize();
+    assert_eq!(sync.truth_stance, 2, "the fold never softened");
+}

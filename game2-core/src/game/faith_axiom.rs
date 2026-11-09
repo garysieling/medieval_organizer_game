@@ -161,6 +161,50 @@ impl AxiomVector {
         else { Resolution::Cleansing }
     }
 
+    /// A prophet's own minting: a charismatic event in a high-tension
+    /// ground calls a new faith out - chosen, exclusive, the spirit's
+    /// own authority on one soul (the imagistic mode: the vision, not
+    /// the canon)
+    pub fn mint_prophet() -> Self {
+        Self {
+            membership_mode: 2, truth_stance: 1, orthopraxy_orthodoxy: 0,
+            law_scope: 0, purity_system: 1, time_structure: 2,
+            afterlife: 1, salvation_mechanism: 0, authority_structure: 3,
+            religion_state_relation: 0,
+        }
+    }
+
+    /// A schism's own shape: the child shares the parent's axioms
+    /// except the one the split ran over - the schism IS the contested
+    /// axiom (the authority's read, the law's reach, the truth's claim)
+    pub fn schism(&self, contested: &str) -> Self {
+        let mut child = *self;
+        match contested {
+            "authority" => child.authority_structure = 3, // the spirit over the ordained
+            "law" => child.law_scope = (self.law_scope + 1).min(2), // the law tightens
+            "truth" => child.truth_stance = (self.truth_stance + 1).min(2),
+            _ => {}
+        }
+        child
+    }
+
+    /// The syncretic move: an accommodative faith folds a local cult
+    /// in - the deity becomes a saint, a mask of the one god. The
+    /// vector softens to carry the fold
+    pub fn syncretize(&self) -> Self {
+        let mut s = *self;
+        s.truth_stance = 2;
+        s
+    }
+
+    /// The overlay: a dominant faith imposed over the folk substrate
+    /// doesn't erase it - the villagers run both, the church's rites
+    /// over the elder's hearth-side ones. Returns the two faiths as
+    /// they stand together
+    pub fn overlay(&self, folk: &Self) -> (Self, Self) {
+        (*self, *folk)
+    }
+
     /// The old faith at the stones: territorial, syncretic, orthopraxic,
     /// no law but custom, ritual purity, the wheel of the year, the
     /// ancestors near, no saving needed, the elder's own authority,

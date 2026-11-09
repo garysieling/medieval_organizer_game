@@ -3,7 +3,7 @@ use crate::session::*;
 #[test]
 fn test_the_feast_gathers_the_village() {
     let mut g = Game::new();
-    g.festival_tick(45);
+    g.festival_tick(81);
     // the feast waits at the cross for the column to walk it in -
     // walk it straight out: the parade's own tests cover the march
     if let Some(f) = g.formation.take() {
@@ -14,7 +14,7 @@ fn test_the_feast_gathers_the_village() {
         "the log names the feast");
     // to a place in the ring round the market cross
     let walkers = g.villagers.iter().filter(|&&v| g.world.get_component::<routine::Routine>(v)
-        .map(|r| r.mode == routine::Mode::Feasting && r.day == 45).unwrap_or(false)).count();
+        .map(|r| r.mode == routine::Mode::Feasting && r.day == 81).unwrap_or(false)).count();
     assert!(walkers > 10, "the whole village walks to market, {} did", walkers);
     // and the collector comes uninvited
     let c = g.collector.unwrap();
@@ -26,7 +26,7 @@ fn test_the_feast_gathers_the_village() {
 #[test]
 fn test_each_season_names_its_feast() {
     let mut g = Game::new();
-    for (tick, name) in [(45, "May Day"), (135, "Midsummer"), (225, "the Harvest Home"), (315, "Yule")] {
+    for (tick, name) in [(81, "May Day"), (172, "Midsummer"), (263, "the Harvest Home"), (355, "Yule")] {
         let n = g.log.len();
         g.festival_tick(tick);
         assert!(g.log[n..].iter().any(|l| l.contains(name)),
@@ -44,7 +44,7 @@ fn test_the_feast_feeds_the_wants() {
     if let Some(b) = g.world.get_component_mut::<Building>(g.building_entities[5]) {
         household::add_stock(b, "bread", 20);
     }
-    g.festival_tick(45);
+    g.festival_tick(81);
     // the feast waits at the cross for the column to walk it in -
     // walk it straight out: the parade's own tests cover the march
     if let Some(f) = g.formation.take() {

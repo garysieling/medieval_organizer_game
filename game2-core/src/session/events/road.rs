@@ -837,22 +837,16 @@ impl Game {
                 }
             }
             EventId::Astrologer => {
-                // he reads the sky over the village once: forewarned of
-                // whatever's written nearest, and forewarned is forearmed
+                // the almanac seller: his pages go round for a coin a
+                // leaf, and who buys one carries a vague word about the
+                // season's sky - a portent, not a prophet's reading. The
+                // grill keeps him honest: no concrete forecast, only the
+                // flavor of a warning
                 let warned = self.rare.iter().find(|r| r.id == id).map(|r| r.aux).unwrap_or(0) > 0;
                 if warned { return; }
-                let next = self.next_rare.iter()
-                    .filter(|(i, _)| *i != id)
-                    .min_by_key(|(_, d)| *d)
-                    .map(|(i, d)| (*i, *d));
-                if let Some((i, d)) = next {
-                    let name = EVENTS.iter().find(|s| s.id == i).map(|s| s.name).unwrap_or("something");
-                    // the due's already in days - no conversion
-                    let days = d.saturating_sub(tick);
-                    let pitch = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at)
-                        .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
-                    self.log.push_at_who(format!("t{}: the astrologer reads the sky - {} comes in about {} days.", tick, name, days.max(1)), pitch, None);
-                }
+                let pitch = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at)
+                    .map(|(x, y)| (x as f32 + 0.5, y as f32 + 0.5));
+                self.log.push_at_who(format!("t{}: the astrologer sells his pages - a coin a leaf for a word on the season's sky.", tick), pitch, None);
                 // forearmed: a day's warning's a kind of security for near folk
                 let Some(at) = self.rare.iter().find(|r| r.id == id).and_then(|r| r.at) else { return };
                 for &v in &self.villagers.clone() {

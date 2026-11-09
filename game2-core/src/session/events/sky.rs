@@ -206,9 +206,37 @@ impl Game {
         }
     }
 
+    /// What each of them makes of a sky event: the pious read God's
+    /// sign in it, the old-faith hear the stones' word, the rest see
+    /// the weather - the reading's own worry lands with the heart
+    fn sky_omen_read(&mut self, id: EventId) {
+        use crate::game::traits::{Personality, Trait};
+        for &v in self.villagers.clone().iter() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let pious = self.world.get_component::<Personality>(v)
+                .map(|p| p.traits.contains(&Trait::Pious)).unwrap_or(false);
+            let old = crate::session::routine::keeps_old_ways(&self.world, v);
+            let line = if pious { "A sign from God - the sky speaks of it." }
+                else if old { "The stones knew - the old way reads this." }
+                else { "Strange weather this season - it'll pass." };
+            // the reading's worry lands light: the pious' sign firms
+            // their faith a touch - no bond beat (an episode against no
+            // bond turned the sim's long runs)
+            if pious {
+                if let Some(f) = self.world.get_component_mut::<crate::sim::religion::Faith>(v) {
+                    f.devotion = (f.devotion + 0.02).min(1.0);
+                }
+            }
+            if (self.rare_roll(id) as usize + v as usize) % 9 == 0 {
+                self.say(v, line, CHAT_BUBBLE_SECS);
+            }
+        }
+    }
+
     /// sky: the `event_moment` arms for this group (the rest fall to the default)
     pub(super) fn sky_moment(&mut self, id: EventId) {
         let s = spec(id);
+        self.sky_omen_read(id);
         match id {
             EventId::SeaMonster => {
                 // the deep one's sighted off the strand - no bite, no

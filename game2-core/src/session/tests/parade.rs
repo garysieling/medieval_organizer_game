@@ -3,7 +3,7 @@ use crate::session::*;
 #[test]
 fn test_the_village_walks_it_in() {
     let mut g = Game::new();
-    g.festival_tick(45);
+    g.festival_tick(81);
     let Some(f) = &g.formation else { panic!("no column formed"); };
     assert!(matches!(f.kind, formation::FormationKind::Parade { feast: Some(..) }), "{:?}", f.kind);
     let members = f.members.clone();

@@ -1483,6 +1483,39 @@ impl Game {
         }
     }
 
+    /// The kettle's own leaf: the pedlar's own import stocks the tea,
+    /// the cup's own lift raises the villagers' own energy (the
+    /// caffeine's own psychometric), and the ceremony's own bond
+    /// accrues when the brew's shared
+    pub(in crate::session) fn tea_tick(&mut self, tick: u64) {
+        if tick % 30 != 13 { return; }
+        // the pedlar's own import stocks the leaf - the spice route's
+        // own middleman brings it
+        self.tea = (self.tea + 0.02).min(1.0);
+        if self.tea <= 0.1 { return; }
+        // the cup's own lift: a villager drinking lifts the energy -
+        // the caffeine's own psychometric on the day's own work
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            if let Some(h) = self.world.get_component_mut::<crate::sim::illness::Health>(v) {
+                h.condition = (h.condition + 0.005).min(1.0);
+            }
+        }
+        self.tea = (self.tea - 0.01).max(0.0);
+        // and the ceremony's own bond: a shared brew accrues the
+        // sociability - the ritual's own gathering
+        if self.tea >= 0.3 {
+            let members = self.villagers.iter().copied()
+                .filter(|&v| !villager::is_dead(&self.world, v))
+                .take(2).collect::<Vec<_>>();
+            for m in &members {
+                if let Some(b) = self.world.get_component_mut::<crate::sim::psychology::Bond>(*m) {
+                    b.security = (b.security + 0.005).min(1.0);
+                }
+            }
+        }
+    }
+
     /// The church's own resin: the incense stock that marks the
     /// sacred - the pedlar's own route keeps it stocked, the services
     /// consume it, and at zero the church goes dark - the sacred's own

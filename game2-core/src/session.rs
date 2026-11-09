@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The kettle's own leaf: the tea stock - the pedlar's own import,
+    /// the cup's own lift on the villagers' own energy, and the
+    /// ceremony's own bond when the brew's shared
+    pub tea: f32,
     /// The church's own resin: the incense stock that marks the
     /// sacred - the pedlar's own route keeps it, the services
     /// consume it, and at zero the church goes dark

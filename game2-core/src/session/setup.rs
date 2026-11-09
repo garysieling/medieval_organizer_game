@@ -1159,6 +1159,7 @@ impl Game {
             soil_quality: 0.8,
             raid: None,
             incense: 0.5,
+            tea: 0.3,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

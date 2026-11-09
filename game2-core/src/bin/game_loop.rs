@@ -56,6 +56,7 @@ fn main() {
     // The whole village belongs to the Old Faith's congregation
     let church = world.create_entity();
     world.add_component(church, Congregation {
+        routinization: 0.0,
         name: "Old Faith".into(), members: villagers.clone(), leader: None, orthodoxy: 0.5, services: vec![], cultish: false 
     });
 

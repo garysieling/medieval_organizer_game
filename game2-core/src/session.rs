@@ -1456,6 +1456,10 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The crown's own offer: the legal status laid on the fold - the
+    /// incorporation's own trap (accept for the gold, refuse for the
+    /// edge)
+    pub incorporation_offer: Option<u64>,
     /// The campaign's own supply: the logistics the endurance actions
     /// consume - the supply lines, the runners, the stores
     pub campaign_logistics: f32,

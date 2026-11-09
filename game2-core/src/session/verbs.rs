@@ -1919,6 +1919,23 @@ impl Game {
             }
             return;
         }
+        // the charter's own answer: the gold for the routinization, or
+        // the edge for the refusal
+        if self.incorporation_offer.is_some() && pick <= 1 && self.dilemma.is_none() {
+            self.incorporation_offer = None;
+            if pick == 0 { // accept: the gold, the standing, the drift
+                if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                    o.resources += 20.0;
+                }
+                if let Some(c) = self.world.get_component_mut::<crate::sim::religion::Congregation>(self.congregation) {
+                    c.routinization = (c.routinization + 0.2).min(1.0);
+                }
+                self.log.push(format!("t{}: the charter's taken - the fold's own gold and the crown's own terms.", self.tick));
+            } else { // refuse: the edge keeps, the assets forgone
+                self.log.push(format!("t{}: the charter's refused - the fold keeps its own edge, and its own poverty.", self.tick));
+            }
+            return;
+        }
         // the exposed one's own release: cut loose WITH the support -
         // the compassion's the counter-intelligence, the informer's
         // leverage fails

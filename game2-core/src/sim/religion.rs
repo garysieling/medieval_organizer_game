@@ -159,6 +159,10 @@ pub struct Doctrine {
 /// A religious community
 #[derive(Debug)]
 pub struct Congregation {
+    /// The crown's own gold's own price: the routinization pressure -
+    /// the sect drifting to the denomination, the edge dulling on the
+    /// legal status
+    pub routinization: f32,
     pub name: String,
     pub members: Vec<Entity>,
     pub leader: Option<Entity>,
@@ -298,6 +302,7 @@ mod tests {
         let mut w = World::new();
         let c = w.create_entity();
         w.add_component(c, Congregation {
+            routinization: 0.0,
             name: "Village Church".into(),
             members: vec![],
             leader: None,
@@ -324,6 +329,7 @@ mod tests {
     fn congregation(w: &mut World, members: Vec<Entity>) -> Entity {
         let c = w.create_entity();
         w.add_component(c, Congregation {
+            routinization: 0.0,
             name: "Village Church".into(), members, leader: None, orthodoxy: 0.5, services: vec![], cultish: false,
         });
         c

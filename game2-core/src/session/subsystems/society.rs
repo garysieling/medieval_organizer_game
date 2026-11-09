@@ -1445,6 +1445,43 @@ impl Game {
         }
     }
 
+    /// The channels' own work: the org's own practiced reach - the
+    /// pulpit's borrowed reach moderated by the fold's own orthodoxy,
+    /// the press slow but its own, the signal-net fast and leaky, the
+    /// symbol everywhere and thin. The levels accrue by the work they
+    /// do, and the fast channel's leaks feed the castle's own eyes
+    pub(in crate::session) fn channel_tick(&mut self, tick: u64) {
+        if tick % 30 != 21 { return; }
+        // the channels' own work accrues on the org's own members - the
+        // leader and the coordinators, the ones who carry the word
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        let orth = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
+            .map(|c| c.orthodoxy).unwrap_or(0.3);
+        let mut leaky = false;
+        for m in members {
+            let Some(mut o) = self.world.get_component::<crate::game::org_skills::Organizing>(m).cloned() else { continue };
+            let org_work = o.get(crate::game::org_skills::OrgSkill::Turnout)
+                + o.get(crate::game::org_skills::OrgSkill::Agitation);
+            o.bump(crate::game::org_skills::OrgSkill::Pulpit, org_work * 0.003 * (1.0 + orth));
+            o.bump(crate::game::org_skills::OrgSkill::Press, org_work * 0.001);
+            o.bump(crate::game::org_skills::OrgSkill::SignalNet, org_work * 0.004);
+            o.bump(crate::game::org_skills::OrgSkill::Symbol, org_work * 0.006);
+            if o.get(crate::game::org_skills::OrgSkill::SignalNet) > 0.5 { leaky = true; }
+            self.world.add_component(m, o);
+        }
+        // the signal-net's own leak: the fast channel's relays reach
+        // the castle's own ears
+        if leaky {
+            for site in &self.sites {
+                let Some(l) = site.lord else { continue };
+                if let Some(w) = self.world.get_component_mut::<Watcher>(l) {
+                    w.paranoia = (w.paranoia + 0.01).min(1.0);
+                }
+            }
+        }
+    }
+
     /// The lord's own counter-rite: a de-oathing ceremony on the
     /// threat-watch - the oath's own binding frays, the members' own
     /// hands loosen, but nobody's taken. The front's own armor: an

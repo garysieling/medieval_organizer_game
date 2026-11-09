@@ -11,7 +11,7 @@ use crate::game::campaign::{self, Role};
 /// A person's organizing craft, separate from their vocation's `Craft`.
 /// All 0..1, all grown by participation - nobody is born knowing how to
 /// run a house meeting.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Organizing {
     /// Relational conversations: 1-1s that surface what someone cares about
     pub one_on_one: f32,
@@ -25,6 +25,18 @@ pub struct Organizing {
     pub training: f32,
     /// The discipline that keeps the watcher's eyes off the weak
     pub security_culture: f32,
+    /// The borrowed channel: the pulpit's own reach, trusted and
+    /// institution-moderated - the church sets the terms
+    pub pulpit: f32,
+    /// The owned channel: the press's own pages - slow, but the
+    /// credibility's the org's own
+    pub press: f32,
+    /// The fast channel: the signal-net's own relays - quick to
+    /// carry, quick to leak
+    pub signal_net: f32,
+    /// The viral channel: the symbol's own spread - everywhere at
+    /// once, and thin on what it says
+    pub symbol: f32,
 }
 
 /// The skills, for passing one around by name
@@ -38,6 +50,14 @@ pub enum OrgSkill {
     /// The discipline that keeps the watcher's eyes off the weak -
     /// a practiced habit, not a wall
     SecurityCulture,
+    /// The borrowed channel: the pulpit's own reach
+    Pulpit,
+    /// The owned channel: the press's own pages
+    Press,
+    /// The fast channel: the signal-net's own relays
+    SignalNet,
+    /// The viral channel: the symbol's own spread
+    Symbol,
 }
 
 impl Organizing {
@@ -50,10 +70,14 @@ impl Organizing {
             OrgSkill::Agitation => self.agitation,
             OrgSkill::Training => self.training,
             OrgSkill::SecurityCulture => self.security_culture,
+            OrgSkill::Pulpit => self.pulpit,
+            OrgSkill::Press => self.press,
+            OrgSkill::SignalNet => self.signal_net,
+            OrgSkill::Symbol => self.symbol,
         }
     }
 
-    fn bump(&mut self, s: OrgSkill, amount: f32) {
+    pub fn bump(&mut self, s: OrgSkill, amount: f32) {
         let v = match s {
             OrgSkill::OneOnOne => &mut self.one_on_one,
             OrgSkill::HouseMeeting => &mut self.house_meeting,
@@ -61,6 +85,10 @@ impl Organizing {
             OrgSkill::Agitation => &mut self.agitation,
             OrgSkill::Training => &mut self.training,
             OrgSkill::SecurityCulture => &mut self.security_culture,
+            OrgSkill::Pulpit => &mut self.pulpit,
+            OrgSkill::Press => &mut self.press,
+            OrgSkill::SignalNet => &mut self.signal_net,
+            OrgSkill::Symbol => &mut self.symbol,
         };
         *v = (*v + amount).min(1.0);
     }

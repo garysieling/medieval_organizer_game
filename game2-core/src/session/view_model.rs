@@ -1408,6 +1408,10 @@ impl Game {
                         Agitation => "stirs a room",
                         Training => "brings others on",
                         SecurityCulture => "keeps counsel",
+                        Pulpit => "borrows the pulpit",
+                        Press => "owns the pages",
+                        SignalNet => "carries the word fast",
+                        Symbol => "spreads the sign",
                     };
                     parts.push(word.into());
                 }

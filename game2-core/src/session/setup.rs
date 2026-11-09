@@ -1169,6 +1169,8 @@ impl Game {
             uprising: None,
             learned_words: 0,
             drought: 0,
+            arc_phase: 0,
+            storyteller: None,
             celebration: None,
             fluent: 0.0,
             shield_cover: None,

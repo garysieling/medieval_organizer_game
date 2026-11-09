@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The teller's own arc: the phase state machine - the setup, the
+    /// escalation, the climax, the resolution - the drama's own
+    /// scheduling, not just the detecting
+    pub arc_phase: u8,
+    /// The teller's own persona: the storyteller's own on/off cycle -
+    /// the threat's own pacing scaled to the village's own state
+    pub storyteller: Option<u64>,
     /// The calendar's own rhythm: the dry-spell counter - the days
     /// since the last event, and the drought-breaker's own payoff at
     /// the long stretch

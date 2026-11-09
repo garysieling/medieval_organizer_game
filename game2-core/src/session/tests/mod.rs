@@ -167,6 +167,7 @@ mod talk_reach;
 mod talk_select;
 mod tavern;
 mod telemetry;
+mod town_growth;
 mod trade_issue;
 mod trail;
 mod vermin;

@@ -8,7 +8,10 @@ fn test_the_print_shop_card_says_what_its_bench_is_learning() {
     let shop = household::spawn_building(&mut g.world, BuildingKind::Shop(Vocation::Printmaker),
         "the print shop", 0.0, 0.0, 10);
     g.building_entities.push(shop);
-    let bi = g.building_entities.len() - 1;
+    // a sprite on the same tile, the way a real building stands: the card
+    // finds the entity by where the sprite stands, not by list position
+    g.buildings.push((0.0, 0.0, BSprite::House(0)));
+    let bi = g.buildings.len() - 1;
     // some progress banked so the card reads a real fraction
     let next = crate::game::tech_tree::next_researchable(&g.tech).unwrap().to_string();
     crate::game::tech_tree::research(&mut g.tech, &next, 2.0);

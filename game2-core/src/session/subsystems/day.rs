@@ -319,6 +319,8 @@ impl Game {
         let mut rng = Rng(self.rng.next());
         // the country's carts and stewards, and its granaries
         crate::timed!("sim.country", self.country_tick(tick));
+        // and once a month, prosperity decides whether the roofs multiply
+        crate::timed!("sim.growth", self.growth_tick(tick));
         // the holy day calls the faithful before anyone's planned the rest
         // the weather resolves before anyone lifts a tool: a rolled event
         // weighs on the day's harvest and health alike

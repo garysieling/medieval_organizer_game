@@ -1442,6 +1442,11 @@ pub struct Game {
     /// The pestilence's own chance-stream: whether and where it walks
     /// the roads mustn't shift the village's other draws
     pub plague_rng: Rng,
+    /// Settlement growth's own stream: which cottage a new roof wears
+    /// mustn't shift the village's other draws
+    pub growth_rng: Rng,
+    /// Consecutive prosperous months counted toward the next growth step
+    pub growth_streak: u32,
     /// The parish congregation: every villager a member, the priest its
     /// leader - holy-day services feed devotion, bonds and the poor box
     pub congregation: Entity,

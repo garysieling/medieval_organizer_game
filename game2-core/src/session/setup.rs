@@ -1055,6 +1055,8 @@ impl Game {
             shroom_rng: Rng(seed ^ 0xCA45),
             forest_rng: Rng(seed ^ 0xF12E),
             plague_rng: Rng(seed ^ 0x9A6E),
+            growth_rng: Rng(seed ^ 0x6A17),
+            growth_streak: 0,
             shroom_disclaimed: false,
             tavern,
             tavern_table: vec![],

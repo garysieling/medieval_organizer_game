@@ -1257,9 +1257,12 @@ impl Game {
                 // a line off the boat: the river feeds you where it runs
                 if self.seats[seat].aboard.is_some() {
                     if let Some(s) = self.world.get_component_mut::<Satchel>(self.seats[seat].player) {
-                        *s.goods.entry("fish".into()).or_insert(0) += 1;
+                        let good = if tick % 365 >= 180 && tick % 365 < 270 { "eel" }
+                            else { "fish" };
+                        *s.goods.entry(good.into()).or_insert(0) += 1;
                     }
-                    self.log.push(format!("t{}: you drop a line - a fish comes to the hand.", tick));
+                    self.log.push(format!("t{}: you drop a line - the water gives you {}.", tick,
+                        if tick % 365 >= 180 && tick % 365 < 270 { "an eel" } else { "a fish" }));
                 }
                 "".into()
             }

@@ -210,6 +210,29 @@ impl Game {
     pub(super) fn sky_moment(&mut self, id: EventId) {
         let s = spec(id);
         match id {
+            EventId::SeaMonster => {
+                // the deep one's sighted off the strand - no bite, no
+                // wreck, just the shape in the water and the season's
+                // talk after. What each of them sees in it reads their
+                // own way: the pious fear it, the rest wonder
+                use crate::sim::psychology::{record_episode, Episode, EpisodeKind};
+                use crate::game::traits::{Personality, Trait};
+                for &v in self.villagers.clone().iter() {
+                    if villager::is_dead(&self.world, v) { continue; }
+                    let pious = self.world.get_component::<Personality>(v)
+                        .map(|t| t.traits.contains(&Trait::Pious)).unwrap_or(false);
+                    let kind = if pious { EpisodeKind::Anxiety } else { EpisodeKind::Warmth };
+                    record_episode(&mut self.world, v, Episode { with: 0, kind });
+                    if (self.rare_roll(id) as usize + v as usize) % 7 == 0 {
+                        self.say(v, if pious { "The deep one stirs - the water keeps its own."
+                            } else { "A great thing in the water - seen it with my own eyes." },
+                            CHAT_BUBBLE_SECS);
+                    }
+                }
+                self.log.push_at_who(format!("t{}: a shape in the water off the strand - the deep one's been seen.", self.tick),
+                    Some((self.village.0 as f32 + 0.5, self.village.1 as f32 + 0.5)), None);
+                self.toasts.push(("The deep one!".into(), self.tick + 40));
+            }
             EventId::LightningStrike => {
                 // the bolt picks one of them - knocked flat where it
                 // lands, not killed; the sky aims where it aims

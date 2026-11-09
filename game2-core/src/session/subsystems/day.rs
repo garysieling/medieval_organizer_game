@@ -263,6 +263,7 @@ impl Game {
         crate::timed!("sim.comeback", self.comeback_tick(tick));
         crate::timed!("sim.fundamentalism", self.fundamentalism_tick(tick));
         crate::timed!("sim.migration", self.migration_tick(tick));
+        crate::timed!("sim.war", self.war_tick(tick));
         crate::timed!("sim.laborers", self.laborer_tick(tick));
         crate::timed!("sim.doctor", self.doctor_tick(tick));
         crate::timed!("sim.stocks", self.stocks_tick(tick));

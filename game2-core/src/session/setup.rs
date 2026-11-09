@@ -1164,6 +1164,7 @@ impl Game {
             cloth_quality: 0.5,
             comeback: None,
             emigration: 0,
+            war: None,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

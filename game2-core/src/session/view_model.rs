@@ -336,11 +336,24 @@ impl Game {
         }
         people.sort_by(|a, b| (a.pos.0 + a.pos.1).partial_cmp(&(b.pos.0 + b.pos.1)).unwrap());
 
+        // buildings and building_entities only line up for the founding
+        // village: country sprites and grown roofs sit at different
+        // indices, so each sprite asks which entity stands on its tile
+        let mut bldg_at: crate::engine::det::HashMap<(i32, i32), usize> = crate::engine::det::HashMap::default();
+        for (i, &e) in self.building_entities.iter().enumerate() {
+            if let Some(p) = world.get_component::<Pos>(e) {
+                bldg_at.insert((p.x.round() as i32, p.y.round() as i32), i);
+            }
+        }
+        let bldg_idx = |x: f32, y: f32| bldg_at.get(&(x.round() as i32, y.round() as i32)).copied();
         let risen = |i: usize| self.works.iter().find(|w| w.building == i).map(|w| w.risen()).unwrap_or(1.0);
         let buildings: Vec<BldgV> = self.buildings.iter().enumerate()
-            .map(|(i, (x, y, s))| BldgV { x: *x, y: *y, sprite: *s, risen: risen(i),
-                derelict: self.derelict.contains(&i) || self.ruined.contains(&i),
-                cutaway: self.cutaways.contains(&i), smoke: i < 3 })
+            .map(|(i, (x, y, s))| {
+                let ei = bldg_idx(*x, *y);
+                BldgV { x: *x, y: *y, sprite: *s, risen: risen(i),
+                    derelict: ei.map(|e| self.derelict.contains(&e) || self.ruined.contains(&e)).unwrap_or(false),
+                    cutaway: ei.map(|e| self.cutaways.contains(&e)).unwrap_or(false), smoke: i < 3 }
+            })
             .collect();
         let bubbles: Vec<BubbleV> = self.bubbles.iter().filter_map(|(e, text, _, thought, _)| {
             // the dead don't talk - a bubble over a grave is ghost chatter
@@ -706,7 +719,15 @@ impl Game {
     /// The inspector card for the building this seat clicked
     pub(in crate::session) fn building_inspector_at(&self, seat: usize) -> Option<InspectorV> {
         let bi = self.seats[seat].selected_building?;
-        let be = *self.building_entities.get(bi)?;
+        let (bx, by) = { let b = self.buildings.get(bi)?; (b.0, b.1) };
+        // the sprite's index means nothing among the entities: country
+        // sprites and grown roofs sit at different indices, so the card
+        // shows the building standing on the sprite's own tile
+        let be = self.building_entities.iter().copied().find(|&e| {
+            self.world.get_component::<Pos>(e)
+                .map(|p| (p.x - bx).abs() < 0.75 && (p.y - by).abs() < 0.75)
+                .unwrap_or(false)
+        })?;
         let world = &self.world;
         let b = world.get_component::<Building>(be)?;
         let mut lines: Vec<Line> = vec![];

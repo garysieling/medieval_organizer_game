@@ -1161,6 +1161,7 @@ impl Game {
             incense: 0.5,
             tea: 0.3,
             cloth_quality: 0.5,
+            comeback: None,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

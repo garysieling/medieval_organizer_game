@@ -39,6 +39,7 @@ mod admin_attrition;
 mod capacity;
 mod cult_end;
 mod clandestine;
+mod comeback;
 mod council;
 mod counter_intel;
 mod craft_stage;

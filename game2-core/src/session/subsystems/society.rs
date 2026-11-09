@@ -1483,6 +1483,37 @@ impl Game {
         }
     }
 
+    /// The prophet's own vulnerability: the revelation-built org has
+    /// no internal way to remove him - the takeover, the co-option,
+    /// the knife-fight over the succession. And the cover's own
+    /// withdrawal: the shield that grants the governing capacity can
+    /// be pulled at the worst moment
+    pub(in crate::session) fn capture_tick(&mut self, tick: u64) {
+        if tick % 60 != 41 { return; }
+        let org = self.org;
+        // the prophet's own capture: the revelation's own org can't
+        // remove its own head - the takeover takes the leader
+        if self.prophet {
+            if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(org) {
+                // the succession's own knife-fight: the members split
+                let n = o.members.len() / 4;
+                for _ in 0..n { o.members.pop(); }
+            }
+            self.log.push(format!("t{}: the prophet's own capture - the succession's knife-fight costs a quarter of the cause.", tick));
+        }
+        // the cover's own withdrawal: the shield that grants the
+        // governing capacity can be pulled - the dependency's the
+        // vulnerability
+        if self.shield_cover.is_some() && self.institutions > 0 {
+            self.shield_cover = None;
+            self.institutions = self.institutions.saturating_sub(1);
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
+                o.capacity = (o.capacity - 0.15).max(0.0);
+            }
+            self.log.push(format!("t{}: the cover's withdrawn - the institution pulls its own shield, and the governing capacity goes with it.", tick));
+        }
+    }
+
     /// The fold's own deadlock: the stall that won't break on its own
     /// - the council's own call, the Constantine's own move, the
     /// influence that settles what the stall can't

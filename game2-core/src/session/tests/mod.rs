@@ -151,6 +151,7 @@ mod pacing;
 mod painter;
 mod panel;
 mod parade;
+mod pedagogy;
 mod pedlar;
 mod perf;
 mod perfume;

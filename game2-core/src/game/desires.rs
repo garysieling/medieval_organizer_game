@@ -130,6 +130,23 @@ pub struct InnerLife {
     pub satisfied: Vec<(Want, u64)>,
 }
 
+/// The deep stat the pedagogy works on: the domination a villager's
+/// own spirit's taken in - it lowers their own initiative, raises the
+/// fear of freedom, and risks the oppressor-within flip; the agency
+/// the consciousness-raising grows; and the experience the action
+/// leaves, which only reflection turns into skill
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Domination {
+    /// How far the domination's taken in - resists joining, fears
+    /// freedom, risks the flip
+    pub internalized_domination: f32,
+    /// The agency the consciousness-raising grows - the will to act
+    pub critical_agency: f32,
+    /// The experience the action leaves - only reflection turns it to
+    /// skill
+    pub experience: f32,
+}
+
 /// What the organizer has learned about this person, piece by piece
 #[derive(Debug, Default)]
 pub struct Known {

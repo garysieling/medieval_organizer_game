@@ -1482,6 +1482,31 @@ impl Game {
         }
     }
 
+    /// The movement school's own work: the community teacher - the
+    /// organic intellectual - grows the members' own agency; the
+    /// imported expert grows the dependency instead. And the folk
+    /// school's own memory: the skill doesn't decay across a defeat
+    pub(in crate::session) fn movement_school_tick(&mut self, tick: u64) {
+        if tick % 30 != 5 { return; }
+        if !self.folk_school { return; }
+        let members = self.world.get_component::<crate::sim::community::Organization>(self.org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        for m in members {
+            let Some(mut d) = self.world.get_component::<crate::game::desires::Domination>(m).copied() else { continue };
+            if self.community_teacher {
+                // the community teacher's own slow work: the agency
+                // grows, the domination's own hold loosens
+                d.critical_agency = (d.critical_agency + 0.01).min(1.0);
+                d.internalized_domination = (d.internalized_domination - 0.005).max(0.0);
+            } else {
+                // the imported expert's own fast path: knowledge, but
+                // the dependency grows - they lean on the outsider
+                d.internalized_domination = (d.internalized_domination + 0.01).min(1.0);
+            }
+            self.world.add_component(m, d);
+        }
+    }
+
     /// The pedagogy's own work: the domination's taken in lowered by
     /// the consciousness-raising, the agency grown on it, and the
     /// praxis loop - the experience the action leaves turned to skill

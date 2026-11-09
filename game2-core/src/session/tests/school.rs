@@ -104,3 +104,37 @@ fn test_the_stones_honored_shift_with_the_roll() {
     g.cairn_tick(g.tick + 1);
     g.monument_tick(g.tick + 1);
 }
+
+#[test]
+fn test_the_community_teacher_grows_the_agency() {
+    let mut g = Game::new();
+    g.folk_school = true;
+    g.community_teacher = true;
+    let m = g.villagers[0];
+    g.world.add_component(m, crate::game::desires::Domination {
+        internalized_domination: 0.5, critical_agency: 0.2, experience: 0.0 });
+    if let Some(o) = g.world.get_component_mut::<crate::sim::community::Organization>(g.org) {
+        if !o.members.contains(&m) { o.members.push(m); }
+    }
+    g.movement_school_tick(35);
+    let d = g.world.get_component::<crate::game::desires::Domination>(m);
+    let agency = d.map(|d| d.critical_agency).unwrap_or(0.2);
+    assert!(agency > 0.2, "the community teacher never grew the agency: {}", agency);
+}
+
+#[test]
+fn test_the_imported_expert_grows_the_dependency() {
+    let mut g = Game::new();
+    g.folk_school = true;
+    g.community_teacher = false; // the imported expert
+    let m = g.villagers[0];
+    g.world.add_component(m, crate::game::desires::Domination {
+        internalized_domination: 0.5, critical_agency: 0.2, experience: 0.0 });
+    if let Some(o) = g.world.get_component_mut::<crate::sim::community::Organization>(g.org) {
+        if !o.members.contains(&m) { o.members.push(m); }
+    }
+    g.movement_school_tick(35);
+    let dom = g.world.get_component::<crate::game::desires::Domination>(m)
+        .map(|d| d.internalized_domination).unwrap_or(0.5);
+    assert!(dom > 0.5, "the imported expert never grew the dependency: {}", dom);
+}

@@ -1456,6 +1456,9 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The cult's own end when it comes - which of the four ways the
+    /// fold's own cage broke, read off the dials
+    pub cult_collapse: Option<crate::sim::religion::CollapseMode>,
     /// A hidden school: the org's own trainings run under cover - slower,
     /// but no shutter reaches them when the lord's emergency bans the
     /// open square

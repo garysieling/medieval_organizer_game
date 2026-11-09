@@ -1124,6 +1124,7 @@ impl Game {
             counter_intel: 0,
             suppression_arc: 0,
             hidden_venue: false,
+            cult_collapse: None,
             player_passed: false,
             martyr_grave: None,
             path_cache: crate::engine::det::HashMap::default(),

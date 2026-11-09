@@ -1456,6 +1456,14 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The underground church's own shape: the Waldensian dissimulation -
+    /// full services while dissimulated, durable, but thin on what it
+    /// can openly push
+    pub hidden_institution: bool,
+    /// The inquisition's own sequence: 0 the summons, 1 the harvest,
+    /// 2 the informers, 3 the prosecution, 4 the relapse - the medieval
+    /// repression ladder's own cycle
+    pub inquisition: Option<u8>,
     /// The lord's own parley: an offer to talk under a flag of peace -
     /// the parley's the trap (the negotiate-and-decapitate play) or a
     /// real settlement - and a partial offer peels the moderates

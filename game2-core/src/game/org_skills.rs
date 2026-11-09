@@ -127,6 +127,12 @@ pub const MOTIVATED_BONUS: f32 = 1.5;
 /// What teaching does for the teacher
 pub const TEACH_PRACTICE: f32 = 0.02;
 
+/// A hidden school: carried on the org - its own trainings run under
+/// cover, slower, but no shutter reaches them when the lord's emergency
+/// bans the open square
+#[derive(Debug, Clone, Copy)]
+pub struct HiddenVenue;
+
 /// Teach a skill: `trainer` teaches `student` a little of `skill`.
 /// Requires the trainer to be an apprentice of it or better, and to
 /// actually out-skill the student (nobody teaches past their own
@@ -148,7 +154,9 @@ pub fn teach(world: &mut World, campaign: Option<Entity>, trainer: Entity, stude
         .and_then(|c| world.get_component::<campaign::Campaign>(c).map(|cc| cc.issue.clone()))
         .map(|issue| campaign::stake_for(world, student, &issue, tick).is_some())
         .unwrap_or(false);
-    let gain = if motivated { LEARN_PER_LESSON * MOTIVATED_BONUS } else { LEARN_PER_LESSON };
+    let mut gain = if motivated { LEARN_PER_LESSON * MOTIVATED_BONUS } else { LEARN_PER_LESSON };
+    // a hidden school's slower: the craft still takes, but under cover
+    if world.get_component::<HiddenVenue>(trainer).is_some() { gain *= 0.6; }
     // a lesson can't lift the student past the teacher's own craft
     let gain = gain.min(trainer_at - student_at);
     practice(world, student, skill, gain);

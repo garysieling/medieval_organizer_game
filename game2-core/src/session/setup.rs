@@ -1141,6 +1141,7 @@ impl Game {
             compliance_burden: 0.0,
             separation_pressure: 0.0,
             suffering_meaning: 0.5,
+            front: false,
             interdict: false,
             player_passed: false,
             martyr_grave: None,

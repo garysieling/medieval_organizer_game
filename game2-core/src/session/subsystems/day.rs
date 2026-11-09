@@ -288,6 +288,7 @@ impl Game {
         crate::timed!("sim.broker", self.broker_tick(tick));
         crate::timed!("sim.sacrament", self.sacrament_tick(tick));
         crate::timed!("sim.doctrine", self.doctrine_tick(tick));
+        crate::timed!("sim.counter_ritual", self.counter_ritual_tick(tick));
         // milk becomes wheels in the dark, and a noble buys the old ones
         crate::timed!("sim.cheese", self.cheese_tick(tick));
         // ale sours, wine turns, and the still owes the wise woman

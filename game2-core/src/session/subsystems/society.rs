@@ -1483,6 +1483,29 @@ impl Game {
         }
     }
 
+    /// The field's own memory: the three-field's own cycle - every
+    /// third year the fallow restores the soil, the other years the
+    /// crop takes it. And the hunger's own gap: the spring's own thin
+    /// stores before the first harvest - the leanest stretch
+    pub(in crate::session) fn rotation_tick(&mut self, tick: u64) {
+        if tick % 30 != 6 { return; }
+        // the three-field's own cycle: a year in three fallow restores
+        // the soil, the rest the crop drains
+        let year = tick / 360;
+        if year % 3 == 2 {
+            self.soil_quality = (self.soil_quality + 0.05).min(1.0);
+        } else {
+            self.soil_quality = (self.soil_quality - 0.02).max(0.3);
+        }
+        // the hunger's own gap: the spring's own thin stores before
+        // the first harvest - the leanest stretch, and the soil's own
+        // quality scales what the yield can answer
+        let day_in_year = tick % 360;
+        if day_in_year >= 90 && day_in_year < 120 && self.soil_quality < 0.5 {
+            self.log.push(format!("t{}: the spring's own gap - the stores run thin before the first harvest, and the soil's own answer's thin with them.", tick));
+        }
+    }
+
     /// The term's own counting: the years under a master accrue, and
     /// at seven the journeyman's own ceremony lifts the skill - the
     /// apprenticeship's own graduation, the piece made

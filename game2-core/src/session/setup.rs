@@ -1156,6 +1156,7 @@ impl Game {
             mystic: None,
             council: None,
             prophet: false,
+            soil_quality: 0.8,
             shield_cover: None,
             vernacular: false,
             discipline: 0.0,

@@ -1451,6 +1451,14 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The lord's own emergency: a staged incident suspends the
+    /// assemblies while it stands - (the day declared, the refutation
+    /// window's end) - beat it fast and the scandal's his, let it run
+    /// and the repression's just how things are
+    pub emergency: Option<(u64, u64)>,
+    /// Witnesses gathered inside the window: each one's a word the
+    /// lord's story can't stand - at a count the scandal lands
+    pub witnesses: u32,
     /// The plant's own proposal when it stands - a violent step at the
     /// campaign's peak, waiting on the player's counter
     pub proposal: Option<u64>,

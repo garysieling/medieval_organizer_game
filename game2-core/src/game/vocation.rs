@@ -157,6 +157,10 @@ pub struct Craft {
     /// The term's own counting: the years under a master - at seven
     /// the journeyman's own ceremony lifts the skill
     pub apprentice_years: u32,
+    /// The work's own stages: the multi-stage construction - the frame,
+    /// the soundboard, the stringing, the finish. At three the
+    /// masterwork's own making lands
+    pub stage: u32,
 }
 
 /// A child: no craft, no level - they run errands and play
@@ -566,7 +570,7 @@ pub fn train_day(craft: &mut Craft) -> Option<Level> {
 
 /// Seed the craft for a character
 pub fn craft(vocation: Vocation, skill: f32) -> Craft {
-    Craft { vocation, skill, workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0, apprentice_years: 0 }
+    Craft { vocation, skill, workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0, apprentice_years: 0, stage: 0 }
 }
 
 #[cfg(test)]

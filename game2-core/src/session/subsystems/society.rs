@@ -1558,6 +1558,28 @@ impl Game {
         }
     }
 
+    /// The work's own stages: the multi-stage construction accrues on
+    /// a master's own guidance - the frame, the soundboard, the
+    /// stringing, the finish. At three the masterwork's own making
+    /// lands - the skill's own lift
+    pub(in crate::session) fn craft_stage_tick(&mut self, tick: u64) {
+        if tick % 30 != 8 { return; }
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let Some(c) = self.world.get_component_mut::<crate::game::vocation::Craft>(v) else { continue };
+            // the master's own guidance moves the stages - the lone
+            // apprentice's own work stays at the frame
+            if c.master.is_none() { continue; }
+            c.stage = (c.stage + 1).min(3);
+            // the masterwork's own making: at three the piece's own
+            // finish lifts the skill - the masterwork's own worth
+            if c.stage >= 3 && c.skill < 0.6 {
+                c.skill = 0.6;
+                self.log.push(format!("t{}: the masterwork's own finish - the stages' own making lands, the piece worth the name.", tick));
+            }
+        }
+    }
+
     /// The term's own counting: the years under a master accrue, and
     /// at seven the journeyman's own ceremony lifts the skill - the
     /// apprenticeship's own graduation, the piece made

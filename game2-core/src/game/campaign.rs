@@ -1023,7 +1023,7 @@ mod tests {
             vocation: crate::game::vocation::Vocation::Mason,
             skill: 0.3, workplace: Some(shop), master: None,
             exposure: 0.0,
-            tasked_by: None, pending: 0.0, apprentice_years: 0,
+            tasked_by: None, pending: 0.0, apprentice_years: 0, stage: 0,
         });
         let candidates = vec!["apprenticeship (baker)".to_string(), "apprenticeship (mason)".to_string()];
         assert_eq!(vote_for(&w, m, &candidates, 10).as_deref(), Some("apprenticeship (mason)"));

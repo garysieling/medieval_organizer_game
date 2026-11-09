@@ -41,6 +41,7 @@ mod cult_end;
 mod clandestine;
 mod council;
 mod counter_intel;
+mod craft_stage;
 mod crops;
 mod determinism;
 mod dialogue;

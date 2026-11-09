@@ -1679,6 +1679,33 @@ impl Game {
         }
     }
 
+    /// The trade's own toll: the dusty and dangerous trades accrue
+    /// their own exposure day on day - past the threshold the trade's
+    /// own disease lands, chronic, the craft's own price. A miner's
+    /// dust, a smith's heat, a miller's mill-stone grit
+    pub(in crate::session) fn trade_exposure_tick(&mut self, tick: u64) {
+        if tick % 10 != 3 { return; }
+        let heavy = |v: crate::game::vocation::Vocation| matches!(v,
+            crate::game::vocation::Vocation::Mason
+            | crate::game::vocation::Vocation::Toolmaker
+            | crate::game::vocation::Vocation::Weaver);
+        for &v in &self.villagers.clone() {
+            if villager::is_dead(&self.world, v) { continue; }
+            let craft = self.world.get_component_mut::<crate::game::vocation::Craft>(v);
+            let Some(c) = craft else { continue };
+            if !heavy(c.vocation) { continue; }
+            c.exposure += 0.005;
+            // past the threshold the trade's own disease lands - a hit
+            // the body keeps, not an illness it shakes
+            if c.exposure >= 0.5 && c.exposure < 0.51 {
+                if let Some(h) = self.world.get_component_mut::<crate::sim::illness::Health>(v) {
+                    h.condition = (h.condition - 0.15).max(0.1);
+                }
+                self.log.push(format!("t{}: the trade's own toll shows - the dust's in the bones now.", tick));
+            }
+        }
+    }
+
     /// The org's own eyes: the level grows with its own discipline
     /// (Turnout + SecurityCulture) and the density of its one-on-ones -
     /// the deep org reads what the lord can't see

@@ -999,6 +999,7 @@ mod tests {
         w.add_component(m, crate::game::vocation::Craft {
             vocation: crate::game::vocation::Vocation::Mason,
             skill: 0.3, workplace: Some(shop), master: None,
+            exposure: 0.0,
             tasked_by: None, pending: 0.0,
         });
         let candidates = vec!["apprenticeship (baker)".to_string(), "apprenticeship (mason)".to_string()];

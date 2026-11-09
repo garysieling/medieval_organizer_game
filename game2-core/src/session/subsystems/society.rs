@@ -1484,6 +1484,31 @@ impl Game {
         }
     }
 
+    /// The calendar's own rhythm: the dry-spell counter accrues, and
+    /// at the long stretch the drought-breaker fires - the payoff
+    /// that keeps the calendar's own promise. A win fires the
+    /// celebration - the conditioning's own juice
+    pub(in crate::session) fn event_pace_tick(&mut self, tick: u64) {
+        if tick % 30 != 5 { return; }
+        // the drought's own accrual: the days since the last event
+        self.drought += 1;
+        // a win's own moment: the comeback's own firing or the
+        // celebration's own juice - the dry spell's own answer
+        if self.comeback.is_some() && self.celebration.is_none() {
+            self.celebration = Some(tick);
+            self.log.push(format!("t{}: the village's own celebration - the win's own moment, the drought's own answer.", tick));
+        }
+        // the drought-breaker: at the long stretch the calendar's own
+        // payoff fires - the "end on success" that keeps the promise
+        if self.drought >= 60 {
+            self.drought = 0;
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                o.capacity = (o.capacity + 0.1).min(1.0);
+            }
+            self.log.push(format!("t{}: the drought-breaker lands - the long stretch ends on a win.", tick));
+        }
+    }
+
     /// The stranger's own tongue: the outlander's own speech glosses
     /// itself over the contact - the ear's own learning accrues, and
     /// the words join the player's own ledger

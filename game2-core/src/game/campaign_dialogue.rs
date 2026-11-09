@@ -1277,7 +1277,7 @@ mod tests {
         for day in 8..408 {
             let (mut w, c, ms) = meeting_world(DecisionRule::Majority);
             let out = MeetingOutcome { attendees: vec![ms[0], ms[1]], healed: vec![],
-                drifted: false, noted: false, consent: false };
+                drifted: false, noted: false, consent: false, splintered: false };
             let d = deliberate_meeting(&mut w, c, &out, day).unwrap();
             for pair in d.said.chunks(2) {
                 let b = MEETING_BEATS.iter().find(|b| b.id == pair[0].beat).unwrap();

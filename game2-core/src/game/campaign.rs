@@ -359,6 +359,25 @@ pub fn seat_holder(world: &World, campaign: Entity, role: Role) -> Option<Entity
 }
 
 /// A member's pull inside the org: the sum of their relationship
+/// How deep a member's own stake runs to the cause: Bridged is the
+/// issue's own stake heard, Amplified is the framing that sits right on
+/// top of it, Transformed is the member who's stayed through the
+/// meetings - alignment's read like morale is read before a stand
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Alignment { Bridged, Amplified, Transformed }
+
+/// Read a member's alignment to the campaign: the stake's own match
+/// (Bridged), the framing's own fit on top (Amplified), the meetings
+/// carried (Transformed) - the deeper tier carries the shallower
+pub fn alignment(world: &World, member: Entity, campaign: Entity, tick: u64) -> Alignment {
+    let stake = world.get_component::<Campaign>(campaign)
+        .and_then(|c| stake_for(world, member, &c.issue, tick)).is_some();
+    if !stake { return Alignment::Bridged; }
+    let meetings = world.get_component::<crate::sim::psychology::AttachmentHistory>(member)
+        .map(|h| h.episodes.len()).unwrap_or(0);
+    if meetings >= 3 { Alignment::Transformed } else { Alignment::Amplified }
+}
+
 /// strengths toward the other living members. The hidden stat that runs
 /// meetings nobody called - it leaks only through who shows up.
 pub fn tie_mass(world: &World, member: Entity, members: &[Entity]) -> f32 {
@@ -399,6 +418,9 @@ pub struct MeetingOutcome {
     pub noted: bool,
     /// Consensus consent: the next action carries a commitment bonus
     pub consent: bool,
+    /// A room too big for the talk: the consensus' own rounds cracked
+    /// the cause - the cause's own split, read off the room's own size
+    pub splintered: bool,
 }
 
 /// Gone too long without meeting: more than `LAPSE_CADENCES` cadences
@@ -439,9 +461,19 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     let drifted = coordinator.is_none() && driver != leader;
 
     use crate::game::relationships::{find_relationship, Relationship};
-    let strength_to = |w: &World, m: Entity| find_relationship(w, m, driver)
-        .and_then(|r| w.get_component::<Relationship>(r))
-        .map(|r| r.strength).unwrap_or(0.0);
+    let strength_to = |w: &World, m: Entity| {
+        let tie = find_relationship(w, m, driver)
+            .and_then(|r| w.get_component::<Relationship>(r))
+            .map(|r| r.strength).unwrap_or(0.0);
+        // alignment's read like morale before a stand: the deeper the
+        // member's own stake, the surer their pull
+        let bonus = match alignment(w, m, campaign, tick) {
+            Alignment::Bridged => 1.0,
+            Alignment::Amplified => 1.2,
+            Alignment::Transformed => 1.4,
+        };
+        tie * bonus
+    };
     let mut attendees: Vec<Entity> = vec![];
     attendees.push(driver);
     for m in &members {
@@ -463,6 +495,9 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
         .filter(|&h| !is_dead(world, h) && in_org(h));
     let noted = note_taker.map(|n| attendees.contains(&n)).unwrap_or(false);
     let consent = rule == DecisionRule::Consensus && attendees.len() >= 2;
+    // and the splinter: a room too big for the talk can crack the cause
+    let splintered = rule == DecisionRule::Consensus && members.len() > 12
+        && (tick.wrapping_mul(53).wrapping_add(campaign as u64)) % 100 < 15;
 
     if attendees.len() >= 2 {
         crate::sim::organized_power::record_action(world, org, crate::sim::organized_power::ActionQuality::Transformational);
@@ -480,7 +515,7 @@ pub fn hold_campaign_meeting(world: &mut World, campaign: Entity, tick: u64) -> 
     // Participation teaches: the room learns meeting craft, the seats
     // learn theirs
     crate::game::org_skills::learn_from_meeting(world, campaign, &attendees);
-    Some(MeetingOutcome { attendees, healed, drifted, noted, consent })
+    Some(MeetingOutcome { attendees, healed, drifted, noted, consent, splintered })
 }
 
 // --- The accountability assembly (IAF): the campaign's own session on
@@ -699,9 +734,19 @@ pub fn hold_assembly(world: &mut World, campaign: Entity, tick: u64) -> Option<A
         .filter(|&d| !crate::game::dungeon::unavailable(world, d))?;
 
     use crate::game::relationships::{find_relationship, Relationship};
-    let strength_to = |w: &World, m: Entity| find_relationship(w, m, driver)
-        .and_then(|r| w.get_component::<Relationship>(r))
-        .map(|r| r.strength).unwrap_or(0.0);
+    let strength_to = |w: &World, m: Entity| {
+        let tie = find_relationship(w, m, driver)
+            .and_then(|r| w.get_component::<Relationship>(r))
+            .map(|r| r.strength).unwrap_or(0.0);
+        // alignment's read like morale before a stand: the deeper the
+        // member's own stake, the surer their pull
+        let bonus = match alignment(w, m, campaign, tick) {
+            Alignment::Bridged => 1.0,
+            Alignment::Amplified => 1.2,
+            Alignment::Transformed => 1.4,
+        };
+        tie * bonus
+    };
     let mut attendees: Vec<Entity> = vec![driver];
     for m in &members {
         if *m == driver || crate::game::dungeon::unavailable(world, *m) { continue; }

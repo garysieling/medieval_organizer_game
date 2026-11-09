@@ -114,6 +114,10 @@ pub struct Craft {
     /// The master they learn under; journeymen and apprentices without one
     /// grow slowly and carry the NoMaster problem
     pub master: Option<Entity>,
+    /// The trade's own toll: long service at the dusty and dangerous
+    /// trades accrues this - past the threshold the trade's own disease
+    /// lands, chronic, the craft's own price
+    pub exposure: f32,
     /// The senior who tasks them (a master tasks a journeyman or apprentice,
     /// an apprentice tasks a journeyman): their output partly goes to the
     /// senior's shop
@@ -512,7 +516,7 @@ pub fn train_day(craft: &mut Craft) -> Option<Level> {
 
 /// Seed the craft for a character
 pub fn craft(vocation: Vocation, skill: f32) -> Craft {
-    Craft { vocation, skill, workplace: None, master: None, tasked_by: None, pending: 0.0 }
+    Craft { vocation, skill, workplace: None, master: None, exposure: 0.0, tasked_by: None, pending: 0.0 }
 }
 
 #[cfg(test)]

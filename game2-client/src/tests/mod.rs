@@ -14,6 +14,7 @@ mod depth;
 mod dialogue;
 mod dog;
 mod dog_sprite;
+mod cave;
 mod ground_cache;
 mod graveyard;
 mod hearts;

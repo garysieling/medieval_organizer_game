@@ -574,6 +574,7 @@ pub struct UiModel {
     pub painted: Vec<(f32, f32)>,
     /// The cave mouth at the map's edge
     pub cave: Option<(f32, f32)>,
+    pub cave_zone: Option<((f32, f32), (f32, f32))>,
     /// The martyr's plot, when the gibbet made one
     pub grave: Option<(f32, f32)>,
     /// The churchyard's grave slots (tile coords) - the client draws

@@ -611,6 +611,8 @@ impl Game {
             painted: self.painted.iter()
                 .filter_map(|&(b, _)| self.world.get_component::<Pos>(b).map(|p| (p.x, p.y))).collect(),
             cave: self.cave_pos.map(|(x, y)| (x as f32, y as f32)),
+            cave_zone: self.cave_zone.map(|((ax, ay), (bx, by))|
+                ((ax as f32, ay as f32), (bx as f32, by as f32))),
             grave: self.martyr_grave.map(|(x, y)| (x as f32, y as f32)),
             graveyard: self.graveyard.as_ref().map(|g| g.slots.clone()).unwrap_or_default(),
             lychgate: self.graveyard.as_ref().and_then(|g| g.gate),

@@ -574,6 +574,14 @@ impl Game {
                         other: e, kind: relationships::InteractionKind::Conversation, intensity: CHAT_INTENSITY,
                     });
                     self.say(who, "Good day to you.", TALK_BUBBLE_SECS);
+                    // an agent seat's chat is a talk like the Wanderer's:
+                    // standing beside the one the job was for hands it
+                    // over - the seat's own quest, not the villager's
+                    if let Some(si) = self.seats.iter().position(|s| s.player == who) {
+                        if let Some(note) = self.quest_talk_done(si, e) {
+                            self.log.push(note);
+                        }
+                    }
                 }
             }
             Goal::Wander | Goal::AttendRite => {}

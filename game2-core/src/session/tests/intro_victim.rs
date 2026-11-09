@@ -105,3 +105,25 @@ fn test_an_agent_driving_the_victim_gets_no_talk_job() {
     // the Wanderer's job is untouched - somebody still owes them an ear
     assert_eq!(g.seats[0].quest.as_ref().map(|q| q.kind), Some(quests::QuestKind::Talk));
 }
+
+/// And an agent's own chat counts: walking to the victim and talking
+/// hands their opening job over, same as the Wanderer's verb
+#[test]
+fn test_an_agent_hears_the_trouble_out_by_talking() {
+    let mut g = Game::new();
+    let (v, _) = g.intro_victim.unwrap();
+    let who = g.villagers.iter().copied().find(|&x| x != v
+        && g.world.get_component::<crate::game::vocation::Kid>(x).is_none()
+        && g.world.get_component::<country::Outlander>(x).is_none()).unwrap();
+    let seat = g.add_agent_seat(who);
+    assert_eq!(g.seats[seat].quest.as_ref().map(|q| q.kind), Some(quests::QuestKind::Talk));
+    // beside them already, the walk's a formality - the chat is the job
+    let at = *g.world.get_component::<Pos>(v).unwrap();
+    *g.world.get_component_mut::<Pos>(who).unwrap() = at;
+    g.agent_command(seat, AgentCmd::TalkTo { e: v }).unwrap();
+    for _ in 0..30 {
+        g.update();
+        if g.seats[seat].quest.is_none() { break; }
+    }
+    assert!(g.seats[seat].quest.is_none(), "the agent's chat didn't hand the job over");
+}

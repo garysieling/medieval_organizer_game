@@ -216,6 +216,8 @@ impl Game {
                 }
             }
         }
+        self.world.add_component(a, relationships::Married { spouse: b, form: 0 });
+        self.world.add_component(b, relationships::Married { spouse: a, form: 0 });
         self.merge_households(a, b);
         let (an, bn) = (self.name_of(a), self.name_of(b));
         let at = (wed.site.0 as f32, wed.site.1 as f32);

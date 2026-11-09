@@ -73,6 +73,17 @@ pub fn hearts_of(strength: f32) -> f32 {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// The marriage's own mark: who the bond's to, and how it ended if it
+/// did - annulled (never valid) or deserted (one walked, the claim
+/// stayed). Carried on each spouse while the union stands
+pub struct Married {
+    /// Who the union's with
+    pub spouse: Entity,
+    /// How it ended, if it did: 0 stands, 1 annulled, 2 deserted
+    pub form: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RelKind {
     Stranger,
     Acquaintance,

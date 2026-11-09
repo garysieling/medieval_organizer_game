@@ -1145,6 +1145,8 @@ impl Game {
             brand_saturation: 0.0,
             parley: None,
             hidden_institution: false,
+            folk_school: false,
+            community_teacher: false,
             inquisition: None,
             interdict: false,
             player_passed: false,

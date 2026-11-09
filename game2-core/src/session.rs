@@ -1456,6 +1456,13 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The org's own school: the movement's own building, where the
+    /// leaders develop and the memory keeps
+    pub folk_school: bool,
+    /// The school's own staffing: a community teacher grows the
+    /// agency; an imported expert grows the dependency instead - the
+    /// organic-intellectual rule
+    pub community_teacher: bool,
     /// The underground church's own shape: the Waldensian dissimulation -
     /// full services while dissimulated, durable, but thin on what it
     /// can openly push

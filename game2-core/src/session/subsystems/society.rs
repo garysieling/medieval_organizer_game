@@ -1484,6 +1484,44 @@ impl Game {
         }
     }
 
+    /// The teller's own arc: the drama's own scheduling - the setup
+    /// looms, the escalation builds, the climax fires, the resolution
+    /// closes. The persona's own on/off cycle paces the threat to
+    /// the village's own state
+    pub(in crate::session) fn storyteller_tick(&mut self, tick: u64) {
+        if tick % 30 != 15 { return; }
+        // the persona's own cycle: the teller's on, then off - the
+        // threat's own pacing, not a continuous pressure
+        if self.storyteller.is_none() && self.arc_phase == 0 {
+            self.storyteller = Some(tick);
+            self.arc_phase = 1;
+            self.log.push(format!("t{}: the teller's own setup - a threat looms on the horizon.", tick));
+            return;
+        }
+        // the arc's own phases: the setup escalates, the climax
+        // fires, the resolution closes
+        match self.arc_phase {
+            1 => { // the escalation's own build
+                self.arc_phase = 2;
+                if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(self.org) {
+                    o.capacity = (o.capacity + 0.05).min(1.0);
+                }
+                self.log.push(format!("t{}: the arc's own escalation - the pressure's own build.", tick));
+            }
+            2 => { // the climax's own firing
+                self.arc_phase = 3;
+                self.log.push(format!("t{}: the arc's own climax - the event's own firing.", tick));
+            }
+            _ => { // the resolution's own close - the teller rests
+                if self.arc_phase == 3 {
+                    self.arc_phase = 0;
+                    self.storyteller = None;
+                    self.log.push(format!("t{}: the arc's own resolution - the story closes, and the teller rests.", tick));
+                }
+            }
+        }
+    }
+
     /// The calendar's own rhythm: the dry-spell counter accrues, and
     /// at the long stretch the drought-breaker fires - the payoff
     /// that keeps the calendar's own promise. A win fires the

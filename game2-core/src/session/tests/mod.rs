@@ -185,6 +185,7 @@ mod protest;
 mod recipes;
 mod quests;
 mod story;
+mod storyteller;
 mod tea;
 mod tech;
 mod textile;

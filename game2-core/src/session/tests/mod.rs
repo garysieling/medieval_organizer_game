@@ -27,6 +27,7 @@ mod contracts;
 mod country;
 mod capacity;
 mod cult_end;
+mod clandestine;
 mod counter_intel;
 mod crops;
 mod determinism;

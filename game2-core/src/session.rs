@@ -1456,6 +1456,17 @@ pub struct Game {
     /// The lord's plant inside the org - the member whose violence is
     /// read as the cause's own when the proposal's pushed
     pub plant: Option<Entity>,
+    /// The org's own secrecy: the oath's own strength (0 none, 1 a
+    /// mild pledge, 2 the curse-backed kind), the cover's own truth,
+    /// and the eyes that get in with size and age
+    pub oath_intensity: u8,
+    /// The cover's own truth: a real mutual aid recruits slow but
+    /// true; a false one's the eyes' own surface in
+    pub cover: bool,
+    /// The eyes inside: informers accrue with the org's own size and
+    /// age - compartmentalization and vetting move the tradeoff, not
+    /// the accrual itself
+    pub penetration: f32,
     /// The cult's own end when it comes - which of the four ways the
     /// fold's own cage broke, read off the dials
     pub cult_collapse: Option<crate::sim::religion::CollapseMode>,

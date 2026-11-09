@@ -1445,6 +1445,37 @@ impl Game {
         }
     }
 
+    /// The org's own secrecy: the oath binds the members' own hands
+    /// (the stronger the oath, the surer they keep - and the steeper
+    /// the fall for the one who breaks it), the cover's own truth
+    /// keeps the eyes' surface thin, and the eyes get in with size
+    /// and age - vetting and compartmentalization move the tradeoff,
+    /// not the accrual itself
+    pub(in crate::session) fn clandestine_tick(&mut self, tick: u64) {
+        if tick % 30 != 22 { return; }
+        let org = self.org;
+        let members = self.world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| o.members.clone()).unwrap_or_default();
+        // the oath's own bind: each member's own hands hold tighter
+        // by the oath's strength
+        for &m in &members {
+            if let Some(b) = self.world.get_component_mut::<crate::sim::psychology::Bond>(m) {
+                b.security = (b.security + self.oath_intensity as f32 * 0.01).min(1.0);
+            }
+        }
+        // the eyes get in with size and age - the cover's own truth
+        // slows them, no cover at all lets them run
+        let age = (tick / 90).min(8) as f32;
+        let accrual = members.len() as f32 * 0.002 + age * 0.004;
+        let rate = if self.cover { accrual * 0.5 } else if self.oath_intensity > 0 { accrual * 1.4 } else { accrual };
+        self.penetration = (self.penetration + rate).min(1.0);
+        // the oath's own stake: at high penetration and a curse-backed
+        // oath, the discovered oath's a crime against the org itself
+        if self.penetration > 0.6 && self.oath_intensity >= 2 {
+            self.log.push(format!("t{}: the eyes find the oath's own writing - the secret's a charge now, not a whisper.", tick));
+        }
+    }
+
     /// The cult's own end: when the dials run past sixty and the
     /// idealism's spent, the cage breaks one of four ways - the
     /// implosion of its own split, the capture by a harder head, the

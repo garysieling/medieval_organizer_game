@@ -1904,6 +1904,21 @@ impl Game {
     /// box: take the room's leaning up, framed as picked - or let it rest
     /// (the next house meeting can put it again)
     pub fn decide_at(&mut self, seat: usize, pick: usize) {
+        // the compliance work's its own answer: spend the cause's own
+        // resources to satisfy the lord's postings, else the burden
+        // ticks the capacity down
+        if self.compliance_burden > 0.0 && pick == 0 && self.dilemma.is_none() {
+            let paid = if let Some(o) = self.world.get_component_mut::<crate::sim::community::Organization>(self.org) {
+                if o.resources > 0.05 { o.resources -= 0.05; true } else { false }
+            } else { false };
+            if paid {
+                self.compliance_burden = (self.compliance_burden - 0.3).max(0.0);
+                self.log.push(format!("t{}: the postings are answered - the burden's satisfied for the day.", self.tick));
+            } else {
+                self.log.push(format!("t{}: the postings go unanswered - the cause hasn't the coin to satisfy them.", self.tick));
+            }
+            return;
+        }
         // the cult's own counters: shelter a soul out, break the milieu,
         // or call the lord's hand - the last replicates the cage's own
         let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)

@@ -25,6 +25,7 @@ mod climate;
 mod continuation;
 mod contracts;
 mod country;
+mod admin_attrition;
 mod capacity;
 mod cult_end;
 mod clandestine;

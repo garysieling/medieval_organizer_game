@@ -1445,6 +1445,39 @@ impl Game {
         }
     }
 
+    /// The lord's own postings: while the org's a threat, the
+    /// reporting/audit burden lands - the compliance work itself is
+    /// the weapon. Unmet, the burden ticks the cause's own capacity
+    /// down; the bigger the cause, the more the eyes demand
+    pub(in crate::session) fn compliance_tick(&mut self, tick: u64) {
+        if tick % 30 != 5 { return; }
+        let org = self.org;
+        let capacity = self.world.get_component::<crate::sim::organized_power::OrganizedPower>(org)
+            .map(|o| o.capacity).unwrap_or(0.0);
+        let members = self.world.get_component::<crate::sim::community::Organization>(org)
+            .map(|o| o.members.len()).unwrap_or(0);
+        // the burden's laid while the cause's a threat and grows with
+        // its own prominence
+        let organizing = self.world.get_component::<crate::game::org_skills::Organizing>(org)
+            .map(|o| o.get(crate::game::org_skills::OrgSkill::Turnout)
+                + o.get(crate::game::org_skills::OrgSkill::Agitation)).unwrap_or(0.0);
+        if organizing >= 0.5 {
+            for site in &self.sites {
+                let Some(l) = site.lord else { continue };
+                let Some(w) = self.world.get_component::<Watcher>(l) else { continue };
+                if w.paranoia < 0.5 { continue; }
+                self.compliance_burden = (self.compliance_burden
+                    + 0.05 + capacity * 0.01 + members as f32 * 0.001).min(1.0);
+            }
+        }
+        // the unmet burden ticks the cause's own capacity down
+        if self.compliance_burden > 0.0 {
+            if let Some(o) = self.world.get_component_mut::<crate::sim::organized_power::OrganizedPower>(org) {
+                o.capacity = (o.capacity - self.compliance_burden * 0.02).max(0.0);
+            }
+        }
+    }
+
     /// The lord's own suit: while the org's a threat, a manor court
     /// action lands - the fees accrue day on day, the longer contested
     /// the deeper the drain. Winning the case and losing the org's a

@@ -43,7 +43,7 @@ pub(crate) const HELP_LINES: [&str; 10] = [
     "O organize  B build",
     "WASD: move   arrows: pan   +/-: zoom",
     "Space: pause   0: speed 4x",
-    "F12: screenshot   Esc: quit",
+    "F12: screenshot   Esc: menu, again to quit",
     "F11: fullscreen",
 ];
 
@@ -61,7 +61,7 @@ pub(crate) fn draw_help(buf: &mut Buffer) {
     draw_overlay(buf, HELP_W, "CONTROLS", (255, 220, 130), &HELP_LINES, HELP_ROW, Some("press H to close"));
 }
 
-pub(crate) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit", "1-8: select villager"];
+pub(crate) const PAUSE_LINES: [&str; 4] = ["Space: resume", "0: speed 1x/4x", "Esc: quit (again)", "1-8: select villager"];
 
 pub(crate) const PAUSE_W: i32 = 260;
 
@@ -241,4 +241,31 @@ pub fn render_intro(facts: &[String]) -> Buffer {
     }
     draw_centered(&mut buf, H as i32 - 60, "press ENTER", 2, (255, 220, 130));
     buf
+}
+
+/// How long the Esc-quit stays armed: the pause card's up the while.
+const QUIT_DBL: std::time::Duration = std::time::Duration::from_millis(2500);
+
+/// The Esc-quit arm (#1063): one Esc in the clear opens the menu - the
+/// pause card - and arms the door; a second inside `QUIT_DBL` quits.
+/// The cancel layers (search, the picker, the intro, a leave on
+/// offer) take their Esc first, so this only ever sees a press in the
+/// clear.
+#[derive(Default)]
+pub struct QuitArm(Option<std::time::Instant>);
+
+impl QuitArm {
+    /// One Esc in the clear: `true` means quit, `false` means the
+    /// menu's just come up.
+    pub fn press(&mut self) -> bool { self.press_at(std::time::Instant::now()) }
+    /// The card's showing while the arm's fresh: a remote seat's world
+    /// doesn't pause for it, so its menu rides this instead.
+    pub fn armed(&self) -> bool { self.armed_at(std::time::Instant::now()) }
+
+    pub(crate) fn press_at(&mut self, now: std::time::Instant) -> bool {
+        if self.armed_at(now) { true } else { self.0 = Some(now); false }
+    }
+    pub(crate) fn armed_at(&self, now: std::time::Instant) -> bool {
+        self.0.and_then(|t| now.checked_duration_since(t)).map(|d| d < QUIT_DBL).unwrap_or(false)
+    }
 }

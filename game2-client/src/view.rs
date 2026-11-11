@@ -49,6 +49,9 @@ pub struct View {
     pub zoom: f32,
     pub inspector_open: bool,
     pub help_open: bool,
+    /// A remote seat's pause card: its world doesn't pause for it, so
+    /// the menu draws off the quit arm instead of `m.paused`.
+    pub pause_open: bool,
     /// the village ledger (F3): the public KPI lines the session built
     pub ledger_open: bool,
     /// Where the mouse rests this frame - the flyer's hover reads it
@@ -117,6 +120,7 @@ impl View {
             zoom: 1.0,
             inspector_open: true,
             help_open: false,
+            pause_open: false,
             ledger_open: false,
             mouse: None,
             mute: false,
@@ -1459,7 +1463,7 @@ impl View {
         }
 
         // pause menu overlay
-        if m.paused {
+        if m.paused || self.pause_open {
             draw_overlay(&mut buf, PAUSE_W, "PAUSED", (255, 255, 255), &PAUSE_LINES, PAUSE_ROW, None);
         }
 

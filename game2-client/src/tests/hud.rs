@@ -77,3 +77,33 @@ fn test_the_satchel_strip_names_the_bag_and_the_belly() {
     m.player_satchel.clear();
     assert_eq!(satchel_strip(&m), "");
 }
+
+#[test]
+fn test_esc_arms_then_quits_on_the_second_press() {
+    let mut door = QuitArm::default();
+    let t0 = std::time::Instant::now();
+    // the first Esc in the clear opens the menu, not the door
+    assert!(!door.press_at(t0));
+    assert!(door.armed_at(t0));
+    // a second one inside the window quits
+    assert!(door.press_at(t0 + std::time::Duration::from_secs(1)));
+    // past the window the arm's gone cold: a lone Esc is the menu again
+    let mut door = QuitArm::default();
+    assert!(!door.press_at(t0));
+    assert!(!door.armed_at(t0 + std::time::Duration::from_secs(3)));
+    assert!(!door.press_at(t0 + std::time::Duration::from_secs(3)));
+}
+
+#[test]
+fn test_the_remote_pause_card_draws_off_the_arm() {
+    let mut game = Game::new_seeded(MAP_SEED);
+    game.paused = false;
+    let mut view = View::new(Art::load_fs("../assets", 0));
+    let m = game.ui_model();
+    // an unpaused world draws no pause card...
+    let plain = view.render(&m, (-1, -1));
+    // ...until the quit arm shows one - the remote seat's menu
+    view.pause_open = true;
+    let armed = view.render(&m, (-1, -1));
+    assert_ne!(plain.pixels, armed.pixels, "the armed card draws nothing");
+}

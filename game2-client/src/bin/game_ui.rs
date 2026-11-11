@@ -6,7 +6,7 @@
 use std::sync::{Arc, Mutex};
 use minifb::{Key, Window, WindowOptions, MouseMode, Scale, ScaleMode};
 use game2_core::engine::render::Buffer;
-use game2_client::{self as client, Art, EventCam, View};
+use game2_client::{self as client, Art, EventCam, QuitArm, View};
 use game2_core::session::{
     self, ClientKind, ClientMsg, Command, ConvoPanelV, Game, SceneCache, ServerMsg, UiModel, MAP_TILES,
 };
@@ -279,11 +279,15 @@ fn main() {
 
     // a Talk on offer draws "x) Take your leave": Escape presses it too,
     // ahead of the quit - the cancel layer sits before the door
-    let mut leave_offered = false;
+    let mut leave_offered: bool;
+    // the first Esc in the clear opens the pause card - the menu - and
+    // arms the quit; a second one inside the window is the door (#1063)
+    let mut door = QuitArm::default();
+    let mut quit = false;
 
     // Escape is a tap, not a hold: while the find box has the keys its
     // Escape lets go of them instead of quitting
-    while window.is_open() && !(window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No) && !view.search_focus && picker.is_none() && intro.is_none() && !leave_offered) {
+    while window.is_open() && !quit {
         let frame_at = std::time::Instant::now();
         // a refusal (a wrong join secret, a full village) ends the session
         // with the server's reason, not a silent title card
@@ -427,6 +431,28 @@ fn main() {
         // standing over the talk
         leave_offered = cur_model.as_ref().map(|m|
             m.convo.as_ref().map(|p| p.leave).unwrap_or(false) || m.talk.in_talk).unwrap_or(false);
+
+        // Esc in the clear: the first opens the pause card (the menu)
+        // and arms the door; the second inside the window quits. The
+        // cancel layers - search, the picker, the intro, a leave on
+        // offer - still take their Esc first
+        if window.is_key_pressed(Key::Escape, minifb::KeyRepeat::No)
+            && !view.search_focus && picker.is_none() && intro.is_none() && !leave_offered {
+            // a card already up - the pause card's own, or the arm's on
+            // a remote seat - means this Esc's the second: the door
+            let card_up = view.pause_open
+                || cur_model.as_ref().map(|m| m.paused).unwrap_or(false);
+            if card_up || door.press() {
+                quit = true;
+            } else if remote.is_none() {
+                // the pause card's the menu: a solo world actually
+                // pauses; a remote seat's card rides the arm (below)
+                if let Some(g) = game.as_mut() { g.command(Command::TogglePause); }
+            }
+        }
+        // a remote seat's world doesn't pause for it - its card rides
+        // the arm, up for the window the quit stays armed
+        view.pause_open = door.armed();
 
         // the sim asked the camera somewhere - an introduction's name:
         // centre on them and lean in, once per ask

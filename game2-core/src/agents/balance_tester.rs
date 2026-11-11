@@ -254,15 +254,17 @@ fn m_gold_spread(r: &RunRecord) -> f64 {
     r.series("econ.gold_spread").iter().map(|(_, v)| *v).fold(0.0f64, f64::max)
 }
 
-/// Share of days the village food store stood empty.
+/// Share of days the village table (the market store and the crop
+/// fields, the pools a hungry villager walks to first) stood empty.
 fn m_stockout_share(r: &RunRecord) -> f64 {
     let food: HashMap<u64, f64> = r.series("stock.food").into_iter().collect();
     let n = r.samples.iter().filter(|s| food.get(&s.tick).copied().unwrap_or(0.0) <= 0.0).count();
     if r.days == 0 { 0.0 } else { n as f64 / r.days as f64 }
 }
 
-/// Median days of cover in the store: servings on hand per villager,
-/// read as "how long could the village eat if all supply stopped".
+/// Median days of cover on the village table (store + crop fields):
+/// servings on hand per villager, read as "how long could the village
+/// eat if all supply stopped".
 fn m_food_cover(r: &RunRecord) -> f64 {
     let alive: HashMap<u64, f64> = r.series("villagers.alive").into_iter().collect();
     let mut covers: Vec<f64> = r.series("stock.food").iter()

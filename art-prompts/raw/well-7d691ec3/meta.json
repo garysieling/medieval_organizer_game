@@ -1,0 +1,27 @@
+{
+ "created_at": 1794192617,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 33.61,
+ "request_id": "0d27a0db-2eb2-47e8-a9bf-201318a18a8f",
+ "outputs_retained_until": 1794278914,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 33.61
+ },
+ "id": "well-7d691ec3",
+ "prompt": "single isometric medieval village asset: stone village well with little wooden roof and bucket",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T21:50:17",
+ "seconds": 103.1
+}

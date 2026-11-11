@@ -213,6 +213,13 @@ pub struct Art {
     /// Market-day stalls (sellers' looks), and the pedlar's striped booth
     pub stalls: Vec<Sprite>,
     pub trader_stall: Option<Sprite>,
+    /// The village well and meeting hall on the grass by the market
+    /// square (assets/rd/bits); None: they go undrawn
+    pub well_s: Option<Sprite>,
+    pub hall_s: Option<Sprite>,
+    /// Chimney-smoke frames (assets/rd/bits/smoke*): wispy puffs rising;
+    /// empty keeps the drawn puffs
+    pub smoke: Vec<Sprite>,
     /// The footbridge over the river: deck along x, along y
     pub bridges: [Option<Sprite>; 2],
     /// The memorial pieces (assets/rd/monuments, #703): wayside cross,
@@ -850,6 +857,9 @@ impl Art {
             memorial_cairns: (1..=2).filter_map(|i| at(&format!("rd/monuments/cairn{}.png", i))).collect(),
             stalls: bits("stall"),
             trader_stall: at("rd/bits/trader-stall.png"),
+            well_s: at("rd/bits/well.png"),
+            hall_s: at("rd/bits/meeting-hall.png"),
+            smoke: bits("smoke"),
             bridges: [at("rd/bits/bridge_x.png"), at("rd/bits/bridge_y.png")],
             skeps: bits("skep"),
             graves: bits("grave"),

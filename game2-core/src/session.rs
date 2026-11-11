@@ -921,13 +921,15 @@ pub enum BSprite {
 
 /// The workplaces that wear their own look instead of a cottage's
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop, Factory }
+pub enum WorkLook { Tavern, Bakery, Granary, WatchHouse, Fold, Apiary, Cellar, Workshop, Factory,
+    Tailor, Glazier, Printshop, MasonsYard, Luthier, Farmhouse }
 
 impl WorkLook {
-    pub const N: usize = 9;
+    pub const N: usize = 15;
     pub const ALL: [WorkLook; WorkLook::N] = [WorkLook::Tavern, WorkLook::Bakery, WorkLook::Granary,
         WorkLook::WatchHouse, WorkLook::Fold, WorkLook::Apiary, WorkLook::Cellar, WorkLook::Workshop,
-        WorkLook::Factory];
+        WorkLook::Factory, WorkLook::Tailor, WorkLook::Glazier, WorkLook::Printshop,
+        WorkLook::MasonsYard, WorkLook::Luthier, WorkLook::Farmhouse];
 
     /// Its sprites' name under assets/rd/buildings (name1.png, name2.png)
     pub fn file(self) -> &'static str {
@@ -936,16 +938,25 @@ impl WorkLook {
             WorkLook::WatchHouse => "watch-house", WorkLook::Fold => "fold", WorkLook::Apiary => "apiary",
             WorkLook::Cellar => "cheese-cellar", WorkLook::Workshop => "workshop",
             WorkLook::Factory => "factory",
+            WorkLook::Tailor => "tailor", WorkLook::Glazier => "glazier",
+            WorkLook::Printshop => "printshop", WorkLook::MasonsYard => "masons-yard",
+            WorkLook::Luthier => "luthier", WorkLook::Farmhouse => "farmhouse",
         }
     }
 
-    /// The look a kind of building wears: None keeps a cottage (homes, the
-    /// farmhouse) or a look of its own (the smithy, the church)
+    /// The look a kind of building wears: None keeps a cottage (homes) or
+    /// a look of its own (the smithy, the church)
     pub fn of(kind: BuildingKind) -> Option<WorkLook> {
         Some(match kind {
             BuildingKind::Shop(Vocation::Taverner | Vocation::Alewife | Vocation::Brewer) => WorkLook::Tavern,
             BuildingKind::Shop(Vocation::Baker) => WorkLook::Bakery,
-            BuildingKind::Shop(Vocation::Farmer | Vocation::Toolmaker) => return None,
+            BuildingKind::Shop(Vocation::Tailor) => WorkLook::Tailor,
+            BuildingKind::Shop(Vocation::Glazier) => WorkLook::Glazier,
+            BuildingKind::Shop(Vocation::Printmaker) => WorkLook::Printshop,
+            BuildingKind::Shop(Vocation::Mason) => WorkLook::MasonsYard,
+            BuildingKind::Shop(Vocation::Luthier) => WorkLook::Luthier,
+            BuildingKind::Shop(Vocation::Farmer) => WorkLook::Farmhouse,
+            BuildingKind::Shop(Vocation::Toolmaker) => return None,
             BuildingKind::Schoolhouse | BuildingKind::PostOffice => return None,
             BuildingKind::Shop(_) => WorkLook::Workshop,
             BuildingKind::Granary => WorkLook::Granary,
@@ -1030,6 +1041,10 @@ pub struct Game {
     pub doctor: Option<Doctor>,
     /// The stocks stand by the market - a fixed prop, picked at settle
     pub stocks_tile: Option<(i32, i32)>,
+    /// The village well and meeting hall: fixed props on the clear grass
+    /// beside the market square, picked at settle like the stocks' tile
+    pub well_tile: Option<(i32, i32)>,
+    pub hall_tile: Option<(i32, i32)>,
     /// The lord's works: commissions the castle's treasury pays for,
     /// standing on their day (site index, the work, the day it rises)
     pub lord_works: Vec<(usize, crate::session::country::LordWork, u64)>,

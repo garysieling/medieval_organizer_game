@@ -1,0 +1,27 @@
+{
+ "created_at": 1794193236,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 32.35,
+ "request_id": "161d3b3b-e439-4374-b45c-8bc706c2d53d",
+ "outputs_retained_until": 1794279569,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 32.35
+ },
+ "id": "shop-farm-60cee6b1",
+ "prompt": "single isometric medieval village asset: farmhouse with fenced field and hay cart",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T22:00:36",
+ "seconds": 67.9
+}

@@ -1,0 +1,27 @@
+{
+ "created_at": 1794192508,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 33.79,
+ "request_id": "a50ef9e7-1915-43d3-ab1e-5b3e3b5e259c",
+ "outputs_retained_until": 1794278849,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 33.79
+ },
+ "id": "meeting-hall-0354c806",
+ "prompt": "single isometric medieval village asset: village meeting hall with bench rows and hearth",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T21:48:34",
+ "seconds": 64.9
+}

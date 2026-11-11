@@ -376,6 +376,13 @@ impl View {
         if let Some((x, y)) = m.stocks {
             if let Some(s) = art.stocks.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
         }
+        // the well and the meeting hall on the grass by the square
+        if let Some((x, y)) = m.well {
+            if let Some(s) = art.well_s.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
+        }
+        if let Some((x, y)) = m.hall {
+            if let Some(s) = art.hall_s.as_ref() { standing.push((x as f32, y as f32, Piece::Stand(s))); }
+        }
         // the lychgate over the churchyard path, when the graveyard's
         // planning found its spot
         if let Some((x, y)) = m.lychgate {
@@ -692,8 +699,20 @@ impl View {
                 // circles on the roof)
                 Who::Smoke(i) => {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
-                    for (x, y, size, grey) in smoke_puffs(m.frame + i as u32 * 37, sx, sy, zoom) {
-                        buf.rect(x, y, size, size, grey, grey, grey + 6);
+                    let puffs = smoke_puffs(m.frame + i as u32 * 37, sx, sy, zoom);
+                    if art.smoke.is_empty() {
+                        for (x, y, size, grey) in puffs {
+                            buf.rect(x, y, size, size, grey, grey, grey + 6);
+                        }
+                    } else {
+                        // the generated wisps: the same three-slot rise,
+                        // each slot cycling a smoke frame as it climbs
+                        for (k, &(x, y, size, _)) in puffs.iter().enumerate() {
+                            let s = &art.smoke[(m.frame as usize / 6 + k) % art.smoke.len()];
+                            let h = (size * 3).max(3);
+                            let w = (s.width as f32 * h as f32 / s.height as f32).round().max(1.0) as i32;
+                            draw_zoomed(&mut buf, s, x - w / 2, y - h / 2, h as f32 / s.height as f32);
+                        }
                     }
                 },
                 Who::P(pv) if let PKind::Villager(i) = pv.kind => {

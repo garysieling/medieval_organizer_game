@@ -223,3 +223,35 @@ Round 5 (`props` group, notes "round 5"): every 64px piece uses
 plays N frames into the dumped day, so stalls and congregations show
 (e.g. `--dump-frame 110 --seed 7` + 100 frames: two stalls).
 Screenshots: `evidence/rd-round5/`.
+
+## P0 buildings and shops (2026-11-08, $1.80 fresh + reuse)
+
+Issue #688: the P0 catalog's 20 prompts (`generate_art_prompts.py`
+buildings/buildings-shops/colors groups). Ten subjects already had paid
+output under older ids - reused, not regenerated (old raw dir -> catalog
+id): `church-keep` -> `church`, `watch-house` -> `watch-post`,
+`windmill-tall`+`windmill-sails` -> `mill-tower`+`mill-sails`,
+`granary` -> `granary`, `trader-stall` -> `trader-stall`,
+`guildhall` -> `guildhall`, `market-stall` -> `market-stands`,
+`bakery` -> `shop-bakery`, `smithy` -> `shop-smithy`. All ten catalog ids
+are marked done in `generated.json`; the reuse map is in the PR.
+
+- **Palette** (`raw/palette-english-countryside-860d3b3d`, rd_pro__simple
+  128px): the countryside swatch chart, kept as the reference for later
+  passes; the pipeline has no `input_palette` field, so fresh calls ran
+  plain `rd_pro__isometric`.
+- **New shops** (`buildings/{tailor,glazier,printshop,masons-yard,
+  luthier,farmhouse}1.png`, `@58 --flush-base`): `WorkLook` grew six
+  variants and `WorkLook::of` maps Tailor/Glazier/Printmaker/Mason/
+  Luthier/Farmer shops to them (the smithy keeps `BSprite::Blacksmith`,
+  other trades keep the workshop). One variant each; winter snow comes
+  from `works_winter` like the rest.
+- **Commons** (`bits/well.png@40`, `bits/meeting-hall.png@54`): the
+  village well and meeting hall stand on the first clear grass tiles
+  beside the market square (`Game::well_tile`/`hall_tile`, picked at
+  settle like the stocks'), drawn as `UiModel.well`/`hall` props.
+- **Smoke** (`bits/smoke1.png@20`): the generated wisp cycles through
+  the same three-slot rise the drawn puffs used; no file, drawn puffs.
+
+`--focus` also takes the new look names (`tailor`, `glazier`, ...).
+Screenshots: `evidence/rd-p0-buildings/`.

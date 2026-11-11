@@ -1,0 +1,27 @@
+{
+ "created_at": 1794192693,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 33.43,
+ "request_id": "5506e931-6d75-4a8a-872d-c490e432925d",
+ "outputs_retained_until": 1794279017,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 33.43
+ },
+ "id": "smoke-8c270130",
+ "prompt": "single isometric medieval village asset: wispy chimney smoke puffs, three stages rising",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T21:51:34",
+ "seconds": 77.1
+}

@@ -1601,12 +1601,14 @@ const EVENT_MARGIN: f32 = 80.0;
 pub const EVENT_HOLD: u32 = 240;
 
 /// The zoom that frames an event `extent` tiles across the map view:
-/// only ever zooms out - a small gathering keeps the player's zoom,
-/// a street-wide march pulls back toward MIN_ZOOM
-pub fn event_zoom(extent: f32, current: f32) -> f32 {
+/// a march only ever zooms out - a small stretch of the column keeps
+/// the player's zoom, a street-wide one pulls back toward MIN_ZOOM.
+/// A gathering (`lean_in`) leans the other way: a tight house-meeting
+/// circle draws the camera close enough that the faces read
+pub fn event_zoom(extent: f32, current: f32, lean_in: bool) -> f32 {
     let fit = ((MAP_W as f32 - 2.0 * EVENT_MARGIN) / (extent.max(1.0) * 4.0 * TILE_W as f32))
         .clamp(MIN_ZOOM, MAX_ZOOM);
-    current.min(fit)
+    if lean_in { fit } else { current.min(fit) }
 }
 
 /// The event camera's state between frames: which event it's on, how
@@ -1639,7 +1641,7 @@ impl EventCam {
             self.hold = 0;
             let (cx, cy) = camera_on(ev.pos.0, ev.pos.1);
             self.ease = Some((cx as f32, cy as f32));
-            return ((cx, cy), event_zoom(ev.extent, zoom));
+            return ((cx, cy), event_zoom(ev.extent, zoom, ev.kind == 1));
         }
         if self.hold > 0 {
             self.hold -= 1;

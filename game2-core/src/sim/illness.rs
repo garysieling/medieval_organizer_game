@@ -42,6 +42,9 @@ pub enum DiseaseKind {
     /// "the pestilence" - the plague; it walks the roads between
     /// settlements on the carriers' backs, not on any season's calendar
     Plague,
+    /// "the speckled monster" - smallpox; winter's pox, beaten for life
+    /// by the lancet's scratch - if you can stand the scratch
+    Smallpox,
 }
 
 impl DiseaseKind {
@@ -59,6 +62,7 @@ impl DiseaseKind {
             DiseaseKind::Dysentery => "the flux",
             DiseaseKind::Ague => "the ague",
             DiseaseKind::Plague => "the pestilence",
+            DiseaseKind::Smallpox => "the speckled monster",
         }
     }
 
@@ -77,6 +81,7 @@ impl DiseaseKind {
             DiseaseKind::Dysentery => 2,
             DiseaseKind::Ague => 10,       // a fortnight's brewing, tertian
             DiseaseKind::Plague => 4,      // a few days' silent walk before the bubo tells
+            DiseaseKind::Smallpox => 8,    // fortnight-ish of quiet before the pocks tell
         }
     }
 
@@ -93,6 +98,7 @@ impl DiseaseKind {
             DiseaseKind::Typhoid => Some((240, 300)),    // autumn's slow fever
             DiseaseKind::Dysentery => Some((180, 240)),  // summer's flux
             DiseaseKind::Influenza => Some((300, 60)),   // winter's grippe
+            DiseaseKind::Smallpox => Some((300, 60)),    // winter's pox rides the same cold
             // the pestilence keeps no season - it comes when the roads carry it
             _ => None,                                 // Ergotism/Gripes - no season
         }
@@ -117,7 +123,7 @@ impl DiseaseKind {
             DiseaseKind::Cholera | DiseaseKind::Typhoid | DiseaseKind::Dysentery => Route::Water,
             DiseaseKind::Ergotism | DiseaseKind::Gripes => Route::Ingested,
             DiseaseKind::Ague => Route::Vector,
-            DiseaseKind::Plague => Route::Contact,
+            DiseaseKind::Plague | DiseaseKind::Smallpox => Route::Contact,
         }
     }
 
@@ -142,6 +148,7 @@ impl DiseaseKind {
             DiseaseKind::Dysentery => 0.1,
             DiseaseKind::Ague => 0.05, // the marsh always sends it back
             DiseaseKind::Plague => 0.05, // and the pestilence leaves the body nearly as it found it
+            DiseaseKind::Smallpox => 0.9, // beat it and it's beaten for life
         }
     }
 
@@ -337,6 +344,25 @@ const TRANSMITTED_SEVERITY: f32 = 0.8;
 #[derive(Debug, Default)]
 pub struct Exposure(pub f32);
 
+/// The Act's scratch: vaccination marks the arm and beats the speckled
+/// monster for life - the physician's own lesson, not the fever's
+#[derive(Debug)]
+pub struct SmallpoxVaccine;
+
+/// The Leicester counter-institution: where the Act's compulsion's
+/// refused, the village holds its own line - the word cried, the sick
+/// kept apart, contacts held, houses cleansed - without the officer's
+/// hand. Each phase a season's work, and the later phases close the
+/// pox's road neighbour to neighbour.
+#[derive(Debug)]
+pub struct LeicesterInstitution {
+    /// The day the village took its own line
+    pub since: u64,
+    /// 0 the word's cried, 1 the sick kept apart, 2 the contacts held,
+    /// 3 the houses cleansed - the pox finds no road
+    pub phase: u8,
+}
+
 /// Contagious diseases spread by proximity: each tick, healthy agents within
 /// CONTACT_RANGE of an actively sick one build up exposure in proportion to
 /// that patient's severity (fading when they're away from the sick); once
@@ -344,6 +370,12 @@ pub struct Exposure(pub f32);
 /// The latent don't shed - a brewing sickness keeps its secret.
 fn spread_contagion(world: &mut World) {
     use crate::game::villager::Pos;
+    // the Leicester method's working, if the village's taken it up:
+    // isolation thins the dose, quarantine and disinfection close the
+    // pox's road outright - no compulsion, just the held line
+    let leicester = world.query::<LeicesterInstitution>().first().copied()
+        .and_then(|e| world.get_component::<LeicesterInstitution>(e))
+        .map(|l| l.phase).unwrap_or(0);
     let mut sources = vec![]; // (position, severity, kind, patient)
     let mut sick = vec![];
     for d in world.query::<Disease>() {
@@ -358,14 +390,25 @@ fn spread_contagion(world: &mut World) {
         if sick.contains(&e) { continue; }
         if crate::game::villager::is_dead(world, e) { continue; } // the dead don't catch it
         let Some(p) = world.get_component::<Pos>(e).map(|p| (p.x, p.y)) else { continue };
+        // the scratch holds the pox off the marked arm, and the
+        // cleansed village turns the speckled monster from the door
+        let pox_shut = world.get_component::<SmallpoxVaccine>(e).is_some() || leicester >= 3;
         let home = crate::game::household::home_of(world, e);
         let near: Vec<_> = sources.iter()
-            .filter(|((x, y), _, _, _)| (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE)
+            .filter(|((x, y), _, kind, _)| {
+                (x - p.0).abs() + (y - p.1).abs() <= CONTACT_RANGE
+                    && !(pox_shut && *kind == DiseaseKind::Smallpox)
+            })
             .collect();
-        // under one roof the dose doubles - the fever respects the rent
-        let dose: f32 = near.iter().map(|(_, sev, _, src)| {
+        // under one roof the dose doubles - the fever respects the rent;
+        // the method's young phases thin it again - isolation, then
+        // quarantine, until disinfection closes the road
+        let dose: f32 = near.iter().map(|(_, sev, kind, src)| {
             let crowding = if home.is_some() && home == crate::game::household::home_of(world, *src) { 2.0 } else { 1.0 };
-            sev * EXPOSURE_RATE * crowding
+            let held = if *kind == DiseaseKind::Smallpox {
+                match leicester { 1 => 0.6, 2 => 0.4, _ => 1.0 }
+            } else { 1.0 };
+            sev * EXPOSURE_RATE * crowding * held
         }).sum();
         if dose == 0.0 && world.get_component::<Exposure>(e).is_none() { continue; }
         if world.get_component::<Exposure>(e).is_none() {
@@ -709,5 +752,89 @@ mod tests {
             patient: p, stage: Stage::Recovering, severity: 0.05, contagious: false, incubation: 0 });
         IllnessSystem.run(&mut w);
         assert!(w.query::<Relapse>().is_empty(), "la grippe is gone for good");
+    }
+
+    fn infect_kind(w: &mut World, patient: Entity, kind: DiseaseKind, severity: f32) {
+        let d = w.create_entity();
+        w.add_component(d, Disease { kind, name: kind.name().into(), patient,
+            stage: Stage::Moderate, severity, contagious: true, incubation: 0 });
+    }
+
+    #[test]
+    fn test_the_speckled_monster_walks_the_same_roads() {
+        let mut w = World::new();
+        let zero = villager_at(&mut w, 0.0, 0.5);
+        let neighbour = villager_at(&mut w, 2.0, 0.5);
+        let far = villager_at(&mut w, 20.0, 0.5);
+        infect_kind(&mut w, zero, DiseaseKind::Smallpox, 0.7);
+        for _ in 0..40 { IllnessSystem.run(&mut w); }
+        assert!(is_sick(&w, neighbour), "the pox passes neighbour to neighbour");
+        assert!(!is_sick(&w, far), "and no further than the cough carries");
+    }
+
+    #[test]
+    fn test_the_scratch_holds_the_pox_off_the_marked_arm() {
+        let mut w = World::new();
+        let zero = villager_at(&mut w, 0.0, 0.5);
+        let marked = villager_at(&mut w, 2.0, 0.5);
+        let plain = villager_at(&mut w, -2.0, 0.5);
+        w.add_component(marked, SmallpoxVaccine);
+        infect_kind(&mut w, zero, DiseaseKind::Smallpox, 0.7);
+        for _ in 0..40 { IllnessSystem.run(&mut w); }
+        assert!(!is_sick(&w, marked), "the Act's mark holds the pox off for life");
+        assert!(is_sick(&w, plain), "the unmarked arm still catches it");
+    }
+
+    #[test]
+    fn test_leicester_closes_the_pox_road_once_the_method_holds() {
+        let mut w = World::new();
+        let house = w.create_entity();
+        w.add_component(house, LeicesterInstitution { since: 0, phase: 3 });
+        let zero = villager_at(&mut w, 0.0, 0.5);
+        let neighbour = villager_at(&mut w, 2.0, 0.5);
+        infect_kind(&mut w, zero, DiseaseKind::Smallpox, 0.7);
+        for _ in 0..40 { IllnessSystem.run(&mut w); }
+        assert!(!is_sick(&w, neighbour), "the cleansed village turns the pox from the door");
+    }
+
+    #[test]
+    fn test_quarantine_thins_the_dose_but_does_not_close_it() {
+        let run = |phase: Option<u8>| {
+            let mut w = World::new();
+            if let Some(p) = phase {
+                let h = w.create_entity();
+                w.add_component(h, LeicesterInstitution { since: 0, phase: p });
+            }
+            let zero = villager_at(&mut w, 0.0, 0.5);
+            // near-proof: the dose builds but no case takes hold inside
+            // the window, so the exposure itself can be read
+            let neighbour = villager_at(&mut w, 2.0, 0.95);
+            infect_kind(&mut w, zero, DiseaseKind::Smallpox, 0.7);
+            for _ in 0..15 { IllnessSystem.run(&mut w); }
+            w.get_component::<Exposure>(neighbour).map(|x| x.0).unwrap_or(0.0)
+        };
+        let open = run(None);
+        let held = run(Some(2));
+        assert!(held > 0.0 && held < open,
+            "quarantine thins what the well neighbour breathes, but the pox still finds a road");
+    }
+
+    #[test]
+    fn test_the_speckled_monster_kills_about_a_third() {
+        let mut w = World::new();
+        // a winter's worth of cases at the Act's feared severity, the
+        // village's ordinary mix of humours
+        for i in 0..30 {
+            // spaced past the cough's reach - thirty separate cases, not
+            // one conflagration
+            let p = villager_at(&mut w, i as f32 * 10.0, 0.3 + (i % 5) as f32 * 0.1);
+            let d = w.create_entity();
+            w.add_component(d, Disease::new(DiseaseKind::Smallpox, p, 0.85));
+        }
+        for _ in 0..400 { IllnessSystem.run(&mut w); }
+        let dead = w.query::<Health>().iter().filter(|&&e|
+            w.get_component::<Health>(e).map(|h| h.condition <= 0.0).unwrap_or(false)).count();
+        assert!(dead >= 4 && dead <= 16,
+            "the speckled monster should reap about a third - got {dead} of 30");
     }
 }

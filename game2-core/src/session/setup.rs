@@ -1046,6 +1046,7 @@ impl Game {
             journal: crate::session::journal::Journal::new(seed),
             notices: vec![],
             dilemma: None, dilemma_debts: vec![],
+            vax_offer: None, vax_done: false, leicester_backing: None,
             boats: vec![(10, 5), (20, 8)],
             construction_sites: vec![],
             law_book: crate::game::laws::LawBook::new(),

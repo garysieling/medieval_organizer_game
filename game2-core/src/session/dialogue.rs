@@ -589,6 +589,22 @@ impl Game {
     /// then the seat's Talk
     pub fn convo_panel_at(&self, seat: usize) -> Option<ConvoPanelV> {
         let s = &self.seats[seat];
+        if self.vax_offer.is_some() {
+            return Some(ConvoPanelV {
+                title: "THE VACCINATION ACT".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "The Act's officer reads the order on the square: every infant takes the lancet's scratch, and the refusers pay the fine.".into() },
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "A third way's whispered in the crowd - the Leicester method: the word cried, the sick kept apart, contacts held, houses cleansed. Your call.".into() },
+                ],
+                options: vec![
+                    "Let the Act stand - the infants take the scratch".into(),
+                    "Refuse it - the refusers pay, and the league forms".into(),
+                    "The Leicester way - the village holds its own line".into(),
+                ],
+                decides: true, leave: false });
+        }
         let cultish = self.world.get_component::<crate::sim::religion::Congregation>(self.congregation)
             .map(|c| c.cultish).unwrap_or(false);
         if cultish && self.proposal.is_none() && self.seat_offer.is_none()

@@ -83,11 +83,28 @@ impl Game {
                         .map(|c| c.vocation == voc && c.workplace.is_none()).unwrap_or(false)
             });
             let Some(w) = hand else { continue };
-            if let Some(c) = self.world.get_component_mut::<Craft>(w) { c.workplace = Some(e); }
-            if let Some(b) = self.world.get_component_mut::<Building>(e) { b.worker = Some(w); }
-            let wname = self.villagers.iter().position(|&v| v == w).map(|i| vill_name(i)).unwrap_or("a hand");
-            self.log_entity(w, format!("t{}: {} takes up the {} again - a prosperous village needs every hand.",
-                tick, wname, vocation::trade_name(voc)));
+            if let Some(c) = self.world.get_component_mut::<Craft>(w) {
+                c.workplace = Some(e);
+            }
+            if let Some(b) = self.world.get_component_mut::<Building>(e) {
+                b.worker = Some(w);
+            }
+            let wname = self
+                .villagers
+                .iter()
+                .position(|&v| v == w)
+                .map(|i| vill_name(i))
+                .unwrap_or("a hand");
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                w,
+                format!(
+                    "t{}: {} takes up the {} again - a prosperous village needs every hand.",
+                    tick,
+                    wname,
+                    vocation::trade_name(voc)
+                ),
+            );
             return true;
         }
         false
@@ -140,16 +157,37 @@ impl Game {
         let road = self.map.plan_road((x, y));
         self.works.push(Works { building: bi, road, frames: 0 });
         if let Some(w) = hand {
-            if let Some(c) = self.world.get_component_mut::<Craft>(w) { c.workplace = Some(e); }
-            if let Some(b) = self.world.get_component_mut::<Building>(e) { b.worker = Some(w); }
-            let wname = self.villagers.iter().position(|&v| v == w).map(|i| vill_name(i)).unwrap_or("a hand");
-            self.log_entity(w, format!("t{}: {} takes up the {} - a prosperous village needs every hand.",
-                tick, wname, name));
+            if let Some(c) = self.world.get_component_mut::<Craft>(w) {
+                c.workplace = Some(e);
+            }
+            if let Some(b) = self.world.get_component_mut::<Building>(e) {
+                b.worker = Some(w);
+            }
+            let wname = self
+                .villagers
+                .iter()
+                .position(|&v| v == w)
+                .map(|i| vill_name(i))
+                .unwrap_or("a hand");
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                w,
+                format!(
+                    "t{}: {} takes up the {} - a prosperous village needs every hand.",
+                    tick, wname, name
+                ),
+            );
         }
-        self.log.push_at_who(format!("t{}: the village prospers - new roofs rise.", tick),
-            Some((x as f32, y as f32)), None);
-        self.toasts.push_at((format!("{} rises in the village", name), tick + 5),
-            Some((x as f32, y as f32)));
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable),
+            format!("t{}: the village prospers - new roofs rise.", tick),
+            Some((x as f32, y as f32)),
+            None,
+        );
+        self.toasts.push_at(
+            (format!("{} rises in the village", name), tick + 5),
+            Some((x as f32, y as f32)),
+        );
     }
 
     /// A flush site's own ledger buys another roof: towns and castles
@@ -178,8 +216,15 @@ impl Game {
                 BSprite::House(self.growth_rng.below(97) as usize)));
             self.map.connect((bx, by));
             self.sites[si].treasury -= ROOF_COST;
-            self.log.push_at_who(format!("t{}: {} prospers - a new roof rises on its ground.", tick, sname),
-                Some((bx as f32, by as f32)), None);
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: {} prospers - a new roof rises on its ground.",
+                    tick, sname
+                ),
+                Some((bx as f32, by as f32)),
+                None,
+            );
         }
     }
 }

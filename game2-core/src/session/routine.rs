@@ -679,7 +679,13 @@ impl Game {
             if tick >= until {
                 self.drop_villager(e);
                 self.teacher = None;
-                self.log.push(format!("t{}: the schoolmistress moves on - the desk stands empty.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Negative, Sev::Minor),
+                    format!(
+                        "t{}: the schoolmistress moves on - the desk stands empty.",
+                        tick
+                    ),
+                );
             }
         }
         let Some(s) = self.school else { return };
@@ -767,8 +773,21 @@ impl Game {
             let leader_e = lead_v;
             let n = self.assemble(tick, Mode::Worshipping, spot, leader_e.map(|l| (l, front)), &flock, &slots, front, CALL_REACH);
             if n > 0 {
-                self.log.push_at_who(format!("t{}: the holy day - {} gather at {} for prayers.", tick, n,
-                    if church.is_some() { "the church" } else { "the market cross" }), Some(front), None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the holy day - {} gather at {} for prayers.",
+                        tick,
+                        n,
+                        if church.is_some() {
+                            "the church"
+                        } else {
+                            "the market cross"
+                        }
+                    ),
+                    Some(front),
+                    None,
+                );
                 // and it's seen and heard: somebody says the word, and
                 // the bell rings over the square - but only one who
                 // actually made it to the gathering
@@ -800,10 +819,17 @@ impl Game {
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Green,
                     lead.map(|l| (l, anchor)), &folk, &slots, anchor, CALL_REACH + 2);
                 if n > 0 {
-                    self.log.push_at_who(format!("t{}: {} keep the green word at the market cross.", tick, n),
-                        Some(anchor), None);
-                    let speaker = lead.filter(|&l| self.reached_worship(l, tick))
-                        .or_else(|| folk.iter().copied().find(|&v| self.reached_worship(v, tick)));
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!("t{}: {} keep the green word at the market cross.", tick, n),
+                        Some(anchor),
+                        None,
+                    );
+                    let speaker = lead.filter(|&l| self.reached_worship(l, tick)).or_else(|| {
+                        folk.iter()
+                            .copied()
+                            .find(|&v| self.reached_worship(v, tick))
+                    });
                     if let Some(v) = speaker {
                         self.say(v, GREEN_WORD[rng.below(GREEN_WORD.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
                     }
@@ -828,7 +854,12 @@ impl Game {
                 if slots.len() < 2 { return; }
                 let n = self.assemble(tick, Mode::Worshipping, Spot::StoneCircle, Some((leader, slots[0])), &old, &slots[1..], c, CALL_REACH + 4);
                 if n > 1 {
-                    self.log.push_at_who(format!("t{}: {} keep the old rite at the stones.", tick, n), Some(c), None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!("t{}: {} keep the old rite at the stones.", tick, n),
+                        Some(c),
+                        None,
+                    );
                     // the elder speaks if they made it; else whoever did
                     let speaker = [leader].into_iter().chain(old.iter().copied())
                         .find(|&v| self.reached_worship(v, tick));
@@ -841,8 +872,15 @@ impl Game {
                 let slots = self.ring_round(c, old.len(), 1.6);
                 let n = self.assemble(tick, Mode::Worshipping, Spot::Grove, Some((leader, c)), &old, &slots, c, CALL_REACH + 4);
                 if n > 1 {
-                    self.log.push_at_who(format!("t{}: {} keep the old rite in the grove.", tick, n), Some(c), None);
-                    let speaker = [leader].into_iter().chain(old.iter().copied())
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!("t{}: {} keep the old rite in the grove.", tick, n),
+                        Some(c),
+                        None,
+                    );
+                    let speaker = [leader]
+                        .into_iter()
+                        .chain(old.iter().copied())
                         .find(|&v| self.reached_worship(v, tick));
                     if let Some(v) = speaker {
                         self.say(v, RITE_LINES[rng.below(RITE_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
@@ -869,10 +907,21 @@ impl Game {
         let n = self.assemble(tick, Mode::Worshipping, Spot::Church, lead.map(|l| (l, front)),
             &brothers, &slots, front, CALL_REACH);
         if n > 0 {
-            self.log.push_at_who(format!("t{}: the holy day - {} keep the office at {}.", tick, n, self.sites[si].name),
-                Some(front), None);
-            let voice = lead.filter(|&l| self.reached_worship(l, tick))
-                .or_else(|| brothers.iter().copied().find(|&v| self.reached_worship(v, tick)));
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                format!(
+                    "t{}: the holy day - {} keep the office at {}.",
+                    tick, n, self.sites[si].name
+                ),
+                Some(front),
+                None,
+            );
+            let voice = lead.filter(|&l| self.reached_worship(l, tick)).or_else(|| {
+                brothers
+                    .iter()
+                    .copied()
+                    .find(|&v| self.reached_worship(v, tick))
+            });
             if let Some(v) = voice {
                 self.say(v, PRAY_LINES[rng.below(PRAY_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
             }
@@ -915,7 +964,12 @@ impl Game {
         if going == 0 { return; }
         self.celebrating = Some((tick + 1, (at.0.round() as i32, at.1.round() as i32)));
         let honouree = leader.and_then(|l| self.villagers.iter().position(|&v| v == l));
-        self.log.push_at_who(format!("t{}: a small celebration - {}.", tick, why), Some(at), honouree);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+            format!("t{}: a small celebration - {}.", tick, why),
+            Some(at),
+            honouree,
+        );
         for v in leader.into_iter().chain(folk.iter().copied()) {
             desires::satisfy(&mut self.world, v, Want::Joy, tick + 30);
             desires::satisfy(&mut self.world, v, Want::Music, tick + 30);

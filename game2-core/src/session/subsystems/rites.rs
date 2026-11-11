@@ -155,11 +155,30 @@ impl Game {
             else { format!("{}'s rite of initiation", name) };
         self.local_celebration(tick, at, Some(v), &why);
         if !self.officiant_gone(p.by) {
-            self.say(p.by, if p.old { "The stones receive you." } else { "The parish receives you." },
-                TALK_BUBBLE_SECS * 2);
+            self.say(
+                p.by,
+                if p.old {
+                    "The stones receive you."
+                } else {
+                    "The parish receives you."
+                },
+                TALK_BUBBLE_SECS * 2,
+            );
         }
-        self.log_entity(v, format!("t{}: {} is {}.", tick, name,
-            if p.old { "sworn to the old stones" } else { "made a Christian of the parish" }));
+        self.log_entity_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+            v,
+            format!(
+                "t{}: {} is {}.",
+                tick,
+                name,
+                if p.old {
+                    "sworn to the old stones"
+                } else {
+                    "made a Christian of the parish"
+                }
+            ),
+        );
     }
 
     /// Betrothed couples: the gathered wedding is held, the stragglers
@@ -228,7 +247,11 @@ impl Game {
             self.say(wed.by, if wed.old { "Handfast under the old sky." } else { "Man and wife." },
                 TALK_BUBBLE_SECS * 2);
         }
-        self.log_entity(a, format!("t{}: {} and {} are wed.", tick, an, bn));
+        self.log_entity_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Notable),
+            a,
+            format!("t{}: {} and {} are wed.", tick, an, bn),
+        );
         self.toasts.push_at((format!("{} and {} are wed!", an, bn), tick + 30), Some(at));
         for e in [a, b] {
             desires::satisfy(&mut self.world, e, Want::Joy, tick + 60);
@@ -306,7 +329,11 @@ impl Game {
                 if let Some(pb) = self.world.get_component_mut::<Purse>(b) { pb.gold += gift; }
             }
             let (an, bn) = (self.name_of(a), self.name_of(b));
-            self.log_entity(a, format!("t{}: {} and {} are to be wed.", tick, an, bn));
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+                a,
+                format!("t{}: {} and {} are to be wed.", tick, an, bn),
+            );
         }
     }
 }

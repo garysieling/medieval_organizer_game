@@ -118,6 +118,7 @@ mod letter;
 mod letters;
 mod lifecycle;
 mod log_priority;
+mod log_tags;
 mod magic;
 mod market;
 mod migration;

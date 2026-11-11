@@ -147,7 +147,7 @@ fn test_the_tinker_sends_his_slug() {
     let mut g = Game::new();
     g.force_event(events::EventId::Tinker);
     let m = g.ui_model();
-    let t = m.people.iter().find(|p| p.visit.as_deref() == Some("tinker"))
+    let t = m.people.iter().find(|p| p.person.as_deref() == Some("tinker"))
         .expect("no figure draws the tinker's face");
     assert!(matches!(t.kind, PKind::Traveller), "the tinker isn't a road figure");
 }

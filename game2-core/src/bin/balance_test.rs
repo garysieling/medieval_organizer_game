@@ -1,23 +1,23 @@
 //! Balance test mode: run the real game headless and mark it.
 //!
-//! `cargo run --release --bin balance_test [days] [seed]`
+//! `cargo run --release --bin balance_test [days] [seed] [persona]`
 //!
-//! The Wanderer's seat is driven by a light organizing policy - talk to
-//! whoever's in reach, recruit once the bond's strong enough, call a
-//! meeting when a few are ready - so org-growth and reward KPIs measure
-//! an actual player, not just the village running on its own. Each day's
-//! gauges and log lines feed the BalanceTester's KPI table (see
+//! Persona is `idle` (the plain driver - the village on its own),
+//! `organizer` (the light organizing policy), `agitator` (organizer plus
+//! a daily press on whatever campaign/social verbs are offered), or
+//! `all` (the matrix, one report each; default). Each day's gauges and
+//! the log's tagged story lines feed the BalanceTester's KPI table (see
 //! wiki/literature-reviews/ for where the bands come from).
 //!
 //! Exits 1 when any KPI red-flags, so it can gate a schedule like the
 //! playtest gate does.
 
-use game2_core::session::{driver, Command, Game};
-use game2_core::agents::balance_tester::{BalanceTester, DaySample, RunRecord};
+use game2_core::session::{driver, Command, EvTag, Game, Sev, Thread, Valence};
+use game2_core::agents::balance_tester::{BalanceTester, DaySample, EvLine, RunRecord};
 use game2_core::sim::community::{Organization, RECRUIT_MIN_TRUST};
+use game2_core::game::livelihood::Purse;
 use game2_core::game::relationships::{self, Relationship};
 use game2_core::game::villager::{self, Hunger};
-use game2_core::game::livelihood::Purse;
 
 /// The seat's bond with a villager, as the sim reads it.
 fn bond(game: &Game, seat: usize, v: game2_core::engine::ecs::Entity) -> f32 {
@@ -84,7 +84,10 @@ fn call_meeting_if_earned(game: &mut Game, seat: usize, ready: &[usize], last_as
     let roll = driver_roll(tick.wrapping_mul(0x1000_0001) ^ v as u64);
     let name = game2_core::session::vill_name(i);
     let (msg, _) = propose(&mut game.world, pe, oe, v, p, name, roll, tick);
-    game.log.push(format!("t{}: {}", tick, msg));
+    game.log.push_ev(
+        EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+        format!("t{}: {}", tick, msg),
+    );
     true
 }
 
@@ -186,49 +189,137 @@ fn drive_organizer(game: &mut Game, seat: usize, last_campaign_day: &mut u64, la
     driver::drive_player(game, seat);
 }
 
-fn main() {
-    game2_core::infra::crash::install();
-    let args: Vec<String> = std::env::args().collect();
-    let days: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(200);
-    let seed: u64 = args.get(2).and_then(|v| v.parse().ok()).unwrap_or(42);
+/// The agitator: everything the organizer does, plus a daily press on
+/// the campaign and social verbs the seat is actually offered - strike
+/// ballots, town halls, the assembly, debriefs, flyers, gatherings,
+/// marches, attending what the village does, pacts and gifts. One press
+/// a day, only verbs that aren't blocked, and never on a day the
+/// campaign loop already spent.
+fn drive_agitator(
+    game: &mut Game,
+    seat: usize,
+    last_campaign_day: &mut u64,
+    last_meeting_ask_day: &mut u64,
+    last_agitate_day: &mut u64,
+) {
+    drive_organizer(game, seat, last_campaign_day, last_meeting_ask_day);
+    use game2_core::session::CtxAct;
+    if *last_agitate_day >= game.tick || *last_campaign_day >= game.tick {
+        return;
+    }
+    const PRESS: &[CtxAct] = &[
+        CtxAct::Strike,
+        CtxAct::Townhall,
+        CtxAct::Assembly,
+        CtxAct::Debrief,
+        CtxAct::Flyers,
+        CtxAct::Gather,
+        CtxAct::March,
+        CtxAct::Attend,
+        CtxAct::Pact,
+        CtxAct::Give,
+    ];
+    for &act in PRESS {
+        if game.seats[seat].ctx_actions.contains(&act) && game.ctx_blocker_at(seat, act).is_none() {
+            act_ctx(game, seat, act);
+            *last_agitate_day = game.tick;
+            return;
+        }
+    }
+}
 
+fn run_days(days: u64, seed: u64, persona: &str) -> (Game, RunRecord) {
     let mut game = Game::new_seeded(seed);
     game.speed = 4; // turbo: days tick ~4x faster headless, same sim
 
-    let mut record = RunRecord { seed, days, samples: vec![] };
+    let mut record = RunRecord {
+        seed,
+        days,
+        persona: persona.into(),
+        samples: vec![],
+    };
     let mut log_read = 0usize; // cursor over every line ever pushed: log_dropped + index into game.log - the trim can't strand it
     let mut last_tick = game.tick;
     let mut last_campaign_day = 0u64;
     let mut last_meeting_ask_day = u64::MAX;
+    let mut last_agitate_day = u64::MAX;
     // a generous frame budget: ~ticks_per_frame per day plus slack for the
     // day-boundary work the game does around each tick
     let budget = (days + 50) * game.ticks_per_frame() as u64 * 2;
     for _ in 0..budget {
         if game.tick >= days { break; }
         game.update();
-        if game.frame_n % driver::DRIVE_EVERY as u32 == 0 { drive_organizer(&mut game, 0, &mut last_campaign_day, &mut last_meeting_ask_day); }
+        if game.frame_n % driver::DRIVE_EVERY as u32 == 0 {
+            match persona {
+                "organizer" => drive_organizer(
+                    &mut game,
+                    0,
+                    &mut last_campaign_day,
+                    &mut last_meeting_ask_day,
+                ),
+                "agitator" => drive_agitator(
+                    &mut game,
+                    0,
+                    &mut last_campaign_day,
+                    &mut last_meeting_ask_day,
+                    &mut last_agitate_day,
+                ),
+                _ => driver::drive_player(&mut game, 0),
+            }
+        }
         if game.tick != last_tick {
             last_tick = game.tick;
             // the log trims its front in blocks; the absolute cursor still
             // lands on the first line we haven't taken (or the window's
             // start if a trim outran it - only the trimmed lines are lost)
             let off = log_read.saturating_sub(game.log_dropped).min(game.log.len());
-            let events: Vec<String> = game.log[off..]
-                .iter().map(|l| l.splitn(2, ": ").nth(1).unwrap_or(l).to_string()).collect();
+            let events: Vec<EvLine> = (off..game.log.len())
+                .map(|i| {
+                    let l = &game.log[i];
+                    EvLine {
+                        tag: game.log.ev(i),
+                        text: l.splitn(2, ": ").nth(1).unwrap_or(l).to_string(),
+                    }
+                })
+                .collect();
             log_read = game.log_dropped + game.log.len();
             record.samples.push(DaySample { tick: game.tick, gauges: game.secret_kpis().iter()
                 .map(|(k, v)| (k.to_string(), *v)).collect(), events });
         }
     }
     record.days = record.samples.len() as u64;
+    (game, record)
+}
+
+fn main() {
+    game2_core::infra::crash::install();
+    let args: Vec<String> = std::env::args().collect();
+    let days: u64 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(200);
+    let seed: u64 = args.get(2).and_then(|v| v.parse().ok()).unwrap_or(42);
+    let persona = args.get(3).map(String::as_str).unwrap_or("all");
+    let personas: Vec<&str> = match persona {
+        "all" => vec!["idle", "organizer", "agitator"],
+        p => vec![p],
+    };
 
     let tester = BalanceTester::new();
-    let report = tester.score(&record);
-    print!("{}", tester.render(&report));
+    let mut any_flags = false;
+    for p in personas {
+        let (game, record) = run_days(days, seed, p);
+        let report = tester.score(&record);
+        print!("{}", tester.render(&report));
+        any_flags |= !report.flags.is_empty();
 
-    let last_log = game.log.len().saturating_sub(15);
-    println!("-- last log lines --");
-    for l in &game.log[last_log..] { println!("  {}", l); }
+        let last_log = game.log.len().saturating_sub(15);
+        println!("-- last log lines --");
+        for l in &game.log[last_log..] {
+            println!("  {}", l);
+        }
+    }
 
-    if report.flags.is_empty() { std::process::exit(0); } else { std::process::exit(1); }
+    if any_flags {
+        std::process::exit(1);
+    } else {
+        std::process::exit(0);
+    }
 }

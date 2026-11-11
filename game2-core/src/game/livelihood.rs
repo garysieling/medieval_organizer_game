@@ -102,6 +102,7 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
             .map(|b| b.overseer.is_some()).unwrap_or(false);
         (c.vocation, c.master.is_some(), tools, c.workplace, c.tasked_by, boost)
     };
+    let skill = world.get_component::<Craft>(e).map(|c| c.skill).unwrap_or(0.0);
     let Some(good) = vocation::output(vocation_) else { return (0.0, None) };
     // inputs: only work if the day's raw goods are in hand - a slot
     // fills from whatever's stocked, the named good or its fellows.
@@ -157,46 +158,46 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
         c.pending -= whole;
         whole as u32
     };
+    // a master's sure hand turns out the tranche good now and then -
+    // the vintner's hippocras, the printer's fine cut. About one unit
+    // in a score, only once the journeyman's ceremony has done its work
+    let lux = vocation::luxuries(vocation_);
     let mut made = 0.0f32;
+    let mut lux_made = 0.0f32;
     let mut to_senior = 0.0f32;
+    let mut lux_senior = 0.0f32;
     for i in 0..units {
         // tasked juniors put half their output through the senior's shop
-        if tasked_by.is_some() && i % 2 == 1 { to_senior += 1.0; } else { made += 1.0; }
+        let senior = tasked_by.is_some() && i % 2 == 1;
+        let fine = skill >= 0.7 && !lux.is_empty() && unit_hash(e, tick, i) % 20 == 0;
+        match (senior, fine) {
+            (false, false) => made += 1.0,
+            (false, true) => lux_made += 1.0,
+            (true, false) => to_senior += 1.0,
+            (true, true) => lux_senior += 1.0,
+        }
     }
+    let lux_good = lux.first().copied().unwrap_or(good);
     // stockpile it: the worker's own shop first, else the satchel
-    let mut leftover = made;
-    if let Some(b) = workplace {
-        if let Some(bb) = world.get_component_mut::<Building>(b) {
-            leftover = made - household::add_stock(bb, good, made as u32) as f32;
-        }
-        // a shelf too full to take the day's work leans the good a
-        // little cheap - the glut reads on the ledger, not the street
-        if leftover > 0.0 {
-            crate::game::goods::nudge(world, good, crate::game::goods::GLUT_NUDGE);
-        }
-    }
-    if leftover > 0.0 {
-        if let Some(s) = world.get_component_mut::<Satchel>(e) {
-            let held = s.goods.get(good).copied().unwrap_or(0);
-            let room = SATCHEL_CAP.saturating_sub(held);
-            *s.goods.entry(good.to_string()).or_insert(0) += (leftover as u32).min(room);
-        }
+    for (g, qty) in [(good, made), (lux_good, lux_made)] {
+        if qty > 0.0 { stash(world, e, workplace, g, qty as u32); }
     }
     // the senior's commission: his shop stocks it and he pays the junior
     // half its street price
-    if to_senior > 0.0 {
+    for (g, qty) in [(good, to_senior), (lux_good, lux_senior)] {
+        if qty <= 0.0 { continue; }
         if let Some(senior) = tasked_by {
             let senior_shop = world.get_component::<Craft>(senior).and_then(|c| c.workplace);
             if let Some(b) = senior_shop {
                 if let Some(bb) = world.get_component_mut::<Building>(b) {
-                    let fit = household::add_stock(bb, good, to_senior as u32);
+                    let fit = household::add_stock(bb, g, qty as u32);
                     // his shelf too full reads as glut like anyone's
-                    if fit < to_senior as u32 {
-                        crate::game::goods::nudge(world, good, crate::game::goods::GLUT_NUDGE);
+                    if fit < qty as u32 {
+                        crate::game::goods::nudge(world, g, crate::game::goods::GLUT_NUDGE);
                     }
                 }
             }
-            let pay = to_senior * crate::game::goods::worth_at(world, good) * 0.5;
+            let pay = qty * crate::game::goods::worth_at(world, g) * 0.5;
             if let Some(p) = world.get_component_mut::<Purse>(senior) { p.gold -= pay.min(p.gold); }
             if let Some(p) = world.get_component_mut::<Purse>(e) { p.gold += pay; }
         }
@@ -205,8 +206,41 @@ pub fn work_day(world: &mut World, e: Entity, tick: u64) -> (f32, Option<vocatio
     let level_up = world.get_component_mut::<Craft>(e)
         .map(|c| vocation::train_day(c)).unwrap_or(None);
     // master + owns his shop: petit bourgeois now (recomputed in class_of)
-    let _ = tick;
-    (made + to_senior, level_up)
+    (made + lux_made + to_senior + lux_senior, level_up)
+}
+
+/// Stock the day's units where they belong: the workplace shelf first,
+/// what won't fit rides home in the satchel. A shelf too full to take
+/// the day's work leans the good a little cheap - the glut reads on
+/// the ledger, not the street
+fn stash(world: &mut World, e: Entity, workplace: Option<Entity>, good: &'static str, qty: u32) {
+    let mut leftover = qty;
+    if let Some(b) = workplace {
+        if let Some(bb) = world.get_component_mut::<Building>(b) {
+            leftover = qty - household::add_stock(bb, good, qty);
+        }
+        if leftover > 0 {
+            crate::game::goods::nudge(world, good, crate::game::goods::GLUT_NUDGE);
+        }
+    }
+    if leftover > 0 {
+        if let Some(s) = world.get_component_mut::<Satchel>(e) {
+            let held = s.goods.get(good).copied().unwrap_or(0);
+            let room = SATCHEL_CAP.saturating_sub(held);
+            *s.goods.entry(good.to_string()).or_insert(0) += leftover.min(room);
+        }
+    }
+}
+
+/// One unit's own roll: who made it, on which day, which of the day's
+/// units - the tranche-good chance stays fixed to the save's seed
+fn unit_hash(e: Entity, tick: u64, i: u32) -> u64 {
+    let mut value = (e as u64).wrapping_mul(0x9E3779B97F4A7C15)
+        ^ tick.wrapping_mul(0xBF58476D1CE4E5B9)
+        ^ (i as u64).wrapping_add(0x94D049BB133111EB);
+    value = (value ^ (value >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+    value = (value ^ (value >> 27)).wrapping_mul(0x94D049BB133111EB);
+    value ^ (value >> 31)
 }
 
 /// Who to buy `good` from near `at`: whoever holds it - a person's satchel
@@ -553,6 +587,24 @@ mod tests {
         assert_eq!(work_day(&mut w, mason, 0).0, 0.0, "half a day's work makes nothing yet");
         assert_eq!(work_day(&mut w, mason, 0).0, 1.0, "the second half-day finishes the block");
         assert_eq!(w.get_component::<Satchel>(mason).unwrap().goods["blocks"], 1);
+    }
+
+    #[test]
+    fn test_a_master_printer_turns_out_fine_prints() {
+        let mut w = World::new();
+        let printer = worker(&mut w, vocation::Vocation::Printmaker, 0.9, 10.0);
+        let shop = household::spawn_building(&mut w, BuildingKind::Shop(vocation::Vocation::Printmaker), "the print shop", 0.0, 0.0, 400);
+        w.get_component_mut::<Craft>(printer).unwrap().workplace = Some(shop);
+        for t in 0..200 {
+            household::add_stock(w.get_component_mut::<Building>(shop).unwrap(), "paper", 50);
+            household::add_stock(w.get_component_mut::<Building>(shop).unwrap(), "ink", 50);
+            work_day(&mut w, printer, t);
+        }
+        let stock = &w.get_component::<Building>(shop).unwrap().stock;
+        assert!(stock.get("prints").copied().unwrap_or(0) > 0,
+            "two hundred days at the press and not one fine cut");
+        assert!(stock.get("pamphlets").copied().unwrap_or(0) > 0,
+            "the staple still runs beside the fine work");
     }
 
     #[test]

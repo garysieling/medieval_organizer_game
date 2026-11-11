@@ -1,8 +1,19 @@
 # Retro Diffusion art prompts
 
-210 prompts, est. $37.53 USD at list prices.
+214 prompts, est. $37.94 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
+
+## P1 - fills gaps in shipped features / art-history
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| decor-marginalia-hybrid-4d9b2961 | single isometric medieval marginalia creature: a bird with long human ears and thin legs, chalky green and rose pink, bosch style | rd_tile__tile_object | 96x96 | 2 | 0.12 | omen/strange-sight event flavor (#804) |
+| decor-memento-mori-343cee93 | single isometric medieval village asset: memento mori still life, a human skull resting on a closed bound book with a guttering candle, muted earth tones | rd_tile__tile_object | 96x96 | 1 | 0.06 | churchyard/memorial flavor (#804) |
+| decor-painted-hall-59d4e21d | single isometric medieval village asset: interior wall hanging, a painted cloth frieze of deer and foliage in muted reds and greens, medieval hall decoration | rd_tile__tile_object | 96x96 | 2 | 0.12 | painted halls as clout (#804) |
+| goods-print-sheet-28e12e22 | inventory item sheet: a small woodcut print, monochrome hatched engraving of a hare on aged paper, durer style | rd_pro__inventory_items | 256x256 | 1 | 0.18 | a printmaker's sellable print good (#804) |
+| sign-engraved-de5f19db | single isometric medieval village asset: hanging shop sign, a wood-engraved monochrome hare in dense hatched lines on a weathered board, durer style | rd_tile__tile_object | 96x96 | 1 | 0.06 | engraving-look shop sign (#804) |
+| wonder-eggshell-c773b4d5 | single isometric medieval village asset: a giant hollow eggshell split open with a small figure seated inside, chalky white and pale pink, bosch style | rd_tile__tile_object | 96x96 | 1 | 0.06 | wonder/omen set-piece (#804) |
 
 ## P1 - fills gaps in shipped features / festivals/decor
 
@@ -19,12 +30,6 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | food-sheet-4fe809ed | inventory item sheet: bread loaf, cheese wheel, ale mug, honey jar, dried fish, egg basket, milk jug, apples, pottage bowl, turnips, peas, fuel faggot bundle | rd_pro__inventory_items | 256x256 | 1 | 0.18 | kitchen-garden and hearth foods, plus the fuel goods |
 | materials-sheet-40a5650d | inventory item sheet: log, dressed stone block, sand pile, pigment pot, cloth bolt, glass pane, paper sheet, ink pot, wool ball, tanned hide, candle, clay brick | rd_pro__inventory_items | 256x256 | 1 | 0.18 | raw and crafted materials for the production chains |
 | tools-sheet-cf25b75b | inventory item sheet: sickle, hoe, hammer, saw, chisel, axe, mallet, needle and thread, quill, trowel, smith's tongs, wood plane | rd_pro__inventory_items | 256x256 | 1 | 0.18 | vocation workshop tools; include_downloadable_data returns the item atlas |
-
-## P1 - fills gaps in shipped features / monuments
-
-| id | prompt | style | size | n | est $ | notes |
-|---|---|---|---|---|---|---|
-| memorial-lychgate-c606b4b8 | single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance | rd_tile__tile_object | 96x96 | 2 | 0.12 | generated for funerals #674 |
 
 ## P1 - fills gaps in shipped features / regions/scotland
 
@@ -402,9 +407,3 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | scale-player-walk-32-d95d2983 | young villager in a green tunic and brown trousers, medieval | rd_animation__four_angle_walking | 32x32 | 1 | 0.07 | player still + walk cycle; figure should end up ~24px tall |
-
-## ANIMATED - premium tier, all animation styles / visitors
-
-| id | prompt | style | size | n | est $ | notes |
-|---|---|---|---|---|---|---|
-| person-plague-doctor-e054b0d1 | plague doctor in a beaked bird mask and dark waxed leather coat, medieval | rd_animation__four_angle_walking | 48x48 | 1 | 0.07 | visitor sprite; 48px 4-direction walk cycle as a PNG grid |

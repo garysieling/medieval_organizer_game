@@ -101,11 +101,23 @@ impl Game {
                 // dangerous knowledge: the priest calls the wood's counsel
                 // devil's work, when word of it gets about
                 if self.shroom_rng.below(100) < 8 {
-                    if let Some(pr) = self.villagers.iter().copied().find(|&v|
-                        self.world.get_component::<Craft>(v).map(|c| c.vocation == Vocation::Priest).unwrap_or(false)
-                        && !crate::game::dungeon::unavailable(&self.world, v)) {
-                        self.say(pr, "The wood's counsel is the devil's work.", CHAT_BUBBLE_SECS);
-                        self.log_entity(pr, format!("t{}: the father preaches against the little caps.", tick));
+                    if let Some(pr) = self.villagers.iter().copied().find(|&v| {
+                        self.world
+                            .get_component::<Craft>(v)
+                            .map(|c| c.vocation == Vocation::Priest)
+                            .unwrap_or(false)
+                            && !crate::game::dungeon::unavailable(&self.world, v)
+                    }) {
+                        self.say(
+                            pr,
+                            "The wood's counsel is the devil's work.",
+                            CHAT_BUBBLE_SECS,
+                        );
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                            pr,
+                            format!("t{}: the father preaches against the little caps.", tick),
+                        );
                     }
                 }
             }
@@ -318,7 +330,14 @@ impl Game {
                     liver.stage = Stage::Severe;
                     self.world.add_component(d, liver);
                     let name = self.name_of(a.who);
-                    self.log_entity(a.who, format!("t{}: {} wastes where they stand - the wood keeps its secrets.", tick, name));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+                        a.who,
+                        format!(
+                            "t{}: {} wastes where they stand - the wood keeps its secrets.",
+                            tick, name
+                        ),
+                    );
                 }
                 // the brothers of Saint Anthony tend the fire's victims:
                 // a hospice bed and a dose of care
@@ -366,10 +385,23 @@ impl Game {
                 }
             }
         }
-        self.log.push(format!("t{}: a burning fire runs through the village - they say it's in the bread.", tick));
+        self.log.push_ev(
+            EvTag::new(Thread::Illness, Valence::Negative, Sev::Notable),
+            format!(
+                "t{}: a burning fire runs through the village - they say it's in the bread.",
+                tick
+            ),
+        );
         if let Some(ch) = self.church {
-            self.log.push_at_who(format!("t{}: the brothers of Saint Anthony take in the burned.", tick),
-                toast_spot(&self.world, ch), None);
+            self.log.push_ev_at_who(
+                EvTag::new(Thread::Illness, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: the brothers of Saint Anthony take in the burned.",
+                    tick
+                ),
+                toast_spot(&self.world, ch),
+                None,
+            );
         }
         // who carries the blame: the baker if there is one; else the
         // wood's counsel - the herb-wife's - is the nearest dark thing;

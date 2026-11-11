@@ -62,11 +62,12 @@ pub struct PersonV {
     /// everyone else, whose look comes from their roster slot
     #[serde(default)]
     pub look: u8,
-    /// Which generated sprite a visiting figure draws with - one of
-    /// `events::VISIT_SLUGS` (`rd/visitors/<slug>.png`); `None` for
-    /// villagers and for visitors the art batch hasn't covered
+    /// A role or trade's own figure ("baker", "tax-collector"): where the
+    /// generated people art covers it the client draws that instead of
+    /// the generic villager look - absent for the uncovered trades and
+    /// on older servers
     #[serde(default)]
-    pub visit: Option<String>,
+    pub person: Option<String>,
     /// Picket-sign board while gathered for a protest (0 wooden
     /// hand-lettered, 1 printed placard); the client draws it beside
     /// the figure

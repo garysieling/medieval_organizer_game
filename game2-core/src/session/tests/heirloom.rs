@@ -68,3 +68,22 @@ fn test_who_holds_it_shows_on_the_card() {
         "the card doesn't say what he holds: {:?}",
         ins.lines.iter().map(|l| &l.text).collect::<Vec<_>>());
 }
+
+#[test]
+fn test_the_printer_lays_down_a_codex() {
+    let mut g = Game::new();
+    // the surest hands in the village are the printer's this day
+    for &v in &g.villagers {
+        if let Some(c) = g.world.get_component_mut::<Craft>(v) { c.skill = 0.1; }
+    }
+    let maker = g.villagers[0];
+    { let c = g.world.get_component_mut::<Craft>(maker).unwrap();
+      c.vocation = Vocation::Printmaker; c.skill = 0.95; }
+    g.heirloom_tick(60);
+    assert!(!g.heirlooms.is_empty(), "the master printer lays nothing down");
+    let h = g.world.get_component::<villager::Heirloom>(g.heirlooms[0]).unwrap();
+    assert_eq!(h.maker, maker);
+    assert_eq!(h.name, "a codex");
+    assert!(h.stories.iter().any(|s| s.contains("in the margin")),
+        "a codex keeps its grotesques in the margin");
+}

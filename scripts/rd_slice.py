@@ -21,7 +21,7 @@ Needs Pillow.
 import argparse
 import os
 import sys
-from collections import deque
+from collections import Counter, deque
 
 from PIL import Image, ImageDraw
 
@@ -264,6 +264,50 @@ def strip_fringe(im):
     return im
 
 
+def key_cards(im, tol, min_share=0.55):
+    """remove_bg sometimes keys only the outer margin, leaving the sprite
+    on an opaque light 'card' (a flat rectangle the border flood-fill
+    can't reach). For each blob's bounding box: if one light colour
+    covers most of the box edge, flood-fill matching pixels from that
+    edge inward. A matching colour enclosed by the figure itself (a
+    white wimple, pale robes) isn't edge-connected and survives."""
+    px = im.load()
+    w, h = im.size
+
+    def edge_pixels(x0, y0, x1, y1):
+        for x in range(x0, x1):
+            for y in (y0, y1 - 1):
+                yield x, y
+        for y in range(y0, y1):
+            for x in (x0, x1 - 1):
+                yield x, y
+
+    for (x0, y0, x1, y1) in blobs(im, 24):
+        edge = [(x, y) for (x, y) in edge_pixels(x0, y0, x1, y1) if px[x, y][3]]
+        if not edge:
+            continue
+        # the dominant opaque colour on the box edge (16-per-channel buckets)
+        (br, bg_, bb), share = Counter(
+            ((p[0] >> 4) << 4, (p[1] >> 4) << 4, (p[2] >> 4) << 4)
+            for x, y in edge for p in [px[x, y]]).most_common(1)[0]
+        if share < len(edge) * min_share or max(br, bg_, bb) < 176:
+            continue  # varied or dark edge: a real silhouette, not a card
+        card = (br + 8, bg_ + 8, bb + 8)
+
+        def is_card(c):
+            return c[3] and all(abs(c[i] - card[i]) <= tol for i in range(3))
+        q = deque((x, y) for (x, y) in edge if is_card(px[x, y]))
+        seen = set(q)
+        while q:
+            x, y = q.popleft()
+            px[x, y] = (0, 0, 0, 0)
+            for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if x0 <= n[0] < x1 and y0 <= n[1] < y1 and n not in seen and is_card(px[n]):
+                    seen.add(n)
+                    q.append(n)
+    return im
+
+
 def largest_piece(im):
     px = im.load()
     w, h = im.size
@@ -330,11 +374,16 @@ def main():
                     help="flip left-right (the other wall axis from one generated piece)")
     ap.add_argument("--keep-clipped", action="store_true",
                     help="keep sprites that touch the sheet edge")
+    ap.add_argument("--key-card", action="store_true",
+                    help="also key a flat light 'card' the sprite sits on "
+                         "(remove_bg leaves one inside the transparent margin)")
     ap.add_argument("--half", action="store_true",
                     help="downscale exported sprites 2x (match the game's 2x-drawn pack art)")
     args = ap.parse_intermixed_args()  # names may follow --out
 
     im = key_background(Image.open(args.sheet), args.tol)
+    if args.key_card:
+        im = key_cards(im, args.tol)
     boxes = merge_close(blobs(im, args.min_px), args.gap)
     if not args.keep_clipped:
         n = len(boxes)

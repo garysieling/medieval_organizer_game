@@ -52,7 +52,7 @@ impl Game {
                         resentful += 1;
                     }
                 }
-                self.log.push_at_who(format!(
+                self.log.push_ev_at_who(EvTag::new(Thread::Illness, Valence::Positive, Sev::Notable), format!(
                     "t{}: the lancet's scratch runs round the cradle-roll - {} infant{} carry the Act's mark, and {} remember the compulsion.",
                     self.tick, marked, if marked == 1 { "" } else { "s" }, resentful), at, None);
             }
@@ -82,7 +82,7 @@ impl Game {
                         desires::add_grievance(&mut self.world, m, Problem::Taxed, self.tick + 120);
                     }
                 }
-                self.log.push_at_who(format!(
+                self.log.push_ev_at_who(EvTag::new(Thread::Law, Valence::Negative, Sev::Notable), format!(
                     "t{}: the Act's refused - {} household{} pay the fine, and the anti-vaccination league takes shape in the tavern.",
                     self.tick, house_count, if house_count == 1 { "" } else { "s" }), at, None);
             }
@@ -92,7 +92,7 @@ impl Game {
                 // days, then the village builds it herself, phase by
                 // phase, and no officer's hand is on it
                 self.leicester_backing = Some(self.tick);
-                self.log.push_at_who(format!(
+                self.log.push_ev_at_who(EvTag::new(Thread::Illness, Valence::Positive, Sev::Notable), format!(
                     "t{}: the Leicester way's backed - the village'll take up its own line against the pox, no officer's hand on it.",
                     self.tick), at, None);
             }
@@ -113,7 +113,7 @@ impl Game {
                     self.world.add_component(self.market_food, LeicesterInstitution {
                         since: tick, phase: 0 });
                     self.leicester_backing = None;
-                    self.log.push(format!("t{}: the village takes up the Leicester way - the word's cried first, the method to follow.", tick));
+                    self.log.push_ev(EvTag::new(Thread::Illness, Valence::Positive, Sev::Minor), format!("t{}: the village takes up the Leicester way - the word's cried first, the method to follow.", tick));
                 }
             }
             return;
@@ -130,7 +130,10 @@ impl Game {
                 2 => "the contacts are held - quarantine",
                 _ => "the houses cleansed - disinfection, and the method holds",
             };
-            self.log.push(format!("t{}: Leicester - {}.", tick, line));
+            self.log.push_ev(
+                EvTag::new(Thread::Illness, Valence::Neutral, Sev::Minor),
+                format!("t{}: Leicester - {}.", tick, line),
+            );
         }
     }
 }

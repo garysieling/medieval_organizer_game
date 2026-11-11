@@ -119,7 +119,13 @@ impl Game {
                 .map(|q| q.expires <= tick).unwrap_or(false);
             if stale {
                 self.seats[seat].quest = None;
-                self.log.push(format!("t{}: the job went stale - folk stopped asking after it.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the job went stale - folk stopped asking after it.",
+                        tick
+                    ),
+                );
             }
             // a fetch whose thing can no longer be had, or a delivery
             // whose one's dead, comes to nothing
@@ -131,7 +137,13 @@ impl Game {
                 if dead_end {
                     let who = self.name_of(q.giver);
                     self.seats[seat].quest = None;
-                    self.log.push(format!("t{}: {} stops asking after it - there's no more to be done for it.", tick, who));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: {} stops asking after it - there's no more to be done for it.",
+                            tick, who
+                        ),
+                    );
                 }
             }
         }
@@ -164,9 +176,26 @@ impl Game {
             self.notices.push(("quest".into(), format!("{} asks for help - the board carries it",
                 self.name_of(v)), tick + 14));
             self.pending_quests.push(PendingQuest {
-                giver: v, kind, target, pickup, expires: tick + OFFER_DAYS });
-            self.say(v, ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize], TALK_BUBBLE_SECS * 2);
-            self.log_entity(v, format!("t{}: {} has a small job going - pick them to hear it.", tick, self.name_of(v)));
+                giver: v,
+                kind,
+                target,
+                pickup,
+                expires: tick + OFFER_DAYS,
+            });
+            self.say(
+                v,
+                ASK_LINES[rng.below(ASK_LINES.len() as i32) as usize],
+                TALK_BUBBLE_SECS * 2,
+            );
+            self.log_entity_ev(
+                EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Minor),
+                v,
+                format!(
+                    "t{}: {} has a small job going - pick them to hear it.",
+                    tick,
+                    self.name_of(v)
+                ),
+            );
         }
     }
 
@@ -280,8 +309,13 @@ impl Game {
             if q.stage == QuestStage::ToFetch {
                 if let Some((x, y)) = q.pickup {
                     if (px - x).abs() + (py - y).abs() <= REACH {
-                        if let Some(qq) = &mut self.seats[seat].quest { qq.stage = QuestStage::ToCarry; }
-                        self.log.push(format!("t{}: you take {}.", self.tick, self.quest_thing(&q)));
+                        if let Some(qq) = &mut self.seats[seat].quest {
+                            qq.stage = QuestStage::ToCarry;
+                        }
+                        self.log.push_ev(
+                            EvTag::new(Thread::Player, Valence::Neutral, Sev::Minor),
+                            format!("t{}: you take {}.", self.tick, self.quest_thing(&q)),
+                        );
                     }
                 }
                 continue;
@@ -388,8 +422,14 @@ impl Game {
         // they open up about why they needed the job
         if let Some(r) = desires::next_reveal(&self.world, giver, self.tick, self.tick) {
             if let Some(issue) = desires::hear(&mut self.world, pe, giver, r, self.tick) {
-                self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                self.log.push(format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                self.toasts.push((
+                    format!("Organizer discovers issue {}", issue),
+                    self.tick + 40,
+                ));
+                self.log.push_ev(
+                    EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                    format!("t{}: Organizer discovers issue {}", self.tick, issue),
+                );
             }
         }
         stage_of(&self.world, pe, giver) >= RelStage::Known
@@ -401,11 +441,30 @@ impl Game {
         let name = self.sites.get(site).map(|s| s.name).unwrap_or("the village");
         let giver = self.name_of(q.giver);
         let pe = self.seats[seat].player;
-        if let Some(p) = self.world.get_component_mut::<crate::game::player::PlayerCharacter>(pe) { p.resources += 5.0; }
-        if let Some(p) = self.world.get_component_mut::<livelihood::Purse>(pe) { p.gold += 5.0; }
-        self.log.push(format!("t{}: the parcel reaches {} - word gets back to {}. (5g)", self.tick, name, giver));
+        if let Some(p) = self
+            .world
+            .get_component_mut::<crate::game::player::PlayerCharacter>(pe)
+        {
+            p.resources += 5.0;
+        }
+        if let Some(p) = self.world.get_component_mut::<livelihood::Purse>(pe) {
+            p.gold += 5.0;
+        }
+        self.log.push_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor),
+            format!(
+                "t{}: the parcel reaches {} - word gets back to {}. (5g)",
+                self.tick, name, giver
+            ),
+        );
         if self.quest_bond(seat, q.giver) {
-            self.log.push(format!("t{}: {} opens up to you; you know them now.", self.tick, giver));
+            self.log.push_ev(
+                EvTag::new(Thread::Player, Valence::Positive, Sev::Minor),
+                format!(
+                    "t{}: {} opens up to you; you know them now.",
+                    self.tick, giver
+                ),
+            );
         }
         self.toasts.push((format!("The parcel reached {}", name), self.tick + 60));
     }

@@ -50,8 +50,15 @@ impl Game {
             vs.dedup();
             if vs.len() >= 3 {
                 if let Some(issue) = desires::found_issue(&mut self.world, pe, tag.clone()) {
-                    self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                    self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                    self.toasts.push((
+                        format!("Organizer discovers issue {}", issue),
+                        self.tick + 40,
+                    ));
+                    self.log_entity_ev(
+                        EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                        pe,
+                        format!("t{}: Organizer discovers issue {}", self.tick, issue),
+                    );
                     found = format!(" Organizer discovers issue {}.", issue);
                 }
             }
@@ -65,7 +72,11 @@ impl Game {
                 bases.entry(base.to_string()).or_default().extend(voices.iter().copied());
             }
             if bases.values().any(|vs| vs.len() >= 3) {
-                self.log_entity(pe, format!("t{}: the talk splinters by trade.", self.tick));
+                self.log_entity_ev(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    pe,
+                    format!("t{}: the talk splinters by trade.", self.tick),
+                );
                 found = " The talk splinters by trade.".into();
             }
         }
@@ -144,7 +155,11 @@ impl Game {
         if let Some(t) = crate::game::organizing::target_for(&self.world, &vote.winner, self.collector) {
             if let Some(cc) = self.world.get_component_mut::<campaign::Campaign>(c) { cc.target = Some(t); }
             let tname = self.villagers.iter().position(|&v| v == t).map(|i| vill_name(i)).unwrap_or("the Reeve");
-            self.log_entity(t, format!("t{}: the room names {}.", self.tick, tname));
+            self.log_entity_ev(
+                EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                t,
+                format!("t{}: the room names {}.", self.tick, tname),
+            );
         }
         self.world.add_component(c, campaign::CampaignMeeting {
             cadence_days: 3, last_held: self.tick, held: 0, resolves: 0, driven_by: None });
@@ -367,9 +382,16 @@ impl Game {
                         let (_, said) = desires::reveal_speech(vill_name(i), &r);
                         self.voiced.push((v, desires::issue_tag(&self.world, v, &r)));
                         let pe = host_e;
-                if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
-                            self.toasts.push((format!("Organizer discovers issue {}", issue), self.tick + 40));
-                            self.log_entity(pe, format!("t{}: Organizer discovers issue {}", self.tick, issue));
+                        if let Some(issue) = desires::hear(&mut self.world, pe, v, r, self.tick) {
+                            self.toasts.push((
+                                format!("Organizer discovers issue {}", issue),
+                                self.tick + 40,
+                            ));
+                            self.log_entity_ev(
+                                EvTag::new(Thread::Org, Valence::Positive, Sev::Minor),
+                                pe,
+                                format!("t{}: Organizer discovers issue {}", self.tick, issue),
+                            );
                         }
                         lines.push((v, said));
                         shared = true;
@@ -494,7 +516,12 @@ impl Game {
                 let msg = if m.invited.is_empty() { format!("No one made it to the house meeting at {}.", m.label) }
                     else { self.resolve_meeting(&m.invited, m.seat, m.talk_id, m.roles) };
                 let at = toast_spot(&self.world, self.seats[m.seat].player);
-                self.log.push_at_who(format!("t{}: {}", self.tick, msg), at, None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Org, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}", self.tick, msg),
+                    at,
+                    None,
+                );
             }
         }
     }

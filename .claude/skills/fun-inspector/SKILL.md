@@ -52,12 +52,12 @@ Analyzes playtests for "fun" factor. Evaluates balance between grind and emotion
    - Boredom points
    - "Wow!" moments
 3. **Score against fun rubric** (`wiki/fun-rubric.md`):
-   - Tension (1-5)
-   - Progress (1-5)
-   - Surprise (1-5)
-   - Care (1-5)
-   - Decisions (1-5)
-   - Retention (1-5)
+   - Legibility (1-5) - could the player tell why things happened
+   - Presence (1-5) - did events visibly happen on the map
+   - Earned progress (1-5) - did the player's reach grow
+   - Rhythm (1-5) - buildup/climax/breather vs metronome or void
+   - Attachment (1-5) - did specific villagers' outcomes matter
+   - Stakes (1-5) - did decisions carry a price
 4. **Propose specific solutions** - Not "this isn't fun" but "reduce cost by 30%" or "add tutorial"
 5. **Output assessment** with scores, issues, recommendations
 
@@ -69,7 +69,7 @@ Analyzes playtests for "fun" factor. Evaluates balance between grind and emotion
 
 Use data structures from `game2-core/src/agents/fun_inspector.rs`:
 - `FunAssessment` - Overall assessment
-- `FunScores` - 6 metrics (tension, progress, surprise, care, decisions, retention)
+- `FunScores` - 6 metrics (legibility, presence, earned_progress, rhythm, attachment, stakes)
 - `detect_red_flags()` - Auto-flag obvious issues
 
 ## Output Format
@@ -83,12 +83,12 @@ Use data structures from `game2-core/src/agents/fun_inspector.rs`:
 **Verdict:** {Fun/Decent/Meh/Not Fun}
 
 ## Scores
-- **Tension:** {N}/5 - {why}
-- **Progress:** {N}/5 - {why}
-- **Surprise:** {N}/5 - {why}
-- **Care:** {N}/5 - {why}
-- **Decisions:** {N}/5 - {why}
-- **Retention:** {N}/5 - {why}
+- **Legibility:** {N}/5 - {why}
+- **Presence:** {N}/5 - {why}
+- **Earned progress:** {N}/5 - {why}
+- **Rhythm:** {N}/5 - {why}
+- **Attachment:** {N}/5 - {why}
+- **Stakes:** {N}/5 - {why}
 
 ## Fun Moments
 - {moment 1}

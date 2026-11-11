@@ -1,0 +1,27 @@
+{
+ "created_at": 1794427102,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 26.95,
+ "request_id": "a0477b7c-fabe-4073-b25d-0209ff764bf7",
+ "outputs_retained_until": 1794513372,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 26.95
+ },
+ "id": "person-glazier-f-8174daf3",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: female glazier holding a leaded glass pane, deep dark skin and short black hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:58:23",
+ "seconds": 130.8
+}

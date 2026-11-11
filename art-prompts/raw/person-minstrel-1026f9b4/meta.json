@@ -1,0 +1,27 @@
+{
+ "created_at": 1794426406,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 28.57,
+ "request_id": "fc1ad356-5dea-4b89-ac8c-893cb9d2ffbd",
+ "outputs_retained_until": 1794512761,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 28.57
+ },
+ "id": "person-minstrel-1026f9b4",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:46:47",
+ "seconds": 45.1
+}

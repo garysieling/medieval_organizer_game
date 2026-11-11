@@ -255,3 +255,22 @@ are marked done in `generated.json`; the reuse map is in the PR.
 
 `--focus` also takes the new look names (`tailor`, `glazier`, ...).
 Screenshots: `evidence/rd-p0-buildings/`.
+
+## people
+
+Issue #690: the P0 catalog's 35 person prompts (`people/roles`,
+`people/vocations` groups, rd_pro__default 48px, remove_bg). Exported
+at @24 (villager height) with `--key-card` - remove_bg keyed only the
+outer margin on ~a third of them, leaving the figure on an opaque
+white card the border fill couldn't reach:
+
+    python scripts/rd_slice.py art-prompts/raw/<id>/0.png \
+        --out assets/rd/people --key-card r0c0=<name>@24
+
+The file name is the PersonV.person token: a posting ("tax-collector",
+"overseer", "trader", "guard-{spear,sword,shield,halberd}") or a trade
+("baker", "farmer", ...); the ten covered trades carry -m/-f pairs
+until the sim knows a villager's Sex (#681). Unmapped figures
+(archer, king, mage, minstrel, plague-doctor, ...) load dormant.
+`toolmaker-f` came out as a whole workbench scene; its `--force`
+regen (raw ...-20261111152416) is a smith holding hot work.

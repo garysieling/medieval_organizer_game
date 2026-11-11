@@ -1,0 +1,27 @@
+{
+ "created_at": 1794427155,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 26.77,
+ "request_id": "6291910c-5666-4fc7-a94b-3b6ec6e08ede",
+ "outputs_retained_until": 1794513503,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 26.77
+ },
+ "id": "person-glazier-m-27312f7a",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: male glazier holding a leaded glass pane, brown skin and coiled black hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:59:16",
+ "seconds": 53.3
+}

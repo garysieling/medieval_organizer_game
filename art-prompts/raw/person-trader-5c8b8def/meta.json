@@ -1,0 +1,27 @@
+{
+ "created_at": 1794426677,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 27.85,
+ "request_id": "19df7c52-e00a-47ec-ab71-093e9903fc39",
+ "outputs_retained_until": 1794513000,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 27.85
+ },
+ "id": "person-trader-5c8b8def",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: travelling trader in foreign-looking bright robes at a stall, deep dark skin and short black hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:51:18",
+ "seconds": 77.0
+}

@@ -147,6 +147,7 @@ pub struct EventSpec {
     pub cry: &'static str,
 }
 
+use crate::session::{EvTag, Sev, Thread, Valence};
 use EventId::*;
 use EventKind::*;
 
@@ -271,9 +272,9 @@ pub fn spec(id: EventId) -> &'static EventSpec {
     EVENTS.iter().find(|s| s.id == id).unwrap()
 }
 
-/// The visitor sprite slugs (#693's art batch, `rd/visitors/<slug>.png`
-/// on the client) - the wire vocabulary `PersonV.visit` draws from. A
-/// visitor whose slug isn't here draws the generic courier instead.
+/// The visitor sprite slugs (#693's art batch, `rd/people/<slug>.png`
+/// on the client) - the `PersonV.person` keys the road people draw
+/// from. A visitor whose slug isn't here draws the generic courier.
 pub const VISIT_SLUGS: &[&str] = &[
     "tinker", "knife-grinder", "rag-and-bone", "chimney-sweep", "rat-catcher",
     "dowser", "scribe", "tooth-drawer", "barber-surgeon", "pilgrims",
@@ -412,7 +413,10 @@ impl Game {
         for (id, d) in self.next_rare.clone() {
             if d == tick + OMEN_LEAD && self.rare.iter().all(|r| r.id != id)
                 && said.insert(omen_of(id)) {
-                self.log.push(format!("t{}: {}.", tick, omen_of(id)));
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", tick, omen_of(id)),
+                );
             }
         }
         // what's due comes on (unless it's already afoot)
@@ -475,9 +479,22 @@ impl Game {
                         }
                     }
                 }
-                self.rare.push(RareEvent { id, e: Some(e), path, until: None, at: Some(at), leaving: false, aux: 0, petters: Default::default() });
-                self.log.push_at_who(format!("t{}: {} has come to town.", self.tick, s.name),
-                    Some((at.0 as f32 + 0.5, at.1 as f32 + 0.5)), None);
+                self.rare.push(RareEvent {
+                    id,
+                    e: Some(e),
+                    path,
+                    until: None,
+                    at: Some(at),
+                    leaving: false,
+                    aux: 0,
+                    petters: Default::default(),
+                });
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Positive, Sev::Minor),
+                    format!("t{}: {} has come to town.", self.tick, s.name),
+                    Some((at.0 as f32 + 0.5, at.1 as f32 + 0.5)),
+                    None,
+                );
             }
             EventKind::Spell => {
                 self.rare.push(RareEvent { id, e: None, path: vec![], until: Some(self.tick + s.stay),
@@ -572,7 +589,12 @@ impl Game {
             .unwrap_or_default();
         r.leaving = true;
         let at = r.e.and_then(|e| toast_spot(&self.world, e));
-        self.log.push_at_who(format!("t{}: {} moves on.", self.tick, spec(r.id).name), at, None);
+        self.log.push_ev_at_who(
+            EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+            format!("t{}: {} moves on.", self.tick, spec(r.id).name),
+            at,
+            None,
+        );
         self.rare[idx] = r;
     }
 
@@ -596,29 +618,71 @@ impl Game {
                         DilemmaBranch { text: "the children - let the grain burn".into(),
                             debt: 0.3, victim },
                     ] });
-                self.log.push_at_who(format!("t{}: {} sets his knot down at the market - two ways to be wrong.", self.tick, s.name), pitch, None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} sets his knot down at the market - two ways to be wrong.",
+                        self.tick, s.name
+                    ),
+                    pitch,
+                    None,
+                );
             }
             EventId::VaccinationAct => {
                 if self.vax_done {
                     // the Act's been answered once - the officer's
                     // round is a formality now, the answer stands
-                    self.log.push_at_who(format!("t{}: {} rides through - the Act's answer stands.", self.tick, s.name), pitch, None);
+                    self.log.push_ev_at_who(
+                        EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: {} rides through - the Act's answer stands.",
+                            self.tick, s.name
+                        ),
+                        pitch,
+                        None,
+                    );
                 } else {
                     self.vax_offer = Some(VaxOffer { authority: e.unwrap_or(0) });
                     if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
-                    self.log.push_at_who(format!("t{}: {} reads the vaccination act on the square - the lancet's offered for the infants, the refusers pay the fine, and a third way's whispered in the crowd.", self.tick, s.name), pitch, None);
+                    self.log.push_ev_at_who(EvTag::new(Thread::Illness, Valence::Neutral, Sev::Notable), format!("t{}: {} reads the vaccination act on the square - the lancet's offered for the infants, the refusers pay the fine, and a third way's whispered in the crowd.", self.tick, s.name), pitch, None);
                     self.toasts.push_at(("The Vaccination Act".into(), self.tick + 40), pitch);
                 }
             }
             EventId::Tinker => {
-                if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
-                self.log.push_at_who(format!("t{}: {} sets up by the market - out come the cracked pots.", self.tick, s.name), pitch, None);
+                if let Some(e) = e {
+                    self.say(e, s.cry, TALK_BUBBLE_SECS * 2);
+                }
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} sets up by the market - out come the cracked pots.",
+                        self.tick, s.name
+                    ),
+                    pitch,
+                    None,
+                );
             }
             EventId::StrayDog => {
-                self.log.push_at_who(format!("t{}: a stray dog hangs about the market, ribs showing.", self.tick), pitch, None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: a stray dog hangs about the market, ribs showing.",
+                        self.tick
+                    ),
+                    pitch,
+                    None,
+                );
             }
             EventId::StrayCat => {
-                self.log.push_at_who(format!("t{}: a stray cat's under the market bench, watching the folk go by.", self.tick), pitch, None);
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: a stray cat's under the market bench, watching the folk go by.",
+                        self.tick
+                    ),
+                    pitch,
+                    None,
+                );
                 // she's a pet to begin with - ownerless and bondless, but
                 // pettable: a player who's kind to her keeps her. Hunting
                 // like any village cat: vermin watch and a warm lap once
@@ -650,12 +714,22 @@ impl Game {
                     }
                 }
                 let home_at = home.and_then(|h| toast_spot(&self.world, h));
-                self.log.push_at_who(format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick), home_at, None);
+                self.log.push_ev_at_who(EvTag::new(Thread::Lifecycle, Valence::Positive, Sev::Minor), format!("t{}: a prodigal returns - he's come a long way, and the door that raised him opens first.", self.tick), home_at, None);
                 self.toasts.push_at(("A prodigal returns".into(), self.tick + 40), home_at);
             }
             EventId::KnifeGrinder => {
-                if let Some(e) = e { self.say(e, s.cry, TALK_BUBBLE_SECS * 2); }
-                self.log.push_at_who(format!("t{}: {} treadles his wheel by the market - sparks fly.", self.tick, s.name), pitch, None);
+                if let Some(e) = e {
+                    self.say(e, s.cry, TALK_BUBBLE_SECS * 2);
+                }
+                self.log.push_ev_at_who(
+                    EvTag::new(Thread::Visitor, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: {} treadles his wheel by the market - sparks fly.",
+                        self.tick, s.name
+                    ),
+                    pitch,
+                    None,
+                );
             }
             _ => {
                 // the baseline: a figure stands his pitch and cries his trade
@@ -686,7 +760,12 @@ impl Game {
             Group::Beasts => self.beasts_began(id),
             Group::IllLuck => self.ill_luck_began(id),
             Group::Findings => self.findings_began(id),
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -698,7 +777,12 @@ impl Game {
             Group::Beasts => self.beasts_moment(id),
             Group::IllLuck => self.ill_luck_moment(id),
             Group::Findings => self.findings_moment(id),
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 

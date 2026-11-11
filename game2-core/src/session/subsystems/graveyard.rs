@@ -55,8 +55,16 @@ impl Game {
                 // the priest says the words where the village keeps one
                 let said = if self.church.is_some() {
                     " The priest says the words."
-                } else { "" };
-                self.log.push(format!("t{}: {} is laid to rest in the churchyard.{}", tick, name, said));
+                } else {
+                    ""
+                };
+                self.log.push_ev(
+                    EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Notable),
+                    format!(
+                        "t{}: {} is laid to rest in the churchyard.{}",
+                        tick, name, said
+                    ),
+                );
                 continue;
             }
             if let Some(gy) = &mut self.graveyard { gy.taken += 1; }

@@ -77,19 +77,32 @@ impl Game {
                         added += 1;
                     }
                 }
-                if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) { r.aux = added; }
-                self.log.push(format!("t{}: a mushroom flush - the wood's full of caps after the rain.", self.tick));
+                if let Some(r) = self.rare.iter_mut().find(|r| r.id == id) {
+                    r.aux = added;
+                }
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                    format!(
+                        "t{}: a mushroom flush - the wood's full of caps after the rain.",
+                        self.tick
+                    ),
+                );
                 self.toasts.push(("Mushrooms!".into(), self.tick + 40));
             }
             EventId::HerbFlush => {
-                self.log.push(format!("t{}: a flush of herbs - the hedge is thick with simples, worth the picking while it lasts.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: a flush of herbs - the hedge is thick with simples, worth the picking while it lasts.", self.tick));
                 self.toasts.push(("A flush of herbs".into(), self.tick + 40));
             }
             EventId::BerryYear => {
-                self.log.push(format!("t{}: a berry year - the hedges are black with them, and the kids' mouths are stained already.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: a berry year - the hedges are black with them, and the kids' mouths are stained already.", self.tick));
                 self.toasts.push(("A berry year".into(), self.tick + 40));
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -110,9 +123,9 @@ impl Game {
                         p.gold += 5.0;
                     }
                     self.say(v, "The spade rang on something... it's a pot. It's full of them!", CHAT_BUBBLE_SECS);
-                    self.log.push(format!("t{}: a coin hoard - a pot of old silver turned up in the field, and whose it is nobody'll say loud.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable), format!("t{}: a coin hoard - a pot of old silver turned up in the field, and whose it is nobody'll say loud.", self.tick));
                 } else {
-                    self.log.push(format!("t{}: a pot of old silver turned up - and walked off before anyone could claim it.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor), format!("t{}: a pot of old silver turned up - and walked off before anyone could claim it.", self.tick));
                 }
                 self.toasts.push(("A coin hoard".into(), self.tick + 40));
             }
@@ -132,7 +145,7 @@ impl Game {
                         }
                     }
                 }
-                self.log.push(format!("t{}: old stones - the plow turned up someone's old work, and who laid them nobody knows.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor), format!("t{}: old stones - the plow turned up someone's old work, and who laid them nobody knows.", self.tick));
                 self.toasts.push(("Old stones".into(), self.tick + 40));
             }
             EventId::SpringBubbles => {
@@ -143,7 +156,7 @@ impl Game {
                 }
                 // a spring doesn't trim a bed that's already run high
                 for g in self.gardens.iter_mut() { g.2 += 0.1; }
-                self.log.push(format!("t{}: a spring bubbles up - cold sweet water out of the ground where none ran before.", self.tick));
+                self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: a spring bubbles up - cold sweet water out of the ground where none ran before.", self.tick));
                 self.toasts.push(("A spring bubbles up".into(), self.tick + 40));
             }
             EventId::HoneyTree => {
@@ -174,9 +187,15 @@ impl Game {
                         }
                     }
                     self.say(able[off], "Worth every sting - look at the comb on that!", CHAT_BUBBLE_SECS);
-                    self.log.push(format!("t{}: a honey tree - a hive in a hollow trunk, and the combs came back dripping.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: a honey tree - a hive in a hollow trunk, and the combs came back dripping.", self.tick));
                 } else {
-                    self.log.push(format!("t{}: a honey tree hums in the wood - nobody ventures the combs.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a honey tree hums in the wood - nobody ventures the combs.",
+                            self.tick
+                        ),
+                    );
                 }
                 self.toasts.push(("A honey tree".into(), self.tick + 40));
             }
@@ -193,9 +212,9 @@ impl Game {
                         p.gold += 3.0;
                     }
                     self.say(v, "The sow nosed it out - the apothecary pays dear for these!", CHAT_BUBBLE_SECS);
-                    self.log.push(format!("t{}: a truffle - the sow nosed it out in the oak-leaves, and the apothecary pays dear for it.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Notable), format!("t{}: a truffle - the sow nosed it out in the oak-leaves, and the apothecary pays dear for it.", self.tick));
                 } else {
-                    self.log.push(format!("t{}: a sow nosed something out in the oak-leaves - gone before anyone saw what.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor), format!("t{}: a sow nosed something out in the oak-leaves - gone before anyone saw what.", self.tick));
                 }
                 self.toasts.push(("A truffle".into(), self.tick + 40));
             }
@@ -222,8 +241,15 @@ impl Game {
                                 *s.goods.entry(find.into()).or_insert(0) += 1;
                             }
                         }
-                        self.log_entity(lucky, format!("t{}: the storm throws up {} - the strand's own fortune.",
-                            self.tick, if roll % 20 == 1 { "an amber" } else { "a jet" }));
+                        self.log_entity_ev(
+                            EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor),
+                            lucky,
+                            format!(
+                                "t{}: the storm throws up {} - the strand's own fortune.",
+                                self.tick,
+                                if roll % 20 == 1 { "an amber" } else { "a jet" }
+                            ),
+                        );
                     }
                     for i in 0..able.len().min(3) {
                         let v = able[(off + i) % able.len()];
@@ -236,13 +262,25 @@ impl Game {
                         }
                     }
                     self.say(able[off], "The reach gives back - driftwood and a barrel on the strand!", CHAT_BUBBLE_SECS);
-                    self.log.push(format!("t{}: a storm's leavings - the reach gives back driftwood and a barrel, and the strand's picked clean by noon.", self.tick));
+                    self.log.push_ev(EvTag::new(Thread::Economy, Valence::Positive, Sev::Minor), format!("t{}: a storm's leavings - the reach gives back driftwood and a barrel, and the strand's picked clean by noon.", self.tick));
                 } else {
-                    self.log.push(format!("t{}: a storm's leavings on the strand - nobody to pick them.", self.tick));
+                    self.log.push_ev(
+                        EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                        format!(
+                            "t{}: a storm's leavings on the strand - nobody to pick them.",
+                            self.tick
+                        ),
+                    );
                 }
-                self.toasts.push(("A storm's leavings".into(), self.tick + 40));
+                self.toasts
+                    .push(("A storm's leavings".into(), self.tick + 40));
             }
-            _ => { self.log.push(format!("t{}: {}.", self.tick, s.name)); }
+            _ => {
+                self.log.push_ev(
+                    EvTag::new(Thread::Other, Valence::Neutral, Sev::Minor),
+                    format!("t{}: {}.", self.tick, s.name),
+                );
+            }
         }
     }
 
@@ -265,7 +303,13 @@ impl Game {
                         }
                     }
                 }
-                self.log.push(format!("t{}: the flush is picked through - the shade keeps what it keeps.", tick));
+                self.log.push_ev(
+                    EvTag::new(Thread::Economy, Valence::Neutral, Sev::Minor),
+                    format!(
+                        "t{}: the flush is picked through - the shade keeps what it keeps.",
+                        tick
+                    ),
+                );
             }
             _ => {}
         }

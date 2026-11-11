@@ -308,8 +308,18 @@ impl Game {
         let officiant = fun.officiant.filter(|&o| !villager::is_dead(&self.world, o)
             && self.world.get_component::<Pos>(o).is_some());
         // priest, elder or lay leader - the log doesn't guess which
-        let words = if officiant.is_some() { " The words are said." } else { "" };
-        self.log.push(format!("t{}: {} is laid to rest in the churchyard.{}", tick, name, words));
+        let words = if officiant.is_some() {
+            " The words are said."
+        } else {
+            ""
+        };
+        self.log.push_ev(
+            EvTag::new(Thread::Lifecycle, Valence::Neutral, Sev::Notable),
+            format!(
+                "t{}: {} is laid to rest in the churchyard.{}",
+                tick, name, words
+            ),
+        );
         if let Some(o) = officiant {
             self.say(o, "Earth to earth.", TALK_BUBBLE_SECS * 2);
         }

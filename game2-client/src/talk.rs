@@ -264,3 +264,17 @@ pub fn convo_click(p: &ConvoPanelV, mx: i32, my: i32) -> Option<ConvoClick> {
         .find(|b| mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h)
         .and_then(|b| b.click)
 }
+
+/// The command a digit key makes: the conversation box's numbered row
+/// while one's open - a Talk reply, or the call's framing when the box
+/// offers the founding call - and the villager pick while it isn't. A
+/// digit past the drawn rows is swallowed: the numbers you see are the
+/// keys that work, nothing slips through to a villager under the box
+pub fn digit_cmd(convo: Option<&ConvoPanelV>, n: usize) -> Option<Command> {
+    match convo {
+        Some(p) if n < p.options.len() =>
+            Some(if p.decides { Command::Decide(n) } else { Command::TalkPick(Some(n)) }),
+        Some(_) => None,
+        None => Some(Command::Select(n)),
+    }
+}

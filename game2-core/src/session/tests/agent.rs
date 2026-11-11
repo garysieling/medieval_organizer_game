@@ -261,6 +261,7 @@ fn an_agent_can_swear_an_aid_pact() {
             && !crate::game::dungeon::unavailable(&g.world, v))
         .expect("a grown neighbour");
     g.world.get_component_mut::<Purse>(who).unwrap().gold = 20.0;
+    crate::game::player::note_conversation(&mut g.world, who, other, g.tick);
     let seat = g.add_agent_seat(who);
     g.agent_command(seat, AgentCmd::Context {
         action: AgentAction::Pact, target: Some(other),

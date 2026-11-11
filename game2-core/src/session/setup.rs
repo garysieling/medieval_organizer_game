@@ -957,7 +957,7 @@ impl Game {
 
         let mut g = Game {
             world, sched, map, heights, flood: crate::game::flood::Flood::new(),
-            climate, music, weather, congregation, villagers, rivals,
+            climate, music, weather, congregation, factions: vec![], villagers, rivals,
             splinter: None, reformation_spark: None,
             seats: vec![Seat { player, org, ..Seat::default() }], pets, market_food, buildings, stones,
             town_wall: wall,
@@ -1237,6 +1237,16 @@ impl Game {
         // one villager marked by a seeded injustice - the Wanderer's
         // first job is to hear them out
         g.pick_intro_victim();
+        // and the powers that were here before the cause - the parish's
+        // interest and the market's. Last of the start's bookkeeping:
+        // every soul and structure that came before keeps its id, and
+        // the rolls keyed on it
+        g.factions = vec![
+            crate::sim::factions::spawn(&mut g.world, "the parish interest".into(),
+                crate::sim::factions::FactionKind::Church { congregation: g.congregation }, "the tithe"),
+            crate::sim::factions::spawn(&mut g.world, "the market interest".into(),
+                crate::sim::factions::FactionKind::Market, "the stalls' fees"),
+        ];
         g
     }
 

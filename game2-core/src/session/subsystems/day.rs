@@ -179,6 +179,8 @@ impl Game {
         crate::timed!("sim.partners", self.partnership_tick(tick));
         crate::timed!("sim.pledges", self.pledge_tick(tick));
         crate::timed!("sim.community", self.community_tick(tick));
+        // and the powers that grow on their own do their accounting
+        crate::timed!("sim.factions", self.faction_tick(tick));
         // and the year has its feast days
         crate::timed!("sim.festival", self.festival_tick(tick));
         let hearths = crate::infra::perf::scope("sim.day.hearths");

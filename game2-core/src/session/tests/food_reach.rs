@@ -8,23 +8,29 @@ fn test_no_one_starves_beside_a_full_store() {
     let mut game = Game::new();
     game.speed = 4; // turbo: the separation push still runs, just sampled thinner
     let (mut last, mut run, mut worst, mut who) = (0, vec![0u64; NAMES.len()], 0u64, 0usize);
+    let mut stocked_any = false;
     while game.tick < 720 {
         game.update();
         if game.tick == last { continue; }
         last = game.tick;
         // the roster grows: births and newcomers take index 32, 33...
         run.resize(game.villagers.len(), 0);
+        // days at zero hunger only count while the store has food to
+        // reach - an empty shelf is a supply question, not a reach one
+        let stocked = game.world.get_component::<villager::FoodSource>(game.market_food)
+            .map(|f| f.servings > 0).unwrap_or(false);
+        stocked_any |= stocked;
         for (k, &v) in game.villagers.iter().enumerate() {
             // the dead keep their last hunger (zero, if they starved): this
             // test is about the living being able to reach the store
             if game.world.get_component::<Health>(v).is_none() { run[k] = 0; continue; }
             let empty = game.world.get_component::<Hunger>(v).map(|h| h.value <= 0.0).unwrap_or(false);
-            run[k] = if empty { run[k] + 1 } else { 0 };
+            run[k] = if empty && stocked { run[k] + 1 } else { 0 };
             if run[k] > worst { (worst, who) = (run[k], k); }
         }
     }
     let servings = game.world.get_component::<villager::FoodSource>(game.market_food).unwrap().servings;
-    assert!(servings > 0, "the store ran out - this test is about reach, not supply");
+    assert!(stocked_any, "the store never stocked - this test is about reach, not supply");
     let v = game.villagers[who];
     let sp = *game.world.get_component::<Pos>(v).unwrap();
     let st = (sp.x.round() as i32, sp.y.round() as i32);

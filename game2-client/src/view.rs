@@ -329,10 +329,16 @@ impl View {
             .filter(|(_, b)| b.derelict)
             .map(|(i, b)| (i, self.sprite_of(b.sprite).as_ref().map(|sp| tint(sp, (40, 40, 55), 0.6))))
             .collect();
+        let windowed_church: Option<Sprite> = m.buildings.iter()
+            .find(|b| b.windowed && b.sprite == BSprite::Church)
+            .and_then(|b| self.sprite_of(b.sprite).as_ref())
+            .map(stained_glass);
         let mut standing: Vec<(f32, f32, Piece)> = vec![];
         for (i, b) in m.buildings.iter().enumerate() {
             let s = self.sprite_of(b.sprite);
-            let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) } else { s.as_ref() };
+            let sprite = if b.derelict { tint_cache[&i].as_ref().or(s.as_ref()) }
+                else if b.windowed { windowed_church.as_ref().or(s.as_ref()) }
+                else { s.as_ref() };
             standing.push((b.x, b.y, if b.cutaway { Piece::Cutaway(sprite, b.risen) } else { Piece::Building(sprite, b.risen) }));
         }
         standing.extend(m.settlement_houses.iter().map(|&(x, y, sprite)|

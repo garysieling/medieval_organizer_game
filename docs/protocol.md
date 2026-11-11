@@ -278,9 +278,10 @@ servers omit it; read it as no event pending.
 
 `buildings` lists the village's built structures this frame, each a
 `BldgV` - `{"x":12.0,"y":9.0,"sprite":...,"risen":1.0,"derelict":false,
-"smoke":true}`: `risen` runs 0..1 while a building goes up, and `smoke`
-marks chimney smoke on the cottages nearest the market. `sprite` picks
-the look the client should draw:
+"smoke":true,"windowed":false}`: `risen` runs 0..1 while a building goes
+up, `smoke` marks chimney smoke on the cottages nearest the market, and
+`windowed` marks the church once the parish's stained window is hung.
+`sprite` picks the look the client should draw:
 
 ```
 "Church"                  - a single fixed look (a unit variant)

@@ -1236,6 +1236,7 @@ impl Game {
             path_tick: u64::MAX,
             sfx: vec![],
             dungeon: vec![],
+            window: None,
             rare: vec![],
             next_rare: events::initial_due(seed),
             rare_fired: vec![],

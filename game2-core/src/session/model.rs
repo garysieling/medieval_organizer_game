@@ -127,6 +127,9 @@ pub struct BldgV {
     pub cutaway: bool,
     /// Chimney smoke (the cottages nearest the market)
     pub smoke: bool,
+    /// The church's stained window is hung (#789)
+    #[serde(default)]
+    pub windowed: bool,
 }
 
 /// A speech or thought bubble, already placed over the speaker

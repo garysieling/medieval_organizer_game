@@ -413,6 +413,27 @@ pub(crate) fn tint(block: &Sprite, colour: (u8, u8, u8), t: f32) -> Sprite {
     out
 }
 
+/// The church's stained window, painted onto a copy of its look: a
+/// rose of red, blue and gold panes above the door (#789)
+pub(crate) fn stained_glass(block: &Sprite) -> Sprite {
+    let mut out = Sprite { width: block.width, height: block.height, pixels: block.pixels.clone() };
+    let (cx, cy, r) = (block.width as i32 / 2, (block.height as f32 * 0.32) as i32, 4);
+    const PANES: [(u8, u8, u8); 2] = [(168, 36, 40), (56, 88, 168)];
+    const GOLD: (u8, u8, u8) = (216, 164, 56);
+    for dy in -r..=r {
+        for dx in -r..=r {
+            let d2 = dx * dx + dy * dy;
+            if d2 > r * r { continue; }
+            let (x, y) = (cx + dx, cy + dy);
+            if x < 0 || y < 0 || x >= block.width as i32 || y >= block.height as i32 { continue; }
+            let c = if d2 <= 1 { GOLD } else { PANES[(dx.abs() + dy.abs()) as usize % 2] };
+            let i = (y as usize * block.width + x as usize) * 4;
+            out.pixels[i] = c.0; out.pixels[i + 1] = c.1; out.pixels[i + 2] = c.2; out.pixels[i + 3] = 255;
+        }
+    }
+    out
+}
+
 /// A per-tile pick from a sprite list, stable for the tile (`salt` keeps
 /// different lists from lining up on the same tiles)
 pub(crate) fn pick(v: &[Sprite], x: i32, y: i32, salt: u32) -> Option<&Sprite> {

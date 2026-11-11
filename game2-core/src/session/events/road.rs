@@ -2,6 +2,11 @@
 //! Each fn here holds this family's arms of one handler in events/mod.rs.
 
 use super::*;
+use crate::session::WindowWork;
+use crate::session::country::Outlander;
+
+/// The glazier's price for the church's window (#789)
+const WINDOW_COST: f32 = 30.0;
 
 impl Game {
     /// road: the `event_day` arms for this group (the rest fall to the default)
@@ -746,6 +751,49 @@ impl Game {
                         desires::satisfy(&mut self.world, o, Want::Joy, tick + 10);
                     }
                     glazed += 1;
+                }
+                // the church window (#789): while he's here the parish
+                // passes the hat, then he works the bench - cut, paint,
+                // fire, lead, hang, a stage a day
+                if self.church.is_none() { return; }
+                match self.window.as_mut() {
+                    None => {
+                        self.window = Some(WindowWork { fund: 0.0, stage: 0, cracked: false, installed: false });
+                        self.log.push(format!("t{}: {} offers the church a window - the parish passes the hat.", tick, spec(id).name));
+                    }
+                    Some(w) if w.installed => {}
+                    Some(w) if w.stage == 0 => {
+                        // the hat goes round the parish - the country
+                        // folk aren't the church's flock: each purse
+                        // gives what it can, and what the village raises
+                        // past the price buys the finer glass
+                        for &v in &self.villagers.clone() {
+                            if villager::is_dead(&self.world, v) || crate::game::dungeon::unavailable(&self.world, v) { continue; }
+                            if self.world.get_component::<Outlander>(v).is_some() { continue; }
+                            if let Some(p) = self.world.get_component_mut::<Purse>(v) {
+                                let give = 2.0f32.min(p.gold - 4.0);
+                                if give > 0.0 { p.gold -= give; w.fund += give; }
+                            }
+                        }
+                        if w.fund >= WINDOW_COST {
+                            w.stage = 1;
+                            self.log.push(format!("t{}: the hat's made {:.0} gold - {} takes the bench.", tick, w.fund, spec(id).name));
+                        }
+                    }
+                    Some(w) => {
+                        // a stage a day; a thin purse's cheap glass can
+                        // crack in the firing - once, then it's relit
+                        if w.stage == 3 && !w.cracked && w.fund < WINDOW_COST * 1.5 {
+                            w.cracked = true;
+                            self.log.push(format!("t{}: a panel cracked in the firing - the kiln's relit.", tick));
+                        } else {
+                            w.stage += 1;
+                            if w.stage > 5 {
+                                w.installed = true;
+                                self.log.push(format!("t{}: the window's hung - the light through it preaches better than the pulpit.", tick));
+                            }
+                        }
+                    }
                 }
             }
             EventId::Thatcher => {

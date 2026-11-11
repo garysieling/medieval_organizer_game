@@ -1005,6 +1005,21 @@ pub struct Toasts {
     list: Vec<(String, u64, Option<(f32, f32)>, u32)>,
 }
 
+/// The church window's work in hand: the parish's hat, the glazier's
+/// bench, the firing's luck (#789)
+#[derive(Debug, Clone)]
+pub struct WindowWork {
+    /// Gold the hat has taken for the glazier
+    pub fund: f32,
+    /// The bench's stage: 0 collecting, 1 cut, 2 paint, 3 fire, 4 lead,
+    /// 5 hung - a stage a day while the glazier's in town
+    pub stage: u8,
+    /// A panel already cracked in the firing once (the rework's done)
+    pub cracked: bool,
+    /// The window's hung: the church draws its glass
+    pub installed: bool,
+}
+
 impl Toasts {
     pub fn push(&mut self, t: (String, u64)) { self.list.push((t.0, t.1, None, self.now)); }
     pub fn push_at(&mut self, t: (String, u64), at: Option<(f32, f32)>) { self.list.push((t.0, t.1, at, self.now)); }
@@ -1318,6 +1333,9 @@ pub struct Game {
     pub beekeeper: Option<Entity>,
     pub hives: Vec<Entity>,
     pub church: Option<Entity>,
+    /// The stained-glass commission the parish is raising for the
+    /// church while a glazier's in town (#789)
+    pub window: Option<WindowWork>,
     /// (who, the day the swarm leaves) - a swarm takes a liking to someone
     pub swarm: Option<(Entity, u64)>,
     /// The dead whose affairs are settled - succession runs once per soul

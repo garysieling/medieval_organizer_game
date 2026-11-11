@@ -110,7 +110,10 @@ impl Game {
         let issues = self.world.get_component::<desires::Organizer>(self.seats[seat].player)
             .map(|o| o.issues.clone()).unwrap_or_default();
         if issues.is_empty() { return None; }
-        let vote = campaign::hold_issue_vote(&self.world, org, &issues, campaign::Framing::SharedGrievance, self.tick)?;
+        // the ballot names the themes the issues gather under, not the
+        // thin tags they were heard as (#1072)
+        let candidates: Vec<desires::IssueTag> = desires::platforms(&issues).into_iter().map(|(c, _)| c).collect();
+        let vote = campaign::hold_issue_vote(&self.world, org, &candidates, campaign::Framing::SharedGrievance, self.tick)?;
         let oname = self.world.get_component::<Organization>(org).map(|o| o.name.clone()).unwrap_or_default();
         Some((vote, oname))
     }

@@ -376,8 +376,18 @@ impl Game {
                 format!("{}{}", vill_name(i), if held { " (held)" } else { "" })
             }))
             .collect();
+        // the notebook reads in themes: a cluster of grievances shows as
+        // its platform with what folds into it beneath (#1072)
         let issues: Vec<String> = world.get_component::<Organizer>(self.seats[seat].player)
-            .map(|o| o.issues.iter().map(|t| desires::issue_name(t.clone())).collect()).unwrap_or_default();
+            .map(|o| desires::platforms(&o.issues).into_iter().flat_map(|(cand, members)| {
+                if members.len() > 1 {
+                    let mut lines = vec![cand];
+                    lines.extend(members.into_iter().map(|t| format!("  {}", desires::issue_name(t))));
+                    lines
+                } else {
+                    vec![desires::issue_name(cand)]
+                }
+            }).collect()).unwrap_or_default();
         // a player seat drives a PlayerCharacter; an agent seat drives a plain
         // villager, whose panel is their own name and purse
         let me = self.seats[seat].player;

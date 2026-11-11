@@ -178,7 +178,11 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
                             }
                         }
                         tally.sort_by(|a, b| b.1.cmp(&a.1));
-                        issues = tally.into_iter().take(3).map(|(t, _)| t).collect();
+                        // the ballot names themes where the grievances
+                        // gather under one, not thin tags (#1072)
+                        issues = super::desires::platforms(
+                            &tally.into_iter().map(|(t, _)| t).collect::<Vec<_>>())
+                            .into_iter().map(|(c, _)| c).take(3).collect();
                         // a roof is still a fight worth having - it just
                         // never leads the ballot when a grievance stands
                         if roofless > 0 && issues.len() < 3 {

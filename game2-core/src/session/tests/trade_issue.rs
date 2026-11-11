@@ -53,3 +53,22 @@ fn test_everybodys_grief_converges_in_a_mixed_room() {
     assert_eq!(issue.as_deref(), Some("the tax collector's cut"),
         "the commons converge whatever the room's mix");
 }
+
+#[test]
+fn test_kindred_grievances_gather_under_one_platform() {
+    let mut g = Game::new();
+    let pe = g.player;
+    // the notebook holds the taxes, the writ and the fevers - the first
+    // two fold into one platform, the third stands alone (#1072)
+    desires::found_issue(&mut g.world, pe, "the taxes".into());
+    desires::found_issue(&mut g.world, pe, "the bailiff's writ".into());
+    desires::found_issue(&mut g.world, pe, "the fevers".into());
+    let issues = g.ui_model_at(0).panel.issues;
+    // the platform heads the list with its constituents beneath, the
+    // thin issue keeps its own line
+    assert_eq!(issues.len(), 4, "{:?}", issues);
+    assert_eq!(issues[0], "hard times under the lord's hand");
+    assert!(issues[1].contains("the tax collector's cut") && issues[2].contains("the bailiff's writ"),
+        "the constituents read beneath the platform");
+    assert_eq!(issues[3], desires::issue_name("the fevers".into()), "a lone tag keeps its own name");
+}

@@ -1,0 +1,27 @@
+{
+ "created_at": 1794193037,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 32.71,
+ "request_id": "8eb8ebe6-5a5a-4875-ac9e-8a77b5ccb00a",
+ "outputs_retained_until": 1794279374,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 32.71
+ },
+ "id": "shop-masons-yard-e00310ea",
+ "prompt": "single isometric medieval village asset: mason's yard with cut stone blocks and scaffolding",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T21:57:17",
+ "seconds": 63.0
+}

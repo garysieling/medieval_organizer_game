@@ -1,0 +1,27 @@
+{
+ "created_at": 1794192833,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 33.25,
+ "request_id": "75b5fa70-1436-4c68-a229-87ed8b2cbc1d",
+ "outputs_retained_until": 1794279094,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 33.25
+ },
+ "id": "shop-tailor-df93a827",
+ "prompt": "single isometric medieval village asset: tailor's shop with cloth bolts displayed",
+ "request": {
+  "prompt_style": "rd_pro__isometric",
+  "width": 160,
+  "height": 160,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-08T21:53:54",
+ "seconds": 139.7
+}

@@ -630,6 +630,8 @@ impl Game {
             graveyard: self.graveyard.as_ref().map(|g| g.slots.clone()).unwrap_or_default(),
             lychgate: self.graveyard.as_ref().and_then(|g| g.gate),
             stocks: self.stocks_tile,
+            well: self.well_tile,
+            hall: self.hall_tile,
             village_gaol: self.village_gaol,
             castle_gaol: self.castle_gaol,
             flood: self.flood.cells.iter().map(|(&(x, y), &b)| (x, y, b)).collect(),

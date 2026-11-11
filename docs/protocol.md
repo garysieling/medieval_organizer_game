@@ -282,11 +282,16 @@ The unit-look sprites are `Mansion`, `Blacksmith`, `Church`,
 `Guildhall`, `RivalHouse`, `RivalWoodhouse` and `CastleKeep`; the
 indexed ones are `House`, `Rowhouse` and `Barracks`. `Work`'s looks are
 `Tavern`, `Bakery`, `Granary`, `WatchHouse`, `Fold`, `Apiary`, `Cellar`,
-`Workshop` and `Factory` - the sim names a look and the client's art
+`Workshop`, `Factory`, `Tailor`, `Glazier`, `Printshop`, `MasonsYard`,
+`Luthier` and `Farmhouse` - the sim names a look and the client's art
 pack resolves it to pixels, standing a cottage in where a look has no
 art yet. Older servers never send the company-town sprites (`Mansion`,
 `Rowhouse`, `Barracks`, `Factory`); a client that doesn't know a sprite
 should draw a cottage and move on.
+
+`well` and `hall` are the village well and meeting hall on the grass
+beside the market square - `[x,y]` tiles or absent (older servers omit
+them; no prop drawn).
 
 `castle_keeps` (`[x,y]` list) and `settlement_houses` (`[x,y,sprite]`
 list, the same sprite shapes) carry remote scenery - towns and castles

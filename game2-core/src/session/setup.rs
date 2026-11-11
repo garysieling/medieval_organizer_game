@@ -921,6 +921,29 @@ impl Game {
             livelihood::tax_round(&mut world, collector, &roster, 25, 11);
         }
 
+        // the well and the meeting hall stand beside the market square:
+        // the first clear grass tiles off the cross, in a fixed scan so
+        // every seed plants the same pair (the square's own ground stays
+        // open for the stalls and the crowd)
+        let (mx, my) = (vx, vy);
+        let mut commons = [(0, 0); 2];
+        let mut commons_n = 0;
+        'commons: for &(dx, dy) in &[(1, 3), (-1, 3), (2, 3), (-2, 3), (3, 2), (-3, 2),
+                (3, -2), (-3, -2), (1, 4), (-1, 4), (2, 4), (-2, 4), (4, 1), (-4, 1),
+                (4, -1), (-4, -1), (0, 3), (0, -3), (3, 0), (-3, 0), (0, 4), (0, -4),
+                (4, 0), (-4, 0), (3, 3), (-3, 3),
+                (3, -3), (-3, -3), (1, 5), (-1, 5), (5, 1), (-5, 1), (1, -5), (-1, -5),
+                (5, -1), (-5, -1), (0, 5), (0, -5), (5, 0), (-5, 0)] {
+            let (tx, ty) = (mx + dx, my + dy);
+            if !matches!(map.get(tx, ty), Some(Tile::Grass | Tile::Hill))
+                || !map.passable(tx, ty) || map.is_occupied(tx, ty) { continue; }
+            commons[commons_n] = (tx, ty);
+            commons_n += 1;
+            if commons_n == 2 { break 'commons; }
+        }
+        let (well_tile, hall_tile) = ((commons_n > 0).then_some(commons[0]),
+            (commons_n > 1).then_some(commons[1]));
+
         let mut g = Game {
             world, sched, map, heights, flood: crate::game::flood::Flood::new(),
             climate, music, weather, congregation, villagers, rivals,
@@ -1005,6 +1028,8 @@ impl Game {
             imperial_project: None,
             doctor: None,
             stocks_tile: None,
+            well_tile,
+            hall_tile,
             lord_works: vec![],
             attended_days: vec![],
             journal: crate::session::journal::Journal::new(seed),

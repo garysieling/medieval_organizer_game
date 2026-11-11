@@ -22,6 +22,7 @@ pub(in crate::session) mod laborers;
 pub(in crate::session) mod petition;
 pub(in crate::session) mod procession;
 pub(in crate::session) mod levy;
+mod orders;
 pub(in crate::session) mod monuments;
 pub(in crate::session) mod post;
 pub(in crate::session) mod prison;

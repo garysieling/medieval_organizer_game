@@ -113,6 +113,9 @@ pub struct Site {
     /// The site's treasury in gold: tribute in, gifts and the crown's
     /// cut out
     pub treasury: f32,
+    /// A daughter house: an order's grange answers its assessment to
+    /// the mother abbey, not the liege (#988)
+    pub mother: Option<usize>,
 }
 
 /// Lives out at `sites[site]`, not in the village
@@ -464,7 +467,7 @@ impl Game {
                 persona: if kind == SiteKind::Castle { LordPersona {
                     cruelty: 0.3 + (rng.below(7) as f32 / 10.0),
                     vanity: (rng.below(10) as f32 / 10.0) } } else { LordPersona::default() },
-                sheriff: None, sisterhood: None });
+                sheriff: None, sisterhood: None, mother: None });
         }
         // the folk, a household to a site under their own roofs; the
         // roster puts children last so the carrier slots - the first
@@ -562,12 +565,18 @@ impl Game {
         // brothers work but come last in a lean winter
         for si in 0..self.sites.len() {
             if self.sites[si].kind != SiteKind::Monastery || self.sites[si].title != Some("Abbess") { continue; }
-            let members: Vec<Entity> = self.villagers.iter().copied()
+            let folk: Vec<Entity> = self.villagers.iter().copied()
                 .filter(|&v| self.world.get_component::<Outlander>(v)
                     .map(|o| o.site == si).unwrap_or(false)).collect();
             let leader = self.sites[si].lord.unwrap_or(0u32);
             let name = format!("the sisterhood of {}", self.sites[si].name);
-            self.sites[si].sisterhood = Some(Sisterhood { members, leader, charter: name });
+            // the two tiers: the sworn keep the choir, the rest take the
+            // habit as lay brothers and the order's labor (#988)
+            let split = (folk.len() + 1) / 2;
+            let (members, lay) = folk.split_at(split);
+            self.sites[si].sisterhood = Some(Sisterhood {
+                members: members.to_vec(), lay: lay.to_vec(),
+                leader, charter: name, risk: 0.0 });
         }
 
     }
@@ -787,6 +796,7 @@ impl Game {
     pub(super) fn country_tick(&mut self, tick: u64) {
         self.lord_works_tick(tick);
         self.tribute_tick(tick);
+        crate::timed!("sim.orders", self.order_tick(tick));
         // the pestilence walks the roads: a rare seeded roll puts it on
         // a carrier, and the carriers' own rounds spread it settlement
         // to settlement - no site rolls its own dice. Its own stream,
@@ -1089,16 +1099,18 @@ impl Game {
             let purse = self.world.get_component::<Purse>(runner).map(|p| p.gold).unwrap_or(0.0);
             let pay = assessment.min(purse);
             if pay < 1.0 { continue; }
-            let Some(door) = self.sites[liege].homes.first()
+            // a grange's assessment goes to the mother house, not the castle
+            let to = self.sites[si].mother.unwrap_or(liege);
+            let Some(door) = self.sites[to].homes.first()
                 .and_then(|&k| self.world.get_component::<Pos>(k).copied())
                 .and_then(|p| self.at_the_door(p.x.round() as i32, p.y.round() as i32)) else { continue };
             // coin out of the purse before the wheel turns - a train lost
             // on the road is a loss the books already carry
             if let Some(p) = self.world.get_component_mut::<Purse>(runner) { p.gold -= pay; }
-            if self.send_far(runner, door, Goal::Owe(si, liege, pay)) {
+            if self.send_far(runner, door, Goal::Owe(si, to, pay)) {
                 let name = self.villagers.iter().position(|&x| x == runner).map(vill_name).unwrap_or("the headman");
                 self.log.push(format!("t{}: {} rides out of {} with {:.0} gold for {}.", tick, name,
-                    self.sites[si].name, pay, self.sites[liege].name));
+                    self.sites[si].name, pay, self.sites[to].name));
             } else if let Some(p) = self.world.get_component_mut::<Purse>(runner) { p.gold += pay; }
         }
         // down: each castle answers its tributaries with grain and iron,
@@ -1533,7 +1545,14 @@ impl Game {
 /// come last in a lean winter - the matriarch's the queen
 #[derive(Clone, Debug)]
 pub struct Sisterhood {
+    /// The choir: the sworn, first at the table and in the office
     pub members: Vec<Entity>,
+    /// The conversi: the lay brothers whose labor the house runs on -
+    /// the order's two-tier membership (#988)
+    pub lay: Vec<Entity>,
     pub leader: Entity,
     pub charter: String,
+    /// How appetizing the house has grown to a cash-strapped power:
+    /// the richer the order, the nearer the seizure (#988)
+    pub risk: f32,
 }

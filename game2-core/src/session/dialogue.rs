@@ -695,6 +695,22 @@ impl Game {
                 title: "THE LORD'S OFFER".into(),
                 rows, options, decides: true, leave: false });
         }
+        if s.meet_offer.is_some() {
+            return Some(ConvoPanelV {
+                title: "THE CALL - WHEN DO THEY GATHER".into(),
+                rows: vec![
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "The plan's made - the word just wants a day.".into() },
+                    TalkRowV { name: None, gist: true, you: false, rule: false, who: None,
+                        text: "Till then the asks still count - roles and yeses fill until the door.".into() },
+                ],
+                options: vec![
+                    "Two days out - a quick word round".into(),
+                    "Four days out - the word gets round".into(),
+                    "A week out - the far ones can come".into(),
+                ],
+                decides: true, leave: false });
+        }
         if let Some(d) = &s.pending_founding {
             let mut rows = self.record_rows(seat, d.record);
             let (lean, options) = match &d.vote {

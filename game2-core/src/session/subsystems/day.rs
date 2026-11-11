@@ -51,6 +51,32 @@ impl Game {
                 self.note_talk(d.record, None, "The talk stays talk for now - no cause taken up.");
             }
         }
+        // a called meeting's day arrives: the door rolls at the hour -
+        // a lost house calls the whole thing off, and a meeting under
+        // way keeps the word waiting a day more
+        for seat in 0..self.seats.len() {
+            let oe = self.seats[seat].org;
+            let Some(plan) = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe) else { continue };
+            let Some(day) = plan.for_day else { continue };
+            if tick < day { continue; }
+            let lost = plan.venue.map(|(h, b)| crate::game::villager::is_dead(&self.world, h)
+                || self.world.get_component::<Pos>(b).is_none()).unwrap_or(false);
+            if lost {
+                self.world.remove_component::<crate::game::organizing::MeetingPlan>(oe);
+                self.log.push(format!("t{}: the meeting's off - the house that was to hold it is gone.", tick));
+                continue;
+            }
+            if self.meeting.is_some() { continue; }
+            let msg = self.call_meeting_at(seat);
+            self.log.push(format!("t{}: {}", tick, msg));
+        }
+        // a date question nobody answers lapses like any unanswered call
+        for seat in 0..self.seats.len() {
+            if self.seats[seat].meet_offer
+                .map(|t| tick.saturating_sub(t) >= FOUNDING_OFFER_EXPIRY_DAYS).unwrap_or(false) {
+                self.seats[seat].meet_offer = None;
+            }
+        }
         // the felt worths slide a little back toward ordinary each day
         goods::drift(&mut self.world);
         // market day, once a month: the org's members sell their work and

@@ -109,6 +109,19 @@ impl Game {
                     Some("the organizer needs a day to think".into())
                 } else { None }
             }
+            // an oath needs a name: greyed for a stranger, and while the
+            // purse can't cover the wax (#1061)
+            CtxAct::Pact => {
+                let pe = self.seats[seat].player;
+                let v = self.villagers[self.seats[seat].selected_target];
+                if crate::game::player::rapport(&self.world, pe, v) <= 0.0 {
+                    Some("they don't know you - talk first".into())
+                } else {
+                    let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
+                    (gold < crate::game::contracts::PACT_AID)
+                        .then(|| format!("the oath's wax costs {:.0} gold", crate::game::contracts::PACT_AID))
+                }
+            }
             CtxAct::MendHall => {
                 let purse = self.world.get_component::<Organization>(self.seats[seat].org)
                     .map(|o| o.resources).unwrap_or(0.0);
@@ -556,14 +569,13 @@ impl Game {
                     self.seats[seat].ctx_actions.push(CtxAct::ShareFindings);
                 }
             }
-            // a picked neighbour with no pact yet can be sworn to, wax
-            // and ten gold willing
+            // a picked neighbour with no pact yet can be sworn to; the
+            // button greys until they've heard you speak and the wax's
+            // paid for - an oath needs a name (#1061)
             let pe = self.seats[seat].player;
-            let gold = self.world.get_component::<Purse>(pe).map(|p| p.gold).unwrap_or(0.0);
             if (self.seats[seat].picked || self.seats[seat].agent) && !villager::is_dead(&self.world, v)
                 && self.world.get_component::<Kid>(v).is_none()
                 && !crate::game::dungeon::unavailable(&self.world, v)
-                && gold >= crate::game::contracts::PACT_AID
                 && !crate::game::contracts::has_pact(&self.world, pe, v) {
                 self.seats[seat].ctx_actions.push(CtxAct::Pact);
             }

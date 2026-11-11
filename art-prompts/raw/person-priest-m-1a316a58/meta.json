@@ -1,0 +1,27 @@
+{
+ "created_at": 1794427868,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 25.15,
+ "request_id": "41aa07fd-e7fb-4763-997e-9adaad9e9594",
+ "outputs_retained_until": 1794513995,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 25.15
+ },
+ "id": "person-priest-m-1a316a58",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: male village priest in plain robes with symbol pendant, brown skin and coiled black hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:11:09",
+ "seconds": 273.8
+}

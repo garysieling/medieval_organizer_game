@@ -747,6 +747,15 @@ impl View {
                             let s = if facing == 3 { art.mounted_flip.as_ref().unwrap_or(ms) } else { ms };
                             let h = draw_animal(&mut buf, s, sx, sy, zoom);
                             sy - h + 24
+                        } else if let (false, Some(s)) = (pv.kid, pv.person.as_deref()
+                                .and_then(|t| art.person(&format!("{}-{}", t, look_sex(
+                                    figure_look(pv.kid, i, art.villager_sprites.len()))))
+                                    .or_else(|| art.person(t)))) {
+                            // a generated still for their posting or
+                            // trade: it slides rather than strides
+                            // until the walk cycles exist (#691)
+                            let h = draw_animal(&mut buf, s, sx, sy, zoom);
+                            sy - h + 24
                         } else {
                             let look = figure_look(pv.kid, i, art.villager_sprites.len());
                             let fig = &art.villager_sprites[look];
@@ -827,6 +836,8 @@ impl View {
                     let (sx, sy) = iso_to_screen_cam(px, py, cam_x, cam_y, zoom);
                     if let Some(Some(ws)) = art.guard_walks.get(i % art.guard_walks.len().max(1)) {
                         ws.draw(&mut buf, 2, false, 0, sx, sy, zoom);
+                    } else if let Some(s) = pv.person.as_deref().and_then(|t| art.person(t)) {
+                        draw_animal(&mut buf, s, sx, sy, zoom);
                     } else if !art.guards.is_empty() {
                         draw_character(&mut buf, &art.guards[i % art.guards.len()], sx, sy, zoom);
                     }

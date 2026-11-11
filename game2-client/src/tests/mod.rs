@@ -37,6 +37,7 @@ mod mystery_click;
 mod nature;
 mod panel;
 mod pause_box;
+mod person;
 mod picker;
 mod rain;
 mod reach_name;

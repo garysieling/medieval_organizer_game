@@ -1,0 +1,27 @@
+{
+ "created_at": 1794427315,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 26.41,
+ "request_id": "4c8a7f40-175d-4847-8aa7-37525d46b23e",
+ "outputs_retained_until": 1794513661,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 26.41
+ },
+ "id": "person-knight-m-868446a1",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: male knight-at-arms in mail with sword and surcoat, fair skin and light brown hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:01:56",
+ "seconds": 55.1
+}

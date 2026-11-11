@@ -599,6 +599,13 @@ pub(crate) fn figure_look(kid: bool, i: usize, n: usize) -> usize {
     if kid { i % n.min(2) } else { i % n }
 }
 
+/// The sex the pack look presents (vpeople order in art.rs: the women
+/// sit at looks 1, 4, 6 and 7) - so a generated figure matches the
+/// figure it replaces. Placeholder until the sim carries Sex (#681).
+pub(crate) fn look_sex(look: usize) -> &'static str {
+    if matches!(look, 1 | 4 | 6 | 7) { "f" } else { "m" }
+}
+
 /// Draw a child's figure - the pack has none, so they're a scaled-down
 /// villager flagged "(child)" on the label
 pub(crate) fn draw_kid(buf: &mut Buffer, sprite: &Sprite, sx: i32, sy: i32, zoom: f32) {

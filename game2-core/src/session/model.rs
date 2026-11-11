@@ -62,6 +62,12 @@ pub struct PersonV {
     /// everyone else, whose look comes from their roster slot
     #[serde(default)]
     pub look: u8,
+    /// A role or trade's own figure ("baker", "tax-collector"): where the
+    /// generated people art covers it the client draws that instead of
+    /// the generic villager look - absent for the uncovered trades and
+    /// on older servers
+    #[serde(default)]
+    pub person: Option<String>,
     /// Picket-sign board while gathered for a protest (0 wooden
     /// hand-lettered, 1 printed placard); the client draws it beside
     /// the figure

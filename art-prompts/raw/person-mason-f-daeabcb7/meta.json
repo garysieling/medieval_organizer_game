@@ -1,0 +1,27 @@
+{
+ "created_at": 1794427465,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 25.87,
+ "request_id": "81819ff0-7af9-44b0-b45b-aebec35647da",
+ "outputs_retained_until": 1794513833,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 25.87
+ },
+ "id": "person-mason-f-daeabcb7",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: female stonemason with mallet and chisel, dusty apron, warm tan skin and dark hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:04:26",
+ "seconds": 32.4
+}

@@ -1,8 +1,52 @@
 # Retro Diffusion art prompts
 
-210 prompts, est. $37.53 USD at list prices.
+242 prompts, est. $43.46 USD at list prices.
 Ids are stable: re-run with `--state art-prompts/generated.json` to skip done work.
 
+
+## P0 - needed now (replaces assets the game already draws) / people/roles
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| person-archer-18038f94 | small chibi medieval character, front view, full body, on empty background: archer with bow and quiver, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-courier-77f5648a | small chibi medieval character, front view, full body, on empty background: road courier on horseback, satchel across chest, pale freckled skin and red hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-crossbowman-445f4de4 | small chibi medieval character, front view, full body, on empty background: crossbowman winding his weapon, pale freckled skin and red hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-guard-halberd-dc5c4861 | small chibi medieval character, front view, full body, on empty background: town guard with halberd, deep dark skin and short black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-guard-shield-79a9b588 | small chibi medieval character, front view, full body, on empty background: town guard with large shield, brown skin and coiled black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-guard-spear-b3fccc98 | small chibi medieval character, front view, full body, on empty background: town guard with spear and open helmet, olive skin and dark wavy hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-guard-sword-63454e4d | small chibi medieval character, front view, full body, on empty background: town guard with sword and buckler, warm tan skin and dark hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-king-aad17721 | small chibi medieval character, front view, full body, on empty background: old king in ermine cloak and crown, warm tan skin and dark hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-mage-47ff6a16 | small chibi medieval character, front view, full body, on empty background: village hedge mage in robes with staff, deep dark skin and short black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-minstrel-1026f9b4 | small chibi medieval character, front view, full body, on empty background: travelling minstrel with a lute, colourful patched cloak, mid-performance, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-overseer-80e63818 | small chibi medieval character, front view, full body, on empty background: stern overseer with ledger and short whip, fine coat, warm tan skin and dark hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-prince-6d7d470e | small chibi medieval character, front view, full body, on empty background: young prince in doublet, brown skin and coiled black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-tax-collector-9d4148e1 | small chibi medieval character, front view, full body, on empty background: tax collector in dark robes with coin purse and ledger, brown skin and coiled black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-trader-5c8b8def | small chibi medieval character, front view, full body, on empty background: travelling trader in foreign-looking bright robes at a stall, deep dark skin and short black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+
+## P0 - needed now (replaces assets the game already draws) / people/vocations
+
+| id | prompt | style | size | n | est $ | notes |
+|---|---|---|---|---|---|---|
+| person-baker-f-2565f4d4 | small chibi medieval character, front view, full body, on empty background: female baker in flour-dusted apron holding a loaf, warm tan skin and dark hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-baker-m-ec11dea5 | small chibi medieval character, front view, full body, on empty background: male baker in flour-dusted apron holding a loaf, olive skin and dark wavy hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-farmer-f-df18d98b | small chibi medieval character, front view, full body, on empty background: female farmer with straw hat, sickle at belt, pale freckled skin and red hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-farmer-m-7f50d9dc | small chibi medieval character, front view, full body, on empty background: male farmer with straw hat, sickle at belt, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-glazier-f-8174daf3 | small chibi medieval character, front view, full body, on empty background: female glazier holding a leaded glass pane, deep dark skin and short black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-glazier-m-27312f7a | small chibi medieval character, front view, full body, on empty background: male glazier holding a leaded glass pane, brown skin and coiled black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-knight-f-f5754a94 | small chibi medieval character, front view, full body, on empty background: female knight-at-arms in mail with sword and surcoat, pale freckled skin and red hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-knight-m-868446a1 | small chibi medieval character, front view, full body, on empty background: male knight-at-arms in mail with sword and surcoat, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-luthier-f-28571d5d | small chibi medieval character, front view, full body, on empty background: female luthier holding an unfinished lute, pale freckled skin and red hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-luthier-m-f3230853 | small chibi medieval character, front view, full body, on empty background: male luthier holding an unfinished lute, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-mason-f-daeabcb7 | small chibi medieval character, front view, full body, on empty background: female stonemason with mallet and chisel, dusty apron, warm tan skin and dark hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-mason-m-8bd05b6d | small chibi medieval character, front view, full body, on empty background: male stonemason with mallet and chisel, dusty apron, olive skin and dark wavy hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-priest-f-c01b35e6 | small chibi medieval character, front view, full body, on empty background: female village priest in plain robes with symbol pendant, deep dark skin and short black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-priest-m-1a316a58 | small chibi medieval character, front view, full body, on empty background: male village priest in plain robes with symbol pendant, brown skin and coiled black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-printmaker-f-5e7b6a14 | small chibi medieval character, front view, full body, on empty background: female printmaker in ink-stained apron holding a pamphlet, pale freckled skin and red hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-printmaker-m-59f98bf6 | small chibi medieval character, front view, full body, on empty background: male printmaker in ink-stained apron holding a pamphlet, fair skin and light brown hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-tailor-f-7583d8d1 | small chibi medieval character, front view, full body, on empty background: female tailor with measuring tape and pins, warm tan skin and dark hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-tailor-m-4b6d2c7c | small chibi medieval character, front view, full body, on empty background: male tailor with measuring tape and pins, olive skin and dark wavy hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-toolmaker-f-09556758 | small chibi medieval character, front view, full body, on empty background: female blacksmith toolmaker with leather apron and hammer, deep dark skin and short black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
+| person-toolmaker-m-c529207c | small chibi medieval character, front view, full body, on empty background: male blacksmith toolmaker with leather apron and hammer, brown skin and coiled black hair | rd_pro__default | 48x48 | 1 | 0.18 | use a saved reference_image of your base villager for look consistency |
 
 ## P1 - fills gaps in shipped features / festivals/decor
 
@@ -19,12 +63,6 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | food-sheet-4fe809ed | inventory item sheet: bread loaf, cheese wheel, ale mug, honey jar, dried fish, egg basket, milk jug, apples, pottage bowl, turnips, peas, fuel faggot bundle | rd_pro__inventory_items | 256x256 | 1 | 0.18 | kitchen-garden and hearth foods, plus the fuel goods |
 | materials-sheet-40a5650d | inventory item sheet: log, dressed stone block, sand pile, pigment pot, cloth bolt, glass pane, paper sheet, ink pot, wool ball, tanned hide, candle, clay brick | rd_pro__inventory_items | 256x256 | 1 | 0.18 | raw and crafted materials for the production chains |
 | tools-sheet-cf25b75b | inventory item sheet: sickle, hoe, hammer, saw, chisel, axe, mallet, needle and thread, quill, trowel, smith's tongs, wood plane | rd_pro__inventory_items | 256x256 | 1 | 0.18 | vocation workshop tools; include_downloadable_data returns the item atlas |
-
-## P1 - fills gaps in shipped features / monuments
-
-| id | prompt | style | size | n | est $ | notes |
-|---|---|---|---|---|---|---|
-| memorial-lychgate-c606b4b8 | single isometric medieval village asset: lychgate, small roofed wooden arch over a path, the churchyard entrance | rd_tile__tile_object | 96x96 | 2 | 0.12 | generated for funerals #674 |
 
 ## P1 - fills gaps in shipped features / regions/scotland
 
@@ -402,9 +440,3 @@ Ids are stable: re-run with `--state art-prompts/generated.json` to skip done wo
 | id | prompt | style | size | n | est $ | notes |
 |---|---|---|---|---|---|---|
 | scale-player-walk-32-d95d2983 | young villager in a green tunic and brown trousers, medieval | rd_animation__four_angle_walking | 32x32 | 1 | 0.07 | player still + walk cycle; figure should end up ~24px tall |
-
-## ANIMATED - premium tier, all animation styles / visitors
-
-| id | prompt | style | size | n | est $ | notes |
-|---|---|---|---|---|---|---|
-| person-plague-doctor-e054b0d1 | plague doctor in a beaked bird mask and dark waxed leather coat, medieval | rd_animation__four_angle_walking | 48x48 | 1 | 0.07 | visitor sprite; 48px 4-direction walk cycle as a PNG grid |

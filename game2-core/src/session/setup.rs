@@ -518,7 +518,11 @@ impl Game {
             world.add_component(v, AttachmentHistory { anxiety_episodes: i as u32 % 6, warmth_episodes: 4 - i as u32 % 5, episodes: vec![] });
             world.add_component(v, crate::sim::psychology::personality_from_seed(i as u64));
             world.add_component(v, Citizen { influence: 0.2, authority: 0.0, ideology: "laborer".into(), allegiance: "none".into() });
-            world.add_component(v, personality_from_seed(i as u64 * 7 + 3));
+            let traits = personality_from_seed(i as u64 * 7 + 3);
+            // their soul starts bent by the traits they carry; the life
+            // does the rest (#950)
+            world.add_component(v, crate::game::virtue::Virtues::seeded(&traits));
+            world.add_component(v, traits);
             world.add_component(v, Satchel::default());
             world.add_component(v, Known::default());
             if i < 23 {
@@ -601,6 +605,7 @@ impl Game {
         world.add_component(player, crate::sim::psychology::AttachmentHistory {
             anxiety_episodes: 0, warmth_episodes: 0, episodes: vec![] });
             world.add_component(player, crate::sim::psychology::personality_from_seed(0xBEEF));
+            world.add_component(player, crate::game::virtue::Virtues::unmarked());
         world.add_component(player, Pos { x: (vx - 6) as f32, y: (vy - 6) as f32 }); // player has a position
         let org = world.create_entity();
         world.add_component(org, Organization { name: "The Harvesters".into(), members: vec![], leader: player, influence_pool: 0.0, resources: 50.0, charter: "Mutual aid".into() , successors: vec![] });

@@ -240,3 +240,4 @@ mod prison_org;
 mod school;
 mod post_office;
 mod fuel;
+mod virtue;

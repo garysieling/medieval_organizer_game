@@ -217,7 +217,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         .and_then(|v| { let mut p = v.split(',');
             Some((p.next()?.parse::<f32>().ok()?, p.next()?.parse::<f32>().ok()?,
                 p.next()?.parse::<u32>().ok()?)) }) {
-        let mut fc = FollowCam::default();
+        let mut fc = None;
         for _ in 0..n {
             game.command(Command::Walk(dx, dy));
             game.update();

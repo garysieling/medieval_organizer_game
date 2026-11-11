@@ -1,7 +1,8 @@
 use crate::*;
 
-/// The camera follows a character who walks clean off the map view -
-/// and only while they move, so a deliberate look elsewhere stays
+/// The camera leans after a character who wanders out of the view's
+/// comfort box - and only while they move, so a deliberate look
+/// elsewhere stays
 #[test]
 fn test_the_camera_follows_a_character_who_walks_off_the_map() {
     let game = Game::new_seeded(MAP_SEED);
@@ -11,65 +12,60 @@ fn test_the_camera_follows_a_character_who_walks_off_the_map() {
     // parked a long walk away: the character is clean off the view
     let far = camera_on(pos.0 + 90.0, pos.1 + 90.0);
     // first sight of them just takes their bearings - no yank
-    let mut fresh = FollowCam::default();
+    let mut fresh = None;
     assert_eq!(camera_follow(&m, far, 1.0, &mut fresh), None);
-    // but once they've walked off while moving, the camera goes back -
-    // clean off the view is the one place a snap's still allowed
-    let mut seen = FollowCam { seen: Some(((pos.0 - 0.4, pos.1), 1.0)), ease: None };
-    assert_eq!(camera_follow(&m, far, 1.0, &mut seen), Some(camera_on(pos.0, pos.1)),
-        "walking off the map brings the camera back to them");
+    // but once they've walked on while moving, the camera leans back
+    // after them - a share of the way, easing, never a snap
+    let mut seen = Some(((pos.0 - 0.4, pos.1), 1.0));
+    let next = camera_follow(&m, far, 1.0, &mut seen)
+        .expect("walking on asks the camera after them");
+    let (tx, ty) = camera_on(pos.0, pos.1);
+    let before = ((far.0 - tx).pow(2) + (far.1 - ty).pow(2)) as f32;
+    let after = ((next.0 - tx).pow(2) + (next.1 - ty).pow(2)) as f32;
+    assert!(after < before, "the lean closes on them");
+    assert_ne!(next, (tx, ty), "a share of the gap, not the snap");
     // stood still since: a look elsewhere is theirs to keep
-    let mut still = FollowCam { seen: Some((pos, 1.0)), ease: None };
+    let mut still = Some((pos, 1.0));
     assert_eq!(camera_follow(&m, far, 1.0, &mut still), None);
-    // and the middle stretch never asks for anything
+    // and on-screen never asks for anything
     let near = camera_on(pos.0, pos.1);
-    let mut seen2 = FollowCam { seen: Some(((pos.0 - 0.4, pos.1), 1.0)), ease: None };
+    let mut seen2 = Some(((pos.0 - 0.4, pos.1), 1.0));
     assert_eq!(camera_follow(&m, near, 1.0, &mut seen2), None);
     // zooming them out of sight while they stand still counts as moving:
     // the camera's parked off to one side, they were in view at zoom 1
     let (cx, cy) = camera_on(pos.0, pos.1);
-    let mut zoomed = FollowCam { seen: Some((pos, 1.0)), ease: None };
-    assert_eq!(camera_follow(&m, (cx + 300, cy), 3.0, &mut zoomed),
-        Some(camera_on(pos.0, pos.1)), "a zoom that loses them brings the camera back");
+    let mut zoomed = Some((pos, 1.0));
+    let znext = camera_follow(&m, (cx + 300, cy), 3.0, &mut zoomed)
+        .expect("a zoom that loses them leans the camera back");
+    let zbefore = ((cx + 300 - tx).pow(2) + (cy - ty).pow(2)) as f32;
+    let zafter = ((znext.0 - tx).pow(2) + (znext.1 - ty).pow(2)) as f32;
+    assert!(zafter < zbefore, "the zoomed-out lean closes on them");
 }
 
-/// Walking to the frame's soft edge eases the camera toward a point a
-/// few tiles ahead of their walk - never a hard cut, and once they're
-/// back inside the box the camera's theirs again
+/// The comfort box: inside the view's middle they wander free; at the
+/// rim the camera starts leaning - and the lean opens the way their
+/// stride points, not just back to centre
 #[test]
-fn test_the_camera_eases_ahead_of_a_walk_at_the_soft_edge() {
+fn test_the_comfort_box_opens_the_way_theyre_going() {
     let game = Game::new_seeded(MAP_SEED);
     let m = game.ui_model();
-    let pos = m.people.iter().find(|p| p.kind == PKind::Player).expect("the seat has a player").pos;
-    // parked so they're on the view but past the soft box's right edge
-    let cam = camera_on(pos.0 - 6.0, pos.1 + 6.0);
-    let (sx, sy) = iso_to_screen_cam(pos.0, pos.1, cam.0, cam.1, 1.0);
-    assert!(sx > (MAP_W as f32 * 0.7) as i32 && sx < MAP_W as i32
-        && sy > (H as f32 * 0.3) as i32 && sy < (H as f32 * 0.7) as i32,
-        "the test parks them at the edge, not off the view: {sx},{sy}");
-    // they were a step back: walking on, and the camera answers by easing
-    let mut st = FollowCam { seen: Some(((pos.0 - 0.4, pos.1), 1.0)), ease: None };
-    let next = camera_follow(&m, cam, 1.0, &mut st).expect("the edge crossing asks the camera");
-    assert_ne!(next, cam, "the camera moves");
-    assert_ne!(next, camera_on(pos.0, pos.1), "it eases - no hard cut to centre");
-    // toward a point ahead of their walk, so they run into the frame
-    let ahead = camera_on(pos.0 + 3.0, pos.1);
-    let d0 = (((cam.0 - ahead.0).pow(2) + (cam.1 - ahead.1).pow(2)) as f32).sqrt();
-    let d1 = (((next.0 - ahead.0).pow(2) + (next.1 - ahead.1).pow(2)) as f32).sqrt();
-    assert!(d1 < d0, "it closes on the point ahead: {d1} < {d0}");
-    // stood inside the box after: the camera's where they left it
-    let near = camera_on(pos.0, pos.1);
-    let mut st2 = FollowCam { seen: Some(((pos.0 - 0.4, pos.1), 1.0)), ease: None };
-    assert_eq!(camera_follow(&m, near, 1.0, &mut st2), None,
-        "inside the soft box the camera never fights a pan");
-    // and a pan made mid-walk isn't yanked back next frame
-    let mut st3 = FollowCam { seen: Some(((pos.0 - 0.4, pos.1), 1.0)), ease: Some((0.0, 0.0)) };
-    let resumed = camera_follow(&m, cam, 1.0, &mut st3).expect("walking still asks");
-    let from_cam = (cam.0 as f32 + (ahead.0 as f32 - cam.0 as f32) * 0.15,
-        cam.1 as f32 + (ahead.1 as f32 - cam.1 as f32) * 0.15);
-    assert!(((resumed.0 as f32 - from_cam.0).abs() < 2.0
-        && (resumed.1 as f32 - from_cam.1).abs() < 2.0),
-        "the ease seats where the camera is, not where it was left");
+    let p = m.people.iter().find(|p| p.kind == PKind::Player).expect("the seat has a player");
+    let pos = p.pos;
+    // just inside the box's x rim, walking out of it: the camera leans
+    let rim = camera_on(pos.0 - 8.0, pos.1);
+    let mut walking = Some(((pos.0 - 0.3, pos.1), 1.0));
+    let next = camera_follow(&m, rim, 1.0, &mut walking)
+        .expect("a stride out of the box asks the camera after them");
+    // the lead's down their stride: walking +x, the camera's aim sits
+    // past them in the frame (cam.x runs the other way on +x tiles),
+    // and the lean heads after it - not merely back to them
+    let on_them = camera_on(pos.0, pos.1);
+    let lead = camera_on(pos.0 + 0.3 * 45.0, pos.1);
+    assert!(lead.0 < on_them.0, "a +x stride's lead looks past them");
+    assert!(next.0 < rim.0, "the lean heads after it");
+    // and dead centre, the same stride asks nothing at all
+    let mut centre = Some(((pos.0 - 0.3, pos.1), 1.0));
+    assert_eq!(camera_follow(&m, camera_on(pos.0, pos.1), 1.0, &mut centre), None);
 }
 
 fn event(epoch: u64, x: f32, y: f32, extent: f32, moving: bool) -> EventFocusV {

@@ -1582,7 +1582,14 @@ pub fn search_people(people: &[PersonV], query: &str) -> Vec<usize> {
 
 /// How far past the map view's rim the character's feet may sit before
 /// the camera counts them as lost - about a sprite's worth
-const LOST_MARGIN: i32 = 48;
+/// The comfort box the seat's character can wander before the camera
+/// leans after them - the middle of the map view, in px
+const FOLLOW_BOX_X: i32 = MAP_W as i32 / 5;
+const FOLLOW_BOX_Y: i32 = H as i32 / 5;
+/// The share of the gap to the lead the camera closes each frame
+const FOLLOW_EASE: f32 = 0.18;
+/// Frames of stride to look ahead: the view opens where they're going
+const FOLLOW_LEAD: f32 = 45.0;
 
 /// The zoom clamps every camera path shares
 pub const MIN_ZOOM: f32 = 0.5;
@@ -1652,68 +1659,27 @@ impl EventCam {
     }
 }
 
-/// The share of the map view on each side the walking character may
-/// cross before the camera thinks of moving - the middle stretch is
-/// theirs, a soft box rather than the rim
-const DEADZONE: f32 = 0.3;
-
-/// Tiles ahead of a walking character the camera aims past them -
-/// enough that they run into the frame, not off its rim
-const LOOK_AHEAD: f32 = 3.0;
-
-/// The follow camera's state between frames: where they stood and the
-/// zoom last frame (a deliberate pan while still isn't fought), and
-/// the eased centre so a small drift doesn't stall on integer pixels
-#[derive(Default)]
-pub struct FollowCam {
-    pub seen: Option<((f32, f32), f32)>,
-    pub ease: Option<(f32, f32)>,
-}
-
-/// The camera follows the walking character: inside a soft box in the
-/// middle of the view they're left alone; crossing its edge eases the
-/// camera toward a point a few tiles ahead of their walk, so they run
-/// into the frame; landing clean off the view still snaps them back to
-/// centre - the old net, kept. `seen` is where they stood and the zoom
-/// last frame: a pan with them standing still isn't fought, and a zoom
-/// that shifts them out of sight counts as moving. Returns the camera
-/// to use, when it should move.
-pub fn camera_follow(m: &UiModel, cam: (i32, i32), zoom: f32, st: &mut FollowCam) -> Option<(i32, i32)> {
+/// The camera keeps the seat's character framed: while they move -
+/// or the zoom shifts them - and they drift out of the view's comfort
+/// box, it leans a share of the way toward where their stride's
+/// taking them, so the view opens ahead instead of trailing behind.
+/// `seen` is where they stood and the zoom last frame: a deliberate
+/// pan or jump with them standing still isn't fought. Returns the
+/// camera to use, when it should move.
+pub fn camera_follow(m: &UiModel, cam: (i32, i32), zoom: f32, seen: &mut Option<((f32, f32), f32)>) -> Option<(i32, i32)> {
     let p = m.people.iter().find(|p| p.kind == PKind::Player)?;
     let pos = p.pos;
-    let (last_pos, last_zoom) = st.seen.unwrap_or((pos, zoom));
-    let walked = (pos.0 - last_pos.0).abs() > 0.01 || (pos.1 - last_pos.1).abs() > 0.01;
-    let moved = walked || (last_zoom - zoom).abs() > 0.001;
-    st.seen = Some((pos, zoom));
-    if !moved { st.ease = None; return None; }
+    let step = seen.map(|(q, _)| (pos.0 - q.0, pos.1 - q.1)).unwrap_or((0.0, 0.0));
+    let moved = seen.is_some_and(|(_, z)| step.0.abs() > 0.01 || step.1.abs() > 0.01 || (z - zoom).abs() > 0.001);
+    *seen = Some((pos, zoom));
+    if !moved { return None; }
     let (sx, sy) = iso_to_screen_cam(pos.0, pos.1, cam.0, cam.1, zoom);
-    // clean off the view: the snap stays the safety net
-    if sx < -LOST_MARGIN || sx > MAP_W as i32 + LOST_MARGIN
-        || sy < -LOST_MARGIN || sy > H as i32 + LOST_MARGIN {
-        st.ease = None;
-        return Some(camera_on(pos.0, pos.1));
-    }
-    // inside the soft box: the camera's where they left it
-    let in_box = sx > (MAP_W as f32 * DEADZONE) as i32 && sx < (MAP_W as f32 * (1.0 - DEADZONE)) as i32
-        && sy > (H as f32 * DEADZONE) as i32 && sy < (H as f32 * (1.0 - DEADZONE)) as i32;
-    if in_box { st.ease = None; return None; }
-    // crossing the edge: ease toward a point a few tiles ahead of their
-    // walk - the resume seats where the camera is, not where it was
-    let (dx, dy) = (pos.0 - last_pos.0, pos.1 - last_pos.1);
-    let len = (dx * dx + dy * dy).sqrt();
-    let (ax, ay) = if len > 1e-3 {
-        (pos.0 + dx / len * LOOK_AHEAD, pos.1 + dy / len * LOOK_AHEAD)
-    } else { pos };
-    let (tx, ty) = camera_on(ax, ay);
-    // the ease resumes from where the camera is now: a pan or another
-    // writer pulling it off the eased path isn't yanked back
-    let (ex, ey) = match st.ease {
-        Some(e) if (e.0 - cam.0 as f32).abs() < 3.0 && (e.1 - cam.1 as f32).abs() < 3.0 => e,
-        _ => (cam.0 as f32, cam.1 as f32),
-    };
-    let (nx, ny) = (ex + (tx as f32 - ex) * 0.15, ey + (ty as f32 - ey) * 0.15);
-    st.ease = Some((nx, ny));
-    Some((nx.round() as i32, ny.round() as i32))
+    let out = (sx - MAP_W as i32 / 2).abs() > FOLLOW_BOX_X
+        || (sy - H as i32 / 2).abs() > FOLLOW_BOX_Y;
+    if !out { return None; }
+    let (tx, ty) = camera_on(pos.0 + step.0 * FOLLOW_LEAD, pos.1 + step.1 * FOLLOW_LEAD);
+    Some((cam.0 + ((tx - cam.0) as f32 * FOLLOW_EASE).round() as i32,
+          cam.1 + ((ty - cam.1) as f32 * FOLLOW_EASE).round() as i32))
 }
 
 /// The find box under the minimap: "find:" and what was typed, with the

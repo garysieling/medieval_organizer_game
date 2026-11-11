@@ -117,7 +117,8 @@ pub enum CtxAct {
     /// Stroke the animal you're standing by - the kind hand, again and
     /// again, until it leaves the fold and follows
     Tame,
-    /// Raise the schoolhouse, or send for a teacher to keep it
+    /// Raise the schoolhouse, or send for a teacher to keep it - asked
+    /// only near where it'd stand, while the treasury can pay
     School,
     /// Charter the fire brigade: a hall to gather in, the chest's gold
     /// for buckets, and a crew sworn to answer every bell

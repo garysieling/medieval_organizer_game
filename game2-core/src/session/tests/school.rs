@@ -138,3 +138,51 @@ fn test_the_imported_expert_grows_the_dependency() {
         .map(|d| d.internalized_domination).unwrap_or(0.5);
     assert!(dom > 0.5, "the imported expert never grew the dependency: {}", dom);
 }
+
+#[test]
+fn test_the_ask_waits_on_place_and_purse() {
+    // #1071: the school ask used to show anywhere, always. It lives
+    // where the thing's done - the market plot it'd rise on - and only
+    // while the treasury could pay the press
+    let mut g = Game::new();
+    let mp = g.world.get_component::<Pos>(g.market_food).copied().unwrap();
+    // funded but forty tiles off: no ask follows you across the map
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.x + 40.0, y: mp.y + 40.0 };
+    g.update_ctx_actions();
+    assert!(!g.ctx_actions.contains(&CtxAct::School), "the ask followed the player far from the site");
+    // beside the market cross but the chest's light: still no ask
+    *g.world.get_component_mut::<Pos>(g.player).unwrap() = Pos { x: mp.x + 1.0, y: mp.y };
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 5.0;
+    g.update_ctx_actions();
+    assert!(!g.ctx_actions.contains(&CtxAct::School), "an empty chest still offered the ask");
+    // near and funded: the ask's on the card
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
+    g.update_ctx_actions();
+    assert!(g.ctx_actions.contains(&CtxAct::School), "beside the site with a full chest, no ask");
+}
+
+#[test]
+fn test_the_hover_says_what_the_press_does() {
+    // #1071: "The school" reads as a mystery - the hint line tells the
+    // press ahead of it, per state, and doesn't bar the button
+    let mut g = Game::new();
+    assert_eq!(g.ctx_hint_at(0, CtxAct::School).as_deref(),
+        Some("the treasury raises the schoolhouse by the market - 30 gold"));
+    g.world.get_component_mut::<Organization>(g.org).unwrap().resources = 100.0;
+    g.seats[0].ctx_actions = vec![CtxAct::School];
+    g.ctx_act_at(0, 0);
+    assert!(g.school.is_some(), "no schoolhouse raised");
+    // the house stands but the desk's empty: the ask turns to keeping it
+    g.teacher = None;
+    assert_eq!(g.ctx_hint_at(0, CtxAct::School).as_deref(),
+        Some("send for a teacher for the season - 10 gold"));
+    // the model carries it parallel to the ctx list, index for index
+    let m = g.ui_model();
+    assert_eq!(m.ctx_hint.len(), m.ctx.len(), "hints fell out of step with the ctx list");
+    let i = m.ctx.iter().position(|a| *a == CtxAct::School);
+    if let Some(i) = i {
+        assert!(m.ctx_hint[i].is_some(), "the School button has no hint");
+        assert!(m.ctx_blocked[i].is_none(), "a hint is not a block");
+    }
+}

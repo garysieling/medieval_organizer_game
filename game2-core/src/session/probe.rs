@@ -204,7 +204,7 @@ mod tests {
         // a fever nobody's told about
         let d = g.world.create_entity();
         g.world.add_component(d, Disease { kind: DiseaseKind::Sweats, patient: g.villagers[1], name: "the sweats".into(),
-            stage: Stage::Latent, severity: 0.3, contagious: true, incubation: 2 });
+            stage: Stage::Latent, severity: 0.3, contagious: true, incubation: 2, recovering: 0 });
 
         let pv = g.probe();
         assert_eq!(pv.discovery.as_ref().map(|(_, f)| f.as_str()), Some("the lord's fifth is really a quarter"));

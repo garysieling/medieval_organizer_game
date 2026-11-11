@@ -59,7 +59,7 @@ fn test_the_sick_walk_out_and_a_cure_turns_the_disease() {
     let mut game = Game::new();
     let v = game.villagers[5];
     let d = game.world.create_entity();
-    game.world.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false, incubation: 0 });
+    game.world.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Moderate, severity: 0.45, contagious: false, incubation: 0, recovering: 0 });
     // stock the shelf so a cure's in hand
     let hut = game.herb_hut.unwrap();
     game.world.get_component_mut::<Building>(hut).unwrap().stock.insert("yarrow".into(), 2);
@@ -79,7 +79,7 @@ fn test_nothing_in_the_hedge_says_so() {
     let mut game = Game::new();
     let v = game.villagers[5];
     let d = game.world.create_entity();
-    game.world.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0 });
+    game.world.add_component(d, Disease { kind: DiseaseKind::Influenza, name: "flu".into(), patient: v, stage: Stage::Mild, severity: 0.2, contagious: false, incubation: 0, recovering: 0 });
     let hut = game.herb_hut.unwrap();
     game.arrive(v, Goal::SeekRemedy(hut));
     assert!(game.bubbles.iter().any(|(e, t, _, _, _)| *e == game.herbologist.unwrap() && t.contains("Nothing")),

@@ -6,7 +6,7 @@ fn give_case(g: &mut Game, who: Entity, sev: f32) {
         kind: crate::sim::illness::DiseaseKind::Gripes,
         name: "the gripes".into(), patient: who,
         stage: crate::sim::illness::Stage::Moderate, severity: sev,
-        contagious: false, incubation: 0,
+        contagious: false, incubation: 0, recovering: 0,
     });
 }
 

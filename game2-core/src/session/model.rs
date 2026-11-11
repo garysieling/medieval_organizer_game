@@ -508,6 +508,12 @@ pub struct UiModel {
     pub ctx: Vec<CtxAct>,
     /// Disabled reason per ctx button, same index order as `ctx`
     pub ctx_blocked: Vec<Option<String>>,
+    /// The label each ctx button reads, same index order as `ctx` - the
+    /// sim's resolved wording where a static label won't do (the kind
+    /// hand names its animal). Empty on older servers: draw
+    /// `ctx_button`'s static labels
+    #[serde(default)]
+    pub ctx_labels: Vec<String>,
     pub inspector: Option<InspectorV>,
     pub panel: PanelV,
     /// Mill stands at the map's mill tile when the art has a mill

@@ -402,6 +402,11 @@ impl Game {
         let player = Speaker::new(&pname);
         let seed = self.tick.wrapping_mul(0x2545_F491) ^ ((v as u64) << 24) ^ self.talk_next_id;
         self.close_player_talk(seat, None);
+        // they stop where they are for the talk: a walk under way would
+        // carry them off mid-line, and no new one dispatches while it's
+        // open (in_player_talk gates the sends and the walk systems)
+        self.travels.retain(|t| t.who != v);
+        self.world.add_component(v, villager::InPlayerTalk);
         let id = self.push_talk(TalkKind::Talk, vec![pe, v], vec![]);
         let profile = crate::game::dialogue_trees::backstory(&villager);
         self.seats[seat].talk = Some(PlayerTalk {
@@ -479,6 +484,10 @@ impl Game {
     /// Whoever it was with lets go of the pick once it's over (#944)
     pub fn close_player_talk(&mut self, seat: usize, note: Option<&str>) {
         let Some(t) = self.seats[seat].talk.take() else { return };
+        // they're their own again - unless another seat still holds them
+        if !self.seats.iter().any(|s| s.talk.as_ref().map(|k| k.who == t.who).unwrap_or(false)) {
+            self.world.remove_component::<villager::InPlayerTalk>(t.who);
+        }
         if self.villagers.get(self.seats[seat].selected_target) == Some(&t.who) {
             self.seats[seat].picked = false;
             self.seats[seat].pick_near = false;
@@ -545,6 +554,14 @@ impl Game {
         }
         if let Some(cur) = self.seats[seat].talk.as_mut() { cur.picks.push(i); cur.since = self.tick; }
         self.refresh_player_talk(seat);
+    }
+
+    /// Whether `who` is in a Talk with a seat's player right now: while
+    /// it is, they take no walks - a conversation can't hold at a
+    /// distance, so a travel or the pull home doesn't carry them off
+    /// mid-line
+    pub(in crate::session) fn in_player_talk(&self, who: Entity) -> bool {
+        self.world.get_component::<villager::InPlayerTalk>(who).is_some()
     }
 
     /// Each frame: a Talk left hanging ends once the player walks away,

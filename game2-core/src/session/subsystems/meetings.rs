@@ -298,6 +298,13 @@ impl Game {
         // the door's thinner than the asking - a count, not a roll of names
         let stayed = pool.len() - invited.len();
         invited.truncate(10);
+        // a Talk one of them is standing in gives way to the call -
+        // held mid-line they'd never make the door
+        for s in 0..self.seats.len() {
+            if self.seats[s].talk.as_ref().map(|t| invited.contains(&t.who)).unwrap_or(false) {
+                self.close_player_talk(s, None);
+            }
+        }
         if invited.is_empty() {
             return format!("Word goes out - and nobody comes to {}. You'll have to ask again.", label);
         }
@@ -462,6 +469,8 @@ impl Game {
         // a dead invitee's grave stays where they died, it doesn't keep walking
         for (i, v) in m.invited.iter().enumerate() {
             if crate::game::dungeon::unavailable(&self.world, *v) { continue; }
+            // one in a Talk with a player isn't walked to their spot mid-line
+            if self.world.get_component::<villager::InPlayerTalk>(*v).is_some() { continue; }
             let Some(p) = self.world.get_component_mut::<Pos>(*v) else { continue };
             match &mut m.paths[i] {
                 Some(path) if !path.is_empty() => { Self::follow_path(p, path, step); }

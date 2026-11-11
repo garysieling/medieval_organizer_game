@@ -60,6 +60,11 @@ pub struct Steered;
 /// the homeward pull leave him to it - the road's his errand now
 pub struct OnTheRoad;
 
+/// In a Talk with a player: they stand for it - the walk systems can't
+/// see the seats' talk state, so this marker carries it into the world.
+/// Set when the talk opens, lifted when it closes
+pub struct InPlayerTalk;
+
 /// Riding a horse: a knight on a country journey (levy, tribute,
 /// escort). Set when the long ride starts, cleared when it ends - the
 /// mount is for the road, not the doorstep
@@ -226,7 +231,10 @@ impl System for SeekFoodSystem {
             // the held can't seek: they take what the jailer gives
             if is_dead(world, v)
                 || world.get_component::<crate::game::dungeon::Imprisoned>(v).is_some()
-                || world.get_component::<OnTheRoad>(v).is_some() { continue; }
+                || world.get_component::<OnTheRoad>(v).is_some()
+                // one in a Talk with a player stands for it - they don't
+                // stride off for the table mid-line
+                || world.get_component::<InPlayerTalk>(v).is_some() { continue; }
             let hunger = match world.get_component::<Hunger>(v) {
                 Some(h) => h.value,
                 None => continue,

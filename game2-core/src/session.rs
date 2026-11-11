@@ -127,6 +127,9 @@ fn makes_room(world: &World, v: Entity) -> bool {
     !villager::is_dead(world, v)
         && world.get_component::<crate::game::dungeon::Imprisoned>(v).is_none()
         && world.get_component::<villager::InFormation>(v).is_none()
+        // one in a Talk with a player stands for it - the crowd steps
+        // round them, it doesn't shove them off mid-line
+        && world.get_component::<villager::InPlayerTalk>(v).is_none()
         && world.get_component::<Villager>(v).map(|x| x.activity != Activity::SeekingFood).unwrap_or(true)
         && !routine::holds_slot(world, v)
 }
@@ -2099,6 +2102,9 @@ impl Game {
             // wandering took them far enough east that it was the nearer one
             for (vi, v) in villagers.iter().enumerate() {
                 if crate::game::dungeon::unavailable(world, *v) { continue; }
+                // one in a Talk with a player stands for it - the pull
+                // home doesn't carry them off mid-line
+                if world.get_component::<villager::InPlayerTalk>(*v).is_some() { continue; }
                 let (store, village_home) = country_homes.get(vi).copied().flatten()
                     .unwrap_or((self.market_food, village_home));
                 // the village table is the granary AND the fields: a village

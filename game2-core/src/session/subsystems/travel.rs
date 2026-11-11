@@ -10,9 +10,11 @@ impl Game {
         if self.world.get_component::<villager::InStocks>(who).is_some() { return false; }
         // the held take no errands - the jailer's rounds aren't theirs;
         // the dead take none either, however short the walk; and the
-        // marching take none - the column's walking them
+        // marching take none - the column's walking them. Nor one in a
+        // Talk with a player: the conversation holds them where they stand
         if crate::game::dungeon::unavailable(&self.world, who) { return false; }
         if self.world.get_component::<villager::InFormation>(who).is_some() { return false; }
+        if self.in_player_talk(who) { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         let to = match &goal {
             Goal::SeekRemedy(e) | Goal::Herd(e) | Goal::HeadHome(e) => self.world.get_component::<Pos>(*e).copied()
@@ -163,7 +165,7 @@ impl Game {
 
     /// Walk `who` to tile `t` carrying `goal` (shared by the forage sends)
     pub(in crate::session) fn send_tile_walk(&mut self, who: Entity, t: (i32, i32), goal: Goal, max_d: i32) -> bool {
-        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        if crate::game::dungeon::unavailable(&self.world, who) || self.in_player_talk(who) { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         if (t.0 - from.x.round() as i32).abs() + (t.1 - from.y.round() as i32).abs() > max_d { return false; }
         match self.walk_memo((from.x.round() as i32, from.y.round() as i32), t) {
@@ -187,8 +189,8 @@ impl Game {
     /// Send `who` to gather `good` at tile `t`
     pub fn send_gather(&mut self, who: Entity, good: &'static str, t: (i32, i32)) -> bool {
         // the held take no errands - a forage is no freer a walk than
-        // the others
-        if crate::game::dungeon::unavailable(&self.world, who) { return false; }
+        // the others - and one in a Talk holds their spot for it
+        if crate::game::dungeon::unavailable(&self.world, who) || self.in_player_talk(who) { return false; }
         let Some(from) = self.world.get_component::<Pos>(who).copied() else { return false };
         // gathers get the forage-errand reach: wood and stone have no
         // other source, and the craft can't wait on a near tree
@@ -227,6 +229,9 @@ impl Game {
             if t.path.is_empty() { continue; }
             // the dead finish no errands - the errand ends where they fell
             if villager::is_dead(&self.world, t.who) { t.path.clear(); continue; }
+            // one in a Talk with a player stands for it: the walk waits
+            // where it is and picks back up when the talk lets go
+            if self.world.get_component::<villager::InPlayerTalk>(t.who).is_some() { continue; }
             // a well-worn path is quicker underfoot - trails::movement_cost
             // is the one place the worn-way discount is worked out
             let worn = self.trails.get(&t.path[0]).map(|tr| tr.strength).unwrap_or(0.0);

@@ -20,7 +20,7 @@ pub struct OneOnOneResult {
 /// reports, and reveals what's on the citizen's mind (village_concerns),
 /// who they're close to (their relationships, by kind), and how much they
 /// could lead (their influence)
-pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneOnOneResult {
+pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity, day: u64) -> OneOnOneResult {
     use crate::game::relationships::RelKind;
     let before = crate::game::relationships::find_relationship(world, organizer, citizen)
         .and_then(|r| world.get_component::<Relationship>(r)).map(|r| r.strength).unwrap_or(0.0);
@@ -28,7 +28,7 @@ pub fn one_on_one(world: &mut World, organizer: Entity, citizen: Entity) -> OneO
         other: citizen, kind: InteractionKind::Conversation, intensity: 1.0,
     });
     // a real conversation, like a Talk: the organizer's bond counts it
-    crate::game::player::note_conversation(world, organizer, citizen);
+    crate::game::player::note_conversation(world, organizer, citizen, day);
     let after = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(before);
     // running a real 1-1 is practice at the craft
     crate::game::org_skills::practice(world, organizer, crate::game::org_skills::OrgSkill::OneOnOne, crate::game::org_skills::ONE_ON_ONE_PRACTICE);
@@ -168,7 +168,7 @@ pub fn storm_strikes_hall(world: &mut World, org: Entity) -> bool {
 /// the org's organized power; a thin one barely does. If the leader has
 /// died, leadership passes on first (living_leader); with no one left to
 /// lead, or for dead attendees, nothing happens.
-pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> HouseMeetingResult {
+pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity], day: u64) -> HouseMeetingResult {
     // Shared concerns emerge from what the attendees are living through
     let shared = village_concerns(world, attendees);
     let Some(leader) = living_leader(world, org) else {
@@ -187,7 +187,7 @@ pub fn house_meeting(world: &mut World, org: Entity, attendees: &[Entity]) -> Ho
         });
         // they spoke at the meeting: the leader's bond with them grows a
         // talk's step, so a seat that hosted counts them as spoken to
-        crate::game::player::note_conversation(world, leader, a);
+        crate::game::player::note_conversation(world, leader, a, day);
         let trust = world.get_component::<Relationship>(rel).map(|r| r.strength).unwrap_or(0.0);
         if crate::sim::community::recruit(world, org, a, trust) {
             recruited += 1;
@@ -474,7 +474,7 @@ mod tests {
                 w.add_component(r, Relationship { from: c, other, kind, strength: 0.5, interactions: 6 });
             }
         }
-        let r = one_on_one(&mut w, organizer, c);
+        let r = one_on_one(&mut w, organizer, c, 1);
         assert_eq!(r.concerns, vec!["the food running short".to_string(), "safe roads".to_string()]);
         assert_eq!(r.networks, vec!["2 friends".to_string(), "1 rival".to_string(), "2 relatives".to_string()]);
         assert!((r.trust_gained - 0.10).abs() < 1e-6, "the conversation really builds trust");
@@ -517,7 +517,7 @@ mod tests {
         let mut w = World::new();
         let (org, _) = guild(&mut w);
         let strangers: Vec<Entity> = (0..3).map(|_| w.create_entity()).collect();
-        let r = house_meeting(&mut w, org, &strangers);
+        let r = house_meeting(&mut w, org, &strangers, 1);
         assert_eq!(r.attendees_recruited, 0);
         assert!(!r.formed_committee);
         assert!(w.get_component::<Organization>(org).unwrap().members.is_empty());
@@ -535,7 +535,7 @@ mod tests {
             });
         }
         let stranger = w.create_entity();
-        let r = house_meeting(&mut w, org, &[friends[0], friends[1], stranger]);
+        let r = house_meeting(&mut w, org, &[friends[0], friends[1], stranger], 1);
         assert_eq!(r.attendees_recruited, 2);
         assert!(r.formed_committee);
         assert!(!w.get_component::<Organization>(org).unwrap().members.contains(&stranger));
@@ -554,9 +554,9 @@ mod tests {
         for &m in &members {
             crate::sim::community::recruit(&mut w, strong, m, 0.9);
         }
-        house_meeting(&mut w, strong, &members);
+        house_meeting(&mut w, strong, &members, 1);
         let strangers: Vec<Entity> = (0..2).map(|_| w.create_entity()).collect();
-        house_meeting(&mut w, thin, &strangers);
+        house_meeting(&mut w, thin, &strangers, 1);
         let cap = |o| w.get_component::<OrganizedPower>(o).unwrap().capacity;
         assert!(cap(strong) > cap(thin), "meeting with members should develop more power ({} vs {})", cap(strong), cap(thin));
         assert!(cap(thin) > 0.0, "even a thin meeting is some use of the muscle");
@@ -578,7 +578,7 @@ mod tests {
         let _quiet = member(&mut w, 0.2, true);
         let _dead_star = member(&mut w, 0.9, false);
         let voice = member(&mut w, 0.5, true);
-        let r = house_meeting(&mut w, org, &[]);
+        let r = house_meeting(&mut w, org, &[], 1);
         assert_eq!(w.get_component::<Organization>(org).unwrap().leader, voice);
         assert_eq!(r.attendees_recruited, 0);
     }
@@ -590,7 +590,7 @@ mod tests {
         let (org, leader) = guild(&mut w);
         w.add_component(leader, Health { condition: 0.0, immunity: 0.5 });
         let stranger = w.create_entity();
-        house_meeting(&mut w, org, &[stranger]);
+        house_meeting(&mut w, org, &[stranger], 1);
         assert!(crate::game::relationships::find_relationship(&w, leader, stranger).is_none(),
             "a dead leader holds no conversations");
     }
@@ -614,7 +614,7 @@ mod tests {
             let (org, _) = guild(&mut w);
             if hall { w.add_component(org, MeetingHall); }
             let v = w.create_entity();
-            (1..=20).find(|_| house_meeting(&mut w, org, &[v]).attendees_recruited == 1).unwrap()
+            (1..=20).find(|_| house_meeting(&mut w, org, &[v], 1).attendees_recruited == 1).unwrap()
         };
         let (with_hall, without) = (meetings_to_win(true), meetings_to_win(false));
         assert!(with_hall < without, "hall {} vs no hall {} meetings", with_hall, without);
@@ -631,7 +631,7 @@ mod tests {
         assert!(storm_strikes_hall(&mut w, org));
         assert!(!storm_strikes_hall(&mut w, org), "already damaged");
         let v = w.create_entity();
-        house_meeting(&mut w, org, &[v]);
+        house_meeting(&mut w, org, &[v], 1);
         let r = crate::game::relationships::find_relationship(&w, leader, v).unwrap();
         assert!((w.get_component::<Relationship>(r).unwrap().strength - 0.10).abs() < 1e-6, "plain talk, not a shared meal");
     }
@@ -1012,19 +1012,26 @@ fn is_sick_guest(world: &World, guest: Entity) -> bool {
             .unwrap_or(false))
 }
 
+/// How the word reached a guest: a personal yes, a friend holding the
+/// door, or the bare word going round. The first two are reasons
+/// enough to come - a pulled friend isn't asked for a stake (#1075);
+/// the bare word alone is only thinned, not barred, without one (#1068)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Invite { Yes, Pulled, Word }
+
 /// Whether an invited guest shows: the base rate is a coin's toss -
 /// sickness and distance keep folk home, and a personal yes brings
-/// them out. The dead and the held never come. Everyone else walks in
-/// for a reason - a want or a wrong still theirs to voice, or a true
-/// friend in the host - and the disinterested aren't barred, only
-/// thin: curiosity still drifts a few in, at a quarter's pull.
-pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i32), promised: bool, roll: f32, tick: u64) -> bool {
+/// them out. The dead and the held never come. Only the bare word is
+/// asked for a reason - something still theirs to say, or a true
+/// friendship with the host - and without one they're not barred,
+/// only thin: curiosity still drifts a few in, at a quarter's pull.
+pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i32), invite: Invite, roll: f32, tick: u64) -> bool {
     use crate::game::relationships::{find_relationship, Relationship};
     if crate::game::dungeon::unavailable(world, guest) || is_sick_guest(world, guest) { return false; }
     let bond = find_relationship(world, organizer, guest)
         .and_then(|r| world.get_component::<Relationship>(r))
         .map(|r| r.strength).unwrap_or(0.0);
-    let mut p = if promised { 0.8 } else { 0.5 };
+    let mut p = if invite == Invite::Yes { 0.8 } else { 0.5 };
     p += bond.max(0.0) / 4.0;
     if let Some(pos) = world.get_component::<crate::game::villager::Pos>(guest) {
         let d = ((pos.x - venue.0 as f32).powi(2) + (pos.y - venue.1 as f32).powi(2)).sqrt();
@@ -1033,9 +1040,9 @@ pub fn shows_up(world: &World, organizer: Entity, guest: Entity, venue: (i32, i3
     let skill = world.get_component::<crate::game::org_skills::Organizing>(organizer)
         .map(|o| o.turnout).unwrap_or(0.0);
     let mut p = (p + skill * 0.1).min(0.98);
-    // a given yes is a yes; anyone else needs a reason to walk in -
-    // something still theirs to say, or a real friendship with the host
-    if !promised && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
+    // a given yes is a yes, and a friend holding the door is reason
+    // enough; the bare word alone asks something still theirs to say
+    if invite == Invite::Word && bond < 0.5 && crate::game::desires::unrevealed(world, guest, tick).is_empty() {
         p *= 0.25;
     }
     roll < p

@@ -79,6 +79,11 @@ pub struct PersonV {
     /// client draws the tombstone variant for these
     #[serde(default)]
     pub buried: bool,
+    /// How long since this seat spoke with them, 0 fresh -> 1 long stale
+    /// (#1069): strangers stay 0 - the fade is for contacts let drift,
+    /// never for faces not yet met
+    #[serde(default)]
+    pub stale: f32,
 }
 
 /// Fold a name or epithet to what the find box compares: lowercase words,

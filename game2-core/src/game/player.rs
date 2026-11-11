@@ -117,12 +117,17 @@ pub fn rapport(world: &World, player: Entity, target: Entity) -> f32 {
 /// A real conversation happened between `speaker` and `target`, outside
 /// act_talk's reach - a house meeting, a 1-1. The talkee's warmth for the
 /// speaker grows a talk's step, so the seat's bond ledger counts everyone
-/// who actually spoke with them, not only who they sought out one by one
-pub fn note_conversation(world: &mut World, speaker: Entity, target: Entity) {
+/// who actually spoke with them, not only who they sought out one by one.
+/// `day` stamps the talk day, so a meeting counts as "spoken to lately"
+/// for the name fade the way a 1-1 does (#1069)
+pub fn note_conversation(world: &mut World, speaker: Entity, target: Entity, day: u64) {
     let mut rap = world.get_component::<Rapport>(target).cloned().unwrap_or_default();
     let cur = rap.by_player.get(&speaker).copied().unwrap_or(0.0);
     rap.by_player.insert(speaker, (cur + TALK_RAPPORT_STEP).min(1.0));
     world.add_component(target, rap);
+    let mut count = world.get_component::<TalkCount>(target).cloned().unwrap_or_default();
+    count.last_day_by.insert(speaker, day);
+    world.add_component(target, count);
 }
 
 /// Whether `target` has been woken to `campaign`'s issue already

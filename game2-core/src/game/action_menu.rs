@@ -96,7 +96,7 @@ pub fn execute_choice(world: &mut World, player: Entity, org: Entity, choice: Me
             let members = world.get_component::<crate::sim::community::Organization>(org)
                 .map(|o| o.members.clone()).unwrap_or_default();
             let outsiders = invited.iter().filter(|v| !members.contains(v)).count();
-            let r = super::organizing::house_meeting(world, org, &invited);
+            let r = super::organizing::house_meeting(world, org, &invited, tick);
             let joined = match r.attendees_recruited {
                 0 if outsiders == 0 => "Everyone here is already with you; the meeting strengthens your ties.".to_string(),
                 0 => "No one joins yet, but they'll remember the conversation.".to_string(),

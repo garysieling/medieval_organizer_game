@@ -11,7 +11,7 @@ impl Game {
     pub fn resolve_meeting(&mut self, invited: &[Entity], seat: usize, record: u64, roles: (bool, bool, bool, bool, bool)) -> String {
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
         let members_before = self.world.get_component::<Organization>(oe).map(|o| o.members.clone()).unwrap_or_default();
-        let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited);
+        let r = crate::game::organizing::house_meeting(&mut self.world, oe, invited, self.tick);
         // the attendees' meeting lesson comes out of house_meeting itself;
         // here a seated campaign hand practices their seat's craft, and the
         // host's HouseMeeting grows by running the room
@@ -245,15 +245,17 @@ impl Game {
         let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
             .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
         // the invited: those who said they'd come, those who said
-        // they'd bring friends (and the friends they bring), and every
-        // promise-keeper - then the turnout roll, roughly a coin's
-        // toss for the merely invited
-        let mut pool: Vec<(Entity, bool)> = plan.holders().iter().map(|&h| (h, true)).collect();
+        // they'd bring friends (and the friends they bring), every
+        // promise-keeper - and a plus-one for each of the committed,
+        // a yes is a door held open (#1075) - then the turnout roll,
+        // roughly a coin's toss for the merely invited
+        let mut pool: Vec<(Entity, org::Invite)> = plan.holders().iter()
+            .map(|&h| (h, org::Invite::Yes)).collect();
         for &s in &plan.spreaders {
-            for f in org::friends_of(&self.world, s, 2) { pool.push((f, false)); }
+            for f in org::friends_of(&self.world, s, 2) { pool.push((f, org::Invite::Pulled)); }
         }
-        for &c in &plan.coming {
-            if !pool.iter().any(|(e, _)| *e == c) { pool.push((c, true)); }
+        for &h in &plan.holders() {
+            for f in org::friends_of(&self.world, h, 1) { pool.push((f, org::Invite::Pulled)); }
         }
         pool.retain(|(e, _)| *e != pe && self.villagers.contains(e)
             // the woods' bands don't answer village calls
@@ -261,17 +263,18 @@ impl Game {
         // one invite per person, however many roles brought them up -
         // dedup_by only catches neighbours, and a holder can recur
         // non-adjacently (e.g. the venue-lender also takes notes, with
-        // someone else's promise listed between the two)
-        let mut deduped: Vec<(Entity, bool)> = vec![];
-        for (e, promised) in pool {
+        // someone else's promise listed between the two); a yes
+        // outranks a pull
+        let mut deduped: Vec<(Entity, org::Invite)> = vec![];
+        for (e, k) in pool {
             match deduped.iter_mut().find(|(de, _)| *de == e) {
-                Some((_, p)) => *p = *p || promised,
-                None => deduped.push((e, promised)),
+                Some((_, dk)) => if k == org::Invite::Yes { *dk = k; },
+                None => deduped.push((e, k)),
             }
         }
         let pool = deduped;
         let mut invited: Vec<Entity> = pool.iter()
-            .filter(|&&(e, promised)| org::shows_up(&self.world, pe, e, venue, promised,
+            .filter(|&&(e, k)| org::shows_up(&self.world, pe, e, venue, k,
                 (self.rng.next() % 1000) as f32 / 1000.0, self.tick))
             .map(|&(e, _)| e).collect();
         // the door's thinner than the asking - a count, not a roll of names
@@ -292,12 +295,13 @@ impl Game {
         }).collect();
         let roles = (plan.snacks.is_some(), plan.notes.is_some(), plan.opener.is_some(),
             plan.song.is_some(), plan.closer.is_some());
+        let role_people = [plan.snacks, plan.notes, plan.opener, plan.song, plan.closer];
         let names: Vec<&str> = invited.iter().filter_map(|v| self.villagers.iter().position(|x| x == v).map(|i| vill_name(i))).collect();
         let mut msg = format!("Word goes out - {} gather at {}.", names.join(", "), label);
         if stayed > 0 {
             msg = format!("{} - {} of those asked stayed home.", msg.trim_end_matches('.'), stayed);
         }
-        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles });
+        self.meeting = Some(Meeting { label, venue, born: self.tick, invited, spots, paths, frames: 0, talk_from: None, lines: vec![], talk_id: 0, seat, roles, role_people });
         msg
     }
 
@@ -382,6 +386,39 @@ impl Game {
         lines
     }
 
+    /// The scheduled parts of a meeting, spliced into its lines and
+    /// felt in the room: the opener welcomes first, the bread goes
+    /// round early (and fills a food-want), the song warms the middle
+    /// (and fills a music-want), the notes keep the word and the
+    /// closer sends them off. A part only happens if the one who
+    /// promised it made it there - the caller already kept `roles`
+    /// honest about that (#1076)
+    fn meeting_beats(&mut self, m: &mut Meeting) {
+        let [snacks, notes, opener, song, closer] = m.role_people;
+        if let (true, Some(n)) = (m.roles.1, notes) {
+            m.lines.push((n, "Say it plain - I'll keep the word of it.".into()));
+        }
+        if let (true, Some(c)) = (m.roles.4, closer) {
+            m.lines.push((c, "Same time again, then - and each of you bring one more.".into()));
+        }
+        if let (true, Some(s)) = (m.roles.3, song) {
+            for &a in &m.invited {
+                desires::satisfy(&mut self.world, a, desires::Want::Music, self.tick + 30);
+            }
+            let mid = m.lines.len() / 2;
+            m.lines.insert(mid, (s, "The rain came down on the road to the fair, and who should meet me there...".into()));
+        }
+        if let (true, Some(s)) = (m.roles.0, snacks) {
+            for &a in &m.invited {
+                desires::satisfy(&mut self.world, a, desires::Want::GoodFood, self.tick + 15);
+            }
+            m.lines.insert(1.min(m.lines.len()), (s, "Bread's on the table - help yourselves.".into()));
+        }
+        if let (true, Some(o)) = (m.roles.2, opener) {
+            m.lines.insert(0, (o, "Friends - you came, and that's the start of it.".into()));
+        }
+    }
+
     /// One frame of a house meeting: while people gather, each walks a
     /// step towards their spot; once they're all there (or the host has
     /// waited GATHER_FRAMES) they talk in turns, then it resolves
@@ -420,7 +457,13 @@ impl Game {
                     m.invited = came.iter().map(|&i| m.invited[i]).collect();
                     m.spots = came.iter().map(|&i| m.spots[i]).collect();
                     m.paths = came.iter().map(|&i| m.paths[i].clone()).collect();
+                    // a role counts kept only if its keeper made it: a
+                    // promised song nobody sang warms nothing
+                    let in_room = |e: Option<Entity>| e.map(|e| m.invited.contains(&e)).unwrap_or(false);
+                    m.roles = (in_room(m.role_people[0]), in_room(m.role_people[1]),
+                        in_room(m.role_people[2]), in_room(m.role_people[3]), in_room(m.role_people[4]));
                     m.lines = self.meeting_lines(&m.invited, m.seat, m.roles);
+                    self.meeting_beats(&mut m);
                     m.talk_from = Some(m.frames);
                     // the TALK panel keeps the meeting's record as it's said
                     if !m.invited.is_empty() {

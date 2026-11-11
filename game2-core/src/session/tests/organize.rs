@@ -234,20 +234,20 @@ fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
 
 #[test]
 fn test_half_the_merely_invited_never_make_it() {
-    use crate::game::organizing::shows_up;
+    use crate::game::organizing::{shows_up, Invite};
     let mut g = Game::new();
     let v = g.villagers[1];
     // a staked stranger who just got a flyer is a coin's toss - high
     // rolls keep them home
     crate::game::desires::add_grievance(&mut g.world, v,
         crate::game::desires::Problem::Taxed, g.tick + 100);
-    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.99, g.tick));
-    assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g.tick));
+    assert!(!shows_up(&g.world, g.player, v, (16, 16), Invite::Word, 0.99, g.tick));
+    assert!(shows_up(&g.world, g.player, v, (16, 16), Invite::Word, 0.01, g.tick));
 }
 
 #[test]
 fn test_the_disinterested_drift_in_thinly_not_never() {
-    use crate::game::organizing::shows_up;
+    use crate::game::organizing::{shows_up, Invite};
     use crate::game::desires::{self, add_grievance, Problem};
     use crate::game::relationships::{self, RelKind};
     let mut g = Game::new();
@@ -263,19 +263,23 @@ fn test_the_disinterested_drift_in_thinly_not_never() {
     };
     // curiosity still drifts them in, at a quarter's pull: a tenth of the
     // room answers the coin, three-quarters of its rolls don't
-    assert!(!shows_up(&g.world, g.player, v, at, false, 0.2, g.tick),
+    assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.2, g.tick),
         "nothing to say: most rolls keep them home");
-    assert!(shows_up(&g.world, g.player, v, at, false, 0.05, g.tick),
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.05, g.tick),
         "but a drift-in still happens");
     // a grievance is a reason: the wronged roll the full coin
     add_grievance(&mut g.world, v, Problem::Taxed, g.tick + 100);
-    assert!(shows_up(&g.world, g.player, v, at, false, 0.4, g.tick),
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Word, 0.4, g.tick),
         "a live grievance draws them out");
-    assert!(!shows_up(&g.world, g.player, v, at, false, 0.6, g.tick));
+    assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.6, g.tick));
     // once it's spent they're back to thin rolls
     let g2 = g.tick + 200;
-    assert!(!shows_up(&g.world, g.player, v, at, false, 0.2, g2),
+    assert!(!shows_up(&g.world, g.player, v, at, Invite::Word, 0.2, g2),
         "a spent grievance no longer draws");
+    // but a friend holding the door is reason enough on its own -
+    // no stake asked of a pulled guest (#1075)
+    assert!(shows_up(&g.world, g.player, v, at, Invite::Pulled, 0.4, g2),
+        "a pulled friend needs no stake");
     // and a true friend of the host needs no other reason
     let w = g.villagers.iter().copied().find(|&w| {
         if let Some(l) = g.world.get_component_mut::<desires::InnerLife>(w) { l.wants.clear(); }
@@ -288,7 +292,7 @@ fn test_the_disinterested_drift_in_thinly_not_never() {
     let rel = g.world.create_entity();
     g.world.add_component(rel, relationships::Relationship {
         from: g.player, other: w, kind: RelKind::Friend, strength: 0.8, interactions: 5 });
-    assert!(shows_up(&g.world, g.player, w, at, false, 0.4, g2),
+    assert!(shows_up(&g.world, g.player, w, at, Invite::Word, 0.4, g2),
         "a real bond counts as its own stake");
 }
 
@@ -548,6 +552,86 @@ fn test_asking_someone_to_bring_friends_is_a_yes_or_a_no() {
     let (no, _) = propose(&mut g.world, pe, oe, corvin, PropKind::InviteFriends, "Corvin", 0.99, tick);
     assert!(no.contains("won't hear it"), "{}", no);
     assert!(!g.world.get_component::<MeetingPlan>(oe).unwrap().spreaders.contains(&corvin));
+}
+
+#[test]
+fn test_the_promised_parts_of_a_meeting_actually_happen() {
+    use crate::game::organizing::MeetingPlan;
+    let mut game = Game::new();
+    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let (host, snacker, noter, opener, singer, closer) =
+        (game.villagers[1], game.villagers[2], game.villagers[3], game.villagers[4], game.villagers[5], game.villagers[6]);
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        *game.world.get_component_mut::<Pos>(v).unwrap() =
+            if i == 1 { Pos { x: 17.0, y: 16.0 } } else { Pos { x: 16.0 + (i % 5) as f32, y: 14.0 + (i / 5) as f32 * 0.5 } };
+    }
+    plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
+    {
+        let plan = game.world.get_component_mut::<MeetingPlan>(game.org).unwrap();
+        plan.snacks = Some(snacker); plan.notes = Some(noter); plan.opener = Some(opener);
+        plan.song = Some(singer); plan.closer = Some(closer);
+    }
+    game.call_meeting();
+    while game.meeting.as_ref().map(|m| m.lines.is_empty()).unwrap_or(false) { game.update(); }
+    let m = game.meeting.as_ref().expect("the meeting's under way");
+    // every part happens, in its place: the opener's welcome first,
+    // the bread and the song along the way, the notes and the
+    // send-off last - and the song fills the music-want it promised
+    assert_eq!(m.lines[0].0, opener, "the opener speaks first: {:?}", m.lines.first());
+    assert!(m.lines[0].1.contains("you came"), "a welcome, not the host's question: {}", m.lines[0].1);
+    assert!(m.lines.iter().any(|&(w, ref t)| w == snacker && t.contains("Bread's on the table")), "the bread goes round");
+    assert!(m.lines.iter().any(|&(w, ref t)| w == singer && t.contains("road to the fair")), "the song is sung");
+    assert!(m.lines.iter().any(|&(w, ref t)| w == noter && t.contains("keep the word")), "the notes keep it");
+    assert_eq!(m.lines.last().unwrap().0, closer, "the closer sends them off");
+    assert!(crate::game::desires::is_satisfied(&game.world, singer, crate::game::desires::Want::Music, game.tick),
+        "the song warmed the room's music-want");
+    // a promised part whose keeper never made it stays un-kept
+    let mut game2 = Game::new();
+    *game2.world.get_component_mut::<Pos>(game2.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    let (host2, song2) = (game2.villagers[1], game2.villagers[9]);
+    for (i, v) in game2.villagers.clone().into_iter().enumerate() {
+        *game2.world.get_component_mut::<Pos>(v).unwrap() =
+            if i == 1 { Pos { x: 17.0, y: 16.0 } } else { Pos { x: 16.0 + (i % 5) as f32, y: 14.0 + (i / 5) as f32 * 0.5 } };
+    }
+    plan_ready_meeting(&mut game2, host2, (17.0, 16.0), &[]);
+    // the singer promised but sits in the cells: no song is sung
+    game2.world.get_component_mut::<MeetingPlan>(game2.org).unwrap().song = Some(song2);
+    game2.world.add_component(song2, crate::game::dungeon::Imprisoned { since: game2.tick, charge: "the lord's suspicion".into() });
+    game2.call_meeting();
+    while game2.meeting.as_ref().map(|m| m.lines.is_empty()).unwrap_or(false) { game2.update(); }
+    let m2 = game2.meeting.as_ref().expect("the meeting's under way");
+    assert!(!m2.roles.3, "a song whose singer's held sings nothing");
+    assert!(m2.lines.iter().all(|(_, t)| !t.contains("road to the fair")), "no song aired");
+}
+
+#[test]
+fn test_the_committed_bring_a_friend_along() {
+    use crate::game::organizing::MeetingPlan;
+    use crate::game::relationships::{Relationship, RelKind};
+    let mut game = Game::new();
+    let (host, comer, friend) = (game.villagers[1], game.villagers[2], game.villagers[4]);
+    // the venue's at the host's; the friend waits close by
+    *game.world.get_component_mut::<Pos>(game.player).unwrap() = Pos { x: 16.0, y: 16.0 };
+    for (v, x, y) in [(host, 17.0, 16.0), (friend, 18.0, 17.0)] {
+        *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x, y };
+    }
+    for (i, v) in game.villagers.clone().into_iter().enumerate() {
+        if i != 1 && i != 4 { *game.world.get_component_mut::<Pos>(v).unwrap() = Pos { x: 3.0 + i as f32 * 0.5, y: 3.0 }; }
+    }
+    // the comer's strongest bond is the friend, and the friend knows
+    // the player well enough to make the walk
+    let r = game.world.create_entity();
+    game.world.add_component(r, Relationship { from: comer, other: friend, kind: RelKind::Friend, strength: 9.0, interactions: 3 });
+    let rf = game.world.create_entity();
+    game.world.add_component(rf, Relationship { from: game.player, other: friend, kind: RelKind::Friend, strength: 3.0, interactions: 5 });
+    plan_ready_meeting(&mut game, host, (17.0, 16.0), &[]);
+    // the comer gave a bare yes - no spreading promised - and still a
+    // friend comes in tow
+    game.world.get_component_mut::<MeetingPlan>(game.org).unwrap().coming = vec![comer];
+    game.call_meeting();
+    let invited = game.meeting.as_ref().expect("a meeting was called").invited.clone();
+    assert!(invited.contains(&comer), "the comer came: {:?}", invited);
+    assert!(invited.contains(&friend), "a yes holds the door for a friend: {:?}", invited);
 }
 
 #[test]

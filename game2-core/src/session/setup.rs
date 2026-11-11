@@ -1084,6 +1084,13 @@ impl Game {
             sanctioned: vec![],
             protests: vec![],
             feud_told: Default::default(),
+            bylaws: vec![],
+            bylaw_friction: Default::default(),
+            bylaw_seen: Default::default(),
+            vouches: vec![],
+            partnerships: vec![],
+            community_strength: crate::game::community_law::COMMUNITY_BASELINE,
+            community_band: 1,
             produced: Default::default(),
             tales: Default::default(),
             forest: {

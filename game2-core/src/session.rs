@@ -1287,6 +1287,21 @@ pub struct Game {
     /// The worst state each feud was announced at, so the log tells its
     /// turns once each
     pub feud_told: crate::engine::det::HashMap<Entity, crate::game::feuds::FeudStatus>,
+    /// The village's own agreed rules - the neighbors' law beside the
+    /// lord's book
+    pub bylaws: Vec<crate::game::community_law::ByeLaw>,
+    /// Incidents counted per friction kind until they earn a rule
+    pub bylaw_friction: crate::engine::det::HashMap<crate::game::community_law::ByeKind, u32>,
+    /// The grievance triples already counted, so each counts once
+    pub bylaw_seen: crate::engine::det::HashSet<(Entity, crate::game::community_law::ByeKind, u64)>,
+    /// Sureties stood: kin and near neighbors bound for a debtor's word
+    pub vouches: Vec<crate::game::community_law::Vouch>,
+    /// Shared-work compacts between neighbors and their stages of life
+    pub partnerships: Vec<crate::game::community_law::Partnership>,
+    /// The village's pull over the generations - it forms, peaks, declines
+    pub community_strength: f32,
+    /// The last announced band of community_strength, told once each
+    pub community_band: u8,
     /// (villager -> (day, units)) - what each one made at the bench today,
     /// so the card can say the day's work plainly
     pub produced: crate::engine::det::HashMap<Entity, (u64, f32)>,

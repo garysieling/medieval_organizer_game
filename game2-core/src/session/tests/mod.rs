@@ -68,6 +68,7 @@ mod emergency;
 mod faith;
 mod faith_stage;
 mod festival;
+mod community_law;
 mod feuds;
 mod fisher;
 mod fixtures;

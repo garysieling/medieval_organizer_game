@@ -235,12 +235,38 @@ fn test_a_yes_fills_the_plan_and_the_gather_button_shows() {
 #[test]
 fn test_half_the_merely_invited_never_make_it() {
     use crate::game::organizing::shows_up;
-    let g = Game::new();
+    let mut g = Game::new();
     let v = g.villagers[1];
-    // a promised guest with a bond almost always comes; a stranger who
-    // just got a flyer is a coin's toss - high rolls keep them home
-    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.99));
-    assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01));
+    // a staked stranger who just got a flyer is a coin's toss - high
+    // rolls keep them home
+    g.world.add_component(v, crate::game::desires::Known {
+        revealed: vec![crate::game::desires::Reveal::Want(crate::game::desires::Want::GoodFood)] });
+    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.99, g.tick));
+    assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g.tick));
+}
+
+#[test]
+fn test_nobody_comes_to_a_meeting_without_a_stake() {
+    use crate::game::organizing::shows_up;
+    use crate::game::desires::{add_grievance, Problem, Want, Reveal, Known};
+    let mut g = Game::new();
+    let v = g.villagers[1];
+    // a contented stranger never comes, however kind the roll
+    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.0, g.tick),
+        "no stake, no bond, no attendance");
+    // a grievance is a stake: the wronged take the walk
+    add_grievance(&mut g.world, v, Problem::Taxed, g.tick + 100);
+    assert!(shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g.tick),
+        "a live grievance draws them out");
+    // once it's spent they're home again
+    let g2 = g.tick + 200;
+    assert!(!shows_up(&g.world, g.player, v, (16, 16), false, 0.01, g2),
+        "a spent grievance no longer draws");
+    // and a want the organizer's heard is a stake too
+    let w = g.villagers[2];
+    g.world.add_component(w, Known { revealed: vec![Reveal::Want(Want::GoodFood)] });
+    assert!(shows_up(&g.world, g.player, w, (16, 16), false, 0.01, g2),
+        "a heard want draws them out");
 }
 
 #[test]

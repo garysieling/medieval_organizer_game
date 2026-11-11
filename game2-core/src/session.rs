@@ -527,6 +527,9 @@ pub struct Meeting {
     /// Roles promised for this meeting: (snacks, notes, opener, song,
     /// closer) - the meeting runs better for each kept
     pub roles: (bool, bool, bool, bool, bool),
+    /// Who promised each part, same order as `roles` - a part only
+    /// happens if its keeper actually made it (#1076)
+    pub role_people: [Option<Entity>; 5],
 }
 
 /// The founding call a finished house meeting left with its organizer:

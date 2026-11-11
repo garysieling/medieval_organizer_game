@@ -771,8 +771,17 @@ impl View {
                         if let Some(d) = pv.sign { draw_picket_sign(&mut buf, sx, sy, zoom, d); }
                         let lbl = pv.label.clone().unwrap_or_else(|| vill_name(i).into());
                         let (lx, ly) = name_label_pos(sx, anchor, &lbl);
-                        // bright when close enough to talk, recruit or meet; dim otherwise
-                        let rgb = if pv.in_reach { NAME_IN_REACH } else { NAME_OUT_OF_REACH };
+                        // bright when close enough to talk, recruit or meet; dim
+                        // otherwise - and a face not spoken to in a while greys
+                        // toward the dim end by how stale the contact's gone
+                        // (#1069); a stranger's name stays bright
+                        let rgb = if pv.in_reach {
+                            let t = pv.stale.clamp(0.0, 1.0);
+                            let lerp = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round() as u8;
+                            (lerp(NAME_IN_REACH.0, NAME_OUT_OF_REACH.0),
+                             lerp(NAME_IN_REACH.1, NAME_OUT_OF_REACH.1),
+                             lerp(NAME_IN_REACH.2, NAME_OUT_OF_REACH.2))
+                        } else { NAME_OUT_OF_REACH };
                         // the one an ask would land on rides the label
                         // pass (older servers send no talk_target: fall
                         // back to the picked or the one in reach)

@@ -93,7 +93,7 @@ fn main() {
         // it stops, and the power it built starts to atrophy
         if tick < 100 && tick % 5 == 0 {
             let attendees = world.get_component::<Organization>(org).unwrap().members.clone();
-            house_meeting(&mut world, org, &attendees);
+            house_meeting(&mut world, org, &attendees, tick);
         }
         if tick == 100 {
             println!("EVENT: the guild stops meeting");

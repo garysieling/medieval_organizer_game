@@ -278,3 +278,24 @@ fn test_a_fresh_talk_always_offers_something_to_say() {
         assert!(!t.options.is_empty(), "villager {i} opened with nothing to say");
     }
 }
+
+#[test]
+fn test_an_old_hello_greys_the_name_but_a_stranger_stays_bright() {
+    // a face you let drift greys out; one you've never met doesn't (#1069)
+    let mut g = Game::new();
+    let (met, stranger) = (g.villagers[0], g.villagers[1]);
+    let pe = g.player;
+    crate::game::player::act_talk(&mut g.world, pe, met, 0);
+    g.tick = 30; // half gone grey
+    let stale_of = |g: &Game, v| g.ui_model().people.iter()
+        .find(|p| p.e == v).map(|p| p.stale).unwrap_or(-1.0);
+    let (sm, ss) = (stale_of(&g, met), stale_of(&g, stranger));
+    assert!((sm - 0.5).abs() < 0.01, "30 days of silence reads half-faded, got {}", sm);
+    assert_eq!(ss, 0.0, "a stranger has nothing to fade");
+    g.tick = 200; // past the fade's end
+    assert_eq!(stale_of(&g, met), 1.0, "long silence greys all the way out");
+    // a meeting counts as speaking: the clock starts over
+    let (pe, tick) = (g.player, g.tick);
+    crate::game::player::note_conversation(&mut g.world, pe, met, tick);
+    assert_eq!(stale_of(&g, met), 0.0, "seeing them at the meeting freshens the name");
+}

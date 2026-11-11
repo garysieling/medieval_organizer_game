@@ -56,7 +56,7 @@ fn test_generated_props_and_castle_load_at_1x() {
     let art = Art::load_fs("../assets", 0);
     // woods: broadleaf and fir in the green seasons and autumn, bare and
     // snowed-on in winter, all drawn at 1x (not the pack's block scale)
-    for (season, n) in [(0, 8), (1, 8), (2, 4)] {
+    for (season, n) in [(0, 8), (1, 8), (2, 8)] {
         let t = &art.tiles[season];
         assert_eq!(t.trees.len(), n, "season {}: generated trees", season);
         assert_eq!(t.trees_k, 1.0);

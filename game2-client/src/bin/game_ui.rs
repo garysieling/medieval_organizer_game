@@ -274,6 +274,9 @@ fn main() {
     let mut talk_armed: Option<std::time::Instant> = None;
     // where the player stood and the zoom last frame, for the camera's follow
     let mut player_seen: Option<((f32, f32), f32)> = None;
+    // a sim-asked look holds the follow camera off till the player takes
+    // a step - the introduction's name gets more than a frame (#1059)
+    let mut follow_hold: Option<(f32, f32)> = None;
     // the event camera: which civic event has it, and the eased centre
     let mut event_cam = EventCam::default();
 
@@ -444,6 +447,10 @@ fn main() {
                 if view.focus_seen.replace(Some(ff)) != Some(ff) {
                     (view.cam_x, view.cam_y) = session::camera_on(fx, fy);
                     view.zoom = view.zoom.max(1.5);
+                    // the jump wins outright: follow stays off until the
+                    // player character takes a step
+                    follow_hold = m.people.iter()
+                        .find(|p| p.kind == session::PKind::Player).map(|p| p.pos);
                 }
             }
         }
@@ -457,12 +464,21 @@ fn main() {
             }
         }
 
-        // the character walking clean off the map view: the camera
-        // follows them back to centre, though only while they move -
-        // a deliberate pan or jump with them standing still isn't fought
+        // the walking character: inside the frame's comfort box they're
+        // left alone, drifting past it leans the camera down their stride.
+        // An event or a sim-asked look mutes the follow rather than losing
+        // its bearings - the camera resumes eased from where it was left,
+        // and a pan while they stand still is never fought (#1059)
         if let Some(m) = &cur_model {
+            if let Some(hp) = follow_hold {
+                let now = m.people.iter().find(|p| p.kind == session::PKind::Player).map(|p| p.pos);
+                if now.map(|n| (n.0 - hp.0).abs() > 0.01 || (n.1 - hp.1).abs() > 0.01).unwrap_or(true) {
+                    follow_hold = None;
+                }
+            }
+            let muted = follow_hold.is_some() || m.player_event.is_some();
             if let Some(cam) = client::camera_follow(m, (view.cam_x, view.cam_y), view.zoom, &mut player_seen) {
-                (view.cam_x, view.cam_y) = cam;
+                if !muted { (view.cam_x, view.cam_y) = cam; }
             }
         }
 

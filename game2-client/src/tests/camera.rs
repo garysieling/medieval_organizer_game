@@ -113,11 +113,27 @@ fn test_the_event_camera_jumps_frames_and_yields() {
 /// player's zoom, a street-wide march pulls toward the floor
 #[test]
 fn test_event_zoom_only_ever_pulls_back() {
-    assert_eq!(event_zoom(1.0, 1.0), 1.0, "a doorstep keeps the zoom");
-    assert_eq!(event_zoom(1.0, 2.0), 2.0, "and never zooms in");
-    let wide = event_zoom(40.0, 1.0);
+    assert_eq!(event_zoom(1.0, 1.0, false), 1.0, "a doorstep keeps the zoom");
+    assert_eq!(event_zoom(1.0, 2.0, false), 2.0, "and never zooms in");
+    let wide = event_zoom(40.0, 1.0, false);
     assert!(wide < 0.5 + f32::EPSILON || (wide - MIN_ZOOM).abs() < 0.01,
         "a street-wide event hits the floor: {wide}");
-    let mid = event_zoom(12.0, 1.0);
+    let mid = event_zoom(12.0, 1.0, false);
     assert!(mid < 1.0 && mid > MIN_ZOOM, "a column pulls back but not to the floor: {mid}");
+}
+
+/// a house meeting leans in: a tight circle draws the camera close
+/// enough that the attendees' faces read, where a march would keep
+/// the player's own zoom
+#[test]
+fn test_event_zoom_leans_in_on_a_gathering() {
+    let lean = event_zoom(6.0, 1.0, true);
+    assert!(lean > 1.0 && lean <= MAX_ZOOM,
+        "a six-tile circle leans past the player's zoom: {lean}");
+    assert_eq!(event_zoom(6.0, 1.0, false), 1.0,
+        "the same stretch of march would have kept it");
+    let wide = event_zoom(40.0, 2.0, true);
+    assert!(wide < 1.0, "a gathering spilling streets-wide still pulls back: {wide}");
+    assert!(event_zoom(2.0, 1.0, true) <= MAX_ZOOM,
+        "and the lean never overshoots the cap");
 }

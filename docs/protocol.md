@@ -188,10 +188,13 @@ seat may see this frame, a `UiModel`, about 22 KB. `map` is empty (see
 ```
 {"e":57,"kind":{"Villager":8},"pos":[11.4,6.9],"label":"Wystan","dead":false,"kid":false,
  "selected":false,"in_reach":true,"hungry":false,"sick":false,"act_mark":0,"bond":false,
- "find":"wystan heart helper","look":0,"sign":null,"mounted":false,"stale":0.0}
+ "find":"wystan heart helper","look":0,"person":"tax-collector","sign":null,"mounted":false,"stale":0.0}
 ```
 
-`stale` is how long since this seat spoke with them, 0 fresh -> 1 long
+`person` names the figure their posting or trade wears ("baker",
+"tax-collector", "guard-spear") where the generated people art covers
+it; absent for the uncovered trades and on older servers. `stale` is
+how long since this seat spoke with them, 0 fresh -> 1 long
 silent (strangers stay 0); clients may grey the name by it. `sign` is
 the picket-board design (0 wooden hand-lettered, 1 printed
 placard) while they gather for a protest or march, else null.

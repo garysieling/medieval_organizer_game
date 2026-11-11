@@ -1,0 +1,27 @@
+{
+ "created_at": 1794426912,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 27.31,
+ "request_id": "0619c142-ceb8-43a9-9e9a-434815117f4b",
+ "outputs_retained_until": 1794513187,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 27.31
+ },
+ "id": "person-farmer-f-df18d98b",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: female farmer with straw hat, sickle at belt, pale freckled skin and red hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:55:13",
+ "seconds": 125.5
+}

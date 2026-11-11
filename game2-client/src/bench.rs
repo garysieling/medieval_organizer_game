@@ -87,9 +87,11 @@ pub fn cam_centred_on(tx: f32, ty: f32) -> (i32, i32) {
 }
 
 /// Does a scene figure answer to `--focus <name>`? (dog, cat, chicken,
-/// sheep, goat, gull, guard, priest, traveller, player, rival, villager)
-pub(crate) fn focus_matches(kind: PKind, name: &str) -> bool {
-    match (kind, name) {
+/// sheep, goat, gull, guard, priest, traveller, player, rival, villager,
+/// or any PersonV.person key - baker, tax-collector, guard-spear...)
+pub(crate) fn focus_matches(pv: &PersonV, name: &str) -> bool {
+    if pv.person.as_deref() == Some(name) { return true; }
+    match (pv.kind, name) {
         (PKind::Pet(Species::Dog), "dog") | (PKind::Pet(Species::Cat), "cat") => true,
         (PKind::Chicken, "chicken" | "hen") | (PKind::Sheep, "sheep") | (PKind::Goat, "goat") => true,
         (PKind::Gull, "gull") | (PKind::Guard(_), "guard") | (PKind::Priest, "priest") => true,
@@ -190,7 +192,7 @@ pub fn run_headless_focus(art: Art, target_tick: u64, out: Option<String>, zoom:
         (view.cam_x, view.cam_y) = cam_centred_on(x, y);
         println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", focus.unwrap_or(""), x, y, view.cam_x, view.cam_y);
     } else if let Some(name) = focus {
-        match game.ui_model().people.iter().find(|p| focus_matches(p.kind, name)) {
+        match game.ui_model().people.iter().find(|p| focus_matches(p, name)) {
             Some(p) => {
                 (view.cam_x, view.cam_y) = cam_centred_on(p.pos.0, p.pos.1);
                 println!("focus {}: tile ({:.1}, {:.1}) cam {},{}", name, p.pos.0, p.pos.1, view.cam_x, view.cam_y);

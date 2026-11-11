@@ -1,0 +1,27 @@
+{
+ "created_at": 1794428071,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 23.89,
+ "request_id": "46ea9d8d-9e6b-4e0a-b748-9bd0386bb4b7",
+ "outputs_retained_until": 1794514426,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 23.89
+ },
+ "id": "person-tailor-f-7583d8d1",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: female tailor with measuring tape and pins, warm tan skin and dark hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T15:14:32",
+ "seconds": 45.1
+}

@@ -169,6 +169,10 @@ pub struct Art {
     /// Generated looks for the watch (rd/guards), by the same index as
     /// guards; drawn standing, facing out
     pub guard_walks: Vec<Option<WalkSheet>>,
+    /// Generated people stills (assets/rd/people), by file name - the
+    /// postings and trades the pack has no figure for. Drawn standing at
+    /// 1x by draw_animal; a missing name leaves the pack figure in use
+    pub people: Vec<(String, Sprite)>,
     pub priest_s: Option<Sprite>,
     pub priest_walk: Option<WalkSheet>,
     pub traveller_s: Option<Sprite>, // a courier riding the road between villages
@@ -565,6 +569,22 @@ impl TileSet {
     }
 }
 
+/// Every generated people still the loader looks for
+/// (assets/rd/people/<name>.png): the postings first, then the ten
+/// covered trades in -m/-f pairs. The sex suffix is a placeholder until
+/// the sim carries a villager's Sex (#681); unmapped roles (archer,
+/// king, mage, ...) load dormant for whoever wires them later.
+pub(crate) const PEOPLE_SPRITES: [&str; 36] = [
+    "archer", "cavalier", "courier", "crossbowman",
+    "guard-halberd", "guard-shield", "guard-spear", "guard-sword",
+    "king", "mage", "minstrel", "overseer", "plague-doctor", "prince", "tax-collector", "trader",
+    "baker-f", "baker-m", "farmer-f", "farmer-m",
+    "glazier-f", "glazier-m", "knight-f", "knight-m",
+    "luthier-f", "luthier-m", "mason-f", "mason-m",
+    "priest-f", "priest-m", "printmaker-f", "printmaker-m",
+    "tailor-f", "tailor-m", "toolmaker-f", "toolmaker-m",
+];
+
 /// A villager sprite cropped to its standing frame (each sheet is a grid
 /// of 32x32 cells)
 pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
@@ -578,6 +598,13 @@ pub(crate) fn figure(at: &dyn Fn(&str) -> Option<Sprite>, rel: &str) -> Sprite {
 pub(crate) static NO_SPRITE: Option<Sprite> = None;
 
 impl Art {
+    /// The generated still for a person key: a PersonV.person token
+    /// ("baker", "tax-collector"), or the token with a -m/-f suffix for
+    /// the sexed trades. None: the caller draws the pack figure.
+    pub fn person(&self, name: &str) -> Option<&Sprite> {
+        self.people.iter().find(|(n, _)| n == name).map(|(_, s)| s)
+    }
+
     /// Load every sprite through `fetch` (rel path -> png bytes): the file
     /// system on desktop, a bundled pack on the web.
     /// Load from an asset folder on disk ("assets" from the repo root).
@@ -828,6 +855,11 @@ impl Art {
             priest_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniMage.png")),
             priest_walk: walk("rd/villagers/priest.png"),
             guard_walks: ["spear", "sword", "shield", "halberd"].iter().map(|g| walk(&format!("rd/guards/{}.png", g))).collect(),
+            // the postings' and trades' own figures (assets/rd/people):
+            // 48px stills resampled to villager height at export
+            people: PEOPLE_SPRITES.iter()
+                .filter_map(|&n| at(&format!("rd/people/{}.png", n)).map(|s| (n.to_string(), s)))
+                .collect(),
             traveller_s: Some(figure(&at, "MinifolksHumans/Without Outline/MiniHorseMan.png")),
             rival_walks,
             traveller_walk: walk("rd/traveller/courier.png"),

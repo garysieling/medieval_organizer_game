@@ -75,6 +75,10 @@ fn test_the_mount_sorts_as_one_piece() {
     (view.cam_x, view.cam_y) = cam_centred_on(kx as f32 - 2.0, ky as f32 - 2.0);
     let mut m = game.ui_model();
     let i = person_index(&m, e);
+    // the generated person still is a different height than the pack
+    // figure, so its name anchors elsewhere and lands inside the checked
+    // region - pin the pack look, the sort check is about the mount
+    m.people[i].person = None;
     m.people[i].mounted = true;
     let mounted = view.render(&m, (-1, -1));
     m.people[i].mounted = false;

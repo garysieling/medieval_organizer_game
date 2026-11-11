@@ -1,0 +1,27 @@
+{
+ "created_at": 1794426305,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 28.93,
+ "request_id": "4bf1be50-9810-4ee6-96fa-6d65ef120170",
+ "outputs_retained_until": 1794512658,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 28.93
+ },
+ "id": "person-king-aad17721",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: old king in ermine cloak and crown, warm tan skin and dark hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:45:06",
+ "seconds": 47.2
+}

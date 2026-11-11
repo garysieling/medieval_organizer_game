@@ -1,0 +1,27 @@
+{
+ "created_at": 1794426733,
+ "credit_cost": 1,
+ "balance_cost": 0.18,
+ "model": "rd_pro",
+ "remaining_credits": 0,
+ "remaining_balance": 27.67,
+ "request_id": "9560cdf5-0ea3-44f4-8b27-bbefc6f0fcb7",
+ "outputs_retained_until": 1794513077,
+ "billing": {
+  "source": "balance",
+  "reason": "no_plan",
+  "balance_charged": 0.18,
+  "balance_left": 27.67
+ },
+ "id": "person-baker-f-2565f4d4",
+ "prompt": "small chibi medieval character, front view, full body, on empty background: female baker in flour-dusted apron holding a loaf, warm tan skin and dark hair",
+ "request": {
+  "prompt_style": "rd_pro__default",
+  "width": 48,
+  "height": 48,
+  "num_images": 1,
+  "remove_bg": true
+ },
+ "generated_at": "2026-11-11T14:52:14",
+ "seconds": 55.8
+}

@@ -160,6 +160,10 @@ pub struct Seat {
     /// conversation box, waiting on their pick (Command::Decide). Each
     /// organizer holds their own - another seat's meeting can't erase it
     pub pending_founding: Option<PendingFounding>,
+    /// The day-question a Gather press leaves open on the conversation
+    /// box, waiting on their pick (Command::Decide). The tick it was
+    /// asked, so an unanswered one can lapse like the founding's
+    pub meet_offer: Option<u64>,
     /// The odd job this seat is running for a villager, if any
     /// (session::quests)
     pub quest: Option<quests::PlayerQuest>,
@@ -196,7 +200,7 @@ impl Default for Seat {
         Seat { player: 0, org: 0, picked: false, approach: None, selected_target: 0,
                selected_building: None, ctx_actions: vec![], agent: false, talk: None,
                pick_near: false,
-               pending_founding: None, quest: None, mystery: None, mystery_wait: 0,
+               pending_founding: None, meet_offer: None, quest: None, mystery: None, mystery_wait: 0,
                mystery_last: usize::MAX, notice_panel: false, aboard: None,
                focus: None, last_pos: None, facing: 2, walking: false,
                player_passed: false }

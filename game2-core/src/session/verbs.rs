@@ -63,9 +63,11 @@ impl Game {
             }
             CtxAct::Gather => {
                 if self.meeting.is_some() { Some("a meeting is under way".into()) }
+                else if self.seats[seat].meet_offer.is_some() { Some("the call's day isn't picked yet".into()) }
                 else {
                     self.world.get_component::<crate::game::organizing::MeetingPlan>(self.seats[seat].org)
-                        .map(|p| if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
+                        .map(|p| if p.for_day.is_some() { Some("the word's already out".into()) }
+                            else if p.ready() { None } else { Some(p.missing().to_string()) }).flatten()
                 }
             }
             CtxAct::PickCaps => {
@@ -1151,7 +1153,10 @@ impl Game {
                     None => "Nobody turns out for the townhall.".into(),
                 }
             }
-            CtxAct::Gather => self.call_meeting_at(seat),
+            CtxAct::Gather => {
+                self.seats[seat].meet_offer = Some(self.tick);
+                "The plan's made - now the word wants a day.".into()
+            }
             CtxAct::MendHall => {
                 let oe = self.seats[seat].org;
                 let purse = self.world.get_component::<Organization>(oe)
@@ -2301,6 +2306,24 @@ impl Game {
                     witness: self.seats[seat].player, victim: b.victim, weight: b.debt });
                 self.log.push(format!("t{}: {} - the choice is carried out, and the remembering begins.", self.tick, b.text));
             }
+            return;
+        }
+        // the call's own day: two days out, four, or a week - the plan
+        // keeps taking yeses and roles until the door
+        if self.seats[seat].meet_offer.take().is_some() {
+            let n = [2u64, 4, 7][pick.min(2)];
+            let oe = self.seats[seat].org;
+            let for_day = self.tick + n;
+            let label = self.world.get_component::<crate::game::organizing::MeetingPlan>(oe)
+                .and_then(|p| p.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h)))
+                .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
+            if let Some(p) = self.world.get_component_mut::<crate::game::organizing::MeetingPlan>(oe) {
+                p.for_day = Some(for_day);
+            }
+            self.notices.push(("meet".into(),
+                format!("the word's out - folk gather at {} in {} days", label, n), for_day));
+            self.toasts.push(("a meeting's called - the word's out".into(), self.tick + 40));
+            self.log.push(format!("t{}: the word's out - they gather at {} in {} days.", self.tick, label, n));
             return;
         }
         let Some(d) = self.seats[seat].pending_founding.take() else { return };

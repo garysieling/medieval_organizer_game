@@ -740,6 +740,9 @@ pub struct MeetingPlan {
     pub coming: Vec<Entity>,
     /// Who said they'd bring their friends
     pub spreaders: Vec<Entity>,
+    /// The day the call's set for, once the organizer picks it - till
+    /// then the plan stays open: roles and yeses still count
+    pub for_day: Option<u64>,
 }
 
 impl MeetingPlan {

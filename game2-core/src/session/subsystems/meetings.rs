@@ -219,12 +219,13 @@ impl Game {
     }
 
     /// Organize: call a house meeting at the venue named on the org's
-    /// MeetingPlan, for everyone the plan's promises and spread brought
-    /// in. A meeting is earned, not summoned: without a ready plan (a
-    /// lent venue and someone willing to come) this refuses rather than
-    /// falling back to rounding up whoever's simply standing nearby -
-    /// that was the un-earned meeting this plan replaced. They walk
-    /// over; see advance_meeting.
+    /// MeetingPlan - or the square, when nobody's lent a house and the
+    /// word alone brings them out (#1065) - for everyone the plan's
+    /// promises and spread brought in. A meeting is earned, not
+    /// summoned: without a ready plan (someone willing to come) this
+    /// refuses rather than falling back to rounding up whoever's
+    /// simply standing nearby - that was the un-earned meeting this
+    /// plan replaced. They walk over; see advance_meeting.
     pub fn call_meeting_at(&mut self, seat: usize) -> String {
         if self.meeting.is_some() { return "A meeting is already under way.".into(); }
         let (oe, pe) = (self.seats[seat].org, self.seats[seat].player);
@@ -236,11 +237,13 @@ impl Game {
             return format!("No meeting to call yet - {}.", missing);
         }
         let plan: MeetingPlan = std::mem::take(self.world.get_component_mut::<MeetingPlan>(oe).unwrap());
+        // no house lent: the cross is the standing ground for a meeting
+        // the word alone convened
         let venue = plan.venue.map(|(_, b)| self.world.get_component::<Pos>(b)
             .map(|p| (p.x.round() as i32, p.y.round() as i32)).unwrap_or((0, 0)))
-            .unwrap_or((0, 0));
+            .unwrap_or(self.village);
         let label = plan.venue.and_then(|(h, _)| self.villagers.iter().position(|&v| v == h))
-            .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the house".into());
+            .map(|i| format!("{}'s house", vill_name(i))).unwrap_or_else(|| "the square".into());
         // the invited: those who said they'd come, those who said
         // they'd bring friends (and the friends they bring), and every
         // promise-keeper - then the turnout roll, roughly a coin's

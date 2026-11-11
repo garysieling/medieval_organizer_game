@@ -494,6 +494,9 @@ impl Game {
                     _ => "the stray",
                 }))
                 .unwrap_or_else(|| ctx_button(act).label),
+            // "The school" said where, not what (#1071): name the deed
+            CtxAct::School if self.school.is_none() => "Found the school".into(),
+            CtxAct::School => "Send for a teacher".into(),
             _ => ctx_button(act).label,
         }
     }

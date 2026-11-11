@@ -186,3 +186,14 @@ fn test_the_hover_says_what_the_press_does() {
         assert!(m.ctx_blocked[i].is_none(), "a hint is not a block");
     }
 }
+
+#[test]
+fn test_the_button_names_the_deed_not_the_place() {
+    let mut g = Game::new();
+    // no school yet: the ask is to raise it
+    assert_eq!(g.ctx_label_at(0, CtxAct::School), "Found the school");
+    // the room stands but the desk's empty: the ask is to fill it
+    g.school = Some(g.world.create_entity());
+    g.teacher = None;
+    assert_eq!(g.ctx_label_at(0, CtxAct::School), "Send for a teacher");
+}
